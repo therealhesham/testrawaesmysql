@@ -22,7 +22,16 @@ const connection = mysql.createConnection({
   );
 // Define a simple route to handle GET requests to the home page
 app.get('/', (req, res) => {
-  res.send('Hello, world!');
+
+const com =    connection.query(
+        'SELECT * FROM `orders` ',
+        function(err, results, fields) {
+            res.json(results);
+
+         }
+      );
+    
+
 });
 
 // Define another route to handle a different endpoint
