@@ -26,7 +26,7 @@ app.get('/', (req, res) => {
 const com =    connection.query(
         'SELECT * FROM `orders` ',
         function(err, results, fields) {
-            res.send(results);
+            res.send(results[0]);
 
          }
       );
