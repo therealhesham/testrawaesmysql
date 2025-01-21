@@ -1,7 +1,5 @@
 //@ts-nocheck
 //@ts-ignore
-
-import axios from "axios";
 import Layout from "example/containers/Layout";
 import { useEffect, useState } from "react";
 
@@ -12,14 +10,15 @@ export default function Table(props) {
     Passport: "",
   });
   console.log(props.waiter);
-
-  const fetchData = async (page) => {
+  const [data, setData] = useState([]);
+  const fetchData = async () => {
     try {
       const response = await fetch(`/api/homemaidprisma/`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        method: "get",
       });
       const res = await response.json();
       //  setPagesCount(response.data.count);
@@ -28,7 +27,7 @@ export default function Table(props) {
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setLoading(false);
+      // setLoading(false);
     }
   };
 
@@ -106,7 +105,7 @@ export default function Table(props) {
             </tr>
           </thead>
           <tbody>
-            {filteredData.length === 0 ? (
+            {data.length === 0 ? (
               <tr>
                 <td
                   colSpan="4"
@@ -116,7 +115,7 @@ export default function Table(props) {
                 </td>
               </tr>
             ) : (
-              filteredData.map((item) => (
+              data.map((item) => (
                 <tr key={item.id} className="border-t">
                   <td className="p-3 text-sm text-gray-600">{item.id}</td>
                   <td className="p-3 text-sm text-gray-600">{item.Name}</td>
@@ -130,12 +129,4 @@ export default function Table(props) {
       </div>
     </Layout>
   );
-}
-export async function getServerSideProps() {
-  // console.log(location.origin)
-  const fetcher = await fetch("http://localhost:3000/api/homemaidlistprisma", {
-    method: "get",
-  });
-  const waiter = await fetcher.json();
-  return { props: { waiter } };
 }
