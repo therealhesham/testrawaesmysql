@@ -3,13 +3,13 @@
 import Layout from "example/containers/Layout";
 import { useEffect, useState } from "react";
 
-export default function Table(props) {
+export default function Table() {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
     Passport: "",
   });
-  console.log(props.waiter);
+  // console.log(props.waiter);
   const [data, setData] = useState([]);
   const fetchData = async () => {
     try {
@@ -45,15 +45,6 @@ export default function Table(props) {
   };
 
   // Function to apply filters to data
-  const filteredData = props.waiter.filter((item) => {
-    return (
-      (filters.Name === "" ||
-        item.Name.toLowerCase().includes(filters.Name.toLowerCase())) &&
-      (filters.age === "" || item.age.toString().includes(filters.age)) &&
-      (filters.Passport === "" ||
-        item.Passport.toLowerCase().includes(filters.Passport.toLowerCase()))
-    );
-  });
 
   return (
     <Layout>
