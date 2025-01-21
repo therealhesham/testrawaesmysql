@@ -8,10 +8,10 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    console.log(req.body);
-
     // await prisma..
-    const createAdmin = await prisma.homemaid.findMany();
+    const createAdmin = await prisma.homemaid.findMany({
+      select: { id: true },
+    });
     res.status(200).send(createAdmin);
   } catch (error) {
     console.log(error);

@@ -23,6 +23,7 @@ export default function Table(props) {
       });
       const res = await response.json();
       //  setPagesCount(response.data.count);
+      // console.log(res);
       setData(res);
     } catch (error) {
       console.error("Error fetching data:", error);
