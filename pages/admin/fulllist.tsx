@@ -4,11 +4,6 @@
 import axios from "axios";
 import Layout from "example/containers/Layout";
 import { useEffect, useState } from "react";
-const data = [
-  { id: 1, name: "hesham", age: 33, role: "IT" },
-  { id: 2, name: "yasser", age: 39, role: "doctor" },
-  { id: 3, name: "mohammed", age: 41, role: "42" },
-];
 
 export default function Table(props) {
   const [filters, setFilters] = useState({
