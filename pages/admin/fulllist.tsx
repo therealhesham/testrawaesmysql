@@ -15,9 +15,15 @@ export default function Table(props) {
 
   const fetchData = async (page) => {
     try {
-      const response = await axios.get(`/api/homemaidprisma/`);
+      const response = await fetch(`/api/homemaidprisma/`, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+      const res = await response.json();
       //  setPagesCount(response.data.count);
-      setData(response.data);
+      setData(res);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
