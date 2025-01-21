@@ -1,0 +1,256 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+ 
+
+  url      =env("DATABASE_URL")
+
+}
+model homemaid {
+  id                Int   @id @default(autoincrement())
+  Nationalitycopy   String? @db.VarChar(1024)
+  Name              String? @db.VarChar(1024)
+  Religion          String? @db.VarChar(1024)
+  Passportnumber    String? @db.VarChar(1024)
+  clientphonenumber String? @db.VarChar(1024)
+  Picture           Json?
+  ExperienceYears   String? @db.VarChar(1024)
+  maritalstatus     String? @db.VarChar(1024)
+  Experience        String? @db.VarChar(1024)
+  dateofbirth       String? @db.VarChar(1024)
+  Nationality       Json?
+  age               Int?
+  flag              Json?
+  phone             String? @db.VarChar(1024)
+  bookingstatus     String? @db.VarChar(1024)
+  ages              String? @db.VarChar(1024)
+
+}
+
+model Office{
+  id                Int   @id @default(autoincrement())
+  Officename        String  @unique
+  Location           String    
+  phonenumber     String
+}
+
+
+model Tasks{
+
+  id                Int   @id @default(autoincrement())
+  fullmessage     String
+  title           String
+  createdat       DateTime? @default(now())
+  sender          String
+  receiver        String  
+  read            Boolean @default(false)
+}
+
+
+model Timeline{
+  id                Int   @id @default(autoincrement())
+
+  type            String
+  date            DateTime? @default(now())
+  fulltext        String
+
+
+  // isUser          Boolean
+  // fullname        String
+  // email           String    @unique
+  // phonenumber     String
+  // password        String    
+  // createdat       DateTime? @default(now())
+
+
+}
+model Client{
+
+  id                Int   @id @default(autoincrement())
+  isUser          Boolean?
+  fullname        String? 
+  email           String? @unique
+  phonenumber     String? @unique
+  password        String ?   
+  createdat       DateTime? @default(now())
+  
+}
+model User {
+  phonenumber     Int? @unique
+  id                Int   @id @default(autoincrement())
+
+  admin           Boolean? @default(false)    
+  pictureurl      String ?   @default("")
+  username        String
+  password        String
+  role            String? @default("قسم الاستقدام")
+  idnumber        Int  ? @unique
+}
+
+model FemalWorker {
+
+  id                Int   @id @default(autoincrement())
+clientname        String
+insurance         String
+musanedContract    String
+visanumber         String
+idnumber          String
+mobilenumber      Int
+passportnumber    String
+workername        String
+age               Int
+experience            String
+contractstatus         String  
+city                   String
+orderDate           DateTime  
+
+canceled            Boolean @default(false)
+ended               Boolean @default(false)
+
+externaloffice      String
+nationality         String
+externalmusanedcontract String
+visaordernumber     String
+notes           String
+
+
+}
+
+model neworder{
+  id                Int   @id @default(autoincrement())
+ClientName          String
+PhoneNumber         String
+clientID              Int
+HomemaidId            Int
+
+  Nationalitycopy   String? @db.VarChar(1024)
+  Name              String? @db.VarChar(1024)
+  Religion          String? @db.VarChar(1024)
+  Passportnumber    String? @db.VarChar(1024)
+  clientphonenumber String? @db.VarChar(1024)
+  Picture           Json?
+  ExperienceYears   String? @db.VarChar(1024)
+  maritalstatus     String? @db.VarChar(1024)
+  Experience        String? @db.VarChar(1024)
+  dateofbirth       String? @db.VarChar(1024)
+  Nationality       Json?
+  age               Int?
+  flag              Json?
+  phone             String? @db.VarChar(1024)
+  bookingstatus     String? @db.VarChar(1024)
+  ages              String? @db.VarChar(1024)
+  createdAt    DateTime? @default(now()) 
+  updatedAt    DateTime? @updatedAt 
+updatedBy   String?
+
+}
+
+model MaleWorker {
+
+  id                Int   @id @default(autoincrement())
+clientname        String
+insurance         String
+musanedContract    String
+visanumber         String
+idnumber          String
+mobilenumber      Int
+passportnumber    String
+workername        String
+canceled            Boolean @default(false)
+ended               Boolean @default(false)
+age               Int
+job                String
+experience            String
+contractstatus         String  
+city                   String
+orderDate           DateTime
+externaloffice      String
+nationality         String
+externalmusanedcontract String
+visaordernumber     String
+notes           String
+
+
+}
+
+model arrivallist {
+
+  id                Int   @id @default(autoincrement())
+
+SponsorName       String
+InternalmusanedContract       String
+SponsorIdnumber              String
+SponsorPhoneNumber                String
+PassportNumber                String
+KingdomentryDate              String
+DayDate                       DateTime @default(now())
+WorkDuration                  String
+Cost                          String
+HomemaIdnumber                String
+HomemaidName                  String
+Notes                         String
+ArrivalCity                   String
+DateOfApplication             DateTime
+MusanadDuration               String
+ExternalDateLinking                  DateTime
+ExternalOFficeApproval        DateTime
+AgencyDate                    DateTime
+EmbassySealing                DateTime
+BookinDate                    DateTime
+GuaranteeDurationEnd          DateTime 
+}
+
+
+model Transfer{
+  id                Int   @id @default(autoincrement())
+
+client            String
+mobilenumber      String
+nationalidnumber  String
+passportnumber    String
+homemaid          String
+nationality       String
+kingdomentrydate  String
+daydate           DateTime 
+workduration      Int
+newclientname     String
+newclientmobilenumber String
+newclientnationalidnumber String
+newclientcity     String
+experimentstart   String
+experimentend   String
+dealcost        String
+paid            String
+restofpaid      String
+experimentresult  String
+accomaditionnumber  String
+
+marketeername String
+
+notes     String
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
