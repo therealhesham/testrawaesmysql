@@ -9,9 +9,7 @@ export default async function handler(
 ) {
   try {
     // await prisma..
-    const createAdmin = await prisma.homemaid.findMany({
-      select: { id: true },
-    });
+    const createAdmin = await prisma.homemaid.findMany();
     res.status(200).send(createAdmin);
   } catch (error) {
     console.log(error);
