@@ -1,9 +1,9 @@
 //@ts-nocheck
 //@ts-ignore
 
+import axios from "axios";
 import Layout from "example/containers/Layout";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 const data = [
   { id: 1, name: "hesham", age: 33, role: "IT" },
   { id: 2, name: "yasser", age: 39, role: "doctor" },
@@ -17,6 +17,23 @@ export default function Table(props) {
     Passport: "",
   });
   console.log(props.waiter);
+
+  const fetchData = async (page) => {
+    try {
+      const response = await axios.get(`/api/homemaidprisma/`);
+      //  setPagesCount(response.data.count);
+      setData(response.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   // Function to handle filtering by each column
   const handleFilterChange = (e, column) => {
     const value = e.target.value;
