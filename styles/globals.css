@@ -1,0 +1,111 @@
+@import url("https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@100..900&display=swap");
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+/* Custom styles for the timeline */
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shine {
+  animation: shine 2s infinite linear;
+}
+
+/* styles/globals.css or in a <style> tag inside your component */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+  }
+
+  .container {
+    border: none;
+    padding: 0;
+  }
+
+  .text-center {
+    text-align: center;
+  }
+
+  button {
+    display: none; /* Hide the button when printing */
+  }
+}
+/* end of print*/
+.step-number {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.step-title {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.step.active .step-number {
+  background-color: purple;
+}
+
+.step.active .step-title {
+  font-weight: bold;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.reem-kufi {
+  font-family: "Reem Kufi", sans-serif;
+  /* font-optical-sizing: auto; */
+  /* font-weight: <weight>; */
+  /* font-style: normal; */
+}
+
+.divbox {
+  display: grid;
+  /* gred */
+
+  align-items: stretch;
+  /* row-gap: "4px"; */
+  /* justify-content: center; */
+  justify-items: center;
+  align-items: center;
+
+  grid-template-columns: repeat(3, auto);
+  grid-template-rows: repeat(3, auto);
+
+  /* grid-template-columns: 22px; */
+  grid-row-gap: 22px;
+  justify-content: space-evenly;
+  grid-column-gap: 22px;
+}
