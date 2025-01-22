@@ -1,3 +1,5 @@
+//@ts-nocheck
+//@ts-ignore
 import Layout from "example/containers/Layout";
 import { useEffect, useState, useCallback } from "react";
 

@@ -32,20 +32,20 @@ function Layout({ children }: ILayout) {
   // },[])
 
   return (
-    <SidebarProvider>
-      <div
-        className={`flex h-screen bg-gray-50 dark:bg-gray-900 ${
-          isSidebarOpen && "overflow-hidden"
-        }`}
-      >
-        <Sidebar />
-        {/* <Sidebar /> */}
-        <div className="flex flex-col flex-1 w-full">
-          {/* <Header /> */}
-          <Main>{children}</Main>
-        </div>
+    // <SidebarProvider>
+    <div
+      className={`flex h-screen bg-gray-50 dark:bg-gray-900 ${
+        isSidebarOpen && "overflow-hidden"
+      }`}
+    >
+      <Sidebar />
+      {/* <Sidebar /> */}
+      <div className="flex flex-col flex-1 w-full">
+        {/* <Header /> */}
+        <Main>{children}</Main>
       </div>
-    </SidebarProvider>
+    </div>
+    // </SidebarProvider>
   );
 }
 
