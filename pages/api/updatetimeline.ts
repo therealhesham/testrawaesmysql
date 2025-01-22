@@ -15,11 +15,13 @@ export default async function handler(
   const prisma = new PrismaClient();
   console.log(req.body);
   try {
-    const newoffice = await prisma.neworder.create({
+    const newoffice = await prisma.neworder.update({
+      where: { id: Number(req.body.id) },
       data: { bookingstatus: req.body.bookingstatus },
     });
     res.status(200).json(newoffice);
   } catch (error) {
+    // console.log(error);
     res.status(301).json("error");
   }
 }

@@ -1,5 +1,6 @@
 //@ts-nocheck
 //@ts-ignore
+
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Layout from "example/containers/Layout";
@@ -10,8 +11,27 @@ import { Formik, Field, Form, ErrorMessage } from "formik";
 import * as Yup from "yup"; // Import Yup for validation
 import FormWithTimeline from "./addneworderbyadmin";
 import TimeLinedForm from "example/components/stepsform";
-
+import Modal from "components/modal";
 export default function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"success" | "error">("success");
+
+  const showSuccessModal = () => {
+    setModalMessage("تم تسجيل البيانات بنجاح");
+    setModalType("success");
+    setIsModalOpen(true);
+  };
+
+  const showErrorModal = () => {
+    setModalMessage("خطا في تسجيل البيانات.");
+    setModalType("error");
+    setIsModalOpen(true);
+  };
+
+  const closeSuccessfulModal = () => {
+    setIsModalOpen(false);
+  };
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -35,7 +55,7 @@ export default function Home() {
   });
   const [picture, setPicture] = useState({});
   const handlePrevStep = () => {
-    if (step > 1) setCurrentStep(step - 1);
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
   const fetchdata = async (id) => {
@@ -230,7 +250,8 @@ export default function Home() {
                 <tr>
                   <th className="px-4 py-2">ID</th>
                   <th className="px-4 py-2">Client</th>
-                  <th className="px-4 py-2">Phone</th>
+                  <th className="px-4 py-2">Client Phone</th>
+                  <th className="px-4 py-2">HomeMaid ID</th>
                   <th className="px-4 py-2">Religion</th>
                   <th className="px-4 py-2">Experience</th>
                   <th className="px-4 py-2">Age</th>
@@ -245,7 +266,14 @@ export default function Home() {
                   >
                     <td className="px-4 py-2 text-lg">{row.id}</td>
                     <td className="px-4 py-2">{row.ClientName}</td>
-                    <td className="px-4 py-2">{row.PhoneNumber}</td>
+                    <td className="px-4 py-2">{row.clientphonenumber}</td>
+                    <td
+                      onClick={() => router.push("/admin/cvdetails/4")}
+                      className="px-3 py-2 cursor-pointer decoration-black"
+                    >
+                      {row.HomemaidId}
+                    </td>
+
                     <td className="px-4 py-2">{row.Religion}</td>
                     <td className="px-4 py-2">{row.ExperienceYears}</td>
                     <td className="px-4 py-2">{row.age}</td>
@@ -318,7 +346,9 @@ export default function Home() {
                   if (currentStep === 4) {
                     console.log({
                       ...values,
-
+                      PhoneNumber: filteredSuggestions.phone
+                        ? filteredSuggestions.phone
+                        : "لا يوجد هاتف مسجل",
                       HomemaidId: filteredSuggestions.id,
                       age: filteredSuggestions.age,
                       clientphonenumber: values.phone,
@@ -340,8 +370,8 @@ export default function Home() {
                             HomemaidId: filteredSuggestions.id,
 
                             age: filteredSuggestions.age,
-                            clientphonenumber: filteredSuggestions.PhoneNumber,
-                            PhoneNumber: values.phone,
+                            clientphonenumber: values.phone,
+                            PhoneNumber: filteredSuggestions.phone,
                             Passportnumber: filteredSuggestions.Passportnumber,
                             maritalstatus: filteredSuggestions.maritalstatus,
                             Nationality: filteredSuggestions.Nationality,
@@ -361,9 +391,12 @@ export default function Home() {
                       if (fetchData.status == 200) {
                         setModalOpen(false);
                         setPage(1);
+                        showSuccessModal();
+                      } else {
+                        showErrorModal();
                       }
                     };
-
+                    // Modal
                     submit();
                     // Handle form submission
                     console.log(values);
@@ -588,6 +621,12 @@ export default function Home() {
                 )}
               </Formik>
             </div>
+            <Modal
+              isOpen={isModalOpen}
+              message={modalMessage}
+              type={modalType}
+              onClose={closeSuccessfulModal}
+            />
           </div>
         </div>
       )}

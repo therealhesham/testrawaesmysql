@@ -16,6 +16,7 @@ export default async function handler(
   const find = await prisma.neworder.findFirst({
     where: { id: Number(req.query.id) },
   });
+  // console.log(find);
   // sendSuggestion()
   //@ts-ignore
   // console.log(arr)

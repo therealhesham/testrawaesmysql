@@ -7,7 +7,6 @@ const Timeline = ({ stages, currentstatus, changeTimeline }) => {
   const [currentStage, setCurrentStage] = useState(currentstatus);
 
   const handleClick = (index) => {
-    alert(index);
     // alert(stages.indexOf(currentstatus));
     changeTimeline(index);
   };

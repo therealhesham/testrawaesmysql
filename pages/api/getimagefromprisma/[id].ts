@@ -17,7 +17,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log(req.body);
+  console.log(req.query);
   // sendSuggestion()
   try {
     const url =
@@ -28,43 +28,16 @@ export default async function handler(
       method: "GET",
       headers: {
         Authorization:
-          "Bearer patovGWItwsDoXzng.84565b10c27835cf1ac38c9f9b64e14a42a6ac3b825728e3970dffa94292577c",
+          "Bearer patBodVfcQQ0iIvcz.e577a4408fa0c7677c57740db3d3eb2be63f515495a13d2c2e23dbab1cdc6d9d",
         "Content-Type": "application/json",
       },
     };
 
-    fetch(url, options)
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Filtered Records:", data.records);
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
-
-    const token = req.cookies.token;
-
-    const decoder = jwt.verify(token, "secret");
-    const finder = await prisma.user.findFirst({
-      where: { idnumber: decoder?.idnumber },
-    });
-    if (finder.role != "adminstrator") return res.status(301).json("error");
-  } catch (error) {
-    console.log(error);
-    res.status(301).json("error");
-  }
-  try {
-    const result = await new Promise((resolve, reject) => {
-      const create = base("السير الذاتية").create(req.body);
-
-      resolve(create);
-    });
-    // console.log(result)
-    res.status(200).json(result);
-  } catch (error) {
-    console.log(error);
-    res.status(302).json({ error: "connectivity error" });
+    const f = await fetch(url, options);
+    const m = await f.json();
+    res.json(m);
+  } catch (e) {
+    console.log(e);
   }
 }
-
 // export base;

@@ -1,3 +1,5 @@
+//@ts-nocheck
+//@ts-ignore
 import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -14,11 +16,14 @@ export default async function handler(
           age: true,
           ages: true,
           id: true,
+          HomemaidId: true,
+          phone: true,
           ClientName: true,
           clientphonenumber: true,
           Passportnumber: true,
           Religion: true,
           Experience: true,
+          ExperienceYears: true,
         },
       });
 

@@ -192,16 +192,16 @@ SponsorIdnumber              String
 SponsorPhoneNumber                String
 PassportNumber                String
 KingdomentryDate              String
-DayDate                       DateTime @default(now())
 WorkDuration                  String
 Cost                          String
 HomemaIdnumber                String
 HomemaidName                  String
 Notes                         String
 ArrivalCity                   String
-DateOfApplication             DateTime
 MusanadDuration               String
-ExternalDateLinking                  DateTime
+DateOfApplication             DateTime
+DayDate                       DateTime @default(now())
+ExternalDateLinking           DateTime
 ExternalOFficeApproval        DateTime
 AgencyDate                    DateTime
 EmbassySealing                DateTime
