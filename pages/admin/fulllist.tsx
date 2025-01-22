@@ -1,7 +1,7 @@
 //@ts-nocheck
 //@ts-ignore
 import Layout from "example/containers/Layout";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export default function Table() {
   const [filters, setFilters] = useState({
@@ -9,11 +9,19 @@ export default function Table() {
     age: "",
     Passport: "",
   });
-  // console.log(props.waiter);
+
   const [data, setData] = useState([]);
-  const fetchData = async () => {
+  const [page, setPage] = useState(1); // Pagination state
+  const [loading, setLoading] = useState(false); // Loading state
+  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
+
+  // Fetch data with pagination
+  const fetchData = async (pageNum: number) => {
+    if (loading) return; // Prevent duplicate fetches if already loading
+    setLoading(true);
+
     try {
-      const response = await fetch(`/api/homemaidprisma/`, {
+      const response = await fetch(`/api/homemaidprisma/${pageNum}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -21,30 +29,56 @@ export default function Table() {
         method: "get",
       });
       const res = await response.json();
-      //  setPagesCount(response.data.count);
-      // console.log(res);
-      setData(res);
+
+      if (res && res.length > 0) {
+        setData((prevData) => [...prevData, ...res]); // Append new data
+        setPage(pageNum + 1); // Increment page
+      } else {
+        setHasMore(false); // No more data to load
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      // setLoading(false);
+      setLoading(false);
     }
   };
 
+  // Use a callback to call fetchData when the user reaches the bottom
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (loading || !hasMore) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            fetchData(page); // Fetch next page of data
+          }
+        },
+        { threshold: 1.0 }
+      );
+
+      if (node) observer.observe(node);
+
+      // Cleanup the observer when the component unmounts
+      return () => observer.disconnect();
+    },
+    [loading, hasMore, page]
+  );
+
   useEffect(() => {
-    fetchData();
+    fetchData(page); // Fetch the first page of data
   }, []);
 
-  // Function to handle filtering by each column
-  const handleFilterChange = (e, column) => {
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    column: string
+  ) => {
     const value = e.target.value;
     setFilters((prev) => ({
       ...prev,
       [column]: value,
     }));
   };
-
-  // Function to apply filters to data
 
   return (
     <Layout>
@@ -53,7 +87,6 @@ export default function Table() {
 
         {/* Column Filters */}
         <div className="flex justify-between mb-4">
-          {/* Name Filter */}
           <div className="flex-1 px-2">
             <input
               type="text"
@@ -63,7 +96,6 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          {/* Age Filter */}
           <div className="flex-1 px-2">
             <input
               type="text"
@@ -73,7 +105,6 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          {/* Role Filter */}
           <div className="flex-1 px-2">
             <input
               type="text"
@@ -117,6 +148,34 @@ export default function Table() {
             )}
           </tbody>
         </table>
+
+        {/* Infinite scroll trigger */}
+        {hasMore && (
+          <div
+            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
+            className="flex justify-center mt-6"
+          >
+            {loading && (
+              <div className="flex justify-center items-center">
+                <svg
+                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
+                  />
+                </svg>
+                Loading...
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   );

@@ -1,14 +1,16 @@
 //@ts-nocheck
 //@ts-ignore
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Timeline from "office/components/TimeLine";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { ClipboardCopyIcon } from "@heroicons/react/solid"; // Import the clipboard icon
-
+import { GridLoader } from "react-spinners";
+import SpinnerModal from "components/spinner";
+// GridLoader
 const SlugPage = () => {
   const router = useRouter();
   const { slug } = router.query; // Get the dynamic slug value
@@ -72,10 +74,11 @@ const SlugPage = () => {
   };
 
   const handleChangeReservationSubmit = async (e) => {
-    e.preventDefault();
-    const submitter = await fetch("../../api/changerservationstatus", {
+    const submitter = await fetch("/api/changerservationstatus", {
       method: "post",
       headers: {
+        Accept: "application/json",
+
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -83,7 +86,10 @@ const SlugPage = () => {
         bookingstatus: formDataReservationChange.bookingstatus,
       }),
     });
+
+    // alert(submitter.status);
     if (submitter.status == 200) {
+      // alert(submitter.status);
       setDate(Date.now());
       setSubmitted(true);
     }
@@ -108,6 +114,8 @@ const SlugPage = () => {
         return "bg-gray-500 text-white";
     }
   };
+
+  const updatekingdomentry = useRef(null);
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopySuccess("Copied!");
@@ -142,9 +150,33 @@ const SlugPage = () => {
     setIsFormVisible(!isFormVisible); // Toggle the form visibility
   };
 
-  const handleAccessFormSubmit = async (e) => {
+  const handleAccessFormSubmit = async (s) => {
     // Adding to access list
-    e.preventDefault();
+    // e.preventDefault();
+    const {
+      SponsorName,
+      InternalmusanedContract,
+      SponsorIdnumber,
+      SponsorPhoneNumber,
+      PassportNumber,
+      KingdomentryDate,
+      DayDate,
+      WorkDuration,
+      Cost,
+      HomemaIdnumber,
+      HomemaidName,
+      Notes,
+      ArrivalCity,
+      DateOfApplication,
+      MusanadDuration,
+      ExternalDateLinking,
+      ExternalOFficeApproval,
+      AgencyDate,
+      EmbassySealing,
+      BookinDate,
+      GuaranteeDurationEnd,
+    } = s;
+
     const submitter = await fetch("../../api/addhomemaidarrivalprisma", {
       method: "post",
       headers: {
@@ -152,8 +184,27 @@ const SlugPage = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        ...accessFormData,
-        ...formData,
+        SponsorName,
+        InternalmusanedContract,
+        SponsorIdnumber,
+        SponsorPhoneNumber,
+        PassportNumber,
+        KingdomentryDate,
+        DayDate,
+        WorkDuration,
+        Cost,
+        HomemaIdnumber,
+        HomemaidName,
+        Notes,
+        ArrivalCity,
+        DateOfApplication,
+        MusanadDuration,
+        ExternalDateLinking,
+        ExternalOFficeApproval,
+        AgencyDate,
+        EmbassySealing,
+        BookinDate,
+        GuaranteeDurationEnd,
       }),
     });
     const res = await submitter.json();
@@ -214,8 +265,10 @@ const SlugPage = () => {
   };
 
   const changeTimeline = async (state) => {
-    const fetcher = await fetch(`../../api/updatetimeline`, {
+    setModalSpinnerOpen(true);
+    const fetcher = await fetch(`/api/updatetimeline`, {
       body: JSON.stringify({
+        id: router.query.slug,
         bookingstatus: state,
       }),
       method: "post",
@@ -225,8 +278,19 @@ const SlugPage = () => {
       },
       cache: "default",
     });
+    // alert(fetcher.status);
     const jsonfetcher = await fetcher.json();
-    if (fetcher == 200) return setDate(Date.now());
+    if (fetcher.status == 200) {
+      // console.log(updatekingdomentry.current);
+      setDate(Date.now());
+      setModalSpinnerOpen(false);
+      setIsFormVisible(true);
+      updatekingdomentry.current.focus();
+
+      // console.log(updatekingdomentry.current);
+    } else {
+      setModalSpinnerOpen(false);
+    }
   };
 
   const validationSchema = Yup.object({
@@ -258,7 +322,7 @@ const SlugPage = () => {
     ),
     AgencyDate: Yup.date().required("Agency date is required"),
     EmbassySealing: Yup.date().required("Embassy sealing is required"),
-    BookinDate: Yup.date().required("Booking date is required"),
+    BookinDate: Yup.date(Date.now()).required("Booking date is required"),
     GuaranteeDurationEnd: Yup.date().required(
       "Guarantee duration end is required"
     ),
@@ -289,14 +353,26 @@ const SlugPage = () => {
     },
     validationSchema: validationSchema,
     onSubmit: (values) => {
-      console.log(values);
+      // console.log(values);
+      // console.log(values);
+      handleAccessFormSubmit(values);
       // Send data to the server or handle form submission
     },
   });
 
+  const [isModalSpinnerOpen, setModalSpinnerOpen] = useState(false);
+
+  const openSpinnerModal = () => {
+    setModalSpinnerOpen(true);
+  };
+
+  const closespinnerModal = () => {
+    setModalSpinnerOpen(false);
+  };
   return (
     <Layout>
       <div className="min-h-screen bg-gray-100 py-8">
+        <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-3xl font-bold text-center mb-8">
             بيانات العميل {clientInfoData.fullname}
@@ -414,7 +490,7 @@ const SlugPage = () => {
 
                 <div className="flex justify-between items-center">
                   <strong className="w-32">Name:</strong>
-                  <span>{formData.name}</span>
+                  <span>{formData.Name}</span>
                   <button
                     onClick={() => handleCopy(formData.name)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
@@ -538,7 +614,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Internalmusaned Contract */}
                   <div>
                     <label
@@ -563,7 +638,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Sponsor ID Number */}
                   <div>
                     <label
@@ -588,7 +662,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Sponsor Phone Number */}
                   <div>
                     <label
@@ -613,7 +686,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Passport Number */}
                   <div>
                     <label
@@ -638,7 +710,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Kingdom Entry Date */}
                   <div>
                     <label
@@ -663,7 +734,52 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
+                  <div>
+                    <label
+                      htmlFor="DateOfApplication"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ تقديم الطلب
+                    </label>
+                    <input
+                      id="DateOfApplication"
+                      name="DateOfApplication"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.DateOfApplication}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.DateOfApplication &&
+                      formik.touched.DateOfApplication && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.DateOfApplication}
+                        </div>
+                      )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="ExternalDateLinking"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ الربط مع مساند
+                    </label>
+                    <input
+                      id="ExternalDateLinking"
+                      name="ExternalDateLinking"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.ExternalDateLinking}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.ExternalDateLinking &&
+                      formik.touched.ExternalDateLinking && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.ExternalDateLinking}
+                        </div>
+                      )}
+                  </div>
                   {/* Work Duration */}
                   <div>
                     <label
@@ -688,8 +804,144 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Cost */}
+                  <div>
+                    <label
+                      htmlFor="ExternalOFficeApproval"
+                      className="block font-semibold text-sm"
+                    >
+                      موافقة المكتب الخارجي
+                    </label>
+                    <input
+                      id="ExternalOFficeApproval"
+                      name="ExternalOFficeApproval"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.ExternalOFficeApproval}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.ExternalOFficeApproval &&
+                      formik.touched.ExternalOFficeApproval && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.ExternalOFficeApproval}
+                        </div>
+                      )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="AgencyDate"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ الربط مع الوكالة
+                    </label>
+                    <input
+                      id="AgencyDate"
+                      name="AgencyDate"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.AgencyDate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.AgencyDate && formik.touched.AgencyDate && (
+                      <div className="text-red-600 text-sm">
+                        {formik.errors.AgencyDate}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="BookinDate"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ الحجز
+                    </label>
+                    <input
+                      id="BookinDate"
+                      name="BookinDate"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.BookinDate}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.BookinDate && formik.touched.BookinDate && (
+                      <div className="text-red-600 text-sm">
+                        {formik.errors.BookinDate}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="GuaranteeDurationEnd"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ انتهاء مدة الضمان
+                    </label>
+                    <input
+                      id="GuaranteeDurationEnd"
+                      name="GuaranteeDurationEnd"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.GuaranteeDurationEnd}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.GuaranteeDurationEnd &&
+                      formik.touched.GuaranteeDurationEnd && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.GuaranteeDurationEnd}
+                        </div>
+                      )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="EmbassySealing"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ التختيم في السفارة
+                    </label>
+                    <input
+                      id="EmbassySealing"
+                      name="EmbassySealing"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.EmbassySealing}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.EmbassySealing &&
+                      formik.touched.EmbassySealing && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.EmbassySealing}
+                        </div>
+                      )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="MusanadDuration"
+                      className="block font-semibold text-sm"
+                    >
+                      المدة في مساند
+                    </label>
+                    <input
+                      id="MusanadDuration"
+                      name="MusanadDuration"
+                      type="text"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.MusanadDuration}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.MusanadDuration &&
+                      formik.touched.MusanadDuration && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.MusanadDuration}
+                        </div>
+                      )}
+                  </div>
                   <div>
                     <label
                       htmlFor="Cost"
@@ -712,7 +964,6 @@ const SlugPage = () => {
                       </div>
                     )}
                   </div>
-
                   {/* Home Maid ID */}
                   <div>
                     <label
@@ -737,7 +988,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Home Maid Name */}
                   <div>
                     <label
@@ -762,7 +1012,6 @@ const SlugPage = () => {
                         </div>
                       )}
                   </div>
-
                   {/* Notes */}
                   <div>
                     <label
@@ -785,7 +1034,29 @@ const SlugPage = () => {
                       </div>
                     )}
                   </div>
-
+                  <div>
+                    <label
+                      htmlFor="ArrivalCity"
+                      className="block font-semibold text-sm"
+                    >
+                      مدينة الوصول
+                    </label>
+                    <input
+                      id="ArrivalCity"
+                      name="ArrivalCity"
+                      type="text"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.ArrivalCity}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.ArrivalCity &&
+                      formik.touched.ArrivalCity && (
+                        <div className="text-red-600 text-sm">
+                          {formik.errors.ArrivalCity}
+                        </div>
+                      )}
+                  </div>
                   {/* Submit Button */}
                   <div className="col-span-2 text-center mt-4">
                     <button

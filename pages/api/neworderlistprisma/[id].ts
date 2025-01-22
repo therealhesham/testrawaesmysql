@@ -25,6 +25,8 @@ export default async function handler(
       Passportnumber: true,
       Religion: true,
       Experience: true,
+      HomemaidId: true,
+      ExperienceYears: true,
     },
     orderBy: { id: "desc" },
     skip: page * 10,
