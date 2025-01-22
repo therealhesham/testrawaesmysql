@@ -21,7 +21,7 @@ export default function Table() {
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/homemaidprisma/?page=${pageNum}`, {
+      const response = await fetch(`/api/homemaidprisma/${pageNum}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -32,6 +32,7 @@ export default function Table() {
 
       if (res && res.length > 0) {
         setData((prevData) => [...prevData, ...res]); // Append new data
+
         setPage(pageNum + 1); // Increment page
       } else {
         setHasMore(false); // No more data to load
@@ -52,6 +53,8 @@ export default function Table() {
         (entries) => {
           if (entries[0].isIntersecting) {
             fetchData(page); // Fetch next page of data
+
+            alert(page);
           }
         },
         { threshold: 1.0 }
