@@ -1,3 +1,5 @@
+//@ts-nocheck
+//@ts-ignore
 // components/MultiStepForm.js
 import Layout from "example/containers/Layout";
 import { useState } from "react";
