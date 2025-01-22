@@ -91,7 +91,7 @@ const Sidebar = () => {
     <div
       className={wrapperClasses}
       onMouseEnter={onMouseOver}
-      // onMouseLeave={onMouseOver}
+      onMouseLeave={onMouseOver}
       style={{ transition: "width 300ms cubic-bezier(0.2, 0, 0, 1) 0s" }}
     >
       <div className="flex flex-col">
@@ -128,7 +128,7 @@ const Sidebar = () => {
             return (
               <div key={menu.id} className={classes}>
                 <Link href={menu.link}>
-                  <a className="flex py-4 px-3 items-center w-full h-full">
+                  <a className="flex py-4 px-3 items-center justify-center w-full h-full">
                     <div style={{ width: "2.5rem", color: "white" }}>
                       <Icon />
                     </div>

@@ -205,7 +205,7 @@ export default function Home() {
             </a>
           </Link>
 
-          <Link href="admin/arrival-list">
+          <Link href="/admin/arrival-list">
             <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
               <div className="text-xl font-semibold flex flex-col justify-center items-center">
                 <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
