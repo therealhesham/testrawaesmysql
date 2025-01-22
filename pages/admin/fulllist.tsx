@@ -1,5 +1,3 @@
-//@ts-nocheck
-//@ts-ignore
 import Layout from "example/containers/Layout";
 import { useEffect, useState, useCallback } from "react";
 
@@ -21,7 +19,7 @@ export default function Table() {
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/homemaidprisma/${pageNum}`, {
+      const response = await fetch(`/api/homemaidprisma/?page=${pageNum}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
