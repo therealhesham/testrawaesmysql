@@ -2,12 +2,13 @@
 //@ts-ignore
 import { useState } from "react";
 import { useRouter } from "next/router";
+import { signIn } from "next-auth/react";
 import { Formik, Field, Form, ErrorMessage } from "formik";
 import * as Yup from "yup"; // Import Yup for schema validation
 
 // Validation Schema using Yup
 const validationSchema = Yup.object({
-  ID: Yup.string().required("ID is required"),
+  email: Yup.string().required("email is required"),
   password: Yup.string()
     .min(6, "Password must be at least 6 characters")
     .required("Password is required"),
@@ -17,12 +18,21 @@ export default function Login() {
   const router = useRouter();
 
   // Handle form submission
-  const handleSubmit = (values) => {
-    const { ID, password } = values;
-    if (ID === "test@example.com" && password === "password123") {
-      router.push("/dashboard"); // Redirect to dashboard after successful login
+  const handleSubmit = async (values) => {
+    // e.preventDefault();
+    console.log(values);
+    const res = await signIn("credentials", {
+      redirect: false,
+      // redirect: false, // Prevent automatic redirect
+      email: values.email,
+      password: values.password,
+    });
+    console.log(res);
+
+    if (res?.error) {
+      alert("Error");
     } else {
-      alert("Invalid credentials. Please try again.");
+      // router.push("/dashboard"); // Redirect to a protected page after successful login
     }
   };
 
@@ -44,7 +54,7 @@ export default function Login() {
 
         {/* Formik Form with Yup Validation */}
         <Formik
-          initialValues={{ ID: "", password: "" }}
+          initialValues={{ email: "", password: "" }}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
         >
@@ -52,20 +62,20 @@ export default function Login() {
             <Form>
               <div className="mb-4">
                 <label
-                  htmlFor="ID"
+                  htmlFor="email"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  ID Address
+                  Email Address
                 </label>
                 <Field
-                  type="ID"
-                  id="ID"
-                  name="ID"
+                  type="email"
+                  id="email"
+                  name="email"
                   className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter your ID"
+                  placeholder="Enter your Email"
                 />
                 <ErrorMessage
-                  name="ID"
+                  name="email"
                   component="div"
                   className="text-xs text-red-500 mt-1"
                 />

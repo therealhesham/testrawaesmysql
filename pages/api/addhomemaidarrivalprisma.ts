@@ -33,11 +33,11 @@ export default async function handler(
     console.log(req.body);
 
     // await prisma..
-    const createAdmin = await prisma.arrivallist.create({
+    const createarrivallist = await prisma.arrivallist.create({
       data: {
         SponsorName,
         InternalmusanedContract,
-        SponsorIdnumber,
+        // SponsorIdnumber,
         SponsorPhoneNumber,
         PassportNumber,
         KingdomentryDate: new Date(KingdomentryDate).toISOString(),
@@ -58,7 +58,7 @@ export default async function handler(
         GuaranteeDurationEnd: new Date(GuaranteeDurationEnd).toISOString(),
       },
     });
-    res.status(200).send(createAdmin);
+    res.status(200).json(createarrivallist);
   } catch (error) {
     console.log(error);
     res.status(301).send("createAdmin");

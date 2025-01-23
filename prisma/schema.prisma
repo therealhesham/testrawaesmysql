@@ -20,6 +20,9 @@ model homemaid {
   Nationalitycopy   String? @db.VarChar(1024)
   Name              String? @db.VarChar(1024)
   Religion          String? @db.VarChar(1024)
+  Office         Office?  @relation(fields: [officeID],references: [id]) 
+officeID            Int?
+
   Passportnumber    String? @db.VarChar(1024)
   clientphonenumber String? @db.VarChar(1024)
   Picture           Json?
@@ -33,7 +36,8 @@ model homemaid {
   phone             String? @db.VarChar(1024)
   bookingstatus     String? @db.VarChar(1024)
   ages              String? @db.VarChar(1024)
-
+NewOrder      neworder[]
+Client        Client[]
 }
 
 model Office{
@@ -41,38 +45,13 @@ model Office{
   Officename        String  @unique
   Location           String    
   phonenumber     String
-}
+  Homemaids     homemaid[]
 
-
-model Tasks{
-
-  id                Int   @id @default(autoincrement())
-  fullmessage     String
-  title           String
-  createdat       DateTime? @default(now())
-  sender          String
-  receiver        String  
-  read            Boolean @default(false)
-}
-
-
-model Timeline{
-  id                Int   @id @default(autoincrement())
-
-  type            String
-  date            DateTime? @default(now())
-  fulltext        String
-
-
-  // isUser          Boolean
-  // fullname        String
-  // email           String    @unique
-  // phonenumber     String
-  // password        String    
-  // createdat       DateTime? @default(now())
 
 
 }
+
+
 model Client{
 
   id                Int   @id @default(autoincrement())
@@ -80,10 +59,13 @@ model Client{
   fullname        String? 
   email           String? @unique
   phonenumber     String? @unique
-  password        String ?   
+  password        String ?
+HomeMaidRecod     Int?        
+  HomeMaid        homemaid?  @relation(fields: [HomeMaidRecod],references: [id])
   createdat       DateTime? @default(now())
-  
-}
+  orders          neworder[]  
+  arrivals        arrivallist[]
+  }
 model User {
   phonenumber     Int? @unique
   id                Int   @id @default(autoincrement())
@@ -122,16 +104,19 @@ externalmusanedcontract String
 visaordernumber     String
 notes           String
 
-
 }
 
 model neworder{
   id                Int   @id @default(autoincrement())
 ClientName          String
 PhoneNumber         String
-clientID              Int
-HomemaidId            Int
+clientID              Int?
+HomemaidId            Int?
+Client              Client? @relation(fields: [clientID],references: [id])
 
+HomeMaid             homemaid?  @relation(fields: [HomemaidId],references: [id])
+    bookingstatus     String? @db.VarChar(1024)
+ReasonOfRejection    String?  
   Nationalitycopy   String? @db.VarChar(1024)
   Name              String? @db.VarChar(1024)
   Religion          String? @db.VarChar(1024)
@@ -146,7 +131,6 @@ HomemaidId            Int
   age               Int?
   flag              Json?
   phone             String? @db.VarChar(1024)
-  bookingstatus     String? @db.VarChar(1024)
   ages              String? @db.VarChar(1024)
   createdAt    DateTime? @default(now()) 
   updatedAt    DateTime? @updatedAt 
@@ -186,16 +170,20 @@ model arrivallist {
 
   id                Int   @id @default(autoincrement())
 
-SponsorName       String
-InternalmusanedContract       String
-SponsorIdnumber              String
-SponsorPhoneNumber                String
-PassportNumber                String
-KingdomentryDate              String
+SponsorName       String?
+InternalmusanedContract       String?
+SponsorIdnumber              Int?
+Sponsor                   Client? @relation(fields: [SponsorIdnumber],references: [id])
+
+SponsorPhoneNumber                String?
+PassportNumber                String?
+KingdomentryDate              String?
 WorkDuration                  String
 Cost                          String
-HomemaIdnumber                String
+HomemaIdnumber                Int
 HomemaidName                  String
+
+
 Notes                         String
 ArrivalCity                   String
 MusanadDuration               String
@@ -212,31 +200,30 @@ GuaranteeDurationEnd          DateTime
 
 model Transfer{
   id                Int   @id @default(autoincrement())
+client            String?
+mobilenumber      String?
+nationalidnumber  String?
+passportnumber    String?
+homemaid          String?
+nationality       String?
+kingdomentrydate  String?
+daydate           DateTime? 
+workduration      Int?
+newclientname     String?
+newclientmobilenumber String?
+newclientnationalidnumber String?
+newclientcity     String?
+experimentstart   String?
+experimentend   String?
+dealcost        String?
+paid            String?
+restofpaid      String?
+experimentresult  String?
+accomaditionnumber  String?
 
-client            String
-mobilenumber      String
-nationalidnumber  String
-passportnumber    String
-homemaid          String
-nationality       String
-kingdomentrydate  String
-daydate           DateTime 
-workduration      Int
-newclientname     String
-newclientmobilenumber String
-newclientnationalidnumber String
-newclientcity     String
-experimentstart   String
-experimentend   String
-dealcost        String
-paid            String
-restofpaid      String
-experimentresult  String
-accomaditionnumber  String
+marketeername String?
 
-marketeername String
-
-notes     String
+notes     String?
 
 
 

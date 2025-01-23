@@ -13,7 +13,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    console.log(req.query.id);
+    console.log(req.query);
     // Parse pagination parameters from the query
     const page = parseInt(req.query.id); // Default to page 1 if not provided
     const pageSize = 10; // Number of records per page

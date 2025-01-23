@@ -1,10 +1,9 @@
 import Layout from "example/containers/Layout";
 import { useEffect, useState } from "react";
 
-const ArrivalListTable = () => {
+const ResponsiveTable = () => {
   const [arrivalList, setArrivalList] = useState<any[]>([]);
 
-  // Fetch data from an API or database
   useEffect(() => {
     // Example data fetching (replace with your actual API call or Prisma query)
     const fetchData = async () => {
@@ -17,133 +16,94 @@ const ArrivalListTable = () => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4  sm:px-6 lg:px-8 py-6 ">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Arrival List</h1>
-        <div className="overflow-hidden shadow border-b border-gray-200 sm:rounded-lg">
-          <table className=" min-w-full table-auto border-collapse">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  اسم الكفيل
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  عقد مساند الداخلي
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  هوية الكفيل
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  جوال الكفيل
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  رقم جواز السفر
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Kingdom Entry Date
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Work Duration
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Cost
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Homemaid ID
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Homemaid Name
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Arrival City
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Application Date
-                </th>
+      <div className="overflow-x-auto p-4">
+        <table className="min-w-full table-auto border-collapse border border-gray-300">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                اسم الكفيل
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                عقد مساند الداخلي
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                هوية الكفيل
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                جوال الكفيل
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                رقم جواز السفر
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Kingdom Entry Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Work Duration
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Cost
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Homemaid ID
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Homemaid Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Arrival City
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase border border-gray-300">
+                Application Date
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white">
+            {arrivalList.map((row) => (
+              <tr key={row.id} className="divide-y divide-gray-200">
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 border border-gray-300 whitespace-nowrap">
+                  {row.SponsorName}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.InternalmusanedContract}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.SponsorIdnumber}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.SponsorPhoneNumber}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.PassportNumber}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.KingdomentryDate}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.WorkDuration}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.Cost}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.HomemaIdnumber}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.HomemaidName}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {row.ArrivalCity}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500 border border-gray-300 whitespace-nowrap">
+                  {new Date(row.DateOfApplication).toLocaleDateString()}
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {arrivalList.map((row) => (
-                <tr key={row.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg font-medium text-gray-900">
-                    {row.SponsorName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.InternalmusanedContract}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.SponsorIdnumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.SponsorPhoneNumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.PassportNumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.KingdomentryDate}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.WorkDuration}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.Cost}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.HomemaIdnumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.HomemaidName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {row.ArrivalCity}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-500">
-                    {new Date(row.DateOfApplication).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </Layout>
   );
 };
 
-export default ArrivalListTable;
+export default ResponsiveTable;
