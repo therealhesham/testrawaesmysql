@@ -11,7 +11,11 @@ export default async function handler(
   try {
     const updated = await prisma.neworder.update({
       where: { id: Number(req.body.id) },
-      data: { bookingstatus: req.body.bookingstatus },
+      data: {
+        bookingstatus: "طلب مرفوض",
+        ReasonOfRejection: req.body.ReasonOfRejection,
+        HomeMaid: { disconnect: true },
+      },
     });
 
     // Respond with the updated booking status

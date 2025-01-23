@@ -13,11 +13,11 @@ export default async function handler(
   const prisma = new PrismaClient();
   console.log(req.query);
   console.log(req.query.id);
-  const find = await prisma.homemaid.findFirst({
-    include: { NewOrder: true, Client: true },
+  const find = await prisma.neworder.findFirst({
+    include: { HomeMaid: true, Client: true },
     where: { id: { equals: Number(req.query.id) } },
   });
-  // console.log(find);
+  console.log(find);
   // sendSuggestion()
   //@ts-ignore
   // console.log(arr)

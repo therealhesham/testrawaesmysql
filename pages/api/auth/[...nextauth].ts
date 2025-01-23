@@ -10,9 +10,8 @@ const authenticateUser = async (email, password) => {
   const users = [
     {
       id: 1,
-      email: "user@example.com",
-      password: "password123",
-      name: "John Doe",
+      email: "ra@gmail.com",
+      password: "123456",
     },
   ];
 
@@ -53,7 +52,7 @@ export default NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        console.log(user);
+        console.log(token);
         token.email = user.email;
       }
       console.log(token);

@@ -1,5 +1,6 @@
 //@ts-ignore
 //@ts-nocheck
+"use client";
 import Layout from "example/containers/Layout";
 import Link from "next/link";
 import {
@@ -16,6 +17,7 @@ import {
 } from "react-icons/fa"; // Import icons from react-icons
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
 // import {  } from "@ant-design/icons";
 
 // Helper function to calculate remaining days
@@ -28,6 +30,8 @@ const calculateRemainingDays = (eventDate) => {
 };
 
 export default function Home() {
+  const router = useRouter();
+
   const { data: session, status } = useSession();
 
   const monthColors = [
@@ -65,10 +69,12 @@ export default function Home() {
     ];
     setEvents(eventData);
   };
-
+  const [isClient, setIsClient] = useState(false);
   useEffect(() => {
+    if (!router) return;
+    // setIsClient(true);
     fetchEvents();
-  }, []);
+  }, [router]);
 
   // Get the number of days in the current month
   const getDaysInMonth = (month, year) => {
@@ -157,19 +163,9 @@ export default function Home() {
     }
   };
 
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
-
-  if (!session) {
-    return (
-      <div>
-        <p>You must be signed in to view this page.</p>
-        <button onClick={() => signIn()}>Sign In</button>
-      </div>
-    );
-  }
-
+  // if (status === "loading") {
+  //   return <div>Loading...</div>;
+  // }
   return (
     <Layout>
       <div className="min-h-screen bg-gray-100">
@@ -219,7 +215,7 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
           {/* Box 5 */}
-          <Link href="/page3">
+          <Link href="/admin/rejectedorders">
             <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
               <div className="text-xl font-semibold flex flex-col justify-center items-center">
                 <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
@@ -291,7 +287,7 @@ export default function Home() {
           </Link>
 
           {/* Box 7 */}
-          <Link href="/page3">
+          <Link href="/admin/offices">
             <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
               <div className="text-xl font-semibold flex flex-col justify-center items-center">
                 <FaHome className="mb-2 text-3xl" /> {/* Add icon */}

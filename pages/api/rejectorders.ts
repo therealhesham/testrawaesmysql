@@ -15,7 +15,7 @@ export default async function handler(
   console.log(req.query.pid);
   const count = await prisma.neworder.count();
   const find = await prisma.neworder.findMany({
-    where: { NOT: { bookingstatus: "حجز جديد" } },
+    where: { bookingstatus: "طلب مرفوض" },
   });
   // sendSuggestion()
   //@ts-ignore

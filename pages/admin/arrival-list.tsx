@@ -9,6 +9,7 @@ const ResponsiveTable = () => {
     const fetchData = async () => {
       const response = await fetch("/api/arrivals");
       const data = await response.json();
+      console.log(data);
       setArrivalList(data);
     };
     fetchData();
@@ -17,6 +18,12 @@ const ResponsiveTable = () => {
   return (
     <Layout>
       <div className="overflow-x-auto p-4">
+        <div className="flex items-center justify-center">
+          <p className="text-2xl font-bold text-cool-gray-700 mb-5">
+            قائمة الوصول
+          </p>
+        </div>
+
         <table className="min-w-full table-auto border-collapse border border-gray-300">
           <thead className="bg-gray-50">
             <tr>

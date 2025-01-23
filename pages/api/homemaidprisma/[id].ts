@@ -21,6 +21,8 @@ export default async function handler(
 
     // Fetch data from the Prisma database
     const homemaids = await prisma.homemaid.findMany({
+      where: { NewOrder: { every: { HomemaidId: null } } },
+
       skip: skip, // Skip records based on the page
       take: pageSize, // Limit the number of records per page
     });
