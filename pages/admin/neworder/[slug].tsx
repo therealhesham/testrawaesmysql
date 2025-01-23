@@ -14,6 +14,8 @@ import Modal from "components/modal";
 import SpinnerModal from "components/spinner";
 import SuccessModal from "office/components/successcoponent";
 import { Spinner } from "react-bootstrap";
+import RejectBooking from "../reject-booking";
+import ErrorModal from "office/components/errormodal";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
@@ -35,7 +37,7 @@ const SlugPage = () => {
 
   const { slug } = router.query; // Get the dynamic slug value
   const [formData, setFormData] = useState({
-    Client: [{ FullName: "" }],
+    Client: [{ fullname: "" }],
     NewOrder: [{ bookingstatus: "" }],
   });
   const [submitted, setSubmitted] = useState(false);
@@ -103,8 +105,8 @@ const SlugPage = () => {
 
   const getReservationIndicatorStyles = () => {
     switch (formData.bookingstatus) {
-      case "newreservation":
-        return "bg-green-500 text-white";
+      case "طلب مرفوض":
+        return "bg-red-700 text-white";
       case "underrevision":
         return "bg-purple-500 text-black";
       case "medicalcheck":
@@ -205,17 +207,17 @@ const SlugPage = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        SponsorName: formData.Client[0].fullname,
+        SponsorName: formData.ClientName,
         InternalmusanedContract,
 
-        SponsorIdnumber: formData.Client[0].id,
-        SponsorPhoneNumber: formData.id + "",
+        SponsorIdnumber: formData.ClientID,
+        SponsorPhoneNumber: formData.clientphonenumber + "",
         PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
         WorkDuration,
         Cost,
-        HomemaIdnumber: formData.id,
+        HomemaIdnumber: formData.homemaidId,
         HomemaidName: formData.Name,
         Notes,
         ArrivalCity,
@@ -393,11 +395,66 @@ const SlugPage = () => {
   const closespinnerModal = () => {
     setModalSpinnerOpen(false);
   };
+  const [reason, setReason] = useState("");
+  const [isModalRejectionOpen, setIsModalRejectionOpen] = useState(false);
+  const OpenRejectionModal = () => setIsModalRejectionOpen(true); // Function to open the modal
+  const handleCancelRejectionModal = () => setIsModalRejectionOpen(false); // Function to close the modal
+  const handleReject = async () => {
+    const submitter = await fetch("/api/rejectbookingprisma", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: router.query.slug,
+        ReasonOfRejection: reason,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      setDate(Date.now());
+
+      setIsModalRejectionOpen(false); // Close the modal after rejection
+    }
+  };
+
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const triggerError = () => {
+    setErrorMessage("الطلب تم رفضه");
+    setIsModalOpen(true);
+  };
+
+  const closeErrorModal = () => {
+    setFormData({ bookingstatus: "" });
+    setIsErrorModalOpen(false);
+    // setErrorMessage("");
+  };
   return (
     <Layout>
       {/* min-h-screen */}
       <div className=" bg-gray-100 py-8">
+        {formData.bookingstatus == "طلب مرفوض" ? (
+          <ErrorModal
+            message={errorMessage}
+            onClose={closeErrorModal}
+            isErrorModalOpen={isErrorModalOpen}
+          />
+        ) : null}
         <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
+        <RejectBooking
+          reason={reason}
+          setReason={setReason} // Passing setReason if needed
+          OpenRejectionModal={OpenRejectionModal}
+          handleCancelRejectionModal={handleCancelRejectionModal}
+          handleReject={handleReject}
+          isModalRejectionOpen={isModalRejectionOpen}
+        />
         <Modal
           isOpen={isModalOpen}
           message={modalMessage}
@@ -406,13 +463,13 @@ const SlugPage = () => {
         />
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-3xl font-bold text-center mb-8">
-            بيانات العميل{" "}
-            {formData.Client[0].FullName ? formData?.Client[0].FullName : ""}
+            Details:
+            {formData.ClientName ? formData.ClientName : ""}
           </h1>
 
           {/* Timeline Component with Clickable Stages */}
           <Timeline
-            currentstatus={formData.NewOrder[0].bookingstatus}
+            currentstatus={formData.HomemaidId}
             stages={stages}
             changeTimeline={changeTimeline}
           />
@@ -473,14 +530,14 @@ const SlugPage = () => {
               </h2>
               <div className="space-y-4">
                 <p>
-                  <strong>Name:</strong> {formData.Client[0].fullname}
+                  <strong>Name:</strong> {formData.ClientName}
                 </p>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Email:</strong> {formData.Client[0].email}
+                    <strong>Email:</strong> {formData.email}
                   </p>
                   <a
-                    href={`mailto:${formData.Client[0].email}`}
+                    href={`mailto:${formData.email}`}
                     className="text-white bg-blue-500 px-4 py-2 rounded-lg"
                   >
                     Message
@@ -488,10 +545,10 @@ const SlugPage = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Phone:</strong> {formData.Client[0].phonenumber}
+                    <strong>Phone:</strong> {formData.Clientphonenumber}
                   </p>
                   <a
-                    href={`https://wa.me/${formData.Client[0].phonenumber}`}
+                    href={`https://wa.me/${formData.Clientphonenumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-white bg-green-500 px-4 py-2 rounded-lg"
@@ -548,7 +605,7 @@ const SlugPage = () => {
                   <strong className="w-32">Age:</strong>
                   <span>{formData.age}</span>
                   <button
-                    onClick={() => handleCopy(formData.ages)}
+                    onClick={() => handleCopy(formData.age)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Age"
                   >
@@ -561,12 +618,10 @@ const SlugPage = () => {
                   className={`flex justify-between items-center px-4 py-2 rounded-lg ${getReservationIndicatorStyles()}`}
                 >
                   <strong className="w-32">Booking Status:</strong>
-                  <span>{formData.NewOrder[0].bookingstatus}</span>
+                  <span>{formData.bookingstatus}</span>
                   <button
-                    onClick={() =>
-                      handleCopy(formData.NewOrder[0].bookingstatus)
-                    }
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
+                    onClick={() => handleCopy(formData.bookingstatus)}
+                    className="ml-2 p-1  text-gray-500 hover:text-gray-700"
                     aria-label="Copy Booking Status"
                   >
                     <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
@@ -578,7 +633,7 @@ const SlugPage = () => {
                   className={`flex justify-between items-center px-4 py-2 rounded-lg ${getExperienceIndicatorStyles()}`}
                 >
                   <strong className="w-32">Experience:</strong>
-                  <span>{formData.NewOrder[0].ExperienceYears} years</span>
+                  <span>{formData.ExperienceYears} years</span>
                   <button
                     onClick={() => handleCopy(formData.ExperienceYears)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
@@ -607,6 +662,16 @@ const SlugPage = () => {
                 )}
               </div>
             </div>{" "}
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
+            {/* Button to toggle the form */}
+            <button
+              onClick={toggleFormVisibility}
+              className="mb-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-700"
+            >
+              رفض الطلب
+            </button>
           </div>
 
           {/* Modal Form */}

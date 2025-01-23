@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -21,6 +20,7 @@ export default async function handler(
     Name,
     Passportnumber,
     maritalstatus,
+    email,
     Nationality,
     Religion,
     ExperienceYears,
@@ -28,27 +28,20 @@ export default async function handler(
 
   try {
     // Begin transaction to update homemaid and create related records
-    const result = await prisma.homemaid.update({
-      where: { id: HomemaidId },
+    const result = await prisma.neworder.create({
       data: {
+        ClientName,
+        Religion,
+        PhoneNumber: "0",
+        ages: age + "",
         Client: {
           create: {
+            email,
             fullname: ClientName, // Ensure the name field in the schema is 'fullname'
             phonenumber: clientphonenumber, // Ensure the phonenumber field in the schema matches
           },
         },
-        NewOrder: {
-          create: {
-            ClientName,
-            PhoneNumber: String(PhoneNumber), // Convert PhoneNumber to string if needed
-            ages: age + "",
-            bookingstatus: "حجز جديد", // Ensure the status is correct
-            clientphonenumber,
-            Passportnumber,
-            ExperienceYears,
-            Religion,
-          },
-        },
+        HomeMaid: { connect: { id: HomemaidId } },
       },
     });
 

@@ -28,7 +28,7 @@ export default async function handler(
       HomemaidId: true,
       ExperienceYears: true,
     },
-    orderBy: { id: "desc" },
+    orderBy: { id: "asc" },
     skip: page * 10,
     take: 10,
     where: { bookingstatus: "حجز جديد" },

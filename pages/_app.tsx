@@ -21,7 +21,7 @@ function MyApp({ Component, pageProps }: AppProps) {
   // console.log(session)
   const queryClient = new QueryClient();
   useEffect(() => {}, []);
-
+  console.log(pageProps);
   return (
     //@ts-ignore
     <SessionProvider session={pageProps.session}>

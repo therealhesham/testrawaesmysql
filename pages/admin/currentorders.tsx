@@ -31,7 +31,7 @@ export default function Table() {
   // };
 
   const fetchData = async (page) => {
-    const res = await fetch(`/api/currentorders`);
+    const res = await fetch(`/api/currentorders/` + page);
     const result = await res.json();
     console.log(result);
     setData(result.data);
@@ -51,9 +51,7 @@ export default function Table() {
     <Layout>
       <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
         <div className="flex items-center justify-center">
-          <p className="text-2xl font-bold text-cool-gray-700">
-            Current Reservations
-          </p>
+          <p className="text-2xl font-bold text-cool-gray-700">حجوزات حالية</p>
         </div>
 
         <table className="min-w-full text-sm text-left">

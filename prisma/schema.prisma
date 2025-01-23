@@ -115,6 +115,8 @@ HomemaidId            Int?
 Client              Client? @relation(fields: [clientID],references: [id])
 
 HomeMaid             homemaid?  @relation(fields: [HomemaidId],references: [id])
+
+
     bookingstatus     String? @db.VarChar(1024)
 ReasonOfRejection    String?  
   Nationalitycopy   String? @db.VarChar(1024)

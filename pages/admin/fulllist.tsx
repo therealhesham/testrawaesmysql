@@ -91,12 +91,12 @@ export default function Table() {
         <h1 className="text-2xl font-semibold text-center mb-4">العاملات</h1>
 
         {/* Column Filters */}
-        <div className="flex justify-between mb-4">
+        {/* <div className="flex justify-between mb-4">
           <div className="flex-1 px-2">
             <input
               type="text"
               value={filters.Name}
-              onChange={(e) => handleFilterChange(e, "name")}
+              onChange={(e) => handleFilterChange(e)}
               placeholder="Filter by Name"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
@@ -119,7 +119,7 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-        </div>
+        </div> */}
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">

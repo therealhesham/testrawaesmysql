@@ -90,7 +90,7 @@ export default function Home() {
   });
 
   const validationSchemaStep3 = Yup.object({
-    query: Yup.string().required("Please select a suggestion"),
+    query: Yup.string(),
   });
 
   // Debounced search function
@@ -282,7 +282,7 @@ export default function Home() {
                     <td className="px-4 py-2">{row.age}</td>
                     <td className="px-4 py-2">
                       <button
-                        onClick={() => handleUpdate(row.HomemaidId)}
+                        onClick={() => handleUpdate(row.id)}
                         className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
                       >
                         Update
@@ -346,16 +346,18 @@ export default function Home() {
                     : null
                 }
                 onSubmit={(values) => {
+                  console.log(values);
+                  console.log(filteredSuggestions);
                   if (currentStep === 4) {
                     console.log({
                       ...values,
+
                       PhoneNumber: filteredSuggestions.phone
                         ? filteredSuggestions.phone
                         : "لا يوجد هاتف مسجل",
                       HomemaidId: filteredSuggestions.id,
                       age: filteredSuggestions.age,
                       clientphonenumber: values.phone,
-                      Name: filteredSuggestions.Name,
                       Passportnumber: filteredSuggestions.Passportnumber,
                       maritalstatus: filteredSuggestions.maritalstatus,
                       Nationality: filteredSuggestions.Nationality,

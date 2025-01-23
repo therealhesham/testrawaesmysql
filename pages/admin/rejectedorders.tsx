@@ -1,12 +1,14 @@
 //@ts-nocheck
-
+//@ts-ignore
 import Layout from "example/containers/Layout";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-
 export default function Table() {
+  const router = useRouter();
   const handleUpdate = (id) => {
     // Trigger the update function passed from parent
-    onUpdate(id);
+    // onUpdate(id);
+    router.push("./neworder/" + id);
   };
 
   const [data, setData] = useState([]); // Store the data for the current page
@@ -29,7 +31,7 @@ export default function Table() {
   // };
 
   const fetchData = async (page) => {
-    const res = await fetch(`/api/neworderlistprisma/` + page);
+    const res = await fetch(`/api/rejectorders`);
     const result = await res.json();
     console.log(result);
     setData(result.data);
@@ -49,38 +51,38 @@ export default function Table() {
     <Layout>
       <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
         <div className="flex items-center justify-center">
-          <p className="text-2xl font-bold text-cool-gray-700">
-            New Reservations
-          </p>
+          <p className="text-2xl font-bold text-cool-gray-700">طلبات مرفوضة</p>
         </div>
 
         <table className="min-w-full text-sm text-left">
           <thead className="bg-gray-100">
             <tr>
               <th className="px-4 py-2">ID</th>
-              <th className="px-4 py-2">Client</th>
-              <th className="px-4 py-2">Phone</th>
-              <th className="px-4 py-2">Religion</th>
-              <th className="px-4 py-2">Experience</th>
-              <th className="px-4 py-2">Age</th>
-              <th className="px-4 py-2">Update</th>
+              <th className="px-4 py-2">اسم العميل</th>
+              <th className="px-4 py-2">جوال العميل</th>
+              <th className="px-4 py-2">ديانة الخادمة</th>
+              <th className="px-4 py-2">سنوات الخبرة</th>
+              <th className="px-4 py-2">العمر</th>
+              {/* <th className="px-4 py-2">استعادة الطلب</th> */}
+
+              <th className="px-4 py-2">تحديث</th>
             </tr>
           </thead>
           <tbody>
             {data.map((row) => (
               <tr key={row.id} className="border-b">
                 <td className="px-4 py-2 text-lg">{row.id}</td>
-                <td className="px-4 py-2">{row.ClientName}</td>
-                <td className="px-4 py-2">{row.PhoneNumber}</td>
+                <td className="px-4 py-2 text-xl">{row.ClientName}</td>
+                <td className="px-4 py-2">{row.clientphonenumber}</td>
                 <td className="px-4 py-2">{row.Religion}</td>
                 <td className="px-4 py-2">{row.ExperienceYears}</td>
                 <td className="px-4 py-2">{row.age}</td>
                 <td className="px-4 py-2">
                   <button
                     onClick={() => handleUpdate(row.id)}
-                    className="bg-teal-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                    className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
                   >
-                    Update
+                    Follow Up
                   </button>
                 </td>
               </tr>
@@ -105,7 +107,7 @@ export default function Table() {
                 key={page}
                 onClick={() => handlePageChange(page)}
                 className={`px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-200 transition duration-300 ${
-                  currentPage === page ? "bg-blue-500 text-white" : "bg-white"
+                  currentPage === page ? "bg-purple-500 text-white" : "bg-white"
                 }`}
               >
                 {page}
