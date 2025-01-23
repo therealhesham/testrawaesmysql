@@ -113,13 +113,16 @@ export default function Home() {
 
   const fetchData = async (page) => {
     try {
-      const response = await axios.get(`/api/neworderlistprisma/` + page);
-      setPagesCount(response.data.count);
-      setData((prevData) => [...prevData, ...response.data.data]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
+      setLoading(true);
+
+      const response = await axios.get(`/api/searchneworder/` + page);
+      // setPagesCount(1);
+
+      // setData();
+      setData((prevData) => [...prevData, ...response.data.users]); // Append new data
       setLoading(false);
+    } catch (error) {
+      console.error("Error in search:", error);
     }
   };
 
@@ -268,7 +271,7 @@ export default function Home() {
                     <td className="px-4 py-2">{row.ClientName}</td>
                     <td className="px-4 py-2">{row.clientphonenumber}</td>
                     <td
-                      onClick={() => router.push("/admin/cvdetails/4")}
+                      onClick={() => router.push("/admin/cvdetails/")}
                       className="px-3 py-2 cursor-pointer decoration-black"
                     >
                       {row.HomemaidId}
@@ -279,7 +282,7 @@ export default function Home() {
                     <td className="px-4 py-2">{row.age}</td>
                     <td className="px-4 py-2">
                       <button
-                        onClick={() => handleUpdate(row.id)}
+                        onClick={() => handleUpdate(row.HomemaidId)}
                         className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
                       >
                         Update

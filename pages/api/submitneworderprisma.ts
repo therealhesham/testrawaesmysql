@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -11,57 +12,45 @@ export default async function handler(
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
+  const {
+    ClientName,
+    PhoneNumber,
+    HomemaidId,
+    age,
+    clientphonenumber,
+    Name,
+    Passportnumber,
+    maritalstatus,
+    Nationality,
+    Religion,
+    ExperienceYears,
+  } = req.body;
+
   try {
-    const {
-      ClientName,
-      PhoneNumber,
-      HomemaidId,
-      age,
-      clientphonenumber,
-      Name,
-      Passportnumber,
-      maritalstatus,
-      Nationality,
-      Religion,
-      ExperienceYears,
-    } = req.body;
-    console.log(req.body);
-    // Begin transaction
-    const result = await prisma.$transaction(
-      async (prisma) => {
-        const createClient = await prisma.client.create({
-          data: {
-            fullname: ClientName,
-            phonenumber: clientphonenumber,
+    // Begin transaction to update homemaid and create related records
+    const result = await prisma.homemaid.update({
+      where: { id: HomemaidId },
+      data: {
+        Client: {
+          create: {
+            fullname: ClientName, // Ensure the name field in the schema is 'fullname'
+            phonenumber: clientphonenumber, // Ensure the phonenumber field in the schema matches
           },
-        });
-
-        if (!createClient) {
-          throw new Error("خطأ في تسجيل البيانات");
-        }
-
-        const newOrder = await prisma.neworder.create({
-          data: {
-            clientID: createClient.id,
+        },
+        NewOrder: {
+          create: {
             ClientName,
-            PhoneNumber, // تليفون الخدامة
-            HomemaidId,
-            age,
-            bookingstatus: "حجز جديد",
+            PhoneNumber: String(PhoneNumber), // Convert PhoneNumber to string if needed
+            ages: age + "",
+            bookingstatus: "حجز جديد", // Ensure the status is correct
             clientphonenumber,
-            Name,
             Passportnumber,
-            maritalstatus,
-            Nationalitycopy: Nationality[0],
-            Religion,
             ExperienceYears,
+            Religion,
           },
-        });
-
-        return newOrder;
+        },
       },
-      { maxWait: 15 }
-    );
+    });
 
     // Send response after the transaction is successful
     res.status(200).json(result);

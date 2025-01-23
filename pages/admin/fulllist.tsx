@@ -1,7 +1,7 @@
 //@ts-nocheck
 //@ts-ignore
 import Layout from "example/containers/Layout";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 export default function Table() {
   const [filters, setFilters] = useState({
@@ -11,17 +11,20 @@ export default function Table() {
   });
 
   const [data, setData] = useState([]);
-  const [page, setPage] = useState(1); // Pagination state
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
 
+  const pageRef = useRef(1); // Use a ref to keep track of the current page number
+  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
+
   // Fetch data with pagination
-  const fetchData = async (pageNum: number) => {
-    if (loading) return; // Prevent duplicate fetches if already loading
+  const fetchData = async () => {
+    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
+    isFetchingRef.current = true;
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/homemaidprisma/${pageNum}`, {
+      const response = await fetch(`/api/homemaidprisma/${pageRef.current}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -29,11 +32,10 @@ export default function Table() {
         method: "get",
       });
       const res = await response.json();
-
+      console.log(pageRef.current);
       if (res && res.length > 0) {
         setData((prevData) => [...prevData, ...res]); // Append new data
-
-        setPage(pageNum + 1); // Increment page
+        pageRef.current += 1; // Increment page using ref
       } else {
         setHasMore(false); // No more data to load
       }
@@ -41,6 +43,7 @@ export default function Table() {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -52,9 +55,7 @@ export default function Table() {
       const observer = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            fetchData(page); // Fetch next page of data
-
-            alert(page);
+            fetchData(); // Fetch next page of data
           }
         },
         { threshold: 1.0 }
@@ -65,12 +66,13 @@ export default function Table() {
       // Cleanup the observer when the component unmounts
       return () => observer.disconnect();
     },
-    [loading, hasMore, page]
+    [loading, hasMore] // No need to track page here since it's managed by useRef
   );
 
+  // Initialize fetching of the first page when the component mounts
   useEffect(() => {
-    fetchData(page); // Fetch the first page of data
-  }, []);
+    fetchData(); // Fetch the first page of data
+  }, []); // Only run once on mount
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -126,6 +128,12 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">ID</th>
               <th className="p-3 text-left text-sm font-medium">Name</th>
               <th className="p-3 text-left text-sm font-medium">Age</th>
+              <th className="p-3 text-left text-sm font-medium">
+                Passportnumber
+              </th>
+
+              <th className="p-3 text-left text-sm font-medium">Nationality</th>
+
               <th className="p-3 text-left text-sm font-medium">Role</th>
             </tr>
           </thead>
@@ -145,6 +153,13 @@ export default function Table() {
                   <td className="p-3 text-sm text-gray-600">{item.id}</td>
                   <td className="p-3 text-sm text-gray-600">{item.Name}</td>
                   <td className="p-3 text-sm text-gray-600">{item.age}</td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.Passportnumber}
+                  </td>
+
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.Nationalitycopy}
+                  </td>
                   <td className="p-3 text-sm text-gray-600">{item.role}</td>
                 </tr>
               ))

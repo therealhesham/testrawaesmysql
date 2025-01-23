@@ -9,18 +9,34 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { ClipboardCopyIcon } from "@heroicons/react/solid"; // Import the clipboard icon
 import { GridLoader } from "react-spinners";
+import Modal from "components/modal";
+
 import SpinnerModal from "components/spinner";
+import SuccessModal from "office/components/successcoponent";
+import { Spinner } from "react-bootstrap";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
+
+  const [datenow, setDate] = useState(Date.now());
+  useEffect(() => {
+    // alert(router)
+    if (!router.isReady) return;
+    Fetcher();
+  }, [router.isReady, datenow]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
   const { slug } = router.query; // Get the dynamic slug value
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    Passportnumber: "",
-    role: "",
-    bookingstatus: "",
+    Client: [{ FullName: "" }],
+    NewOrder: [{ bookingstatus: "" }],
   });
   const [submitted, setSubmitted] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
@@ -33,34 +49,19 @@ const SlugPage = () => {
 
   const [bookingstatus, setBookingStatus] = useState(formData.bookingstatus);
   const [copySuccess, setCopySuccess] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"success" | "error">("success");
 
   const [clientInfoData, setClientInfoData] = useState({});
   async function Fetcher() {
-    const fetcher = await fetch(
-      `../../api/findorderprisma/${router.query.slug}`
-    );
-    const jsonfetcher = await fetcher.json();
-    setFormData(jsonfetcher);
-    const fetchclientbyid = await fetch(
-      `../../api/clientdataprisma/${jsonfetcher.clientID}`
-    );
-    const clientData = await fetchclientbyid.json();
-    setClientInfoData(clientData);
+    fetch(`/api/findorderprisma/${router.query.slug}`)
+      .then((e) => e.json())
+      .then((e) => setFormData(e));
+    // const jsonfetcher = await fetcher.json();
+    // setFormData(jsonfetcher);
+    // // setClientInfoData(jsonfetcher.Client[0]);
+    // console.log(jsonfetcher);
   }
-
-  const [datenow, setDate] = useState(Date.now());
-  useEffect(() => {
-    if (!router.isReady) return;
-    Fetcher();
-  }, [router.isReady, datenow]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
 
   const [formDataReservationChange, setFormDataReservationChange] = useState(
     {}
@@ -138,6 +139,22 @@ const SlugPage = () => {
     setIsModalOpen(false);
   };
 
+  const showSuccessModal = () => {
+    setModalMessage("تم تسجيل البيانات بنجاح");
+    setModalType("success");
+    setIsModalOpen(true);
+  };
+
+  const showErrorModal = () => {
+    setModalMessage("خطا في تسجيل البيانات.");
+    setModalType("error");
+    setIsModalOpen(true);
+  };
+
+  const closeSuccessfulModal = () => {
+    setIsModalOpen(false);
+  };
+
   const handleAccessFormChange = (e) => {
     const { name, value } = e.target;
     setAccessFormData((prevData) => ({
@@ -147,10 +164,14 @@ const SlugPage = () => {
   };
 
   const toggleFormVisibility = () => {
+    // alert(formData.clientphonenumber);
+    // alert(formData.Client.phonenumber);
+
     setIsFormVisible(!isFormVisible); // Toggle the form visibility
   };
 
   const handleAccessFormSubmit = async (s) => {
+    setModalSpinnerOpen(true);
     // Adding to access list
     // e.preventDefault();
     const {
@@ -184,17 +205,18 @@ const SlugPage = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        SponsorName,
+        SponsorName: formData.Client[0].fullname,
         InternalmusanedContract,
-        SponsorIdnumber,
-        SponsorPhoneNumber,
-        PassportNumber,
+
+        SponsorIdnumber: formData.Client[0].id,
+        SponsorPhoneNumber: formData.id + "",
+        PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
         WorkDuration,
         Cost,
-        HomemaIdnumber,
-        HomemaidName,
+        HomemaIdnumber: formData.id,
+        HomemaidName: formData.Name,
         Notes,
         ArrivalCity,
         DateOfApplication,
@@ -207,8 +229,18 @@ const SlugPage = () => {
         GuaranteeDurationEnd,
       }),
     });
+    // max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-md
+    console.log(submitter);
     const res = await submitter.json();
-    closeModal(); // Close the modal after submission
+    if (submitter.status == 200) {
+      setModalSpinnerOpen(false);
+      showSuccessModal();
+    } else {
+      setModalSpinnerOpen(false);
+
+      showErrorModal();
+    }
+    // closeModal(); // Close the modal after submission
   };
 
   const handleExitClick = () => {
@@ -225,6 +257,16 @@ const SlugPage = () => {
     "الاستلام",
     "التقييم",
   ];
+
+  // switch (stage) {
+  //   case :
+
+  //     break;
+
+  //   default:
+  //     break;
+  // }
+
   const getExperienceIndicatorStyles = () => {
     if (formData.ExperienceYears >= 5) {
       return "bg-blue-100 text-blue-700";
@@ -265,10 +307,11 @@ const SlugPage = () => {
   };
 
   const changeTimeline = async (state) => {
+    // alert(state);
     setModalSpinnerOpen(true);
     const fetcher = await fetch(`/api/updatetimeline`, {
       body: JSON.stringify({
-        id: router.query.slug,
+        id: formData.NewOrder[0].id,
         bookingstatus: state,
       }),
       method: "post",
@@ -285,31 +328,18 @@ const SlugPage = () => {
       setDate(Date.now());
       setModalSpinnerOpen(false);
       setIsFormVisible(true);
-      updatekingdomentry.current.focus();
-
-      // console.log(updatekingdomentry.current);
     } else {
       setModalSpinnerOpen(false);
     }
   };
 
   const validationSchema = Yup.object({
-    SponsorName: Yup.string().required("Sponsor name is required"),
     InternalmusanedContract: Yup.string().required(
       "Internalmusaned contract is required"
     ),
-    SponsorIdnumber: Yup.string().required("Sponsor ID number is required"),
-    SponsorPhoneNumber: Yup.string().required(
-      "Sponsor phone number is required"
-    ),
-    PassportNumber: Yup.string()
-      .required("Passport number is required")
-      .default(),
     KingdomentryDate: Yup.date().required("Kingdom entry date is required"),
     WorkDuration: Yup.string().required("Work duration is required"),
     Cost: Yup.string().required("Cost is required"),
-    HomemaIdnumber: Yup.string().required("Home maid ID number is required"),
-    HomemaidName: Yup.string().required("Home maid name is required"),
     Notes: Yup.string().required("Notes are required"),
     ArrivalCity: Yup.string().required("Arrival city is required"),
     DateOfApplication: Yup.date().required("Date of application is required"),
@@ -330,16 +360,10 @@ const SlugPage = () => {
   // alert(formData.Passportnumber);
   const formik = useFormik({
     initialValues: {
-      SponsorName: "",
       InternalmusanedContract: "",
-      SponsorIdnumber: "",
-      SponsorPhoneNumber: "",
-      PassportNumber: formData.Passportnumber,
       KingdomentryDate: "",
       WorkDuration: "",
       Cost: "",
-      HomemaIdnumber: "",
-      HomemaidName: "",
       Notes: "",
       ArrivalCity: "",
       DateOfApplication: "",
@@ -371,16 +395,24 @@ const SlugPage = () => {
   };
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-100 py-8">
+      {/* min-h-screen */}
+      <div className=" bg-gray-100 py-8">
         <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
+        <Modal
+          isOpen={isModalOpen}
+          message={modalMessage}
+          type={modalType}
+          onClose={closeSuccessfulModal}
+        />
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-3xl font-bold text-center mb-8">
-            بيانات العميل {clientInfoData.fullname}
+            بيانات العميل{" "}
+            {formData.Client[0].FullName ? formData?.Client[0].FullName : ""}
           </h1>
 
           {/* Timeline Component with Clickable Stages */}
           <Timeline
-            currentstatus={formData.bookingstatus}
+            currentstatus={formData.NewOrder[0].bookingstatus}
             stages={stages}
             changeTimeline={changeTimeline}
           />
@@ -441,14 +473,14 @@ const SlugPage = () => {
               </h2>
               <div className="space-y-4">
                 <p>
-                  <strong>Name:</strong> {clientInfoData.fullname}
+                  <strong>Name:</strong> {formData.Client[0].fullname}
                 </p>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Email:</strong> {clientInfoData.email}
+                    <strong>Email:</strong> {formData.Client[0].email}
                   </p>
                   <a
-                    href={`mailto:${clientInfoData.email}`}
+                    href={`mailto:${formData.Client[0].email}`}
                     className="text-white bg-blue-500 px-4 py-2 rounded-lg"
                   >
                     Message
@@ -456,10 +488,10 @@ const SlugPage = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Phone:</strong> {clientInfoData.phonenumber}
+                    <strong>Phone:</strong> {formData.Client[0].phonenumber}
                   </p>
                   <a
-                    href={`https://wa.me/${clientInfoData.phonenumber}`}
+                    href={`https://wa.me/${formData.Client[0].phonenumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-white bg-green-500 px-4 py-2 rounded-lg"
@@ -492,7 +524,7 @@ const SlugPage = () => {
                   <strong className="w-32">Name:</strong>
                   <span>{formData.Name}</span>
                   <button
-                    onClick={() => handleCopy(formData.name)}
+                    onClick={() => handleCopy(formData.Name)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Name"
                   >
@@ -516,7 +548,7 @@ const SlugPage = () => {
                   <strong className="w-32">Age:</strong>
                   <span>{formData.age}</span>
                   <button
-                    onClick={() => handleCopy(formData.age)}
+                    onClick={() => handleCopy(formData.ages)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Age"
                   >
@@ -529,9 +561,11 @@ const SlugPage = () => {
                   className={`flex justify-between items-center px-4 py-2 rounded-lg ${getReservationIndicatorStyles()}`}
                 >
                   <strong className="w-32">Booking Status:</strong>
-                  <span>{formData.bookingstatus}</span>
+                  <span>{formData.NewOrder[0].bookingstatus}</span>
                   <button
-                    onClick={() => handleCopy(formData.bookingstatus)}
+                    onClick={() =>
+                      handleCopy(formData.NewOrder[0].bookingstatus)
+                    }
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Booking Status"
                   >
@@ -544,7 +578,7 @@ const SlugPage = () => {
                   className={`flex justify-between items-center px-4 py-2 rounded-lg ${getExperienceIndicatorStyles()}`}
                 >
                   <strong className="w-32">Experience:</strong>
-                  <span>{formData.ExperienceYears} years</span>
+                  <span>{formData.NewOrder[0].ExperienceYears} years</span>
                   <button
                     onClick={() => handleCopy(formData.ExperienceYears)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
@@ -589,31 +623,7 @@ const SlugPage = () => {
             {/* Form: Conditionally rendered based on the isFormVisible state */}
             {isFormVisible && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                  {/* Sponsor Name */}
-                  <div>
-                    <label
-                      htmlFor="SponsorName"
-                      className="block font-semibold text-sm"
-                    >
-                      Sponsor Name
-                    </label>
-                    <input
-                      id="SponsorName"
-                      name="SponsorName"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.SponsorName}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.SponsorName &&
-                      formik.touched.SponsorName && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.SponsorName}
-                        </div>
-                      )}
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Internalmusaned Contract */}
                   <div>
                     <label
@@ -635,78 +645,6 @@ const SlugPage = () => {
                       formik.touched.InternalmusanedContract && (
                         <div className="text-red-600 text-sm">
                           {formik.errors.InternalmusanedContract}
-                        </div>
-                      )}
-                  </div>
-                  {/* Sponsor ID Number */}
-                  <div>
-                    <label
-                      htmlFor="SponsorIdnumber"
-                      className="block font-semibold text-sm"
-                    >
-                      Sponsor ID Number
-                    </label>
-                    <input
-                      id="SponsorIdnumber"
-                      name="SponsorIdnumber"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.SponsorIdnumber}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.SponsorIdnumber &&
-                      formik.touched.SponsorIdnumber && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.SponsorIdnumber}
-                        </div>
-                      )}
-                  </div>
-                  {/* Sponsor Phone Number */}
-                  <div>
-                    <label
-                      htmlFor="SponsorPhoneNumber"
-                      className="block font-semibold text-sm"
-                    >
-                      Sponsor Phone Number
-                    </label>
-                    <input
-                      id="SponsorPhoneNumber"
-                      name="SponsorPhoneNumber"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.SponsorPhoneNumber}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.SponsorPhoneNumber &&
-                      formik.touched.SponsorPhoneNumber && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.SponsorPhoneNumber}
-                        </div>
-                      )}
-                  </div>
-                  {/* Passport Number */}
-                  <div>
-                    <label
-                      htmlFor="PassportNumber"
-                      className="block font-semibold text-sm"
-                    >
-                      Passport Number
-                    </label>
-                    <input
-                      id="PassportNumber"
-                      name="PassportNumber"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.PassportNumber}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.PassportNumber &&
-                      formik.touched.PassportNumber && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.PassportNumber}
                         </div>
                       )}
                   </div>
@@ -965,53 +903,7 @@ const SlugPage = () => {
                     )}
                   </div>
                   {/* Home Maid ID */}
-                  <div>
-                    <label
-                      htmlFor="HomemaIdnumber"
-                      className="block font-semibold text-sm"
-                    >
-                      Home Maid ID
-                    </label>
-                    <input
-                      id="HomemaIdnumber"
-                      name="HomemaIdnumber"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.HomemaIdnumber}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.HomemaIdnumber &&
-                      formik.touched.HomemaIdnumber && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.HomemaIdnumber}
-                        </div>
-                      )}
-                  </div>
                   {/* Home Maid Name */}
-                  <div>
-                    <label
-                      htmlFor="HomemaidName"
-                      className="block font-semibold text-sm"
-                    >
-                      Home Maid Name
-                    </label>
-                    <input
-                      id="HomemaidName"
-                      name="HomemaidName"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.HomemaidName}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.HomemaidName &&
-                      formik.touched.HomemaidName && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.HomemaidName}
-                        </div>
-                      )}
-                  </div>
                   {/* Notes */}
                   <div>
                     <label

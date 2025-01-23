@@ -15,6 +15,7 @@ import {
   FaSuperpowers,
 } from "react-icons/fa"; // Import icons from react-icons
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 // import {  } from "@ant-design/icons";
 
 // Helper function to calculate remaining days
@@ -27,6 +28,8 @@ const calculateRemainingDays = (eventDate) => {
 };
 
 export default function Home() {
+  const { data: session, status } = useSession();
+
   const monthColors = [
     "bg-red-300", // January
     "bg-pink-300", // February
@@ -154,15 +157,81 @@ export default function Home() {
     }
   };
 
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return (
+      <div>
+        <p>You must be signed in to view this page.</p>
+        <button onClick={() => signIn()}>Sign In</button>
+      </div>
+    );
+  }
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-100">
         {/* Centered Heading */}
         <h1 className="text-3xl font-bold mb-8 text-center">قسم الاستقدام</h1>
 
-        {/* Flex container for boxes */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 p-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
           {/* Box 1 */}
+          <Link href="/admin/neworders">
+            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+              <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
+                الطلبات الجديدة
+              </div>
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                5
+              </span>
+            </a>
+          </Link>
+          {/* Box 3 */}
+          <Link href="/admin/currentorders">
+            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+              <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
+                الطلبات الحالية
+              </div>
+              {/* Notification Badge */}
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                3
+              </span>
+            </a>
+          </Link>
+
+          <Link href="/page3">
+            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+              <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
+                الطلبات المنتهية
+              </div>
+              {/* Notification Badge */}
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                2
+              </span>
+            </a>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+          {/* Box 5 */}
+          <Link href="/page3">
+            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+              <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
+                الطلبات المرفوضة
+              </div>
+              {/* Notification Badge */}
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                2
+              </span>
+            </a>
+          </Link>
+          {/* Box 6 */}
 
           {/* Box 2 */}
           <Link href="/admin/form">
@@ -178,32 +247,7 @@ export default function Home() {
             </a>
           </Link>
 
-          {/* Box 3 */}
-          <Link href="/admin/currentorders">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات الحالية
-              </div>
-              {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                3
-              </span>
-            </a>
-          </Link>
-
           {/* Box 4 */}
-          <Link href="/admin/neworders">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات الجديدة
-              </div>
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                5
-              </span>
-            </a>
-          </Link>
 
           <Link href="/admin/arrival-list">
             <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
@@ -219,33 +263,7 @@ export default function Home() {
           </Link>
 
           {/* Box 5 */}
-          <Link href="/page3">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات المنتهية
-              </div>
-              {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
-            </a>
-          </Link>
 
-          {/* Box 5 */}
-          <Link href="/page3">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات المرفوضة
-              </div>
-              {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
-            </a>
-          </Link>
-          {/* Box 6 */}
           <Link href="/admin/fulllist">
             <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
               <div className="text-xl font-semibold flex flex-col justify-center items-center">

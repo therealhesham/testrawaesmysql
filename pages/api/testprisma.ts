@@ -1,5 +1,3 @@
-//@ts-nocheck
-//@ts-ignore
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 
 import { PrismaClient } from "@prisma/client";
@@ -15,15 +13,15 @@ export default async function handler(
   const prisma = new PrismaClient();
   console.log(req.body);
   try {
-    const newoffice = await prisma.neworder.update({
-      where: { id: Number(req.body.id) },
-      data: { bookingstatus: req.body.bookingstatus },
+    const data = await prisma.neworder.findMany({
+      take: 10,
+      include: { HomeMaid: true },
     });
-    res.status(200).json(newoffice);
+    res.status(301).json(data);
+
+    console.log(data);
   } catch (error) {
-    // console.log(error);
-    console.log(error);
-    res.status(301).json("error");
+    res.status(301).json(error);
   }
 }
 
