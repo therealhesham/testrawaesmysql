@@ -251,14 +251,14 @@ export default function Home() {
             <table className="min-w-full text-sm text-left">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-4 py-2">ID</th>
-                  <th className="px-4 py-2">Client</th>
-                  <th className="px-4 py-2">Client Phone</th>
-                  <th className="px-4 py-2">HomeMaid ID</th>
-                  <th className="px-4 py-2">Religion</th>
-                  <th className="px-4 py-2">Experience</th>
-                  <th className="px-4 py-2">Age</th>
-                  <th className="px-4 py-2">Update</th>
+                  <th className="px-4 py-2">م</th>
+                  <th className="px-4 py-2">اسم العميل</th>
+                  <th className="px-4 py-2">جوال العميل</th>
+                  <th className="px-4 py-2">رقم الخادمة</th>
+                  <th className="px-4 py-2">ديانة العاملة</th>
+                  <th className="px-4 py-2">الخبرة</th>
+                  <th className="px-4 py-2">العمر</th>
+                  <th className="px-4 py-2">تحديث</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -351,7 +351,7 @@ export default function Home() {
                   if (currentStep === 4) {
                     console.log({
                       ...values,
-
+                      email: values.email,
                       PhoneNumber: filteredSuggestions.phone
                         ? filteredSuggestions.phone
                         : "لا يوجد هاتف مسجل",

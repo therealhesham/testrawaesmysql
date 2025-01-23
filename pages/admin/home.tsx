@@ -170,7 +170,9 @@ export default function Home() {
     <Layout>
       <div className="min-h-screen bg-gray-100">
         {/* Centered Heading */}
-        <h1 className="text-3xl font-bold mb-8 text-center">قسم الاستقدام</h1>
+        <h1 className="text-3xl font-bold mb-8 mt-8 text-center">
+          قسم الاستقدام
+        </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
           {/* Box 1 */}
