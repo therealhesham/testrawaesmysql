@@ -19,6 +19,7 @@ export default async function handler(
       where: { id: Number(req.body.id) },
       data: { bookingstatus: req.body.bookingstatus },
     });
+
     res.status(200).json(newoffice);
   } catch (error) {
     // console.log(error);

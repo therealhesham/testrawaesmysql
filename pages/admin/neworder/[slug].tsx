@@ -328,6 +328,7 @@ const SlugPage = () => {
     if (fetcher.status == 200) {
       // console.log(updatekingdomentry.current);
       setDate(Date.now());
+
       setModalSpinnerOpen(false);
       setIsFormVisible(true);
     } else {
@@ -469,7 +470,7 @@ const SlugPage = () => {
 
           {/* Timeline Component with Clickable Stages */}
           <Timeline
-            currentstatus={formData.HomemaidId}
+            currentstatus={formData.bookingstatus}
             stages={stages}
             changeTimeline={changeTimeline}
           />
