@@ -3,15 +3,13 @@ import { useEffect, useState } from "react";
 
 const ResponsiveTable = () => {
   const [arrivalList, setArrivalList] = useState<any[]>([]);
-
+  const fetchData = async () => {
+    const response = await fetch("/api/arrivals");
+    const data = await response.json();
+    console.log(data);
+    setArrivalList(data);
+  };
   useEffect(() => {
-    // Example data fetching (replace with your actual API call or Prisma query)
-    const fetchData = async () => {
-      const response = await fetch("/api/arrivals");
-      const data = await response.json();
-      console.log(data);
-      setArrivalList(data);
-    };
     fetchData();
   }, []);
 

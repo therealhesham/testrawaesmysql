@@ -175,7 +175,7 @@ const TransferPage = () => {
         {/* Form */}
         {showForm && (
           <div className="bg-white p-6 shadow-md rounded-md mb-6">
-            <h2 className="text-xl font-semibold mb-4">اضافة معاملة جديدة</h2>
+            <h2 className="text-xl font-semibold mb-4">نقل كفالة جديدة</h2>
             <Formik
               initialValues={{
                 client: "",

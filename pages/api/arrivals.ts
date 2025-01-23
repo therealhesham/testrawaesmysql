@@ -17,7 +17,8 @@ export default async function handler(
     // console.log(offices);
     res.status(200).json(offices);
   } catch (error) {
-    res.status(301).json("error");
+    console.log(error);
+    res.status(301).json(error);
   }
 }
 
