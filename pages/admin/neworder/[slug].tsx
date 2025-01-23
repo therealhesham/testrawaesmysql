@@ -313,7 +313,7 @@ const SlugPage = () => {
     setModalSpinnerOpen(true);
     const fetcher = await fetch(`/api/updatetimeline`, {
       body: JSON.stringify({
-        id: formData.NewOrder[0].id,
+        id: formData.id,
         bookingstatus: state,
       }),
       method: "post",
@@ -663,17 +663,12 @@ const SlugPage = () => {
               </div>
             </div>{" "}
           </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
-            {/* Button to toggle the form */}
-            <button
-              onClick={toggleFormVisibility}
-              className="mb-4 px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-700"
-            >
-              رفض الطلب
-            </button>
-          </div>
-
+          {/* 
+          <div className="flex items-center justify-center">
+            <p className="text-2xl font-bold text-cool-gray-700 mb-5">
+              اضافة الى قائمة الوصول
+            </p>
+          </div> */}
           {/* Modal Form */}
 
           <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
@@ -684,7 +679,6 @@ const SlugPage = () => {
             >
               {isFormVisible ? "الغاء عملية التحديث" : "تحديث بيانات الوصول "}
             </button>
-
             {/* Form: Conditionally rendered based on the isFormVisible state */}
             {isFormVisible && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
