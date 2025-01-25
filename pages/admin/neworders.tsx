@@ -129,7 +129,7 @@ export default function Home() {
       // setPagesCount(1);
       // console.log(res);
       // setData();
-      if (res.data.length < 1) return setLoading(false);
+      // if(res.data.length <1 ) return setLoading
       setData((prevData) => [...prevData, ...res.data]); // Append new data
       setLoading(false);
     } catch (error) {
@@ -150,8 +150,7 @@ export default function Home() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && loading) {
-          ///هيحتاج تعديل
+        if (entry.isIntersecting && !loading) {
           setPage((prevPage) => prevPage + 1);
         }
       },
