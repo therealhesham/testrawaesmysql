@@ -16,6 +16,7 @@ import SuccessModal from "office/components/successcoponent";
 import { Spinner } from "react-bootstrap";
 import RejectBooking from "../reject-booking";
 import ErrorModal from "office/components/errormodal";
+import axios from "axios";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
@@ -37,8 +38,8 @@ const SlugPage = () => {
 
   const { slug } = router.query; // Get the dynamic slug value
   const [formData, setFormData] = useState({
-    Client: [{ fullname: "" }],
-    NewOrder: [{ bookingstatus: "" }],
+    Client: { fullname: "" },
+    HomeMaid: {},
   });
   const [submitted, setSubmitted] = useState(false);
   const [messageSent, setMessageSent] = useState(false);
@@ -172,6 +173,151 @@ const SlugPage = () => {
     setIsFormVisible(!isFormVisible); // Toggle the form visibility
   };
 
+  const [cloudinaryImage, setCloudinaryImage] = useState<string | null>(null);
+  // Handle the file upload to Cloudinary
+
+  const [medicalCheckFileCloudinaryImage, setmedicalCheckFileCloudinaryImage] =
+    useState<string | null>(null);
+  const [ticketFileFileCloudinaryImage, setTicketFileCloudinaryImage] =
+    useState<string | null>(null);
+  const [receivingFileCloudinaryImage, setreceivingFileCloudinaryImage] =
+    useState<string | null>(null);
+  const [
+    approvalPaymentFileCloudinaryImage,
+    setapprovalPaymentCloudinaryImage,
+  ] = useState<string | null>(null);
+
+  const handleUploadmedicalcheckfile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.preventDefault();
+
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+      formData.append("cloud_name", "duo8svqci");
+      formData.append("folder", "samples");
+
+      try {
+        const response = await axios.post(
+          `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+          formData
+        );
+
+        setmedicalCheckFileCloudinaryImage(response.data.secure_url); // Update image URL
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleUploadticketFile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.preventDefault();
+
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+      formData.append("cloud_name", "duo8svqci");
+      formData.append("folder", "samples");
+
+      try {
+        const response = await axios.post(
+          `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+          formData
+        );
+
+        setTicketFileCloudinaryImage(response.data.secure_url); // Update image URL
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleUploadreceivingFile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.preventDefault();
+
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+      formData.append("cloud_name", "duo8svqci");
+      formData.append("folder", "samples");
+
+      try {
+        const response = await axios.post(
+          `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+          formData
+        );
+
+        setreceivingFileCloudinaryImage(response.data.secure_url); // Update image URL
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleUploadapprovalPayment = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.preventDefault();
+
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+      formData.append("cloud_name", "duo8svqci");
+      formData.append("folder", "samples");
+
+      try {
+        const response = await axios.post(
+          `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+          formData
+        );
+
+        setapprovalPaymentCloudinaryImage(response.data.secure_url); // Update image URL
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+
+    const files = e.target.files;
+    if (files) {
+      const formData = new FormData();
+      const uploadedUrls: string[] = []; // Store the uploaded file URLs
+
+      for (let i = 0; i < files.length; i++) {
+        formData.append("file", files[i]);
+        formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+        formData.append("cloud_name", "duo8svqci");
+        formData.append("folder", "samples");
+
+        try {
+          const response = await axios.post(
+            `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+            formData
+          );
+          uploadedUrls.push(response.data.secure_url); // Add the uploaded URL to the array
+        } catch (error) {
+          console.error("Error uploading file:", error);
+        }
+      }
+      setCloudinaryImages(uploadedUrls);
+    }
+  };
   const handleAccessFormSubmit = async (s) => {
     setModalSpinnerOpen(true);
     // Adding to access list
@@ -211,14 +357,14 @@ const SlugPage = () => {
         InternalmusanedContract,
 
         SponsorIdnumber: formData.ClientID,
-        SponsorPhoneNumber: formData.clientphonenumber + "",
+        SponsorPhoneNumber: formData.Client.phonenumber + "",
         PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
         WorkDuration,
         Cost,
-        HomemaIdnumber: formData.homemaidId,
-        HomemaidName: formData.Name,
+        HomemaIdnumber: formData.HomeMaid.id,
+        HomemaidName: formData.HomeMaid.Name,
         Notes,
         ArrivalCity,
         DateOfApplication,
@@ -232,7 +378,8 @@ const SlugPage = () => {
       }),
     });
     // max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-md
-    console.log(submitter);
+    // console.log(submitter);
+
     const res = await submitter.json();
     if (submitter.status == 200) {
       setModalSpinnerOpen(false);
@@ -360,6 +507,9 @@ const SlugPage = () => {
       "Guarantee duration end is required"
     ),
   });
+  const [cloudinaryImages, setCloudinaryImages] = useState<string[]>([]);
+  // Handle the file upload to Cloudinary
+
   // alert(formData.Passportnumber);
   const formik = useFormik({
     initialValues: {
@@ -377,6 +527,11 @@ const SlugPage = () => {
       EmbassySealing: "",
       BookinDate: "",
       GuaranteeDurationEnd: "",
+      medicalCheckFile: medicalCheckFileCloudinaryImage,
+      ticketFile: ticketFileFileCloudinaryImage,
+      receivingFile: receivingFileCloudinaryImage,
+      approvalPayment: approvalPaymentFileCloudinaryImage,
+      additionalfiles: cloudinaryImages,
     },
     validationSchema: validationSchema,
     onSubmit: (values) => {
@@ -535,10 +690,10 @@ const SlugPage = () => {
                 </p>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Email:</strong> {formData.email}
+                    <strong>Email:</strong> {formData.Client.email}
                   </p>
                   <a
-                    href={`mailto:${formData.email}`}
+                    href={`mailto:${formData.Client.email}`}
                     className="text-white bg-blue-500 px-4 py-2 rounded-lg"
                   >
                     Message
@@ -546,10 +701,10 @@ const SlugPage = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Phone:</strong> {formData.Clientphonenumber}
+                    <strong>Phone:</strong> {formData.Client.phonenumber}
                   </p>
                   <a
-                    href={`https://wa.me/${formData.Clientphonenumber}`}
+                    href={`https://wa.me/${formData.Client.phonenumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-white bg-green-500 px-4 py-2 rounded-lg"
@@ -580,9 +735,9 @@ const SlugPage = () => {
 
                 <div className="flex justify-between items-center">
                   <strong className="w-32">Name:</strong>
-                  <span>{formData.Name}</span>
+                  <span>{formData.HomeMaid.Name}</span>
                   <button
-                    onClick={() => handleCopy(formData.Name)}
+                    onClick={() => handleCopy(formData.HomeMaid.Name)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Name"
                   >
@@ -592,9 +747,9 @@ const SlugPage = () => {
 
                 <div className="flex justify-between items-center">
                   <strong className="w-32">Passport:</strong>
-                  <span>{formData.Passportnumber}</span>
+                  <span>{formData.HomeMaid.Passportnumber}</span>
                   <button
-                    onClick={() => handleCopy(formData.Passportnumber)}
+                    onClick={() => handleCopy(formData.HomeMaid.Passportnumber)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Passport"
                   >
@@ -604,9 +759,9 @@ const SlugPage = () => {
 
                 <div className="flex justify-between items-center">
                   <strong className="w-32">Age:</strong>
-                  <span>{formData.age}</span>
+                  <span>{formData.HomeMaid.age}</span>
                   <button
-                    onClick={() => handleCopy(formData.age)}
+                    onClick={() => handleCopy(formData.HomeMaid.age)}
                     className="ml-2 p-1 text-gray-500 hover:text-gray-700"
                     aria-label="Copy Age"
                   >
@@ -678,7 +833,7 @@ const SlugPage = () => {
               onClick={toggleFormVisibility}
               className="mb-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700"
             >
-              {isFormVisible ? "الغاء عملية التحديث" : "تحديث بيانات الوصول "}
+              {isFormVisible ? "الغاء عملية التحديث" : "اضافة بيانات الوصول "}
             </button>
             {/* Form: Conditionally rendered based on the isFormVisible state */}
             {isFormVisible && (
@@ -709,7 +864,7 @@ const SlugPage = () => {
                       )}
                   </div>
                   {/* Kingdom Entry Date */}
-                  <div>
+                  <div className="w-full">
                     <label
                       htmlFor="KingdomentryDate"
                       className="block font-semibold text-sm"
@@ -967,27 +1122,6 @@ const SlugPage = () => {
                   {/* Notes */}
                   <div>
                     <label
-                      htmlFor="Notes"
-                      className="block font-semibold text-sm"
-                    >
-                      Notes
-                    </label>
-                    <textarea
-                      id="Notes"
-                      name="Notes"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.Notes}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.Notes && formik.touched.Notes && (
-                      <div className="text-red-600 text-sm">
-                        {formik.errors.Notes}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label
                       htmlFor="ArrivalCity"
                       className="block font-semibold text-sm"
                     >
@@ -1008,6 +1142,275 @@ const SlugPage = () => {
                           {formik.errors.ArrivalCity}
                         </div>
                       )}
+                  </div>
+
+                  <div className="col-span-3">
+                    <label
+                      htmlFor="medicalCheckFile"
+                      className="block font-semibold text-sm"
+                    >
+                      رفع ملف الفحص الطبي
+                    </label>
+                    <div className="flex flex-col items-start bg-gray-100 rounded-md">
+                      {/* Hidden file input */}
+                      <input
+                        id="medicalCheckFile"
+                        name="medicalCheckFile"
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadmedicalcheckfile}
+                      />
+                      {/* Custom file upload button */}
+                      <label
+                        htmlFor="medicalCheckFile"
+                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
+                      >
+                        اختار الملف
+                      </label>
+
+                      {/* Display uploaded image or file status */}
+                      {medicalCheckFileCloudinaryImage && (
+                        <div className="mt-2 text-gray-600">
+                          <span>File Uploaded: </span>
+                          <a
+                            href={medicalCheckFileCloudinaryImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-500 hover:underline"
+                          >
+                            عرض الملف
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {formik.errors.medicalCheckFile &&
+                      formik.touched.medicalCheckFile && (
+                        <div className="text-red-600 text-sm mt-1">
+                          {formik.errors.medicalCheckFile}
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="col-span-3">
+                    <label
+                      htmlFor="ticketFile"
+                      className="block font-semibold text-sm"
+                    >
+                      رفع ملف التذكرة
+                    </label>
+                    <div className="flex flex-col bg-gray-100 items-start">
+                      {/* Hidden file input */}
+                      <input
+                        id="ticketFile"
+                        name="ticketFile"
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadticketFile}
+                      />
+                      {/* Custom file upload button */}
+                      <label
+                        htmlFor="ticketFile"
+                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
+                      >
+                        اختار الملف
+                      </label>
+
+                      {/* Display uploaded image or file status */}
+                      {ticketFileFileCloudinaryImage && (
+                        <div className="mt-2 text-gray-600">
+                          <span>File Uploaded: </span>
+                          <a
+                            href={ticketFileFileCloudinaryImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-500 hover:underline"
+                          >
+                            عرض الملف
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {formik.errors.ticketFile && formik.touched.ticketFile && (
+                      <div className="text-red-600 text-sm mt-1">
+                        {formik.errors.ticketFile}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-3">
+                    <label
+                      htmlFor="receivingFile"
+                      className="block font-semibold text-sm"
+                    >
+                      رفع ملف الاستلام
+                    </label>
+                    <div className="flex flex-col items-start">
+                      {/* Hidden file input */}
+                      <input
+                        id="receivingFile"
+                        name="receivingFile"
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadreceivingFile}
+                      />
+                      {/* Custom file upload button */}
+                      <label
+                        htmlFor="receivingFile"
+                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
+                      >
+                        اختار الملف
+                      </label>
+
+                      {/* Display uploaded image or file status */}
+                      {receivingFileCloudinaryImage && (
+                        <div className="mt-2 text-gray-600">
+                          <span>File Uploaded: </span>
+                          <a
+                            href={receivingFileCloudinaryImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-500 hover:underline"
+                          >
+                            عرض الملف
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {formik.errors.receivingFile &&
+                      formik.touched.receivingFile && (
+                        <div className="text-red-600 text-sm mt-1">
+                          {formik.errors.receivingFile}
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="col-span-3">
+                    <label
+                      htmlFor="approvalPayment"
+                      className="block font-semibold text-sm"
+                    >
+                      رفع اثبات الدفع
+                    </label>
+                    <div className="flex flex-col items-start bg-gray-100 ">
+                      {/* Hidden file input */}
+                      <input
+                        id="approvalPayment"
+                        name="approvalPayment"
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadapprovalPayment}
+                      />
+                      {/* Custom file upload button */}
+                      <label
+                        htmlFor="approvalPayment"
+                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
+                      >
+                        اختار الملف
+                      </label>
+
+                      {/* Display uploaded image or file status */}
+                      {approvalPaymentFileCloudinaryImage && (
+                        <div className="mt-2 text-gray-600 ">
+                          <span>File Uploaded: </span>
+                          <a
+                            href={approvalPaymentFileCloudinaryImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-500 hover:underline"
+                          >
+                            عرض الملف
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {formik.errors.approvalPaymentFileCloudinaryImage &&
+                      formik.touched.approvalPaymentFileCloudinaryImage && (
+                        <div className="text-red-600 text-sm mt-1">
+                          {formik.errors.approvalPaymentFileCloudinaryImage}
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Custom File Upload Field */}
+                  <div>
+                    <label
+                      htmlFor="additionalfiles"
+                      className="block font-semibold text-sm"
+                    >
+                      ملفات اخرى
+                    </label>
+                    <div className="flex flex-col items-start">
+                      {/* Hidden file input with multiple attribute */}
+                      <input
+                        id="additionalfiles"
+                        name="additionalfiles"
+                        type="file"
+                        className="hidden"
+                        multiple
+                        onChange={handleUpload}
+                      />
+                      {/* Custom file upload button */}
+                      <label
+                        htmlFor="additionalfiles"
+                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
+                      >
+                        Choose Files
+                      </label>
+
+                      {/* Display uploaded images or file statuses */}
+                      {cloudinaryImages.length > 0 && (
+                        <div className="mt-2 text-gray-600">
+                          <span>Uploaded Files:</span>
+                          <ul>
+                            {cloudinaryImages.map((image, index) => (
+                              <li key={index} className="mt-1">
+                                <a
+                                  href={image}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-purple-500 hover:underline"
+                                >
+                                  File {index + 1}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {formik.errors.additionalfiles &&
+                      formik.touched.additionalfiles && (
+                        <div className="text-red-600 text-sm mt-1">
+                          {formik.errors.additionalfiles}
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="col-span-3">
+                    <label
+                      htmlFor="Notes"
+                      className="block font-semibold text-sm"
+                    >
+                      Notes
+                    </label>
+                    <textarea
+                      id="Notes"
+                      name="Notes"
+                      className="w-full border rounded-md px-4 py-2"
+                      value={formik.values.Notes}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                    />
+                    {formik.errors.Notes && formik.touched.Notes && (
+                      <div className="text-red-600 text-sm">
+                        {formik.errors.Notes}
+                      </div>
+                    )}
                   </div>
                   {/* Submit Button */}
                   <div className="col-span-2 text-center mt-4">

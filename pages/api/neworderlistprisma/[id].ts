@@ -34,9 +34,9 @@ export default async function handler(
     where: { bookingstatus: "حجز جديد" },
   });
 
-  console.log(find[0]);
+  // console.log(find[0]);
   const count = await prisma.neworder.count();
-  res.status(200).json({ data: find, count });
+  res.status(200).json({ data: find });
 }
 
 // export base;

@@ -19,16 +19,13 @@ export default async function handler(
     const skip = (page - 1) * pageSize; // Calculate the number of records to skip
 
     // Fetch data from the Prisma database
-    const homemaids = await prisma.homemaid.findMany({
-      where: { NewOrder: { every: { HomemaidId: null } } },
-
+    const transfers = await prisma.transfer.findMany({
       skip: skip, // Skip records based on the page
       take: pageSize, // Limit the number of records per page
     });
-    console.log(homemaids.length);
 
     // Return the fetched data as JSON
-    res.status(200).json(homemaids);
+    res.status(200).json(transfers);
   } catch (error) {
     // Handle any errors that occur during the fetch
     console.error("Error fetching homemaid data:", error);

@@ -7,7 +7,7 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import * as XLSX from "xlsx";
 import debounce from "lodash.debounce";
-import { Formik, Field, Form, ErrorMessage } from "formik";
+import { Formik, Field, Form, ErrorMessage, FormikValues } from "formik";
 import * as Yup from "yup"; // Import Yup for validation
 import FormWithTimeline from "./addneworderbyadmin";
 import TimeLinedForm from "example/components/stepsform";
@@ -22,7 +22,7 @@ export default function Home() {
     setModalType("success");
     setIsModalOpen(true);
   };
-
+  // console.log(Yup.reach("name"));
   const showErrorModal = () => {
     setModalMessage("خطا في تسجيل البيانات.");
     setModalType("error");
@@ -37,8 +37,8 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const loaderRef = useRef(null);
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
+  // const [address, setAddress] = useState("");
+  // const [city, setCity] = useState("");
 
   const [pagesCount, setPagesCount] = useState(1);
   const [searchParam, setSearchParam] = useState("");
@@ -47,7 +47,7 @@ export default function Home() {
   const [step, setStep] = useState(1);
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // const [email, setEmail] = useState("");
   const [phonenumber, setPhoneNumber] = useState("");
   const [filteredSuggestions, setFilteredSuggestions] = useState({
     Name: "",
@@ -75,6 +75,12 @@ export default function Home() {
       setFilteredSuggestions({});
     }
   };
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [ClientPhone, setClientPhone] = useState("");
+
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
 
   const validationSchemaStep1 = Yup.object({
     name: Yup.string().required("Name is required"),
@@ -112,14 +118,19 @@ export default function Home() {
   };
 
   const fetchData = async (page) => {
+    // alert(page);
     try {
       setLoading(true);
+      const response = await fetch(`/api/neworderlistprisma/` + page, {
+        method: "get",
+      });
 
-      const response = await axios.get(`/api/searchneworder/` + page);
+      const res = await response.json();
       // setPagesCount(1);
-
+      // console.log(res);
       // setData();
-      setData((prevData) => [...prevData, ...response.data.users]); // Append new data
+      if (res.data.length < 1) return setLoading(false);
+      setData((prevData) => [...prevData, ...res.data]); // Append new data
       setLoading(false);
     } catch (error) {
       console.error("Error in search:", error);
@@ -139,7 +150,8 @@ export default function Home() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !loading) {
+        if (entry.isIntersecting && loading) {
+          ///هيحتاج تعديل
           setPage((prevPage) => prevPage + 1);
         }
       },
@@ -175,7 +187,14 @@ export default function Home() {
   const handleAddNewReservation = () => {
     setModalOpen(true);
   };
-
+  const initialvalues = {
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    query: "",
+  };
   const exportToExcel = () => {
     const filteredData = data.map((row) => ({
       ClientName: row.ClientName,
@@ -194,6 +213,8 @@ export default function Home() {
     setModalOpen(false);
     setCurrentStep(1);
   };
+  const [homemaidId, setHomeMaidId] = useState(0);
+  const [homemaidName, setHomeMaidName] = useState("");
 
   const handleNextStep = () => {
     setCurrentStep((prevStep) => prevStep + 1);
@@ -328,14 +349,7 @@ export default function Home() {
             {/* Right side: Form */}
             <div className="w-2/3 p-8">
               <Formik
-                initialValues={{
-                  name: "",
-                  email: "",
-                  phone: "",
-                  address: "",
-                  city: "",
-                  query: "",
-                }}
+                initialValues={initialvalues}
                 validationSchema={
                   currentStep === 1
                     ? validationSchemaStep1
@@ -347,11 +361,21 @@ export default function Home() {
                 }
                 onSubmit={(values) => {
                   console.log(values);
+
+                  setFullName(values.name);
+                  setEmail(values.email);
+                  setClientPhone(values.phone);
+                  setAddress(values.address);
+                  setCity(values.city);
+                  setHomeMaidId(filteredSuggestions.id);
+
+                  setHomeMaidName(filteredSuggestions.Name);
                   console.log(filteredSuggestions);
                   if (currentStep === 4) {
                     console.log({
                       ...values,
                       email: values.email,
+
                       PhoneNumber: filteredSuggestions.phone
                         ? filteredSuggestions.phone
                         : "لا يوجد هاتف مسجل",
@@ -360,7 +384,7 @@ export default function Home() {
                       clientphonenumber: values.phone,
                       Passportnumber: filteredSuggestions.Passportnumber,
                       maritalstatus: filteredSuggestions.maritalstatus,
-                      Nationality: filteredSuggestions.Nationality,
+                      NationalityCopy: filteredSuggestions.Nationality,
                       Religion: filteredSuggestions.Religion,
                       ExperienceYears: filteredSuggestions.ExperienceYears,
                     });
@@ -370,16 +394,18 @@ export default function Home() {
                         {
                           body: JSON.stringify({
                             ...values,
-
                             ClientName: values.name,
-                            HomemaidId: filteredSuggestions.id,
+                            NationalityCopy:
+                              filteredSuggestions.Nationalitycopy,
 
+                            HomemaidId: filteredSuggestions.id,
+                            Name: filteredSuggestions.Name,
                             age: filteredSuggestions.age,
                             clientphonenumber: values.phone,
                             PhoneNumber: filteredSuggestions.phone,
                             Passportnumber: filteredSuggestions.Passportnumber,
                             maritalstatus: filteredSuggestions.maritalstatus,
-                            Nationality: filteredSuggestions.Nationality,
+                            Nationality: filteredSuggestions.Nationalitycopy,
                             Religion: filteredSuggestions.Religion,
                             ExperienceYears:
                               filteredSuggestions.ExperienceYears,
@@ -582,7 +608,6 @@ export default function Home() {
                                     filteredSuggestions.Name
                                   );
                                   setQuery(filteredSuggestions.Name);
-                                  setFilteredSuggestions({});
                                 }}
                                 className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
                               >
@@ -598,12 +623,46 @@ export default function Home() {
                     {currentStep === 4 && (
                       <div>
                         <h2 className="text-2xl font-semibold mb-4">
-                          Review & Submit
+                          مراجعة الطلب
                         </h2>
                         {/* Client Name : {validationSchemaStep1.json().fields.name.}
                              Client Phone : {validationSchemaStep1.json().fields.phone}
-                             Email : {validationSchemaStep1.json().fields.email} */}
-                        Full Name : {filteredSuggestions.Name}
+                            
+                            اسم العميل
+                            Email : {validationSchemaStep1.json().fields.email} */}
+                        {/* {fullName}{" "} */}
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold ">
+                            Full Name &nbsp; &nbsp; :
+                          </p>
+                          <span>&nbsp;{fullName}</span>
+                        </div>
+
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold">Client Phone :</p>
+                          <span>&nbsp;{ClientPhone}</span>
+                        </div>
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold"> Email Adress :</p>
+                          <span>&nbsp; {email}</span>
+                        </div>
+
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold">
+                            Address &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;:
+                          </p>
+                          <span>&nbsp; {address}</span>
+                        </div>
+
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold">
+                            City &nbsp; &nbsp; &nbsp;
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
+                          </p>
+                          <span>&nbsp; {city}</span>
+                        </div>
+
+                        {/* {ClientPhone} : جوال العميل */}
                       </div>
                     )}
 
