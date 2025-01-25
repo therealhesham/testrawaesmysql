@@ -1,25 +1,31 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
-
 import { PrismaClient } from "@prisma/client";
-import Airtable, { Table } from "airtable";
-
-import { Console } from "console";
 import type { NextApiRequest, NextApiResponse } from "next";
+
+// Create a singleton PrismaClient instance
+let prisma: PrismaClient;
+
+if (process.env.NODE_ENV === "production") {
+  prisma = new PrismaClient();
+} else {
+  // Ensure the PrismaClient instance is reused in development for hot reloading
+  if (!global.prisma) {
+    global.prisma = new PrismaClient();
+  }
+  prisma = global.prisma;
+}
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const prisma = new PrismaClient();
-  console.log(req.body);
   try {
     const offices = await prisma.arrivallist.findMany();
-    // console.log(offices);
+    console.log(offices); // If needed for debugging
     res.status(200).json(offices);
   } catch (error) {
-    console.log(error);
-    res.status(301).json(error);
+    console.error(error); // Improved error logging
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 }
-
-// export base;

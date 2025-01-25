@@ -26,6 +26,7 @@ officeID            Int?
   Passportnumber    String? @db.VarChar(1024)
   clientphonenumber String? @db.VarChar(1024)
   Picture           Json?
+  
   ExperienceYears   String? @db.VarChar(1024)
   maritalstatus     String? @db.VarChar(1024)
   Experience        String? @db.VarChar(1024)
@@ -197,6 +198,14 @@ AgencyDate                    DateTime
 EmbassySealing                DateTime
 BookinDate                    DateTime
 GuaranteeDurationEnd          DateTime 
+
+ medicalCheckFile              String?
+      ticketFile               String?
+      receivingFile       String?
+      approvalPayment     String?
+      additionalfiles     Json?
+
+
 }
 
 

@@ -33,6 +33,7 @@ export default async function handler(
       notes,
     } = req.body;
     console.log(req.body);
+
     // Validate the request body (you can improve this with more robust validation)
     if (
       !client ||
@@ -73,7 +74,7 @@ export default async function handler(
           nationality,
           kingdomentrydate,
           daydate: new Date(daydate), // Ensure it's a Date object
-          workduration,
+          workduration: Number(workduration),
           newclientname,
           newclientmobilenumber,
           newclientnationalidnumber,
@@ -97,7 +98,11 @@ export default async function handler(
       return res.status(500).json({ error: "Failed to create transfer" });
     } finally {
       // Ensure Prisma disconnects after handling the request
-      await prisma.$disconnect();
+      try {
+        await prisma.$disconnect();
+      } catch (disconnectError) {
+        console.error("Error disconnecting Prisma:", disconnectError);
+      }
     }
   } else {
     // Handle unsupported HTTP methods

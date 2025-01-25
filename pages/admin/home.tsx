@@ -76,6 +76,44 @@ export default function Home() {
     fetchEvents();
   }, [router]);
 
+  const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
+  const [newOrdersLength, setNewOrdersLength] = useState(0);
+  const [homeMaidsLength, setHomeMaidsLength] = useState(0);
+  const [arrivalsLength, setArrivalsLength] = useState(0);
+  const [rejectedOrdersLength, setRejectedOrdersLength] = useState(0);
+
+  const [transferSponsorships, setTransferSponsorshipsLength] = useState(0);
+
+  transferSponsorships;
+  const fetchData = async () => {
+    try {
+      const response = await fetch(`/api/datalength`, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "get",
+      });
+      const res = await response.json();
+
+      if (response.status == 200) {
+        console.log(res);
+        setArrivalsLength(res.arrivalsCount);
+        setCurrentOrdersLength(res.currentorders);
+        setRejectedOrdersLength(res.rejectedOrders);
+        setHomeMaidsLength(res.workers);
+        setTransferSponsorshipsLength(res.transferSponsorships);
+        setNewOrdersLength(res.neworderCount);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   // Get the number of days in the current month
   const getDaysInMonth = (month, year) => {
     return new Date(year, month + 1, 0).getDate();
@@ -182,9 +220,11 @@ export default function Home() {
                 <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
                 الطلبات الجديدة
               </div>
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                5
-              </span>
+              {newOrdersLength > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {newOrdersLength > 0 ? newOrdersLength : 0}
+                </span>
+              ) : null}
             </a>
           </Link>
           {/* Box 3 */}
@@ -195,9 +235,11 @@ export default function Home() {
                 الطلبات الحالية
               </div>
               {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                3
-              </span>
+              {currentOrdersLength > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {currentOrdersLength > 0 ? currentOrdersLength : 0}
+                </span>
+              ) : null}
             </a>
           </Link>
 
@@ -208,9 +250,11 @@ export default function Home() {
                 الطلبات المنتهية
               </div>
               {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
+              {/* { > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {currentOrdersLength > 0 ? currentOrdersLength : 0}
+                </span>
+              ) : null} */}
             </a>
           </Link>
         </div>
@@ -224,9 +268,11 @@ export default function Home() {
                 الطلبات المرفوضة
               </div>
               {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
+              {rejectedOrdersLength > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
+                </span>
+              ) : null}
             </a>
           </Link>
           {/* Box 6 */}
@@ -239,9 +285,6 @@ export default function Home() {
                 اضافة عاملة
               </div>
               {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                3
-              </span>
             </a>
           </Link>
 
@@ -254,9 +297,11 @@ export default function Home() {
                 قائمة الوصول
               </div>
               {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                3
-              </span>
+              {arrivalsLength > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {arrivalsLength > 0 ? arrivalsLength : 0}
+                </span>
+              ) : null}
             </a>
           </Link>
 
@@ -269,9 +314,26 @@ export default function Home() {
                 بيانات العاملات
               </div>
               {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
+              {homeMaidsLength > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {homeMaidsLength > 0 ? homeMaidsLength : 0}
+                </span>
+              ) : null}
+            </a>
+          </Link>
+
+          <Link href="/admin/transfersponsorship">
+            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+              <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                معاملات نقل الكفالة
+              </div>
+              {/* Notification Badge */}
+              {transferSponsorships > 0 ? (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {transferSponsorships > 0 ? transferSponsorships : 0}
+                </span>
+              ) : null}
             </a>
           </Link>
 

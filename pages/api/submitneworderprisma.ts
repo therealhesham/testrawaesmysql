@@ -25,12 +25,17 @@ export default async function handler(
     Religion,
     ExperienceYears,
   } = req.body;
-
+  console.log(req.body);
   try {
     // Begin transaction to update homemaid and create related records
     const result = await prisma.neworder.create({
       data: {
+        ExperienceYears,
+        Nationality,
+        bookingstatus: "حجز جديد",
+        Passportnumber,
         ClientName,
+        clientphonenumber,
         Religion,
         PhoneNumber: "0",
         ages: age + "",
