@@ -12,6 +12,7 @@ import * as Yup from "yup"; // Import Yup for validation
 import FormWithTimeline from "./addneworderbyadmin";
 import TimeLinedForm from "example/components/stepsform";
 import Modal from "components/modal";
+import RejectBooking from "./reject-booking";
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
@@ -146,7 +147,28 @@ export default function Home() {
   useEffect(() => {
     fetchData(page);
   }, [page]);
+  const confirm = (id, date) => {
+    const submitter = await fetch("/api/confirmrequest", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
 
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        createdAt: date,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      setDate(Date.now());
+
+      setIsModalRejectionOpen(false); // Close the modal after rejection
+    }
+  };
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -194,18 +216,31 @@ export default function Home() {
     city: "",
     query: "",
   };
+  const [excelData, setExcelData] = useState([]);
   const exportToExcel = () => {
-    const filteredData = data.map((row) => ({
-      ClientName: row.ClientName,
-      PhoneNumber: row.PhoneNumber,
-      Religion: row.Religion,
-      ExperienceYears: row.ExperienceYears,
-    }));
+    try {
+      const response = await fetch(`/api/neworderlistprisma/`, {
+        method: "get",
+      });
 
-    const ws = XLSX.utils.json_to_sheet(filteredData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "New Reservations");
-    XLSX.writeFile(wb, "new_reservations.xlsx");
+      const res = await response.json();
+
+      const filteredData = res.map((row) => ({
+        "اسم العميل": row.ClientName,
+        الدين: row.Religion,
+        الخبرة: row.ExperienceYears,
+        "جوال العميل": row.clientphonenumber,
+        "حالة الحجز": row.bookingstatus,
+        "رقم العاملة": row.HomemaidId,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(filteredData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "حجوزات جديدة");
+      XLSX.writeFile(wb, "حجوزات جديدة.xlsx");
+    } catch (error) {
+      console.error("Error in search:", error);
+    }
   };
 
   const closeModal = () => {
@@ -231,6 +266,33 @@ export default function Home() {
       .matches(/^[0-9]{10}$/, "Phone Number must be 10 digits"),
     religion: Yup.string().required("Religion is required"),
   });
+  const [reason, setReason] = useState("");
+  const [isModalRejectionOpen, setIsModalRejectionOpen] = useState(false);
+  const OpenRejectionModal = () => setIsModalRejectionOpen(true); // Function to open the modal
+  const handleCancelRejectionModal = () => setIsModalRejectionOpen(false); // Function to close the modal
+  const handleReject = async (id) => {
+    alert(id);
+    const submitter = await fetch("/api/rejectbookingprisma", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        ReasonOfRejection: reason,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      setDate(Date.now());
+
+      setIsModalRejectionOpen(false); // Close the modal after rejection
+    }
+  };
 
   return (
     <Layout>
@@ -278,6 +340,8 @@ export default function Home() {
                   <th className="px-4 py-2">ديانة العاملة</th>
                   <th className="px-4 py-2">الخبرة</th>
                   <th className="px-4 py-2">العمر</th>
+                  <th className="px-4 py-2">موافق</th>
+                  <th className="px-4 py-2">رفض</th>
                   <th className="px-4 py-2">تحديث</th>
                 </tr>
               </thead>
@@ -296,10 +360,28 @@ export default function Home() {
                     >
                       {row.HomemaidId}
                     </td>
-
                     <td className="px-4 py-2">{row.Religion}</td>
                     <td className="px-4 py-2">{row.ExperienceYears}</td>
                     <td className="px-4 py-2">{row.age}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => confirm(raw.id, raw.createdAt)}
+                        className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
+                      >
+                        موافقة
+                      </button>
+                    </td>
+                    <td className="px-4 py-2">
+                      <RejectBooking
+                        reason={reason}
+                        id={row.id}
+                        setReason={setReason} // Passing setReason if needed
+                        OpenRejectionModal={OpenRejectionModal}
+                        handleCancelRejectionModal={handleCancelRejectionModal}
+                        handleReject={handleReject}
+                        isModalRejectionOpen={isModalRejectionOpen}
+                      />
+                    </td>
                     <td className="px-4 py-2">
                       <button
                         onClick={() => handleUpdate(row.id)}
@@ -419,9 +501,8 @@ export default function Home() {
                       );
 
                       if (fetchData.status == 200) {
-                        setModalOpen(false);
-                        setPage(1);
                         showSuccessModal();
+                        reset();
                       } else {
                         showErrorModal();
                       }

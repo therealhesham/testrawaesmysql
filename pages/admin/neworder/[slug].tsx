@@ -10,6 +10,13 @@ import * as Yup from "yup";
 import { ClipboardCopyIcon } from "@heroicons/react/solid"; // Import the clipboard icon
 import { GridLoader } from "react-spinners";
 import Modal from "components/modal";
+import Style from "styles/Home.module.css";
+
+import {
+  VerticalTimeline,
+  VerticalTimelineElement,
+} from "react-vertical-timeline-component";
+import "react-vertical-timeline-component/style.min.css";
 
 import SpinnerModal from "components/spinner";
 import SuccessModal from "office/components/successcoponent";
@@ -17,6 +24,9 @@ import { Spinner } from "react-bootstrap";
 import RejectBooking from "../reject-booking";
 import ErrorModal from "office/components/errormodal";
 import axios from "axios";
+import { FaAddressBook, FaFileSignature } from "react-icons/fa";
+import { BookOpenIcon } from "@heroicons/react/outline";
+import { LinkedinFilled, LinkOutlined } from "@ant-design/icons";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
@@ -38,6 +48,8 @@ const SlugPage = () => {
 
   const { slug } = router.query; // Get the dynamic slug value
   const [formData, setFormData] = useState({
+    OrderStatus: [],
+    bookingstatus: "الربط",
     Client: { fullname: "" },
     HomeMaid: {},
   });
@@ -54,12 +66,38 @@ const SlugPage = () => {
   const [copySuccess, setCopySuccess] = useState("");
   const [modalMessage, setModalMessage] = useState("");
   const [modalType, setModalType] = useState<"success" | "error">("success");
-
   const [clientInfoData, setClientInfoData] = useState({});
   async function Fetcher() {
-    fetch(`/api/findorderprisma/${router.query.slug}`)
-      .then((e) => e.json())
-      .then((e) => setFormData(e));
+    const f = await fetch(`/api/findorderprisma/${router.query.slug}`);
+    const g = await f.json();
+    if (g.HomemaidID == null)
+      setFormData({
+        ...g,
+        HomeMaid: {
+          Nationalitycopy: "",
+          Name: "",
+          Religion: "",
+          officeID: "",
+
+          Passportnumber: "",
+          clientphonenumber: "",
+          // Picture           Json?
+
+          ExperienceYears: "",
+          maritalstatus: "",
+          Experience: "",
+          dateofbirth: "",
+          Nationality: "",
+          age: "",
+          // flag              Json?
+          phone: "",
+          bookingstatus: "",
+          ages: "",
+        },
+      });
+    setFormData(g);
+    //  .then((e) => e.json())
+    //  .then((e) => setFormData(e));
     // const jsonfetcher = await fetcher.json();
     // setFormData(jsonfetcher);
     // // setClientInfoData(jsonfetcher.Client[0]);
@@ -76,6 +114,9 @@ const SlugPage = () => {
       [name]: value,
     }));
   };
+  const musanadRef = useRef();
+  const kingdomEntryRef = useRef();
+  const externalOfficeAprrovalRef = useRef();
 
   const handleChangeReservationSubmit = async (e) => {
     const submitter = await fetch("/api/changerservationstatus", {
@@ -318,6 +359,74 @@ const SlugPage = () => {
       setCloudinaryImages(uploadedUrls);
     }
   };
+  const updatearrivallist = async () => {
+    // const handleAccessFormSubmit = async (s) => {
+    setModalSpinnerOpen(true);
+    // Adding to access list
+    // e.preventDefault();
+    const {
+      SponsorName,
+      InternalmusanedContract,
+      SponsorIdnumber,
+      SponsorPhoneNumber,
+      PassportNumber,
+      KingdomentryDate,
+      DayDate,
+      WorkDuration,
+      Cost,
+      HomemaIdnumber,
+      HomemaidName,
+      Notes,
+      ArrivalCity,
+      DateOfApplication,
+      MusanadDuration,
+      ExternalDateLinking,
+      ExternalOFficeApproval,
+      AgencyDate,
+      EmbassySealing,
+      BookinDate,
+      GuaranteeDurationEnd,
+    } = s;
+
+    const submitter = await fetch("../../api/updatehomemaidarrivalprisma", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        InternalmusanedContract,
+
+        KingdomentryDate: new Date(KingdomentryDate).toISOString(),
+        WorkDuration,
+        Cost,
+        Notes,
+        ArrivalCity,
+        MusanadDuration,
+        ExternalDateLinking: new Date(ExternalDateLinking).toISOString(),
+        ExternalOFficeApproval: new Date(ExternalOFficeApproval).toISOString(),
+        AgencyDate: new Date(AgencyDate).toISOString(),
+        EmbassySealing: new Date(EmbassySealing).toISOString(),
+        BookinDate: new Date(BookinDate).toISOString(),
+        GuaranteeDurationEnd: new Date(GuaranteeDurationEnd).toISOString(),
+      }),
+    });
+    // max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-md
+    // console.log(submitter);
+
+    const res = await submitter.json();
+    if (submitter.status == 200) {
+      setModalSpinnerOpen(false);
+      showSuccessModal();
+    } else {
+      setModalSpinnerOpen(false);
+
+      showErrorModal();
+    }
+    // closeModal(); // Close the modal after submission
+    // };
+  };
+
   const handleAccessFormSubmit = async (s) => {
     setModalSpinnerOpen(true);
     // Adding to access list
@@ -398,8 +507,9 @@ const SlugPage = () => {
 
   // Added Cancelled stage and implemented the handleTimelineClick function
   const stages = [
-    "التواصل مع العميل",
+    "التواصل",
     "اكمال الطلب",
+    "موافقة المكتب",
     "الربط",
     "المتابعة",
     "وصول العاملة",
@@ -454,14 +564,10 @@ const SlugPage = () => {
       bookingstatus: newStatus,
     }));
   };
-
-  const changeTimeline = async (state) => {
-    // alert(state);
-    setModalSpinnerOpen(true);
-    const fetcher = await fetch(`/api/updatetimeline`, {
+  const createArrivalListRecord = async () => {
+    const fetcher = await fetch(`/api/arrivallistcreator`, {
       body: JSON.stringify({
-        id: formData.id,
-        bookingstatus: state,
+        OrderId: formData.id,
       }),
       method: "post",
       headers: {
@@ -483,29 +589,76 @@ const SlugPage = () => {
     }
   };
 
+  const changeTimelineDates = () => {};
+
+  const getDate = (stage) => {
+    if (stage) {
+      const filter = formData?.OrderStatus.filter(
+        (e) => e == formData.OrderStatus.createdAt
+      );
+      return filter;
+    }
+    return null;
+  };
+  const changeTimeline = async (state) => {
+    // alert(state);
+    setIsEditing("الربط");
+    musanadRef.current.focus();
+
+    // setModalSpinnerOpen(true);
+
+    const fetcher = await fetch(`/api/updatetimeline`, {
+      body: JSON.stringify({
+        id: formData.id,
+        bookingstatus: state,
+      }),
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      cache: "default",
+    });
+    //  "",
+    //   "المتابعة",
+    //   "وصول العاملة",
+    //   "الاستلام",
+    //   "التقييم",
+
+    switch (state) {
+      case "الربط":
+        break;
+
+      default:
+        break;
+    }
+
+    // alert(fetcher.status);
+    const jsonfetcher = await fetcher.json();
+    if (fetcher.status == 200) {
+      // console.log(updatekingdomentry.current);
+      setDate(Date.now());
+      setModalSpinnerOpen(false);
+      setIsFormVisible(true);
+    } else {
+      setModalSpinnerOpen(false);
+    }
+  };
+
   const validationSchema = Yup.object({
-    InternalmusanedContract: Yup.string().required(
-      "Internalmusaned contract is required"
-    ),
-    KingdomentryDate: Yup.date().required("Kingdom entry date is required"),
-    WorkDuration: Yup.string().required("Work duration is required"),
-    Cost: Yup.string().required("Cost is required"),
-    Notes: Yup.string().required("Notes are required"),
-    ArrivalCity: Yup.string().required("Arrival city is required"),
-    DateOfApplication: Yup.date().required("Date of application is required"),
-    MusanadDuration: Yup.string().required("Musanad duration is required"),
-    ExternalDateLinking: Yup.date().required(
-      "External date linking is required"
-    ),
-    ExternalOFficeApproval: Yup.date().required(
-      "External office approval is required"
-    ),
-    AgencyDate: Yup.date().required("Agency date is required"),
-    EmbassySealing: Yup.date().required("Embassy sealing is required"),
-    BookinDate: Yup.date(Date.now()).required("Booking date is required"),
-    GuaranteeDurationEnd: Yup.date().required(
-      "Guarantee duration end is required"
-    ),
+    InternalmusanedContract: Yup.string().optional(),
+    KingdomentryDate: Yup.date().optional(),
+    WorkDuration: Yup.string().optional(),
+    Cost: Yup.string().optional(),
+    Notes: Yup.string().optional(),
+    ArrivalCity: Yup.string().optional(),
+    DateOfApplication: Yup.date().optional(),
+    MusanadDuration: Yup.string().optional(),
+    ExternalDateLinking: Yup.date().optional(),
+    ExternalOFficeApproval: Yup.date().optional(),
+    AgencyDate: Yup.date().optional(),
+    EmbassySealing: Yup.date().optional(),
+    GuaranteeDurationEnd: Yup.date().optional(),
   });
   const [cloudinaryImages, setCloudinaryImages] = useState<string[]>([]);
   // Handle the file upload to Cloudinary
@@ -535,13 +688,12 @@ const SlugPage = () => {
     },
     validationSchema: validationSchema,
     onSubmit: (values) => {
-      // console.log(values);
+      console.log(values);
       // console.log(values);
       handleAccessFormSubmit(values);
       // Send data to the server or handle form submission
     },
   });
-
   const [isModalSpinnerOpen, setModalSpinnerOpen] = useState(false);
 
   const openSpinnerModal = () => {
@@ -577,10 +729,29 @@ const SlugPage = () => {
       setIsModalRejectionOpen(false); // Close the modal after rejection
     }
   };
+  const [value, setValue] = useState("");
+
+  // Handle value change in input field
+  const handleChangein = (e) => {
+    setValue(e.target.value);
+  };
+
+  // Handle submit button click
+  const handleSubmit = () => {
+    setIsEditing(false); // Disable editing after submit
+  };
 
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isEditing, setIsEditing] = useState(""); // Track whether the input is focused (being edited)
 
+  // Handle the input box focus and blur events
+  const handleFocus = () => {
+    setIsEditing(true);
+  };
+  const handleBlur = () => {
+    setIsEditing(false);
+  };
   const triggerError = () => {
     setErrorMessage("الطلب تم رفضه");
     setIsModalOpen(true);
@@ -591,26 +762,304 @@ const SlugPage = () => {
     setIsErrorModalOpen(false);
     // setErrorMessage("");
   };
+  const toggleEditable = (index) => {};
+  const [isModalBooksOpen, setIsModalBooksOpen] = useState(false);
+
+  const openBooksModal = () => setIsModalBooksOpen(true); // Open modal
+  const closeBooksModal = () => setIsModalBooksOpen(false); // Close modal
   return (
     <Layout>
       {/* min-h-screen */}
-      <div className=" bg-gray-100 py-8">
-        {formData.bookingstatus == "طلب مرفوض" ? (
-          <ErrorModal
-            message={errorMessage}
-            onClose={closeErrorModal}
-            isErrorModalOpen={isErrorModalOpen}
-          />
-        ) : null}
-        <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
-        <RejectBooking
-          reason={reason}
-          setReason={setReason} // Passing setReason if needed
-          OpenRejectionModal={OpenRejectionModal}
-          handleCancelRejectionModal={handleCancelRejectionModal}
-          handleReject={handleReject}
-          isModalRejectionOpen={isModalRejectionOpen}
+      {formData.bookingstatus == "طلب مرفوض" ? (
+        <ErrorModal
+          message={errorMessage}
+          onClose={closeErrorModal}
+          isErrorModalOpen={isErrorModalOpen}
         />
+      ) : null}
+      <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
+
+      <div className=" py-8">
+        <div className="container mx-auto p-4">
+          <button
+            className="flex items-center space-x-2 bg-pink-400 text-white py-2 px-4 rounded-lg hover:bg-pink-600 transition duration-200"
+            onClick={() => openBooksModal()}
+          >
+            <FaFileSignature className="h-6 w-6" />
+            <span>ملفات الطلب</span>
+          </button>
+        </div>
+        {isModalBooksOpen && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            {/* Modal Content */}
+            <div className="bg-white w-full sm:w-96 p-6 rounded-lg shadow-lg">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  صندوق رفع الملفات
+                </h2>
+                <button
+                  onClick={closeBooksModal}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    className="h-6 w-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="mb-6 text-gray-600">
+                <div className="col-span-3">
+                  <label
+                    htmlFor="medicalCheckFile"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع ملف الفحص الطبي
+                  </label>
+                  <div className="flex flex-col items-start bg-gray-100 rounded-md">
+                    {/* Hidden file input */}
+                    <input
+                      id="medicalCheckFile"
+                      name="medicalCheckFile"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadmedicalcheckfile}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="medicalCheckFile"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {medicalCheckFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={medicalCheckFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-3">
+                  <label
+                    htmlFor="ticketFile"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع ملف التذكرة
+                  </label>
+                  <div className="flex flex-col bg-gray-100 items-start">
+                    {/* Hidden file input */}
+                    <input
+                      id="ticketFile"
+                      name="ticketFile"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadticketFile}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="ticketFile"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {ticketFileFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={ticketFileFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {formik.errors.ticketFile && formik.touched.ticketFile && (
+                    <div className="text-red-600 text-sm mt-1">
+                      {formik.errors.ticketFile}
+                    </div>
+                  )}
+                </div>
+
+                <div className="col-span-3">
+                  <label
+                    htmlFor="receivingFile"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع ملف الاستلام
+                  </label>
+                  <div className="flex flex-col items-start">
+                    {/* Hidden file input */}
+                    <input
+                      id="receivingFile"
+                      name="receivingFile"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadreceivingFile}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="receivingFile"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {receivingFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={receivingFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-3">
+                  <label
+                    htmlFor="approvalPayment"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع اثبات الدفع
+                  </label>
+                  <div className="flex flex-col items-start bg-gray-100 ">
+                    {/* Hidden file input */}
+                    <input
+                      id="approvalPayment"
+                      name="approvalPayment"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadapprovalPayment}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="approvalPayment"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {approvalPaymentFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600 ">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={approvalPaymentFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Custom File Upload Field */}
+                <div>
+                  <label
+                    htmlFor="additionalfiles"
+                    className="block font-semibold text-sm"
+                  >
+                    ملفات اخرى
+                  </label>
+                  <div className="flex flex-col items-start">
+                    {/* Hidden file input with multiple attribute */}
+                    <input
+                      id="additionalfiles"
+                      name="additionalfiles"
+                      type="file"
+                      className="hidden"
+                      multiple
+                      onChange={handleUpload}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="additionalfiles"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      Choose Files
+                    </label>
+
+                    {/* Display uploaded images or file statuses */}
+                    {cloudinaryImages.length > 0 && (
+                      <div className="mt-2 text-gray-600">
+                        <span>Uploaded Files:</span>
+                        <ul>
+                          {cloudinaryImages.map((image, index) => (
+                            <li key={index} className="mt-1">
+                              <a
+                                href={image}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-purple-500 hover:underline"
+                              >
+                                File {index + 1}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={closeBooksModal}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => alert("Confirmed!")}
+                  className="bg-orange-400 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-200"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Modal
           isOpen={isModalOpen}
           message={modalMessage}
@@ -622,7 +1071,6 @@ const SlugPage = () => {
             Details:
             {formData.ClientName ? formData.ClientName : ""}
           </h1>
-
           {/* Timeline Component with Clickable Stages */}
           <Timeline
             currentstatus={formData.bookingstatus}
@@ -654,32 +1102,6 @@ const SlugPage = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-            {/* <div className="bg-white p-6 rounded-lg shadow-lg">
-              <h2 className="text-2xl font-semibold mb-4">تعديل حالة الطلب</h2>
-              <div
-                className={`px-4 py-2 rounded-lg ${getReservationIndicatorStyles()} cursor-pointer`}
-                onClick={handleToggleFormVisibility}
-              >
-                <strong>Booking Status:</strong> {formData.bookingstatus}
-              </div>
-
-              {isFormVisible && (
-                <form
-                  onSubmit={handleChangeReservationSubmit}
-                  className="space-y-4 mt-4"
-                >
-                  <div className="text-center">
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700 focus:outline-none"
-                    >
-                      {submitted ? "Submitted" : "Submit"}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div> */}
-            {/* Client Info Section */}
             <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
               <h2 className="text-2xl font-semibold mb-4">
                 Client Information
@@ -712,121 +1134,242 @@ const SlugPage = () => {
                     WhatsApp
                   </a>
                 </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <strong className="w-32">Order ID:</strong>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <strong className="w-32">Name:</strong>
+                    <span>{formData.HomeMaid.Name}</span>
+                  </div>
+                </div>
               </div>
             </div>
-            {/* Home Maid Information Section */}
-            {/* Home Maid Information Section */}
-            <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
-              <h2 className="text-2xl font-semibold mb-4">
-                Home Maid Information
-              </h2>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <strong className="w-32">Order ID:</strong>
-                  <span>{slug}</span>
-                  <button
-                    onClick={() => handleCopy(slug)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Order ID"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
+          </div>
 
-                <div className="flex justify-between items-center">
-                  <strong className="w-32">Name:</strong>
-                  <span>{formData.HomeMaid.Name}</span>
-                  <button
-                    onClick={() => handleCopy(formData.HomeMaid.Name)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Name"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <strong className="w-32">Passport:</strong>
-                  <span>{formData.HomeMaid.Passportnumber}</span>
-                  <button
-                    onClick={() => handleCopy(formData.HomeMaid.Passportnumber)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Passport"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <strong className="w-32">Age:</strong>
-                  <span>{formData.HomeMaid.age}</span>
-                  <button
-                    onClick={() => handleCopy(formData.HomeMaid.age)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Age"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
-
-                {/* Dynamic Styles Based on Booking Status */}
-                <div
-                  className={`flex justify-between items-center px-4 py-2 rounded-lg ${getReservationIndicatorStyles()}`}
+          <div className="p-8">
+            <VerticalTimeline animate={true} lineColor="purple">
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                date={formData.createdAt}
+                iconStyle={{
+                  background: "rgb(128, 25, 243)",
+                  color: "#ffc0cb",
+                }}
+              >
+                <h1
+                  style={{ justifyContent: "center", display: "flex" }}
+                  className={Style["almarai-bold"]}
                 >
-                  <strong className="w-32">Booking Status:</strong>
-                  <span>{formData.bookingstatus}</span>
-                  <button
-                    onClick={() => handleCopy(formData.bookingstatus)}
-                    className="ml-2 p-1  text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Booking Status"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
+                  التقديم
+                </h1>
+                <p>تم استلام الطلب</p>
+              </VerticalTimelineElement>
 
-                {/* Dynamic Styles Based on Experience */}
-                <div
-                  className={`flex justify-between items-center px-4 py-2 rounded-lg ${getExperienceIndicatorStyles()}`}
-                >
-                  <strong className="w-32">Experience:</strong>
-                  <span>{formData.ExperienceYears} years</span>
-                  <button
-                    onClick={() => handleCopy(formData.ExperienceYears)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Experience"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                // date={form.createdAt}
+                iconStyle={{
+                  background: "rgb(128, 25, 243)",
+                  color: "#ffc0cb",
+                }}
+                //  icon={}
+              >
+                {/* formData.bookingStatus === "الربط" */}
+                {true & (isEditing !== "موافقة المكتب الخارجي") ? (
+                  <>
+                    <h1
+                      style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      موافقة المكتب الخارجي
+                    </h1>
+                    <p>{getDate("موافقة")}</p>
+                    <button
+                      onClick={() => setIsEditing("موافقة المكتب الخارجي")}
+                    >
+                      تعديل
+                    </button>
+                  </>
+                ) : (
+                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                    <form action="#" method="POST">
+                      <div className="mb-4">
+                        <label
+                          for="input"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          موافقة المكتب الخارجي
+                        </label>
+                        <input
+                          ref={externalOfficeAprrovalRef}
+                          type="date"
+                          id="input"
+                          name="input"
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter something..."
+                          required
+                        />
+                      </div>
 
-                <div className="flex justify-between items-center">
-                  <strong className="w-32">Marital Status:</strong>
-                  <span>{formData.maritalstatus}</span>
-                  <button
-                    onClick={() => handleCopy(formData.maritalstatus)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
-                    aria-label="Copy Marital Status"
-                  >
-                    <ClipboardCopyIcon className="h-8 w-8" opacity="40%" />
-                  </button>
-                </div>
-
-                {copySuccess && (
-                  <div className="mt-2 text-green-500 text-sm">
-                    {copySuccess}
+                      <div>
+                        <button
+                          type="submit"
+                          onClick={() =>
+                            handleAccessFormSubmit({
+                              ExternalOFficeApproval:
+                                externalOfficeAprrovalRef.current.value,
+                            })
+                          }
+                          className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        >
+                          تأكيد
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 )}
-              </div>
-            </div>{" "}
-          </div>
-          {/* 
-          <div className="flex items-center justify-center">
-            <p className="text-2xl font-bold text-cool-gray-700 mb-5">
-              اضافة الى قائمة الوصول
-            </p>
-          </div> */}
-          {/* Modal Form */}
+              </VerticalTimelineElement>
 
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                contentStyle={{
+                  background: "rgb(33, 150, 243)",
+                }}
+                contentArrowStyle={{
+                  borderRight: "7px solid  rgb(33, 150, 243)",
+                }}
+                // date="2011 - present"
+                iconStyle={{
+                  background: "rgb(33, 150, 243)",
+                  color: "#fff",
+                }}
+              >
+                {(formData.bookingstatus == "الربط مع مساند") &
+                (isEditing !== "الربط مع مساند") ? (
+                  <>
+                    <h1
+                      style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      الربط
+                    </h1>
+                    <p>تم الربط مع مساند </p>
+
+                    <button onClick={() => setIsEditing("الربط مع مساند")}>
+                      تعديل
+                    </button>
+                  </>
+                ) : (
+                  // <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                  <form action="#" method="POST">
+                    <div className="mb-4">
+                      <label
+                        for="input"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        الربط مع مساند
+                      </label>
+
+                      <input
+                        ref={musanadRef}
+                        type="text"
+                        id="input"
+                        name="input"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter something..."
+                      />
+                    </div>
+
+                    <div>
+                      <button
+                        onClick={() => setIsEditing("")}
+                        className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        الغاء التعديل
+                      </button>
+
+                      <button
+                        type="submit"
+                        onClick={() =>
+                          handleAccessFormSubmit({
+                            InternalmusanedContract: musanadRef.current.value,
+                          })
+                        }
+                        className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        تأكيد
+                      </button>
+                    </div>
+                  </form>
+                  // </div>
+                )}
+              </VerticalTimelineElement>
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                // date={form.createdAt}
+                iconStyle={{
+                  background: "rgb(128, 25, 243)",
+                  color: "#ffc0cb",
+                }}
+                //  icon={}
+              >
+                {/* formData.bookingStatus === "الربط" */}
+                {false & (isEditing !== "وصول العاملة") ? (
+                  <>
+                    <h1
+                      style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      تاريخ دخول المملكة
+                    </h1>
+                    <p>{getDate("وصول العاملة")}</p>
+                    <button onClick={() => setIsEditing("وصول العاملة")}>
+                      تعديل
+                    </button>
+                  </>
+                ) : (
+                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                    <form action="#" method="POST">
+                      <div className="mb-4">
+                        <label
+                          for="input"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          تاريخ دخول المملكة
+                        </label>
+                        <input
+                          ref={kingdomEntryRef}
+                          type="date"
+                          id="input"
+                          name="input"
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter something..."
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <button
+                          type="submit"
+                          onClick={() =>
+                            handleAccessFormSubmit({
+                              KingdomentryDate: kingdomEntryRef.current.value,
+                            })
+                          }
+                          className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        >
+                          تأكيد
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </VerticalTimelineElement>
+            </VerticalTimeline>
+          </div>
           <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
             {/* Button to toggle the form */}
             <button
@@ -839,100 +1382,6 @@ const SlugPage = () => {
             {isFormVisible && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Internalmusaned Contract */}
-                  <div>
-                    <label
-                      htmlFor="InternalmusanedContract"
-                      className="block font-semibold text-sm"
-                    >
-                      Internalmusaned Contract
-                    </label>
-                    <input
-                      id="InternalmusanedContract"
-                      name="InternalmusanedContract"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.InternalmusanedContract}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.InternalmusanedContract &&
-                      formik.touched.InternalmusanedContract && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.InternalmusanedContract}
-                        </div>
-                      )}
-                  </div>
-                  {/* Kingdom Entry Date */}
-                  <div className="w-full">
-                    <label
-                      htmlFor="KingdomentryDate"
-                      className="block font-semibold text-sm"
-                    >
-                      Kingdom Entry Date
-                    </label>
-                    <input
-                      id="KingdomentryDate"
-                      name="KingdomentryDate"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.KingdomentryDate}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.KingdomentryDate &&
-                      formik.touched.KingdomentryDate && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.KingdomentryDate}
-                        </div>
-                      )}
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="DateOfApplication"
-                      className="block font-semibold text-sm"
-                    >
-                      تاريخ تقديم الطلب
-                    </label>
-                    <input
-                      id="DateOfApplication"
-                      name="DateOfApplication"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.DateOfApplication}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.DateOfApplication &&
-                      formik.touched.DateOfApplication && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.DateOfApplication}
-                        </div>
-                      )}
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="ExternalDateLinking"
-                      className="block font-semibold text-sm"
-                    >
-                      تاريخ الربط مع مساند
-                    </label>
-                    <input
-                      id="ExternalDateLinking"
-                      name="ExternalDateLinking"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.ExternalDateLinking}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.ExternalDateLinking &&
-                      formik.touched.ExternalDateLinking && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.ExternalDateLinking}
-                        </div>
-                      )}
-                  </div>
                   {/* Work Duration */}
                   <div>
                     <label
@@ -958,29 +1407,7 @@ const SlugPage = () => {
                       )}
                   </div>
                   {/* Cost */}
-                  <div>
-                    <label
-                      htmlFor="ExternalOFficeApproval"
-                      className="block font-semibold text-sm"
-                    >
-                      موافقة المكتب الخارجي
-                    </label>
-                    <input
-                      id="ExternalOFficeApproval"
-                      name="ExternalOFficeApproval"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.ExternalOFficeApproval}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.ExternalOFficeApproval &&
-                      formik.touched.ExternalOFficeApproval && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.ExternalOFficeApproval}
-                        </div>
-                      )}
-                  </div>
+
                   <div>
                     <label
                       htmlFor="AgencyDate"
@@ -1120,276 +1547,6 @@ const SlugPage = () => {
                   {/* Home Maid ID */}
                   {/* Home Maid Name */}
                   {/* Notes */}
-                  <div>
-                    <label
-                      htmlFor="ArrivalCity"
-                      className="block font-semibold text-sm"
-                    >
-                      مدينة الوصول
-                    </label>
-                    <input
-                      id="ArrivalCity"
-                      name="ArrivalCity"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.ArrivalCity}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                    {formik.errors.ArrivalCity &&
-                      formik.touched.ArrivalCity && (
-                        <div className="text-red-600 text-sm">
-                          {formik.errors.ArrivalCity}
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="col-span-3">
-                    <label
-                      htmlFor="medicalCheckFile"
-                      className="block font-semibold text-sm"
-                    >
-                      رفع ملف الفحص الطبي
-                    </label>
-                    <div className="flex flex-col items-start bg-gray-100 rounded-md">
-                      {/* Hidden file input */}
-                      <input
-                        id="medicalCheckFile"
-                        name="medicalCheckFile"
-                        type="file"
-                        className="hidden"
-                        onChange={handleUploadmedicalcheckfile}
-                      />
-                      {/* Custom file upload button */}
-                      <label
-                        htmlFor="medicalCheckFile"
-                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
-                      >
-                        اختار الملف
-                      </label>
-
-                      {/* Display uploaded image or file status */}
-                      {medicalCheckFileCloudinaryImage && (
-                        <div className="mt-2 text-gray-600">
-                          <span>File Uploaded: </span>
-                          <a
-                            href={medicalCheckFileCloudinaryImage}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-500 hover:underline"
-                          >
-                            عرض الملف
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {formik.errors.medicalCheckFile &&
-                      formik.touched.medicalCheckFile && (
-                        <div className="text-red-600 text-sm mt-1">
-                          {formik.errors.medicalCheckFile}
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="col-span-3">
-                    <label
-                      htmlFor="ticketFile"
-                      className="block font-semibold text-sm"
-                    >
-                      رفع ملف التذكرة
-                    </label>
-                    <div className="flex flex-col bg-gray-100 items-start">
-                      {/* Hidden file input */}
-                      <input
-                        id="ticketFile"
-                        name="ticketFile"
-                        type="file"
-                        className="hidden"
-                        onChange={handleUploadticketFile}
-                      />
-                      {/* Custom file upload button */}
-                      <label
-                        htmlFor="ticketFile"
-                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
-                      >
-                        اختار الملف
-                      </label>
-
-                      {/* Display uploaded image or file status */}
-                      {ticketFileFileCloudinaryImage && (
-                        <div className="mt-2 text-gray-600">
-                          <span>File Uploaded: </span>
-                          <a
-                            href={ticketFileFileCloudinaryImage}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-500 hover:underline"
-                          >
-                            عرض الملف
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {formik.errors.ticketFile && formik.touched.ticketFile && (
-                      <div className="text-red-600 text-sm mt-1">
-                        {formik.errors.ticketFile}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-3">
-                    <label
-                      htmlFor="receivingFile"
-                      className="block font-semibold text-sm"
-                    >
-                      رفع ملف الاستلام
-                    </label>
-                    <div className="flex flex-col items-start">
-                      {/* Hidden file input */}
-                      <input
-                        id="receivingFile"
-                        name="receivingFile"
-                        type="file"
-                        className="hidden"
-                        onChange={handleUploadreceivingFile}
-                      />
-                      {/* Custom file upload button */}
-                      <label
-                        htmlFor="receivingFile"
-                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
-                      >
-                        اختار الملف
-                      </label>
-
-                      {/* Display uploaded image or file status */}
-                      {receivingFileCloudinaryImage && (
-                        <div className="mt-2 text-gray-600">
-                          <span>File Uploaded: </span>
-                          <a
-                            href={receivingFileCloudinaryImage}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-500 hover:underline"
-                          >
-                            عرض الملف
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {formik.errors.receivingFile &&
-                      formik.touched.receivingFile && (
-                        <div className="text-red-600 text-sm mt-1">
-                          {formik.errors.receivingFile}
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="col-span-3">
-                    <label
-                      htmlFor="approvalPayment"
-                      className="block font-semibold text-sm"
-                    >
-                      رفع اثبات الدفع
-                    </label>
-                    <div className="flex flex-col items-start bg-gray-100 ">
-                      {/* Hidden file input */}
-                      <input
-                        id="approvalPayment"
-                        name="approvalPayment"
-                        type="file"
-                        className="hidden"
-                        onChange={handleUploadapprovalPayment}
-                      />
-                      {/* Custom file upload button */}
-                      <label
-                        htmlFor="approvalPayment"
-                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
-                      >
-                        اختار الملف
-                      </label>
-
-                      {/* Display uploaded image or file status */}
-                      {approvalPaymentFileCloudinaryImage && (
-                        <div className="mt-2 text-gray-600 ">
-                          <span>File Uploaded: </span>
-                          <a
-                            href={approvalPaymentFileCloudinaryImage}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-500 hover:underline"
-                          >
-                            عرض الملف
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {formik.errors.approvalPaymentFileCloudinaryImage &&
-                      formik.touched.approvalPaymentFileCloudinaryImage && (
-                        <div className="text-red-600 text-sm mt-1">
-                          {formik.errors.approvalPaymentFileCloudinaryImage}
-                        </div>
-                      )}
-                  </div>
-
-                  {/* Custom File Upload Field */}
-                  <div>
-                    <label
-                      htmlFor="additionalfiles"
-                      className="block font-semibold text-sm"
-                    >
-                      ملفات اخرى
-                    </label>
-                    <div className="flex flex-col items-start">
-                      {/* Hidden file input with multiple attribute */}
-                      <input
-                        id="additionalfiles"
-                        name="additionalfiles"
-                        type="file"
-                        className="hidden"
-                        multiple
-                        onChange={handleUpload}
-                      />
-                      {/* Custom file upload button */}
-                      <label
-                        htmlFor="additionalfiles"
-                        className="px-6 py-2 bg-purple-500 text-white rounded-lg cursor-pointer hover:bg-purple-700"
-                      >
-                        Choose Files
-                      </label>
-
-                      {/* Display uploaded images or file statuses */}
-                      {cloudinaryImages.length > 0 && (
-                        <div className="mt-2 text-gray-600">
-                          <span>Uploaded Files:</span>
-                          <ul>
-                            {cloudinaryImages.map((image, index) => (
-                              <li key={index} className="mt-1">
-                                <a
-                                  href={image}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-purple-500 hover:underline"
-                                >
-                                  File {index + 1}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-
-                    {formik.errors.additionalfiles &&
-                      formik.touched.additionalfiles && (
-                        <div className="text-red-600 text-sm mt-1">
-                          {formik.errors.additionalfiles}
-                        </div>
-                      )}
-                  </div>
 
                   <div className="col-span-3">
                     <label

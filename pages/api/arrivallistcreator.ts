@@ -11,49 +11,16 @@ export default async function handler(
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
-  const {
-    ClientName,
-    PhoneNumber,
-    HomemaidId,
-    age,
-    clientphonenumber,
-    Name,
-    Passportnumber,
-    maritalstatus,
-    email,
-    Nationality,
-    Religion,
-    ExperienceYears,
-  } = req.body;
+  const { OrderId } = req.body;
 
   try {
     // Begin transaction to update homemaid and create related records
-    const result = await prisma.neworder.create({
-      data: {
-        ExperienceYears,
-        Nationality,
-        bookingstatus: "حجز جديد",
-        Passportnumber,
-        ClientName,
-        clientphonenumber,
-        Religion,
-        PhoneNumber: "0",
-        ages: age + "",
-        Client: {
-          create: {
-            email,
-            fullname: ClientName, // Ensure the name field in the schema is 'fullname'
-            phonenumber: clientphonenumber, // Ensure the phonenumber field in the schema matches
-          },
-        },
-        HomeMaid: { connect: { id: HomemaidId } },
-      },
-    });
+    const result = await prisma.arrivallist.create({ data: { OrderId } });
 
     // Send response after the transaction is successful
     res.status(200).json(result);
   } catch (error) {
-    console.error("Error in creating new order:", error);
+    console.error("Error in creating new Arrival:", error);
 
     // Custom error handling based on error type
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
