@@ -15,12 +15,15 @@ datasource db {
   url      =env("DATABASE_URL")
 
 }
+
+
 model homemaid {
   id                Int   @id @default(autoincrement())
+  Office         Office?  @relation(fields: [officeID],references: [id]) 
+
   Nationalitycopy   String? @db.VarChar(1024)
   Name              String? @db.VarChar(1024)
   Religion          String? @db.VarChar(1024)
-  Office         Office?  @relation(fields: [officeID],references: [id]) 
 officeID            Int?
 
   Passportnumber    String? @db.VarChar(1024)
@@ -109,12 +112,12 @@ notes           String
 
 model neworder{
   id                Int   @id @default(autoincrement())
-ClientName          String
-PhoneNumber         String
+ClientName          String?
+PhoneNumber         String?
 clientID              Int?
 HomemaidId            Int?
 Client              Client? @relation(fields: [clientID],references: [id])
-
+ArrivalList         arrivallist[]
 HomeMaid             homemaid?  @relation(fields: [HomemaidId],references: [id])
 
 
@@ -134,12 +137,26 @@ ReasonOfRejection    String?
   age               Int?
   flag              Json?
   phone             String? @db.VarChar(1024)
-  ages              String? @db.VarChar(1024)
+  ages              String? @db.VarChar(1024  )
   createdAt    DateTime? @default(now()) 
   updatedAt    DateTime? @updatedAt 
 updatedBy   String?
+OrderStatus     OrderStatus[]
 
 }
+
+model OrderStatus {
+  id        Int      @id @default(autoincrement())
+  orderId    Int
+  status    String  @db.VarChar(1024)
+  createdAt DateTime @default(now())
+  
+  Order      neworder?     @relation(fields: [orderId], references: [id])
+
+
+  @@unique([orderId, status]) 
+}
+
 
 model MaleWorker {
 
@@ -177,27 +194,28 @@ SponsorName       String?
 InternalmusanedContract       String?
 SponsorIdnumber              Int?
 Sponsor                   Client? @relation(fields: [SponsorIdnumber],references: [id])
-
+OrderId                       Int @unique
+Order                         neworder @relation(fields: [OrderId],references: [id])
 SponsorPhoneNumber                String?
 PassportNumber                String?
-KingdomentryDate              String?
-WorkDuration                  String
-Cost                          String
-HomemaIdnumber                Int
-HomemaidName                  String
+KingdomentryDate              DateTime?
+WorkDuration                  String?
+Cost                          String?
+HomemaIdnumber                Int?
+HomemaidName                  String?
 
 
-Notes                         String
-ArrivalCity                   String
-MusanadDuration               String
-DateOfApplication             DateTime
-DayDate                       DateTime @default(now())
-ExternalDateLinking           DateTime
-ExternalOFficeApproval        DateTime
-AgencyDate                    DateTime
-EmbassySealing                DateTime
-BookinDate                    DateTime
-GuaranteeDurationEnd          DateTime 
+Notes                         String?
+ArrivalCity                   String?
+MusanadDuration               String?
+DateOfApplication             DateTime?
+DayDate                       DateTime ?@default(now())
+ExternalDateLinking           DateTime?
+ExternalOFficeApproval        DateTime?
+AgencyDate                    DateTime?
+EmbassySealing                DateTime?
+BookinDate                    DateTime?
+GuaranteeDurationEnd          DateTime ?
 
  medicalCheckFile              String?
       ticketFile               String?

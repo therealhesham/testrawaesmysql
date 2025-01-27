@@ -8,6 +8,7 @@ const RejectBooking = ({
   handleCancelRejectionModal,
   handleReject,
   reason,
+  id,
   setReason, // make sure setReason is passed if you need it
   OpenRejectionModal,
   isModalRejectionOpen,
@@ -76,7 +77,7 @@ const RejectBooking = ({
                 اغلاق
               </button>
               <button
-                onClick={handleReject}
+                onClick={() => handleReject(id)}
                 disabled={!reason}
                 className={`px-4 py-2 rounded-lg text-white focus:outline-none focus:ring-2 ${
                   reason
