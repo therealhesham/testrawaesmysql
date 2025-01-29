@@ -11,6 +11,11 @@ export default async function handler(
     const prisma = new PrismaClient();
 
     const users = await prisma.neworder.findMany({
+      where: {
+        bookingstatus: {
+          in: ["حجز جديد"], // Exclude these statuses
+        },
+      },
       select: {
         age: true,
         ages: true,
