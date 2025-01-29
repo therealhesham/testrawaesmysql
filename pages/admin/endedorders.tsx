@@ -28,7 +28,7 @@ export default function Table() {
     try {
       // Build the query string for filters
       const queryParams = new URLSearchParams({
-        Clientname: filters.Clientname,
+        ClientName: filters.Clientname,
         age: filters.age,
         search: filters.search,
         Nationality: filters.Nationality,
@@ -45,6 +45,7 @@ export default function Table() {
 
       const res = await response.json();
       if (res && res.length > 0) {
+        if (filters.Clientname.length > 0) setData([]);
         setData((prevData) => [...prevData, ...res]); // Append new data
         pageRef.current += 1; // Increment page using ref
       } else {
@@ -117,7 +118,7 @@ export default function Table() {
             <input
               type="text"
               value={filters.Clientname}
-              onChange={(e) => handleFilterChange(e, "Name")}
+              onChange={(e) => handleFilterChange(e, "Clientname")}
               placeholder="Filter by Name"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />

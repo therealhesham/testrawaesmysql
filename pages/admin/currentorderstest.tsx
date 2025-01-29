@@ -78,9 +78,19 @@ export default function Table() {
     [loading, hasMore]
   );
 
+  // useEffect to fetch the first page of data on mount
   useEffect(() => {
     fetchData(); // Fetch the first page of data
   }, []); // Only run once on mount
+
+  // useEffect to fetch data when filters change
+  useEffect(() => {
+    // Reset page and data on filter change
+    pageRef.current = 1;
+    setData([]);
+    setHasMore(true);
+    fetchData();
+  }, [filters]); // Only re-run when filters change
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -91,13 +101,8 @@ export default function Table() {
       ...prev,
       [column]: value,
     }));
-    isFetchingRef.current = false;
-    setHasMore(true);
-    // alert(filters.Name);
-    setData([]);
-    pageRef.current = 1;
-    fetchData();
   };
+
   const router = useRouter();
   const handleUpdate = (id) => {
     router.push("./neworder/" + id);
@@ -155,8 +160,6 @@ export default function Table() {
 
               <th className="p-3 text-left text-sm font-medium">الجنسية</th>
               <th className="p-3 text-left text-sm font-medium">تحديث</th>
-
-              {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
             </tr>
           </thead>
           <tbody>
@@ -193,8 +196,6 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700">
                     <Button onClick={() => handleUpdate(item.id)}>تحديث</Button>
                   </td>
-
-                  {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}
                 </tr>
               ))
             )}
