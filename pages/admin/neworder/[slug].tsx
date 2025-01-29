@@ -469,7 +469,7 @@ const SlugPage = () => {
         SponsorIdnumber: formData.ClientID,
         SponsorPhoneNumber: formData.client.phonenumber + "",
         PassportNumber: formData.Passportnumber,
-        formOrderid: formData.id,
+        Orderid: formData.id,
         HomemaIdnumber: formData.HomeMaid.id,
         HomemaidName: formData.HomeMaid.Name,
         ExternalOFficeApproval: new Date(
@@ -511,7 +511,7 @@ const SlugPage = () => {
         SponsorIdnumber: formData.ClientID,
         SponsorPhoneNumber: formData.client.phonenumber + "",
         PassportNumber: formData.Passportnumber,
-        formOrderid: formData.id,
+        Orderid: formData.id,
         HomemaIdnumber: formData.HomeMaid.id,
         HomemaidName: formData.HomeMaid.Name,
         ExternalOFficeApproval: new Date(
