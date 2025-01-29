@@ -1,43 +1,48 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
+import { PrismaClient } from "@prisma/client";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-import Airtable ,{Table} from "airtable";
-import { Console } from "console";
-import Cookies from "js-cookie";
-import jwt from "jwt-decode";
-import type { NextApiRequest, NextApiResponse } from 'next'
-var base = new Airtable({apiKey: 'patqpqm8yUGAdhSoj.b42530f3bb52b3073c8a30eb1507a54227cb17fdc0d8ce0368ee61a8acf1c66d'}).base('app1mph1VMncBBJid');
+// Initialize Prisma client
+const prisma = new PrismaClient();
 
-type Data = {
-  name: string
-}
+// Handler function for the API route
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    console.log(req.query);
+    // Parse pagination parameters from the query
+    const page = parseInt(req.query.page as string) || 1; // Default to page 1 if not provided
+    const pageSize = 10; // Number of records per page
+    const skip = (page - 1) * pageSize; // Calculate the number of records to skip
 
-
-export default async function handler(req: NextApiRequest,res: NextApiResponse) {
-  
-try {
-const result =  await new Promise((resolve,reject)=>{
-
-
-    base('العملاء').select({
-      //  fields:{}
-        // Selecting the first 3 records in Grid view:
-        view: "Grid view"
-    }).eachPage(function page(records, fetchNextPage) {
-    
- resolve(records)       
-//  fetchNextPage()
-    }, function done(err) {
-        if (err) { console.error(err); return; }
+    // Fetch clients with the count of their orders
+    const clients = await prisma.client.findMany({
+      select: {
+        id: true, // Select the client id or any other necessary client data
+        fullname: true,
+        email: true,
+        phonenumber: true,
+        // name: true, // Select the client name
+        _count: {
+          select: {
+            orders: true, // Count the number of orders for each client
+          },
+        },
+      },
+      skip: skip, // Skip records based on the page
+      take: pageSize, // Limit the number of records per page
     });
 
- 
-})
-
-  res.status(200).json(result)  
-} catch (error) {
-  console.log(error);
+    console.log(clients);
+    // Return the fetched data with order counts as JSON
+    res.status(200).json(clients);
+  } catch (error) {
+    // Handle any errors that occur during the fetch
+    console.error("Error fetching clients data:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  } finally {
+    // Disconnect Prisma client
+    await prisma.$disconnect();
+  }
 }
-
-}
-
-  // export base;

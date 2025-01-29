@@ -39,7 +39,8 @@ export default async function handler(
         Religion,
         PhoneNumber: "0",
         ages: age + "",
-        Client: {
+
+        client: {
           create: {
             email,
             fullname: ClientName, // Ensure the name field in the schema is 'fullname'

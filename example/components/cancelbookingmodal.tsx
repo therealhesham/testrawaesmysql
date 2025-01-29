@@ -1,20 +1,18 @@
-//@ts-nocheck
-//@ts-nocheck
-
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 
-const RejectBooking = ({
-  handleCancelRejectionModal,
-  handleReject,
+const CancelBooking = ({
+  handleCancel,
   reason,
   name,
   date,
+  handleCancelModal,
+  phone,
   bookingstatus,
   id,
   setReason, // make sure setReason is passed if you need it
-  OpenRejectionModal,
-  isModalRejectionOpen,
+  OpenCancellation,
+  isModalCancellationOpen,
 }) => {
   const router = useRouter();
 
@@ -22,18 +20,18 @@ const RejectBooking = ({
     <div className="container mx-auto p-4">
       {/* Trigger button to open modal */}
       <button
-        onClick={OpenRejectionModal} // This is now correctly passed as a prop
+        onClick={OpenCancellation} // This is now correctly passed as a prop
         className="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-600"
       >
-        رفض الطلب
+        الغاء العقد
       </button>
 
       {/* Modal Section */}
-      {isModalRejectionOpen && (
+      {isModalCancellationOpen && (
         <div className="fixed inset-0  bg-opacity-75 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 space-y-6 w-96">
             <h1 className="text-2xl font-semibold text-gray-800">
-              رفض طلب العميل
+              الغاء طلب العميل
             </h1>
 
             {/* Booking Details Section */}
@@ -45,10 +43,13 @@ const RejectBooking = ({
                 اسم العميل: <strong>{name}</strong>
               </p>
               <p className="text-gray-600">
+                رقم العميل: <strong>{phone}</strong>
+              </p>
+              <p className="text-gray-600">
                 تاريخ الحجز: <strong>{date}</strong>
               </p>
               <p className="text-gray-600">
-                حالة الحجز:{" "}
+                حالة الحجز:
                 <span className="text-red-500">{bookingstatus}</span>
               </p>
             </div>
@@ -59,7 +60,7 @@ const RejectBooking = ({
                 htmlFor="reason"
                 className="block text-gray-700 font-medium mb-2"
               >
-                سبب الرفض
+                سبب الالغاء
               </label>
               <textarea
                 id="reason"
@@ -75,13 +76,13 @@ const RejectBooking = ({
             {/* Buttons */}
             <div className="flex justify-end gap-4">
               <button
-                onClick={handleCancelRejectionModal}
+                onClick={handleCancelModal}
                 className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 اغلاق
               </button>
               <button
-                onClick={() => handleReject(id)}
+                onClick={() => handleCancel(id)}
                 disabled={!reason}
                 className={`px-4 py-2 rounded-lg text-white focus:outline-none focus:ring-2 ${
                   reason
@@ -102,4 +103,4 @@ const RejectBooking = ({
   );
 };
 
-export default RejectBooking;
+export default CancelBooking;

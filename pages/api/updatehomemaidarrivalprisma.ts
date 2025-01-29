@@ -49,20 +49,48 @@ export default async function handler(
       Notes,
       id,
       ArrivalCity,
+      medicalCheckFile,
+      ticketFile,
+      receivingFile,
+      approvalPayment,
+      additionalfiles,
       DateOfApplication,
       MusanadDuration,
       ExternalDateLinking,
       ExternalOFficeApproval,
       AgencyDate,
+      Orderid,
       EmbassySealing,
       BookinDate,
+      bookingstatus,
       GuaranteeDurationEnd,
     } = req.body;
 
     console.log(req.body); // Log the request body for debugging
 
-    // Apply `excludeNullFields` if you want to ensure null or undefined fields are excluded from the update
-    const dataToUpdate = excludeEmptyFields({
+    // Check and handle AgencyDate if empty or invalid
+    const validAgencyDate = AgencyDate
+      ? new Date(AgencyDate).toISOString()
+      : null;
+    const validEmbassySealing = EmbassySealing
+      ? new Date(EmbassySealing).toISOString()
+      : null;
+
+    const VALIDExternalOFficeApproval = ExternalOFficeApproval
+      ? new Date(ExternalOFficeApproval).toISOString()
+      : null;
+    const validExternalDateLinking = ExternalDateLinking
+      ? new Date(ExternalDateLinking).toISOString()
+      : null;
+
+    const validGuaranteeDurationEnd = GuaranteeDurationEnd
+      ? new Date(GuaranteeDurationEnd).toISOString()
+      : null;
+    const validBookinDate = BookinDate
+      ? new Date(BookinDate).toISOString()
+      : null;
+
+    const ss = {
       SponsorName,
       InternalmusanedContract,
       SponsorIdnumber,
@@ -75,17 +103,30 @@ export default async function handler(
       HomemaIdnumber,
       HomemaidName,
       Notes,
+      medicalCheckFile,
+      ticketFile,
+      receivingFile,
+      approvalPayment,
+      additionalfiles,
       ArrivalCity,
       MusanadDuration,
-      ExternalDateLinking,
-      ExternalOFficeApproval,
-      AgencyDate,
-      EmbassySealing,
-      BookinDate,
-      GuaranteeDurationEnd,
+      ExternalDateLinking: validExternalDateLinking,
+      ExternalOFficeApproval: VALIDExternalOFficeApproval,
+      AgencyDate: validAgencyDate,
+      EmbassySealing: validEmbassySealing,
+      BookinDate: validBookinDate,
+      GuaranteeDurationEnd: validGuaranteeDurationEnd,
+    };
+
+    // Apply `excludeEmptyFields` to filter out empty fields from the object
+    const dataToUpdate = excludeEmptyFields(ss);
+
+    // Prisma update queries
+    await prisma.neworder.update({
+      where: { id: Orderid },
+      data: { bookingstatus },
     });
 
-    // Prisma update query
     const createarrivallist = await prisma.arrivallist.update({
       where: { id },
       data: dataToUpdate,

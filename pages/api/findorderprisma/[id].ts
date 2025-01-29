@@ -14,7 +14,7 @@ export default async function handler(
   console.log(req.query);
   console.log(req.query.id);
   const find = await prisma.neworder.findFirst({
-    include: { HomeMaid: true, Client: true },
+    include: { HomeMaid: true, client: true, arrivals: true },
     where: { id: { equals: Number(req.query.id) } },
   });
   console.log(find);

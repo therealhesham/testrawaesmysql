@@ -1,13 +1,14 @@
 import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
+import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "react-bootstrap";
 
 export default function Table() {
   const [filters, setFilters] = useState({
-    Name: "",
+    ClientName: "",
     age: "",
-    Passport: "",
+    Passportnumber: "",
     Nationality: "",
   });
 
@@ -27,14 +28,13 @@ export default function Table() {
     try {
       // Build the query string for filters
       const queryParams = new URLSearchParams({
-        Name: filters.Name,
+        ClientName: filters.ClientName,
         age: filters.age,
-        Passport: filters.Passport,
         Nationality: filters.Nationality,
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/currentordersprisma?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -98,19 +98,25 @@ export default function Table() {
     pageRef.current = 1;
     fetchData();
   };
+  const router = useRouter();
+  const handleUpdate = (id) => {
+    router.push("./neworder/" + id);
+  };
 
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">العاملات</h1>
+        <h1 className="text-2xl font-semibold text-center mb-4">
+          الحجوزات الحالية
+        </h1>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.Name}
-              onChange={(e) => handleFilterChange(e, "Name")}
+              value={filters.ClientName}
+              onChange={(e) => handleFilterChange(e, "ClientName")}
               placeholder="Filter by Name"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
@@ -118,17 +124,8 @@ export default function Table() {
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.age}
-              onChange={(e) => handleFilterChange(e, "age")}
-              placeholder="Filter by Age"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Passport}
-              onChange={(e) => handleFilterChange(e, "Passport")}
+              value={filters.Passportnumber}
+              onChange={(e) => handleFilterChange(e, "Passportnumber")}
               placeholder="Filter by Passport"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
@@ -154,8 +151,10 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
+              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
+
               <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">حجز</th>
+              <th className="p-3 text-left text-sm font-medium">تحديث</th>
 
               {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
             </tr>
@@ -173,17 +172,26 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.Name}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.age}</td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-600">{item.id}</td>
+                  <td className="p-3 text-md text-gray-600">
+                    {item.ClientName}
+                  </td>
+                  <td className="p-3 text-md text-gray-700">
+                    {item.clientphonenumber}
+                  </td>
+                  <td className="p-3 text-md text-gray-700">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
-                    {item.Nationalitycopy}
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.HomemaidId}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
-                    <Button onClick={() => console.log(item.id)}>حجز</Button>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Nationality}
+                  </td>
+                  <td className="p-3 text-md text-gray-700">
+                    <Button onClick={() => handleUpdate(item.id)}>تحديث</Button>
                   </td>
 
                   {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}

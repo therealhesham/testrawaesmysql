@@ -1,7 +1,7 @@
 //@ts-nocheck
 //@ts-ignore
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
@@ -17,7 +17,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [modalType, setModalType] = useState<"success" | "error">("success");
-
+  const [date, setDate] = useState("");
   const showSuccessModal = () => {
     setModalMessage("تم تسجيل البيانات بنجاح");
     setModalType("success");
@@ -121,6 +121,7 @@ export default function Home() {
   const fetchData = async (page) => {
     // alert(page);
     try {
+      // if (1 > data.length > 0) return;
       setLoading(true);
       const response = await fetch(`/api/neworderlistprisma/` + page, {
         method: "get",
@@ -132,7 +133,7 @@ export default function Home() {
       // setData();
       // if(res.data.length <1 ) return setLoading
       setData((prevData) => [...prevData, ...res.data]); // Append new data
-      setLoading(false);
+      if (res.data.length < 10) return setLoading(false);
     } catch (error) {
       console.error("Error in search:", error);
     }
@@ -147,7 +148,13 @@ export default function Home() {
   useEffect(() => {
     fetchData(page);
   }, [page]);
-  const confirm = (id, date) => {
+  const confirm = async (
+    id,
+    date,
+    SponsorName,
+    PassportNumber,
+    HomemaidName
+  ) => {
     const submitter = await fetch("/api/confirmrequest", {
       method: "post",
       headers: {
@@ -157,7 +164,10 @@ export default function Home() {
       },
       body: JSON.stringify({
         id,
-        createdAt: date,
+        SponsorName,
+        PassportNumber,
+        HomemaidName,
+        // createdAt: date,
       }),
     });
 
@@ -165,31 +175,44 @@ export default function Home() {
     if (submitter.status == 200) {
       // alert(submitter.status);
       setDate(Date.now());
+      // alert("confirmed");
 
       setIsModalRejectionOpen(false); // Close the modal after rejection
+      router.push("/admin/neworder/" + id);
     }
   };
+
+  // useCallback
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !loading) {
+        if (entry.isIntersecting && loading) {
           setPage((prevPage) => prevPage + 1);
         }
       },
       { threshold: 1.0 }
     );
-    if (loaderRef.current) observer.observe(loaderRef.current);
+
+    const currentLoaderRef = loaderRef.current;
+    if (currentLoaderRef) {
+      observer.observe(currentLoaderRef);
+    }
+
+    // Cleanup observer when component unmounts or loaderRef changes
     return () => {
-      if (loaderRef.current) observer.unobserve(loaderRef.current);
-    };
-  }, [loading]);
-  useEffect(() => {
-    const handleEscKey = (e) => {
-      if (e.key === "Escape") {
-        closeModal(); // Close the modal
+      if (currentLoaderRef) {
+        observer.unobserve(currentLoaderRef);
       }
     };
+  }, [loading]);
 
+  const handleEscKey = useCallback((e) => {
+    if (e.key === "Escape") {
+      closeModal(); // Close the modal
+    }
+  }, []); // This function doesn't depend on any external state, so [] is safe.
+
+  useEffect(() => {
     // Add event listener on mount
     window.addEventListener("keydown", handleEscKey);
 
@@ -197,7 +220,7 @@ export default function Home() {
     return () => {
       window.removeEventListener("keydown", handleEscKey);
     };
-  }, []);
+  }, [handleEscKey]); // We depend on the stable `handleEscKey` function to avoid unnecessary re-renders.
 
   const router = useRouter();
 
@@ -217,7 +240,7 @@ export default function Home() {
     query: "",
   };
   const [excelData, setExcelData] = useState([]);
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
       const response = await fetch(`/api/neworderlistprisma/`, {
         method: "get",
@@ -342,6 +365,8 @@ export default function Home() {
                   <th className="px-4 py-2">العمر</th>
                   <th className="px-4 py-2">موافق</th>
                   <th className="px-4 py-2">رفض</th>
+                  {/* <th className="px-4 py-2"></th> */}
+
                   <th className="px-4 py-2">تحديث</th>
                 </tr>
               </thead>
@@ -355,7 +380,9 @@ export default function Home() {
                     <td className="px-4 py-2">{row.ClientName}</td>
                     <td className="px-4 py-2">{row.clientphonenumber}</td>
                     <td
-                      onClick={() => router.push("/admin/cvdetails/")}
+                      onClick={() =>
+                        router.push("/admin/cvdetails/" + HomemaidId)
+                      }
                       className="px-3 py-2 cursor-pointer decoration-black"
                     >
                       {row.HomemaidId}
@@ -365,7 +392,15 @@ export default function Home() {
                     <td className="px-4 py-2">{row.age}</td>
                     <td className="px-4 py-2">
                       <button
-                        onClick={() => confirm(raw.id, raw.createdAt)}
+                        onClick={() =>
+                          confirm(
+                            row.id,
+                            row.createdAt,
+                            row.ClientName,
+                            row.PassportNumber,
+                            row.Name
+                          )
+                        }
                         className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
                       >
                         موافقة
@@ -373,7 +408,11 @@ export default function Home() {
                     </td>
                     <td className="px-4 py-2">
                       <RejectBooking
+                        bookingstatus={row.bookingstatus}
+                        date={row.createdAt}
+                        phone={row.clientphonenumber}
                         reason={reason}
+                        name={row.ClientName}
                         id={row.id}
                         setReason={setReason} // Passing setReason if needed
                         OpenRejectionModal={OpenRejectionModal}

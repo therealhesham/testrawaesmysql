@@ -22,12 +22,13 @@ export default async function handler(
       where: {
         NOT: { bookingstatus: "حجز جديد" },
         AND: { bookingstatus: { not: { equals: "طلب مرفوض" } } },
+        // and:{}
       },
     });
 
     const rejectedOrders = await prisma.neworder.count({
       where: {
-        NOT: { bookingstatus: "طلب مرفوض" },
+        bookingstatus: "طلب مرفوض",
       },
     });
 

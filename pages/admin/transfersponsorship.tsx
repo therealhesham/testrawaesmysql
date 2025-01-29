@@ -251,7 +251,7 @@ const TransferPage = () => {
         </button>
 
         {/* Form */}
-        {showForm && (
+        {showForm ? (
           <div className="bg-white p-6 shadow-md rounded-md mb-6">
             <h2 className="text-xl font-semibold mb-4">نقل كفالة جديدة</h2>
             <Formik
@@ -327,84 +327,90 @@ const TransferPage = () => {
               )}
             </Formik>
           </div>
-        )}
-
-        {/* Column Selector */}
-        <div className="mb-4">
-          <h2 className="text-lg font-medium mb-2">Select Columns to Show</h2>
-          <div className="space-x-4">
-            {Object.keys(selectedColumns).map((column) => (
-              <label key={column} className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={selectedColumns[column]}
-                  onChange={() => handleColumnToggle(column)}
-                  className="form-checkbox"
-                />
-                <span className="ml-2">
-                  {column.replace(/([A-Z])/g, " $1").toUpperCase()}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto bg-white shadow-md rounded-md">
-          <table className="min-w-full table-auto border-collapse">
-            <thead>
-              <tr className="bg-gray-800 text-white">
-                {Object.keys(selectedColumns)
-                  .filter((column) => selectedColumns[column])
-                  .map((column) => (
-                    <th key={column} className="px-4 py-2 text-sm font-medium">
-                      {column.replace(/([A-Z])/g, " $1").toUpperCase()}
-                    </th>
-                  ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((transfer) => (
-                <tr key={transfer.id} className="border-t">
-                  {Object.keys(selectedColumns)
-                    .filter((column) => selectedColumns[column])
-                    .map((column) => (
-                      <td key={column} className="px-4 py-2 text-sm">
-                        {transfer[column]}
-                      </td>
-                    ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {/* Infinite scroll trigger */}
-          {hasMore && (
-            <div
-              ref={loadMoreRef} // Use IntersectionObserver to trigger load more
-              className="flex justify-center mt-6"
-            >
-              {loading && (
-                <div className="flex justify-center items-center">
-                  <svg
-                    className="animate-spin h-5 w-5 mr-3 text-purple-600"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
+        ) : (
+          <div>
+            <div className="mb-4">
+              <h2 className="text-lg font-medium mb-2">
+                Select Columns to Show
+              </h2>
+              <div className="space-x-4">
+                {Object.keys(selectedColumns).map((column) => (
+                  <label key={column} className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedColumns[column]}
+                      onChange={() => handleColumnToggle(column)}
+                      className="form-checkbox"
                     />
-                  </svg>
-                  Loading...
+                    <span className="ml-2">
+                      {column.replace(/([A-Z])/g, " $1").toUpperCase()}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto bg-white shadow-md rounded-md">
+              <table className="min-w-full table-auto border-collapse">
+                <thead>
+                  <tr className="bg-gray-800 text-white">
+                    {Object.keys(selectedColumns)
+                      .filter((column) => selectedColumns[column])
+                      .map((column) => (
+                        <th
+                          key={column}
+                          className="px-4 py-2 text-sm font-medium"
+                        >
+                          {column.replace(/([A-Z])/g, " $1").toUpperCase()}
+                        </th>
+                      ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map((transfer) => (
+                    <tr key={transfer.id} className="border-t">
+                      {Object.keys(selectedColumns)
+                        .filter((column) => selectedColumns[column])
+                        .map((column) => (
+                          <td key={column} className="px-4 py-2 text-sm">
+                            {transfer[column]}
+                          </td>
+                        ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {/* Infinite scroll trigger */}
+              {hasMore && (
+                <div
+                  ref={loadMoreRef} // Use IntersectionObserver to trigger load more
+                  className="flex justify-center mt-6"
+                >
+                  {loading && (
+                    <div className="flex justify-center items-center">
+                      <svg
+                        className="animate-spin h-5 w-5 mr-3 text-purple-600"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
+                        />
+                      </svg>
+                      Loading...
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
         <Modal
           isOpen={isModalOpen}
           message={modalMessage}

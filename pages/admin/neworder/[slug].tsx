@@ -1,6 +1,3 @@
-//@ts-nocheck
-//@ts-ignore
-
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
@@ -27,6 +24,7 @@ import axios from "axios";
 import { FaAddressBook, FaFileSignature } from "react-icons/fa";
 import { BookOpenIcon } from "@heroicons/react/outline";
 import { LinkedinFilled, LinkOutlined } from "@ant-design/icons";
+import CancelBooking from "example/components/cancelbookingmodal";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
@@ -49,8 +47,9 @@ const SlugPage = () => {
   const { slug } = router.query; // Get the dynamic slug value
   const [formData, setFormData] = useState({
     OrderStatus: [],
-    bookingstatus: "الربط",
-    Client: { fullname: "" },
+    arrivals: [],
+    bookingstatus: "",
+    client: { fullname: "" },
     HomeMaid: {},
   });
   const [submitted, setSubmitted] = useState(false);
@@ -70,6 +69,7 @@ const SlugPage = () => {
   async function Fetcher() {
     const f = await fetch(`/api/findorderprisma/${router.query.slug}`);
     const g = await f.json();
+    console.log(g);
     if (g.HomemaidID == null)
       setFormData({
         ...g,
@@ -117,8 +117,31 @@ const SlugPage = () => {
   const musanadRef = useRef();
   const kingdomEntryRef = useRef();
   const externalOfficeAprrovalRef = useRef();
+  const musanadDateRef = useRef();
 
-  const handleChangeReservationSubmit = async (e) => {
+  const handleChangeReservationtoend = async (status) => {
+    const submitter = await fetch("/api/endedorders", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: router.query.slug,
+        bookingstatus: status,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      setDate(Date.now());
+      setSubmitted(true);
+    }
+  };
+
+  const handleChangeReservationSubmit = async (status) => {
     const submitter = await fetch("/api/changerservationstatus", {
       method: "post",
       headers: {
@@ -128,7 +151,7 @@ const SlugPage = () => {
       },
       body: JSON.stringify({
         id: router.query.slug,
-        bookingstatus: formDataReservationChange.bookingstatus,
+        bookingstatus: status,
       }),
     });
 
@@ -197,6 +220,7 @@ const SlugPage = () => {
 
   const closeSuccessfulModal = () => {
     setIsModalOpen(false);
+    setDate(datenow);
   };
 
   const handleAccessFormChange = (e) => {
@@ -209,7 +233,7 @@ const SlugPage = () => {
 
   const toggleFormVisibility = () => {
     // alert(formData.clientphonenumber);
-    // alert(formData.Client.phonenumber);
+    // alert(formData.client.phonenumber);
 
     setIsFormVisible(!isFormVisible); // Toggle the form visibility
   };
@@ -427,12 +451,105 @@ const SlugPage = () => {
     // };
   };
 
-  const handleAccessFormSubmit = async (s) => {
-    setModalSpinnerOpen(true);
+  const handleAccessEntryDate = async (s) => {
+    // setModalSpinnerOpen(true);
     // Adding to access list
+
+    // e.preventDefault();
+
+    const submitter = await fetch("/api/updatehomemaidarrivalprisma", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        SponsorName: formData.ClientName,
+        id: formData.arrivals[0].id,
+        SponsorIdnumber: formData.ClientID,
+        SponsorPhoneNumber: formData.client.phonenumber + "",
+        PassportNumber: formData.Passportnumber,
+        formOrderid: formData.id,
+        HomemaIdnumber: formData.HomeMaid.id,
+        HomemaidName: formData.HomeMaid.Name,
+        ExternalOFficeApproval: new Date(
+          kingdomEntryRef.current.value
+        ).toISOString(),
+        bookingstatus: "وصول العاملة",
+      }),
+    });
+    // max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-md
+    // console.log(submitter);
+
+    const res = await submitter.json();
+    if (submitter.status == 200) {
+      setModalSpinnerOpen(false);
+      showSuccessModal();
+    } else {
+      setModalSpinnerOpen(false);
+
+      showErrorModal();
+    }
+    // closeModal(); // Close the modal after submission
+  };
+
+  const handleAccessFormDateSubmitOfficeApproval = async (s) => {
+    // setModalSpinnerOpen(true);
+    // Adding to access list
+
+    // e.preventDefault();
+
+    const submitter = await fetch("/api/updatehomemaidarrivalprisma", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        SponsorName: formData.ClientName,
+        id: formData.arrivals[0].id,
+        SponsorIdnumber: formData.ClientID,
+        SponsorPhoneNumber: formData.client.phonenumber + "",
+        PassportNumber: formData.Passportnumber,
+        formOrderid: formData.id,
+        HomemaIdnumber: formData.HomeMaid.id,
+        HomemaidName: formData.HomeMaid.Name,
+        ExternalOFficeApproval: new Date(
+          externalOfficeAprrovalRef.current.value
+        ).toISOString(),
+        bookingstatus: "موافقة المكتب الخارجي",
+      }),
+    });
+    // max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-md
+    // console.log(submitter);
+
+    const res = await submitter.json();
+    if (submitter.status == 200) {
+      setModalSpinnerOpen(false);
+
+      showSuccessModal();
+    } else {
+      setModalSpinnerOpen(false);
+
+      showErrorModal();
+    }
+    // closeModal(); // Close the modal after submission
+  };
+
+  const handleAccessFormSubmit = async (s) => {
+    // setModalSpinnerOpen(true);
+    // Adding to access list
+
+    console.log(s);
     // e.preventDefault();
     const {
       SponsorName,
+      medicalCheckFile,
+      ticketFile,
+      receivingFile,
+      approvalPayment,
+      additionalfiles,
+
       InternalmusanedContract,
       SponsorIdnumber,
       SponsorPhoneNumber,
@@ -452,10 +569,11 @@ const SlugPage = () => {
       AgencyDate,
       EmbassySealing,
       BookinDate,
+      bookingstatus,
       GuaranteeDurationEnd,
     } = s;
 
-    const submitter = await fetch("../../api/addhomemaidarrivalprisma", {
+    const submitter = await fetch("/api/updatehomemaidarrivalprisma", {
       method: "post",
       headers: {
         Accept: "application/json",
@@ -464,17 +582,25 @@ const SlugPage = () => {
       body: JSON.stringify({
         SponsorName: formData.ClientName,
         InternalmusanedContract,
-
+        id: formData.arrivals[0].id,
         SponsorIdnumber: formData.ClientID,
-        SponsorPhoneNumber: formData.Client.phonenumber + "",
+        SponsorPhoneNumber: formData.client.phonenumber + "",
         PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
+        Orderid: formData.id,
         WorkDuration,
         Cost,
         HomemaIdnumber: formData.HomeMaid.id,
         HomemaidName: formData.HomeMaid.Name,
         Notes,
+        bookingstatus,
+        medicalCheckFile: medicalCheckFileCloudinaryImage,
+        ticketFile: ticketFileFileCloudinaryImage,
+        receivingFile: receivingFileCloudinaryImage,
+        approvalPayment: approvalPaymentFileCloudinaryImage,
+        additionalfiles: additionalfiles,
+
         ArrivalCity,
         DateOfApplication,
         MusanadDuration,
@@ -509,11 +635,12 @@ const SlugPage = () => {
   const stages = [
     "التواصل",
     "اكمال الطلب",
-    "موافقة المكتب",
+    "موافقة المكتب الخارجي",
     "الربط",
-    "المتابعة",
     "وصول العاملة",
     "الاستلام",
+    "المتابعة",
+
     "التقييم",
   ];
 
@@ -602,31 +729,33 @@ const SlugPage = () => {
   };
   const changeTimeline = async (state) => {
     // alert(state);
-    setIsEditing("الربط");
-    musanadRef.current.focus();
 
     // setModalSpinnerOpen(true);
 
-    const fetcher = await fetch(`/api/updatetimeline`, {
-      body: JSON.stringify({
-        id: formData.id,
-        bookingstatus: state,
-      }),
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      cache: "default",
-    });
-    //  "",
-    //   "المتابعة",
-    //   "وصول العاملة",
-    //   "الاستلام",
-    //   "التقييم",
-
     switch (state) {
       case "الربط":
+        setIsEditing("الربط");
+        musanadRef.current.focus();
+
+        break;
+      case "موافقة المكتب الخارجي":
+        setIsEditing("موافقة المكتب الخارجي");
+        externalOfficeAprrovalRef.current.focus();
+
+        break;
+
+      case "وصول العاملة":
+        setIsEditing("وصول العاملة");
+        kingdomEntryRef.current.focus();
+
+        break;
+
+      case "الاستلام":
+        // setIsEditing("وصول العاملة");
+        // kingdomEntryRef.current.focus();
+
+        handleChangeReservationtoend("طلب منتهي");
+
         break;
 
       default:
@@ -634,15 +763,7 @@ const SlugPage = () => {
     }
 
     // alert(fetcher.status);
-    const jsonfetcher = await fetcher.json();
-    if (fetcher.status == 200) {
-      // console.log(updatekingdomentry.current);
-      setDate(Date.now());
-      setModalSpinnerOpen(false);
-      setIsFormVisible(true);
-    } else {
-      setModalSpinnerOpen(false);
-    }
+    // console.log(updatekingdomentry.current);
   };
 
   const validationSchema = Yup.object({
@@ -736,6 +857,26 @@ const SlugPage = () => {
     setValue(e.target.value);
   };
 
+  const [Canceelationreason, setCancellationReason] = useState("");
+  const [isModalCancellationOpen, setIsModalCancellationOpen] = useState(false);
+  const OpenCancellationModal = () => setIsModalCancellationOpen(true); // Function to open the modal
+  const handleCancelationModal = () => setIsModalCancellationOpen(false); // Function to close the modal
+  const handleCancel = async (id) => {
+    alert(id);
+    const submitter = await fetch("/api/cancelledorders", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        ReasonOfRejection: reason,
+      }),
+    });
+  };
+
   // Handle submit button click
   const handleSubmit = () => {
     setIsEditing(false); // Disable editing after submit
@@ -780,7 +921,7 @@ const SlugPage = () => {
       <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
 
       <div className=" py-8">
-        <div className="container mx-auto p-4">
+        {/* <div className="container mx-auto p-4">
           <button
             className="flex items-center space-x-2 bg-pink-400 text-white py-2 px-4 rounded-lg hover:bg-pink-600 transition duration-200"
             onClick={() => openBooksModal()}
@@ -788,37 +929,25 @@ const SlugPage = () => {
             <FaFileSignature className="h-6 w-6" />
             <span>ملفات الطلب</span>
           </button>
-        </div>
+        </div> */}
         {isModalBooksOpen && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
             {/* Modal Content */}
             <div className="bg-white w-full sm:w-96 p-6 rounded-lg shadow-lg">
               {/* Modal Header */}
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  صندوق رفع الملفات
-                </h2>
-                <button
-                  onClick={closeBooksModal}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className="h-6 w-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
+              <CancelBooking
+                bookingstatus="عقد ملغي"
+                date={formData.createdAt}
+                phone={formData.clientphonenumber}
+                reason={Canceelationreason}
+                name={formData.ClientName}
+                id={formData.id}
+                setReason={setCancellationReason} // Passing setReason if needed
+                OpenCancellation={OpenCancellationModal}
+                handleCancelModal={handleCancelationModal}
+                handleCancel={handleCancel}
+                isModalCancellationOpen={isModalCancellationOpen}
+              />
               {/* Modal Body */}
               <div className="mb-6 text-gray-600">
                 <div className="col-span-3">
@@ -1112,10 +1241,10 @@ const SlugPage = () => {
                 </p>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Email:</strong> {formData.Client.email}
+                    <strong>Email:</strong> {formData.client.email}
                   </p>
                   <a
-                    href={`mailto:${formData.Client.email}`}
+                    href={`mailto:${formData.client.email}`}
                     className="text-white bg-blue-500 px-4 py-2 rounded-lg"
                   >
                     Message
@@ -1123,10 +1252,10 @@ const SlugPage = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <p className="flex-1">
-                    <strong>Phone:</strong> {formData.Client.phonenumber}
+                    <strong>Phone:</strong> {formData.client.phonenumber}
                   </p>
                   <a
-                    href={`https://wa.me/${formData.Client.phonenumber}`}
+                    href={`https://wa.me/${formData.client.phonenumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-white bg-green-500 px-4 py-2 rounded-lg"
@@ -1150,13 +1279,17 @@ const SlugPage = () => {
           </div>
 
           <div className="p-8">
-            <VerticalTimeline animate={true} lineColor="purple">
+            <VerticalTimeline
+              animate={true}
+              lineColor="PURPLE"
+              layout="1-column-left"
+            >
               <VerticalTimelineElement
                 className="vertical-timeline-element--work"
                 date={formData.createdAt}
                 iconStyle={{
-                  background: "rgb(128, 25, 243)",
-                  color: "#ffc0cb",
+                  background: "RGB(255, 182, 193)",
+                  color: "#fff",
                 }}
               >
                 <h1
@@ -1170,15 +1303,23 @@ const SlugPage = () => {
 
               <VerticalTimelineElement
                 className="vertical-timeline-element--work"
-                // date={form.createdAt}
                 iconStyle={{
-                  background: "rgb(128, 25, 243)",
-                  color: "#ffc0cb",
+                  background: "RGB(255, 182, 193)",
+                  color: "#fff",
                 }}
-                //  icon={}
+                contentArrowStyle={{
+                  borderRight: "7px solid  rgb(255, 229, 180)",
+                }}
+                // date="2011 - present"
+                iconStyle={{
+                  background: "RGB(255, 94, 77)",
+                  color: "#fff",
+                }}
               >
                 {/* formData.bookingStatus === "الربط" */}
-                {true & (isEditing !== "موافقة المكتب الخارجي") ? (
+                {stages.indexOf(formData.bookingstatus) >=
+                  stages.indexOf("موافقة المكتب الخارجي") &&
+                isEditing !== "موافقة المكتب الخارجي" ? (
                   <>
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
@@ -1186,8 +1327,9 @@ const SlugPage = () => {
                     >
                       موافقة المكتب الخارجي
                     </h1>
-                    <p>{getDate("موافقة")}</p>
+                    {/* <p>{getDate("موافقة")}</p> */}
                     <button
+                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("موافقة المكتب الخارجي")}
                     >
                       تعديل
@@ -1195,59 +1337,62 @@ const SlugPage = () => {
                   </>
                 ) : (
                   <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
-                    <form action="#" method="POST">
-                      <div className="mb-4">
-                        <label
-                          for="input"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          موافقة المكتب الخارجي
-                        </label>
-                        <input
-                          ref={externalOfficeAprrovalRef}
-                          type="date"
-                          id="input"
-                          name="input"
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter something..."
-                          required
-                        />
-                      </div>
+                    <div className="mb-4">
+                      <label
+                        for="input"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        موافقة المكتب الخارجي
+                      </label>
+                      <input
+                        ref={externalOfficeAprrovalRef}
+                        type="date"
+                        id="input"
+                        name="input"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter something..."
+                      />
+                    </div>
 
-                      <div>
-                        <button
-                          type="submit"
-                          onClick={() =>
-                            handleAccessFormSubmit({
-                              ExternalOFficeApproval:
-                                externalOfficeAprrovalRef.current.value,
-                            })
-                          }
-                          className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                        >
-                          تأكيد
-                        </button>
-                      </div>
-                    </form>
+                    <div className="flex flex-row justify-center space-x-4">
+                      <button
+                        onClick={() => setIsEditing("")}
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        الغاء التعديل
+                      </button>
+
+                      <button
+                        type="submit"
+                        onClick={() =>
+                          handleAccessFormDateSubmitOfficeApproval({
+                            ExternalOFficeApproval:
+                              externalOfficeAprrovalRef.current.value,
+                            bookingstatus: "موافقة المكتب الخارجي",
+                          })
+                        }
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        تأكيد
+                      </button>
+                    </div>
                   </div>
                 )}
               </VerticalTimelineElement>
 
               <VerticalTimelineElement
                 className="vertical-timeline-element--work"
-                contentStyle={{
-                  background: "rgb(33, 150, 243)",
-                }}
-                contentArrowStyle={{
-                  borderRight: "7px solid  rgb(33, 150, 243)",
-                }}
-                // date="2011 - present"
                 iconStyle={{
-                  background: "rgb(33, 150, 243)",
+                  background: "RGB(255, 182, 193)",
                   color: "#fff",
                 }}
+                contentArrowStyle={{
+                  borderRight: "7px solid  rgb(255, 229, 180)",
+                }}
+                // date="2011 - present"
               >
-                {(formData.bookingstatus == "الربط مع مساند") &
+                {(stages.indexOf(formData.bookingstatus) >=
+                  stages.indexOf("الربط")) &
                 (isEditing !== "الربط مع مساند") ? (
                   <>
                     <h1
@@ -1258,19 +1403,22 @@ const SlugPage = () => {
                     </h1>
                     <p>تم الربط مع مساند </p>
 
-                    <button onClick={() => setIsEditing("الربط مع مساند")}>
+                    <button
+                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      onClick={() => setIsEditing("الربط مع مساند")}
+                    >
                       تعديل
                     </button>
                   </>
                 ) : (
                   // <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
-                  <form action="#" method="POST">
+                  <>
                     <div className="mb-4">
                       <label
                         for="input"
                         className="block text-sm font-medium text-gray-700"
                       >
-                        الربط مع مساند
+                        عقد مساند
                       </label>
 
                       <input
@@ -1281,12 +1429,27 @@ const SlugPage = () => {
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter something..."
                       />
+
+                      <label
+                        for="input"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        المدة في مساند
+                      </label>
+
+                      <input
+                        ref={musanadDateRef}
+                        type="date"
+                        id="input"
+                        name="input"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
                     </div>
 
-                    <div>
+                    <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
-                        className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -1295,15 +1458,17 @@ const SlugPage = () => {
                         type="submit"
                         onClick={() =>
                           handleAccessFormSubmit({
+                            bookingstatus: "الربط",
                             InternalmusanedContract: musanadRef.current.value,
+                            MusanadDuration: musanadDateRef.current.value,
                           })
                         }
-                        className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
                     </div>
-                  </form>
+                  </>
                   // </div>
                 )}
               </VerticalTimelineElement>
@@ -1317,7 +1482,9 @@ const SlugPage = () => {
                 //  icon={}
               >
                 {/* formData.bookingStatus === "الربط" */}
-                {false & (isEditing !== "وصول العاملة") ? (
+                {(stages.indexOf(formData.bookingstatus) >=
+                  stages.indexOf("وصول العاملة")) &
+                (isEditing !== "وصول العاملة") ? (
                   <>
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
@@ -1325,50 +1492,104 @@ const SlugPage = () => {
                     >
                       تاريخ دخول المملكة
                     </h1>
-                    <p>{getDate("وصول العاملة")}</p>
-                    <button onClick={() => setIsEditing("وصول العاملة")}>
+                    {/* <p>{getDate("وصول العاملة")}</p> */}
+                    <button
+                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      onClick={() => setIsEditing("وصول العاملة")}
+                    >
                       تعديل
                     </button>
                   </>
                 ) : (
                   <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
-                    <form action="#" method="POST">
-                      <div className="mb-4">
-                        <label
-                          for="input"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          تاريخ دخول المملكة
-                        </label>
-                        <input
-                          ref={kingdomEntryRef}
-                          type="date"
-                          id="input"
-                          name="input"
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter something..."
-                          required
-                        />
-                      </div>
+                    <div className="mb-4">
+                      <label
+                        for="input"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        تاريخ دخول المملكة
+                      </label>
+                      <input
+                        ref={kingdomEntryRef}
+                        type="date"
+                        id="input"
+                        name="input"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
 
-                      <div>
-                        <button
-                          type="submit"
-                          onClick={() =>
-                            handleAccessFormSubmit({
-                              KingdomentryDate: kingdomEntryRef.current.value,
-                            })
-                          }
-                          className="w-full py-2 px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                        >
-                          تأكيد
-                        </button>
-                      </div>
-                    </form>
+                    <div>
+                      <button
+                        // type="submit"
+                        onClick={() => handleAccessEntryDate()}
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        تأكيد
+                      </button>
+                    </div>
                   </div>
                 )}
               </VerticalTimelineElement>
             </VerticalTimeline>
+            <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
+              <thead>
+                <tr className="bg-purple-600 text-white">
+                  <th className="p-3 text-left text-sm font-medium">
+                    اسم الكفيل
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium">
+                    تاريخ التختيم
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium">
+                    الربط مع الوكالة
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium">
+                    انتهاء الضمان
+                  </th>
+
+                  {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
+                </tr>
+              </thead>
+              <tbody>
+                {formData.arrivals.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="p-3 text-center text-sm text-gray-500"
+                    >
+                      No results found
+                    </td>
+                  </tr>
+                ) : (
+                  formData.arrivals.map((item) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="p-3 text-lg text-gray-700">
+                        {item.SponsorName}
+                      </td>
+                      <td className="p-3 text-lg text-gray-700">
+                        {item.EmbassySealing
+                          ? new Date(item.EmbassySealing).toLocaleDateString()
+                          : null}
+                      </td>
+                      <td className="p-3 text-lg text-gray-700">
+                        {item.AgencyDate
+                          ? new Date(item.AgencyDate).toLocaleDateString()
+                          : null}
+                      </td>
+                      <td className="p-3 text-lg text-gray-700">
+                        {item.GuaranteeDurationEnd
+                          ? new Date(
+                              item.GuaranteeDurationEnd
+                            ).toLocaleDateString()
+                          : null}
+                      </td>
+
+                      {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
             {/* Button to toggle the form */}
@@ -1376,9 +1597,8 @@ const SlugPage = () => {
               onClick={toggleFormVisibility}
               className="mb-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700"
             >
-              {isFormVisible ? "الغاء عملية التحديث" : "اضافة بيانات الوصول "}
+              {isFormVisible ? "الغاء عملية التحديث" : "تحديث بيانات الوصول "}
             </button>
-            {/* Form: Conditionally rendered based on the isFormVisible state */}
             {isFormVisible && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1581,6 +1801,282 @@ const SlugPage = () => {
                 </div>
               </form>
             )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-1 mt-7 gap-6">
+            <div className="bg-white w-full  p-6 rounded-lg shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  صندوق رفع الملفات
+                </h2>
+                <button
+                  onClick={closeBooksModal}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    className="h-6 w-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="mb-6 text-gray-600">
+                <div className="col-span-3">
+                  <label
+                    htmlFor="medicalCheckFile"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع ملف الفحص الطبي
+                  </label>
+                  <div className="flex flex-col items-start bg-gray-100 rounded-md">
+                    {/* Hidden file input */}
+                    <input
+                      id="medicalCheckFile"
+                      name="medicalCheckFile"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadmedicalcheckfile}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="medicalCheckFile"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {medicalCheckFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={medicalCheckFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-3">
+                  <label
+                    htmlFor="ticketFile"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع ملف التذكرة
+                  </label>
+                  <div className="flex flex-col bg-gray-100 items-start">
+                    {/* Hidden file input */}
+                    <input
+                      id="ticketFile"
+                      name="ticketFile"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadticketFile}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="ticketFile"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {ticketFileFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={ticketFileFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {formik.errors.ticketFile && formik.touched.ticketFile && (
+                    <div className="text-red-600 text-sm mt-1">
+                      {formik.errors.ticketFile}
+                    </div>
+                  )}
+                </div>
+
+                <div className="col-span-3">
+                  <label
+                    htmlFor="receivingFile"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع ملف الاستلام
+                  </label>
+                  <div className="flex flex-col items-start">
+                    {/* Hidden file input */}
+                    <input
+                      id="receivingFile"
+                      name="receivingFile"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadreceivingFile}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="receivingFile"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {receivingFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={receivingFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="col-span-3">
+                  <label
+                    htmlFor="approvalPayment"
+                    className="block font-semibold text-sm"
+                  >
+                    رفع اثبات الدفع
+                  </label>
+                  <div className="flex flex-col items-start bg-gray-100 ">
+                    {/* Hidden file input */}
+                    <input
+                      id="approvalPayment"
+                      name="approvalPayment"
+                      type="file"
+                      className="hidden"
+                      onChange={handleUploadapprovalPayment}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="approvalPayment"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      اختار الملف
+                    </label>
+
+                    {/* Display uploaded image or file status */}
+                    {approvalPaymentFileCloudinaryImage && (
+                      <div className="mt-2 text-gray-600 ">
+                        <span>File Uploaded: </span>
+                        <a
+                          href={approvalPaymentFileCloudinaryImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Custom File Upload Field */}
+                <div>
+                  <label
+                    htmlFor="additionalfiles"
+                    className="block font-semibold text-sm"
+                  >
+                    ملفات اخرى
+                  </label>
+                  <div className="flex flex-col items-start">
+                    {/* Hidden file input with multiple attribute */}
+                    <input
+                      id="additionalfiles"
+                      name="additionalfiles"
+                      type="file"
+                      className="hidden"
+                      multiple
+                      onChange={handleUpload}
+                    />
+                    {/* Custom file upload button */}
+                    <label
+                      htmlFor="additionalfiles"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                    >
+                      Choose Files
+                    </label>
+
+                    {/* Display uploaded images or file statuses */}
+                    {cloudinaryImages.length > 0 && (
+                      <div className="mt-2 text-gray-600">
+                        <span>Uploaded Files:</span>
+                        <ul>
+                          {cloudinaryImages.map((image, index) => (
+                            <li key={index} className="mt-1">
+                              <a
+                                href={image}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-purple-500 hover:underline"
+                              >
+                                File {index + 1}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              {/* Modal Footer */}
+              <div className="flex justify-center space-x-4 mt-6">
+                <button
+                  onClick={closeBooksModal}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() =>
+                    handleAccessFormSubmit({
+                      medicalCheckFile: medicalCheckFileCloudinaryImage,
+                      ticketFile: ticketFileFileCloudinaryImage,
+                      receivingFile: receivingFileCloudinaryImage,
+                      approvalPayment: approvalPaymentFileCloudinaryImage,
+                      additionalfiles: cloudinaryImages,
+                    })
+                  }
+                  className="bg-orange-400 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-200"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
