@@ -18,7 +18,7 @@ export default async function handler(
       where: { id: Number(id) },
       data: {
         bookingstatus: "حجز جديد", // Update the booking status for the order
-        ReasonOfRejection, // Update the reason of rejection
+        ReasonOfRejection: "", // Update the reason of rejection
         HomeMaid: {
           connect: { id: Number(homeMaidId) }, // Connect the HomeMaid by its id
         },

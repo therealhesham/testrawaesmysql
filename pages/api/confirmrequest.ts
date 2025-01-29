@@ -7,25 +7,30 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // Check for the correct HTTP method
-    // Apply `excludeNullFields` if you want to ensure null or undefined fields are excluded from the update
-    // Prisma update query
-    const createarrivallist = await prisma.neworder.update({
-      where: { id: req.body.id },
+    const { id, SponsorName, PassportNumber, HomemaidName, KingdomentryDate } =
+      req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Order ID is required." });
+    }
+    const waiter = await prisma.neworder.update({
+      where: { id },
+      data: { bookingstatus: "اكمال الطلب" },
+    });
+    await prisma.arrivallist.create({
       data: {
-        bookingstatus: "التواصل مع العميل",
-        ArrivalList: {
-          connect: {
-            OrderId: req.body.id,
-            BookinDate: new Date(req.body.createdAt).toISOString(),
-          },
-        },
+        // OrderId:id,
+        SponsorName,
+        HomemaidName,
+        PassportNumber,
+        Order: { connect: { id } },
       },
     });
 
-    res.status(200).json(createarrivallist);
+    // Return the updated order with the newly created arrival
+    res.status(200).json(waiter);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send("Internal Server Error");
   }
 }

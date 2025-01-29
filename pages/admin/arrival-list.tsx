@@ -10,7 +10,7 @@ const ResponsiveTable = () => {
     KingdomentryDate: true,
     WorkDuration: false,
     Cost: false,
-    HomemaidID: false,
+    Nationality: false,
     HomemaidName: false,
     ApplicationDate: false,
   });
@@ -23,7 +23,7 @@ const ResponsiveTable = () => {
     KingdomentryDate: "تاريخ الدخول إلى المملكة",
     WorkDuration: "مدة العمل",
     Cost: "التكلفة",
-    HomemaidID: "هوية الخادمة",
+    Nationality: "هوية الخادمة",
     HomemaidName: "اسم الخادمة",
     ApplicationDate: "تاريخ التقديم",
   };

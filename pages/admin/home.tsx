@@ -206,262 +206,218 @@ export default function Home() {
   // }
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen ">
         {/* Centered Heading */}
         <h1 className="text-3xl font-bold mb-8 mt-8 text-center">
           قسم الاستقدام
         </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
-          {/* Box 1 */}
-          <Link href="/admin/neworders">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات الجديدة
-              </div>
-              {newOrdersLength > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {newOrdersLength > 0 ? newOrdersLength : 0}
-                </span>
-              ) : null}
-            </a>
-          </Link>
-          {/* Box 3 */}
-          <Link href="/admin/currentorders">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات الحالية
-              </div>
-              {/* Notification Badge */}
-              {currentOrdersLength > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {currentOrdersLength > 0 ? currentOrdersLength : 0}
-                </span>
-              ) : null}
-            </a>
-          </Link>
+        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+            الطلبـــات
+          </div>
 
-          <Link href="/page3">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات المنتهية
-              </div>
-              {/* Notification Badge */}
-              {/* { > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
+            {/* Box 1 */}
+            <Link href="/admin/neworders">
+              <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                  <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
+                  الطلبات الجديدة
+                </div>
+                {newOrdersLength > 0 ? (
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {newOrdersLength > 0 ? newOrdersLength : 0}
+                  </span>
+                ) : null}
+              </a>
+            </Link>
+            {/* Box 3 */}
+            <Link href="/admin/currentorderstest">
+              <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                  <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
+                  الطلبات الحالية
+                </div>
+                {/* Notification Badge */}
+                {currentOrdersLength > 0 ? (
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {currentOrdersLength > 0 ? currentOrdersLength : 0}
+                  </span>
+                ) : null}
+              </a>
+            </Link>
+
+            <Link href="/admin/endedorders">
+              <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                  <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
+                  الطلبات المنتهية
+                </div>
+                {/* Notification Badge */}
+                {/* { > 0 ? (
                 <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                   {currentOrdersLength > 0 ? currentOrdersLength : 0}
                 </span>
               ) : null} */}
-            </a>
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
-          {/* Box 5 */}
-          <Link href="/admin/rejectedorders">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
-                الطلبات المرفوضة
-              </div>
-              {/* Notification Badge */}
-              {rejectedOrdersLength > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
-                </span>
-              ) : null}
-            </a>
-          </Link>
-          {/* Box 6 */}
-
-          {/* Box 2 */}
-          <Link href="/admin/form">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaRegUser className="mb-2 text-3xl" /> {/* Add icon */}
-                اضافة عاملة
-              </div>
-              {/* Notification Badge */}
-            </a>
-          </Link>
-
-          {/* Box 4 */}
-
-          <Link href="/admin/arrival-list">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
-                قائمة الوصول
-              </div>
-              {/* Notification Badge */}
-              {arrivalsLength > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {arrivalsLength > 0 ? arrivalsLength : 0}
-                </span>
-              ) : null}
-            </a>
-          </Link>
-
-          {/* Box 5 */}
-
-          <Link href="/admin/fulllist">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                بيانات العاملات
-              </div>
-              {/* Notification Badge */}
-              {homeMaidsLength > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {homeMaidsLength > 0 ? homeMaidsLength : 0}
-                </span>
-              ) : null}
-            </a>
-          </Link>
-
-          <Link href="/admin/transfersponsorship">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                معاملات نقل الكفالة
-              </div>
-              {/* Notification Badge */}
-              {transferSponsorships > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {transferSponsorships > 0 ? transferSponsorships : 0}
-                </span>
-              ) : null}
-            </a>
-          </Link>
-
-          <Link href="/admin/addadmin">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
-                اضافة مدير
-              </div>
-              {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
-            </a>
-          </Link>
-
-          {/* Box 7 */}
-          <Link href="/admin/offices">
-            <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-              <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                المكاتب الخارجية
-              </div>
-              {/* Notification Badge */}
-              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                2
-              </span>
-            </a>
-          </Link>
-        </div>
-
-        <div className="flex justify-center items-center mt-10">
-          <FaPlane className="text-4xl text-purple-500 mr-2" />{" "}
-          {/* Flight Icon */}
-          <h2 className="text-2xl font-semibold text-gray-700">
-            Arrival Calendar
-          </h2>
-        </div>
-
-        <div className="mt-10">
-          <div className="flex justify-between items-center mb-4">
-            <button
-              onClick={() => changeMonth("prev")}
-              className="text-xl text-blue-500 hover:text-blue-700 rounded-full border-2 border-blue-500 px-4 py-2"
-            >
-              &lt; Prev
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-700">
-              {new Date(currentYear, currentMonth).toLocaleString("default", {
-                month: "long",
-              })}{" "}
-              {currentYear}
-            </h2>
-            <button
-              onClick={() => changeMonth("next")}
-              className="text-xl text-blue-500 hover:text-blue-700 rounded-full border-2 border-blue-500 px-4 py-2"
-            >
-              Next &gt;
-            </button>
+              </a>
+            </Link>
           </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-              (day, index) => (
-                <div
-                  key={index}
-                  className="text-center font-semibold text-gray-800"
-                >
-                  {day}
-                </div>
-              )
-            )}
-
-            {generateCalendar().map((week, weekIndex) =>
-              week.map((day, dayIndex) => (
-                <div
-                  key={dayIndex}
-                  className={`relative border p-4 text-center cursor-pointer rounded-lg ${
-                    day
-                      ? `${monthColors[currentMonth]} hover:bg-gray-200`
-                      : "bg-gray-200"
-                  }`}
-                  onClick={() => handleDayClick(day)}
-                  style={{
-                    height: "100px", // Fixed height for all calendar cells
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  {day ? (
-                    <>
-                      <div className="font-semibold text-xl">{day}</div>
-                      {getEventsForDay(day).length > 0 && (
-                        <div className="mt-2 text-sm text-gray-800">
-                          <div className="max-h-28 overflow-y-auto">
-                            {getEventsForDay(day)
-                              .slice(0, 5)
-                              .map((event, index) => (
-                                <div
-                                  key={index}
-                                  className={`mt-1 p-1 rounded text-white ${getEventColor(
-                                    event.date
-                                  )}`}
-                                >
-                                  {event.title}
-                                </div>
-                              ))}
-                          </div>
-
-                          {/* If there are more than 5 events, show a "View All" button */}
-                          {getEventsForDay(day).length > 5 && (
-                            <button
-                              className="text-blue-500 mt-2 text-xs"
-                              onClick={() =>
-                                alert("View all events for this day")
-                              }
-                            >
-                              View All ({getEventsForDay(day).length})
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </>
+        </div>
+        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+            الغاء و رفـض
+          </div>
+          <div className="mt-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+              {/* Box 5 */}
+              <Link href="/admin/rejectedlist">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
+                    الطلبات المرفوضة
+                  </div>
+                  {/* Notification Badge */}
+                  {rejectedOrdersLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
+                    </span>
                   ) : null}
-                </div>
-              ))
-            )}
+                </a>
+              </Link>
+
+              <Link href="/admin/arrival-list">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
+                    قائمة الوصول
+                  </div>
+                  {/* Notification Badge */}
+                  {arrivalsLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {arrivalsLength > 0 ? arrivalsLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
+
+              {/* Box 5 */}
+
+              <Link href="/admin/addadmin">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
+                    اضافة مدير
+                  </div>
+                  {/* Notification Badge */}
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    2
+                  </span>
+                </a>
+              </Link>
+
+              {/* Box 7 */}
+              <Link href="/admin/offices">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    المكاتب الخارجية
+                  </div>
+                  {/* Notification Badge */}
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    2
+                  </span>
+                </a>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+            قواعد البيانات
+          </div>
+          <div className="mt-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+              {/* Box 5 */}
+              {/* Box 6 */}
+
+              {/* Box 4 */}
+
+              <Link href="/admin/arrival-list">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
+                    قائمة الوصول
+                  </div>
+                  {/* Notification Badge */}
+                  {arrivalsLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {arrivalsLength > 0 ? arrivalsLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
+
+              {/* Box 5 */}
+
+              <Link href="/admin/fulllist">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    بيانات العاملات
+                  </div>
+                  {/* Notification Badge */}
+                  {homeMaidsLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {homeMaidsLength > 0 ? homeMaidsLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
+
+              <Link href="/admin/transfersponsorship">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    معاملات نقل الكفالة
+                  </div>
+                  {/* Notification Badge */}
+                  {transferSponsorships > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {transferSponsorships > 0 ? transferSponsorships : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
+
+              <Link href="/admin/addadmin">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
+                    اضافة مدير
+                  </div>
+                  {/* Notification Badge */}
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    2
+                  </span>
+                </a>
+              </Link>
+
+              {/* Box 7 */}
+              <Link href="/admin/offices">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    المكاتب الخارجية
+                  </div>
+                  {/* Notification Badge */}
+                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    2
+                  </span>
+                </a>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
