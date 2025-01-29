@@ -30,6 +30,7 @@ export default async function handler(
   try {
     // Fetch data with the filters and pagination
     const homemaids = await prisma.neworder.findMany({
+      orderBy: { id: "desc" },
       where: {
         ...filters,
         // Passportnumber: { contatins: searchTerm || "" },
