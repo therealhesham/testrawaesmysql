@@ -92,20 +92,21 @@ export default function Table() {
       ...prev,
       [column]: value,
     }));
-    isFetchingRef.current = false;
-    setHasMore(true);
-    // alert(filters.Name);
-    setData([]);
-    pageRef.current = 1;
-    fetchData();
+
+    // Reset the data and pagination only when filtering by Clientname or Nationality
+    if (column === "Clientname" || column === "Nationality") {
+      setData([]); // Clear the current data
+      pageRef.current = 1; // Reset the page number to 1
+      setHasMore(true); // Ensure more data can be loaded
+    }
   };
+
   const router = useRouter();
   const handleUpdate = async (id, homeMaidId) => {
     const submitter = await fetch("/api/confirmrequest", {
       method: "post",
       headers: {
         Accept: "application/json",
-
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -114,22 +115,16 @@ export default function Table() {
       }),
     });
 
-    // alert(submitter.status);
     if (submitter.status == 200) {
-      // alert(submitter.status);
-      // alert("confirmed");
-
       router.push("/admin/neworders");
     }
-
-    // router.push("./restoreorders/" + id);
   };
 
   return (
     <Layout>
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-semibold text-center mb-4">
-          الحجوزات الحالية
+          الحجوزات المرفوضة
         </h1>
 
         {/* Filter Section */}
@@ -140,6 +135,15 @@ export default function Table() {
               value={filters.Clientname}
               onChange={(e) => handleFilterChange(e, "Clientname")}
               placeholder="Filter by Name"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Nationality}
+              onChange={(e) => handleFilterChange(e, "Nationality")}
+              placeholder="Filter by Nationality"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -155,15 +159,11 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-
               <th className="p-3 text-left text-sm font-medium">
                 جنسية العاملة
               </th>
               <th className="p-3 text-left text-sm font-medium">سبب الرفص</th>
-
               <th className="p-3 text-left text-sm font-medium">استعادة</th>
-
-              {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
             </tr>
           </thead>
           <tbody>
@@ -198,13 +198,11 @@ export default function Table() {
                   <td className="p-3 text-sm text-gray-600">
                     <Button
                       color="#0694a2"
-                      onClick={() => handleUpdate(item.id, item.homemaidId)}
+                      onClick={() => console.log(item.id, item.homemaidId)}
                     >
                       استعادة
                     </Button>
                   </td>
-
-                  {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}
                 </tr>
               ))
             )}

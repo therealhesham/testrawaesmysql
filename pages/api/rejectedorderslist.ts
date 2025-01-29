@@ -6,7 +6,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { ClientName, age, Passport, Nationality, page } = req.query;
+  const { Clientname, age, Passport, Nationality, page } = req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = 10;
@@ -15,8 +15,8 @@ export default async function handler(
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
 
-  if (ClientName)
-    filters.ClientName = { contains: (ClientName as string).toLowerCase() };
+  if (Clientname)
+    filters.ClientName = { contains: (Clientname as string).toLowerCase() };
   // if (age) filters.age = { equals: parseInt(age as string, 10) };
   // if (Passport)
   //   filters.Passportnumber = { contains: (Passport as string).toLowerCase() };
@@ -34,7 +34,7 @@ export default async function handler(
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
     });
-
+    console.log(homemaids);
     // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);
   } catch (error) {
