@@ -173,16 +173,16 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.Name}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.age}</td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-lg text-gray-600">{item.id}</td>
+                  <td className="p-3 text-lg text-gray-600">{item.Name}</td>
+                  <td className="p-3 text-lg text-gray-600">{item.age}</td>
+                  <td className="p-3 text-lg text-gray-600">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-lg text-gray-600">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-lg text-gray-600">
                     <Button onClick={() => console.log(item.id)}>حجز</Button>
                   </td>
 
