@@ -367,7 +367,6 @@ export default function Home() {
                   <th className="px-4 py-2">رفض</th>
                   {/* <th className="px-4 py-2"></th> */}
 
-                  <th className="px-4 py-2">تحديث</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -420,14 +419,6 @@ export default function Home() {
                         handleReject={handleReject}
                         isModalRejectionOpen={isModalRejectionOpen}
                       />
-                    </td>
-                    <td className="px-4 py-2">
-                      <button
-                        onClick={() => handleUpdate(row.id)}
-                        className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
-                      >
-                        Update
-                      </button>
                     </td>
                   </tr>
                 ))}

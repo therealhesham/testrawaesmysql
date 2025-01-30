@@ -19,6 +19,31 @@ export default function Table() {
   const pageRef = useRef(1); // Use a ref to keep track of the current page number
   const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
 
+  const restore = async (id, homeMaidId) => {
+    const submitter = await fetch("/api/restoreorders", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        homeMaidId,
+        // createdAt: date,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      // setDate(Date.now());
+      // alert("confirmed");
+
+      // setIsModalRejectionOpen(false); // Close the modal after rejection
+      router.push("/admin/neworders");
+    }
+  };
   // Fetch data with pagination
   const fetchData = async () => {
     if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
@@ -198,7 +223,7 @@ export default function Table() {
                   <td className="p-3 text-sm text-gray-600">
                     <Button
                       color="#0694a2"
-                      onClick={() => console.log(item.id, item.homemaidId)}
+                      onClick={() => restore(item.id, item.homemaidId)}
                     >
                       استعادة
                     </Button>

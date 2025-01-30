@@ -30,7 +30,8 @@ export default function Table() {
       const queryParams = new URLSearchParams({
         ClientName: filters.ClientName,
         age: filters.age,
-        Nationality: filters.Nationality,
+        Passportnumber: filters.Passportnumber,
+        Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
       });
 
@@ -152,7 +153,7 @@ export default function Table() {
             <tr className="bg-purple-600 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
-              <th className="p-3 text-left text-sm font-medium">العمر</th>
+              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
@@ -191,7 +192,7 @@ export default function Table() {
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
-                    {item.Nationality}
+                    {item.Nationalitycopy}
                   </td>
                   <td className="p-3 text-md text-gray-700">
                     <Button onClick={() => handleUpdate(item.id)}>تحديث</Button>

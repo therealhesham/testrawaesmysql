@@ -1,67 +1,51 @@
-//@ts-nocheck
-//@ts-ignore
-// pages/api/auth/[...nextauth].js
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-
-const authenticateUser = async (email, password) => {
-  // Here, you can replace this with your own user validation logic, e.g., querying a database
-  console.log(email);
-  const users = [
-    {
-      id: 1,
-      email: "ra@gmail.com",
-      password: "123456",
-    },
-  ];
-
-  const user = users.find((u) => u.email === email && u.password === password);
-  if (user) {
-    return { email: user.email }; // User object to be saved in JWT session
-  } else {
-    return null; // Return null if user is not found
-  }
-};
+import { JWT } from "next-auth/jwt";
 
 export default NextAuth({
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // console.log(credentials);
-        const user = await authenticateUser(
-          credentials.email,
-          credentials.password
-        );
+        // Replace this with your own authentication logic (e.g. checking against a DB)
+        const user = { id: "1", name: "Test User", email: "test@example.com" }; // Dummy user for example
+
         if (user) {
-          return user; // Return user data if authentication is successful
+          return user;
         } else {
-          return null; // Return null if authentication fails
+          return null;
         }
       },
     }),
   ],
+
   session: {
-    strategy: "jwt", // Use JWT for session management
+    strategy: "jwt",
   },
-  pages: { signIn: "/admin/login" },
+
   callbacks: {
     async jwt({ token, user }) {
+      // This is where you attach data to the token (e.g., user info)
       if (user) {
-        console.log(token);
+        token.id = user.id;
         token.email = user.email;
+        token.name = user.name;
       }
-      console.log(token);
-      return token; // Add user data to the token
+      return token;
     },
+
     async session({ session, token }) {
+      // This is where you can merge the JWT token data with the session
+      session.user.id = token.id;
       session.user.email = token.email;
-      return session; // Add token data to session
+      session.user.name = token.name;
+      return session;
     },
   },
-  secret: "sssasadss", // Use a secure environment variable for your secret
+
+  secret: "ssss", // make sure to set a JWT secret in your .env
 });

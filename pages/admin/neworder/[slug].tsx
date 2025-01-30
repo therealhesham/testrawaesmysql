@@ -136,6 +136,28 @@ const SlugPage = () => {
     // alert(submitter.status);
     if (submitter.status == 200) {
       // alert(submitter.status);
+      setSubmitted(true);
+      setDate(Date.now());
+    }
+  };
+
+  const cancel = async () => {
+    const submitter = await fetch("/api/cancelledorders", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: router.query.slug,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      router.push("/admin/cancelledcontracts");
       setDate(Date.now());
       setSubmitted(true);
     }
@@ -485,6 +507,7 @@ const SlugPage = () => {
     if (submitter.status == 200) {
       setModalSpinnerOpen(false);
       showSuccessModal();
+      setDate(Date.now());
     } else {
       setModalSpinnerOpen(false);
 
@@ -528,6 +551,7 @@ const SlugPage = () => {
       setModalSpinnerOpen(false);
 
       showSuccessModal();
+      setDate(Date.now());
     } else {
       setModalSpinnerOpen(false);
 
@@ -619,6 +643,7 @@ const SlugPage = () => {
     if (submitter.status == 200) {
       setModalSpinnerOpen(false);
       showSuccessModal();
+      setDate(Date.now());
     } else {
       setModalSpinnerOpen(false);
 
@@ -872,7 +897,7 @@ const SlugPage = () => {
       },
       body: JSON.stringify({
         id,
-        ReasonOfRejection: reason,
+        // ReasonOfRejection: reason,
       }),
     });
   };
@@ -919,7 +944,19 @@ const SlugPage = () => {
         />
       ) : null}
       <SpinnerModal isOpen={isModalSpinnerOpen} onClose={closespinnerModal} />
-
+      <CancelBooking
+        bookingstatus={formData.bookingstatus}
+        date={formData.createdAt}
+        phone={formData.clientphonenumber}
+        reason={Canceelationreason}
+        name={formData.ClientName}
+        id={formData.id}
+        setReason={setCancellationReason} // Passing setReason if needed
+        OpenCancellation={OpenCancellationModal}
+        handleCancelModal={handleCancelationModal}
+        handleCancel={cancel}
+        isModalCancellationOpen={isModalCancellationOpen}
+      />
       <div className=" py-8">
         {/* <div className="container mx-auto p-4">
           <button
