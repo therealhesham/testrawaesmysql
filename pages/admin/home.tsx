@@ -286,16 +286,16 @@ export default function Home() {
                 </a>
               </Link>
 
-              <Link href="/admin/arrival-list">
+              <Link href="/admin/cancelledcontracts">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
-                    قائمة الوصول
+                    <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
+                    الطلبات الملغية
                   </div>
                   {/* Notification Badge */}
-                  {arrivalsLength > 0 ? (
+                  {rejectedOrdersLength > 0 ? (
                     <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {arrivalsLength > 0 ? arrivalsLength : 0}
+                      {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
                     </span>
                   ) : null}
                 </a>
@@ -303,32 +303,7 @@ export default function Home() {
 
               {/* Box 5 */}
 
-              <Link href="/admin/addadmin">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
-                    اضافة مدير
-                  </div>
-                  {/* Notification Badge */}
-                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    2
-                  </span>
-                </a>
-              </Link>
-
               {/* Box 7 */}
-              <Link href="/admin/offices">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                    المكاتب الخارجية
-                  </div>
-                  {/* Notification Badge */}
-                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    2
-                  </span>
-                </a>
-              </Link>
             </div>
           </div>
         </div>

@@ -67,7 +67,7 @@ const CancelBooking = ({
                 name="reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="سبب الرفض..."
+                placeholder="سبب الالغاء..."
                 className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 rows={4} // Adjust the number of rows as needed
               />

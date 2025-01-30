@@ -3,36 +3,27 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { signIn } from "next-auth/react";
-import { Formik, Field, Form, ErrorMessage } from "formik";
-import * as Yup from "yup"; // Import Yup for schema validation
-
-// Validation Schema using Yup
-const validationSchema = Yup.object({
-  email: Yup.string().required("email is required"),
-  password: Yup.string()
-    .min(6, "Password must be at least 6 characters")
-    .required("Password is required"),
-});
+import { Formik, Field, Form } from "formik"; // Removed ErrorMessage and validationSchema imports
+import axios from "axios";
 
 export default function Login() {
   const router = useRouter();
+  const [error, setError] = useState(null); // For handling errors
 
   // Handle form submission
   const handleSubmit = async (values) => {
-    // e.preventDefault();
-    console.log(values);
-    const res = await signIn("credentials", {
-      redirect: false,
-      // redirect: false, // Prevent automatic redirect
-      email: values.email,
-      password: values.password,
-    });
-    console.log(res);
+    const { username, password } = values;
+    try {
+      const res = await axios.post("/api/login", { username, password });
+      const { token } = res.data;
 
-    if (res?.error) {
-      alert("Error");
-    } else {
-      // router.push("/dashboard"); // Redirect to a protected page after successful login
+      // Store the JWT token in localStorage (or you can use cookies)
+      localStorage.setItem("token", token);
+
+      // Redirect to the dashboard or home page
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Something went wrong");
     }
   };
 
@@ -47,40 +38,29 @@ export default function Login() {
             className="w-24 h-auto"
           />
         </div>
-        {/* 
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Login
-        </h2> */}
 
-        {/* Formik Form with Yup Validation */}
+        {/* Formik Form without Validation */}
         <Formik
-          initialValues={{ email: "", password: "" }}
-          validationSchema={validationSchema}
+          initialValues={{ username: "", password: "" }}
           onSubmit={handleSubmit}
         >
           {() => (
             <Form>
               <div className="mb-4">
                 <label
-                  htmlFor="email"
+                  htmlFor="username"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Email Address
+                  Username Address
                 </label>
                 <Field
-                  type="email"
-                  id="email"
-                  name="email"
+                  type="text"
+                  id="username"
+                  name="username"
                   className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter your Email"
-                />
-                <ErrorMessage
-                  name="email"
-                  component="div"
-                  className="text-xs text-red-500 mt-1"
+                  placeholder="Enter your username"
                 />
               </div>
-
               <div className="mb-6">
                 <label
                   htmlFor="password"
@@ -95,13 +75,11 @@ export default function Login() {
                   className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter your password"
                 />
-                <ErrorMessage
-                  name="password"
-                  component="div"
-                  className="text-xs text-red-500 mt-1"
-                />
               </div>
-
+              {error && (
+                <div className="text-xs text-red-500 mb-4">{error}</div>
+              )}{" "}
+              {/* Display error */}
               <button
                 type="submit"
                 className="w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
