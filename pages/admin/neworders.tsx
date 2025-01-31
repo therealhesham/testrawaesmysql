@@ -360,13 +360,12 @@ export default function Home() {
                   <th className="px-4 py-2">اسم العميل</th>
                   <th className="px-4 py-2">جوال العميل</th>
                   <th className="px-4 py-2">رقم الخادمة</th>
-                  <th className="px-4 py-2">ديانة العاملة</th>
+                  {/* <th className="px-4 py-2">ديانة العاملة</th> */}
                   <th className="px-4 py-2">الخبرة</th>
                   <th className="px-4 py-2">العمر</th>
                   <th className="px-4 py-2">موافق</th>
                   <th className="px-4 py-2">رفض</th>
                   {/* <th className="px-4 py-2"></th> */}
-
                 </tr>
               </thead>
               <tbody className="bg-white">
@@ -386,7 +385,7 @@ export default function Home() {
                     >
                       {row.HomemaidId}
                     </td>
-                    <td className="px-4 py-2">{row.Religion}</td>
+                    {/* <td className="px-4 py-2">{row.Religion}</td> */}
                     <td className="px-4 py-2">{row.ExperienceYears}</td>
                     <td className="px-4 py-2">{row.age}</td>
                     <td className="px-4 py-2">

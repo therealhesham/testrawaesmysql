@@ -1,8 +1,13 @@
+import jwt from "jsonwebtoken";
 import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
+import { jwtDecode } from "jwt-decode";
+import { NextPageContext } from "next";
+import { route } from "next/dist/server/router";
 import { useRouter } from "next/router";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useContext } from "react";
 import { Button } from "react-bootstrap";
+import { User } from "utils/usercontext";
 
 export default function Table() {
   const [filters, setFilters] = useState({
@@ -15,9 +20,11 @@ export default function Table() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
+  const router = useRouter();
 
   const pageRef = useRef(1); // Use a ref to keep track of the current page number
   const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
+  const usercontext = useContext(User);
 
   const restore = async (id, homeMaidId) => {
     const submitter = await fetch("/api/restoreorders", {
@@ -103,8 +110,8 @@ export default function Table() {
     },
     [loading, hasMore]
   );
-
   useEffect(() => {
+    // alert(usercontext.user);
     fetchData(); // Fetch the first page of data
   }, []); // Only run once on mount
 
@@ -126,7 +133,6 @@ export default function Table() {
     }
   };
 
-  const router = useRouter();
   const handleUpdate = async (id, homeMaidId) => {
     const submitter = await fetch("/api/confirmrequest", {
       method: "post",
@@ -264,4 +270,36 @@ export default function Table() {
       </div>
     </Layout>
   );
+}
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const decoder = jwt.verify(req.cookies.authToken, "rawaesecret");
+
+    // If authenticated, continue with rendering the page
+    return {
+      props: {}, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log(error);
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
+  // Replace this with your actual authentication logic (cookie, session, token, etc.)
 }

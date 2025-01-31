@@ -19,7 +19,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 // import {  } from "@ant-design/icons";
-
+import jwt from "jsonwebtoken";
 // Helper function to calculate remaining days
 const calculateRemainingDays = (eventDate) => {
   const today = new Date();
@@ -29,9 +29,9 @@ const calculateRemainingDays = (eventDate) => {
   return remainingDays > 0 ? remainingDays : "Expired";
 };
 
-export default function Home() {
+export default function Home({ user }) {
   const router = useRouter();
-
+  useContext;
   const { data: session, status } = useSession();
 
   const monthColors = [
@@ -212,58 +212,60 @@ export default function Home() {
           قسم الاستقدام
         </h1>
 
-        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-            الطلبـــات
-          </div>
+        {user.role == "admin" && (
+          <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+            <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+              الطلبـــات
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
-            {/* Box 1 */}
-            <Link href="/admin/neworders">
-              <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                  <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
-                  الطلبات الجديدة
-                </div>
-                {newOrdersLength > 0 ? (
-                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {newOrdersLength > 0 ? newOrdersLength : 0}
-                  </span>
-                ) : null}
-              </a>
-            </Link>
-            {/* Box 3 */}
-            <Link href="/admin/currentorderstest">
-              <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                  <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
-                  الطلبات الحالية
-                </div>
-                {/* Notification Badge */}
-                {currentOrdersLength > 0 ? (
-                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {currentOrdersLength > 0 ? currentOrdersLength : 0}
-                  </span>
-                ) : null}
-              </a>
-            </Link>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
+              {/* Box 1 */}
+              <Link href="/admin/neworders">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
+                    الطلبات الجديدة
+                  </div>
+                  {newOrdersLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {newOrdersLength > 0 ? newOrdersLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
+              {/* Box 3 */}
+              <Link href="/admin/currentorderstest">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
+                    الطلبات الحالية
+                  </div>
+                  {/* Notification Badge */}
+                  {currentOrdersLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {currentOrdersLength > 0 ? currentOrdersLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
 
-            <Link href="/admin/endedorders">
-              <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                  <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
-                  الطلبات المنتهية
-                </div>
-                {/* Notification Badge */}
-                {/* { > 0 ? (
+              <Link href="/admin/endedorders">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
+                    الطلبات المنتهية
+                  </div>
+                  {/* Notification Badge */}
+                  {/* { > 0 ? (
                 <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                   {currentOrdersLength > 0 ? currentOrdersLength : 0}
                 </span>
               ) : null} */}
-              </a>
-            </Link>
+                </a>
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
         <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
           <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
             الغاء و رفـض
@@ -398,4 +400,35 @@ export default function Home() {
       </div>
     </Layout>
   );
+}
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log(user);
+    // If authenticated, continue with rendering the page
+    return {
+      props: { user }, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log("error");
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
 }

@@ -8,6 +8,7 @@ import Main from "./Main";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/router";
+import jwt from "jsonwebtoken";
 
 interface ILayout {
   children: React.ReactNode;
@@ -50,3 +51,34 @@ function Layout({ children }: ILayout) {
 }
 
 export default Layout;
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    // If authenticated, continue with rendering the page
+    // console.log(user);
+    return {
+      props: { user }, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log(error);
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
+}

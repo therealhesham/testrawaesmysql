@@ -1,29 +1,48 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  try {
-    // await prisma..
-    const createAdmin = await prisma.user.create({
-      data: {
-        admin: req.body.admin,
-        password: req.body.password,
-        pictureurl: req.body.pictureurl,
-        idnumber: Number(req.body.idnumber),
-        role: req.body.role,
-        username: req.body.username,
-        phonenumber: req.body.phonenumber,
-      },
-    });
-
-    res.status(200).send(createAdmin);
-  } catch (error) {
-    console.log(error);
-    res.status(301).send("createAdmin");
-
-    // res.send("error")
+  if (req.method === "GET") {
+    try {
+      const admins = await prisma.user.findMany();
+      res.status(200).json(admins);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to fetch admins" });
+    }
+  } else if (req.method === "POST") {
+    try {
+      const {
+        admin,
+        password,
+        pictureurl,
+        idnumber,
+        role,
+        username,
+        phonenumber,
+      } = req.body;
+      const newAdmin = await prisma.user.create({
+        data: {
+          admin,
+          password,
+          pictureurl,
+          idnumber: Number(idnumber),
+          role,
+          username,
+          phonenumber,
+        },
+      });
+      res.status(201).json(newAdmin);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to create admin" });
+    }
+  } else {
+    res.status(405).json({ error: "Method Not Allowed" });
   }
 }

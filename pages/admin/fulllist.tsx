@@ -2,7 +2,9 @@ import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "react-bootstrap";
-
+import jwt from "jsonwebtoken";
+// import { nexepagecontext }
+// NextPageContext
 export default function Table() {
   const [filters, setFilters] = useState({
     Name: "",
@@ -223,4 +225,35 @@ export default function Table() {
       </div>
     </Layout>
   );
+}
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log(user);
+    // If authenticated, continue with rendering the page
+    return {
+      props: { user }, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log("error");
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
 }
