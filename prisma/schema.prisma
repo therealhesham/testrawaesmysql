@@ -103,7 +103,7 @@ model neworder {
   Name               String?   @db.VarChar(255)
   Religion           String?   @db.VarChar(255)
   Passportnumber     String?   @db.VarChar(255)
-  clientphonenumber  String   @db.VarChar(15) @unique
+  clientphonenumber  String   @db.VarChar(15) 
   Picture            Json?
   ExperienceYears    String?   @db.VarChar(255)
   maritalstatus      String?   @db.VarChar(255)
