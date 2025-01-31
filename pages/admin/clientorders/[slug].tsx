@@ -1,4 +1,5 @@
-// components/ClientsTable.js
+//@ts-nocheck
+//@ts-ignore
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
@@ -79,7 +80,7 @@ const ClientsTable = () => {
     <Layout>
       <div className="overflow-x-auto shadow-lg rounded-lg bg-white">
         <h1 className="text-2xl font-semibold text-center mb-4">
-          طلبات العميل {data[0].ClientName}
+          طلبات العميل
         </h1>
 
         <table className="min-w-full table-auto text-sm">
