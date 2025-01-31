@@ -34,7 +34,6 @@ export default async function handler(
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
     });
-    console.log(homemaids);
     // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);
   } catch (error) {

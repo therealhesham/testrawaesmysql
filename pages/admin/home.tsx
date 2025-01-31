@@ -31,7 +31,7 @@ const calculateRemainingDays = (eventDate) => {
 
 export default function Home({ user }) {
   const router = useRouter();
-  useContext;
+  // useContext;
   const { data: session, status } = useSession();
 
   const monthColors = [
