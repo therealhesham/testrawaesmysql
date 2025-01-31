@@ -24,6 +24,7 @@ export default async function handler(
       clientphonenumber: true,
       Passportnumber: true,
       Religion: true,
+      HomemaidIdCopy: true,
       createdAt: true,
       Experience: true,
       HomemaidId: true,

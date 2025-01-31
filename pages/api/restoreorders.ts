@@ -12,7 +12,7 @@ export default async function handler(
     // Extract values from the request body
     const { id, ReasonOfRejection, homeMaidId, homeMaidBookingStatus } =
       req.body;
-
+    console.log(req.body);
     // Update the `NewOrder` and connect to `HomeMaid`, and also update `HomeMaid`
     const updatedOrder = await prisma.neworder.update({
       where: { id: Number(id) },

@@ -8,6 +8,7 @@ export default async function handler(
 ) {
   const prisma = new PrismaClient();
 
+  console.log(req.body.id);
   try {
     const updated = await prisma.neworder.update({
       where: { id: Number(req.body.id) },

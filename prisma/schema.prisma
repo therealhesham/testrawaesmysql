@@ -95,8 +95,9 @@ model neworder {
   id                 Int       @id @default(autoincrement())
   ClientName         String?   @db.VarChar(255)
   PhoneNumber        String?   @db.VarChar(15)
-  clientID           Int?
+  clientID            Int?
   HomemaidId         Int?
+  HomemaidIdCopy     Int?
   bookingstatus      String?   @db.VarChar(255)
   ReasonOfRejection  String?   @db.VarChar(255)
   Nationalitycopy    String?   @db.VarChar(255)

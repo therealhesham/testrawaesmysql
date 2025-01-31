@@ -6,9 +6,9 @@ import { NextPageContext } from "next";
 import { route } from "next/dist/server/router";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef, useContext } from "react";
-import { Button } from "react-bootstrap";
+// import { Button } from "react-bootstrap";
 import { User } from "utils/usercontext";
-
+import { Button } from "@mui/material";
 export default function Table() {
   const [filters, setFilters] = useState({
     Clientname: "",
@@ -27,6 +27,7 @@ export default function Table() {
   const usercontext = useContext(User);
 
   const restore = async (id, homeMaidId) => {
+    console.log(id, homeMaidId);
     const submitter = await fetch("/api/restoreorders", {
       method: "post",
       headers: {
@@ -228,8 +229,10 @@ export default function Table() {
                   </td>
                   <td className="p-3 text-sm text-gray-600">
                     <Button
-                      color="#0694a2"
-                      onClick={() => restore(item.id, item.homemaidId)}
+                      variant="contained"
+                      color="warning"
+                      // color="#0694a2"
+                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
                     >
                       استعادة
                     </Button>
