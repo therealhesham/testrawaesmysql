@@ -79,7 +79,7 @@ const ClientsTable = () => {
     <Layout>
       <div className="overflow-x-auto shadow-lg rounded-lg bg-white">
         <h1 className="text-2xl font-semibold text-center mb-4">
-          قائمة العملاء
+          طلبات العميل {data[0].ClientName}
         </h1>
 
         <table className="min-w-full table-auto text-sm">
