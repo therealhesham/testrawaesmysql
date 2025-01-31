@@ -1,31 +1,29 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import cookie from "cookie";
 
-// In-memory users database (for demonstration purposes)
-const users = [
-  {
-    username: "testuser",
-    password: "$2a$10$OgS3O6/7i7fXkQmDO6YbQO5Mmu2hBthbu/xFNn0cO1LwNKLY6Rzqu", // hashed password for 'password123'
-  },
-];
 const prisma = new PrismaClient();
 // Secret key for JWT token signing
 const JWT_SECRET = "your-secret-key";
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
-    const { username, password } = req.body;
+    const { id, password } = req.body;
     // Find user by username
-    console.log(username);
-    const user = await prisma.user.findFirst({
-      where: { username: "heshambadr" },
+    const user = await prisma.user.findUnique({
+      where: { id: Number(id) },
     });
+
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check password
+    // Check password (if you want to validate the password)
     // const passwordMatch = await bcrypt.compare(password, user.password);
     // if (!passwordMatch) {
     //   return res.status(401).json({ message: "Invalid credentials" });
@@ -33,13 +31,18 @@ export default async function handler(req, res) {
 
     // Create JWT token
     const token = jwt.sign(
-      { username: user.username },
-      JWT_SECRET,
-      { expiresIn: "1h" } // Token expires in 1 hour
+      { username: user.username, role: user.role, picture: user.pictureurl },
+      "rawaesecret",
+      { expiresIn: "6h" } // Token expires in 6 hours
     );
 
-    // Send token in response
-    res.status(200).json({ token });
+    // Set JWT token as an HTTP-only cookie in the response
+    res.setHeader(
+      "Set-Cookie",
+      "authToken=" + token + "; Path=/; HttpOnly; Secure; SameSite=Strict"
+    );
+    // Respond with success message
+    res.status(200).json(token);
   } catch (e) {
     console.log(e);
     res.status(405).json({ message: "Method Not Allowed" });

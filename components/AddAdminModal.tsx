@@ -1,10 +1,16 @@
-//@ts-nocheck
+// AddAdminModal.tsx
 
 import { useState } from "react";
 import { Dialog } from "@headlessui/react"; // For modal functionality
 import { XIcon } from "@heroicons/react/outline"; // Close icon
 
-const AddAdminModal = ({ isOpen, closeModal, addAdmin }) => {
+const AddAdminModal = ({
+  isOpen,
+  closeModal,
+  handleUpload,
+  image,
+  addAdmin,
+}) => {
   // State for the form fields
   const [formData, setFormData] = useState({
     username: "",
@@ -15,14 +21,25 @@ const AddAdminModal = ({ isOpen, closeModal, addAdmin }) => {
   });
 
   const [error, setError] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null); // For previewing the selected image
 
   // Handle form input changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, files } = e.target;
+
+    if (name === "image" && files.length > 0) {
+      const file = files[0];
+      setFormData((prev) => ({
+        ...prev,
+        image: file,
+      }));
+      setImagePreview(URL.createObjectURL(file)); // Set the image preview
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   // Handle form submission
@@ -33,8 +50,16 @@ const AddAdminModal = ({ isOpen, closeModal, addAdmin }) => {
       return;
     }
 
-    // Call the parent function to add the admin
-    addAdmin(formData);
+    const adminData = {
+      username: formData.username,
+      password: formData.password,
+      phonenumber: formData.phonenumber,
+      role: formData.role,
+      idnumber: formData.idnumber,
+    };
+
+    // Pass admin data and image URL to parent component
+    addAdmin(adminData);
 
     // Reset form data and close the modal
     setFormData({
@@ -44,6 +69,7 @@ const AddAdminModal = ({ isOpen, closeModal, addAdmin }) => {
       role: "قسم الاستقدام",
       idnumber: "",
     });
+    setImagePreview(null); // Reset image preview
     closeModal();
   };
 
@@ -160,6 +186,33 @@ const AddAdminModal = ({ isOpen, closeModal, addAdmin }) => {
                 onChange={handleChange}
                 className="mt-1 block w-full px-4 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            {/* Profile Image Upload */}
+            <div className="mb-4">
+              <label
+                htmlFor="image"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Profile Image
+              </label>
+              <input
+                type="file"
+                id="image"
+                name="image"
+                accept="image/*"
+                onChange={handleUpload}
+                className="mt-1 block w-full px-4 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+              {image && (
+                <div className="mt-2">
+                  <img
+                    src={image}
+                    alt="Profile Preview"
+                    className="w-24 h-24 object-cover rounded-full"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

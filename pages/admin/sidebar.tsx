@@ -1,7 +1,6 @@
 import classNames from "classnames";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import cookie from "cookie";
 import jwt from "jsonwebtoken";
 import { NextPageContext } from "next";
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -13,10 +12,9 @@ import {
   LogoutIcon,
   UsersIcon,
   VideosIcon,
-} from "../../../components/icons";
+} from "../../components/icons/index";
 import ReportsIcon from "components/icons/reports";
 
-import { jwtDecode } from "jwt-decode";
 interface MenuItem {
   id: number;
   label: string;
@@ -24,10 +22,28 @@ interface MenuItem {
   link: string;
 }
 
+const handleLogout = async () => {
+  try {
+    // Make a POST request to the logout API route
+    const response = await fetch("/api/logout", {
+      method: "POST",
+    });
+
+    if (response.status == 200) {
+      // Redirect to the login page after successful logout
+      router.push("/admin/login");
+    } else {
+      console.error("Logout failed");
+    }
+  } catch (error) {
+    console.error("Error during logout:", error);
+  }
+};
+
 const menuItems: MenuItem[] = [
   { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
-  { id: 2, label: "المديرين", icon: ArticleIcon, link: "/admin/addadmin" },
-  { id: 3, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
+  { id: 2, label: "المديرين", icon: ArticleIcon, link: "/admin/admin" },
+  // { id: 3, label: "التقارير", icon: ReportsIcon, link: "/users" },
   // { id: 4, label: "Manage Tutorials", icon: VideosIcon, link: "/tutorials" },
 ];
 
@@ -69,24 +85,6 @@ const Sidebar = (props) => {
     [activeMenu]
   );
 
-  const handleLogout = async () => {
-    try {
-      // Make a POST request to the logout API route
-      const response = await fetch("/api/logout", {
-        method: "POST",
-      });
-
-      if (response.status == 200) {
-        // Redirect to the login page after successful logout
-        router.push("/admin/login");
-      } else {
-        console.error("Logout failed");
-      }
-    } catch (error) {
-      console.error("Error during logout:", error);
-    }
-  };
-
   const onMouseOver = useCallback(() => {
     setIsCollapsible(!isCollapsible);
   }, [isCollapsible]);
@@ -98,20 +96,17 @@ const Sidebar = (props) => {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(newToggleState));
   }, [toggleCollapse]);
   const [image, setImage] = useState();
-  const [info, setInfo] = useState();
-
   // On component mount, check localStorage for saved state
   useEffect(() => {
+    console.log(props);
+    setImage(props.user);
+    // setToggleCollapse(true);
     const savedState = localStorage.getItem("sidebarCollapsed");
     if (savedState !== null) {
       setToggleCollapse(JSON.parse(savedState));
     }
-    const token = localStorage.getItem("token");
-    const info = jwtDecode(token);
-    setImage(info.picture);
-    setInfo(info.username);
   }, []);
-
+  console.log(props);
   return (
     <div
       className={wrapperClasses}
@@ -121,21 +116,19 @@ const Sidebar = (props) => {
     >
       <div className="flex flex-col">
         <div className="flex items-center justify-center relative">
-          <div className="flex flex-col items-center justify-center pl-1 gap-4">
+          <div className="flex items-center justify-center pl-1 gap-4">
             <img
-              src={image}
-              alt="Profile"
-              className="rounded-full w-24 h-24 object-cover" // Circular profile image
-            />
+              width={100}
+              height={130}
+              // src={props.user.user.picture}
+              alt="Logo"
+            ></img>
             <span
-              className={classNames(
-                "mt-2 text-lg font-medium text-white text-text",
-                {
-                  hidden: toggleCollapse,
-                }
-              )}
+              className={classNames("mt-2 text-lg font-medium text-text", {
+                hidden: toggleCollapse,
+              })}
             >
-              Welcome {info}
+              {/* You can place your brand name here */}
             </span>
           </div>
           {isCollapsible && (
@@ -197,11 +190,12 @@ const Sidebar = (props) => {
   );
 };
 export default Sidebar;
-
 export async function getServerSideProps(context: NextPageContext) {
   const { req, res } = context;
   try {
     const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
     if (!isAuthenticated) {
       // Redirect the user to login page before rendering the component
       return {
@@ -212,10 +206,12 @@ export async function getServerSideProps(context: NextPageContext) {
       };
     }
     const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    // If authenticated, continue with rendering the page
     return {
-      props: { user }, // Pass user data as props
+      props: { user }, // Empty object to pass props if needed
     };
   } catch (error) {
+    console.log(error);
     return {
       redirect: {
         destination: "/admin/login", // Redirect URL

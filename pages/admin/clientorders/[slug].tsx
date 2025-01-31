@@ -39,7 +39,7 @@ const ClientsTable = () => {
 
   const fetchData = async () => {
     // alert("s");
-    const response = await fetch("/api/clients?" + queryParams, {
+    const response = await fetch("/api/clientorders/" + router.query.slug, {
       method: "get",
     });
     const data = await response.json();
@@ -47,8 +47,9 @@ const ClientsTable = () => {
   };
 
   useEffect(() => {
+    if (!router.isReady) return;
     fetchData();
-  }, [page]);
+  }, [page, router.isReady]);
 
   // useEffect(()=>{
 
@@ -84,48 +85,73 @@ const ClientsTable = () => {
         <table className="min-w-full table-auto text-sm">
           <thead className="bg-gray-800 text-white">
             <tr>
-              <th className="px-6 py-4 text-left">م</th>
-              <th className="px-6 py-4 text-left">الاسم</th>
-              <th className="px-6 py-4 text-left">البريد الالكتروني</th>
-              <th className="px-6 py-4 text-left">الجوال</th>
-              <th className="px-6 py-4 text-left">عدد الطلبات</th>
+              <th className="px-4 py-2">م</th>
+              <th className="px-4 py-2">اسم العميل</th>
+              <th className="px-4 py-2">جوال العميل</th>
+              <th className="px-4 py-2">رقم الخادمة</th>
+              {/* <th className="px-4 py-2">ديانة العاملة</th> */}
+              <th className="px-4 py-2">الخبرة</th>
+              <th className="px-4 py-2">العمر</th>
+              <th className="px-4 py-2">موافق</th>
+              <th className="px-4 py-2">رفض</th>
 
-              <th className="px-6 py-4 text-left">اخر طلب</th>
+              {/* <th className="px-6 py-4 text-left">اخر طلب</th> */}
             </tr>
           </thead>
           <tbody>
-            {data.map((client, index) => (
+            {data.map((row, index) => (
               <tr
-                key={client.id}
+                key={row.id}
                 className={`${
                   index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"
                 } hover:bg-gray-200 transition-colors duration-200`}
               >
-                <td className="px-6 py-4">{client.id}</td>
-                <td className="px-6 py-4">{client.fullname}</td>
-                <td className="px-6 py-4">{client.email}</td>
-                <td className="px-6 py-4">{client.phonenumber}</td>
+                <td className="px-4 py-2 text-lg">{row.id}</td>
+                <td className="px-4 py-2">{row.ClientName}</td>
+                <td className="px-4 py-2">{row.clientphonenumber}</td>
                 <td
-                  style={{ cursor: "pointer" }}
-                  className="px-6 py-4 text-left"
-                  onClick={() =>
-                    router.push("/admin/clientorders/" + client.id)
-                  }
+                  onClick={() => router.push("/admin/cvdetails/" + HomemaidId)}
+                  className="px-3 py-2 cursor-pointer decoration-black"
                 >
-                  {client._count.orders}
+                  {row.HomemaidId}
                 </td>
-
-                <td className="px-6 py-4">
-                  <span
-                    className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                      client.status === "active"
-                        ? "bg-green-500 text-white"
-                        : "bg-red-500 text-white"
-                    }`}
+                {/* <td className="px-4 py-2">{row.Religion}</td> */}
+                <td className="px-4 py-2">{row.ExperienceYears}</td>
+                <td className="px-4 py-2">{row.age}</td>
+                <td className="px-4 py-2">
+                  <button
+                    onClick={() =>
+                      console.log(
+                        row.id,
+                        row.createdAt,
+                        row.ClientName,
+                        row.PassportNumber,
+                        row.Name
+                      )
+                    }
+                    className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
                   >
-                    {/* {client.status} */}
-                  </span>
+                    موافقة
+                  </button>
                 </td>
+                <td className="px-4 py-2">
+                  {/* <RejectBooking
+                        bookingstatus={row.bookingstatus}
+                        date={row.createdAt}
+                        phone={row.clientphonenumber}
+                        reason={reason}
+                        name={row.ClientName}
+                        id={row.id}
+                        setReason={setReason} // Passing setReason if needed
+                        OpenRejectionModal={OpenRejectionModal}
+                        handleCancelRejectionModal={handleCancelRejectionModal}
+                        handleReject={handleReject}
+                        isModalRejectionOpen={isModalRejectionOpen}
+                      /> */}
+                </td>
+                {/* {client.status} */}
+                {/* </span> */}
+                {/* </td> */}
               </tr>
             ))}
           </tbody>
