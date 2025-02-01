@@ -14,7 +14,7 @@ import {
   VerticalTimelineElement,
 } from "react-vertical-timeline-component";
 import "react-vertical-timeline-component/style.min.css";
-
+import jwt from "jsonwebtoken";
 import SpinnerModal from "components/spinner";
 import SuccessModal from "office/components/successcoponent";
 import { Spinner } from "react-bootstrap";
@@ -2122,3 +2122,35 @@ const SlugPage = () => {
 };
 
 export default SlugPage;
+
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log(user);
+    // If authenticated, continue with rendering the page
+    return {
+      props: { user }, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log("error");
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
+}
