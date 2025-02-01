@@ -20,13 +20,13 @@ export default function Login() {
     try {
       const res = await axios.post("/api/login", { id, password });
       localStorage.setItem("token", res.data);
-      userContext.setUser(token);
+      // userContext.setUser(token);
       console.log(res.data);
       if (res.status == 200) return router.push("/admin/home");
 
       // Redirect to the dashboard or home page
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
+      setError(err.response?.data?.message || "error");
     }
   };
 

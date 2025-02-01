@@ -18,8 +18,8 @@ export default async function handler(
     const user = await prisma.user.findUnique({
       where: { idnumber: Number(id) },
     });
-
-    if (!user) {
+    console.log(user);
+    if (!user?.idnumber) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
