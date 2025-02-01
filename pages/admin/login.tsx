@@ -22,7 +22,7 @@ export default function Login() {
       localStorage.setItem("token", res.data);
       userContext.setUser(token);
       console.log(res.data);
-      // if (res.status == 200) return router.push("/admin/home");
+      if (res.status == 200) return router.push("/admin/home");
 
       // Redirect to the dashboard or home page
     } catch (err) {

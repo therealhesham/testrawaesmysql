@@ -3,6 +3,7 @@ import axios from "axios";
 import Layout from "example/containers/Layout";
 
 interface Admin {
+  idnumber: number;
   id: number;
   username: string;
   role: string;
@@ -17,7 +18,7 @@ export default function AdminPage() {
     password: "",
     pictureurl: "",
     idnumber: "",
-    role: "",
+    role: "viewer", // Default role
     phonenumber: "",
   });
 
@@ -67,6 +68,12 @@ export default function AdminPage() {
     setNewAdmin((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Handle role change (select)
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { value } = e.target;
+    setNewAdmin((prev) => ({ ...prev, role: value }));
+  };
+
   // Handle form submission to add a new admin
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +85,7 @@ export default function AdminPage() {
         password: "",
         pictureurl: image,
         idnumber: "",
-        role: "viewer",
+        role: "viewer", // Reset to default role
         phonenumber: "",
       });
     } catch (error) {
@@ -107,7 +114,7 @@ export default function AdminPage() {
               <tbody>
                 {admins.map((admin) => (
                   <tr key={admin.id} className="border-b">
-                    <td className="p-4">{admin.id}</td>
+                    <td className="p-4">{admin.idnumber}</td>
                     <td className="p-4">{admin.username}</td>
                     <td className="p-4">{admin.role}</td>
                     <td className="p-4">{admin.phonenumber}</td>
@@ -147,14 +154,28 @@ export default function AdminPage() {
               placeholder="ID Number"
               className="w-full p-2 border border-gray-300 rounded"
             />
-            <input
-              type="text"
-              name="role"
-              value={newAdmin.role}
-              onChange={handleInputChange}
-              placeholder="Role"
-              className="w-full p-2 border border-gray-300 rounded"
-            />
+
+            {/* Role Select Dropdown */}
+            <div>
+              <label
+                htmlFor="role"
+                className="block text-sm font-semibold mb-2"
+              >
+                Role
+              </label>
+              <select
+                name="role"
+                id="role"
+                value={newAdmin.role}
+                onChange={handleRoleChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
             <input
               type="text"
               name="phonenumber"
