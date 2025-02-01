@@ -3,6 +3,7 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "react-bootstrap";
+import jwt from "jsonwebtoken";
 
 export default function Table() {
   const [filters, setFilters] = useState({
