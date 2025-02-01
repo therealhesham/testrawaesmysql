@@ -188,7 +188,7 @@ export default function Table() {
             <tr className="bg-purple-600 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
-              <th className="p-3 text-left text-sm font-medium">العمر</th>
+              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
