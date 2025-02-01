@@ -266,52 +266,52 @@ export default function Home({ user }) {
             </div>
           </div>
         )}
-        {user.role.toLowerCase() == "admin".toLowerCase() ||
-          (user.role.toLowerCase() == "viewer".toLowerCase() && (
-            <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-              <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-                الغاء و رفـض
-              </div>
-              <div className="mt-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
-                  {/* Box 5 */}
-                  <Link href="/admin/rejectedlist">
-                    <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                      <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                        <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
-                        الطلبات المرفوضة
-                      </div>
-                      {/* Notification Badge */}
-                      {rejectedOrdersLength > 0 ? (
-                        <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                          {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
-                        </span>
-                      ) : null}
-                    </a>
-                  </Link>
+        {(user.role.toLowerCase() == "admin".toLowerCase() ||
+          user.role.toLowerCase() == "viewer".toLowerCase()) && (
+          <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+            <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+              الغاء و رفـض
+            </div>
+            <div className="mt-10">
+              <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+                {/* Box 5 */}
+                <Link href="/admin/rejectedlist">
+                  <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                      <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
+                      الطلبات المرفوضة
+                    </div>
+                    {/* Notification Badge */}
+                    {rejectedOrdersLength > 0 ? (
+                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
+                      </span>
+                    ) : null}
+                  </a>
+                </Link>
 
-                  <Link href="/admin/cancelledcontracts">
-                    <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                      <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                        <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
-                        الطلبات الملغية
-                      </div>
-                      {/* Notification Badge */}
-                      {rejectedOrdersLength > 0 ? (
-                        <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                          {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
-                        </span>
-                      ) : null}
-                    </a>
-                  </Link>
+                <Link href="/admin/cancelledcontracts">
+                  <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                      <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
+                      الطلبات الملغية
+                    </div>
+                    {/* Notification Badge */}
+                    {rejectedOrdersLength > 0 ? (
+                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
+                      </span>
+                    ) : null}
+                  </a>
+                </Link>
 
-                  {/* Box 5 */}
+                {/* Box 5 */}
 
-                  {/* Box 7 */}
-                </div>
+                {/* Box 7 */}
               </div>
             </div>
-          ))}
+          </div>
+        )}
         <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
           <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
             قواعد البيانات
