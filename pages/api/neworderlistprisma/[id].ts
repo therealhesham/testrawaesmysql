@@ -20,6 +20,7 @@ export default async function handler(
       age: true,
       ages: true,
       id: true,
+      Name: true,
       ClientName: true,
       clientphonenumber: true,
       Passportnumber: true,

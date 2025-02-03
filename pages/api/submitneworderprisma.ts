@@ -23,6 +23,7 @@ export default async function handler(
     email,
     Nationality,
     Religion,
+    externalOfficeStatus,
     ExperienceYears,
   } = req.body;
 
@@ -35,7 +36,8 @@ export default async function handler(
         Nationality,
         bookingstatus: "حجز جديد",
         Passportnumber,
-
+        // externalOfficeStatus,
+        Name,
         ClientName,
         clientphonenumber,
         Religion,

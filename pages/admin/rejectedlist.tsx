@@ -1,157 +1,156 @@
 import jwt from "jsonwebtoken";
-import { BookFilled } from "@ant-design/icons";
-import Layout from "example/containers/Layout";
-import { jwtDecode } from "jwt-decode";
-import { NextPageContext } from "next";
-import { route } from "next/dist/server/router";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef, useContext } from "react";
-// import { Button } from "react-bootstrap";
-
-import { User } from "utils/usercontext";
+import Layout from "example/containers/Layout";
 import { Button } from "@mui/material";
+import { User } from "utils/usercontext";
+
 export default function Table() {
   const [filters, setFilters] = useState({
     Clientname: "",
-    age: "",
-    search: "",
     Nationality: "",
   });
 
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false); // Loading state
-  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
-  const router = useRouter();
+  const [state, setState] = useState({
+    data: [],
+    loading: false,
+    hasMore: true,
+  });
 
-  const pageRef = useRef(1); // Use a ref to keep track of the current page number
-  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
+  const router = useRouter();
+  const pageRef = useRef(1); // Keep track of current page
+  const isFetchingRef = useRef(false); // Prevent duplicate fetches
   const usercontext = useContext(User);
 
-  const restore = async (id, homeMaidId) => {
-    console.log(id, homeMaidId);
-    const submitter = await fetch("/api/restoreorders", {
-      method: "post",
-      headers: {
-        Accept: "application/json",
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for debouncing timeout
 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id,
-        homeMaidId,
-        // createdAt: date,
-      }),
-    });
+  // Fetch data function with pagination
+  const fetchData = useCallback(async () => {
+    if (isFetchingRef.current || !state.hasMore) return;
 
-    // alert(submitter.status);
-    if (submitter.status == 200) {
-      // alert(submitter.status);
-      // setDate(Date.now());
-      // alert("confirmed");
-
-      // setIsModalRejectionOpen(false); // Close the modal after rejection
-      router.push("/admin/neworders");
-    }
-  };
-  // Fetch data with pagination
-  const fetchData = async () => {
-    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
     isFetchingRef.current = true;
-    setLoading(true);
+    setState((prevState) => ({ ...prevState, loading: true }));
 
     try {
-      // Build the query string for filters
       const queryParams = new URLSearchParams({
         Clientname: filters.Clientname,
-        age: filters.age,
-        search: filters.search,
         Nationality: filters.Nationality,
         page: String(pageRef.current),
       });
 
       const response = await fetch(`/api/rejectedorderslist?${queryParams}`, {
+        method: "GET",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        method: "get",
       });
 
       const res = await response.json();
+
       if (res && res.length > 0) {
-        setData((prevData) => [...prevData, ...res]); // Append new data
-        pageRef.current += 1; // Increment page using ref
+        setState((prevState) => ({
+          ...prevState,
+          data: [...prevState.data, ...res],
+        }));
+        pageRef.current += 1;
       } else {
-        setHasMore(false); // No more data to load
+        setState((prevState) => ({ ...prevState, hasMore: false }));
       }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setLoading(false);
+      setState((prevState) => ({ ...prevState, loading: false }));
       isFetchingRef.current = false;
     }
-  };
+  }, [filters, state.hasMore]);
 
-  // Use a callback to call fetchData when the user reaches the bottom
-  const loadMoreRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (loading || !hasMore) return;
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            fetchData(); // Fetch next page of data
-          }
-        },
-        { threshold: 1.0 }
-      );
-
-      if (node) observer.observe(node);
-
-      return () => observer.disconnect();
-    },
-    [loading, hasMore]
-  );
   useEffect(() => {
-    // alert(usercontext.user);
-    fetchData(); // Fetch the first page of data
-  }, []); // Only run once on mount
+    fetchData(); // Fetch initial data on mount
+  }, [fetchData]);
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     column: string
   ) => {
     const value = e.target.value;
-    setFilters((prev) => ({
-      ...prev,
-      [column]: value,
-    }));
 
-    // Reset the data and pagination only when filtering by Clientname or Nationality
-    if (column === "Clientname" || column === "Nationality") {
-      setData([]); // Clear the current data
-      pageRef.current = 1; // Reset the page number to 1
-      setHasMore(true); // Ensure more data can be loaded
+    // Clear any previous debounce timeout if it's still running
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
+
+    // Set the new filter value
+    setFilters((prev) => {
+      const newFilters = { ...prev, [column]: value };
+
+      if (column === "Clientname" || column === "Nationality") {
+        // Set a timeout to debounce the filter update
+        debounceTimeoutRef.current = setTimeout(() => {
+          // Reset data and pagination when filters change after debounce
+          if (value === "") {
+            // Reset data and pagination if the filter is cleared
+            setState({ data: [], loading: false, hasMore: true });
+            pageRef.current = 1;
+          } else {
+            // Reset data to empty and continue pagination when filter is applied
+            setState((prevState) => ({
+              ...prevState,
+              data: [],
+              hasMore: true,
+            }));
+            pageRef.current = 1; // Reset page to 1 when filter changes
+          }
+        }, 500); // Adjust debounce delay (500ms in this case)
+      }
+
+      return newFilters;
+    });
   };
 
-  const handleUpdate = async (id, homeMaidId) => {
-    const submitter = await fetch("/api/confirmrequest", {
-      method: "post",
+  const makeRequest = async (url: string, body: object) => {
+    const response = await fetch(url, {
+      method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        id: id,
-        homeMaidId,
-      }),
+      body: JSON.stringify(body),
     });
 
-    if (submitter.status == 200) {
-      router.push("/admin/neworders");
-    }
+    return response.status === 200;
   };
+
+  const restore = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/restoreorders", { id, homeMaidId });
+    if (success) router.push("/admin/neworders");
+  };
+
+  const handleUpdate = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/confirmrequest", {
+      id,
+      homeMaidId,
+    });
+    if (success) router.push("/admin/neworders");
+  };
+
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (state.loading || !state.hasMore) return;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            fetchData();
+          }
+        },
+        { threshold: 1.0 }
+      );
+      if (node) observer.observe(node);
+
+      return () => observer.disconnect();
+    },
+    [fetchData, state.loading, state.hasMore]
+  );
 
   return (
     <Layout>
@@ -200,7 +199,7 @@ export default function Table() {
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {state.data.length === 0 ? (
               <tr>
                 <td
                   colSpan="6"
@@ -210,7 +209,7 @@ export default function Table() {
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              state.data.map((item) => (
                 <tr key={item.id} className="border-t">
                   <td className="p-3 text-sm text-gray-600">{item.id}</td>
                   <td className="p-3 text-sm text-gray-600">
@@ -232,7 +231,6 @@ export default function Table() {
                     <Button
                       variant="contained"
                       color="warning"
-                      // color="#0694a2"
                       onClick={() => restore(item.id, item.HomemaidIdCopy)}
                     >
                       استعادة
@@ -245,12 +243,9 @@ export default function Table() {
         </table>
 
         {/* Infinite scroll trigger */}
-        {hasMore && (
-          <div
-            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
-            className="flex justify-center mt-6"
-          >
-            {loading && (
+        {state.hasMore && (
+          <div ref={loadMoreRef} className="flex justify-center mt-6">
+            {state.loading && (
               <div className="flex justify-center items-center">
                 <svg
                   className="animate-spin h-5 w-5 mr-3 text-purple-600"
@@ -275,35 +270,32 @@ export default function Table() {
     </Layout>
   );
 }
+
 export async function getServerSideProps(context: NextPageContext) {
   const { req, res } = context;
   try {
     const isAuthenticated = req.cookies.authToken ? true : false;
-    console.log(req.cookies.authToken);
-    // jwtDecode(req.cookies.)
+
     if (!isAuthenticated) {
-      // Redirect the user to login page before rendering the component
       return {
         redirect: {
-          destination: "/admin/login", // Redirect URL
-          permanent: false, // Set to true if you want a permanent redirect
+          destination: "/admin/login",
+          permanent: false,
         },
       };
     }
-    const decoder = jwt.verify(req.cookies.authToken, "rawaesecret");
 
-    // If authenticated, continue with rendering the page
+    jwt.verify(req.cookies.authToken, "rawaesecret");
     return {
-      props: {}, // Empty object to pass props if needed
+      props: {},
     };
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return {
       redirect: {
-        destination: "/admin/login", // Redirect URL
-        permanent: false, // Set to true if you want a permanent redirect
+        destination: "/admin/login",
+        permanent: false,
       },
     };
   }
-  // Replace this with your actual authentication logic (cookie, session, token, etc.)
 }

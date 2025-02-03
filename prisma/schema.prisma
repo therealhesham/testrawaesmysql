@@ -165,6 +165,9 @@ model arrivallist {
   id                        Int       @id @default(autoincrement())
   SponsorName               String?   @db.VarChar(191)
   InternalmusanedContract   String?   @db.VarChar(191)
+  externalmusanedContract String?  @db.VarChar(191)
+externalmusanadcontractfile String? @db.VarChar(191)
+externalOfficeStatus        String?@db.VarChar(25)
   SponsorIdnumber           Int?
   Sponsor                   Client?   @relation(fields: [SponsorIdnumber], references: [id])
   OrderId                   Int?       
