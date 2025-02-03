@@ -1,111 +1,63 @@
-import jwt from "jsonwebtoken";
-import { useRouter } from "next/router";
-import { useEffect, useState, useCallback, useRef, useContext } from "react";
+import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
+import { useRouter } from "next/router";
+import { useEffect, useState, useCallback, useRef } from "react";
+import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
-import { User } from "utils/usercontext";
-
 export default function Table() {
   const [filters, setFilters] = useState({
-    Clientname: "",
+    ClientName: "",
+    age: "",
+    Passportnumber: "",
     Nationality: "",
+    HomemaidId: "",
   });
 
-  const [state, setState] = useState({
-    data: [],
-    loading: false,
-    hasMore: true,
-  });
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false); // Loading state
+  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
 
-  const router = useRouter();
-  const pageRef = useRef(1); // Keep track of current page
-  const isFetchingRef = useRef(false); // Prevent duplicate fetches
-  const usercontext = useContext(User);
+  const pageRef = useRef(1); // Use a ref to keep track of the current page number
+  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
 
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for debouncing timeout
-
-  // Fetch data function with pagination
-  const fetchData = useCallback(async () => {
-    if (isFetchingRef.current || !state.hasMore) return;
-
+  // Fetch data with pagination
+  const fetchData = async () => {
+    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
     isFetchingRef.current = true;
-    setState((prevState) => ({ ...prevState, loading: true }));
+    setLoading(true);
 
     try {
+      // Build the query string for filters
       const queryParams = new URLSearchParams({
-        Clientname: filters.Clientname,
-        Nationality: filters.Nationality,
+        ClientName: filters.ClientName,
+        age: filters.age,
+        HomemaidId: filters.HomemaidId,
+        Passportnumber: filters.Passportnumber,
+        Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
       });
 
       const response = await fetch(`/api/rejectedorderslist?${queryParams}`, {
-        method: "GET",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        method: "get",
       });
 
       const res = await response.json();
-
       if (res && res.length > 0) {
-        setState((prevState) => ({
-          ...prevState,
-          data: [...prevState.data, ...res],
-        }));
-        pageRef.current += 1;
+        setData((prevData) => [...prevData, ...res]); // Append new data
+        pageRef.current += 1; // Increment page using ref
       } else {
-        setState((prevState) => ({ ...prevState, hasMore: false }));
+        setHasMore(false); // No more data to load
       }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setState((prevState) => ({ ...prevState, loading: false }));
+      setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [filters, state.hasMore]);
-
-  useEffect(() => {
-    fetchData(); // Fetch initial data on mount
-  }, [fetchData]);
-
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    column: string
-  ) => {
-    const value = e.target.value;
-
-    // Clear any previous debounce timeout if it's still running
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Set the new filter value
-    setFilters((prev) => {
-      const newFilters = { ...prev, [column]: value };
-
-      if (column === "Clientname" || column === "Nationality") {
-        // Set a timeout to debounce the filter update
-        debounceTimeoutRef.current = setTimeout(() => {
-          // Reset data and pagination when filters change after debounce
-          if (value === "") {
-            // Reset data and pagination if the filter is cleared
-            setState({ data: [], loading: false, hasMore: true });
-            pageRef.current = 1;
-          } else {
-            // Reset data to empty and continue pagination when filter is applied
-            setState((prevState) => ({
-              ...prevState,
-              data: [],
-              hasMore: true,
-            }));
-            pageRef.current = 1; // Reset page to 1 when filter changes
-          }
-        }, 500); // Adjust debounce delay (500ms in this case)
-      }
-
-      return newFilters;
-    });
   };
 
   const makeRequest = async (url: string, body: object) => {
@@ -122,35 +74,63 @@ export default function Table() {
   };
 
   const restore = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/restoreorders", { id, homeMaidId });
-    if (success) router.push("/admin/neworders");
-  };
-
-  const handleUpdate = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/confirmrequest", {
+    const success = await makeRequest("/api/restoreorders", {
       id,
       homeMaidId,
     });
     if (success) router.push("/admin/neworders");
   };
 
+  // Use a callback to call fetchData when the user reaches the bottom
   const loadMoreRef = useCallback(
     (node: HTMLDivElement) => {
-      if (state.loading || !state.hasMore) return;
+      if (loading || !hasMore) return;
+
       const observer = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            fetchData();
+            fetchData(); // Fetch next page of data
           }
         },
         { threshold: 1.0 }
       );
+
       if (node) observer.observe(node);
 
       return () => observer.disconnect();
     },
-    [fetchData, state.loading, state.hasMore]
+    [loading, hasMore]
   );
+
+  // useEffect to fetch the first page of data on mount
+  useEffect(() => {
+    fetchData(); // Fetch the first page of data
+  }, []); // Only run once on mount
+
+  // useEffect to fetch data when filters change
+  // useEffect(() => {
+  //   // Reset page and data on filter change
+  //   pageRef.current = 1;
+  //   setData([]);
+  //   setHasMore(true);
+  //   fetchData();
+  // }, [filters]); // Only re-run when filters change
+
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    column: string
+  ) => {
+    const value = e.target.value;
+    setFilters((prev) => ({
+      ...prev,
+      [column]: value,
+    }));
+  };
+
+  const router = useRouter();
+  const handleUpdate = (id) => {
+    router.push("./neworder/" + id);
+  };
 
   return (
     <Layout>
@@ -164,9 +144,18 @@ export default function Table() {
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.Clientname}
-              onChange={(e) => handleFilterChange(e, "Clientname")}
+              value={filters.ClientName}
+              onChange={(e) => handleFilterChange(e, "ClientName")}
               placeholder="Filter by Name"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Passportnumber}
+              onChange={(e) => handleFilterChange(e, "Passportnumber")}
+              placeholder="Filter by Passport"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -178,6 +167,54 @@ export default function Table() {
               placeholder="Filter by Nationality"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
+          </div>
+
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.HomemaidId}
+              onChange={(e) => handleFilterChange(e, "HomemaidId")}
+              placeholder="Filter by CV"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setFilters({
+                  age: "",
+                  ClientName: "",
+                  HomemaidId: "",
+                  Nationality: "",
+                  Passportnumber: "",
+                });
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+              ho
+            >
+              اعادة ضبط
+            </Button>
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              بحث
+            </Button>
           </div>
         </div>
 
@@ -191,15 +228,15 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">
-                جنسية العاملة
-              </th>
-              <th className="p-3 text-left text-sm font-medium">سبب الرفص</th>
+              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">سبب الرفض</th>
+
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
               <th className="p-3 text-left text-sm font-medium">استعادة</th>
             </tr>
           </thead>
           <tbody>
-            {state.data.length === 0 ? (
+            {data.length === 0 ? (
               <tr>
                 <td
                   colSpan="6"
@@ -209,23 +246,29 @@ export default function Table() {
                 </td>
               </tr>
             ) : (
-              state.data.map((item) => (
+              data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-600">{item.id}</td>
+                  <td className="p-3 text-md text-gray-600">
                     {item.ClientName}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-700">
                     {item.clientphonenumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-700">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
-                    {item.Nationality}
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.HomemaidId}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+
+                  <td className="p-3 text-md text-gray-700">
                     {item.ReasonOfRejection}
+                  </td>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Nationalitycopy}
                   </td>
                   <td className="p-3 text-sm text-gray-600">
                     <Button
@@ -243,9 +286,12 @@ export default function Table() {
         </table>
 
         {/* Infinite scroll trigger */}
-        {state.hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center mt-6">
-            {state.loading && (
+        {hasMore && (
+          <div
+            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
+            className="flex justify-center mt-6"
+          >
+            {loading && (
               <div className="flex justify-center items-center">
                 <svg
                   className="animate-spin h-5 w-5 mr-3 text-purple-600"
@@ -269,33 +315,4 @@ export default function Table() {
       </div>
     </Layout>
   );
-}
-
-export async function getServerSideProps(context: NextPageContext) {
-  const { req, res } = context;
-  try {
-    const isAuthenticated = req.cookies.authToken ? true : false;
-
-    if (!isAuthenticated) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-
-    jwt.verify(req.cookies.authToken, "rawaesecret");
-    return {
-      props: {},
-    };
-  } catch (error) {
-    console.error(error);
-    return {
-      redirect: {
-        destination: "/admin/login",
-        permanent: false,
-      },
-    };
-  }
 }
