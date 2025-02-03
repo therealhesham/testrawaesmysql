@@ -1,130 +1,342 @@
-//@ts-nocheck
-//@ts-ignore
-import Layout from "example/containers/Layout";
+import jwt from "jsonwebtoken";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef, useContext } from "react";
+import Layout from "example/containers/Layout";
+import { Button } from "@mui/material";
+import { User } from "utils/usercontext";
+
 export default function Table() {
+  const [filters, setFilters] = useState({
+    Clientname: "",
+    HomemaidId: "",
+    Nationality: "",
+    Passportnumber: "",
+  });
+
+  const [state, setState] = useState({
+    data: [],
+    loading: false,
+    hasMore: true,
+  });
+
   const router = useRouter();
-  const handleUpdate = (id) => {
-    // Trigger the update function passed from parent
-    // onUpdate(id);
-    router.push("./neworder/" + id);
-  };
+  const pageRef = useRef(1); // Keep track of current page
+  const isFetchingRef = useRef(false); // Prevent duplicate fetches
+  const usercontext = useContext(User);
 
-  const [data, setData] = useState([]); // Store the data for the current page
-  const [currentPage, setCurrentPage] = useState(1); // Current page
-  const [totalPages, setTotalPages] = useState(1); // Total pages based on your data
-  const itemsPerPage = 5; // Adjust this to your preferred items per page
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for debouncing timeout
 
-  // Function to handle pagination change
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+  // Fetch data function with pagination
+  const fetchData = useCallback(async () => {
+    if (isFetchingRef.current || !state.hasMore) return;
+
+    isFetchingRef.current = true;
+    setState((prevState) => ({ ...prevState, loading: true }));
+
+    try {
+      const queryParams = new URLSearchParams({
+        Clientname: filters.Clientname,
+        Nationality: filters.Nationality,
+
+        page: String(pageRef.current),
+      });
+
+      const response = await fetch(`/api/rejectedorderslist?${queryParams}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      const res = await response.json();
+
+      if (res && res.length > 0) {
+        setState((prevState) => ({
+          ...prevState,
+          data: [...prevState.data, ...res],
+        }));
+        pageRef.current += 1;
+      } else {
+        setState((prevState) => ({ ...prevState, hasMore: false }));
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setState((prevState) => ({ ...prevState, loading: false }));
+      isFetchingRef.current = false;
     }
-  };
+  }, [filters, state.hasMore]);
 
-  // Slice the data for the current page
-  // const getPaginatedData = () => {
-  //   const startIndex = (currentPage - 1) * itemsPerPage;
-  //   const endIndex = startIndex + itemsPerPage;
-  //   return data.slice(startIndex, endIndex);
-  // };
-
-  const fetchData = async (page) => {
-    const res = await fetch(`/api/rejectorders`);
-    const result = await res.json();
-    console.log(result);
-    setData(result.data);
-    setTotalPages(Math.ceil(result.count / 10));
-  };
-
-  // Effect hook to simulate fetching data (use your existing data fetching method)
   useEffect(() => {
-    // For now, we're simulating data being fetched
-    // You can replace this with your actual data fetching logic
-    fetchData(currentPage);
-    // setData(fetchedData);
-    // setTotalPages(Math.ceil(fetchedData.length / itemsPerPage)); // Calculate the total pages
-  }, [currentPage]); // Empty dependency array ensures this runs once when the component is mounted
+    fetchData(); // Fetch initial data on mount
+  }, [fetchData]);
+
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    column: string
+  ) => {
+    const value = e.target.value;
+
+    // Clear any previous debounce timeout if it's still running
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set the new filter value
+    setFilters((prev) => ({
+      ...prev,
+      [column]: value,
+    }));
+  };
+
+  const makeRequest = async (url: string, body: object) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    return response.status === 200;
+  };
+
+  const restore = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/restoreorders", { id, homeMaidId });
+    if (success) router.push("/admin/neworders");
+  };
+
+  const handleUpdate = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/confirmrequest", {
+      id,
+      homeMaidId,
+    });
+    if (success) router.push("/admin/neworders");
+  };
+
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (state.loading || !state.hasMore) return;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            fetchData();
+          }
+        },
+        { threshold: 1.0 }
+      );
+      if (node) observer.observe(node);
+
+      return () => observer.disconnect();
+    },
+    [fetchData, state.loading, state.hasMore]
+  );
 
   return (
     <Layout>
-      <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
-        <div className="flex items-center justify-center">
-          <p className="text-2xl font-bold text-cool-gray-700">طلبات مرفوضة</p>
+      <div className="container mx-auto p-6">
+        <h1 className="text-2xl font-semibold text-center mb-4">
+          الحجوزات المرفوضة
+        </h1>
+
+        {/* Filter Section */}
+        <div className="flex justify-between mb-4">
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Clientname}
+              onChange={(e) => handleFilterChange(e, "Clientname")}
+              placeholder="Filter by Name"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Passportnumber}
+              onChange={(e) => handleFilterChange(e, "Passportnumber")}
+              placeholder="Filter by Passport"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Nationality}
+              onChange={(e) => handleFilterChange(e, "Nationality")}
+              placeholder="Filter by Nationality"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.HomemaidId}
+              onChange={(e) => handleFilterChange(e, "HomemaidId")}
+              placeholder="Filter by CV"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setState({ data: [], hasMore: true, loading: false });
+                setFilters({
+                  // age: "",
+                  Clientname: "",
+                  // Clientname: "",
+                  HomemaidId: "",
+                  Nationality: "",
+                  Passportnumber: "",
+                });
+                // setData([]);
+                // pageRef.current = 1;
+                fetchData();
+              }}
+              // ho
+            >
+              اعادة ضبط
+            </Button>
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                // setState({ data: [], hasMore: false, loading: true });
+                // isFetchingRef.current = true;
+                // setHasMore(true);
+                // setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              بحث
+            </Button>
+          </div>
         </div>
 
-        <table className="min-w-full text-sm text-left">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2">ID</th>
-              <th className="px-4 py-2">اسم العميل</th>
-              <th className="px-4 py-2">جوال العميل</th>
-              <th className="px-4 py-2">ديانة الخادمة</th>
-              <th className="px-4 py-2">سنوات الخبرة</th>
-              <th className="px-4 py-2">العمر</th>
-              {/* <th className="px-4 py-2">استعادة الطلب</th> */}
-
-              <th className="px-4 py-2">تحديث</th>
+        {/* Table */}
+        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
+          <thead>
+            <tr className="bg-purple-600 text-white">
+              <th className="p-3 text-left text-sm font-medium">م</th>
+              <th className="p-3 text-left text-sm font-medium">الاسم</th>
+              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
+              <th className="p-3 text-left text-sm font-medium">
+                رقم جواز السفر
+              </th>
+              <th className="p-3 text-left text-sm font-medium">
+                جنسية العاملة
+              </th>
+              <th className="p-3 text-left text-sm font-medium">سبب الرفص</th>
+              <th className="p-3 text-left text-sm font-medium">استعادة</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((row) => (
-              <tr key={row.id} className="border-b">
-                <td className="px-4 py-2 text-lg">{row.id}</td>
-                <td className="px-4 py-2 text-xl">{row.ClientName}</td>
-                <td className="px-4 py-2">{row.clientphonenumber}</td>
-                <td className="px-4 py-2">{row.Religion}</td>
-                <td className="px-4 py-2">{row.ExperienceYears}</td>
-                <td className="px-4 py-2">{row.age}</td>
-                <td className="px-4 py-2">
-                  <button
-                    onClick={() => handleUpdate(row.id)}
-                    className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
-                  >
-                    Follow Up
-                  </button>
+            {state.data.length === 0 ? (
+              <tr>
+                <td
+                  colSpan="6"
+                  className="p-3 text-center text-sm text-gray-500"
+                >
+                  No results found
                 </td>
               </tr>
-            ))}
+            ) : (
+              state.data.map((item) => (
+                <tr key={item.id} className="border-t">
+                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.ClientName}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.clientphonenumber}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.Passportnumber}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.Nationality}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.ReasonOfRejection}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
+                    >
+                      استعادة
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 
-        <div className="flex justify-center items-center p-4 space-x-2">
-          {/* Previous Button */}
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="bg-gray-300 text-gray-700 px-4 py-2 rounded disabled:opacity-50"
-          >
-            Previous
-          </button>
-
-          {/* Page Numbers */}
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-            (page) => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`px-4 py-2 rounded-lg text-gray-700 hover:bg-blue-200 transition duration-300 ${
-                  currentPage === page ? "bg-purple-500 text-white" : "bg-white"
-                }`}
-              >
-                {page}
-              </button>
-            )
-          )}
-
-          {/* Next Button */}
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="bg-gray-300 text-gray-700 px-4 py-2 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
+        {/* Infinite scroll trigger */}
+        {state.hasMore && (
+          <div ref={loadMoreRef} className="flex justify-center mt-6">
+            {state.loading && (
+              <div className="flex justify-center items-center">
+                <svg
+                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
+                  />
+                </svg>
+                Loading...
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   );
+}
+
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+
+    if (!isAuthenticated) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
+    }
+
+    jwt.verify(req.cookies.authToken, "rawaesecret");
+    return {
+      props: {},
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      redirect: {
+        destination: "/admin/login",
+        permanent: false,
+      },
+    };
+  }
 }

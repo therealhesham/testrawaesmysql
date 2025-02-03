@@ -2,15 +2,15 @@ import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Button } from "react-bootstrap";
 import jwt from "jsonwebtoken";
-
+import { Button } from "@mui/material";
 export default function Table() {
   const [filters, setFilters] = useState({
     ClientName: "",
     age: "",
     Passportnumber: "",
     Nationality: "",
+    HomemaidId: "",
   });
 
   const [data, setData] = useState([]);
@@ -31,6 +31,7 @@ export default function Table() {
       const queryParams = new URLSearchParams({
         ClientName: filters.ClientName,
         age: filters.age,
+        HomemaidId: filters.HomemaidId,
         Passportnumber: filters.Passportnumber,
         Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
@@ -86,13 +87,13 @@ export default function Table() {
   }, []); // Only run once on mount
 
   // useEffect to fetch data when filters change
-  useEffect(() => {
-    // Reset page and data on filter change
-    pageRef.current = 1;
-    setData([]);
-    setHasMore(true);
-    fetchData();
-  }, [filters]); // Only re-run when filters change
+  // useEffect(() => {
+  //   // Reset page and data on filter change
+  //   pageRef.current = 1;
+  //   setData([]);
+  //   setHasMore(true);
+  //   fetchData();
+  // }, [filters]); // Only re-run when filters change
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -146,6 +147,54 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.HomemaidId}
+              onChange={(e) => handleFilterChange(e, "HomemaidId")}
+              placeholder="Filter by CV"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setFilters({
+                  age: "",
+                  ClientName: "",
+                  HomemaidId: "",
+                  Nationality: "",
+                  Passportnumber: "",
+                });
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+              ho
+            >
+              اعادة ضبط
+            </Button>
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              بحث
+            </Button>
+          </div>
         </div>
 
         {/* Table */}
@@ -196,7 +245,13 @@ export default function Table() {
                     {item.Nationalitycopy}
                   </td>
                   <td className="p-3 text-md text-gray-700">
-                    <Button onClick={() => handleUpdate(item.id)}>تحديث</Button>
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() => handleUpdate(item.id)}
+                    >
+                      تحديث
+                    </Button>
                   </td>
                 </tr>
               ))

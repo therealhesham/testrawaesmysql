@@ -6,7 +6,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { ClientName, age, Passportnumber, Nationalitycopy, page } = req.query;
+  const { ClientName, age, Passportnumber, Nationalitycopy, page, HomemaidId } =
+    req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = 10;
@@ -14,7 +15,7 @@ export default async function handler(
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
-
+  if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
   if (ClientName)
     filters.ClientName = { contains: (ClientName as string).toLowerCase() };
   // if (age) filters.age = { equals: parseInt(age as string, 10) };
@@ -33,10 +34,11 @@ export default async function handler(
       orderBy: { id: "desc" },
       where: {
         ...filters,
+        // HomemaidId: Number(HomemaidId),
         // Passportnumber: { contatins: searchTerm || "" },
         NOT: {
           bookingstatus: {
-            in: ["حجز جديد", "طلب مرفوض", "الاستلام"], // Exclude these statuses
+            in: ["حجز جديد", "اكمال الطلب", "طلب مرفوض", "الاستلام"], // Exclude these statuses
           },
         },
       },

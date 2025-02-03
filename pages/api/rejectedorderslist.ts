@@ -6,8 +6,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { Clientname, Nationality, page } = req.query;
-
+  const { ClientName, age, Passportnumber, Nationalitycopy, page, HomemaidId } =
+    req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = 10;
@@ -15,16 +15,18 @@ export default async function handler(
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
-
-  if (Clientname)
-    filters.ClientName = { contains: (Clientname as string).toLowerCase() };
+  if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
+  if (ClientName)
+    filters.ClientName = { contains: (ClientName as string).toLowerCase() };
   // if (age) filters.age = { equals: parseInt(age as string, 10) };
-  // if (Passport)
-  //   filters.Passportnumber = { contains: (Passport as string).toLowerCase() };
-  // if (Nationality)
-  //   filters.Nationalitycopy = {
-  //     contains: (Nationality as string).toLowerCase(),
-  //   };
+  if (Passportnumber)
+    filters.Passportnumber = {
+      contains: (Passportnumber as string).toLowerCase(),
+    };
+  if (Nationalitycopy)
+    filters.Nationalitycopy = {
+      contains: (Nationalitycopy as string).toLowerCase(),
+    };
   try {
     // Fetch data with the filters and pagination
     const homemaids = await prisma.neworder.findMany({

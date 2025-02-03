@@ -32,6 +32,7 @@ const ResponsiveTable = () => {
     // alert("s");
     const response = await fetch("/api/arrivals", { method: "get" });
     const data = await response.json();
+    console.log(data);
     setArrivalList(data);
   };
 
@@ -40,7 +41,7 @@ const ResponsiveTable = () => {
   }, []);
 
   // Toggle column visibility
-  const handleColumnToggle = (column: string) => {
+  const handleColumnToggle = (column) => {
     setSelectedColumns((prevState) => ({
       ...prevState,
       [column]: !prevState[column],

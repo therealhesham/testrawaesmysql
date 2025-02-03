@@ -172,7 +172,10 @@ externalOfficeStatus        String?@db.VarChar(25)
   Sponsor                   Client?   @relation(fields: [SponsorIdnumber], references: [id])
   OrderId                   Int?       
   Order                     neworder?  @relation(fields: [OrderId], references: [id])
+DeliveryDate              DateTime?
+ExternalStatusByoffice    String?
 
+DeliveryFile           String?      @db.VarChar(191)
   SponsorPhoneNumber        String?   @db.VarChar(15)
   PassportNumber            String?   @db.VarChar(191)
   KingdomentryDate          DateTime?
@@ -189,6 +192,7 @@ externalOfficeStatus        String?@db.VarChar(25)
   ExternalOFficeApproval    DateTime?
   AgencyDate                DateTime?
   EmbassySealing            DateTime?
+  externalOfficeFile        String?   @db.VarChar(191)
   BookinDate                DateTime?
   GuaranteeDurationEnd      DateTime?
   medicalCheckFile          String?   @db.VarChar(191)

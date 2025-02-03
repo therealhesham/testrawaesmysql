@@ -110,6 +110,7 @@ const SlugPage = () => {
     {}
   );
   const musanadRef = useRef();
+  const deliveryDateRef = useRef();
   const externalOfficeStatus = useRef();
   const kingdomEntryRef = useRef();
   const arrivalCityRef = useRef();
@@ -230,6 +231,64 @@ const SlugPage = () => {
     useState<string | null>(null);
   const [receivingFileCloudinaryImage, setreceivingFileCloudinaryImage] =
     useState<string | null>(null);
+
+  const [externalOfficeFile, setExternalOfficeFile] = useState<string | null>(
+    null
+  );
+
+  const handleUploadExternalOfficeFile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.preventDefault();
+
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+      formData.append("cloud_name", "duo8svqci");
+      formData.append("folder", "samples");
+
+      try {
+        const response = await axios.post(
+          `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+          formData
+        );
+
+        setExternalOfficeFile(response.data.secure_url); // Update image URL
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
+  const [signatureFile, setSignatureFile] = useState<string | null>(null);
+  const handleUploadSignatureFile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    e.preventDefault();
+
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "z8q1vykv"); // Cloudinary preset
+      formData.append("cloud_name", "duo8svqci");
+      formData.append("folder", "samples");
+
+      try {
+        const response = await axios.post(
+          `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+          formData
+        );
+
+        setSignatureFile(response.data.secure_url); // Update image URL
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
   const [
     approvalPaymentFileCloudinaryImage,
     setapprovalPaymentCloudinaryImage,
@@ -510,6 +569,7 @@ const SlugPage = () => {
       Notes,
       ArrivalCity,
       DateOfApplication,
+      DeliveryFile,
       MusanadDuration,
       ExternalDateLinking,
       ExternalOFficeApproval,
@@ -552,6 +612,7 @@ const SlugPage = () => {
         additionalfiles: additionalfiles,
         externalmusanedContract,
         ArrivalCity,
+        DeliveryFile,
         DateOfApplication,
         MusanadDuration,
         ExternalDateLinking,
@@ -579,7 +640,7 @@ const SlugPage = () => {
   };
 
   const handleExitClick = () => {
-    router.push("/admin/neworders");
+    router.push("/admin/currentorderstest");
   };
 
   const stages = [
@@ -605,6 +666,22 @@ const SlugPage = () => {
       element.scrollIntoView({ behavior: "smooth" }); // Smooth scroll
     }
   };
+
+  function convertUTCtoSaudiTime(utcDate) {
+    // Create a new Date object from the UTC date string
+    const date = new Date(utcDate);
+
+    // Convert the date to Saudi Time (UTC +3)
+    const saudiTime = new Date(date.getTime() + 3 * 60 * 60 * 1000); // 3 hours added
+
+    return saudiTime;
+  }
+
+  // Example usage
+  const utcDate = "2025-02-03T10:00:00Z"; // example UTC time
+  const saudiTime = convertUTCtoSaudiTime(utcDate);
+  console.log(saudiTime); // will output the converted Saudi time
+
   const [inputClass, setInputclass] = useState("hidden");
   const changeTimeline = async (state) => {
     // alert(state);
@@ -1210,19 +1287,34 @@ const SlugPage = () => {
                   color: "#fff",
                 }}
               >
-                <h1
-                  style={{ justifyContent: "center", display: "flex" }}
-                  className={Style["almarai-bold"]}
-                >
-                  التقديم
-                </h1>
-                <p>تم استلام الطلب</p>
+                <div className="flex flex-col">
+                  <h1
+                    style={{ justifyContent: "center", display: "flex" }}
+                    className={Style["almarai-bold"]}
+                  >
+                    التقديم
+                  </h1>
+                  <p>تم استلام الطلب</p>
 
-                <strong>
-                  {formData.createdAt
-                    ? new Date(formData.createdAt).toDateString()
-                    : null}
-                </strong>
+                  <strong>
+                    {formData.createdAt
+                      ? new Date(formData.createdAt).getDate() +
+                        " / " +
+                        (new Date(formData.createdAt).getMonth() + 1) +
+                        " / " +
+                        new Date(formData.createdAt).getFullYear()
+                      : null}
+                  </strong>
+
+                  <strong>
+                    {convertUTCtoSaudiTime(formData.createdAt).getHours() +
+                      ":" +
+                      convertUTCtoSaudiTime(
+                        formData.createdAt
+                      ).getMinutes()}{" "}
+                    بتوقيت المملكة العربية السعودية
+                  </strong>
+                </div>
               </VerticalTimelineElement>
 
               <VerticalTimelineElement
@@ -1248,13 +1340,19 @@ const SlugPage = () => {
                     </h1>
                     <p>تم الربط مع مساند </p>
                     <strong>
+                      عقد مساند : &nbsp; &nbsp;
+                      {formData.arrivals[0].InternalmusanedContract}
+                    </strong>
+                    <strong>
                       تاريخ الربط : &nbsp; &nbsp;
                       {formData.arrivals[0].MusanadDuration}
                     </strong>
-
                     <strong>
                       تاريخ انتهاء الضمان : &nbsp; &nbsp;
                       {AddgoDays(formData.arrivals[0].MusanadDuration)}
+                    </strong>
+                    <strong>
+                      متبقى على انتهاء الضمان &nbsp; {daysRemaining}
                     </strong>
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1483,7 +1581,6 @@ const SlugPage = () => {
                     >
                       موافقة المكتب الخارجي
                     </h1>
-
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
                       className={Style["almarai-bold"]}
@@ -1492,14 +1589,21 @@ const SlugPage = () => {
                         ? formData.arrivals[0].ExternalOFficeApproval
                         : null}
                     </h1>
-
+                    <strong>حالة الطلب طبقا للشركة</strong>
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
                       className={Style["almarai-bold"]}
                     >
                       {formData.arrivals[0].externalOfficeStatus}
                     </h1>
+                    <strong>حالة الطلب طبقا للمكتب الخارجي </strong>
 
+                    <h1
+                      style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      {formData.arrivals[0].ExternalStatusByoffice}
+                    </h1>
                     {/* <p>{getDate("موافقة")}</p> */}
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1552,6 +1656,48 @@ const SlugPage = () => {
                     </select>
                     {/* </div> */}
 
+                    <div className="col-span-3">
+                      <label
+                        htmlFor="externalFile"
+                        className="block font-semibold text-sm"
+                      >
+                        رفع ملف
+                      </label>
+                      <div className="flex flex-col items-start bg-gray-100 rounded-md">
+                        {/* Hidden file input */}
+                        <input
+                          id="externalFile"
+                          name="externalFile"
+                          type="file"
+                          className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          ref={checkRef}
+                          // className={inputClass}
+                          onChange={handleUploadExternalOfficeFile}
+                        />
+                        {/* Custom file upload button */}
+                        {/* <label
+                          htmlFor="medicalCheckFile"
+                        >
+                          اختار الملف
+                        </label> */}
+
+                        {/* Display uploaded image or file status */}
+                        {externalOfficeFile && (
+                          <div className="mt-2 text-gray-600">
+                            <span>File Uploaded: </span>
+                            <a
+                              href={externalOfficeFile}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-300 hover:underline"
+                            >
+                              عرض الملف
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
@@ -1570,6 +1716,7 @@ const SlugPage = () => {
                               externalOfficeAprrovalRef.current.value,
                             bookingstatus: "الربط مع المكتب الخارجي",
                             medicalCheckFile: medicalCheckFileCloudinaryImage,
+                            externalOfficeFile: externalOfficeFile,
                           })
                         }
                         className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1972,6 +2119,134 @@ const SlugPage = () => {
 
                               KingdomentryDate: arrivalDateRef.current.value,
                               arrivalCity: arrivalCityRef.current.value,
+                              // ticketFile,
+                            })
+                          }
+                          className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        >
+                          تأكيد
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </VerticalTimelineElement>
+
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                // date={form.createdAt}
+                iconStyle={{
+                  background: "rgb(128, 25, 243)",
+                  color: "#ffc0cb",
+                }}
+                //  icon={}
+              >
+                {/* formData.bookingStatus === "الربط" */}
+                {stages.indexOf(formData.bookingstatus) >=
+                  stages.indexOf("الاستلام") && isEditing !== "الاستلام" ? (
+                  <div className="flex flex-col">
+                    <h1
+                      style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      الاستلام
+                    </h1>
+                    <label
+                      htmlFor="deliveryDate"
+                      className="block font-semibold text-sm"
+                    >
+                      الاستلام
+                    </label>
+                    <h2>
+                      {formData.arrivals[0].DeliveryDate
+                        ? formData.arrivals[0].DeliveryDate
+                        : null}
+                    </h2>
+
+                    {formData.arrivals[0]?.DeliveryFile ? (
+                      <div className="mt-2 text-gray-600">
+                        <span>ملف توقيع الاستلام </span>
+                        <a
+                          href={formData.arrivals[0].DeliveryFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    ) : null}
+                    <button
+                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      onClick={() => setIsEditing("الاستلام")}
+                    >
+                      تعديل
+                    </button>
+                  </div>
+                ) : (
+                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                    <label
+                      htmlFor="signatureFile"
+                      className="block font-semibold text-sm"
+                    >
+                      رفع ملف توقيع الاستلام
+                    </label>
+                    <div className="flex flex-col bg-gray-100 items-start">
+                      {/* Hidden file input */}
+                      <input
+                        id="signatureFile"
+                        name="signatureFile"
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadSignatureFile}
+                      />
+
+                      <label
+                        htmlFor="deliveryinput"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        تاريخ الاستلام
+                      </label>
+                      <input
+                        ref={deliveryDateRef}
+                        type="date"
+                        id="deliveryinput"
+                        name="deliveryinput"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+
+                      {/* Custom file upload button */}
+                      <label
+                        htmlFor="deliveryfile"
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                      >
+                        اختار الملف
+                      </label>
+
+                      {/* Display uploaded image or file status */}
+                      {signatureFile && (
+                        <div className="mt-2 text-gray-600">
+                          <span>File Uploaded: </span>
+                          <a
+                            href={signatureFile}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-500 hover:underline"
+                          >
+                            عرض الملف
+                          </a>
+                        </div>
+                      )}
+
+                      <div>
+                        <button
+                          // type="submit"
+                          onClick={() =>
+                            handleAccessFormSubmit({
+                              bookingstatus: "الاستلام",
+                              DeliveryDate: deliveryDateRef.current.value,
+                              // KingdomentryDate: arrivalDateRef.current.value,
+                              DeliveryFile: signatureFile,
                               // ticketFile,
                             })
                           }
