@@ -51,11 +51,13 @@ export default async function handler(
       ArrivalCity,
       medicalCheckFile,
       ticketFile,
+      externalmusanadcontractfile,
       receivingFile,
       approvalPayment,
       additionalfiles,
       DateOfApplication,
       MusanadDuration,
+      externalOfficeStatus,
       ExternalDateLinking,
       ExternalOFficeApproval,
       AgencyDate,
@@ -63,6 +65,7 @@ export default async function handler(
       EmbassySealing,
       BookinDate,
       bookingstatus,
+      externalmusanedContract,
       GuaranteeDurationEnd,
     } = req.body;
 
@@ -74,6 +77,10 @@ export default async function handler(
       : null;
     const validEmbassySealing = EmbassySealing
       ? new Date(EmbassySealing).toISOString()
+      : null;
+
+    const validexternalmusanedContract = externalmusanedContract
+      ? new Date(externalmusanedContract).toISOString()
       : null;
 
     const VALIDExternalOFficeApproval = ExternalOFficeApproval
@@ -90,13 +97,17 @@ export default async function handler(
       ? new Date(BookinDate).toISOString()
       : null;
 
+    const validKingdomEntryDate = KingdomentryDate
+      ? new Date(KingdomentryDate).toISOString()
+      : null;
+
     const ss = {
       SponsorName,
       InternalmusanedContract,
       SponsorIdnumber,
       SponsorPhoneNumber,
       PassportNumber,
-      KingdomentryDate,
+      KingdomentryDate: validKingdomEntryDate,
       DayDate,
       WorkDuration,
       Cost,
@@ -107,8 +118,11 @@ export default async function handler(
       ticketFile,
       receivingFile,
       approvalPayment,
+      externalOfficeStatus,
+      externalmusanadcontractfile,
       additionalfiles,
       ArrivalCity,
+      externalmusanedContract: validexternalmusanedContract,
       MusanadDuration,
       ExternalDateLinking: validExternalDateLinking,
       ExternalOFficeApproval: VALIDExternalOFficeApproval,

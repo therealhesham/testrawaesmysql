@@ -6,7 +6,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { Clientname, age, Passport, Nationality, page } = req.query;
+  const { Clientname, Nationality, page } = req.query;
+
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = 10;

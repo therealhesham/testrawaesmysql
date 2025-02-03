@@ -370,6 +370,8 @@ export default function Home() {
                   <th className="px-4 py-2">م</th>
                   <th className="px-4 py-2">اسم العميل</th>
                   <th className="px-4 py-2">جوال العميل</th>
+                  <th className="px-4 py-2">اسم الخادمة</th>
+
                   <th className="px-4 py-2">رقم الخادمة</th>
                   {/* <th className="px-4 py-2">ديانة العاملة</th> */}
                   <th className="px-4 py-2">الخبرة</th>
@@ -388,6 +390,9 @@ export default function Home() {
                     <td className="px-4 py-2 text-lg">{row.id}</td>
                     <td className="px-4 py-2">{row.ClientName}</td>
                     <td className="px-4 py-2">{row.clientphonenumber}</td>
+
+                    <td className="px-4 py-2">{row.Name}</td>
+
                     <td
                       onClick={() =>
                         router.push("/admin/cvdetails/" + HomemaidId)
