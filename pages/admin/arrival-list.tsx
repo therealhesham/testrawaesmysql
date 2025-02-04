@@ -8,11 +8,9 @@ const ResponsiveTable = () => {
     PassportNumber: true,
     ArrivalCity: true,
     KingdomentryDate: true,
-    WorkDuration: false,
-    Cost: false,
-    Nationality: false,
-    HomemaidName: false,
-    ApplicationDate: false,
+    WorkDuration: true,
+    Cost: true,
+    HomemaidName: true,
   });
 
   // Arabic column names mapping
@@ -20,12 +18,20 @@ const ResponsiveTable = () => {
     SponsorName: "اسم الكفيل",
     PassportNumber: "رقم جواز السفر",
     ArrivalCity: "مدينة الوصول",
-    KingdomentryDate: "تاريخ الدخول إلى المملكة",
+    KingdomentryDate: "تاريخ دخول المملكة",
     WorkDuration: "مدة العمل",
     Cost: "التكلفة",
-    Nationality: "هوية الخادمة",
     HomemaidName: "اسم الخادمة",
-    ApplicationDate: "تاريخ التقديم",
+
+    // SponsorName: "اسم الكفيل",
+    // PassportNumber: "رقم جواز السفر",
+    // ArrivalCity: "مدينة الوصول",
+    // KingdomentryDate: "تاريخ الدخول إلى المملكة",
+    // WorkDuration: "مدة العمل",
+    // Cost: "التكلفة",
+    // Nationality: "هوية الخادمة",
+    // HomemaidName: "اسم الخادمة",
+    // ApplicationDate: "تاريخ التقديم",
   };
 
   const fetchData = async () => {
