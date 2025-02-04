@@ -19,7 +19,17 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const offices = await prisma.arrivallist.findMany();
+    const offices = await prisma.arrivallist.findMany({
+      select: {
+        SponsorName: true,
+        PassportNumber: true,
+        ArrivalCity: true,
+        KingdomentryDate: true,
+        WorkDuration: true,
+        Cost: true,
+        HomemaidName: true,
+      },
+    });
     console.log(offices); // If needed for debugging
     res.status(200).json(offices);
   } catch (error) {

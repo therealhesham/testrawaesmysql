@@ -173,6 +173,7 @@ externalOfficeStatus        String?@db.VarChar(25)
   OrderId                   Int?       
   Order                     neworder?  @relation(fields: [OrderId], references: [id])
 DeliveryDate              DateTime?
+finaldestination          String?
 ExternalStatusByoffice    String?
 
 DeliveryFile           String?      @db.VarChar(191)

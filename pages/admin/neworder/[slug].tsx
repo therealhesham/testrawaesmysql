@@ -110,6 +110,7 @@ const SlugPage = () => {
     {}
   );
   const musanadRef = useRef();
+  const finaldestinationRef = useRef();
   const deliveryDateRef = useRef();
   const externalOfficeStatus = useRef();
   const kingdomEntryRef = useRef();
@@ -2072,6 +2073,21 @@ const SlugPage = () => {
                       type="text"
                       className="w-full border rounded-md px-4 py-2"
                     />
+
+                    <label
+                      htmlFor="finaldestination"
+                      className="block font-semibold text-sm"
+                    >
+                      وجهة العاملة
+                    </label>
+                    <input
+                      ref={finaldestinationRef}
+                      id="finaldestination"
+                      name="finaldestination"
+                      type="text"
+                      className="w-full border rounded-md px-4 py-2"
+                    />
+
                     <label
                       htmlFor="ticketFile"
                       className="block font-semibold text-sm"
@@ -2116,7 +2132,8 @@ const SlugPage = () => {
                           onClick={() =>
                             handleAccessFormSubmit({
                               bookingstatus: "حجز التذكرة",
-
+                              finaldestination:
+                                finaldestinationRef.current.value,
                               KingdomentryDate: arrivalDateRef.current.value,
                               arrivalCity: arrivalCityRef.current.value,
                               // ticketFile,
