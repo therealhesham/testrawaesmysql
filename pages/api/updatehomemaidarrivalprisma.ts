@@ -36,6 +36,7 @@ export default async function handler(
   try {
     const {
       finaldestination,
+      finalDestinationDate,
       SponsorName,
       InternalmusanedContract,
       SponsorIdnumber,
@@ -62,6 +63,7 @@ export default async function handler(
       externalOfficeStatus,
       ExternalDateLinking,
       ExternalOFficeApproval,
+      ExternalStatusByoffice,
       AgencyDate,
       Orderid,
       EmbassySealing,
@@ -109,9 +111,17 @@ export default async function handler(
     const validDeparatureDate = deparatureDate
       ? new Date(deparatureDate).toISOString()
       : null;
+    const validfinalDestinationDate = finalDestinationDate
+      ? new Date(finalDestinationDate).toISOString()
+      : null;
+
+    console.log(validDeparatureDate);
+
+    console.log(validKingdomEntryDate);
     const ss = {
       finaldestination,
       SponsorName,
+      finalDestinationDate: validfinalDestinationDate,
       InternalmusanedContract,
       SponsorIdnumber,
       deparatureDate: validDeparatureDate,
@@ -122,6 +132,7 @@ export default async function handler(
       WorkDuration,
       Cost,
       HomemaIdnumber,
+      ExternalStatusByoffice,
       DeliveryDate: validDeliveryDate,
       HomemaidName,
       Notes,

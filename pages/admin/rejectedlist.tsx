@@ -8,6 +8,7 @@ export default function Table() {
   const [filters, setFilters] = useState({
     ClientName: "",
     age: "",
+    clientphonenumber: "",
     Passportnumber: "",
     Nationality: "",
     HomemaidId: "",
@@ -27,10 +28,10 @@ export default function Table() {
     setLoading(true);
 
     try {
-      // Build the query string for filters
       const queryParams = new URLSearchParams({
-        ClientName: filters.ClientName,
+        searchTerm: filters.ClientName,
         age: filters.age,
+        clientphonenumber: filters.clientphonenumber,
         HomemaidId: filters.HomemaidId,
         Passportnumber: filters.Passportnumber,
         Nationalitycopy: filters.Nationality,
@@ -146,7 +147,7 @@ export default function Table() {
               type="text"
               value={filters.ClientName}
               onChange={(e) => handleFilterChange(e, "ClientName")}
-              placeholder="Filter by Name"
+              placeholder="بحث باسم العميل / العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -155,16 +156,16 @@ export default function Table() {
               type="text"
               value={filters.Passportnumber}
               onChange={(e) => handleFilterChange(e, "Passportnumber")}
-              placeholder="Filter by Passport"
+              placeholder="بحث برقم جواز السفر"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div className="flex-1 px-2">
+          <div>
             <input
               type="text"
-              value={filters.Nationality}
-              onChange={(e) => handleFilterChange(e, "Nationality")}
-              placeholder="Filter by Nationality"
+              value={filters.clientphonenumber}
+              onChange={(e) => handleFilterChange(e, "clientphonenumber")}
+              placeholder="بحث برقم الجوال"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -174,7 +175,7 @@ export default function Table() {
               type="text"
               value={filters.HomemaidId}
               onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="Filter by CV"
+              placeholder="بحث برقم العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -186,6 +187,7 @@ export default function Table() {
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({
+                  clientphonenumber: "",
                   age: "",
                   ClientName: "",
                   HomemaidId: "",
@@ -196,7 +198,6 @@ export default function Table() {
                 pageRef.current = 1;
                 fetchData();
               }}
-              ho
             >
               اعادة ضبط
             </Button>

@@ -6,41 +6,75 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { ClientName, age, Passportnumber, Nationalitycopy, page, HomemaidId } =
-    req.query;
+  const {
+    searchTerm, // This will be the single input from the frontend
+    age,
+    Passportnumber,
+    clientphonenumber,
+    Nationalitycopy,
+    page,
+    HomemaidId,
+  } = req.query;
   console.log(req.query);
+
   // Set the page size for pagination
   const pageSize = 10;
   const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
+  // ;
+  if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
+
+  // Apply a filter for `clientphonenumber` if present
+  if (clientphonenumber)
+    filters.clientphonenumber = { contains: clientphonenumber };
+
+  // Apply a filter for `HomemaidId` if present
   if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
-  if (ClientName)
-    filters.ClientName = { contains: (ClientName as string).toLowerCase() };
-  // if (age) filters.age = { equals: parseInt(age as string, 10) };
-  if (Passportnumber)
-    filters.Passportnumber = {
-      contains: (Passportnumber as string).toLowerCase(),
-    };
-  if (Nationalitycopy)
+
+  // Apply a filter for `age` if present
+  if (age) filters.age = { equals: parseInt(age as string, 10) };
+
+  // Apply a filter for `Nationalitycopy` if present
+  if (Nationalitycopy) {
     filters.Nationalitycopy = {
       contains: (Nationalitycopy as string).toLowerCase(),
     };
-  // console.log(ClientName, Nationality, Passportnumber);
+  }
+
   try {
     // Fetch data with the filters and pagination
     const homemaids = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
       where: {
         ...filters,
-        // HomemaidId: Number(HomemaidId),
-        // Passportnumber: { contatins: searchTerm || "" },
         NOT: {
           bookingstatus: {
-            in: ["حجز جديد", "اكمال الطلب", "طلب مرفوض", "الاستلام"], // Exclude these statuses
+            in: ["حجز جديد", "الاستلام"], // Exclude these statuses
           },
         },
+        // Apply the searchTerm to multiple fields (e.g., ClientName, Passportnumber)
+        AND: [
+          {
+            OR: [
+              {
+                ClientName: {
+                  contains: searchTerm
+                    ? (searchTerm as string).toLowerCase()
+                    : "",
+                },
+              },
+              {
+                Name: {
+                  contains: searchTerm
+                    ? (searchTerm as string).toLowerCase()
+                    : "",
+                },
+              },
+            ],
+          },
+        ],
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
