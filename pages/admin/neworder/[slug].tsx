@@ -110,18 +110,19 @@ const SlugPage = () => {
     {}
   );
   const musanadRef = useRef();
-  const finaldestinationRef = useRef();
-  const deliveryDateRef = useRef();
+  const finalDestinationRef = useRef(null);
+  const deliveryDateRef = useRef(null);
+  const deparatureDateRef = useRef(null);
   const externalOfficeStatus = useRef();
-  const kingdomEntryRef = useRef();
-  const arrivalCityRef = useRef();
-  const agencyDateRef = useRef();
-  const checkRef = useRef();
-  const arrivalDateRef = useRef();
-  const embassySealingRef = useRef();
-  const externalOfficeAprrovalRef = useRef();
+  const kingdomEntryRef = useRef(null);
+  const arrivalCityRef = useRef(null);
+  const agencyDateRef = useRef(null);
+  const checkRef = useRef(null);
+  const arrivalDateRef = useRef(null);
+  const embassySealingRef = useRef(null);
+  const externalOfficeAprrovalRef = useRef(null);
   const musanadDateRef = useRef();
-  const externalMusanadDateRef = useRef();
+  const externalMusanadDateRef = useRef(null);
   const guaranteeref = useRef();
   const handleChangeReservationtoend = async (status) => {
     const submitter = await fetch("/api/endedorders", {
@@ -544,12 +545,17 @@ const SlugPage = () => {
   const handleAccessFormSubmit = async (s) => {
     // setModalSpinnerOpen(true);
     // Adding to access list
-
+    if (isEditing) {
+      s.bookingstatus = formData.bookingstatus;
+      // setFormData((prev) => { ...prev, bookingstatus: "" });
+    }
     console.log(s);
     // e.preventDefault();
     const {
+      deparatureDate,
       externalmusanadcontractfile,
       SponsorName,
+      DeliveryDate,
       medicalCheckFile,
       ticketFile,
       receivingFile,
@@ -569,6 +575,7 @@ const SlugPage = () => {
       HomemaidName,
       Notes,
       ArrivalCity,
+      finaldestination,
       DateOfApplication,
       DeliveryFile,
       MusanadDuration,
@@ -597,9 +604,12 @@ const SlugPage = () => {
         PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
+        deparatureDate,
+        DeliveryDate,
         Orderid: formData.id,
         WorkDuration,
         Cost,
+        finaldestination,
         externalOfficeStatus,
         HomemaIdnumber: formData.HomeMaid.id,
         HomemaidName: formData.HomeMaid.Name,
@@ -631,6 +641,7 @@ const SlugPage = () => {
     if (submitter.status == 200) {
       setModalSpinnerOpen(false);
       showSuccessModal();
+      setIsEditing("");
       setDate(Date.now());
     } else {
       setModalSpinnerOpen(false);
@@ -761,6 +772,14 @@ const SlugPage = () => {
     return form;
   }
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
+
   const validationSchema = Yup.object({
     InternalmusanedContract: Yup.string().optional(),
     KingdomentryDate: Yup.date().optional(),
@@ -778,7 +797,12 @@ const SlugPage = () => {
   });
   const [cloudinaryImages, setCloudinaryImages] = useState<string[]>([]);
   // Handle the file upload to Cloudinary
+  const [showAdditionalDestination, setShowAdditionalDestination] =
+    useState(false); // State to toggle additional destination
 
+  const handleToggleDestination = () => {
+    setShowAdditionalDestination(!showAdditionalDestination); // Toggle the state when the button is clicked
+  };
   // alert(formData.Passportnumber);
   const formik = useFormik({
     initialValues: {
@@ -1332,27 +1356,60 @@ const SlugPage = () => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع مساند") &&
                 isEditing !== "الربط مع مساند" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col justify-center ">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
                       الربط
                     </h1>
-                    <p>تم الربط مع مساند </p>
-                    <strong>
+
+                    <p
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      تم الربط مع مساند{" "}
+                    </p>
+                    <strong
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
                       عقد مساند : &nbsp; &nbsp;
                       {formData.arrivals[0].InternalmusanedContract}
                     </strong>
-                    <strong>
+                    <strong
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
                       تاريخ الربط : &nbsp; &nbsp;
                       {formData.arrivals[0].MusanadDuration}
                     </strong>
-                    <strong>
+                    <strong
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
                       تاريخ انتهاء الضمان : &nbsp; &nbsp;
                       {AddgoDays(formData.arrivals[0].MusanadDuration)}
                     </strong>
-                    <strong>
+                    <strong
+                      style={{
+                        color: daysRemaining < 20 ? "red" : "black",
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
                       متبقى على انتهاء الضمان &nbsp; {daysRemaining}
                     </strong>
                     <button
@@ -1444,21 +1501,39 @@ const SlugPage = () => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع مساند الخارجي") &&
                 isEditing !== "الربط مع مساند الخارجي" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col justify-center">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
                       الربط مع مساند الخارجي
                     </h1>
-                    <p> تم الربط مع مساند الخارجي </p>
-                    <strong>
+                    <p
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                      className={Style["almarai-bold"]}
+                    >
+                      {" "}
+                      تم الربط مع مساند الخارجي{" "}
+                    </p>
+                    <strong
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
                       تاريخ الربط : &nbsp;&nbsp;
                       {formData.arrivals[0].externalmusanedContract
-                        ? new Date(
-                            formData.arrivals[0].externalmusanedContract
-                          ).toLocaleDateString()
-                        : null}
+                        ? // new Date(
+                          getDate(formData.arrivals[0].externalmusanedContract)
+                        : // ).toLocaleDateString()
+                          null}
                     </strong>
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1499,7 +1574,7 @@ const SlugPage = () => {
                           id="musanadexternalfile"
                           name="musanadexternalfile"
                           type="file"
-                          className="hidden"
+                          // className="hidden"
                           onChange={handleUploadexternalFile}
                         />
                         {/* Custom file upload button */}
@@ -1577,7 +1652,11 @@ const SlugPage = () => {
                 isEditing !== "الربط مع المكتب الخارجي" ? (
                   <div className="flex flex-col">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
                       موافقة المكتب الخارجي
@@ -1587,17 +1666,30 @@ const SlugPage = () => {
                       className={Style["almarai-bold"]}
                     >
                       {formData.arrivals[0]?.ExternalOFficeApproval
-                        ? formData.arrivals[0].ExternalOFficeApproval
+                        ? getDate(formData.arrivals[0].ExternalOFficeApproval)
                         : null}
                     </h1>
-                    <strong>حالة الطلب طبقا للشركة</strong>
+                    <strong
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
+                      className={Style["almarai-bold"]}
+                    >
+                      حالة الطلب طبقا للشركة
+                    </strong>
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
                       className={Style["almarai-bold"]}
                     >
                       {formData.arrivals[0].externalOfficeStatus}
                     </h1>
-                    <strong>حالة الطلب طبقا للمكتب الخارجي </strong>
+                    <strong
+                      style={{ justifyContent: "center", display: "flex" }}
+                    >
+                      حالة الطلب طبقا للمكتب الخارجي{" "}
+                    </strong>
 
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
@@ -1606,6 +1698,7 @@ const SlugPage = () => {
                       {formData.arrivals[0].ExternalStatusByoffice}
                     </h1>
                     {/* <p>{getDate("موافقة")}</p> */}
+
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الربط مع المكتب الخارجي")}
@@ -1750,7 +1843,11 @@ const SlugPage = () => {
                 isEditing !== "الفحص الطبي" ? (
                   <div className="flex flex-col">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
                       الفحص الطبي
@@ -1765,7 +1862,11 @@ const SlugPage = () => {
 
                     {formData.arrivals[0]?.medicalCheckFile ? (
                       <div className="mt-2 text-gray-600">
-                        <span>ملف الكشف الطبي </span>
+                        <span
+                          style={{ justifyContent: "center", display: "flex" }}
+                        >
+                          ملف الكشف الطبي{" "}
+                        </span>
                         <a
                           href={formData.arrivals[0].medicalCheckFile}
                           target="_blank"
@@ -1869,15 +1970,25 @@ const SlugPage = () => {
                 isEditing !== "الربط مع الوكالة" ? (
                   <div className="flex flex-col">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
                       تاريخ الربط مع الوكالة
                     </h1>
-
-                    {formData.arrivals[0]?.AgencyDate
-                      ? formData.arrivals[0].AgencyDate
-                      : null}
+                    <strong
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      {formData.arrivals[0]?.AgencyDate
+                        ? getDate(formData.arrivals[0].AgencyDate)
+                        : null}
+                    </strong>
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1902,7 +2013,14 @@ const SlugPage = () => {
                       className="w-full border rounded-md px-4 py-2"
                     />
 
-                    <div>
+                    <div className="flex flex-row justify-center space-x-4">
+                      <button
+                        onClick={() => setIsEditing("")}
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        الغاء التعديل
+                      </button>
+
                       <button
                         // type="submit"
                         onClick={() =>
@@ -1938,16 +2056,22 @@ const SlugPage = () => {
                   <div className="flex flex-col">
                     <div>
                       <h1
-                        style={{ justifyContent: "center", display: "flex" }}
+                        style={{
+                          justifyContent: "center",
+                          display: "flex",
+                          color: "rosybrown",
+                        }}
                         className={Style["almarai-bold"]}
                       >
                         تاريخ التختيم في السفارة
                       </h1>
                     </div>
                     <div>
-                      <strong>
+                      <strong
+                        style={{ display: "flex", justifyContent: "center" }}
+                      >
                         {formData.arrivals[0].EmbassySealing
-                          ? formData.arrivals[0].EmbassySealing
+                          ? getDate(formData.arrivals[0].EmbassySealing)
                           : null}
                       </strong>
                     </div>
@@ -1975,7 +2099,14 @@ const SlugPage = () => {
                       className="w-full border rounded-md px-4 py-2"
                     />
 
-                    <div>
+                    <div className="flex flex-row justify-center space-x-4">
+                      <button
+                        onClick={() => setIsEditing("")}
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      >
+                        الغاء التعديل
+                      </button>
+
                       <button
                         // type="submit"
                         onClick={() =>
@@ -2008,35 +2139,105 @@ const SlugPage = () => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("حجز التذكرة") &&
                 isEditing !== "حجز التذكرة" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col justify-center">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
                       حجز التذكرة
                     </h1>
                     <label
+                      style={{ justifyContent: "center", display: "flex" }}
                       htmlFor="arrivaldate"
                       className="block font-semibold text-sm"
                     >
                       تاريخ وصول العاملة
                     </label>
-                    <h2>
+                    <h2
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
                       {formData.arrivals[0].KingdomentryDate
-                        ? formData.arrivals[0].KingdomentryDate
+                        ? getDate(formData.arrivals[0].KingdomentryDate)
                         : null}
                     </h2>
                     <label
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
                       htmlFor="arrivaldate"
                       className="block font-semibold text-sm"
                     >
                       مدينة وصول العاملة
                     </label>
-                    <h2>{formData.arrivals[0].ArrivalCity}</h2>
-                    تاريخ انتهاء الضمان
-                    {formData.arrivals[0].KingdomentryDate
-                      ? AddgoDays(formData.arrivals[0].KingdomentryDate)
-                      : null}
+                    <h2
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      {formData.arrivals[0].ArrivalCity}
+                    </h2>
+
+                    <strong
+                      style={{ justifyContent: "center", display: "flex" }}
+                    >
+                      تاريخ انتهاء الضمان
+                    </strong>
+
+                    <h1 style={{ justifyContent: "center", display: "flex" }}>
+                      {" "}
+                      {formData.arrivals[0].KingdomentryDate
+                        ? AddgoDays(formData.arrivals[0].KingdomentryDate)
+                        : null}
+                    </h1>
+                    <label
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                      htmlFor="arrivaldate"
+                      className="block font-semibold text-sm"
+                    >
+                      وجهة العاملة
+                    </label>
+                    <h2
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      {formData.arrivals[0].finaldestination}
+                    </h2>
+                    {formData.arrivals[0].deparatureDate ? (
+                      <label
+                        style={{
+                          justifyContent: "center",
+                          display: "flex",
+                        }}
+                        // htmlFor=""
+                        className="block font-semibold text-sm"
+                      >
+                        تاريخ مغادرة العاملة
+                      </label>
+                    ) : null}
+                    <h2
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      {formData.arrivals[0].deparatureDate
+                        ? getDate(formData.arrivals[0].deparatureDate)
+                        : null}
+                    </h2>
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -2048,20 +2249,7 @@ const SlugPage = () => {
                 ) : (
                   <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
                     <label
-                      htmlFor="arrivaldate"
-                      className="block font-semibold text-sm"
-                    >
-                      تاريخ وصول العاملة
-                    </label>
-                    <input
-                      ref={arrivalDateRef}
-                      id="arrivaldate"
-                      name="arrivaldate"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                    />
-                    <label
-                      htmlFor="arrivaldate"
+                      htmlFor="ArrivalCity"
                       className="block font-semibold text-sm"
                     >
                       مدينة وصول العاملة
@@ -2075,16 +2263,60 @@ const SlugPage = () => {
                     />
 
                     <label
-                      htmlFor="finaldestination"
+                      htmlFor="arrivaldate"
                       className="block font-semibold text-sm"
                     >
-                      وجهة العاملة
+                      تاريخ وصول العاملة
                     </label>
                     <input
-                      ref={finaldestinationRef}
-                      id="finaldestination"
-                      name="finaldestination"
-                      type="text"
+                      ref={arrivalDateRef}
+                      id="arrivaldate"
+                      name="arrivaldate"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                    />
+
+                    {/* Plus Button to add additional destination */}
+                    <div className="flex items-center space-x-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={handleToggleDestination} // Toggle visibility on click
+                        className="text-green-600 hover:text-green-800"
+                      >
+                        <span className="text-lg">+</span> إضافة وجهة أخرى
+                      </button>
+                    </div>
+
+                    {/* Additional Destination input, conditionally rendered */}
+                    {showAdditionalDestination && (
+                      <div>
+                        <label
+                          htmlFor="finaldestination"
+                          className="block font-semibold text-sm mt-4"
+                        >
+                          وجهة أخرى
+                        </label>
+                        <input
+                          ref={finalDestinationRef}
+                          id="finaldestination"
+                          name="finaldestination"
+                          type="text"
+                          className="w-full border rounded-md px-4 py-2"
+                        />
+                      </div>
+                    )}
+
+                    <label
+                      htmlFor="deparatureDate"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ المغادرة
+                    </label>
+                    <input
+                      ref={deparatureDateRef}
+                      id="deparatureDate"
+                      name="deparatureDate"
+                      type="date"
                       className="w-full border rounded-md px-4 py-2"
                     />
 
@@ -2126,17 +2358,33 @@ const SlugPage = () => {
                         </div>
                       )}
 
-                      <div>
+                      <div className="flex flex-row justify-center space-x-4">
+                        <button
+                          onClick={() => setIsEditing("")}
+                          className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        >
+                          الغاء التعديل
+                        </button>
+
                         <button
                           // type="submit"
                           onClick={() =>
                             handleAccessFormSubmit({
                               bookingstatus: "حجز التذكرة",
-                              finaldestination:
-                                finaldestinationRef.current.value,
-                              KingdomentryDate: arrivalDateRef.current.value,
-                              arrivalCity: arrivalCityRef.current.value,
-                              // ticketFile,
+                              deparatureDate: deparatureDateRef.current?.value
+                                ? deparatureDateRef.current.value
+                                : "",
+                              finaldestination: finalDestinationRef.current
+                                ?.value
+                                ? finalDestinationRef.current.value
+                                : "",
+                              KingdomentryDate: arrivalDateRef.current?.value
+                                ? arrivalDateRef.current.value
+                                : "",
+                              arrivalCity: arrivalCityRef.current?.value
+                                ? arrivalCityRef.current.value
+                                : "",
+                              ticketFile: ticketFileFileCloudinaryImage,
                             })
                           }
                           className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -2169,20 +2417,21 @@ const SlugPage = () => {
                       الاستلام
                     </h1>
                     <label
+                      style={{ justifyContent: "center", display: "flex" }}
                       htmlFor="deliveryDate"
                       className="block font-semibold text-sm"
                     >
-                      الاستلام
+                      تاريخ الاستلام
                     </label>
-                    <h2>
+                    <h2 style={{ justifyContent: "center", display: "flex" }}>
                       {formData.arrivals[0].DeliveryDate
-                        ? formData.arrivals[0].DeliveryDate
+                        ? getDate(formData.arrivals[0].DeliveryDate)
                         : null}
                     </h2>
 
                     {formData.arrivals[0]?.DeliveryFile ? (
-                      <div className="mt-2 text-gray-600">
-                        <span>ملف توقيع الاستلام </span>
+                      <div className="mt-2 mb text-gray-600">
+                        <h3>ملف توقيع الاستلام </h3>
                         <a
                           href={formData.arrivals[0].DeliveryFile}
                           target="_blank"
@@ -2206,7 +2455,7 @@ const SlugPage = () => {
                       htmlFor="signatureFile"
                       className="block font-semibold text-sm"
                     >
-                      رفع ملف توقيع الاستلام
+                      {/* رفع ملف توقيع الاستلام */}
                     </label>
                     <div className="flex flex-col bg-gray-100 items-start">
                       {/* Hidden file input */}

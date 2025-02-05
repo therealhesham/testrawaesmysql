@@ -338,6 +338,21 @@ export default function Home({ user }) {
                 </a>
               </Link>
 
+              <Link href="/admin/deparatures">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
+                    قائمة المغادرة
+                  </div>
+                  {/* Notification Badge */}
+                  {arrivalsLength > 0 ? (
+                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {arrivalsLength > 0 ? arrivalsLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
+
               {/* Box 5 */}
 
               <Link href="/admin/fulllist">

@@ -200,6 +200,91 @@ const TransferPage = () => {
     },
     // Add more records as needed
   ];
+  function ConvertArabic(word) {
+    switch (word) {
+      case "client":
+        return "العميل";
+        break;
+
+      case "mobilenumber":
+        return "رقم الجوال";
+        break;
+
+      case "nationalidnumber":
+        return "رقم الهوية";
+        break;
+      case "passportnumber":
+        return "رقم جواز السفر";
+        break;
+      case "homemaid":
+        return "رقم العاملة";
+        break;
+
+      case "nationality":
+        return "الجنسية";
+        break;
+
+      case "kingdomentrydate":
+        return "تاريخ دخول المملكة";
+        break;
+
+      case "daydate":
+        return "تاريخ اليوم";
+        break;
+      case "workduration":
+        return "مدة العمل";
+        break;
+      case "newclientname":
+        return "اسم العميل الجديد";
+        break;
+      case "newclientmobilenumber":
+        return "هاتف العميل الجديد";
+        break;
+      case "newclientnationalidnumber":
+        return "هوية العميل الجديد";
+        break;
+
+      case "newclientcity":
+        return "مدينة العميل الجديد";
+        break;
+
+      case "experimentstart":
+        return "بداية التجربة";
+        break;
+
+      case "experimentend":
+        return "نهاية التجربة";
+        break;
+
+      case "dealcost":
+        return "تكلفة المعاملة";
+        break;
+
+      case "paid":
+        return "المدفوع";
+        break;
+
+      case "restofpaid":
+        return "المتبقى";
+        break;
+
+      case "experimentresult":
+        return "نتيجة التجربة";
+        break;
+
+      case "accomaditionnumber":
+        return "رقم الاقامة";
+        break;
+
+      case "marketeername":
+        return "اسم المكتب";
+        break;
+
+      default:
+        return word;
+        break;
+    }
+  }
 
   // Manage selected columns visibility
   const [selectedColumns, setSelectedColumns] = useState({
@@ -294,7 +379,7 @@ const TransferPage = () => {
                   {Object.keys(values).map((key) => (
                     <div key={key}>
                       <label className="block text-sm font-medium">
-                        {key.replace(/([A-Z])/g, " $1").toUpperCase()}
+                        {ConvertArabic(key)} {/* Display Arabic labels */}
                       </label>
                       <Field
                         type={key.includes("date") ? "date" : "text"}

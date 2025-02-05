@@ -26,8 +26,8 @@ export default async function handler(
     // Fetch data with the filters and pagination
     const homemaids = await prisma.arrivallist.findMany({
       where: {
-        ...filters,
-        //   bookingstatus: "طلب مرفوض",
+        //   ...filters,
+        deparatureDate: { not: null },
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
