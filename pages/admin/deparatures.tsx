@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
+
 export default function Table() {
   const [filters, setFilters] = useState({
     SponsorName: "",
@@ -12,6 +13,13 @@ export default function Table() {
     OrderId: "",
   });
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
@@ -36,7 +44,7 @@ export default function Table() {
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/arrivals?${queryParams}`, {
+      const response = await fetch(`/api/deparatures?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -135,7 +143,7 @@ export default function Table() {
     <Layout>
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-semibold text-center mb-4">
-          قائمة الوصول
+          قائمة المغادرة
         </h1>
 
         {/* Filter Section */}
@@ -158,25 +166,16 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
           <div className="flex-1 px-2">
             <input
               type="text"
               value={filters.OrderId}
               onChange={(e) => handleFilterChange(e, "OrderId")}
-              placeholder="Filter by Nationality"
+              placeholder="Filter by ORDER ID"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-
-          {/* <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.HomemaidId}
-              onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="Filter by CV"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div> */}
           <div className="flex-1 px-1">
             <Button
               variant="contained"
@@ -185,6 +184,7 @@ export default function Table() {
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({
+                  age: "",
                   OrderId: "",
                   PassportNumber: "",
                   SponsorName: "",
@@ -193,6 +193,7 @@ export default function Table() {
                 pageRef.current = 1;
                 fetchData();
               }}
+              ho
             >
               اعادة ضبط
             </Button>
@@ -224,13 +225,14 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">الطلب</th>
               <th className="p-3 text-left text-sm font-medium">
-                تاريخ دخول المملكة
+                تاريخ المغادرة
               </th>
-
               <th className="p-3 text-left text-sm font-medium">تحديث</th>
-              {/*<th className="p-3 text-left text-sm font-medium">استعادة</th> */}
+              {/* 
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-left text-sm font-medium">استعادة</th> */}
             </tr>
           </thead>
           <tbody>
@@ -260,8 +262,9 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
 
                   <td className="p-3 text-md text-gray-700">
-                    {item.KingdomentryDate}
+                    {getDate(item.deparatureDate)}
                   </td>
+
                   <td className="p-3 text-md text-gray-700">
                     <Button
                       variant="contained"
