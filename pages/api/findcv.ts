@@ -7,7 +7,6 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const {
-    Passportnumber,
     searchTerm, // This will be the single input from the frontend
     age,
     clientphonenumber,
@@ -23,7 +22,7 @@ export default async function handler(
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
-  if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
+
   // Apply a filter for `clientphonenumber` if present
   if (clientphonenumber)
     filters.clientphonenumber = { contains: clientphonenumber };
@@ -43,14 +42,10 @@ export default async function handler(
 
   try {
     // Fetch data with the filters and pagination
-    const homemaids = await prisma.neworder.findMany({
-      orderBy: { id: "desc" },
+    const homemaids = await prisma.homemaid.findUnique({
+      // orderBy: { id: "desc" },
       where: {
         ...filters,
-
-        bookingstatus: {
-          in: ["طلب مرفوض"], // Exclude these statuses
-        },
         // Apply the searchTerm to multiple fields (e.g., ClientName, Passportnumber)
         AND: [
           {
@@ -73,8 +68,6 @@ export default async function handler(
           },
         ],
       },
-      skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-      take: pageSize, // Limit the results to the page size
     });
 
     // Send the filtered and paginated data as the response

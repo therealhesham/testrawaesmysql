@@ -53,6 +53,7 @@ export default function Home() {
   const [phonenumber, setPhoneNumber] = useState("");
   const [filteredSuggestions, setFilteredSuggestions] = useState({
     Name: "",
+    Passportnumber: "",
     Picture: [{ url: "" }],
   });
   const [picture, setPicture] = useState({});
@@ -93,7 +94,6 @@ export default function Home() {
   });
 
   const validationSchemaStep2 = Yup.object({
-    address: Yup.string().required("Address is required"),
     city: Yup.string().required("City is required"),
   });
 
@@ -303,7 +303,6 @@ export default function Home() {
     setIsModalRejectionOpen(false); // Function to close the modal
   };
   const handleReject = async (id) => {
-    alert(id);
     const submitter = await fetch("/api/rejectbookingprisma", {
       method: "post",
       headers: {
@@ -348,12 +347,12 @@ export default function Home() {
                 حجوزات جديدة
               </p>
               <div className="flex space-x-4">
-                <button
+                {/* <button
                   onClick={handleAddNewReservation}
                   className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400"
                 >
                   Add New Reservation
-                </button>
+                </button> */}
 
                 <button
                   onClick={exportToExcel}
@@ -555,34 +554,16 @@ export default function Home() {
                     : null
                 }
                 onSubmit={(values) => {
-                  console.log(values);
-
                   setFullName(values.name);
                   setEmail(values.email);
                   setClientPhone(values.phone);
-                  setAddress(values.address);
+                  // setAddress(values.address);
                   setCity(values.city);
                   setHomeMaidId(filteredSuggestions.id);
 
                   setHomeMaidName(filteredSuggestions.Name);
                   console.log(filteredSuggestions);
                   if (currentStep === 4) {
-                    console.log({
-                      ...values,
-                      email: values.email,
-
-                      PhoneNumber: filteredSuggestions.phone
-                        ? filteredSuggestions.phone
-                        : "لا يوجد هاتف مسجل",
-                      HomemaidId: filteredSuggestions.id,
-                      age: filteredSuggestions.age,
-                      clientphonenumber: values.phone,
-                      Passportnumber: filteredSuggestions.Passportnumber,
-                      maritalstatus: filteredSuggestions.maritalstatus,
-                      NationalityCopy: filteredSuggestions.Nationality,
-                      Religion: filteredSuggestions.Religion,
-                      ExperienceYears: filteredSuggestions.ExperienceYears,
-                    });
                     const submit = async () => {
                       const fetchData = await fetch(
                         "/api/submitneworderprisma/",
@@ -610,12 +591,13 @@ export default function Home() {
                             Accept: "application/json",
                             "Content-Type": "application/json",
                           },
-                          cache: "default",
                         }
                       );
-
+                      // alert(fetchData.status)
                       if (fetchData.status == 200) {
                         showSuccessModal();
+                        setModalOpen(false);
+                        // setIsModalOpen(false);
                         reset();
                       } else {
                         showErrorModal();
@@ -709,26 +691,7 @@ export default function Home() {
                         <h2 className="text-2xl font-semibold mb-4">
                           Address Information
                         </h2>
-                        <div className="mb-4">
-                          <label
-                            htmlFor="address"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Address
-                          </label>
-                          <Field
-                            id="address"
-                            name="address"
-                            type="text"
-                            className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                            placeholder="Enter your address"
-                          />
-                          <ErrorMessage
-                            name="address"
-                            component="div"
-                            className="text-red-500 text-sm"
-                          />
-                        </div>
+
                         <div className="mb-4">
                           <label
                             htmlFor="city"
@@ -854,6 +817,24 @@ export default function Home() {
                             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
                           </p>
                           <span>&nbsp; {city}</span>
+                        </div>
+
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold">
+                            Name &nbsp; &nbsp; &nbsp;
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
+                          </p>
+                          <span>&nbsp; {filteredSuggestions.Name}</span>
+                        </div>
+
+                        <div className="flex flex-nowrap text-nowrap">
+                          <p className="font-bold">
+                            Passport Number &nbsp; &nbsp; &nbsp;
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
+                          </p>
+                          <span>
+                            &nbsp; {filteredSuggestions.Passportnumber}
+                          </span>
                         </div>
 
                         {/* {ClientPhone} : جوال العميل */}

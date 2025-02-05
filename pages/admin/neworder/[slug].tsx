@@ -48,7 +48,12 @@ const SlugPage = () => {
   const [formData, setFormData] = useState({
     OrderStatus: [],
     arrivals: [
-      { KingdomentryDate: "", ExternalOFficeApproval: "", EmbassySealing: "" },
+      {
+        KingdomentryDate: "",
+        ExternalOFficeApproval: "",
+        EmbassySealing: "",
+        finalDestinationDate: "",
+      },
     ],
     bookingstatus: "",
     client: { fullname: "" },
@@ -109,7 +114,9 @@ const SlugPage = () => {
   const [formDataReservationChange, setFormDataReservationChange] = useState(
     {}
   );
+  const finalDestinationDateRef = useRef(null);
   const musanadRef = useRef();
+  const ExternalStatusByofficeRef = useRef(null);
   const finalDestinationRef = useRef(null);
   const deliveryDateRef = useRef(null);
   const deparatureDateRef = useRef(null);
@@ -552,6 +559,7 @@ const SlugPage = () => {
     console.log(s);
     // e.preventDefault();
     const {
+      finalDestinationDate,
       deparatureDate,
       externalmusanadcontractfile,
       SponsorName,
@@ -565,6 +573,7 @@ const SlugPage = () => {
 
       InternalmusanedContract,
       SponsorIdnumber,
+      ExternalStatusByoffice,
       SponsorPhoneNumber,
       PassportNumber,
       KingdomentryDate,
@@ -604,7 +613,9 @@ const SlugPage = () => {
         PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
+        ExternalStatusByoffice,
         deparatureDate,
+        finalDestinationDate,
         DeliveryDate,
         Orderid: formData.id,
         WorkDuration,
@@ -927,7 +938,7 @@ const SlugPage = () => {
 
   // Target date (change this to your desired date)
   const targetDate = new Date(
-    AddgoDays(formData.arrivals[0].MusanadDuration || null)
+    AddgoDays(formData.arrivals[0]?.MusanadDuration || null)
   );
 
   // Function to calculate the days remaining
@@ -940,12 +951,48 @@ const SlugPage = () => {
 
   // Use effect to calculate the days on load
   useEffect(() => {
-    // if (!formData.arrivals[0].MusanadDuration) return;
+    if (!formData.arrivals[0].MusanadDuration) return;
     calculateDaysRemaining();
     const interval = setInterval(calculateDaysRemaining, 86400000); // Recalculate every 24 hours
 
     return () => clearInterval(interval); // Cleanup interval on unmount
-  }, [formData.arrivals[0].MusanadDuration]);
+  }, [formData.arrivals[0]?.MusanadDuration]);
+
+  const [guaranteearrivaldaysRemaining, setguaranteearrivaldaysRemaining] =
+    useState();
+
+  // Target date (change this to your desired date)
+  const guaranteetargetDate = new Date(
+    AddgoDays(formData.arrivals[0]?.KingdomentryDate || null)
+  );
+
+  // Function to calculate the days remaining
+  const calculateKingdomentryDateDaysRemaining = () => {
+    const currentDate = new Date();
+    const diffTime = guaranteetargetDate - currentDate; // Difference in milliseconds
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Convert to days
+    setguaranteearrivaldaysRemaining(diffDays);
+  };
+
+  // Use effect to calculate the days on load
+  useEffect(() => {
+    if (!formData.arrivals[0].MusanadDuration) return;
+    calculateDaysRemaining();
+    const interval = setInterval(calculateDaysRemaining, 86400000); // Recalculate every 24 hours
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [formData.arrivals[0]?.MusanadDuration]);
+
+  useEffect(() => {
+    if (!formData.arrivals[0].KingdomentryDate) return;
+    calculateKingdomentryDateDaysRemaining();
+    const interval = setInterval(
+      calculateKingdomentryDateDaysRemaining,
+      86400000
+    ); // Recalculate every 24 hours
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [formData.arrivals[0]?.KingdomentryDate]);
 
   const toggleEditable = (index) => {};
   const [isModalBooksOpen, setIsModalBooksOpen] = useState(false);
@@ -1216,8 +1263,7 @@ const SlugPage = () => {
         />
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-3xl font-bold text-center mb-8">
-            Details:
-            {formData.ClientName ? formData.ClientName : ""}
+            {formData.ClientName ? formData.ClientName : ""}: طلب
           </h1>
           {/* Timeline Component with Clickable Stages */}
           <Timeline
@@ -1251,7 +1297,7 @@ const SlugPage = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
             <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
-              <h2 className="text-2xl font-semibold mb-4">معلومات العميل</h2>
+              <h2 className="text-2xl font-semibold mb-4">معلومات الطلب</h2>
               <div className="space-y-4">
                 <p>
                   <strong>Name:</strong> {formData.ClientName}
@@ -1314,14 +1360,20 @@ const SlugPage = () => {
               >
                 <div className="flex flex-col">
                   <h1
-                    style={{ justifyContent: "center", display: "flex" }}
+                    style={{
+                      justifyContent: "center",
+                      display: "flex",
+                      color: "rosybrown",
+                    }}
                     className={Style["almarai-bold"]}
                   >
                     التقديم
                   </h1>
-                  <p>تم استلام الطلب</p>
+                  <p style={{ justifyContent: "center", display: "flex" }}>
+                    تم استلام الطلب
+                  </p>
 
-                  <strong>
+                  <strong style={{ justifyContent: "center", display: "flex" }}>
                     {formData.createdAt
                       ? new Date(formData.createdAt).getDate() +
                         " / " +
@@ -1331,13 +1383,12 @@ const SlugPage = () => {
                       : null}
                   </strong>
 
-                  <strong>
+                  <strong style={{ justifyContent: "center", display: "flex" }}>
                     {convertUTCtoSaudiTime(formData.createdAt).getHours() +
                       ":" +
                       convertUTCtoSaudiTime(
                         formData.createdAt
                       ).getMinutes()}{" "}
-                    بتوقيت المملكة العربية السعودية
                   </strong>
                 </div>
               </VerticalTimelineElement>
@@ -1356,68 +1407,51 @@ const SlugPage = () => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع مساند") &&
                 isEditing !== "الربط مع مساند" ? (
-                  <div className="flex flex-col justify-center ">
+                  <div className="flex flex-col justify-center">
                     <h1
                       style={{
-                        justifyContent: "center",
                         display: "flex",
+                        justifyContent: "center",
                         color: "rosybrown",
                       }}
                       className={Style["almarai-bold"]}
                     >
                       الربط
                     </h1>
-
-                    <p
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      تم الربط مع مساند{" "}
-                    </p>
                     <strong
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
+                      style={{ display: "flex", justifyContent: "center" }}
                     >
                       عقد مساند : &nbsp; &nbsp;
                       {formData.arrivals[0].InternalmusanedContract}
                     </strong>
-                    <strong
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      تاريخ الربط : &nbsp; &nbsp;
-                      {formData.arrivals[0].MusanadDuration}
-                    </strong>
-                    <strong
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      تاريخ انتهاء الضمان : &nbsp; &nbsp;
-                      {AddgoDays(formData.arrivals[0].MusanadDuration)}
-                    </strong>
-                    <strong
-                      style={{
-                        color: daysRemaining < 20 ? "red" : "black",
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      متبقى على انتهاء الضمان &nbsp; {daysRemaining}
-                    </strong>
-                    <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                      onClick={() => setIsEditing("الربط مع مساند")}
-                    >
-                      تعديل
-                    </button>
+
+                    <div className="grid grid-cols-3 gap-4 justify-center">
+                      <strong
+                        style={{
+                          // display: "flex",
+                          justifyContent: "center",
+                          color: daysRemaining < 20 ? "red" : "black",
+                        }}
+                      >
+                        متبقى على انتهاء الضمان &nbsp; {daysRemaining}
+                      </strong>
+
+                      <strong>
+                        تاريخ انتهاء الضمان : &nbsp; &nbsp;
+                        {AddgoDays(formData.arrivals[0].MusanadDuration)}
+                      </strong>
+                      <strong>
+                        تاريخ الربط : &nbsp; &nbsp;
+                        {formData.arrivals[0].MusanadDuration}
+                      </strong>
+
+                      <button
+                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 col-span-3"
+                        onClick={() => setIsEditing("الربط مع مساند")}
+                      >
+                        تعديل
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   // <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
@@ -1512,16 +1546,6 @@ const SlugPage = () => {
                     >
                       الربط مع مساند الخارجي
                     </h1>
-                    <p
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                      className={Style["almarai-bold"]}
-                    >
-                      {" "}
-                      تم الربط مع مساند الخارجي{" "}
-                    </p>
                     <strong
                       style={{
                         justifyContent: "center",
@@ -1535,6 +1559,29 @@ const SlugPage = () => {
                         : // ).toLocaleDateString()
                           null}
                     </strong>
+
+                    {formData.arrivals[0]?.externalmusanadcontractfile ? (
+                      <div className="mt-2 text-gray-600">
+                        <span
+                          className={Style["almarai-bold"]}
+                          style={{ justifyContent: "center", display: "flex" }}
+                        >
+                          ملف مساند الخارجي
+                        </span>
+                        <a
+                          style={{ justifyContent: "center", display: "flex" }}
+                          href={
+                            formData.arrivals[0]?.externalmusanadcontractfile
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    ) : null}
+
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الربط مع مساند الخارجي")}
@@ -1685,18 +1732,30 @@ const SlugPage = () => {
                     >
                       {formData.arrivals[0].externalOfficeStatus}
                     </h1>
-                    <strong
-                      style={{ justifyContent: "center", display: "flex" }}
-                    >
-                      حالة الطلب طبقا للمكتب الخارجي{" "}
-                    </strong>
+                    {formData.arrivals[0].ExternalStatusByoffice ? (
+                      <strong
+                        style={{
+                          justifyContent: "center",
+                          display: "flex",
+                          color: "rosybrown",
+                        }}
+                      >
+                        حالة الطلب طبقا للمكتب الخارجي
+                      </strong>
+                    ) : (
+                      ""
+                    )}
 
-                    <h1
-                      style={{ justifyContent: "center", display: "flex" }}
-                      className={Style["almarai-bold"]}
-                    >
-                      {formData.arrivals[0].ExternalStatusByoffice}
-                    </h1>
+                    {formData.arrivals[0].ExternalStatusByoffice ? (
+                      <h1
+                        style={{ justifyContent: "center", display: "flex" }}
+                        className={Style["almarai-bold"]}
+                      >
+                        {formData.arrivals[0].ExternalStatusByoffice}
+                      </h1>
+                    ) : (
+                      ""
+                    )}
                     {/* <p>{getDate("موافقة")}</p> */}
 
                     <button
@@ -1749,6 +1808,23 @@ const SlugPage = () => {
                       <option value="ارفاق للسفارة">ارفاق للسفارة</option>
                     </select>
                     {/* </div> */}
+
+                    <label
+                      htmlFor="ExternalStatusByoffice"
+                      className="block text-sm font-semibold mb-2"
+                    >
+                      حالة الطلب طبقا للمكتب الخارجي
+                    </label>
+                    <select
+                      name="ExternalStatusByoffice"
+                      ref={ExternalStatusByofficeRef}
+                      id="externalOfficeStatus"
+                      // value={newAdmin.role}
+                    >
+                      <option value="فحص طبي">فحص طبي</option>
+                      <option value="خلو سوابق">خلو سوابق</option>
+                      <option value="ارفاق للسفارة">ارفاق للسفارة</option>
+                    </select>
 
                     <div className="col-span-3">
                       <label
@@ -1810,6 +1886,8 @@ const SlugPage = () => {
                               externalOfficeAprrovalRef.current.value,
                             bookingstatus: "الربط مع المكتب الخارجي",
                             medicalCheckFile: medicalCheckFileCloudinaryImage,
+                            ExternalStatusByoffice:
+                              ExternalStatusByofficeRef.current.value,
                             externalOfficeFile: externalOfficeFile,
                           })
                         }
@@ -1863,11 +1941,13 @@ const SlugPage = () => {
                     {formData.arrivals[0]?.medicalCheckFile ? (
                       <div className="mt-2 text-gray-600">
                         <span
+                          className={Style["almarai-bold"]}
                           style={{ justifyContent: "center", display: "flex" }}
                         >
-                          ملف الكشف الطبي{" "}
+                          ملف الكشف الطبي
                         </span>
                         <a
+                          style={{ justifyContent: "center", display: "flex" }}
                           href={formData.arrivals[0].medicalCheckFile}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2153,7 +2233,7 @@ const SlugPage = () => {
                     <label
                       style={{ justifyContent: "center", display: "flex" }}
                       htmlFor="arrivaldate"
-                      className="block font-semibold text-sm"
+                      className={Style["almarai-bold"]}
                     >
                       تاريخ وصول العاملة
                     </label>
@@ -2173,7 +2253,7 @@ const SlugPage = () => {
                         display: "flex",
                       }}
                       htmlFor="arrivaldate"
-                      className="block font-semibold text-sm"
+                      className={Style["almarai-bold"]}
                     >
                       مدينة وصول العاملة
                     </label>
@@ -2188,6 +2268,7 @@ const SlugPage = () => {
 
                     <strong
                       style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
                     >
                       تاريخ انتهاء الضمان
                     </strong>
@@ -2204,7 +2285,7 @@ const SlugPage = () => {
                         display: "flex",
                       }}
                       htmlFor="arrivaldate"
-                      className="block font-semibold text-sm"
+                      className={Style["almarai-bold"]}
                     >
                       وجهة العاملة
                     </label>
@@ -2223,7 +2304,7 @@ const SlugPage = () => {
                           display: "flex",
                         }}
                         // htmlFor=""
-                        className="block font-semibold text-sm"
+                        className={Style["almarai-bold"]}
                       >
                         تاريخ مغادرة العاملة
                       </label>
@@ -2238,6 +2319,52 @@ const SlugPage = () => {
                         ? getDate(formData.arrivals[0].deparatureDate)
                         : null}
                     </h2>
+
+                    {formData.arrivals[0].finalDestinationDate ? (
+                      <label
+                        style={{
+                          justifyContent: "center",
+                          display: "flex",
+                        }}
+                        // htmlFor=""
+                        className={Style["almarai-bold"]}
+                      >
+                        تاريخ وصول العاملة الى الواجهة الاخرى
+                      </label>
+                    ) : null}
+                    <h2
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                      className={Style["almarai-bold"]}
+                    >
+                      {formData.arrivals[0].finalDestinationDate
+                        ? getDate(formData.arrivals[0].finalDestinationDate)
+                        : null}
+                    </h2>
+
+                    <label
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color:
+                          guaranteearrivaldaysRemaining < 20 ? "red" : "black",
+                      }}
+                      // htmlFor=""
+                      className={Style["almarai-bold"]}
+                    >
+                      متبقي على انتهاء الضمان
+                    </label>
+                    <h2
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      {guaranteearrivaldaysRemaining}
+                    </h2>
+
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -2252,7 +2379,7 @@ const SlugPage = () => {
                       htmlFor="ArrivalCity"
                       className="block font-semibold text-sm"
                     >
-                      مدينة وصول العاملة
+                      مدينة وصول العاملة الاساسية
                     </label>
                     <input
                       ref={arrivalCityRef}
@@ -2310,12 +2437,26 @@ const SlugPage = () => {
                       htmlFor="deparatureDate"
                       className="block font-semibold text-sm"
                     >
-                      تاريخ المغادرة
+                      تاريخ المغادرة من المدينة الاساسية
                     </label>
                     <input
                       ref={deparatureDateRef}
                       id="deparatureDate"
                       name="deparatureDate"
+                      type="date"
+                      className="w-full border rounded-md px-4 py-2"
+                    />
+
+                    <label
+                      htmlFor="finalDestinationDate"
+                      className="block font-semibold text-sm"
+                    >
+                      تاريخ الوصول الى وجهة النهائية
+                    </label>
+                    <input
+                      ref={finalDestinationDateRef}
+                      id="finalDestinationDate"
+                      name="finalDestinationDate"
                       type="date"
                       className="w-full border rounded-md px-4 py-2"
                     />
@@ -2370,6 +2511,8 @@ const SlugPage = () => {
                           // type="submit"
                           onClick={() =>
                             handleAccessFormSubmit({
+                              finalDestinationDate:
+                                finalDestinationDateRef.current?.value,
                               bookingstatus: "حجز التذكرة",
                               deparatureDate: deparatureDateRef.current?.value
                                 ? deparatureDateRef.current.value
@@ -2381,7 +2524,7 @@ const SlugPage = () => {
                               KingdomentryDate: arrivalDateRef.current?.value
                                 ? arrivalDateRef.current.value
                                 : "",
-                              arrivalCity: arrivalCityRef.current?.value
+                              ArrivalCity: arrivalCityRef.current?.value
                                 ? arrivalCityRef.current.value
                                 : "",
                               ticketFile: ticketFileFileCloudinaryImage,
@@ -2526,65 +2669,6 @@ const SlugPage = () => {
                 )}
               </VerticalTimelineElement>
             </VerticalTimeline>
-            <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
-              <thead>
-                <tr className="bg-purple-600 text-white">
-                  <th className="p-3 text-left text-sm font-medium">
-                    اسم الكفيل
-                  </th>
-                  <th className="p-3 text-left text-sm font-medium">
-                    تاريخ التختيم
-                  </th>
-                  <th className="p-3 text-left text-sm font-medium">
-                    الربط مع الوكالة
-                  </th>
-                  <th className="p-3 text-left text-sm font-medium">
-                    انتهاء الضمان
-                  </th>
-
-                  {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
-                </tr>
-              </thead>
-              <tbody>
-                {formData.arrivals.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="p-3 text-center text-sm text-gray-500"
-                    >
-                      No results found
-                    </td>
-                  </tr>
-                ) : (
-                  formData.arrivals.map((item) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="p-3 text-lg text-gray-700">
-                        {item.SponsorName}
-                      </td>
-                      <td className="p-3 text-lg text-gray-700">
-                        {item.EmbassySealing
-                          ? new Date(item.EmbassySealing).toLocaleDateString()
-                          : null}
-                      </td>
-                      <td className="p-3 text-lg text-gray-700">
-                        {item.AgencyDate
-                          ? new Date(item.AgencyDate).toLocaleDateString()
-                          : null}
-                      </td>
-                      <td className="p-3 text-lg text-gray-700">
-                        {item.GuaranteeDurationEnd
-                          ? new Date(
-                              item.GuaranteeDurationEnd
-                            ).toLocaleDateString()
-                          : null}
-                      </td>
-
-                      {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
             {/* Button to toggle the form */}
@@ -2597,47 +2681,6 @@ const SlugPage = () => {
             {isFormVisible && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Work Duration */}
-                  <div>
-                    <label
-                      htmlFor="WorkDuration"
-                      className="block font-semibold text-sm"
-                    >
-                      Work Duration
-                    </label>
-                    <input
-                      id="WorkDuration"
-                      name="WorkDuration"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.WorkDuration}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                  </div>
-                  {/* Cost */}
-
-                  <div>
-                    <label
-                      htmlFor="Cost"
-                      className="block font-semibold text-sm"
-                    >
-                      Cost
-                    </label>
-                    <input
-                      id="Cost"
-                      name="Cost"
-                      type="text"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.Cost}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                  </div>
-                  {/* Home Maid ID */}
-                  {/* Home Maid Name */}
-                  {/* Notes */}
-
                   <div className="col-span-3">
                     <label
                       htmlFor="Notes"
@@ -2697,135 +2740,6 @@ const SlugPage = () => {
 
               {/* Modal Body */}
               <div className="mb-6 text-gray-600">
-                <div className="col-span-3">
-                  <label
-                    htmlFor="medicalCheckFile"
-                    className="block font-semibold text-sm"
-                  >
-                    رفع ملف الفحص الطبي
-                  </label>
-                  <div className="flex flex-col items-start bg-gray-100 rounded-md">
-                    {/* Hidden file input */}
-                    <input
-                      id="medicalCheckFile"
-                      name="medicalCheckFile"
-                      type="file"
-                      className="hidden"
-                      onChange={handleUploadmedicalcheckfile}
-                    />
-                    {/* Custom file upload button */}
-                    <label
-                      htmlFor="medicalCheckFile"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
-                    >
-                      اختار الملف
-                    </label>
-
-                    {/* Display uploaded image or file status */}
-                    {medicalCheckFileCloudinaryImage && (
-                      <div className="mt-2 text-gray-600">
-                        <span>File Uploaded: </span>
-                        <a
-                          href={medicalCheckFileCloudinaryImage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-300 hover:underline"
-                        >
-                          عرض الملف
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="col-span-3">
-                  <label
-                    htmlFor="ticketFile"
-                    className="block font-semibold text-sm"
-                  >
-                    رفع ملف التذكرة
-                  </label>
-                  <div className="flex flex-col bg-gray-100 items-start">
-                    {/* Hidden file input */}
-                    <input
-                      id="ticketFile"
-                      name="ticketFile"
-                      type="file"
-                      className="hidden"
-                      onChange={handleUploadticketFile}
-                    />
-                    {/* Custom file upload button */}
-                    <label
-                      htmlFor="ticketFile"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
-                    >
-                      اختار الملف
-                    </label>
-
-                    {/* Display uploaded image or file status */}
-                    {ticketFileFileCloudinaryImage && (
-                      <div className="mt-2 text-gray-600">
-                        <span>File Uploaded: </span>
-                        <a
-                          href={ticketFileFileCloudinaryImage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-purple-500 hover:underline"
-                        >
-                          عرض الملف
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  {formik.errors.ticketFile && formik.touched.ticketFile && (
-                    <div className="text-red-600 text-sm mt-1">
-                      {formik.errors.ticketFile}
-                    </div>
-                  )}
-                </div>
-
-                <div className="col-span-3">
-                  <label
-                    htmlFor="receivingFile"
-                    className="block font-semibold text-sm"
-                  >
-                    رفع ملف الاستلام
-                  </label>
-                  <div className="flex flex-col items-start">
-                    {/* Hidden file input */}
-                    <input
-                      id="receivingFile"
-                      name="receivingFile"
-                      type="file"
-                      className="hidden"
-                      onChange={handleUploadreceivingFile}
-                    />
-                    {/* Custom file upload button */}
-                    <label
-                      htmlFor="receivingFile"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
-                    >
-                      اختار الملف
-                    </label>
-
-                    {/* Display uploaded image or file status */}
-                    {receivingFileCloudinaryImage && (
-                      <div className="mt-2 text-gray-600">
-                        <span>File Uploaded: </span>
-                        <a
-                          href={receivingFileCloudinaryImage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-purple-500 hover:underline"
-                        >
-                          عرض الملف
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div className="col-span-3">
                   <label
                     htmlFor="approvalPayment"

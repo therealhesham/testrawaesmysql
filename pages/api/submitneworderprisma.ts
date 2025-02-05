@@ -34,7 +34,7 @@ export default async function handler(
         HomemaidIdCopy: HomemaidId,
         ExperienceYears,
         Nationality,
-        bookingstatus: "حجز جديد",
+        bookingstatus: "اكمال الطلب",
         Passportnumber,
         // externalOfficeStatus,
         Name,
@@ -54,7 +54,7 @@ export default async function handler(
         HomeMaid: { connect: { id: HomemaidId } },
       },
     });
-
+    // console.log(result);
     // Send response after the transaction is successful
     res.status(200).json(result);
   } catch (error) {

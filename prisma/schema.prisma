@@ -176,7 +176,7 @@ DeliveryDate              DateTime?
 finaldestination          String?
 deparatureDate            DateTime?
 ExternalStatusByoffice    String?
-
+finalDestinationDate      DateTime?
 DeliveryFile           String?      @db.VarChar(191)
   SponsorPhoneNumber        String?   @db.VarChar(15)
   PassportNumber            String?   @db.VarChar(191)

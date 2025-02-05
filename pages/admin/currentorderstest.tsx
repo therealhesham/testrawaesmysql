@@ -4,10 +4,107 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
+import axios from "axios";
+import * as XLSX from "xlsx";
+import { Formik, Field, Form, ErrorMessage, FormikValues } from "formik";
+import * as Yup from "yup"; // Import Yup for validation
+import FormWithTimeline from "./addneworderbyadmin";
+import TimeLinedForm from "example/components/stepsform";
+import Modal from "components/modal";
+import RejectBooking from "./reject-booking";
+
 export default function Table() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState<"success" | "error">("success");
+  const [date, setDate] = useState("");
+  const showSuccessModal = () => {
+    setModalMessage("تم تسجيل البيانات بنجاح");
+    setModalType("success");
+    setIsModalOpen(true);
+  };
+  // console.log(Yup.reach("name"));
+  const showErrorModal = () => {
+    setModalMessage("خطا في تسجيل البيانات.");
+    setModalType("error");
+    setIsModalOpen(true);
+  };
+
+  const closeSuccessfulModal = () => {
+    setIsModalOpen(false);
+  };
+  const [page, setPage] = useState(1);
+  const loaderRef = useRef(null);
+  const [phone, setPhone] = useState("");
+  // const [address, setAddress] = useState("");
+  // const [city, setCity] = useState("");
+
+  const [pagesCount, setPagesCount] = useState(1);
+  const [searchParam, setSearchParam] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [step, setStep] = useState(1);
+  const [query, setQuery] = useState("");
+  const [name, setName] = useState("");
+  // const [email, setEmail] = useState("");
+  const [phonenumber, setPhoneNumber] = useState("");
+  const [filteredSuggestions, setFilteredSuggestions] = useState({
+    Name: "",
+    Passportnumber: "",
+    Picture: [{ url: "" }],
+  });
+  const [picture, setPicture] = useState({});
+  const handlePrevStep = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
+
+  const fetchdata = async (id) => {
+    const fetchData = await fetch("/api/findcvprisma/" + id, {
+      cache: "default",
+    });
+    const parser = await fetchData.json();
+    console.log(parser);
+    setFilteredSuggestions(parser);
+  };
+  const handleChange = (event) => {
+    const value = event.target.value;
+    setQuery(value);
+    if (value.length > 0) {
+      fetchdata(event.target.value);
+    } else {
+      setFilteredSuggestions({});
+    }
+  };
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [ClientPhone, setClientPhone] = useState("");
+
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+
+  const validationSchemaStep1 = Yup.object({
+    name: Yup.string().required("Name is required"),
+    email: Yup.string()
+      .email("Invalid email address")
+      .required("Email is required"),
+    phone: Yup.string().required("Phone number is required"),
+  });
+
+  const validationSchemaStep2 = Yup.object({
+    city: Yup.string().required("City is required"),
+  });
+
+  const validationSchemaStep3 = Yup.object({
+    query: Yup.string(),
+  });
+
+  const handleExitClick = () => {
+    setModalOpen(false);
+  };
   const [filters, setFilters] = useState({
     ClientName: "",
     age: "",
+    clientphonenumber: "",
     Passportnumber: "",
     Nationality: "",
     HomemaidId: "",
@@ -29,8 +126,9 @@ export default function Table() {
     try {
       // Build the query string for filters
       const queryParams = new URLSearchParams({
-        ClientName: filters.ClientName,
+        searchTerm: filters.ClientName,
         age: filters.age,
+        clientphonenumber: filters.clientphonenumber,
         HomemaidId: filters.HomemaidId,
         Passportnumber: filters.Passportnumber,
         Nationalitycopy: filters.Nationality,
@@ -110,13 +208,55 @@ export default function Table() {
   const handleUpdate = (id) => {
     router.push("./neworder/" + id);
   };
+  const handleAddNewReservation = () => {
+    setModalOpen(true);
+  };
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setCurrentStep(1);
+  };
+  const [homemaidId, setHomeMaidId] = useState(0);
+  const [homemaidName, setHomeMaidName] = useState("");
+
+  const handleNextStep = () => {
+    setCurrentStep((prevStep) => prevStep + 1);
+  };
+
+  const handlePreviousStep = () => {
+    setCurrentStep((prevStep) => prevStep - 1);
+  };
+
+  const reset = () => {
+    setData([]);
+    setLoading(true);
+    setPage(1);
+  };
+
+  const initialvalues = {
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    query: "",
+  };
   return (
     <Layout>
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-semibold text-center mb-4">
           الحجوزات الحالية
         </h1>
+        <div className="flex items-center justify-between p-4">
+          <div className="flex space-x-4">
+            <button
+              onClick={handleAddNewReservation}
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400"
+            >
+              اضافة حجز جديد
+            </button>
+          </div>
+        </div>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
@@ -125,7 +265,7 @@ export default function Table() {
               type="text"
               value={filters.ClientName}
               onChange={(e) => handleFilterChange(e, "ClientName")}
-              placeholder="Filter by Name"
+              placeholder="بحث باسم العميل / العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -134,16 +274,16 @@ export default function Table() {
               type="text"
               value={filters.Passportnumber}
               onChange={(e) => handleFilterChange(e, "Passportnumber")}
-              placeholder="Filter by Passport"
+              placeholder="بحث برقم جواز السفر"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div className="flex-1 px-2">
+          <div>
             <input
               type="text"
-              value={filters.Nationality}
-              onChange={(e) => handleFilterChange(e, "Nationality")}
-              placeholder="Filter by Nationality"
+              value={filters.clientphonenumber}
+              onChange={(e) => handleFilterChange(e, "clientphonenumber")}
+              placeholder="بحث برقم الجوال "
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -153,7 +293,7 @@ export default function Table() {
               type="text"
               value={filters.HomemaidId}
               onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="Filter by CV"
+              placeholder="بحث برقم العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -165,6 +305,7 @@ export default function Table() {
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({
+                  clientphonenumber: "",
                   age: "",
                   ClientName: "",
                   HomemaidId: "",
@@ -175,7 +316,6 @@ export default function Table() {
                 pageRef.current = 1;
                 fetchData();
               }}
-              ho
             >
               اعادة ضبط
             </Button>
@@ -203,6 +343,9 @@ export default function Table() {
             <tr className="bg-purple-600 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
+
+              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
@@ -230,6 +373,9 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-600">
                     {item.ClientName}
                   </td>
+
+                  <td className="p-3 text-md text-gray-700">{item.Name}</td>
+
                   <td className="p-3 text-md text-gray-700">
                     {item.clientphonenumber}
                   </td>
@@ -284,6 +430,379 @@ export default function Table() {
                 Loading...
               </div>
             )}
+          </div>
+        )}
+        {modalOpen && (
+          <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="absolute top-4 right-10">
+              <button
+                onClick={handleExitClick}
+                className="text-gray-500 hover:text-black"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="h-8 w-8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex w-full max-w-4xl bg-white shadow-lg rounded-lg">
+              {/* Left side: Timeline */}
+              <div className="w-1/3 border-r border-gray-200">
+                <div className="flex flex-col items-center py-8">
+                  <div className={`step ${currentStep >= 1 ? "active" : ""}`}>
+                    <div className="step-number">1</div>
+                    <div className="step-title">Step 1</div>
+                  </div>
+                  <div className={`step ${currentStep >= 2 ? "active" : ""}`}>
+                    <div className="step-number">2</div>
+                    <div className="step-title">Step 2</div>
+                  </div>
+                  <div className={`step ${currentStep >= 3 ? "active" : ""}`}>
+                    <div className="step-number">3</div>
+                    <div className="step-title">Step 3</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right side: Form */}
+              <div className="w-2/3 p-8">
+                <Formik
+                  initialValues={initialvalues}
+                  validationSchema={
+                    currentStep === 1
+                      ? validationSchemaStep1
+                      : currentStep === 2
+                      ? validationSchemaStep2
+                      : currentStep === 3
+                      ? validationSchemaStep3
+                      : null
+                  }
+                  onSubmit={(values) => {
+                    setFullName(values.name);
+                    setEmail(values.email);
+                    setClientPhone(values.phone);
+                    // setAddress(values.address);
+                    setCity(values.city);
+                    setHomeMaidId(filteredSuggestions.id);
+
+                    setHomeMaidName(filteredSuggestions.Name);
+                    console.log(filteredSuggestions);
+                    if (currentStep === 4) {
+                      const submit = async () => {
+                        const fetchData = await fetch(
+                          "/api/submitneworderprisma/",
+                          {
+                            body: JSON.stringify({
+                              ...values,
+                              ClientName: values.name,
+                              NationalityCopy:
+                                filteredSuggestions.Nationalitycopy,
+
+                              HomemaidId: filteredSuggestions.id,
+                              Name: filteredSuggestions.Name,
+                              age: filteredSuggestions.age,
+                              clientphonenumber: values.phone,
+                              PhoneNumber: filteredSuggestions.phone,
+                              Passportnumber:
+                                filteredSuggestions.Passportnumber,
+                              maritalstatus: filteredSuggestions.maritalstatus,
+                              Nationality: filteredSuggestions.Nationalitycopy,
+                              Religion: filteredSuggestions.Religion,
+                              ExperienceYears:
+                                filteredSuggestions.ExperienceYears,
+                            }),
+                            method: "post",
+                            headers: {
+                              Accept: "application/json",
+                              "Content-Type": "application/json",
+                            },
+                          }
+                        );
+                        // alert(fetchData.status)
+                        if (fetchData.status == 200) {
+                          showSuccessModal();
+                          setModalOpen(false);
+                          // setIsModalOpen(false);
+                          reset();
+                        } else {
+                          showErrorModal();
+                        }
+                      };
+                      // Modal
+                      submit();
+                      // Handle form submission
+                      console.log(values);
+                      console.log("Form submitted with values: ", values);
+                    } else {
+                      handleNextStep();
+                    }
+                  }}
+                >
+                  {({ setFieldValue }) => (
+                    <Form>
+                      {/* Step 1: Personal Information */}
+                      {currentStep === 1 && (
+                        <div>
+                          <h2 className="text-2xl font-semibold mb-4">
+                            Personal Information
+                          </h2>
+                          <div className="mb-4">
+                            <label
+                              htmlFor="name"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Client Name
+                            </label>
+                            <Field
+                              id="name"
+                              name="name"
+                              type="text"
+                              // onChange={(e) => setName(e.target.value)}
+                              className="mt-1 p-2 w-full border border-gray-300 rounded-md"
+                              placeholder="Enter your name"
+                            />
+                            <ErrorMessage
+                              name="name"
+                              component="div"
+                              className="text-red-500 text-sm"
+                            />
+                          </div>
+                          <div className="mb-4">
+                            <label
+                              htmlFor="email"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Email
+                            </label>
+                            <Field
+                              id="email"
+                              name="email"
+                              type="email"
+                              className="mt-1 p-2 w-full border border-gray-300 rounded-md"
+                              placeholder="Enter your email"
+                            />
+                            <ErrorMessage
+                              name="email"
+                              component="div"
+                              className="text-red-500 text-sm"
+                            />
+                          </div>
+                          <div className="mb-4">
+                            <label
+                              htmlFor="phone"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Phone Number
+                            </label>
+                            <Field
+                              id="phone"
+                              name="phone"
+                              type="tel"
+                              className="mt-1 p-2 w-full border border-gray-300 rounded-md"
+                              placeholder="Client Phone Number"
+                            />
+                            <ErrorMessage
+                              name="phone"
+                              component="div"
+                              className="text-red-500 text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Step 2: Address Information */}
+                      {currentStep === 2 && (
+                        <div>
+                          <h2 className="text-2xl font-semibold mb-4">
+                            Address Information
+                          </h2>
+
+                          <div className="mb-4">
+                            <label
+                              htmlFor="city"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              City
+                            </label>
+                            <Field
+                              id="city"
+                              name="city"
+                              type="text"
+                              className="mt-1 p-2 w-full border border-gray-300 rounded-md"
+                              placeholder="Enter your city"
+                            />
+                            <ErrorMessage
+                              name="city"
+                              component="div"
+                              className="text-red-500 text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Step 3: Query Search */}
+                      {currentStep === 3 && (
+                        <div className="relative w-72 mx-auto">
+                          <Field
+                            id="query"
+                            name="query"
+                            type="text"
+                            value={query}
+                            onChange={(e) => {
+                              setFieldValue("query", e.target.value);
+                              handleChange(e);
+                            }}
+                            placeholder="Search "
+                            className="px-4 py-2 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          />
+                          <ErrorMessage
+                            name="query"
+                            component="div"
+                            className="text-red-500 text-sm"
+                          />
+                          <div>
+                            <div className="max-w-sm w-full bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 hover:shadow-xl transform transition-all duration-300 ease-in-out hover:scale-105">
+                              {/* Image Section */}
+                              {/* <img
+                                   src="https://via.placeholder.com/400x250"
+                                   alt="Info Card"
+                                   className="w-full h-48 object-cover"
+                                 /> */}
+
+                              {/* Card Content */}
+                              <div className="p-6">
+                                {/* Title */}
+                                <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+                                  {filteredSuggestions.Name}
+                                </h2>
+
+                                {/* Description */}
+                                <h2 className="text-gray-600 text-sm mb-6">
+                                  Passport Number :
+                                  {filteredSuggestions.Passportnumber}
+                                </h2>
+
+                                {/* Action Button */}
+                                <button
+                                  onClick={() => {
+                                    setFieldValue(
+                                      "query",
+                                      filteredSuggestions.Name
+                                    );
+                                    setQuery(filteredSuggestions.Name);
+                                  }}
+                                  className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
+                                >
+                                  Confirm
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Step 4: Review & Submit */}
+                      {currentStep === 4 && (
+                        <div>
+                          <h2 className="text-2xl font-semibold mb-4">
+                            مراجعة الطلب
+                          </h2>
+                          {/* Client Name : {validationSchemaStep1.json().fields.name.}
+                             Client Phone : {validationSchemaStep1.json().fields.phone}
+                            
+                            اسم العميل
+                            Email : {validationSchemaStep1.json().fields.email} */}
+                          {/* {fullName}{" "} */}
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold ">
+                              Full Name &nbsp; &nbsp; :
+                            </p>
+                            <span>&nbsp;{fullName}</span>
+                          </div>
+
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold">Client Phone :</p>
+                            <span>&nbsp;{ClientPhone}</span>
+                          </div>
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold"> Email Adress :</p>
+                            <span>&nbsp; {email}</span>
+                          </div>
+
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold">
+                              Address &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;:
+                            </p>
+                            <span>&nbsp; {address}</span>
+                          </div>
+
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold">
+                              City &nbsp; &nbsp; &nbsp;
+                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
+                            </p>
+                            <span>&nbsp; {city}</span>
+                          </div>
+
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold">
+                              Name &nbsp; &nbsp; &nbsp;
+                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
+                            </p>
+                            <span>&nbsp; {filteredSuggestions.Name}</span>
+                          </div>
+
+                          <div className="flex flex-nowrap text-nowrap">
+                            <p className="font-bold">
+                              Passport Number &nbsp; &nbsp; &nbsp;
+                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
+                            </p>
+                            <span>
+                              &nbsp; {filteredSuggestions.Passportnumber}
+                            </span>
+                          </div>
+
+                          {/* {ClientPhone} : جوال العميل */}
+                        </div>
+                      )}
+
+                      <div className="flex justify-between mt-8">
+                        <button
+                          type="button"
+                          onClick={handlePrevStep}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-md"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-orange-500  text-white rounded-md"
+                        >
+                          {currentStep === 4 ? "Submit" : "Next"}
+                        </button>
+                      </div>
+                    </Form>
+                  )}
+                </Formik>
+              </div>
+              <Modal
+                isOpen={isModalOpen}
+                message={modalMessage}
+                type={modalType}
+                onClose={closeSuccessfulModal}
+              />
+            </div>
           </div>
         )}
       </div>
