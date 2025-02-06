@@ -651,10 +651,9 @@ const SlugPage = () => {
 
     const res = await submitter.json();
     if (submitter.status == 200) {
-      setModalSpinnerOpen(false);
+      setDate(Date.now());
       showSuccessModal();
       setIsEditing("");
-      setDate(Date.now());
     } else {
       setModalSpinnerOpen(false);
 
