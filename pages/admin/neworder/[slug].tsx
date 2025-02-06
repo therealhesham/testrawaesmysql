@@ -651,9 +651,9 @@ const SlugPage = () => {
 
     const res = await submitter.json();
     if (submitter.status == 200) {
+      setIsEditing("");
       setDate(Date.now());
       showSuccessModal();
-      setIsEditing("");
     } else {
       setModalSpinnerOpen(false);
 
@@ -2379,6 +2379,26 @@ const SlugPage = () => {
                     >
                       {guaranteearrivaldaysRemaining}
                     </h2>
+
+                    {formData.arrivals[0]?.ticketFile ? (
+                      <div className="mt-2 text-gray-600">
+                        <span
+                          className={Style["almarai-bold"]}
+                          style={{ justifyContent: "center", display: "flex" }}
+                        >
+                          التذكرة
+                        </span>
+                        <a
+                          style={{ justifyContent: "center", display: "flex" }}
+                          href={formData.arrivals[0].ticketFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    ) : null}
 
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button

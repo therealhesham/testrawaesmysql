@@ -24,8 +24,8 @@ export default function Table() {
     setIsModalOpen(true);
   };
   // console.log(Yup.reach("name"));
-  const showErrorModal = () => {
-    setModalMessage("خطا في تسجيل البيانات.");
+  const showErrorModal = (res) => {
+    setModalMessage(res);
     setModalType("error");
     setIsModalOpen(true);
   };
@@ -507,45 +507,54 @@ export default function Table() {
                     console.log(filteredSuggestions);
                     if (currentStep === 4) {
                       const submit = async () => {
-                        const fetchData = await fetch(
-                          "/api/submitneworderprisma/",
-                          {
-                            body: JSON.stringify({
-                              ...values,
-                              ClientName: values.name,
-                              NationalityCopy:
-                                filteredSuggestions.Nationalitycopy,
+                        try {
+                          const fetchData = await fetch(
+                            "/api/submitneworderprisma/",
+                            {
+                              body: JSON.stringify({
+                                ...values,
+                                ClientName: values.name,
+                                NationalityCopy:
+                                  filteredSuggestions.Nationalitycopy,
 
-                              HomemaidId: filteredSuggestions.id,
-                              Name: filteredSuggestions.Name,
-                              age: filteredSuggestions.age,
-                              clientphonenumber: values.phone,
-                              PhoneNumber: filteredSuggestions.phone,
-                              Passportnumber:
-                                filteredSuggestions.Passportnumber,
-                              maritalstatus: filteredSuggestions.maritalstatus,
-                              Nationality: filteredSuggestions.Nationalitycopy,
-                              Religion: filteredSuggestions.Religion,
-                              ExperienceYears:
-                                filteredSuggestions.ExperienceYears,
-                            }),
-                            method: "post",
-                            headers: {
-                              Accept: "application/json",
-                              "Content-Type": "application/json",
-                            },
+                                HomemaidId: filteredSuggestions.id,
+                                Name: filteredSuggestions.Name,
+                                age: filteredSuggestions.age,
+                                clientphonenumber: values.phone,
+                                PhoneNumber: filteredSuggestions.phone,
+                                Passportnumber:
+                                  filteredSuggestions.Passportnumber,
+                                maritalstatus:
+                                  filteredSuggestions.maritalstatus,
+                                Nationality:
+                                  filteredSuggestions.Nationalitycopy,
+                                Religion: filteredSuggestions.Religion,
+                                ExperienceYears:
+                                  filteredSuggestions.ExperienceYears,
+                              }),
+                              method: "post",
+                              headers: {
+                                Accept: "application/json",
+                                "Content-Type": "application/json",
+                              },
+                            }
+                          );
+
+                          const data = await fetchData.json();
+                          // alert(fetchData.status)
+                          if (fetchData.status == 200) {
+                            showSuccessModal();
+                            setModalOpen(false);
+                            // setIsModalOpen(false);
+                            reset();
+                          } else {
+                            showErrorModal(data.message);
                           }
-                        );
-                        // alert(fetchData.status)
-                        if (fetchData.status == 200) {
-                          showSuccessModal();
-                          setModalOpen(false);
-                          // setIsModalOpen(false);
-                          reset();
-                        } else {
-                          showErrorModal();
+                        } catch (error) {
+                          showErrorModal(error.message);
                         }
                       };
+
                       // Modal
                       submit();
                       // Handle form submission
