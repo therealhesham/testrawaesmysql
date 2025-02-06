@@ -233,7 +233,7 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">سبب الرفض</th>
 
               <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">استعادة</th>
+              <th className="p-3 text-left text-sm font-medium">استعراض</th>
             </tr>
           </thead>
           <tbody>
@@ -271,13 +271,13 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-700">
                     <Button
                       variant="contained"
                       color="warning"
-                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
+                      onClick={() => handleUpdate(item.id)}
                     >
-                      استعادة
+                      تحديث
                     </Button>
                   </td>
                 </tr>
