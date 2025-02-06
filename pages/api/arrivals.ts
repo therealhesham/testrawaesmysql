@@ -19,7 +19,7 @@ export default async function handler(
     filters.SponsorName = { contains: (SponsorName as string).toLowerCase() };
   // if (age) filters.age = { equals: parseInt(age as string, 10) };
   if (PassportNumber)
-    filters.Passportnumber = {
+    filters.PassportNumber = {
       contains: (PassportNumber as string).toLowerCase(),
     };
   try {

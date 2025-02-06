@@ -721,8 +721,14 @@ export default function Table() {
 
                       {/* Step 4: Review & Submit */}
                       {currentStep === 4 && (
-                        <div>
-                          <h2 className="text-2xl font-semibold mb-4">
+                        <div dir="rtl">
+                          <h2
+                            className="text-2xl font-semibold mb-4"
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                            }}
+                          >
                             مراجعة الطلب
                           </h2>
                           {/* Client Name : {validationSchemaStep1.json().fields.name.}
@@ -731,56 +737,41 @@ export default function Table() {
                             اسم العميل
                             Email : {validationSchemaStep1.json().fields.email} */}
                           {/* {fullName}{" "} */}
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold ">
-                              Full Name &nbsp; &nbsp; :
+                          <div className="grid grid-cols-2 gap-4 justify-center">
+                            <p className="font-bold col-span-1">اسم العميل</p>
+                            <span>{fullName}</span>
+                            {/* </div> */}
+
+                            {/* <div className="flex flex-nowrap text-nowrap col-span-1"> */}
+                            <p className="font-bold col-span-1">جوال العميل </p>
+                            <span>{ClientPhone}</span>
+                            {/* </div> */}
+                            {/* <div className="flex flex-nowrap text-nowrap "> */}
+                            <p className="font-bold col-span-1">
+                              البريد الالكتروني للعميل
                             </p>
-                            <span>&nbsp;{fullName}</span>
-                          </div>
+                            <span> {email}</span>
+                            {/* </div> */}
 
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold">Client Phone :</p>
-                            <span>&nbsp;{ClientPhone}</span>
-                          </div>
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold"> Email Adress :</p>
-                            <span>&nbsp; {email}</span>
-                          </div>
+                            {/* <div className="flex flex-nowrap text-nowrap"> */}
+                            <p className="font-bold col-span-1">مدينة العميل</p>
+                            <span> {city}</span>
+                            {/* </div> */}
 
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold">
-                              Address &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;:
+                            {/* <div className="flex flex-nowrap text-nowrap"> */}
+                            <p className="font-bold col-span-1">اسم العاملة</p>
+                            <span> {filteredSuggestions.Name}</span>
+                            {/* </div> */}
+
+                            {/* <div className="flex flex-nowrap text-nowrap"> */}
+                            <p className="font-bold col-span-1">
+                              جواز سفر العاملة
                             </p>
-                            <span>&nbsp; {address}</span>
-                          </div>
+                            <span>{filteredSuggestions.Passportnumber}</span>
+                            {/* </div> */}
 
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold">
-                              City &nbsp; &nbsp; &nbsp;
-                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
-                            </p>
-                            <span>&nbsp; {city}</span>
+                            {/* {ClientPhone} : جوال العميل */}
                           </div>
-
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold">
-                              Name &nbsp; &nbsp; &nbsp;
-                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
-                            </p>
-                            <span>&nbsp; {filteredSuggestions.Name}</span>
-                          </div>
-
-                          <div className="flex flex-nowrap text-nowrap">
-                            <p className="font-bold">
-                              Passport Number &nbsp; &nbsp; &nbsp;
-                              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
-                            </p>
-                            <span>
-                              &nbsp; {filteredSuggestions.Passportnumber}
-                            </span>
-                          </div>
-
-                          {/* {ClientPhone} : جوال العميل */}
                         </div>
                       )}
 
