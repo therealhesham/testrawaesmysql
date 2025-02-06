@@ -635,7 +635,7 @@ const SlugPage = () => {
         additionalfiles: additionalfiles,
         externalmusanedContract,
         ArrivalCity,
-        DeliveryFile,
+        DeliveryFile: signatureFile,
         DateOfApplication,
         MusanadDuration,
         ExternalDateLinking,
@@ -2589,9 +2589,17 @@ const SlugPage = () => {
                     </h2>
 
                     {formData.arrivals[0]?.DeliveryFile ? (
-                      <div className="mt-2 mb text-gray-600">
-                        <h3>ملف توقيع الاستلام </h3>
+                      <div
+                        className="mt-2 mb text-gray-600"
+                        style={{ justifyContent: "center", display: "flex" }}
+                      >
+                        <h3
+                          style={{ justifyContent: "center", display: "flex" }}
+                        >
+                          ملف توقيع الاستلام{" "}
+                        </h3>
                         <a
+                          style={{ justifyContent: "center", display: "flex" }}
                           href={formData.arrivals[0].DeliveryFile}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2638,6 +2646,14 @@ const SlugPage = () => {
                         id="deliveryinput"
                         name="deliveryinput"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+
+                      <input
+                        id="deliveryfile"
+                        name="deliveryfile"
+                        type="file"
+                        className="hidden"
+                        onChange={handleUploadSignatureFile}
                       />
 
                       {/* Custom file upload button */}
