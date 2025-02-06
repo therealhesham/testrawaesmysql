@@ -57,7 +57,7 @@ export default async function handler(
 
     await prisma.arrivallist.create({
       data: {
-        OrderId: result.id,
+        // OrderId: result.id,
         SponsorName: ClientName,
         // HomemaidName:result.ho,
         PassportNumber: Passportnumber,
