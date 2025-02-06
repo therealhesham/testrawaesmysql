@@ -571,7 +571,6 @@ const SlugPage = () => {
       approvalPayment,
       additionalfiles,
       externalOfficeStatus,
-
       InternalmusanedContract,
       SponsorIdnumber,
       ExternalStatusByoffice,
@@ -621,12 +620,13 @@ const SlugPage = () => {
         Orderid: formData.id,
         WorkDuration,
         Cost,
+        externalOfficeFile: externalOfficeFile,
         finaldestination,
         externalOfficeStatus,
         HomemaIdnumber: formData.HomeMaid.id,
         HomemaidName: formData.HomeMaid.Name,
         Notes,
-        externalmusanadcontractfile,
+        externalmusanadcontractfile: externalFileCloudinaryImage,
         bookingstatus,
         medicalCheckFile: medicalCheckFileCloudinaryImage,
         ticketFile: ticketFileFileCloudinaryImage,
@@ -1385,11 +1385,7 @@ const SlugPage = () => {
                   </strong>
 
                   <strong style={{ justifyContent: "center", display: "flex" }}>
-                    {convertUTCtoSaudiTime(formData.createdAt).getHours() +
-                      ":" +
-                      convertUTCtoSaudiTime(
-                        formData.createdAt
-                      ).getMinutes()}{" "}
+                    {new Date(formData.createdAt).toLocaleTimeString()}
                   </strong>
                 </div>
               </VerticalTimelineElement>
@@ -1561,7 +1557,7 @@ const SlugPage = () => {
                           null}
                     </strong>
 
-                    {formData.arrivals[0]?.externalmusanadcontractfile ? (
+                    {formData.arrivals[0]?.externalmusanadcontractfile && (
                       <div className="mt-2 text-gray-600">
                         <span
                           className={Style["almarai-bold"]}
@@ -1581,7 +1577,7 @@ const SlugPage = () => {
                           عرض الملف
                         </a>
                       </div>
-                    ) : null}
+                    )}
 
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1759,6 +1755,26 @@ const SlugPage = () => {
                     )}
                     {/* <p>{getDate("موافقة")}</p> */}
 
+                    {formData.arrivals[0]?.externalOfficeFile && (
+                      <div className="mt-2 text-gray-600">
+                        <span
+                          className={Style["almarai-bold"]}
+                          style={{ justifyContent: "center", display: "flex" }}
+                        >
+                          ملف مساند الخارجي
+                        </span>
+                        <a
+                          style={{ justifyContent: "center", display: "flex" }}
+                          href={formData.arrivals[0]?.externalOfficeFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-300 hover:underline"
+                        >
+                          عرض الملف
+                        </a>
+                      </div>
+                    )}
+
                     <button
                       className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الربط مع المكتب الخارجي")}
@@ -1886,7 +1902,6 @@ const SlugPage = () => {
                             ExternalOFficeApproval:
                               externalOfficeAprrovalRef.current.value,
                             bookingstatus: "الربط مع المكتب الخارجي",
-                            medicalCheckFile: medicalCheckFileCloudinaryImage,
                             ExternalStatusByoffice:
                               ExternalStatusByofficeRef.current.value,
                             externalOfficeFile: externalOfficeFile,
