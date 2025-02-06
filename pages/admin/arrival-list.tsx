@@ -59,6 +59,14 @@ export default function Table() {
     }
   };
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
+
   const makeRequest = async (url: string, body: object) => {
     const response = await fetch(url, {
       method: "POST",
@@ -229,7 +237,7 @@ export default function Table() {
                 تاريخ دخول المملكة
               </th>
 
-              <th className="p-3 text-left text-sm font-medium">تحديث</th>
+              {/* <th className="p-3 text-left text-sm font-medium">تحديث</th> */}
               {/*<th className="p-3 text-left text-sm font-medium">استعادة</th> */}
             </tr>
           </thead>
@@ -260,9 +268,9 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
 
                   <td className="p-3 text-md text-gray-700">
-                    {item.KingdomentryDate}
+                    {getDate(item.KingdomentryDate)}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  {/* <td className="p-3 text-md text-gray-700">
                     <Button
                       variant="contained"
                       color="warning"
@@ -270,7 +278,7 @@ export default function Table() {
                     >
                       تحديث
                     </Button>
-                  </td>
+                  </td> */}
 
                   {/* <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}

@@ -49,6 +49,7 @@ const SlugPage = () => {
     OrderStatus: [],
     arrivals: [
       {
+        MusanadDuration: "",
         KingdomentryDate: "",
         ExternalOFficeApproval: "",
         EmbassySealing: "",
@@ -1422,7 +1423,7 @@ const SlugPage = () => {
                       style={{ display: "flex", justifyContent: "center" }}
                     >
                       عقد مساند : &nbsp; &nbsp;
-                      {formData.arrivals[0].InternalmusanedContract}
+                      {formData.arrivals[0]?.InternalmusanedContract}
                     </strong>
 
                     <div className="grid grid-cols-3 gap-4 justify-center">

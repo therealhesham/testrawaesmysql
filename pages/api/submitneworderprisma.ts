@@ -54,6 +54,17 @@ export default async function handler(
         HomeMaid: { connect: { id: HomemaidId } },
       },
     });
+
+    await prisma.arrivallist.create({
+      data: {
+        OrderId: result.id,
+        SponsorName: ClientName,
+        // HomemaidName:result.ho,
+        PassportNumber: Passportnumber,
+        Order: { connect: { id: result?.id } },
+      },
+    });
+
     // console.log(result);
     // Send response after the transaction is successful
     res.status(200).json(result);
