@@ -229,8 +229,14 @@ export default function Table() {
 
   const reset = () => {
     setData([]);
-    setLoading(true);
-    setPage(1);
+    setModalOpen(false);
+    // setLoading(true);
+    // setPage(1);
+
+    pageRef.current = 1;
+    setHasMore(true);
+    isFetchingRef.current = false;
+    fetchData();
   };
 
   const initialvalues = {
@@ -434,31 +440,32 @@ export default function Table() {
         )}
         {modalOpen && (
           <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
-            <div className="absolute top-4 right-10">
-              <button
-                onClick={handleExitClick}
-                className="text-gray-500 hover:text-black"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  className="h-8 w-8"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
             <div className="flex w-full max-w-4xl bg-white shadow-lg rounded-lg">
               {/* Left side: Timeline */}
+
               <div className="w-1/3 border-r border-gray-200">
+                <div className=" top-4 right-10">
+                  <button
+                    onClick={handleExitClick}
+                    className="text-gray-500 hover:text-black"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      className="h-8 w-8"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
                 <div className="flex flex-col items-center py-8">
                   <div className={`step ${currentStep >= 1 ? "active" : ""}`}>
                     <div className="step-number">1</div>
