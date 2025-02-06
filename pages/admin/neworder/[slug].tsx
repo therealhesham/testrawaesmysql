@@ -2708,7 +2708,7 @@ const SlugPage = () => {
               onClick={toggleFormVisibility}
               className="mb-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700"
             >
-              {isFormVisible ? "الغاء عملية التحديث" : "تحديث بيانات الوصول "}
+              {isFormVisible ? "الغاء الاضافة" : "اضافة ملاحظات"}
             </button>
             {isFormVisible && (
               <form onSubmit={formik.handleSubmit} className="space-y-4">
