@@ -19,14 +19,14 @@ export default async function handler(
     filters.SponsorName = { contains: (SponsorName as string).toLowerCase() };
   // if (age) filters.age = { equals: parseInt(age as string, 10) };
   if (PassportNumber)
-    filters.Passportnumber = {
+    filters.PassportNumber = {
       contains: (PassportNumber as string).toLowerCase(),
     };
   try {
     // Fetch data with the filters and pagination
     const homemaids = await prisma.arrivallist.findMany({
       where: {
-        //   ...filters,
+        ...filters,
         deparatureDate: { not: null },
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
