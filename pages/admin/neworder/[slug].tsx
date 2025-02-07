@@ -770,10 +770,10 @@ const SlugPage = () => {
           break;
 
         case "الاستلام":
-          // setIsEditing("وصول العاملة");
-          // kingdomEntryRef.current.focus();
+          setIsEditing("الاستلام");
+          deliveryDateRef.current.focus();
 
-          handleChangeReservationtoend("طلب منتهي");
+          // handleChangeReservationtoend("طلب منتهي");
           setIsEditing(null);
 
           break;
