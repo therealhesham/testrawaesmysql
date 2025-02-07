@@ -1,7 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "./globalprisma";
 
 export default async function handler(
   req: NextApiRequest,
@@ -22,8 +20,8 @@ export default async function handler(
       newclientmobilenumber,
       newclientnationalidnumber,
       newclientcity,
-      experimentstart,
-      experimentend,
+      experimentstartDate,
+      experimentendDate,
       dealcost,
       paid,
       restofpaid,
@@ -49,8 +47,8 @@ export default async function handler(
       !newclientmobilenumber ||
       !newclientnationalidnumber ||
       !newclientcity ||
-      !experimentstart ||
-      !experimentend ||
+      !experimentstartDate ||
+      !experimentendDate ||
       !dealcost ||
       !paid ||
       !restofpaid ||
@@ -79,8 +77,8 @@ export default async function handler(
           newclientmobilenumber,
           newclientnationalidnumber,
           newclientcity,
-          experimentstart,
-          experimentend,
+          experimentstartDate,
+          experimentendDate,
           dealcost,
           paid,
           restofpaid,

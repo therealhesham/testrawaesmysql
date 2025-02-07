@@ -2,14 +2,16 @@ import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Button } from "react-bootstrap";
-
+import jwt from "jsonwebtoken";
+import { Button } from "@mui/material";
 export default function Table() {
   const [filters, setFilters] = useState({
-    Clientname: "",
+    ClientName: "",
     age: "",
-    search: "",
+    clientphonenumber: "",
+    Passportnumber: "",
     Nationality: "",
+    HomemaidId: "",
   });
 
   const [data, setData] = useState([]);
@@ -26,12 +28,13 @@ export default function Table() {
     setLoading(true);
 
     try {
-      // Build the query string for filters
       const queryParams = new URLSearchParams({
-        Clientname: filters.Clientname,
+        searchTerm: filters.ClientName,
         age: filters.age,
-        search: filters.search,
-        Nationality: filters.Nationality,
+        clientphonenumber: filters.clientphonenumber,
+        HomemaidId: filters.HomemaidId,
+        Passportnumber: filters.Passportnumber,
+        Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
       });
 
@@ -58,6 +61,27 @@ export default function Table() {
     }
   };
 
+  const makeRequest = async (url: string, body: object) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    return response.status === 200;
+  };
+
+  const restore = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/restoreorders", {
+      id,
+      homeMaidId,
+    });
+    if (success) router.push("/admin/neworders");
+  };
+
   // Use a callback to call fetchData when the user reaches the bottom
   const loadMoreRef = useCallback(
     (node: HTMLDivElement) => {
@@ -79,9 +103,19 @@ export default function Table() {
     [loading, hasMore]
   );
 
+  // useEffect to fetch the first page of data on mount
   useEffect(() => {
     fetchData(); // Fetch the first page of data
   }, []); // Only run once on mount
+
+  // useEffect to fetch data when filters change
+  // useEffect(() => {
+  //   // Reset page and data on filter change
+  //   pageRef.current = 1;
+  //   setData([]);
+  //   setHasMore(true);
+  //   fetchData();
+  // }, [filters]); // Only re-run when filters change
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -92,13 +126,8 @@ export default function Table() {
       ...prev,
       [column]: value,
     }));
-    isFetchingRef.current = false;
-    setHasMore(true);
-    // alert(filters.Name);
-    setData([]);
-    pageRef.current = 1;
-    fetchData();
   };
+
   const router = useRouter();
   const handleUpdate = (id) => {
     router.push("./neworder/" + id);
@@ -107,20 +136,84 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
-          العقود الملغاة
-        </h1>
+        <h1 className="text-2xl font-semibold text-center mb-4">طلبات ملغية</h1>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.Clientname}
-              onChange={(e) => handleFilterChange(e, "Name")}
-              placeholder="Filter by Name"
+              value={filters.ClientName}
+              onChange={(e) => handleFilterChange(e, "ClientName")}
+              placeholder="بحث باسم العميل / العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
+          </div>
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Passportnumber}
+              onChange={(e) => handleFilterChange(e, "Passportnumber")}
+              placeholder="بحث برقم جواز السفر"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div>
+            <input
+              type="text"
+              value={filters.clientphonenumber}
+              onChange={(e) => handleFilterChange(e, "clientphonenumber")}
+              placeholder="بحث برقم الجوال"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.HomemaidId}
+              onChange={(e) => handleFilterChange(e, "HomemaidId")}
+              placeholder="بحث برقم العاملة"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setFilters({
+                  clientphonenumber: "",
+                  age: "",
+                  ClientName: "",
+                  HomemaidId: "",
+                  Nationality: "",
+                  Passportnumber: "",
+                });
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              اعادة ضبط
+            </Button>
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              بحث
+            </Button>
           </div>
         </div>
 
@@ -130,14 +223,15 @@ export default function Table() {
             <tr className="bg-purple-600 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
-              <th className="p-3 text-left text-sm font-medium">العمر</th>
+              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">تحديث</th>
+              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">سبب الرفض</th>
 
-              {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-left text-sm font-medium">استعادة</th>
             </tr>
           </thead>
           <tbody>
@@ -153,24 +247,37 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-600">{item.id}</td>
+                  <td className="p-3 text-md text-gray-600">
                     {item.ClientName}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-700">
                     {item.clientphonenumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-md text-gray-700">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
-                    {item.Nationality}
-                  </td>
-                  <td className="p-3 text-sm text-gray-600">
-                    <Button onClick={() => handleUpdate(item.id)}>تحديث</Button>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.HomemaidId}
                   </td>
 
-                  {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}
+                  <td className="p-3 text-md text-gray-700">
+                    {item.ReasonOfRejection}
+                  </td>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Nationalitycopy}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
+                    >
+                      استعادة
+                    </Button>
+                  </td>
                 </tr>
               ))
             )}

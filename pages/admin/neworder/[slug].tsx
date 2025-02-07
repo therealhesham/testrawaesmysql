@@ -652,8 +652,8 @@ const SlugPage = () => {
     const res = await submitter.json();
     if (submitter.status == 200) {
       setIsEditing("");
-      setDate(Date.now());
       showSuccessModal();
+      setDate(Date.now());
     } else {
       setModalSpinnerOpen(false);
 
@@ -710,20 +710,20 @@ const SlugPage = () => {
     // alert(state);
 
     // setModalSpinnerOpen(true);
-
+try {
     switch (state) {
       case "الربط مع مساند":
         setIsEditing("الربط مع مساند");
         musanadRef.current.focus();
-
+        setIsEditing(null);
         break;
 
       case "الفحص الطبي":
         setIsEditing("الفحص الطبي");
-        setInputclass("");
         checkRef.current.focus();
         // router.locale("")
         // setInputclass("hidden");
+        setIsEditing(null);
 
         // handleScroll();
         break;
@@ -731,33 +731,42 @@ const SlugPage = () => {
       case "الربط مع الوكالة":
         setIsEditing("الربط مع الوكالة");
         agencyDateRef.current.focus();
+        setIsEditing(null);
+
         break;
 
       case "الربط مع مساند الخارجي":
         setIsEditing("الربط مع مساند الخارجي");
         externalMusanadDateRef.current.focus();
+        setIsEditing(null);
 
         break;
 
       case "الربط مع المكتب الخارجي":
         setIsEditing("الربط المكتب الخارجي");
         externalOfficeAprrovalRef.current.focus();
+        setIsEditing(null);
 
         break;
 
       case "وصول العاملة":
         setIsEditing("وصول العاملة");
         kingdomEntryRef.current.focus();
+        setIsEditing(null);
 
         break;
       case "التختيم في السفارة":
         setIsEditing("التختيم في السفارة");
         embassySealingRef.current.focus();
+        setIsEditing(null);
+
         break;
 
       case "حجز التذكرة":
         setIsEditing("حجز التذكرة");
         arrivalDateRef.current.focus();
+        setIsEditing(null);
+
         break;
 
       case "الاستلام":
@@ -765,6 +774,7 @@ const SlugPage = () => {
         // kingdomEntryRef.current.focus();
 
         handleChangeReservationtoend("طلب منتهي");
+        setIsEditing(null);
 
         break;
 
@@ -772,6 +782,12 @@ const SlugPage = () => {
         break;
     }
 
+}
+catch(e){
+
+
+  console.log(e)
+}
     // alert(fetcher.status);
     // console.log(updatekingdomentry.current);
   };
@@ -1295,52 +1311,61 @@ const SlugPage = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-            <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
-              <h2 className="text-2xl font-semibold mb-4">معلومات الطلب</h2>
-              <div className="space-y-4">
-                <p>
-                  <strong>Name:</strong> {formData.ClientName}
-                </p>
-                <div className="flex items-center space-x-2">
-                  <p className="flex-1">
-                    <strong>Email:</strong> {formData.client.email}
-                  </p>
-                  <a
-                    href={`mailto:${formData.client.email}`}
-                    className="text-white bg-blue-500 px-4 py-2 rounded-lg"
-                  >
-                    Message
-                  </a>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <p className="flex-1">
-                    <strong>Phone:</strong> {formData.client.phonenumber}
-                  </p>
-                  <a
-                    href={`https://wa.me/${formData.client.phonenumber}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-white bg-green-500 px-4 py-2 rounded-lg"
-                  >
-                    WhatsApp
-                  </a>
-                </div>
+          <div
+            className="grid grid-cols-1 lg:grid-cols-1 gap-6 bg-white p-6 rounded-lg shadow-lg mt-6"
+            dir="rtl"
+          >
+            <h2
+              className="text-2xl font-semibold mb-4 "
+              style={{ display: "flex", justifyContent: "center" }}
+            >
+              معلومات الطلب
+            </h2>
+            <div className="  grid grid-cols-2 gap-0 justify-center">
+              <strong className="grid-cols-1">الاسم</strong>
+              <p className="grid-cols-2">{formData.ClientName}</p>
+              {/* <div className="flex items-center space-x-2"> */}
+              <strong className="grid-cols-1">البريد الالكتروني</strong>
+              <p className="grid-cols-2">{formData.client.email}</p>
+              {/* <a
+                href={`mailto:${formData.client.email}`}
+                className="text-white bg-blue-500 px-4 py-2 rounded-lg"
+              >
+                Message
+              </a> */}
+              {/* </div> */}
+              {/* <div className="flex items-center space-x-2"> */}
+              <strong className="grid-cols-1">جوال العميل</strong>
+              <p className="flex-1 grid-cols-2">
+                {formData.client.phonenumber}
+              </p>
+              {/* <a
+                  href={`https://wa.me/${formData.client.phonenumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white bg-green-500 px-4 py-2 rounded-lg"
+                >
+                  WhatsApp
+                </a> */}
+              {/* </div> */}
+              {/* <div className="space-y-2"> */}
+              {/* <div className="flex justify-between items-center"> */}
+              <strong className="w-32 grid-cols-1">رقم الطلب</strong>
+              <p className="flex-1 grid-cols-2">{formData.id}</p>
 
-                <div className="space-y-2">
-                  {/* <div className="flex justify-between items-center"> */}
-                  <strong className="w-32">Order ID:&nbsp;</strong>
-                  {formData.id}
-                  {/* </div> */}
-                </div>
+              {/* </div> */}
+              {/* </div> */}
+              {/* <div className="flex justify-between items-center"> */}
+              <strong className="w-32 grid-cols-1">اسم العاملة</strong>
+              <span className="w-32 grid-cols-1">{formData.HomeMaid.Name}</span>
 
-                {/* <div className="flex justify-between items-center"> */}
-
-                <div className="space-y-2">
-                  <strong className="w-32">HomeMaid:&nbsp;</strong>
-                  <span>{formData.HomeMaid.Name}</span>
-                </div>
-              </div>
+              {/* </div> */}
+              {/* </div> */}
+              {/* <div className="flex justify-between items-center"> */}
+              <strong className="w-32 grid-cols-1">جواز السفر</strong>
+              <span className="w-32 grid-cols-1">
+                {formData.HomeMaid.Passportnumber}
+              </span>
             </div>
           </div>
 
@@ -1742,7 +1767,7 @@ const SlugPage = () => {
                       ""
                     )}
 
-                    {formData.arrivals[0].ExternalStatusByoffice ? (
+                    {formData.arrivals[0].ExternalStatusByoffice !== "..." ? (
                       <h1
                         style={{ justifyContent: "center", display: "flex" }}
                         className={Style["almarai-bold"]}
@@ -1791,7 +1816,7 @@ const SlugPage = () => {
                     </h1>
                     <div className="mb-4">
                       <label
-                        for="input"
+                        htmlFor="input"
                         className="block text-sm font-medium text-gray-700"
                       >
                         تاريخ موافقة المكتب الخارجي
@@ -1819,6 +1844,7 @@ const SlugPage = () => {
                       id="externalOfficeStatus"
                       // value={newAdmin.role}
                     >
+                      <option value="...">...</option>
                       <option value="فحص طبي">فحص طبي</option>
                       <option value="خلو سوابق">خلو سوابق</option>
                       <option value="ارفاق للسفارة">ارفاق للسفارة</option>
@@ -1837,6 +1863,8 @@ const SlugPage = () => {
                       id="externalOfficeStatus"
                       // value={newAdmin.role}
                     >
+                      <option value="...">...</option>
+
                       <option value="فحص طبي">فحص طبي</option>
                       <option value="خلو سوابق">خلو سوابق</option>
                       <option value="ارفاق للسفارة">ارفاق للسفارة</option>
