@@ -83,6 +83,7 @@ const TransferPage = () => {
       if (response.ok) {
         showSuccessModal();
         resetForm(); // Reset form after successful submission
+        showForm(false);
       } else {
         showErrorModal();
       }
@@ -200,6 +201,12 @@ const TransferPage = () => {
     },
     // Add more records as needed
   ];
+
+  function isEnglish(text) {
+    const englishRegex = /^[A-Za-z0-9\s.,!?;:'"-]*$/;
+    return englishRegex.test(text);
+  }
+
   function ConvertArabic(word) {
     switch (word) {
       case "client":
@@ -248,11 +255,11 @@ const TransferPage = () => {
         return "مدينة العميل الجديد";
         break;
 
-      case "experimentstart":
+      case "experimentstartDate":
         return "بداية التجربة";
         break;
 
-      case "experimentend":
+      case "experimentendDate":
         return "نهاية التجربة";
         break;
 
@@ -301,8 +308,8 @@ const TransferPage = () => {
     newclientmobilenumber: false,
     newclientnationalidnumber: false,
     newclientcity: false,
-    experimentstart: false,
-    experimentend: false,
+    experimentstartDate: false,
+    experimentendDate: false,
     dealcost: false,
     paid: false,
     restofpaid: false,
@@ -354,8 +361,8 @@ const TransferPage = () => {
                 newclientmobilenumber: "",
                 newclientnationalidnumber: "",
                 newclientcity: "",
-                experimentstart: "",
-                experimentend: "",
+                experimentstartDate: "",
+                experimentendDate: "",
                 dealcost: "",
                 paid: "",
                 restofpaid: "",
@@ -382,13 +389,15 @@ const TransferPage = () => {
                         {ConvertArabic(key)} {/* Display Arabic labels */}
                       </label>
                       <Field
-                        type={key.includes("date") ? "date" : "text"}
+                        type={
+                          key.toLowerCase().includes("date") ? "date" : "text"
+                        }
                         name={key}
                         value={values[key]}
                         onChange={handleChange}
                         onBlur={handleBlur}
                         className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder={key.replace(/([A-Z])/g, " $1")}
+                        placeholder={ConvertArabic(key)}
                       />
                       <ErrorMessage
                         name={key}
@@ -428,7 +437,9 @@ const TransferPage = () => {
                       className="form-checkbox"
                     />
                     <span className="ml-2">
-                      {column.replace(/([A-Z])/g, " $1").toUpperCase()}
+                      {isEnglish(column)
+                        ? ConvertArabic(column)
+                        : column.replace(/([A-Z])/g, " $1").toUpperCase()}
                     </span>
                   </label>
                 ))}
@@ -446,7 +457,9 @@ const TransferPage = () => {
                           key={column}
                           className="px-4 py-2 text-sm font-medium"
                         >
-                          {column.replace(/([A-Z])/g, " $1").toUpperCase()}
+                          {isEnglish(column)
+                            ? ConvertArabic(column)
+                            : column.replace(/([A-Z])/g, " $1").toUpperCase()}
                         </th>
                       ))}
                   </tr>
@@ -458,7 +471,17 @@ const TransferPage = () => {
                         .filter((column) => selectedColumns[column])
                         .map((column) => (
                           <td key={column} className="px-4 py-2 text-sm">
-                            {transfer[column]}
+                            <h1
+                              style={{
+                                display: "flex",
+                                justifyContent: "center",
+                              }}
+                            >
+                              {" "}
+                              {transfer[column]
+                                ? transfer[column]
+                                : "لا يوجد بيان"}
+                            </h1>
                           </td>
                         ))}
                     </tr>

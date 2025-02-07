@@ -8,7 +8,16 @@ export default async function handler(
 ) {
   try {
     if (req.method == "GET") {
-      const { ClientName, age, Passport, Nationality, page } = req.query;
+      const {
+        Passportnumber,
+        searchTerm, // This will be the single input from the frontend
+        age,
+        clientphonenumber,
+        Nationalitycopy,
+        page,
+        HomemaidId,
+      } = req.query;
+
       console.log(req.query);
       // Set the page size for pagination
       const pageSize = 10;
@@ -16,10 +25,23 @@ export default async function handler(
 
       // Build the filter object dynamically based on query parameters
       const filters: any = {};
+      if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
+      // Apply a filter for `clientphonenumber` if present
+      if (clientphonenumber)
+        filters.clientphonenumber = { contains: clientphonenumber };
 
-      if (ClientName)
-        filters.ClientName = { contains: (ClientName as string).toLowerCase() };
+      // Apply a filter for `HomemaidId` if present
+      if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
 
+      // Apply a filter for `age` if present
+      if (age) filters.age = { equals: parseInt(age as string, 10) };
+
+      // Apply a filter for `Nationalitycopy` if present
+      if (Nationalitycopy) {
+        filters.Nationalitycopy = {
+          contains: (Nationalitycopy as string).toLowerCase(),
+        };
+      }
       const homemaids = await prisma.neworder.findMany({
         where: {
           ...filters,

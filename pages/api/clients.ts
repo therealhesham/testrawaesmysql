@@ -10,6 +10,26 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
+    // Build the filter object dynamically based on query parameters
+
+    const {
+      Passportnumber,
+      searchTerm, // This will be the single input from the frontend
+      fullname,
+      email,
+      phonenumber,
+    } = req.query;
+
+    const filters: any = {};
+    // Apply a filter for `clientphonenumber` if present
+    if (fullname) filters.fullname = { contains: fullname };
+
+    // Apply a filter for `HomemaidId` if present
+    if (email) filters.email = { contains: email };
+
+    // Apply a filter for `age` if present
+    if (phonenumber) filters.phonenumber = { contains: phonenumber };
+
     console.log(req.query);
     // Parse pagination parameters from the query
     const page = parseInt(req.query.page as string) || 1; // Default to page 1 if not provided
@@ -18,10 +38,13 @@ export default async function handler(
 
     // Fetch clients with the count of their orders
     const clients = await prisma.client.findMany({
+      where: { ...filters },
       select: {
         id: true, // Select the client id or any other necessary client data
         fullname: true,
         email: true,
+
+        createdat: true,
         phonenumber: true,
         // name: true, // Select the client name
         _count: {

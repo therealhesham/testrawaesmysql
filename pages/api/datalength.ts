@@ -14,11 +14,11 @@ export default async function handler(
     });
     const arrivalsCount = await prisma.arrivallist.count();
 
-    const workers = await prisma.homemaid.count({
-      where: { NewOrder: { every: { HomemaidId: null } } },
-    });
+    // const neworder = await prisma.neworder.count({
+    //   where: { HomemaidId: null },
+    // });
 
-    const currentorders = await prisma.homemaid.count({
+    const currentorders = await prisma.neworder.count({
       where: {
         NOT: { bookingstatus: "حجز جديد" },
         AND: { bookingstatus: { not: { equals: "طلب مرفوض" } } },
@@ -37,7 +37,6 @@ export default async function handler(
     res.status(200).json({
       rejectedOrders,
       currentorders,
-      workers,
       transferSponsorships,
       arrivalsCount,
       neworderCount,

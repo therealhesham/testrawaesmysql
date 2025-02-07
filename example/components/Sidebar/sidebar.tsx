@@ -43,7 +43,7 @@ const Sidebar = (props) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-purple-900 p-4 h-screen px-4 pt-8 pb-4 bg-light flex justify-between flex-col",
+    "bg-purple-700 p-4 h-screen px-4 pt-8 pb-4 bg-light flex justify-between flex-col",
     {
       "w-80": !toggleCollapse,
       "w-20": toggleCollapse,
@@ -102,14 +102,19 @@ const Sidebar = (props) => {
 
   // On component mount, check localStorage for saved state
   useEffect(() => {
+    if (!localStorage.getItem("token")) router.push("/admin/login");
     const savedState = localStorage.getItem("sidebarCollapsed");
     if (savedState !== null) {
       setToggleCollapse(JSON.parse(savedState));
     }
-    const token = localStorage.getItem("token");
-    const info = jwtDecode(token);
-    setImage(info.picture);
-    setInfo(info.username);
+    try {
+      const token = localStorage.getItem("token");
+      const info = jwtDecode(token);
+      setImage(info.picture);
+      setInfo(info.username);
+    } catch (error) {
+      router.push("/admin/login");
+    }
   }, []);
 
   return (

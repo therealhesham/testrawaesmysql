@@ -578,7 +578,7 @@ export default function Table() {
                               htmlFor="name"
                               className="block text-sm font-medium text-gray-700"
                             >
-                              Client Name
+                              اسم العميل
                             </label>
                             <Field
                               id="name"
@@ -586,7 +586,7 @@ export default function Table() {
                               type="text"
                               // onChange={(e) => setName(e.target.value)}
                               className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                              placeholder="Enter your name"
+                              placeholder="ادخل اسم العميل"
                             />
                             <ErrorMessage
                               name="name"
@@ -599,14 +599,14 @@ export default function Table() {
                               htmlFor="email"
                               className="block text-sm font-medium text-gray-700"
                             >
-                              Email
+                              البريد الالكتروني للعميل
                             </label>
                             <Field
                               id="email"
                               name="email"
                               type="email"
                               className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                              placeholder="Enter your email"
+                              placeholder="ادخل البريد الالكتروني"
                             />
                             <ErrorMessage
                               name="email"
@@ -619,14 +619,14 @@ export default function Table() {
                               htmlFor="phone"
                               className="block text-sm font-medium text-gray-700"
                             >
-                              Phone Number
+                              جوال العميل
                             </label>
                             <Field
                               id="phone"
                               name="phone"
                               type="tel"
                               className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                              placeholder="Client Phone Number"
+                              placeholder="ادخل جوال العميل"
                             />
                             <ErrorMessage
                               name="phone"
@@ -641,7 +641,7 @@ export default function Table() {
                       {currentStep === 2 && (
                         <div>
                           <h2 className="text-2xl font-semibold mb-4">
-                            Address Information
+                            العنوان
                           </h2>
 
                           <div className="mb-4">
@@ -649,14 +649,14 @@ export default function Table() {
                               htmlFor="city"
                               className="block text-sm font-medium text-gray-700"
                             >
-                              City
+                              مدينة العميل
                             </label>
                             <Field
                               id="city"
                               name="city"
                               type="text"
                               className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                              placeholder="Enter your city"
+                              placeholder="اسم المدينة"
                             />
                             <ErrorMessage
                               name="city"
@@ -679,7 +679,7 @@ export default function Table() {
                               setFieldValue("query", e.target.value);
                               handleChange(e);
                             }}
-                            placeholder="Search "
+                            placeholder="البحث برقم العاملة"
                             className="px-4 py-2 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                           />
                           <ErrorMessage

@@ -1,142 +1,324 @@
-// components/ClientsTable.js
-import Layout from "example/containers/Layout";
+import jwt from "jsonwebtoken";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
-// Layout
-// useState
-const ClientsTable = () => {
-  const [data, setData] = useState([]);
-  const [page, setPage] = useState(1);
-  const [isAtBottom, setIsAtBottom] = useState(false);
-  const router = useRouter();
-  // Function to detect when the user reaches the bottom
-  const handleScroll = () => {
-    // Get the current scroll position and the total height of the document
-    const scrollPosition = window.scrollY + window.innerHeight;
-    const documentHeight = document.documentElement.scrollHeight;
+import { useEffect, useState, useCallback, useRef, useContext } from "react";
+import Layout from "example/containers/Layout";
+import { Button } from "@mui/material";
+import { User } from "utils/usercontext";
 
-    // If the scroll position is near the bottom (allow some margin)
-    if (scrollPosition >= documentHeight - 100) {
-      setIsAtBottom(true); // Set state to true when reaching near the bottom
-      setPage((e) => e + 1);
-    } else {
-      setIsAtBottom(false); // Reset state if not at the bottom
-    }
-  };
-
-  // Attach the scroll event listener on mount
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-
-    // Cleanup the event listener on unmount
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-  const queryParams = new URLSearchParams({
-    page,
+export default function Table() {
+  const [filters, setFilters] = useState({
+    phonenumber: "",
+    fullname: "",
   });
 
-  const fetchData = async () => {
-    // alert("s");
-    const response = await fetch("/api/clients?" + queryParams, {
-      method: "get",
-    });
-    const data = await response.json();
-    setData(data);
-  };
+  const [state, setState] = useState({
+    data: [],
+    loading: false,
+    hasMore: true,
+  });
+
+  const router = useRouter();
+  const pageRef = useRef(1); // Keep track of current page
+  const isFetchingRef = useRef(false); // Prevent duplicate fetches
+  const usercontext = useContext(User);
+
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for debouncing timeout
+
+  // Fetch data function with pagination
+  const fetchData = useCallback(async () => {
+    if (isFetchingRef.current || !state.hasMore) return;
+
+    isFetchingRef.current = true;
+    setState((prevState) => ({ ...prevState, loading: true }));
+
+    try {
+      const queryParams = new URLSearchParams({
+        fullname: filters.fullname,
+        phonenumber: filters.phonenumber,
+
+        page: String(pageRef.current),
+      });
+
+      const response = await fetch(`/api/clients?${queryParams}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+
+      const res = await response.json();
+
+      if (res && res.length > 0) {
+        setState((prevState) => ({
+          ...prevState,
+          data: [...prevState.data, ...res],
+        }));
+        pageRef.current += 1;
+      } else {
+        setState((prevState) => ({ ...prevState, hasMore: false }));
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setState((prevState) => ({ ...prevState, loading: false }));
+      isFetchingRef.current = false;
+    }
+  }, [filters, state.hasMore]);
 
   useEffect(() => {
-    fetchData();
-  }, [page]);
+    fetchData(); // Fetch initial data on mount
+  }, [fetchData]);
 
-  // useEffect(()=>{
+  const handleFilterChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    column: string
+  ) => {
+    const value = e.target.value;
 
-  //       const observer = new IntersectionObserver(
-  //     ([entry]) => {
-  //       if (entry.isIntersecting && loading) {
-  //         setPage((prevPage) => prevPage + 1);
-  //       }
-  //     },
-  //     { threshold: 1.0 }
-  //   );
+    // Clear any previous debounce timeout if it's still running
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
 
-  //   const currentLoaderRef = loaderRef.current;
-  //   if (currentLoaderRef) {
-  //     observer.observe(currentLoaderRef);
-  //   }
+    // Set the new filter value
+    setFilters((prev) => ({
+      ...prev,
+      [column]: value,
+    }));
+  };
 
-  //   // Cleanup observer when component unmounts or loaderRef changes
-  //   return () => {
-  //     if (currentLoaderRef) {
-  //       observer.unobserve(currentLoaderRef);
-  //     }
-  //   };
+  const makeRequest = async (url: string, body: object) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-  // },[])
+    return response.status === 200;
+  };
+
+  const restore = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/restoreorders", { id, homeMaidId });
+    if (success) router.push("/admin/neworders");
+  };
+
+  const handleUpdate = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/confirmrequest", {
+      id,
+      homeMaidId,
+    });
+    if (success) router.push("/admin/neworders");
+  };
+
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (state.loading || !state.hasMore) return;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            fetchData();
+          }
+        },
+        { threshold: 1.0 }
+      );
+      if (node) observer.observe(node);
+
+      return () => observer.disconnect();
+    },
+    [fetchData, state.loading, state.hasMore]
+  );
+
   return (
     <Layout>
-      <div className="overflow-x-auto shadow-lg rounded-lg bg-white">
+      <div className="container mx-auto p-6">
         <h1 className="text-2xl font-semibold text-center mb-4">
           قائمة العملاء
         </h1>
 
-        <table className="min-w-full table-auto text-sm">
-          <thead className="bg-gray-800 text-white">
-            <tr>
-              <th className="px-6 py-4 text-left">م</th>
-              <th className="px-6 py-4 text-left">الاسم</th>
-              <th className="px-6 py-4 text-left">البريد الالكتروني</th>
-              <th className="px-6 py-4 text-left">الجوال</th>
-              <th className="px-6 py-4 text-left">عدد الطلبات</th>
+        {/* Filter Section */}
+        <div className="flex justify-between mb-4">
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.fullname}
+              onChange={(e) => handleFilterChange(e, "fullname")}
+              placeholder="بحث بالاسم"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.phonenumber}
+              onChange={(e) => handleFilterChange(e, "phonenumber")}
+              placeholder="بحث برقم الجوال"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          {/* <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.Nationality}
+              onChange={(e) => handleFilterChange(e, "email")}
+              placeholder="بحث برقم الجوال"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div> */}
 
-              <th className="px-6 py-4 text-left">اخر طلب</th>
+          {/* <div className="flex-1 px-2">
+            <input
+              type="text"
+              value={filters.HomemaidId}
+              onChange={(e) => handleFilterChange(e, "HomemaidId")}
+              placeholder="Filter by CV"
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div> */}
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setState({ data: [], hasMore: true, loading: false });
+                setFilters({
+                  fullname: "",
+                  phonenumber: "",
+                });
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              اعادة ضبط
+            </Button>
+          </div>
+          <div className="flex-1 px-1">
+            <Button
+              variant="contained"
+              color="info"
+              onClick={() => {
+                isFetchingRef.current = false;
+                setState({ data: [], hasMore: true, loading: false });
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              بحث
+            </Button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
+          <thead>
+            <tr className="bg-purple-600 text-white">
+              <th className="p-3 text-left text-sm font-medium">م</th>
+              <th className="p-3 text-left text-sm font-medium">الاسم</th>
+              <th className="p-3 text-left text-sm font-medium">بريد العميل</th>
+              <th className="p-3 text-left text-sm font-medium">الجوال</th>
+              <th className="p-3 text-left text-sm font-medium">
+                تاريخ اضافة العميل
+              </th>
+              <th className="p-3 text-left text-sm font-medium">عدد الطلبات</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((client, index) => (
-              <tr
-                key={client.id}
-                className={`${
-                  index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"
-                } hover:bg-gray-200 transition-colors duration-200`}
-              >
-                <td className="px-6 py-4">{client.id}</td>
-                <td className="px-6 py-4">{client.fullname}</td>
-                <td className="px-6 py-4">{client.email}</td>
-                <td className="px-6 py-4">{client.phonenumber}</td>
+            {state.data.length === 0 ? (
+              <tr>
                 <td
-                  style={{ cursor: "pointer" }}
-                  className="px-6 py-4 text-left"
-                  onClick={() =>
-                    router.push("/admin/clientorders/" + client.id)
-                  }
+                  colSpan="6"
+                  className="p-3 text-center text-sm text-gray-500"
                 >
-                  {client._count.orders}
-                </td>
-
-                <td className="px-6 py-4">
-                  <span
-                    className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                      client.status === "active"
-                        ? "bg-green-500 text-white"
-                        : "bg-red-500 text-white"
-                    }`}
-                  >
-                    {/* {client.status} */}
-                  </span>
+                  No results found
                 </td>
               </tr>
-            ))}
+            ) : (
+              state.data.map((item) => (
+                <tr key={item.id} className="border-t">
+                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
+                  <td className="p-3 text-sm text-gray-600">{item.fullname}</td>
+                  <td className="p-3 text-sm text-gray-600">{item.email}</td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.phonenumber}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    {item.createdat}
+                  </td>
+                  <td className="p-3 text-sm text-gray-600">
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() =>
+                        router.push("/admin/clientorders/" + item.id)
+                      }
+                    >
+                      {item._count.orders}
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-        {isAtBottom && (
-          <div className="fixed bottom-0 left-0 w-full bg-green-500 text-white py-2 text-center">
-            You have reached the end of the page!
+
+        {/* Infinite scroll trigger */}
+        {state.hasMore && (
+          <div ref={loadMoreRef} className="flex justify-center mt-6">
+            {state.loading && (
+              <div className="flex justify-center items-center">
+                <svg
+                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
+                  />
+                </svg>
+                Loading...
+              </div>
+            )}
           </div>
         )}
       </div>
     </Layout>
   );
-};
-export default ClientsTable;
+}
+
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+
+    if (!isAuthenticated) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
+    }
+
+    jwt.verify(req.cookies.authToken, "rawaesecret");
+    return {
+      props: {},
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      redirect: {
+        destination: "/admin/login",
+        permanent: false,
+      },
+    };
+  }
+}
