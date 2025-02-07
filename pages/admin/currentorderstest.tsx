@@ -546,7 +546,8 @@ export default function Table() {
                             showSuccessModal();
                             setModalOpen(false);
                             // setIsModalOpen(false);
-                            reset();
+                            // reset();
+                            router.push("/admin/neworder/" + data.id);
                           } else {
                             showErrorModal(data.message);
                           }

@@ -710,84 +710,80 @@ const SlugPage = () => {
     // alert(state);
 
     // setModalSpinnerOpen(true);
-try {
-    switch (state) {
-      case "الربط مع مساند":
-        setIsEditing("الربط مع مساند");
-        musanadRef.current.focus();
-        setIsEditing(null);
-        break;
+    try {
+      switch (state) {
+        case "الربط مع مساند":
+          setIsEditing("الربط مع مساند");
+          musanadDateRef.current.focus();
+          setIsEditing(null);
+          break;
 
-      case "الفحص الطبي":
-        setIsEditing("الفحص الطبي");
-        checkRef.current.focus();
-        // router.locale("")
-        // setInputclass("hidden");
-        setIsEditing(null);
+        case "الفحص الطبي":
+          setIsEditing("الفحص الطبي");
+          checkRef.current.focus();
+          // router.locale("")
+          // setInputclass("hidden");
+          setIsEditing(null);
 
-        // handleScroll();
-        break;
+          // handleScroll();
+          break;
 
-      case "الربط مع الوكالة":
-        setIsEditing("الربط مع الوكالة");
-        agencyDateRef.current.focus();
-        setIsEditing(null);
+        case "الربط مع الوكالة":
+          setIsEditing("الربط مع الوكالة");
+          agencyDateRef.current.focus();
+          setIsEditing(null);
 
-        break;
+          break;
 
-      case "الربط مع مساند الخارجي":
-        setIsEditing("الربط مع مساند الخارجي");
-        externalMusanadDateRef.current.focus();
-        setIsEditing(null);
+        case "الربط مع مساند الخارجي":
+          setIsEditing("الربط مع مساند الخارجي");
+          externalMusanadDateRef.current.focus();
+          setIsEditing(null);
 
-        break;
+          break;
 
-      case "الربط مع المكتب الخارجي":
-        setIsEditing("الربط المكتب الخارجي");
-        externalOfficeAprrovalRef.current.focus();
-        setIsEditing(null);
+        case "الربط مع المكتب الخارجي":
+          setIsEditing("الربط المكتب الخارجي");
+          externalOfficeAprrovalRef.current.focus();
+          setIsEditing(null);
 
-        break;
+          break;
 
-      case "وصول العاملة":
-        setIsEditing("وصول العاملة");
-        kingdomEntryRef.current.focus();
-        setIsEditing(null);
+        case "وصول العاملة":
+          setIsEditing("وصول العاملة");
+          kingdomEntryRef.current.focus();
+          setIsEditing(null);
 
-        break;
-      case "التختيم في السفارة":
-        setIsEditing("التختيم في السفارة");
-        embassySealingRef.current.focus();
-        setIsEditing(null);
+          break;
+        case "التختيم في السفارة":
+          setIsEditing("التختيم في السفارة");
+          embassySealingRef.current.focus();
+          setIsEditing(null);
 
-        break;
+          break;
 
-      case "حجز التذكرة":
-        setIsEditing("حجز التذكرة");
-        arrivalDateRef.current.focus();
-        setIsEditing(null);
+        case "حجز التذكرة":
+          setIsEditing("حجز التذكرة");
+          arrivalDateRef.current.focus();
+          setIsEditing(null);
 
-        break;
+          break;
 
-      case "الاستلام":
-        // setIsEditing("وصول العاملة");
-        // kingdomEntryRef.current.focus();
+        case "الاستلام":
+          // setIsEditing("وصول العاملة");
+          // kingdomEntryRef.current.focus();
 
-        handleChangeReservationtoend("طلب منتهي");
-        setIsEditing(null);
+          handleChangeReservationtoend("طلب منتهي");
+          setIsEditing(null);
 
-        break;
+          break;
 
-      default:
-        break;
+        default:
+          break;
+      }
+    } catch (e) {
+      console.log(e);
     }
-
-}
-catch(e){
-
-
-  console.log(e)
-}
     // alert(fetcher.status);
     // console.log(updatekingdomentry.current);
   };
