@@ -25,7 +25,6 @@ import { FaAddressBook, FaArrowUp, FaFileSignature } from "react-icons/fa";
 import { BookOpenIcon } from "@heroicons/react/outline";
 import { LinkedinFilled, LinkOutlined } from "@ant-design/icons";
 import CancelBooking from "example/components/cancelbookingmodal";
-import { Input } from "@mui/material";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
@@ -878,8 +877,7 @@ const SlugPage = () => {
 
     // If the date is in YYYY-MM-DD format, convert it to DD/MM/YYYY
     if (pastedData.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      e.target.value = convertDateFormat(pastedData);
-      return;
+      return (e.target.value = convertDateFormat(pastedData));
     }
 
     // Try to parse the pasted data into a valid date format
@@ -893,17 +891,23 @@ const SlugPage = () => {
   };
 
   const handleCopy = (e) => {
-    const inputData = e.target.value;
-    const parsedDate = parseDate(inputData);
+    const copiedData = e.target.value; // Get the value that is being copied
+    // alert(copiedData)
+    // Check if the copied data is in DD/MM/YYYY format and convert it to YYYY-MM-DD
+    // if (copiedData.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+    e.preventDefault(); // Prevent default copy behavior
 
-    if (parsedDate) {
-      // If valid date, copy the date in YYYY-MM-DD format
-      e.clipboardData.setData("text/plain", parsedDate);
-    } else {
-      // If invalid, prevent the copy
-      alert("Invalid date format. Cannot copy invalid date.");
-      e.preventDefault(); // Prevent copying invalid date
-    }
+    const formattedDate = convertToDateISO(copiedData); // Convert DD/MM/YYYY to YYYY-MM-DD format
+    // alert(formattedDate)
+    // Use the Clipboard API to set the formatted date for copying
+    e.clipboardData.setData("Text", formattedDate);
+    // }
+  };
+
+  // Helper function to convert DD/MM/YYYY to YYYY-MM-DD
+  const convertToDateISO = (date) => {
+    const [day, month, year] = date.split("-");
+    return `${year}/${month}/${day}`; // Return in YYYY-MM-DD format
   };
 
   const handleExternalPasteMusanadDate = (e) => {
@@ -1773,6 +1777,7 @@ const SlugPage = () => {
                       </label>
 
                       <input
+                        onCopy={handleCopy}
                         onPaste={handlePaste}
                         ref={externalMusanadDateRef}
                         type="date"
@@ -1794,7 +1799,7 @@ const SlugPage = () => {
                           id="musanadexternalfile"
                           name="musanadexternalfile"
                           type="file"
-                          // className="hidden"
+                          className="hidden"
                           onChange={handleUploadexternalFile}
                         />
                         {/* Custom file upload button */}
@@ -1974,6 +1979,7 @@ const SlugPage = () => {
                         تاريخ موافقة المكتب الخارجي
                       </label>
                       <input
+                        onCopy={handleCopy}
                         onPaste={handlePaste}
                         ref={externalOfficeAprrovalRef}
                         type="date"
@@ -2036,7 +2042,7 @@ const SlugPage = () => {
                           id="externalFile"
                           name="externalFile"
                           type="file"
-                          className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          className="px-6 py-2 hidden bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                           ref={checkRef}
                           // className={inputClass}
                           onChange={handleUploadExternalOfficeFile}
@@ -2045,8 +2051,18 @@ const SlugPage = () => {
                         {/* <label
                           htmlFor="medicalCheckFile"
                         >
+                          
+
+
                           اختار الملف
                         </label> */}
+
+                        <label
+                          htmlFor="externalFile"
+                          className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                        >
+                          اختار الملف
+                        </label>
 
                         {/* Display uploaded image or file status */}
                         {externalOfficeFile && (
@@ -2282,6 +2298,7 @@ const SlugPage = () => {
                       تاريخ الربط مع الوكالة
                     </label>
                     <input
+                      onCopy={handleCopy}
                       onPaste={handlePaste}
                       ref={agencyDateRef}
                       id="AgencyDate"
@@ -2369,6 +2386,7 @@ const SlugPage = () => {
                       تاريخ التختيم في السفارة
                     </label>
                     <input
+                      onCopy={handleCopy}
                       onPaste={handlePaste}
                       ref={embassySealingRef}
                       id="embassysealing"
@@ -2600,6 +2618,7 @@ const SlugPage = () => {
                       مدينة وصول العاملة الاساسية
                     </label>
                     <input
+                      onCopy={handleCopy}
                       onPaste={handlePaste}
                       ref={arrivalCityRef}
                       id="ArrivalCity"
@@ -2615,6 +2634,7 @@ const SlugPage = () => {
                       تاريخ وصول العاملة
                     </label>
                     <input
+                      onCopy={handleCopy}
                       onPaste={handlePaste}
                       ref={arrivalDateRef}
                       id="arrivaldate"
@@ -2661,6 +2681,7 @@ const SlugPage = () => {
                           تاريخ المغادرة من المدينة الاساسية
                         </label>
                         <input
+                          onCopy={handleCopy}
                           onPaste={handlePaste}
                           ref={deparatureDateRef}
                           id="deparatureDate"
@@ -2851,6 +2872,7 @@ const SlugPage = () => {
                         تاريخ الاستلام
                       </label>
                       <input
+                        onCopy={handleCopy}
                         onPaste={handlePaste}
                         ref={deliveryDateRef}
                         type="date"
