@@ -25,6 +25,7 @@ import { FaAddressBook, FaArrowUp, FaFileSignature } from "react-icons/fa";
 import { BookOpenIcon } from "@heroicons/react/outline";
 import { LinkedinFilled, LinkOutlined } from "@ant-design/icons";
 import CancelBooking from "example/components/cancelbookingmodal";
+import { Input } from "@mui/material";
 // GridLoader
 const SlugPage = () => {
   const router = useRouter();
@@ -177,14 +178,14 @@ const SlugPage = () => {
   };
 
   const updatekingdomentry = useRef(null);
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopySuccess("Copied!");
-      setTimeout(() => {
-        setCopySuccess("");
-      }, 2000); // Reset "Copied!" message after 2 seconds
-    });
-  };
+  // const handleCopy = (text) => {
+  //   navigator.clipboard.writeText(text).then(() => {
+  //     setCopySuccess("Copied!");
+  //     setTimeout(() => {
+  //       setCopySuccess("");
+  //     }, 2000); // Reset "Copied!" message after 2 seconds
+  //   });
+  // };
 
   const handleToggleFormVisibility = () => {
     setIsFormVisible((prevState) => !prevState);
@@ -834,22 +835,74 @@ const SlugPage = () => {
     return form;
   }
 
-  const handlePaste = (e) => {
-    // Prevent default paste behavior
-    e.preventDefault();
+  const parseDate = (dateString) => {
+    // Handle DD/MM/YYYY format manually
+    const dateParts = dateString.split("/"); // Split by '/' for DD/MM/YYYY format
 
-    // Get the pasted data from the clipboard
+    if (dateParts.length === 3) {
+      const [day, month, year] = dateParts;
+
+      // Create a new Date object with YYYY-MM-DD format
+      const formattedDate = new Date(
+        `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
+      );
+
+      // Return the date in ISO format (YYYY-MM-DD)
+      return formattedDate.toISOString().split("T")[0];
+    }
+
+    // If input isn't in DD/MM/YYYY, attempt to parse the date normally
+    const parsedDate = new Date(dateString);
+
+    if (!isNaN(parsedDate)) {
+      return parsedDate.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
+    }
+
+    return null; // Invalid date
+  };
+
+  const convertDateFormat = (dateStr) => {
+    const dateParts = dateStr.split("-"); // Split into [YYYY, MM, DD]
+    const year = dateParts[0];
+    const month = parseInt(dateParts[1], 10); // Remove leading zero
+    const day = parseInt(dateParts[2], 10); // Remove leading zero
+
+    // Return in DD/MM/YYYY format
+    return `${day}/${month}/${year}`;
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault(); // Prevent default paste behavior
+
     const pastedData = e.clipboardData.getData("Text");
+
+    // If the date is in YYYY-MM-DD format, convert it to DD/MM/YYYY
+    if (pastedData.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      e.target.value = convertDateFormat(pastedData);
+      return;
+    }
 
     // Try to parse the pasted data into a valid date format
     const parsedDate = parseDate(pastedData);
 
     if (parsedDate) {
-      // If the date is valid, update the input value directly using the ref
-      e.target.value = parsedDate;
+      e.target.value = parsedDate; // Set the value if valid date
     } else {
-      // Handle invalid date format
       alert("Invalid date format. Please use DD/MM/YYYY or YYYY-MM-DD.");
+    }
+  };
+
+  const handleCopy = (e) => {
+    const inputData = e.target.value;
+    const parsedDate = parseDate(inputData);
+
+    if (parsedDate) {
+      // If valid date, copy the date in YYYY-MM-DD format
+      e.clipboardData.setData("text/plain", parsedDate);
+    } else {
+      // If invalid, prevent the copy
+      alert("Invalid date format. Cannot copy invalid date.");
+      e.preventDefault(); // Prevent copying invalid date
     }
   };
 
@@ -891,32 +944,6 @@ const SlugPage = () => {
     }
   };
 
-  const parseDate = (dateString) => {
-    // Handle the DD/MM/YYYY format manually
-    const dateParts = dateString.split("/"); // Split by '/' for DD/MM/YYYY format
-
-    // Check if the input format looks like DD/MM/YYYY
-    if (dateParts.length === 3) {
-      const [day, month, year] = dateParts;
-
-      // Create a new Date object in the format YYYY-MM-DD
-      // Note that months in JavaScript are 0-based (0 = January, 1 = February, ...)
-      const formattedDate = new Date(
-        `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
-      );
-
-      // Return the date in the correct format YYYY-MM-DD
-      return formattedDate.toISOString().split("T")[0]; // Convert to ISO and return just the date part
-    }
-
-    // If the date is not in DD/MM/YYYY format, try other valid formats
-    const parsedDate = new Date(dateString);
-    if (!isNaN(parsedDate)) {
-      return parsedDate.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
-    }
-
-    return null; // Invalid date
-  };
   const validationSchema = Yup.object({
     InternalmusanedContract: Yup.string().optional(),
     KingdomentryDate: Yup.date().optional(),
@@ -1444,15 +1471,15 @@ const SlugPage = () => {
             >
               معلومات الطلب
             </h2>
-            <div className="grid grid-cols-3 gap-0 justify-start">
-              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+            <div className="grid grid-cols-2 gap-0 justify-start">
+              <div className="flex justify-between items-center bg-gray-100 ">
                 <strong className="w-32 font-extrabold">الاسم</strong>
                 <p className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.ClientName}
                 </p>
               </div>
 
-              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-100">
+              <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">
                   البريد الالكتروني
                 </strong>
@@ -1461,28 +1488,28 @@ const SlugPage = () => {
                 </p>
               </div>
 
-              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+              <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">جوال العميل</strong>
                 <p className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.client.phonenumber}
                 </p>
               </div>
 
-              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+              <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">رقم الطلب</strong>
                 <p className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.id}
                 </p>
               </div>
 
-              <div className="flex justify-between items-center odd:bg-gray-300 even:bg-gray-300">
+              <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">اسم العاملة</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.HomeMaid.Name}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+              <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">جواز السفر</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.HomeMaid.Passportnumber}
@@ -1623,6 +1650,7 @@ const SlugPage = () => {
                         تاريخ مساند
                       </label>
                       <input
+                        onCopy={handleCopy}
                         onPaste={handlePaste}
                         ref={musanadDateRef}
                         type="date"
@@ -2632,8 +2660,8 @@ const SlugPage = () => {
                         >
                           تاريخ المغادرة من المدينة الاساسية
                         </label>
-                        onPaste={handlePaste}
                         <input
+                          onPaste={handlePaste}
                           ref={deparatureDateRef}
                           id="deparatureDate"
                           name="deparatureDate"
@@ -3075,7 +3103,7 @@ const SlugPage = () => {
                   onClick={scrollToSection}
                   style={{
                     position: "fixed",
-                    top: "50%", // Position vertically in the center
+                    bottom: "2%", // Position vertically in the center
                     right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
                     transform: "translate(-50%, -50%)", // Offset to truly center the button
                     backgroundColor: "transparent", // Make the background transparent
@@ -3099,7 +3127,7 @@ const SlugPage = () => {
                     e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
                   }}
                 >
-                  <FaArrowUp size={20} />
+                  <FaArrowUp size={13} />
                 </button>
               </div>
             </div>
