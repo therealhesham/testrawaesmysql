@@ -21,7 +21,7 @@ import { Spinner } from "react-bootstrap";
 import RejectBooking from "../reject-booking";
 import ErrorModal from "office/components/errormodal";
 import axios from "axios";
-import { FaAddressBook, FaFileSignature } from "react-icons/fa";
+import { FaAddressBook, FaArrowUp, FaFileSignature } from "react-icons/fa";
 import { BookOpenIcon } from "@heroicons/react/outline";
 import { LinkedinFilled, LinkOutlined } from "@ant-design/icons";
 import CancelBooking from "example/components/cancelbookingmodal";
@@ -250,6 +250,7 @@ const SlugPage = () => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     e.preventDefault();
+    setModalImageSpinnerOpen(true);
 
     const file = e.target.files && e.target.files[0];
     if (file) {
@@ -266,7 +267,10 @@ const SlugPage = () => {
         );
 
         setExternalOfficeFile(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
+        setModalImageSpinnerOpen(false);
+
         console.error(error);
       }
     }
@@ -277,6 +281,7 @@ const SlugPage = () => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     e.preventDefault();
+    setModalImageSpinnerOpen(true);
 
     const file = e.target.files && e.target.files[0];
     if (file) {
@@ -293,8 +298,11 @@ const SlugPage = () => {
         );
 
         setSignatureFile(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
         console.error(error);
+
+        setModalImageSpinnerOpen(false);
       }
     }
   };
@@ -308,7 +316,7 @@ const SlugPage = () => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     e.preventDefault();
-
+    setModalImageSpinnerOpen(true);
     const file = e.target.files && e.target.files[0];
     if (file) {
       const formData = new FormData();
@@ -324,7 +332,9 @@ const SlugPage = () => {
         );
 
         setmedicalCheckFileCloudinaryImage(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
+        setModalImageSpinnerOpen(false);
         console.error(error);
       }
     }
@@ -336,6 +346,8 @@ const SlugPage = () => {
     e.preventDefault();
 
     const file = e.target.files && e.target.files[0];
+    setModalImageSpinnerOpen(true);
+
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
@@ -350,8 +362,10 @@ const SlugPage = () => {
         );
 
         setTicketFileCloudinaryImage(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
         console.error(error);
+        setModalImageSpinnerOpen(false);
       }
     }
   };
@@ -362,6 +376,8 @@ const SlugPage = () => {
     e.preventDefault();
 
     const file = e.target.files && e.target.files[0];
+    setModalImageSpinnerOpen(true);
+
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
@@ -376,8 +392,10 @@ const SlugPage = () => {
         );
 
         setExternalFileCloudinaryImage(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
         console.error(error);
+        setModalImageSpinnerOpen(false);
       }
     }
   };
@@ -388,6 +406,8 @@ const SlugPage = () => {
     e.preventDefault();
 
     const file = e.target.files && e.target.files[0];
+    setModalImageSpinnerOpen(true);
+
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
@@ -402,8 +422,10 @@ const SlugPage = () => {
         );
 
         setreceivingFileCloudinaryImage(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
         console.error(error);
+        setModalImageSpinnerOpen(false);
       }
     }
   };
@@ -414,6 +436,8 @@ const SlugPage = () => {
     e.preventDefault();
 
     const file = e.target.files && e.target.files[0];
+    setModalImageSpinnerOpen(true);
+
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
@@ -428,8 +452,10 @@ const SlugPage = () => {
         );
 
         setapprovalPaymentCloudinaryImage(response.data.secure_url); // Update image URL
+        setModalImageSpinnerOpen(false);
       } catch (error) {
         console.error(error);
+        setModalImageSpinnerOpen(false);
       }
     }
   };
@@ -438,6 +464,8 @@ const SlugPage = () => {
     e.preventDefault();
 
     const files = e.target.files;
+    setModalImageSpinnerOpen(true);
+
     if (files) {
       const formData = new FormData();
       const uploadedUrls: string[] = []; // Store the uploaded file URLs
@@ -454,8 +482,10 @@ const SlugPage = () => {
             formData
           );
           uploadedUrls.push(response.data.secure_url); // Add the uploaded URL to the array
+          setModalImageSpinnerOpen(false);
         } catch (error) {
           console.error("Error uploading file:", error);
+          setModalImageSpinnerOpen(false);
         }
       }
       setCloudinaryImages(uploadedUrls);
@@ -654,6 +684,7 @@ const SlugPage = () => {
       setIsEditing("");
       showSuccessModal();
       setDate(Date.now());
+      scrollToSection();
     } else {
       setModalSpinnerOpen(false);
 
@@ -803,6 +834,89 @@ const SlugPage = () => {
     return form;
   }
 
+  const handlePaste = (e) => {
+    // Prevent default paste behavior
+    e.preventDefault();
+
+    // Get the pasted data from the clipboard
+    const pastedData = e.clipboardData.getData("Text");
+
+    // Try to parse the pasted data into a valid date format
+    const parsedDate = parseDate(pastedData);
+
+    if (parsedDate) {
+      // If the date is valid, update the input value directly using the ref
+      e.target.value = parsedDate;
+    } else {
+      // Handle invalid date format
+      alert("Invalid date format. Please use DD/MM/YYYY or YYYY-MM-DD.");
+    }
+  };
+
+  const handleExternalPasteMusanadDate = (e) => {
+    // Prevent default paste behavior
+    e.preventDefault();
+
+    // Get the pasted data from the clipboard
+    const pastedData = e.clipboardData.getData("Text");
+
+    // Try to parse the pasted data into a valid date format
+    const parsedDate = parseDate(pastedData);
+
+    if (parsedDate) {
+      // If the date is valid, update the input value directly using the ref
+      externalMusanadDateRef.current.value = parsedDate;
+    } else {
+      // Handle invalid date format
+      alert("Invalid date format. Please use DD/MM/YYYY or YYYY-MM-DD.");
+    }
+  };
+
+  const handlePasteExternalOfficeapproval = (e) => {
+    // Prevent default paste behavior
+    e.preventDefault();
+
+    // Get the pasted data from the clipboard
+    const pastedData = e.clipboardData.getData("Text");
+
+    // Try to parse the pasted data into a valid date format
+    const parsedDate = parseDate(pastedData);
+
+    if (parsedDate) {
+      // If the date is valid, update the input value directly using the ref
+      externalOfficeAprrovalRef.current.value = parsedDate;
+    } else {
+      // Handle invalid date format
+      alert("Invalid date format. Please use DD/MM/YYYY or YYYY-MM-DD.");
+    }
+  };
+
+  const parseDate = (dateString) => {
+    // Handle the DD/MM/YYYY format manually
+    const dateParts = dateString.split("/"); // Split by '/' for DD/MM/YYYY format
+
+    // Check if the input format looks like DD/MM/YYYY
+    if (dateParts.length === 3) {
+      const [day, month, year] = dateParts;
+
+      // Create a new Date object in the format YYYY-MM-DD
+      // Note that months in JavaScript are 0-based (0 = January, 1 = February, ...)
+      const formattedDate = new Date(
+        `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
+      );
+
+      // Return the date in the correct format YYYY-MM-DD
+      return formattedDate.toISOString().split("T")[0]; // Convert to ISO and return just the date part
+    }
+
+    // If the date is not in DD/MM/YYYY format, try other valid formats
+    const parsedDate = new Date(dateString);
+    if (!isNaN(parsedDate)) {
+      return parsedDate.toISOString().split("T")[0]; // Convert to YYYY-MM-DD format
+    }
+
+    return null; // Invalid date
+  };
   const validationSchema = Yup.object({
     InternalmusanedContract: Yup.string().optional(),
     KingdomentryDate: Yup.date().optional(),
@@ -858,7 +972,13 @@ const SlugPage = () => {
     },
   });
   const [isModalSpinnerOpen, setModalSpinnerOpen] = useState(false);
-
+  const [isModalImageSpinnerOpen, setModalImageSpinnerOpen] = useState(false);
+  const openImageSpinnerModal = () => {
+    setModalImageSpinnerOpen(true);
+  };
+  const closespinnerImageModal = () => {
+    setModalImageSpinnerOpen(false);
+  };
   const openSpinnerModal = () => {
     setModalSpinnerOpen(true);
   };
@@ -897,6 +1017,10 @@ const SlugPage = () => {
   // Handle value change in input field
   const handleChangein = (e) => {
     setValue(e.target.value);
+  };
+  const sectionRef = useRef(null);
+  const scrollToSection = () => {
+    sectionRef.current.scrollIntoView({ behavior: "smooth" });
   };
 
   const [Canceelationreason, setCancellationReason] = useState("");
@@ -1013,6 +1137,10 @@ const SlugPage = () => {
   const closeBooksModal = () => setIsModalBooksOpen(false); // Close modal
   return (
     <Layout>
+      <SpinnerModal
+        isOpen={isModalImageSpinnerOpen}
+        onClose={closespinnerImageModal}
+      />
       {/* <div className="flex items-center justify-center  bg-gray-100">
         {formData.arrivals[0].MusanadDuration && (
           <div className="text-center p-6 bg-white shadow-lg rounded-lg">
@@ -1273,9 +1401,9 @@ const SlugPage = () => {
           type={modalType}
           onClose={closeSuccessfulModal}
         />
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4" ref={sectionRef}>
           <h1 className="text-3xl font-bold text-center mb-8">
-            {formData.ClientName ? formData.ClientName : ""}: طلب
+            طلب :{formData.ClientName ? formData.ClientName : ""}
           </h1>
           {/* Timeline Component with Clickable Stages */}
           <Timeline
@@ -1283,7 +1411,6 @@ const SlugPage = () => {
             stages={stages}
             changeTimeline={changeTimeline}
           />
-
           {/* Exit Button */}
           <div className="absolute top-4 right-10">
             <button
@@ -1317,51 +1444,50 @@ const SlugPage = () => {
             >
               معلومات الطلب
             </h2>
-            <div className="  grid grid-cols-2 gap-0 justify-center">
-              <strong className="grid-cols-1">الاسم</strong>
-              <p className="grid-cols-2">{formData.ClientName}</p>
-              {/* <div className="flex items-center space-x-2"> */}
-              <strong className="grid-cols-1">البريد الالكتروني</strong>
-              <p className="grid-cols-2">{formData.client.email}</p>
-              {/* <a
-                href={`mailto:${formData.client.email}`}
-                className="text-white bg-blue-500 px-4 py-2 rounded-lg"
-              >
-                Message
-              </a> */}
-              {/* </div> */}
-              {/* <div className="flex items-center space-x-2"> */}
-              <strong className="grid-cols-1">جوال العميل</strong>
-              <p className="flex-1 grid-cols-2">
-                {formData.client.phonenumber}
-              </p>
-              {/* <a
-                  href={`https://wa.me/${formData.client.phonenumber}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-white bg-green-500 px-4 py-2 rounded-lg"
-                >
-                  WhatsApp
-                </a> */}
-              {/* </div> */}
-              {/* <div className="space-y-2"> */}
-              {/* <div className="flex justify-between items-center"> */}
-              <strong className="w-32 grid-cols-1">رقم الطلب</strong>
-              <p className="flex-1 grid-cols-2">{formData.id}</p>
+            <div className="grid grid-cols-3 gap-0 justify-start">
+              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+                <strong className="w-32 font-extrabold">الاسم</strong>
+                <p className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.ClientName}
+                </p>
+              </div>
 
-              {/* </div> */}
-              {/* </div> */}
-              {/* <div className="flex justify-between items-center"> */}
-              <strong className="w-32 grid-cols-1">اسم العاملة</strong>
-              <span className="w-32 grid-cols-1">{formData.HomeMaid.Name}</span>
+              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-100">
+                <strong className="w-32 font-extrabold">
+                  البريد الالكتروني
+                </strong>
+                <p className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.client.email}
+                </p>
+              </div>
 
-              {/* </div> */}
-              {/* </div> */}
-              {/* <div className="flex justify-between items-center"> */}
-              <strong className="w-32 grid-cols-1">جواز السفر</strong>
-              <span className="w-32 grid-cols-1">
-                {formData.HomeMaid.Passportnumber}
-              </span>
+              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+                <strong className="w-32 font-extrabold">جوال العميل</strong>
+                <p className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.client.phonenumber}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+                <strong className="w-32 font-extrabold">رقم الطلب</strong>
+                <p className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.id}
+                </p>
+              </div>
+
+              <div className="flex justify-between items-center odd:bg-gray-300 even:bg-gray-300">
+                <strong className="w-32 font-extrabold">اسم العاملة</strong>
+                <span className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.HomeMaid.Name}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center odd:bg-gray-100 even:bg-gray-300">
+                <strong className="w-32 font-extrabold">جواز السفر</strong>
+                <span className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.HomeMaid.Passportnumber}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -1497,6 +1623,7 @@ const SlugPage = () => {
                         تاريخ مساند
                       </label>
                       <input
+                        onPaste={handlePaste}
                         ref={musanadDateRef}
                         type="date"
                         id="input"
@@ -1618,6 +1745,7 @@ const SlugPage = () => {
                       </label>
 
                       <input
+                        onPaste={handlePaste}
                         ref={externalMusanadDateRef}
                         type="date"
                         id="input"
@@ -1818,6 +1946,7 @@ const SlugPage = () => {
                         تاريخ موافقة المكتب الخارجي
                       </label>
                       <input
+                        onPaste={handlePaste}
                         ref={externalOfficeAprrovalRef}
                         type="date"
                         id="input"
@@ -2125,6 +2254,7 @@ const SlugPage = () => {
                       تاريخ الربط مع الوكالة
                     </label>
                     <input
+                      onPaste={handlePaste}
                       ref={agencyDateRef}
                       id="AgencyDate"
                       name="AgencyDate"
@@ -2211,6 +2341,7 @@ const SlugPage = () => {
                       تاريخ التختيم في السفارة
                     </label>
                     <input
+                      onPaste={handlePaste}
                       ref={embassySealingRef}
                       id="embassysealing"
                       name="embassysealing"
@@ -2441,6 +2572,7 @@ const SlugPage = () => {
                       مدينة وصول العاملة الاساسية
                     </label>
                     <input
+                      onPaste={handlePaste}
                       ref={arrivalCityRef}
                       id="ArrivalCity"
                       name="ArrivalCity"
@@ -2455,6 +2587,7 @@ const SlugPage = () => {
                       تاريخ وصول العاملة
                     </label>
                     <input
+                      onPaste={handlePaste}
                       ref={arrivalDateRef}
                       id="arrivaldate"
                       name="arrivaldate"
@@ -2491,35 +2624,41 @@ const SlugPage = () => {
                         />
                       </div>
                     )}
-
-                    <label
-                      htmlFor="deparatureDate"
-                      className="block font-semibold text-sm"
-                    >
-                      تاريخ المغادرة من المدينة الاساسية
-                    </label>
-                    <input
-                      ref={deparatureDateRef}
-                      id="deparatureDate"
-                      name="deparatureDate"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                    />
-
-                    <label
-                      htmlFor="finalDestinationDate"
-                      className="block font-semibold text-sm"
-                    >
-                      تاريخ الوصول الى وجهة النهائية
-                    </label>
-                    <input
-                      ref={finalDestinationDateRef}
-                      id="finalDestinationDate"
-                      name="finalDestinationDate"
-                      type="date"
-                      className="w-full border rounded-md px-4 py-2"
-                    />
-
+                    {showAdditionalDestination && (
+                      <div>
+                        <label
+                          htmlFor="deparatureDate"
+                          className="block font-semibold text-sm"
+                        >
+                          تاريخ المغادرة من المدينة الاساسية
+                        </label>
+                        onPaste={handlePaste}
+                        <input
+                          ref={deparatureDateRef}
+                          id="deparatureDate"
+                          name="deparatureDate"
+                          type="date"
+                          className="w-full border rounded-md px-4 py-2"
+                        />
+                      </div>
+                    )}
+                    {showAdditionalDestination && (
+                      <div>
+                        <label
+                          htmlFor="finalDestinationDate"
+                          className="block font-semibold text-sm"
+                        >
+                          تاريخ الوصول الى الوجهة النهائية
+                        </label>
+                        <input
+                          ref={finalDestinationDateRef}
+                          id="finalDestinationDate"
+                          name="finalDestinationDate"
+                          type="date"
+                          className="w-full border rounded-md px-4 py-2"
+                        />
+                      </div>
+                    )}
                     <label
                       htmlFor="ticketFile"
                       className="block font-semibold text-sm"
@@ -2684,6 +2823,7 @@ const SlugPage = () => {
                         تاريخ الاستلام
                       </label>
                       <input
+                        onPaste={handlePaste}
                         ref={deliveryDateRef}
                         type="date"
                         id="deliveryinput"
@@ -2927,6 +3067,39 @@ const SlugPage = () => {
                   className="bg-orange-400 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-200"
                 >
                   Confirm
+                </button>
+              </div>
+              <div>
+                {/* Floating button */}
+                <button
+                  onClick={scrollToSection}
+                  style={{
+                    position: "fixed",
+                    top: "50%", // Position vertically in the center
+                    right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
+                    transform: "translate(-50%, -50%)", // Offset to truly center the button
+                    backgroundColor: "transparent", // Make the background transparent
+                    color: "blue", // Make the icon color blue (you can change this to any color)
+                    border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
+                    borderRadius: "10px", // Make the button slightly rounded
+                    padding: "10px 25px", // Make the button narrow
+                    fontSize: "20px",
+                    cursor: "pointer",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
+                    transition: "all 0.3s ease", // Smooth transition for hover effect
+                  }}
+                  onMouseEnter={(e) => {
+                    // Change color when hovering
+                    e.target.style.backgroundColor = "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
+                    e.target.style.boxShadow = "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
+                  }}
+                  onMouseLeave={(e) => {
+                    // Reset the button style when not hovering
+                    e.target.style.backgroundColor = "transparent";
+                    e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
+                  }}
+                >
+                  <FaArrowUp size={20} />
                 </button>
               </div>
             </div>
