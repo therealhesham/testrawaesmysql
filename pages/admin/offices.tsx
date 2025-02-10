@@ -343,8 +343,8 @@ export default function ExternalOffices() {
               className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-all cursor-pointer"
               onClick={() => handleOfficeClick(office.id)}
             >
-              <h2 className="text-xl font-semibold">{office.Officename}</h2>
-              <p className="text-gray-600">Country: {office.location}</p>
+              <h2 className="text-xl font-semibold">{office.office}</h2>
+              <p className="text-gray-600"> {office.Country}</p>
 
               {/* Available and Booked Numbers */}
               <div className="flex justify-between mt-4">

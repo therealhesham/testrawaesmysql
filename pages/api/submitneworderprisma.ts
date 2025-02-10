@@ -28,6 +28,16 @@ export default async function handler(
   } = req.body;
 
   try {
+    const existingOrder = await prisma.neworder.findFirst({
+      where: { HomeMaid: { id: HomemaidId } },
+    });
+
+    if (existingOrder) {
+      return res.status(400).json({
+        message: "العاملة محجوزة بالفعل",
+      });
+    }
+
     // Begin transaction to update homemaid and create related records
     const result = await prisma.neworder.create({
       data: {

@@ -21,12 +21,37 @@ import { Spinner } from "react-bootstrap";
 import RejectBooking from "../reject-booking";
 import ErrorModal from "office/components/errormodal";
 import axios from "axios";
-import { FaAddressBook, FaArrowUp, FaFileSignature } from "react-icons/fa";
+import {
+  FaMapMarked,
+  FaFileMedical,
+  FaHandsHelping,
+  FaLink,
+  FaDoorOpen,
+  FaAddressBook,
+  FaArrowUp,
+  FaFileSignature,
+  FaUserCheck,
+  FaClinicMedical,
+  FaRegCheckCircle,
+  FaSearchLocation,
+  FaTicketAlt,
+  FaPlaneArrival,
+  FaSign,
+  FaCheckCircle,
+  FaBoxOpen,
+  FaUpload,
+} from "react-icons/fa";
 import { BookOpenIcon } from "@heroicons/react/outline";
-import { LinkedinFilled, LinkOutlined } from "@ant-design/icons";
+import {
+  DeliveredProcedureOutlined,
+  LinkedinFilled,
+  LinkOutlined,
+} from "@ant-design/icons";
 import CancelBooking from "example/components/cancelbookingmodal";
+import prisma from "pages/api/globalprisma";
+import { set } from "mongoose";
 // GridLoader
-const SlugPage = () => {
+const SlugPage = ({ offices }) => {
   const router = useRouter();
 
   const [datenow, setDate] = useState(Date.now());
@@ -111,12 +136,28 @@ const SlugPage = () => {
     // // setClientInfoData(jsonfetcher.Client[0]);
     // console.log(jsonfetcher);
   }
+  const [dateDateTime, setDateTime] = useState("");
+  const [time, setTime] = useState("");
+
+  const handleDateChange = (e) => {
+    setDateTime(e.target.value);
+  };
+
+  const handleTimeChange = (e) => {
+    setTime(e.target.value);
+  };
 
   const [formDataReservationChange, setFormDataReservationChange] = useState(
     {}
   );
   const finalDestinationDateRef = useRef(null);
+  const deparatureTimeRef = useRef(null);
   const musanadRef = useRef();
+  const SponsorIdnumberRef = useRef();
+  const officeRef = useRef();
+  const arrivalTimeRef = useRef();
+
+  const visaNumberRef = useRef();
   const ExternalStatusByofficeRef = useRef(null);
   const finalDestinationRef = useRef(null);
   const deliveryDateRef = useRef(null);
@@ -400,6 +441,36 @@ const SlugPage = () => {
     }
   };
 
+  const sectionLightRef = useRef(null);
+
+  // Step 2: Create a state to track if the section is in view
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    // Step 3: Set up the IntersectionObserver
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Check if the section is in view
+        setIsInView(entry.isIntersecting);
+      },
+      {
+        threshold: 0.5, // Adjust the threshold (0.5 means 50% of the section needs to be in view)
+      }
+    );
+
+    // Step 4: Observe the section element
+    if (sectionLightRef.current) {
+      observer.observe(sectionLightRef.current);
+    }
+
+    // Clean up the observer on component unmount
+    return () => {
+      if (sectionLightRef.current) {
+        observer.unobserve(sectionLightRef.current);
+      }
+    };
+  }, []);
+
   const handleUploadreceivingFile = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -429,7 +500,6 @@ const SlugPage = () => {
       }
     }
   };
-
   const handleUploadapprovalPayment = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -590,7 +660,11 @@ const SlugPage = () => {
     console.log(s);
     // e.preventDefault();
     const {
+      KingdomentryTime,
+      deparatureTime,
+      nationalidNumber,
       finalDestinationDate,
+      office,
       deparatureDate,
       externalmusanadcontractfile,
       SponsorName,
@@ -619,6 +693,7 @@ const SlugPage = () => {
       DeliveryFile,
       MusanadDuration,
       ExternalDateLinking,
+      visaNumber,
       ExternalOFficeApproval,
       externalmusanedContract,
       AgencyDate,
@@ -643,13 +718,19 @@ const SlugPage = () => {
         PassportNumber: formData.Passportnumber,
         KingdomentryDate,
         DayDate,
+        KingdomentryTime,
+        deparatureTime,
+        // SponsorIdnumber,
+        visaNumber,
         ExternalStatusByoffice,
         deparatureDate,
         finalDestinationDate,
         DeliveryDate,
+        office,
         Orderid: formData.id,
         WorkDuration,
         Cost,
+        nationalidNumber,
         externalOfficeFile: externalOfficeFile,
         finaldestination,
         externalOfficeStatus,
@@ -737,19 +818,23 @@ const SlugPage = () => {
   console.log(saudiTime); // will output the converted Saudi time
 
   const [inputClass, setInputclass] = useState("hidden");
+  const [isAnimate, setISAnimate] = useState(true);
   const changeTimeline = async (state) => {
     // alert(state);
-
     // setModalSpinnerOpen(true);
     try {
       switch (state) {
         case "الربط مع مساند":
+          setISAnimate(false);
+
           setIsEditing("الربط مع مساند");
           musanadDateRef.current.focus();
           setIsEditing(null);
           break;
 
         case "الفحص الطبي":
+          setISAnimate(false);
+
           setIsEditing("الفحص الطبي");
           checkRef.current.focus();
           // router.locale("")
@@ -760,6 +845,8 @@ const SlugPage = () => {
           break;
 
         case "الربط مع الوكالة":
+          setISAnimate(false);
+
           setIsEditing("الربط مع الوكالة");
           agencyDateRef.current.focus();
           setIsEditing(null);
@@ -767,6 +854,8 @@ const SlugPage = () => {
           break;
 
         case "الربط مع مساند الخارجي":
+          setISAnimate(false);
+
           setIsEditing("الربط مع مساند الخارجي");
           externalMusanadDateRef.current.focus();
           setIsEditing(null);
@@ -774,6 +863,8 @@ const SlugPage = () => {
           break;
 
         case "الربط مع المكتب الخارجي":
+          setISAnimate(false);
+
           setIsEditing("الربط المكتب الخارجي");
           externalOfficeAprrovalRef.current.focus();
           setIsEditing(null);
@@ -781,12 +872,16 @@ const SlugPage = () => {
           break;
 
         case "وصول العاملة":
+          setISAnimate(false);
+
           setIsEditing("وصول العاملة");
           kingdomEntryRef.current.focus();
           setIsEditing(null);
 
           break;
         case "التختيم في السفارة":
+          setISAnimate(false);
+
           setIsEditing("التختيم في السفارة");
           embassySealingRef.current.focus();
           setIsEditing(null);
@@ -794,6 +889,8 @@ const SlugPage = () => {
           break;
 
         case "حجز التذكرة":
+          setISAnimate(false);
+
           setIsEditing("حجز التذكرة");
           arrivalDateRef.current.focus();
           setIsEditing(null);
@@ -801,7 +898,9 @@ const SlugPage = () => {
           break;
 
         case "الاستلام":
+          setISAnimate(false);
           setIsEditing("الاستلام");
+
           deliveryDateRef.current.focus();
 
           // handleChangeReservationtoend("طلب منتهي");
@@ -1253,7 +1352,7 @@ const SlugPage = () => {
                     {/* Custom file upload button */}
                     <label
                       htmlFor="ticketFile"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                      className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                     >
                       اختار الملف
                     </label>
@@ -1294,7 +1393,7 @@ const SlugPage = () => {
                     {/* Custom file upload button */}
                     <label
                       htmlFor="receivingFile"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                      className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                     >
                       اختار الملف
                     </label>
@@ -1335,7 +1434,7 @@ const SlugPage = () => {
                     {/* Custom file upload button */}
                     <label
                       htmlFor="approvalPayment"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                      className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                     >
                       اختار الملف
                     </label>
@@ -1378,7 +1477,7 @@ const SlugPage = () => {
                     {/* Custom file upload button */}
                     <label
                       htmlFor="additionalfiles"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                      className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                     >
                       Choose Files
                     </label>
@@ -1432,7 +1531,7 @@ const SlugPage = () => {
           type={modalType}
           onClose={closeSuccessfulModal}
         />
-        <div className="max-w-7xl mx-auto px-4" ref={sectionRef}>
+        <div className="w-full mx-auto px-4" ref={sectionRef}>
           <h1 className="text-3xl font-bold text-center mb-8">
             طلب :{formData.ClientName ? formData.ClientName : ""}
           </h1>
@@ -1524,103 +1623,191 @@ const SlugPage = () => {
 
           <div className="p-8">
             <VerticalTimeline
-              animate={false}
-              lineColor="PURPLE"
+              animate={isAnimate}
+              lineColor="#30B8A6"
               layout="1-column-left"
             >
               <VerticalTimelineElement
                 className="vertical-timeline-element--work"
                 // date={formData.createdAt}
                 iconStyle={{
-                  background: "RGB(255, 182, 193)",
-                  color: "#fff",
+                  background: "#D1E1E6",
+                  color: "orange",
                 }}
+                icon={<FaUserCheck />}
               >
-                <div className="flex flex-col">
+                <div ref={sectionLightRef} className="flex flex-col">
                   <h1
                     style={{
-                      justifyContent: "center",
+                      justifyContent: "flex-start",
                       display: "flex",
-                      color: "rosybrown",
+                      color: "brown",
                     }}
                     className={Style["almarai-bold"]}
                   >
                     التقديم
                   </h1>
-                  <p style={{ justifyContent: "center", display: "flex" }}>
-                    تم استلام الطلب
-                  </p>
 
-                  <strong style={{ justifyContent: "center", display: "flex" }}>
-                    {formData.createdAt
-                      ? new Date(formData.createdAt).getDate() +
-                        " / " +
-                        (new Date(formData.createdAt).getMonth() + 1) +
-                        " / " +
-                        new Date(formData.createdAt).getFullYear()
-                      : null}
-                  </strong>
+                  <div className="grid grid-cols-2 justify-center">
+                    <div className="flex justify-center items-center flex-col">
+                      <strong
+                        style={{
+                          justifyContent: "center",
+                          display: "flex",
+                          color: "rosybrown",
+                        }}
+                        className={Style["almarai-bold"]}
+                      >
+                        وقت استلام الطلب
+                      </strong>
+                      <h1
+                        className={Style["almarai-bold"]}
+                        style={{ justifyContent: "center", display: "flex" }}
+                      >
+                        {new Date(formData.createdAt).toLocaleTimeString()}
+                      </h1>
+                    </div>
 
-                  <strong style={{ justifyContent: "center", display: "flex" }}>
-                    {new Date(formData.createdAt).toLocaleTimeString()}
-                  </strong>
+                    <div className="flex justify-center items-center flex-col">
+                      <strong
+                        style={{
+                          justifyContent: "center",
+                          display: "flex",
+                          color: "rosybrown",
+                        }}
+                        className={Style["almarai-bold"]}
+                      >
+                        تاريخ استلام الطلب
+                      </strong>
+                      <h1
+                        className={Style["almarai-bold"]}
+                        style={{ justifyContent: "center", display: "flex" }}
+                      >
+                        {formData.createdAt
+                          ? new Date(formData.createdAt).getDate() +
+                            " / " +
+                            (new Date(formData.createdAt).getMonth() + 1) +
+                            " / " +
+                            new Date(formData.createdAt).getFullYear()
+                          : null}
+                      </h1>
+                    </div>
+                  </div>
                 </div>
               </VerticalTimelineElement>
 
               <VerticalTimelineElement
                 className="vertical-timeline-element--work flex flex-col"
                 iconStyle={{
-                  background: "RGB(255, 182, 193)",
-                  color: "#fff",
+                  backgroundColor: `#D1E1E6`,
+                  color: "teal",
                 }}
                 contentArrowStyle={{
                   borderRight: "7px solid  rgb(255, 229, 180)",
                 }}
+                icon={<FaLink />}
                 // date="2011 - present"
               >
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع مساند") &&
                 isEditing !== "الربط مع مساند" ? (
-                  <div className="flex flex-col justify-center">
+                  <div
+                    ref={sectionLightRef}
+                    className="flex flex-col justify-center"
+                  >
                     <h1
                       style={{
+                        justifyContent: "flex-start",
                         display: "flex",
-                        justifyContent: "center",
-                        color: "rosybrown",
+                        color: "brown",
                       }}
                       className={Style["almarai-bold"]}
                     >
                       الربط
                     </h1>
                     <strong
-                      style={{ display: "flex", justifyContent: "center" }}
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        color: "rosybrown",
+                      }}
                     >
-                      عقد مساند : &nbsp; &nbsp;
-                      {formData.arrivals[0]?.InternalmusanedContract}
+                      عقد مساند
                     </strong>
-
+                    <h1
+                      style={{ display: "flex", justifyContent: "center" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      {formData.arrivals[0]?.InternalmusanedContract}
+                    </h1>
                     <div className="grid grid-cols-3 gap-4 justify-center">
-                      <strong
-                        style={{
-                          // display: "flex",
-                          justifyContent: "center",
-                          color: daysRemaining < 20 ? "red" : "black",
-                        }}
-                      >
-                        متبقى على انتهاء الضمان &nbsp; {daysRemaining}
-                      </strong>
+                      <div className="flex justify-center items-center flex-col">
+                        <strong
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            color: "rosybrown",
+                          }}
+                        >
+                          متبقى على انتهاء الضمان
+                        </strong>
+                        <h1
+                          className={Style["almarai-bold"]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            color: daysRemaining < 20 ? "red" : "black",
+                          }}
+                        >
+                          {daysRemaining}
+                        </h1>
+                      </div>
 
-                      <strong>
-                        تاريخ انتهاء الضمان : &nbsp; &nbsp;
-                        {AddgoDays(formData.arrivals[0].MusanadDuration)}
-                      </strong>
-                      <strong>
-                        تاريخ الربط : &nbsp; &nbsp;
-                        {formData.arrivals[0].MusanadDuration}
-                      </strong>
+                      <div className="flex justify-center items-center flex-col">
+                        <strong
+                          style={{
+                            display: "flex",
+                            color: "rosybrown",
+                            justifyContent: "center",
+                          }}
+                        >
+                          تاريخ انتهاء الضمان
+                        </strong>
+                        <h1
+                          className={Style["almarai-bold"]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {AddgoDays(formData.arrivals[0].MusanadDuration)}
+                        </h1>
+                      </div>
 
+                      <div className="flex justify-center items-center flex-col">
+                        <strong
+                          style={{
+                            color: "rosybrown",
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          تاريخ الربط
+                        </strong>
+
+                        <h1
+                          className={Style["almarai-bold"]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {formData.arrivals[0].MusanadDuration}
+                        </h1>
+                      </div>
                       <button
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 col-span-3"
+                        // style={{ backgroundColor: "#ECC383" }}
+                        className="py-2 px-4  text-white font-semibold rounded-md bg-orange-300 hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 col-span-3"
                         onClick={() => setIsEditing("الربط مع مساند")}
                       >
                         تعديل
@@ -1635,6 +1822,38 @@ const SlugPage = () => {
                         for="input"
                         className="block text-sm font-medium text-gray-700"
                       >
+                        هوية العميل
+                      </label>
+
+                      <input
+                        ref={SponsorIdnumberRef}
+                        type="text"
+                        id="input"
+                        name="input"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="ادخل هوية العميل"
+                      />
+
+                      <label
+                        for="input"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                        رقم التأشيرة
+                      </label>
+
+                      <input
+                        ref={visaNumberRef}
+                        type="text"
+                        id="input"
+                        name="input"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="ادخل رقم التأشيرة"
+                      />
+
+                      <label
+                        for="input"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         عقد مساند
                       </label>
 
@@ -1644,7 +1863,7 @@ const SlugPage = () => {
                         id="input"
                         name="input"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter something..."
+                        placeholder="ادخال رقم مساند"
                       />
 
                       <label
@@ -1667,7 +1886,7 @@ const SlugPage = () => {
                     <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -1679,11 +1898,13 @@ const SlugPage = () => {
                             bookingstatus: "الربط مع مساند",
                             // GuaranteeDurationEnd: guaranteeref.current.value(),
 
+                            nationalidNumber: SponsorIdnumberRef.current.value,
+                            visaNumber: visaNumberRef.current.value,
                             InternalmusanedContract: musanadRef.current.value,
                             MusanadDuration: musanadDateRef.current.value,
                           })
                         }
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
@@ -1696,17 +1917,14 @@ const SlugPage = () => {
               <VerticalTimelineElement
                 className="vertical-timeline-element--work"
                 iconStyle={{
-                  background: "RGB(255, 182, 193)",
-                  color: "#fff",
+                  background: "#66757E",
+                  color: "white",
                 }}
                 contentArrowStyle={{
                   borderRight: "7px solid  rgb(255, 229, 180)",
                 }}
+                icon={<FaHandsHelping />}
                 // date="2011 - present"
-                iconStyle={{
-                  background: "RGB(255, 94, 77)",
-                  color: "#fff",
-                }}
               >
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع مساند الخارجي") &&
@@ -1714,33 +1932,48 @@ const SlugPage = () => {
                   <div className="flex flex-col justify-center">
                     <h1
                       style={{
-                        justifyContent: "center",
+                        justifyContent: "flex-start",
                         display: "flex",
-                        color: "rosybrown",
+                        color: "brown",
                       }}
                       className={Style["almarai-bold"]}
                     >
                       الربط مع مساند الخارجي
                     </h1>
+
                     <strong
+                      style={{
+                        color: "rosybrown",
+                        justifyContent: "center",
+                        display: "flex",
+                      }}
+                    >
+                      تاريخ الربط
+                    </strong>
+                    <h1
+                      className="mt-1"
+                      className={Style["almarai-bold"]}
                       style={{
                         justifyContent: "center",
                         display: "flex",
                       }}
                     >
-                      تاريخ الربط : &nbsp;&nbsp;
                       {formData.arrivals[0].externalmusanedContract
                         ? // new Date(
                           getDate(formData.arrivals[0].externalmusanedContract)
                         : // ).toLocaleDateString()
                           null}
-                    </strong>
+                    </h1>
 
                     {formData.arrivals[0]?.externalmusanadcontractfile && (
                       <div className="mt-2 text-gray-600">
                         <span
                           className={Style["almarai-bold"]}
-                          style={{ justifyContent: "center", display: "flex" }}
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                            color: "rosybrown",
+                          }}
                         >
                           ملف مساند الخارجي
                         </span>
@@ -1759,7 +1992,7 @@ const SlugPage = () => {
                     )}
 
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الربط مع مساند الخارجي")}
                     >
                       تعديل
@@ -1805,7 +2038,7 @@ const SlugPage = () => {
                         {/* Custom file upload button */}
                         <label
                           htmlFor="musanadexternalfile"
-                          className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                         >
                           اختار الملف
                         </label>
@@ -1830,7 +2063,7 @@ const SlugPage = () => {
                       {/* <div> */}
                       <button
                         onClick={() => setIsEditing("")}
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -1846,7 +2079,7 @@ const SlugPage = () => {
                               externalFileCloudinaryImage,
                           })
                         }
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
@@ -1857,6 +2090,7 @@ const SlugPage = () => {
               </VerticalTimelineElement>
 
               <VerticalTimelineElement
+                // title="الربط مع المكتب الخارجي"
                 className="vertical-timeline-element--work"
                 iconStyle={{
                   background: "RGB(255, 182, 193)",
@@ -1868,8 +2102,9 @@ const SlugPage = () => {
                 // date="2011 - present"
                 iconStyle={{
                   background: "RGB(255, 94, 77)",
-                  color: "#fff",
+                  color: "#teal",
                 }}
+                icon={<FaDoorOpen />}
               >
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
@@ -1878,14 +2113,26 @@ const SlugPage = () => {
                   <div className="flex flex-col">
                     <h1
                       style={{
+                        justifyContent: "flex-start",
+                        display: "flex",
+                        color: "brown",
+                      }}
+                      className={Style["almarai-bold"]}
+                    >
+                      الربط و المتابعة مع المكتب الخارجي
+                    </h1>
+
+                    <h1
+                      style={{
                         justifyContent: "center",
                         display: "flex",
                         color: "rosybrown",
                       }}
                       className={Style["almarai-bold"]}
                     >
-                      موافقة المكتب الخارجي
+                      تاريخ الربط
                     </h1>
+
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
                       className={Style["almarai-bold"]}
@@ -1894,6 +2141,27 @@ const SlugPage = () => {
                         ? getDate(formData.arrivals[0].ExternalOFficeApproval)
                         : null}
                     </h1>
+
+                    <h1
+                      style={{
+                        justifyContent: "center",
+                        display: "flex",
+                        color: "rosybrown",
+                      }}
+                      className={Style["almarai-bold"]}
+                    >
+                      اسم المكتب الخارجي
+                    </h1>
+
+                    <h1
+                      style={{ justifyContent: "center", display: "flex" }}
+                      className={Style["almarai-bold"]}
+                    >
+                      {formData.arrivals[0]?.office
+                        ? formData.arrivals[0]?.office
+                        : null}
+                    </h1>
+
                     <strong
                       style={{
                         justifyContent: "center",
@@ -1910,7 +2178,7 @@ const SlugPage = () => {
                     >
                       {formData.arrivals[0].externalOfficeStatus}
                     </h1>
-                    {formData.arrivals[0].ExternalStatusByoffice ? (
+                    {formData.arrivals[0].externalOfficeStatus ? (
                       <strong
                         style={{
                           justifyContent: "center",
@@ -1940,9 +2208,13 @@ const SlugPage = () => {
                       <div className="mt-2 text-gray-600">
                         <span
                           className={Style["almarai-bold"]}
-                          style={{ justifyContent: "center", display: "flex" }}
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                            color: "rosybrown",
+                          }}
                         >
-                          ملف مساند الخارجي
+                          ملف المكتب الخارجي
                         </span>
                         <a
                           style={{ justifyContent: "center", display: "flex" }}
@@ -1957,7 +2229,7 @@ const SlugPage = () => {
                     )}
 
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الربط مع المكتب الخارجي")}
                     >
                       تعديل
@@ -1971,6 +2243,30 @@ const SlugPage = () => {
                     >
                       المكتب الخارجي
                     </h1>
+
+                    <div className="mb-4">
+                      <label
+                        htmlFor="externalOfficeStatus"
+                        className="block text-sm font-medium text-gray-700"
+
+                        // className="block text-sm font-semibold mb-2"
+                      >
+                        اسم المكتب الخارجي
+                      </label>
+                      <select
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        // name="externalOfficeStatus"
+                        ref={officeRef}
+                        id="externalOfficeStatus"
+                      >
+                        <option value="">اختر المكتب</option>
+
+                        {offices.map((office) => (
+                          <option value={office.office}>{office.office}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="mb-4">
                       <label
                         htmlFor="input"
@@ -1989,45 +2285,67 @@ const SlugPage = () => {
                         placeholder="Enter something..."
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-4 justify-items-center">
+                      <div className="flex flex-col items-center">
+                        <label
+                          htmlFor="externalOfficeStatus"
+                          className="block text-sm font-semibold mb-2"
+                        >
+                          حالة الطلب للعميل
+                        </label>
+                        <select
+                          className="rounded-md"
+                          name="externalOfficeStatus"
+                          ref={externalOfficeStatus}
+                          id="externalOfficeStatus"
+                        >
+                          <option value="فحص طبي"></option>
+                          <option value="خلو سوابق">خلو سوابق</option>
+                          <option value="موافقة مكتب العمل في دولة الاستقدام">
+                            موافقة مكتب العمل في دولة الاستقدام
+                          </option>
+                          <option value="تفويض">تفويض</option>
+                          <option value="داخل السفارة">داخل السفارة</option>
+                          <option value="تم التفييز">تم التفييز</option>
+                          <option value="استلام الجواز في السفارة">
+                            استلام الجواز في السفارة
+                          </option>
+                          <option value="تصريح السفر">تصريح السفر</option>
+                          <option value="الحجز">الحجز</option>
+                          <option value="موعد الوصول">موعد الوصول</option>
+                        </select>
+                      </div>
 
-                    {/* <div> */}
-                    <label
-                      htmlFor="externalOfficeStatus"
-                      className="block text-sm font-semibold mb-2"
-                    >
-                      حالة الطلب
-                    </label>
-                    <select
-                      name="externalOfficeStatus"
-                      ref={externalOfficeStatus}
-                      id="externalOfficeStatus"
-                      // value={newAdmin.role}
-                    >
-                      <option value="...">...</option>
-                      <option value="فحص طبي">فحص طبي</option>
-                      <option value="خلو سوابق">خلو سوابق</option>
-                      <option value="ارفاق للسفارة">ارفاق للسفارة</option>
-                    </select>
-                    {/* </div> */}
-
-                    <label
-                      htmlFor="ExternalStatusByoffice"
-                      className="block text-sm font-semibold mb-2"
-                    >
-                      حالة الطلب طبقا للمكتب الخارجي
-                    </label>
-                    <select
-                      name="ExternalStatusByoffice"
-                      ref={ExternalStatusByofficeRef}
-                      id="externalOfficeStatus"
-                      // value={newAdmin.role}
-                    >
-                      <option value="...">...</option>
-
-                      <option value="فحص طبي">فحص طبي</option>
-                      <option value="خلو سوابق">خلو سوابق</option>
-                      <option value="ارفاق للسفارة">ارفاق للسفارة</option>
-                    </select>
+                      <div className="flex flex-col items-center">
+                        <label
+                          htmlFor="ExternalStatusByoffice"
+                          className="block text-sm font-semibold mb-2"
+                        >
+                          حالة الطلب طبقا للمكتب الخارجي
+                        </label>
+                        <select
+                          className="rounded-md"
+                          name="ExternalStatusByoffice"
+                          ref={ExternalStatusByofficeRef}
+                          id="externalOfficeStatus"
+                        >
+                          <option value="فحص طبي"></option>
+                          <option value="خلو سوابق">خلو سوابق</option>
+                          <option value="موافقة مكتب العمل في دولة الاستقدام">
+                            موافقة مكتب العمل في دولة الاستقدام
+                          </option>
+                          <option value="تفويض">تفويض</option>
+                          <option value="داخل السفارة">داخل السفارة</option>
+                          <option value="تم التفييز">تم التفييز</option>
+                          <option value="استلام الجواز في السفارة">
+                            استلام الجواز في السفارة
+                          </option>
+                          <option value="تصريح السفر">تصريح السفر</option>
+                          <option value="الحجز">الحجز</option>
+                          <option value="موعد الوصول">موعد الوصول</option>
+                        </select>
+                      </div>
+                    </div>
 
                     <div className="col-span-3">
                       <label
@@ -2042,7 +2360,7 @@ const SlugPage = () => {
                           id="externalFile"
                           name="externalFile"
                           type="file"
-                          className="px-6 py-2 hidden bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          className="px-6 py-2 hidden bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                           ref={checkRef}
                           // className={inputClass}
                           onChange={handleUploadExternalOfficeFile}
@@ -2059,7 +2377,7 @@ const SlugPage = () => {
 
                         <label
                           htmlFor="externalFile"
-                          className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                         >
                           اختار الملف
                         </label>
@@ -2084,7 +2402,7 @@ const SlugPage = () => {
                     <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -2093,6 +2411,8 @@ const SlugPage = () => {
                         type="submit"
                         onClick={() =>
                           handleAccessFormSubmit({
+                            office: officeRef.current?.value,
+
                             externalOfficeStatus:
                               externalOfficeStatus.current.value,
                             ExternalOFficeApproval:
@@ -2103,7 +2423,7 @@ const SlugPage = () => {
                             externalOfficeFile: externalOfficeFile,
                           })
                         }
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
@@ -2114,18 +2434,15 @@ const SlugPage = () => {
 
               <VerticalTimelineElement
                 className="vertical-timeline-element--work"
-                iconStyle={{
-                  background: "RGB(255, 182, 193)",
-                  color: "#fff",
-                }}
                 contentArrowStyle={{
                   borderRight: "7px solid  rgb(255, 229, 180)",
                 }}
                 // date="2011 - present"
                 iconStyle={{
-                  background: "RGB(255, 94, 77)",
-                  color: "#fff",
+                  background: "white",
+                  // color: "#fff",
                 }}
+                icon={<FaRegCheckCircle />}
               >
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
@@ -2134,15 +2451,14 @@ const SlugPage = () => {
                   <div className="flex flex-col">
                     <h1
                       style={{
-                        justifyContent: "center",
+                        justifyContent: "flex-start",
                         display: "flex",
-                        color: "rosybrown",
+                        color: "brown",
                       }}
                       className={Style["almarai-bold"]}
                     >
                       الفحص الطبي
                     </h1>
-
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
                       className={Style["almarai-bold"]}
@@ -2172,7 +2488,7 @@ const SlugPage = () => {
 
                     {/* <p>{getDate("موافقة")}</p> */}
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الفحص الطبي")}
                     >
                       تعديل
@@ -2193,7 +2509,7 @@ const SlugPage = () => {
                           id="medicalCheckFile"
                           name="medicalCheckFile"
                           type="file"
-                          className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                           ref={checkRef}
                           // className={inputClass}
                           onChange={handleUploadmedicalcheckfile}
@@ -2225,7 +2541,7 @@ const SlugPage = () => {
                     <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -2238,7 +2554,7 @@ const SlugPage = () => {
                             medicalCheckFile: medicalCheckFileCloudinaryImage,
                           })
                         }
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
@@ -2251,10 +2567,10 @@ const SlugPage = () => {
                 className="vertical-timeline-element--work"
                 // date={form.createdAt}
                 iconStyle={{
-                  background: "rgb(128, 25, 243)",
-                  color: "#ffc0cb",
+                  background: "teal",
+                  color: "#99AAB2",
                 }}
-                //  icon={}
+                icon={<FaMapMarked />}
               >
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
@@ -2263,13 +2579,23 @@ const SlugPage = () => {
                   <div className="flex flex-col">
                     <h1
                       style={{
+                        justifyContent: "flex-start",
+                        display: "flex",
+                        color: "brown",
+                      }}
+                      className={Style["almarai-bold"]}
+                    >
+                      الربط مع الوكالـة
+                    </h1>
+                    <h1
+                      style={{
                         justifyContent: "center",
                         display: "flex",
                         color: "rosybrown",
                       }}
                       className={Style["almarai-bold"]}
                     >
-                      تاريخ الربط مع الوكالة
+                      تاريخ الربط
                     </h1>
                     <strong
                       style={{
@@ -2283,7 +2609,7 @@ const SlugPage = () => {
                     </strong>
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الربط مع الوكالة")}
                     >
                       تعديل
@@ -2310,7 +2636,7 @@ const SlugPage = () => {
                     <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -2323,7 +2649,7 @@ const SlugPage = () => {
                             AgencyDate: agencyDateRef.current.value,
                           })
                         }
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
@@ -2338,10 +2664,10 @@ const SlugPage = () => {
                 className="vertical-timeline-element--work"
                 // date={form.createdAt}
                 iconStyle={{
-                  background: "rgb(128, 25, 243)",
+                  background: "teal",
                   color: "#ffc0cb",
                 }}
-                //  icon={}
+                icon={<FaSearchLocation />}
               >
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
@@ -2349,6 +2675,16 @@ const SlugPage = () => {
                 isEditing !== "التختيم في السفارة" ? (
                   <div className="flex flex-col">
                     <div>
+                      <h1
+                        style={{
+                          justifyContent: "flex-start",
+                          display: "flex",
+                          color: "brown",
+                        }}
+                        className={Style["almarai-bold"]}
+                      >
+                        التختيم في السفارة
+                      </h1>
                       <h1
                         style={{
                           justifyContent: "center",
@@ -2371,7 +2707,7 @@ const SlugPage = () => {
                     </div>
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("التختيم في السفارة")}
                     >
                       تعديل
@@ -2398,7 +2734,7 @@ const SlugPage = () => {
                     <div className="flex flex-row justify-center space-x-4">
                       <button
                         onClick={() => setIsEditing("")}
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         الغاء التعديل
                       </button>
@@ -2411,7 +2747,7 @@ const SlugPage = () => {
                             EmbassySealing: embassySealingRef.current.value,
                           })
                         }
-                        className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                        className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       >
                         تأكيد
                       </button>
@@ -2426,10 +2762,10 @@ const SlugPage = () => {
                 className="vertical-timeline-element--work"
                 // date={form.createdAt}
                 iconStyle={{
-                  background: "rgb(128, 25, 243)",
-                  color: "#ffc0cb",
+                  background: "#7F8F98",
+                  color: "wheat",
                 }}
-                //  icon={}
+                icon={<FaPlaneArrival />}
               >
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
@@ -2438,148 +2774,211 @@ const SlugPage = () => {
                   <div className="flex flex-col justify-center">
                     <h1
                       style={{
-                        justifyContent: "center",
+                        justifyContent: "flex-start",
                         display: "flex",
-                        color: "rosybrown",
+                        color: "brown",
                       }}
                       className={Style["almarai-bold"]}
                     >
-                      حجز التذكرة
+                      حجز التذكرة و وصول العاملة
                     </h1>
-                    <label
-                      style={{ justifyContent: "center", display: "flex" }}
-                      htmlFor="arrivaldate"
-                      className={Style["almarai-bold"]}
-                    >
-                      تاريخ وصول العاملة
-                    </label>
-                    <h2
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      {formData.arrivals[0].KingdomentryDate
-                        ? getDate(formData.arrivals[0].KingdomentryDate)
-                        : null}
-                    </h2>
-                    <label
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                      htmlFor="arrivaldate"
-                      className={Style["almarai-bold"]}
-                    >
-                      مدينة وصول العاملة
-                    </label>
-                    <h2
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      {formData.arrivals[0].ArrivalCity}
-                    </h2>
 
-                    <strong
-                      style={{ justifyContent: "center", display: "flex" }}
-                      className={Style["almarai-bold"]}
-                    >
-                      تاريخ انتهاء الضمان
-                    </strong>
+                    <div className="grid grid-cols-3 justify-center items-center mt-1">
+                      <div className="flex justify-center items-center flex-col">
+                        <label
+                          htmlFor="time"
+                          style={{
+                            color: "rosybrown",
+                          }}
+                          className={Style["almarai-bold"]}
+                        >
+                          توقيت الوصول
+                        </label>
+                        <strong>
+                          {formData.arrivals[0]?.KingdomentryTime
+                            ? formData.arrivals[0]?.KingdomentryTime
+                            : null}
+                        </strong>
+                      </div>
 
-                    <h1 style={{ justifyContent: "center", display: "flex" }}>
-                      {" "}
-                      {formData.arrivals[0].KingdomentryDate
-                        ? AddgoDays(formData.arrivals[0].KingdomentryDate)
-                        : null}
-                    </h1>
-                    <label
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                      htmlFor="arrivaldate"
-                      className={Style["almarai-bold"]}
-                    >
-                      وجهة العاملة
-                    </label>
-                    <h2
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      {formData.arrivals[0].finaldestination}
-                    </h2>
-                    {formData.arrivals[0].deparatureDate ? (
-                      <label
-                        style={{
-                          justifyContent: "center",
-                          display: "flex",
-                        }}
-                        // htmlFor=""
-                        className={Style["almarai-bold"]}
-                      >
-                        تاريخ مغادرة العاملة
-                      </label>
-                    ) : null}
-                    <h2
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      {formData.arrivals[0].deparatureDate
-                        ? getDate(formData.arrivals[0].deparatureDate)
-                        : null}
-                    </h2>
+                      <div className="flex justify-center items-center flex-col">
+                        <label
+                          style={{
+                            color: "rosybrown",
+                          }}
+                          htmlFor="arrivaldate"
+                          className={Style["almarai-bold"]}
+                        >
+                          تاريخ الوصول
+                        </label>
+                        <strong>
+                          {formData.arrivals[0]?.KingdomentryDate
+                            ? getDate(formData.arrivals[0]?.KingdomentryDate)
+                            : null}
+                        </strong>
+                      </div>
 
-                    {formData.arrivals[0].finalDestinationDate ? (
-                      <label
-                        style={{
-                          justifyContent: "center",
-                          display: "flex",
-                        }}
-                        // htmlFor=""
-                        className={Style["almarai-bold"]}
-                      >
-                        تاريخ وصول العاملة الى الواجهة الاخرى
-                      </label>
-                    ) : null}
-                    <h2
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                      className={Style["almarai-bold"]}
-                    >
-                      {formData.arrivals[0].finalDestinationDate
-                        ? getDate(formData.arrivals[0].finalDestinationDate)
-                        : null}
-                    </h2>
+                      <div className="flex justify-center items-center flex-col">
+                        <label
+                          style={{
+                            justifyContent: "center",
+                            color: "rosybrown",
 
-                    <label
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                        color:
-                          guaranteearrivaldaysRemaining < 20 ? "red" : "black",
-                      }}
-                      // htmlFor=""
-                      className={Style["almarai-bold"]}
-                    >
-                      متبقي على انتهاء الضمان
-                    </label>
-                    <h2
-                      style={{
-                        justifyContent: "center",
-                        display: "flex",
-                      }}
-                    >
-                      {guaranteearrivaldaysRemaining}
-                    </h2>
+                            display: "flex",
+                          }}
+                          htmlFor="arrivaldate"
+                          className={Style["almarai-bold"]}
+                        >
+                          مدينة وصول العاملة
+                        </label>
+                        <h2
+                          className={Style["almarai-bold"]}
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                          }}
+                        >
+                          {formData.arrivals[0]?.ArrivalCity}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 justify-center items-center mt-2">
+                      <div className="flex justify-center items-center flex-col">
+                        {formData.arrivals[0].finaldestination ? (
+                          <label
+                            style={{
+                              justifyContent: "center",
+                              color: "rosybrown",
+
+                              display: "flex",
+                            }}
+                            htmlFor="arrivaldate"
+                            className={Style["almarai-bold"]}
+                          >
+                            وجهة العاملة
+                          </label>
+                        ) : null}
+                        <h2
+                          className={Style["almarai-bold"]}
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                          }}
+                        >
+                          {formData.arrivals[0].finaldestination}
+                        </h2>
+                      </div>
+                      <div className="flex justify-center items-center flex-col">
+                        <label
+                          htmlFor="time"
+                          style={{
+                            color: "rosybrown",
+                          }}
+                          className={Style["almarai-bold"]}
+                        >
+                          موعد المغادرة
+                        </label>
+                        <strong>
+                          {formData.arrivals[0]?.deparatureTime
+                            ? formData.arrivals[0]?.deparatureTime
+                            : null}
+                        </strong>
+                      </div>
+
+                      {formData.arrivals[0]?.deparatureDate && (
+                        <div className="flex justify-center items-center flex-col">
+                          <label
+                            style={{
+                              color: "rosybrown",
+                            }}
+                            htmlFor="arrivaldate"
+                            className={Style["almarai-bold"]}
+                          >
+                            تاريخ المغادرة
+                          </label>
+                          <strong>
+                            {formData.arrivals[0]?.deparatureDate
+                              ? getDate(formData.arrivals[0]?.deparatureDate)
+                              : null}
+                          </strong>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 justify-center items-center mt-2">
+                      <div className="flex justify-center items-center flex-col">
+                        {formData.arrivals[0].finalDestinationDate ? (
+                          <label
+                            style={{
+                              justifyContent: "center",
+                              color: "rosybrown",
+
+                              display: "flex",
+                            }}
+                            // htmlFor=""
+                            className={Style["almarai-bold"]}
+                          >
+                            تاريخ وصول العاملة الى الواجهة الاخرى
+                          </label>
+                        ) : null}
+                        <h2
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                          }}
+                          className={Style["almarai-bold"]}
+                        >
+                          {formData.arrivals[0].finalDestinationDate
+                            ? getDate(formData.arrivals[0].finalDestinationDate)
+                            : null}
+                        </h2>
+                      </div>
+
+                      <div className="flex justify-center items-center flex-col">
+                        <strong
+                          style={{
+                            justifyContent: "center",
+
+                            color: "rosybrown",
+                            display: "flex",
+                          }}
+                          className={Style["almarai-bold"]}
+                        >
+                          تاريخ انتهاء الضمان
+                        </strong>
+                        <h1
+                          style={{ justifyContent: "center", display: "flex" }}
+                        >
+                          {" "}
+                          {formData.arrivals[0].KingdomentryDate
+                            ? AddgoDays(formData.arrivals[0].KingdomentryDate)
+                            : null}
+                        </h1>
+                      </div>
+                      <div className="flex justify-center items-center flex-col">
+                        <label
+                          style={{
+                            justifyContent: "center",
+                            color: "rosybrown",
+
+                            display: "flex",
+                          }}
+                          htmlFor="arrivaldate"
+                          className={Style["almarai-bold"]}
+                        >
+                          متبقي على انتهاء الضمان
+                        </label>
+                        <h2
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                          }}
+                        >
+                          {guaranteearrivaldaysRemaining}
+                        </h2>
+                      </div>
+                    </div>
 
                     {formData.arrivals[0]?.ticketFile ? (
                       <div className="mt-2 text-gray-600">
@@ -2603,7 +3002,7 @@ const SlugPage = () => {
 
                     {/* <p>{getDate("وصول العاملة")}</p> */}
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("حجز التذكرة")}
                     >
                       تعديل
@@ -2626,14 +3025,52 @@ const SlugPage = () => {
                       type="text"
                       className="w-full border rounded-md px-4 py-2"
                     />
+                    <div className="grid grid-cols-2 mt-2">
+                      <div className="mb-4">
+                        <label
+                          style={{ display: "flex", justifyContent: "center" }}
+                          htmlFor="date"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          تاريخ الوصول
+                        </label>
+                        <input
+                          onCopy={handleCopy}
+                          onPaste={handlePaste}
+                          ref={arrivalDateRef}
+                          id="arrivaldate"
+                          name="arrivaldate"
+                          type="date"
+                          className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
 
-                    <label
-                      htmlFor="arrivaldate"
-                      className="block font-semibold text-sm"
+                      <div className="mb-4">
+                        <label
+                          style={{ display: "flex", justifyContent: "center" }}
+                          htmlFor="time"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          توقيت الوصول
+                        </label>
+                        <input
+                          type="time"
+                          id="time"
+                          ref={arrivalTimeRef}
+                          // value={time}
+                          // onChange={handleTimeChange}
+                          className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* <button
+                      type="submit"
+                      className="w-full mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg shadow hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                     >
-                      تاريخ وصول العاملة
-                    </label>
-                    <input
+                      Submit
+                    </button> */}
+                    {/* <input
                       onCopy={handleCopy}
                       onPaste={handlePaste}
                       ref={arrivalDateRef}
@@ -2641,7 +3078,7 @@ const SlugPage = () => {
                       name="arrivaldate"
                       type="date"
                       className="w-full border rounded-md px-4 py-2"
-                    />
+                    /> */}
 
                     {/* Plus Button to add additional destination */}
                     <div className="flex items-center space-x-2 mt-2">
@@ -2672,27 +3109,57 @@ const SlugPage = () => {
                         />
                       </div>
                     )}
+                    <div className="grid grid-cols-2 mt-1">
+                      {showAdditionalDestination && (
+                        <div>
+                          <label
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                            }}
+                            htmlFor="deparatureDate"
+                            className="block font-semibold text-sm"
+                          >
+                            تاريخ المغادرة
+                          </label>
+                          <input
+                            onCopy={handleCopy}
+                            onPaste={handlePaste}
+                            ref={deparatureDateRef}
+                            id="deparatureDate"
+                            name="deparatureDate"
+                            type="date"
+                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      )}
+
+                      {showAdditionalDestination && (
+                        <div>
+                          <label
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                            }}
+                            htmlFor="deparatureDate"
+                            className="block font-semibold text-sm"
+                          >
+                            توقيت المغادرة
+                          </label>
+                          <input
+                            type="time"
+                            id="time"
+                            ref={deparatureTimeRef}
+                            // value={time}
+                            // onChange={handleTimeChange}
+                            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+
                     {showAdditionalDestination && (
-                      <div>
-                        <label
-                          htmlFor="deparatureDate"
-                          className="block font-semibold text-sm"
-                        >
-                          تاريخ المغادرة من المدينة الاساسية
-                        </label>
-                        <input
-                          onCopy={handleCopy}
-                          onPaste={handlePaste}
-                          ref={deparatureDateRef}
-                          id="deparatureDate"
-                          name="deparatureDate"
-                          type="date"
-                          className="w-full border rounded-md px-4 py-2"
-                        />
-                      </div>
-                    )}
-                    {showAdditionalDestination && (
-                      <div>
+                      <div className="mt-1">
                         <label
                           htmlFor="finalDestinationDate"
                           className="block font-semibold text-sm"
@@ -2726,7 +3193,7 @@ const SlugPage = () => {
                       {/* Custom file upload button */}
                       <label
                         htmlFor="ticketFile"
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                        className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                       >
                         اختار الملف
                       </label>
@@ -2749,7 +3216,7 @@ const SlugPage = () => {
                       <div className="flex flex-row justify-center space-x-4">
                         <button
                           onClick={() => setIsEditing("")}
-                          className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                          className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                         >
                           الغاء التعديل
                         </button>
@@ -2758,8 +3225,11 @@ const SlugPage = () => {
                           // type="submit"
                           onClick={() =>
                             handleAccessFormSubmit({
+                              deparatureTime: deparatureTimeRef.current?.value,
+                              KingdomentryTime: arrivalTimeRef.current?.value,
                               finalDestinationDate:
                                 finalDestinationDateRef.current?.value,
+
                               bookingstatus: "حجز التذكرة",
                               deparatureDate: deparatureDateRef.current?.value
                                 ? deparatureDateRef.current.value
@@ -2777,7 +3247,7 @@ const SlugPage = () => {
                               ticketFile: ticketFileFileCloudinaryImage,
                             })
                           }
-                          className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                          className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                         >
                           تأكيد
                         </button>
@@ -2791,21 +3261,28 @@ const SlugPage = () => {
                 className="vertical-timeline-element--work"
                 // date={form.createdAt}
                 iconStyle={{
-                  background: "rgb(128, 25, 243)",
-                  color: "#ffc0cb",
+                  // display: "flex",
+                  // justifyContent: "center",
+                  background: "#8D6C49",
+                  color: "wheat",
                 }}
-                //  icon={}
+                icon={<FaCheckCircle />}
               >
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الاستلام") && isEditing !== "الاستلام" ? (
                   <div className="flex flex-col">
                     <h1
-                      style={{ justifyContent: "center", display: "flex" }}
+                      style={{
+                        justifyContent: "flex-start",
+                        display: "flex",
+                        color: "brown",
+                      }}
                       className={Style["almarai-bold"]}
                     >
-                      الاستلام
+                      الاستلام و التـوقيع
                     </h1>
+
                     <label
                       style={{ justifyContent: "center", display: "flex" }}
                       htmlFor="deliveryDate"
@@ -2841,7 +3318,7 @@ const SlugPage = () => {
                       </div>
                     ) : null}
                     <button
-                      className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                       onClick={() => setIsEditing("الاستلام")}
                     >
                       تعديل
@@ -2892,7 +3369,7 @@ const SlugPage = () => {
                       {/* Custom file upload button */}
                       <label
                         htmlFor="deliveryfile"
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                        className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
                       >
                         اختار الملف
                       </label>
@@ -2924,7 +3401,7 @@ const SlugPage = () => {
                               // ticketFile,
                             })
                           }
-                          className="py-2 px-4 bg-pink-500 text-white font-semibold rounded-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                          className="py-2 px-4 bg-orange-300 text-white font-semibold rounded-md hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                         >
                           تأكيد
                         </button>
@@ -2933,226 +3410,253 @@ const SlugPage = () => {
                   </div>
                 )}
               </VerticalTimelineElement>
-            </VerticalTimeline>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
-            {/* Button to toggle the form */}
-            <button
-              onClick={toggleFormVisibility}
-              className="mb-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700"
-            >
-              {isFormVisible ? "الغاء الاضافة" : "اضافة ملاحظات"}
-            </button>
-            {isFormVisible && (
-              <form onSubmit={formik.handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="col-span-3">
-                    <label
-                      htmlFor="Notes"
-                      className="block font-semibold text-sm"
-                    >
-                      Notes
-                    </label>
-                    <textarea
-                      id="Notes"
-                      name="Notes"
-                      className="w-full border rounded-md px-4 py-2"
-                      value={formik.values.Notes}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                    />
-                  </div>
-                  {/* Submit Button */}
-                  <div className="col-span-2 text-center mt-4">
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-700"
-                    >
-                      Submit
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-1 mt-7 gap-6">
-            <div className="bg-white w-full  p-6 rounded-lg shadow-lg">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  صندوق رفع الملفات
-                </h2>
-                <button
-                  onClick={closeBooksModal}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className="h-6 w-6"
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                // date={form.createdAt}
+                iconStyle={{
+                  // display: "flex",
+                  // justifyContent: "center",
+                  background: "#8D6C49",
+                  color: "wheat",
+                }}
+                icon={<FaBoxOpen />}
+              >
+                <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
+                  {/* Button to toggle the form */}
+                  <button
+                    onClick={toggleFormVisibility}
+                    className="mb-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-700"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="mb-6 text-gray-600">
-                <div className="col-span-3">
-                  <label
-                    htmlFor="approvalPayment"
-                    className="block font-semibold text-sm"
-                  >
-                    رفع اثبات الدفع
-                  </label>
-                  <div className="flex flex-col items-start bg-gray-100 ">
-                    {/* Hidden file input */}
-                    <input
-                      id="approvalPayment"
-                      name="approvalPayment"
-                      type="file"
-                      className="hidden"
-                      onChange={handleUploadapprovalPayment}
-                    />
-                    {/* Custom file upload button */}
-                    <label
-                      htmlFor="approvalPayment"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
-                    >
-                      اختار الملف
-                    </label>
-
-                    {/* Display uploaded image or file status */}
-                    {approvalPaymentFileCloudinaryImage && (
-                      <div className="mt-2 text-gray-600 ">
-                        <span>File Uploaded: </span>
-                        <a
-                          href={approvalPaymentFileCloudinaryImage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-purple-500 hover:underline"
-                        >
-                          عرض الملف
-                        </a>
+                    {isFormVisible ? "الغاء الاضافة" : "اضافة ملاحظات"}
+                  </button>
+                  {isFormVisible && (
+                    <form onSubmit={formik.handleSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="col-span-3">
+                          <label
+                            htmlFor="Notes"
+                            className="block font-semibold text-sm"
+                          >
+                            Notes
+                          </label>
+                          <textarea
+                            id="Notes"
+                            name="Notes"
+                            className="w-full border rounded-md px-4 py-2"
+                            value={formik.values.Notes}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                          />
+                        </div>
+                        {/* Submit Button */}
+                        <div className="col-span-2 text-center mt-4">
+                          <button
+                            type="submit"
+                            className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-700"
+                          >
+                            Submit
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </form>
+                  )}
                 </div>
+              </VerticalTimelineElement>
 
-                {/* Custom File Upload Field */}
-                <div>
-                  <label
-                    htmlFor="additionalfiles"
-                    className="block font-semibold text-sm"
-                  >
-                    ملفات اخرى
-                  </label>
-                  <div className="flex flex-col items-start">
-                    {/* Hidden file input with multiple attribute */}
-                    <input
-                      id="additionalfiles"
-                      name="additionalfiles"
-                      type="file"
-                      className="hidden"
-                      multiple
-                      onChange={handleUpload}
-                    />
-                    {/* Custom file upload button */}
-                    <label
-                      htmlFor="additionalfiles"
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
-                    >
-                      Choose Files
-                    </label>
+              <VerticalTimelineElement
+                className="vertical-timeline-element--work"
+                // date={form.createdAt}
+                iconStyle={{
+                  // display: "flex",
+                  // justifyContent: "center",
+                  background: "#000080",
+                  color: "wheat",
+                }}
+                icon={<FaUpload />}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-1 mt-7 gap-6">
+                  <div className="bg-white w-full  p-6 rounded-lg shadow-lg">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold text-gray-800">
+                        صندوق رفع الملفات
+                      </h2>
+                      <button
+                        onClick={closeBooksModal}
+                        className="text-gray-600 hover:text-gray-800"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          className="h-6 w-6"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
 
-                    {/* Display uploaded images or file statuses */}
-                    {cloudinaryImages.length > 0 && (
-                      <div className="mt-2 text-gray-600">
-                        <span>Uploaded Files:</span>
-                        <ul>
-                          {cloudinaryImages.map((image, index) => (
-                            <li key={index} className="mt-1">
+                    {/* Modal Body */}
+                    <div className="mb-6 text-gray-600">
+                      <div className="col-span-3">
+                        <label
+                          htmlFor="approvalPayment"
+                          className="block font-semibold text-sm"
+                        >
+                          رفع اثبات الدفع
+                        </label>
+                        <div className="flex flex-col items-start bg-gray-100 ">
+                          {/* Hidden file input */}
+                          <input
+                            id="approvalPayment"
+                            name="approvalPayment"
+                            type="file"
+                            className="hidden"
+                            onChange={handleUploadapprovalPayment}
+                          />
+                          {/* Custom file upload button */}
+                          <label
+                            htmlFor="approvalPayment"
+                            className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          >
+                            اختار الملف
+                          </label>
+
+                          {/* Display uploaded image or file status */}
+                          {approvalPaymentFileCloudinaryImage && (
+                            <div className="mt-2 text-gray-600 ">
+                              <span>File Uploaded: </span>
                               <a
-                                href={image}
+                                href={approvalPaymentFileCloudinaryImage}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-purple-500 hover:underline"
                               >
-                                File {index + 1}
+                                عرض الملف
                               </a>
-                            </li>
-                          ))}
-                        </ul>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
+
+                      {/* Custom File Upload Field */}
+                      <div>
+                        <label
+                          htmlFor="additionalfiles"
+                          className="block font-semibold text-sm"
+                        >
+                          ملفات اخرى
+                        </label>
+                        <div className="flex flex-col items-start">
+                          {/* Hidden file input with multiple attribute */}
+                          <input
+                            id="additionalfiles"
+                            name="additionalfiles"
+                            type="file"
+                            className="hidden"
+                            multiple
+                            onChange={handleUpload}
+                          />
+                          {/* Custom file upload button */}
+                          <label
+                            htmlFor="additionalfiles"
+                            className="px-6 py-2 bg-teal-600 text-white rounded-lg cursor-pointer hover:bg-green-900"
+                          >
+                            Choose Files
+                          </label>
+
+                          {/* Display uploaded images or file statuses */}
+                          {cloudinaryImages.length > 0 && (
+                            <div className="mt-2 text-gray-600">
+                              <span>Uploaded Files:</span>
+                              <ul>
+                                {cloudinaryImages.map((image, index) => (
+                                  <li key={index} className="mt-1">
+                                    <a
+                                      href={image}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-purple-500 hover:underline"
+                                    >
+                                      File {index + 1}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    {/* Modal Footer */}
+                    <div className="flex justify-center space-x-4 mt-6">
+                      <button
+                        onClick={closeBooksModal}
+                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleAccessFormSubmit({
+                            ticketFile: ticketFileFileCloudinaryImage,
+                            receivingFile: receivingFileCloudinaryImage,
+                            approvalPayment: approvalPaymentFileCloudinaryImage,
+                            additionalfiles: cloudinaryImages,
+                          })
+                        }
+                        className="bg-orange-400 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-200"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                    <div>
+                      {/* Floating button */}
+                      <button
+                        onClick={scrollToSection}
+                        style={{
+                          position: "fixed",
+                          bottom: "2%", // Position vertically in the center
+                          right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
+                          transform: "translate(-50%, -50%)", // Offset to truly center the button
+                          backgroundColor: "transparent", // Make the background transparent
+                          color: "blue", // Make the icon color blue (you can change this to any color)
+                          border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
+                          borderRadius: "10px", // Make the button slightly rounded
+                          padding: "10px 25px", // Make the button narrow
+                          fontSize: "20px",
+                          cursor: "pointer",
+                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
+                          transition: "all 0.3s ease", // Smooth transition for hover effect
+                        }}
+                        onMouseEnter={(e) => {
+                          // Change color when hovering
+                          e.target.style.backgroundColor =
+                            "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
+                          e.target.style.boxShadow =
+                            "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
+                        }}
+                        onMouseLeave={(e) => {
+                          // Reset the button style when not hovering
+                          e.target.style.backgroundColor = "transparent";
+                          e.target.style.boxShadow =
+                            "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
+                        }}
+                      >
+                        <FaArrowUp size={13} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Modal Footer */}
-              {/* Modal Footer */}
-              <div className="flex justify-center space-x-4 mt-6">
-                <button
-                  onClick={closeBooksModal}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() =>
-                    handleAccessFormSubmit({
-                      ticketFile: ticketFileFileCloudinaryImage,
-                      receivingFile: receivingFileCloudinaryImage,
-                      approvalPayment: approvalPaymentFileCloudinaryImage,
-                      additionalfiles: cloudinaryImages,
-                    })
-                  }
-                  className="bg-orange-400 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition duration-200"
-                >
-                  Confirm
-                </button>
-              </div>
-              <div>
-                {/* Floating button */}
-                <button
-                  onClick={scrollToSection}
-                  style={{
-                    position: "fixed",
-                    bottom: "2%", // Position vertically in the center
-                    right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
-                    transform: "translate(-50%, -50%)", // Offset to truly center the button
-                    backgroundColor: "transparent", // Make the background transparent
-                    color: "blue", // Make the icon color blue (you can change this to any color)
-                    border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
-                    borderRadius: "10px", // Make the button slightly rounded
-                    padding: "10px 25px", // Make the button narrow
-                    fontSize: "20px",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
-                    transition: "all 0.3s ease", // Smooth transition for hover effect
-                  }}
-                  onMouseEnter={(e) => {
-                    // Change color when hovering
-                    e.target.style.backgroundColor = "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
-                    e.target.style.boxShadow = "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
-                  }}
-                  onMouseLeave={(e) => {
-                    // Reset the button style when not hovering
-                    e.target.style.backgroundColor = "transparent";
-                    e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
-                  }}
-                >
-                  <FaArrowUp size={13} />
-                </button>
-              </div>
-            </div>
+              </VerticalTimelineElement>
+            </VerticalTimeline>
           </div>
         </div>
       </div>
@@ -3179,9 +3683,11 @@ export async function getServerSideProps(context: NextPageContext) {
     }
     const user = jwt.verify(req.cookies.authToken, "rawaesecret");
     console.log(user);
+    const offices = await prisma.offices.findMany();
     // If authenticated, continue with rendering the page
+    // const offices = new
     return {
-      props: { user }, // Empty object to pass props if needed
+      props: { user, offices }, // Empty object to pass props if needed
     };
   } catch (error) {
     console.log("error");

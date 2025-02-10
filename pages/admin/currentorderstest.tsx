@@ -49,6 +49,35 @@ export default function Table() {
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
   // const [email, setEmail] = useState("");
+
+  const nationalities = [
+    { id: 1, nationality: "فحص طبي" },
+    { id: 2, nationality: "خلو سوابق" },
+
+    { id: 3, nationality: "موافقة مكتب العمل في دولة الاستقدام" },
+    { id: 4, nationality: "تفويض " },
+
+    { id: 5, nationality: "داخل السفارة" },
+    { id: 6, nationality: "تم التفييز" },
+    { id: 7, nationality: "استلام الجواز في السفارة" },
+    // ,{},{}
+  ];
+
+  //  <option value="فحص طبي"></option>
+  //               <option value="خلو سوابق">خلو سوابق</option>
+  //               <option value="موافقة مكتب العمل في دولة الاستقدام">
+  //                 موافقة مكتب العمل في دولة الاستقدام
+  //               </option>
+  //               <option value="تفويض">تفويض</option>
+  //               <option value="داخل السفارة">داخل السفارة</option>
+  //               <option value="تم التفييز">تم التفييز</option>
+  //               <option value="استلام الجواز في السفارة">
+  //                 استلام الجواز في السفارة
+  //               </option>
+  //               <option value="تصريح السفر">تصريح السفر</option>
+  //               <option value="الحجز">الحجز</option>
+  //               <option value="موعد الوصول">موعد الوصول</option>
+
   const [phonenumber, setPhoneNumber] = useState("");
   const [filteredSuggestions, setFilteredSuggestions] = useState({
     Name: "",
@@ -104,8 +133,10 @@ export default function Table() {
     setModalOpen(false);
   };
   const [filters, setFilters] = useState({
+    externalOfficeStatus: "",
     ClientName: "",
     age: "",
+    InternalmusanedContract: "",
     clientphonenumber: "",
     Passportnumber: "",
     Nationality: "",
@@ -115,12 +146,19 @@ export default function Table() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // State for dropdown visibility
+
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
+
+  const handleFilterSelection = (value) => {
+    handleFilterChange(value, "externalOfficeStatus");
+  };
 
   const pageRef = useRef(1); // Use a ref to keep track of the current page number
   const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
-
+  const [exStatus, setexStatus] = useState("");
   // Fetch data with pagination
-  const fetchData = async () => {
+  const fetchData = async (value) => {
     if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
     isFetchingRef.current = true;
     setLoading(true);
@@ -130,6 +168,8 @@ export default function Table() {
       const queryParams = new URLSearchParams({
         searchTerm: filters.ClientName,
         age: filters.age,
+        externalOfficeStatus: value ? value : exStatus,
+        InternalmusanedContract: filters.InternalmusanedContract,
         clientphonenumber: filters.clientphonenumber,
         HomemaidId: filters.HomemaidId,
         Passportnumber: filters.Passportnumber,
@@ -183,7 +223,7 @@ export default function Table() {
 
   // useEffect to fetch the first page of data on mount
   useEffect(() => {
-    fetchData(); // Fetch the first page of data
+    fetchData(""); // Fetch the first page of data
   }, []); // Only run once on mount
 
   // useEffect to fetch data when filters change
@@ -194,7 +234,22 @@ export default function Table() {
   //   setHasMore(true);
   //   fetchData();
   // }, [filters]); // Only re-run when filters change
+  const handleFilterChangeStatus = (value) => {
+    // alert(value, column);
+    // const v = value;
 
+    toggleDropdown();
+
+    // setTimeout(() => {
+    isFetchingRef.current = false;
+    setHasMore(true);
+    setData([]);
+    pageRef.current = 1;
+
+    fetchData(value);
+    // }, 500);
+    // console.log(filters);
+  };
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     column: string
@@ -259,7 +314,7 @@ export default function Table() {
           <div className="flex space-x-4">
             <button
               onClick={handleAddNewReservation}
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400"
+              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-200"
             >
               اضافة حجز جديد
             </button>
@@ -299,24 +354,27 @@ export default function Table() {
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.HomemaidId}
-              onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="بحث برقم العاملة"
+              value={filters.InternalmusanedContract}
+              onChange={(e) => handleFilterChange(e, "InternalmusanedContract")}
+              placeholder="بحث برقم مساند"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+          <div></div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className="text-[#EFF7F9] bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
               onClick={() => {
+                setexStatus("");
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({
-                  clientphonenumber: "",
+                  externalOfficeStatus: "",
+                  InternalmusanedContract: "",
                   age: "",
                   ClientName: "",
                   HomemaidId: "",
+                  clientphonenumber: "",
                   Nationality: "",
                   Passportnumber: "",
                 });
@@ -325,14 +383,15 @@ export default function Table() {
                 fetchData();
               }}
             >
-              اعادة ضبط
-            </Button>
+              ضبط
+            </button>
           </div>
+
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className="text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
               onClick={() => {
+                setexStatus("");
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setData([]);
@@ -341,24 +400,91 @@ export default function Table() {
               }}
             >
               بحث
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
+            <tr className="bg-yellow-400 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
-              <th className="p-3 text-left text-sm font-medium">الاسم</th>
+              <th className="p-3 text-left text-sm font-medium">اسم العميل</th>
 
               <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">
+                رقم عقد مساند
+              </th>
 
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
+
+              <th className="relative p-3 text-left text-sm font-medium">
+                {/* Column header with dropdown */}
+                <button
+                  onClick={toggleDropdown}
+                  className="flex items-center space-x-1"
+                >
+                  <span>حالة طلب المكتب الخارجي</span>
+                  <svg
+                    className={`w-4 h-4 transform ${
+                      isDropdownOpen ? "rotate-180" : ""
+                    }`}
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {isDropdownOpen && (
+                  <div className="absolute mt-2 w-full  text-gray-800 bg-white shadow-lg rounded-md z-10">
+                    <ul className="p-2 text-sm">
+                      <li
+                        className="cursor-pointer p-2 hover:bg-gray-100"
+                        onClick={() => {
+                          setFilters((prev) => ({
+                            ...prev,
+                            externalOfficeStatus: "",
+                          }));
+                          setexStatus("");
+
+                          handleFilterChangeStatus("");
+                        }}
+                      >
+                        الكل
+                      </li>
+                      {nationalities.map((n) => (
+                        <li
+                          key={n.id}
+                          className="cursor-pointer p-2 text-gray-800 hover:bg-gray-100"
+                          onClick={() => {
+                            // setexStatus(n.nationality);
+                            // setFilters((prev) => ({
+                            setexStatus(n.nationality);
+                            //   ...prev,
+                            //   externalOfficeStatus: n.nationality,
+                            // }));
+                            handleFilterChangeStatus(n.nationality);
+                          }}
+                        >
+                          {n.nationality}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </th>
 
               <th className="p-3 text-left text-sm font-medium">الجنسية</th>
               <th className="p-3 text-left text-sm font-medium">تحديث</th>
@@ -385,6 +511,12 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700">{item.Name}</td>
 
                   <td className="p-3 text-md text-gray-700">
+                    {item.arrivals[0]?.InternalmusanedContract
+                      ? item.arrivals[0]?.InternalmusanedContract
+                      : null}
+                  </td>
+
+                  <td className="p-3 text-md text-gray-700">
                     {item.clientphonenumber}
                   </td>
                   <td className="p-3 text-md text-gray-700">
@@ -392,20 +524,28 @@ export default function Table() {
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
-                    {item.HomemaidId}
+                    {item.arrivals[0]?.externalOfficeStatus
+                      ? item.arrivals[0]?.externalOfficeStatus
+                      : null}
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}
                   </td>
                   <td className="p-3 text-md text-gray-700">
-                    <Button
-                      variant="contained"
-                      color="warning"
+                    <button
+                      style={{
+                        // color: "#EFF7F9",
+                        backgroundColor: "#4C7C83",
+                      }}
+                      // className=" font-medium"
+                      // variant="contained"
+                      className="p-3 text-md rounded-md text-white"
+                      // color="warning"
                       onClick={() => handleUpdate(item.id)}
                     >
                       تحديث
-                    </Button>
+                    </button>
                   </td>
                 </tr>
               ))
@@ -422,7 +562,7 @@ export default function Table() {
             {loading && (
               <div className="flex justify-center items-center">
                 <svg
-                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
+                  className="animate-spin h-5 w-5 mr-3 text-yellow-600"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"

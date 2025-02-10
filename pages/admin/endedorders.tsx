@@ -222,7 +222,7 @@ export default function Table() {
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
+            <tr className=" text-white" style={{ backgroundColor: "#000080" }}>
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>

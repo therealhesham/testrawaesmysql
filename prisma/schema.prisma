@@ -164,23 +164,30 @@ model MaleWorker {
 model arrivallist {
   id                        Int       @id @default(autoincrement())
   SponsorName               String?   @db.VarChar(191)
+  office                    String?   @db.VarChar(191)
   InternalmusanedContract   String?   @db.VarChar(191)
   externalmusanedContract String?  @db.VarChar(191)
 externalmusanadcontractfile String? @db.VarChar(191)
 externalOfficeStatus        String?@db.VarChar(25)
   SponsorIdnumber           Int?
+nationalidNumber            String?@db.VarChar(25)
   Sponsor                   Client?   @relation(fields: [SponsorIdnumber], references: [id])
   OrderId                   Int?       
   Order                     neworder?  @relation(fields: [OrderId], references: [id])
 DeliveryDate              DateTime?
 finaldestination          String?
+visaNumber                String?   @db.VarChar(191)
 deparatureDate            DateTime?
+deparatureTime            String?
+
 ExternalStatusByoffice    String?
 finalDestinationDate      DateTime?
 DeliveryFile           String?      @db.VarChar(191)
   SponsorPhoneNumber        String?   @db.VarChar(15)
   PassportNumber            String?   @db.VarChar(191)
   KingdomentryDate          DateTime?
+  KingdomentryTime           String?  @db.VarChar(30)
+
   WorkDuration              String?   @db.VarChar(191)
   Cost                      String?   @db.VarChar(191)
   HomemaIdnumber            Int?
@@ -229,4 +236,10 @@ model Transfer {
   accomaditionnumber    String?   @db.VarChar(191)
   marketeername         String?   @db.VarChar(191)
   notes                 String?   @db.VarChar(191)
+}
+
+model offices {
+  id                    Int       @id @default(autoincrement())
+  office            String    @db.VarChar(191)
+Country         String    @db.VarChar(191)
 }

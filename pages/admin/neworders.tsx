@@ -14,6 +14,7 @@ import FormWithTimeline from "./addneworderbyadmin";
 import TimeLinedForm from "example/components/stepsform";
 import Modal from "components/modal";
 import RejectBooking from "./reject-booking";
+import { FaFileExcel } from "react-icons/fa";
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
@@ -346,26 +347,23 @@ export default function Home() {
               <p className="text-2xl font-bold text-cool-gray-700">
                 حجوزات جديدة
               </p>
-              <div className="flex space-x-4">
-                {/* <button
-                  onClick={handleAddNewReservation}
-                  className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-400"
-                >
-                  Add New Reservation
-                </button> */}
-
+              {/* <div className="flex space-x-4">
                 <button
                   onClick={exportToExcel}
-                  className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600"
+                  className="bg-yellow-400 text-white px-4 py-2 rounded-lg  flex items-center"
                 >
+                  <FaFileExcel />
                   Export to Excel
                 </button>
-              </div>
+              </div> */}
             </div>
 
             <table className="min-w-full text-sm text-left">
               <thead className="bg-gray-100">
-                <tr>
+                <tr
+                  style={{ backgroundColor: "#FFDB58" }}
+                  className=" text-black"
+                >
                   <th className="px-4 py-2">م</th>
                   <th className="px-4 py-2">اسم العميل</th>
                   <th className="px-4 py-2">جوال العميل</th>
@@ -384,7 +382,7 @@ export default function Home() {
                 {data.map((row) => (
                   <tr
                     key={row.id}
-                    className="border-b hover:bg-gray-300 cursor-pointer"
+                    className="border-b             hover:bg-gray-300 cursor-pointer"
                   >
                     <td className="px-4 py-2 text-lg">{row.id}</td>
                     <td className="px-4 py-2">{row.ClientName}</td>
@@ -405,6 +403,7 @@ export default function Home() {
                     <td className="px-4 py-2">{row.age}</td>
                     <td className="px-4 py-2">
                       <button
+                        style={{ backgroundColor: "#003749" }}
                         onClick={() =>
                           confirm(
                             row.id,
@@ -414,7 +413,7 @@ export default function Home() {
                             row.Name
                           )
                         }
-                        className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
+                        className="px-6 py-2  text-white font-semibold rounded-lg shadow-md  focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
                       >
                         موافقة
                       </button>
@@ -423,8 +422,9 @@ export default function Home() {
                       <div className="container mx-auto p-4">
                         {/* Trigger button to open modal */}
                         <button
+                          style={{ backgroundColor: "#4C7C83" }}
                           onClick={() => OpenRejectionModal(row.id)} // This is now correctly passed as a prop
-                          className="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                          className="text-white px-4 py-2 rounded-lg"
                         >
                           رفض الطلب
                         </button>
