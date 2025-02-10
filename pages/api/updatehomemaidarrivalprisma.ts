@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "./globalprisma";
+
+// import {getPrismaClient} from "../../utils/prisma";
+// prisma
 
 export default async function handler(
   req: NextApiRequest,
@@ -36,6 +38,7 @@ export default async function handler(
   try {
     const {
       finaldestination,
+      deparatureTime,
       finalDestinationDate,
       SponsorName,
       InternalmusanedContract,
@@ -66,6 +69,9 @@ export default async function handler(
       ExternalOFficeApproval,
       ExternalStatusByoffice,
       AgencyDate,
+      office,
+      KingdomentryTime,
+      nationalidNumber,
       Orderid,
       EmbassySealing,
       BookinDate,
@@ -122,10 +128,13 @@ export default async function handler(
     console.log(validKingdomEntryDate);
     const ss = {
       finaldestination,
+      deparatureTime,
       SponsorName,
+      KingdomentryTime,
       finalDestinationDate: validfinalDestinationDate,
       InternalmusanedContract,
       SponsorIdnumber,
+      nationalidNumber,
       deparatureDate: validDeparatureDate,
       SponsorPhoneNumber,
       PassportNumber,
@@ -147,6 +156,7 @@ export default async function handler(
       externalmusanadcontractfile,
       additionalfiles,
       ArrivalCity,
+      office,
       externalOfficeFile,
       externalmusanedContract: validexternalmusanedContract,
       MusanadDuration,

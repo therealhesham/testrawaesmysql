@@ -189,6 +189,7 @@ export default function Table() {
             <Button
               variant="contained"
               color="info"
+              style={{ backgroundColor: "#ECC383" }}
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -207,6 +208,7 @@ export default function Table() {
           </div>
           <div className="flex-1 px-1">
             <Button
+              style={{ backgroundColor: "#8D6C49" }}
               variant="contained"
               color="info"
               onClick={() => {
@@ -225,7 +227,7 @@ export default function Table() {
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
+            <tr className="bg-yellow-300 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>

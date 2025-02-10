@@ -9,6 +9,8 @@ export default async function handler(
   const {
     searchTerm, // This will be the single input from the frontend
     age,
+    externalOfficeStatus,
+    InternalmusanedContract,
     Passportnumber,
     clientphonenumber,
     Nationalitycopy,
@@ -29,24 +31,39 @@ export default async function handler(
   // Apply a filter for `clientphonenumber` if present
   if (clientphonenumber)
     filters.clientphonenumber = { contains: clientphonenumber };
+  // externalOfficeStatus;
 
-  // Apply a filter for `HomemaidId` if present
-  if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
-
-  // Apply a filter for `age` if present
-  if (age) filters.age = { equals: parseInt(age as string, 10) };
-
-  // Apply a filter for `Nationalitycopy` if present
-  if (Nationalitycopy) {
-    filters.Nationalitycopy = {
-      contains: (Nationalitycopy as string).toLowerCase(),
+  if (InternalmusanedContract) {
+    filters.arrivals = {
+      some: {
+        InternalmusanedContract: {
+          contains: InternalmusanedContract,
+        },
+      },
     };
   }
+
+  if (externalOfficeStatus) {
+    filters.arrivals = {
+      some: {
+        externalOfficeStatus: {
+          contains: externalOfficeStatus,
+        },
+      },
+    };
+  }
+
+  // Apply a filter for `age` if present
 
   try {
     // Fetch data with the filters and pagination
     const homemaids = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
+      include: {
+        arrivals: {
+          select: { InternalmusanedContract: true, externalOfficeStatus: true }, // Specify the fields you want
+        },
+      },
       where: {
         ...filters,
         NOT: {
@@ -79,7 +96,7 @@ export default async function handler(
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
     });
-
+    // console.log(homemaids[0].arrivals[0].InternalmusanedContract);
     // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);
   } catch (error) {

@@ -13,7 +13,7 @@ export default async function handler(
   const prisma = new PrismaClient();
   console.log(req.body);
   try {
-    const offices = await prisma.office.findMany();
+    const offices = await prisma.offices.findMany();
     console.log(offices);
     res.status(200).json(offices);
   } catch (error) {
