@@ -152,7 +152,7 @@ export default function ExternalOffices() {
     });
     setIsAddOfficeVisible(false); // Hide the form after adding the office
   };
-  const [date, setDate] = seState(Date.now());
+  const [date, setDate] = useState(Date.now());
   async function createoffice() {
     const newoffice = await fetch("/api/addofficeprisma", {
       method: "post",
