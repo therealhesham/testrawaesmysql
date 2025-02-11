@@ -239,6 +239,10 @@ export default function Table() {
                 تاريخ دخول المملكة
               </th>
 
+              <th className="p-3 text-left text-sm font-medium">
+                توقيت دخول المملكة
+              </th>
+
               {/* <th className="p-3 text-left text-sm font-medium">تحديث</th> */}
               {/*<th className="p-3 text-left text-sm font-medium">استعادة</th> */}
             </tr>
@@ -272,6 +276,11 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700">
                     {getDate(item.KingdomentryDate)}
                   </td>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.KingdomentryTime}
+                  </td>
+
                   {/* <td className="p-3 text-md text-gray-700">
                     <Button
                       variant="contained"
