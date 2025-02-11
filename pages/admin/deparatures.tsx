@@ -229,7 +229,9 @@ export default function Table() {
               <th className="p-3 text-left text-sm font-medium">
                 تاريخ المغادرة
               </th>
-              <th className="p-3 text-left text-sm font-medium">تحديث</th>
+              <th className="p-3 text-left text-sm font-medium">
+                وقت المغادرة
+              </th>
               {/* 
               <th className="p-3 text-left text-sm font-medium">الجنسية</th>
               <th className="p-3 text-left text-sm font-medium">استعادة</th> */}
@@ -266,13 +268,7 @@ export default function Table() {
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      onClick={() => handleUpdate(item.id)}
-                    >
-                      تحديث
-                    </Button>
+                    {item.deparatureTime}
                   </td>
 
                   {/* <td className="p-3 text-md text-gray-700">

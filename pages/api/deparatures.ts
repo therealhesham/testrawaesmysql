@@ -30,7 +30,8 @@ export default async function handler(
         deparatureDate: { not: null },
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-      take: pageSize, // Limit the results to the page size
+      take: pageSize, // Limit the results to the page size,
+      orderBy: { id: "desc" },
     });
     // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);

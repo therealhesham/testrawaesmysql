@@ -152,8 +152,9 @@ export default function ExternalOffices() {
     });
     setIsAddOfficeVisible(false); // Hide the form after adding the office
   };
+  const [date, setDate] = seState(Date.now());
   async function createoffice() {
-    const newoffice = await fetch("../api/addofficeprisma", {
+    const newoffice = await fetch("/api/addofficeprisma", {
       method: "post",
       headers: {
         Accept: "application/json",
@@ -163,13 +164,7 @@ export default function ExternalOffices() {
     });
     if (newoffice.status !== 200) return handleOpenFailedModal();
     const jsonify = await newoffice.json();
-    setNewOffice({
-      name: "",
-      country: "",
-      available: 0,
-      booked: 0,
-      people: [],
-    });
+    setDate(Date.now());
     handleOpenModal();
   }
   const [fetchedOffices, setFetchedOffices] = useState([]);
@@ -181,7 +176,7 @@ export default function ExternalOffices() {
 
   useEffect(() => {
     getter();
-  }, []);
+  }, [date]);
   // Add new person input row
   const addPerson = () => {
     setNewOffice((prev) => ({

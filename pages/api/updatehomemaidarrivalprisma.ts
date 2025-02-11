@@ -37,6 +37,7 @@ export default async function handler(
 
   try {
     const {
+      visaNumber,
       finaldestination,
       deparatureTime,
       finalDestinationDate,
@@ -130,6 +131,7 @@ export default async function handler(
       finaldestination,
       deparatureTime,
       SponsorName,
+      visaNumber,
       KingdomentryTime,
       finalDestinationDate: validfinalDestinationDate,
       InternalmusanedContract,

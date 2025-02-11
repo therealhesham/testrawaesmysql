@@ -51,9 +51,10 @@ import CancelBooking from "example/components/cancelbookingmodal";
 import prisma from "pages/api/globalprisma";
 import { set } from "mongoose";
 // GridLoader
-const SlugPage = ({ offices }) => {
+const SlugPage = (prop) => {
   const router = useRouter();
 
+  const [offices, setOffices] = useState(prop.offices);
   const [datenow, setDate] = useState(Date.now());
   useEffect(() => {
     // alert(router)
@@ -152,11 +153,13 @@ const SlugPage = ({ offices }) => {
   );
   const finalDestinationDateRef = useRef(null);
   const deparatureTimeRef = useRef(null);
+  const deliverySectionRef = useRef();
   const musanadRef = useRef();
+  const embassySealingSectionRef = useRef();
   const SponsorIdnumberRef = useRef();
   const officeRef = useRef();
   const arrivalTimeRef = useRef();
-
+  const kingdomEntrySectionRef = useRef();
   const visaNumberRef = useRef();
   const ExternalStatusByofficeRef = useRef(null);
   const finalDestinationRef = useRef(null);
@@ -653,7 +656,9 @@ const SlugPage = ({ offices }) => {
   const handleAccessFormSubmit = async (s) => {
     // setModalSpinnerOpen(true);
     // Adding to access list
-    if (isEditing) {
+    if (
+      stages.indexOf(formData.bookingstatus) >= stages.indexOf(s.bookingstatus)
+    ) {
       s.bookingstatus = formData.bookingstatus;
       // setFormData((prev) => { ...prev, bookingstatus: "" });
     }
@@ -793,7 +798,12 @@ const SlugPage = ({ offices }) => {
 
     // "المتابعة",
   ];
-
+  const [selectedOffice, setSelectedOffice] = useState("");
+  const [newOfficeName, setNewOfficeName] = useState("");
+  const handleNewOfficeChange = (e) => {
+    setNewOfficeName(e.target.value);
+    // officeRef.current.value = e.target.value;
+  };
   const handleScroll = () => {
     // Scroll to the element with the id "myElement"
     const element = document.getElementById("medicalCheckFile");
@@ -816,95 +826,66 @@ const SlugPage = ({ offices }) => {
   const utcDate = "2025-02-03T10:00:00Z"; // example UTC time
   const saudiTime = convertUTCtoSaudiTime(utcDate);
   console.log(saudiTime); // will output the converted Saudi time
-
+  const musanadDateSectionRef = useRef();
   const [inputClass, setInputclass] = useState("hidden");
   const [isAnimate, setISAnimate] = useState(true);
+  const checkRefSectionRef = useRef();
+  const agencyDateSectionRef = useRef();
+  const externalOfficeAprrovalSectionRef = useRef();
+  const externalMusanadSectionRef = useRef();
   const changeTimeline = async (state) => {
-    // alert(state);
-    // setModalSpinnerOpen(true);
     try {
       switch (state) {
         case "الربط مع مساند":
-          setISAnimate(false);
+          musanadDateSectionRef.current.scrollIntoView({ behavior: "smooth" });
 
-          setIsEditing("الربط مع مساند");
-          musanadDateRef.current.focus();
-          setIsEditing(null);
           break;
 
         case "الفحص الطبي":
-          setISAnimate(false);
-
           setIsEditing("الفحص الطبي");
-          checkRef.current.focus();
-          // router.locale("")
-          // setInputclass("hidden");
-          setIsEditing(null);
-
-          // handleScroll();
-          break;
+          checkRefSectionRef.current.scrollIntoView({ behavior: "smooth" });
+        // router.locale("")
 
         case "الربط مع الوكالة":
-          setISAnimate(false);
-
-          setIsEditing("الربط مع الوكالة");
-          agencyDateRef.current.focus();
-          setIsEditing(null);
+          agencyDateSectionRef.current.scrollIntoView({ behavior: "smooth" });
 
           break;
 
         case "الربط مع مساند الخارجي":
-          setISAnimate(false);
-
-          setIsEditing("الربط مع مساند الخارجي");
-          externalMusanadDateRef.current.focus();
-          setIsEditing(null);
+          externalMusanadSectionRef.current.scrollIntoView({
+            behavior: "smooth",
+          });
 
           break;
 
         case "الربط مع المكتب الخارجي":
-          setISAnimate(false);
-
-          setIsEditing("الربط المكتب الخارجي");
-          externalOfficeAprrovalRef.current.focus();
-          setIsEditing(null);
+          externalOfficeAprrovalSectionRef.current.scrollIntoView({
+            behavior: "smooth",
+          });
 
           break;
 
         case "وصول العاملة":
-          setISAnimate(false);
-
-          setIsEditing("وصول العاملة");
+          kingdomEntrySectionRef.current.scrollIntoView({ behavior: "smooth" });
           kingdomEntryRef.current.focus();
           setIsEditing(null);
 
           break;
         case "التختيم في السفارة":
           setISAnimate(false);
-
-          setIsEditing("التختيم في السفارة");
-          embassySealingRef.current.focus();
-          setIsEditing(null);
+          embassySealingSectionRef.current.scrollIntoView({
+            behavior: "smooth",
+          });
 
           break;
 
         case "حجز التذكرة":
-          setISAnimate(false);
-
-          setIsEditing("حجز التذكرة");
-          arrivalDateRef.current.focus();
-          setIsEditing(null);
+          kingdomEntrySectionRef.current.scrollIntoView({ behavior: "smooth" });
 
           break;
 
         case "الاستلام":
-          setISAnimate(false);
-          setIsEditing("الاستلام");
-
-          deliveryDateRef.current.focus();
-
-          // handleChangeReservationtoend("طلب منتهي");
-          setIsEditing(null);
+          deliverySectionRef.current.scrollIntoView({ behavior: "smooth" });
 
           break;
 
@@ -1226,6 +1207,24 @@ const SlugPage = ({ offices }) => {
 
   const [guaranteearrivaldaysRemaining, setguaranteearrivaldaysRemaining] =
     useState();
+  const [officeName, setOfficeName] = useState("");
+
+  const handleOfficeChange = (e) => {
+    setOfficeName(e.target.value);
+  };
+
+  const handleAddNewOffice = () => {
+    // Only add the office if it's not already in the list
+    if (officeName && !offices.some((office) => office.office === officeName)) {
+      setOffices([...offices, { office: officeName }]);
+      setOfficeName(""); // Clear the input field after adding
+    }
+  };
+
+  // Filter offices based on user input for autocomplete
+  const filteredOffices = offices.filter((office) =>
+    office.office.toLowerCase().includes(officeName.toLowerCase())
+  );
 
   // Target date (change this to your desired date)
   const guaranteetargetDate = new Date(
@@ -1623,7 +1622,7 @@ const SlugPage = ({ offices }) => {
 
           <div className="p-8">
             <VerticalTimeline
-              animate={isAnimate}
+              animate={true}
               lineColor="#30B8A6"
               layout="1-column-left"
             >
@@ -1712,7 +1711,7 @@ const SlugPage = ({ offices }) => {
                   stages.indexOf("الربط مع مساند") &&
                 isEditing !== "الربط مع مساند" ? (
                   <div
-                    ref={sectionLightRef}
+                    ref={musanadDateSectionRef}
                     className="flex flex-col justify-center"
                   >
                     <h1
@@ -1723,7 +1722,7 @@ const SlugPage = ({ offices }) => {
                       }}
                       className={Style["almarai-bold"]}
                     >
-                      الربط
+                      الربط مع مساند
                     </h1>
                     <strong
                       style={{
@@ -1740,6 +1739,52 @@ const SlugPage = ({ offices }) => {
                     >
                       {formData.arrivals[0]?.InternalmusanedContract}
                     </h1>
+
+                    <div className="grid grid-cols-2 gap-4 justify-center">
+                      <div className="flex justify-center items-center flex-col">
+                        <strong
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            color: "rosybrown",
+                          }}
+                        >
+                          رقم الهوية
+                        </strong>
+                        <h1
+                          className={Style["almarai-bold"]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            color: "black",
+                          }}
+                        >
+                          {formData.arrivals[0]?.nationalidNumber}
+                        </h1>
+                      </div>
+
+                      <div className="flex justify-center items-center flex-col">
+                        <strong
+                          style={{
+                            display: "flex",
+                            color: "rosybrown",
+                            justifyContent: "center",
+                          }}
+                        >
+                          رقم التأشيرة
+                        </strong>
+                        <h1
+                          className={Style["almarai-bold"]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {formData.arrivals[0]?.visaNumber}
+                        </h1>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-3 gap-4 justify-center">
                       <div className="flex justify-center items-center flex-col">
                         <strong
@@ -1817,7 +1862,7 @@ const SlugPage = ({ offices }) => {
                 ) : (
                   // <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
                   <>
-                    <div className="mb-4">
+                    <div className="mb-4" ref={musanadDateSectionRef}>
                       <label
                         for="input"
                         className="block text-sm font-medium text-gray-700"
@@ -1929,7 +1974,10 @@ const SlugPage = ({ offices }) => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع مساند الخارجي") &&
                 isEditing !== "الربط مع مساند الخارجي" ? (
-                  <div className="flex flex-col justify-center">
+                  <div
+                    className="flex flex-col justify-center"
+                    ref={externalMusanadSectionRef}
+                  >
                     <h1
                       style={{
                         justifyContent: "flex-start",
@@ -2001,7 +2049,7 @@ const SlugPage = ({ offices }) => {
                 ) : (
                   // <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
                   <>
-                    <div className="mb-4">
+                    <div className="mb-4" ref={externalMusanadSectionRef}>
                       <label
                         for="input"
                         className="block text-sm font-medium text-gray-700"
@@ -2110,7 +2158,10 @@ const SlugPage = ({ offices }) => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع المكتب الخارجي") &&
                 isEditing !== "الربط مع المكتب الخارجي" ? (
-                  <div className="flex flex-col">
+                  <div
+                    className="flex flex-col"
+                    ref={externalOfficeAprrovalSectionRef}
+                  >
                     <h1
                       style={{
                         justifyContent: "flex-start",
@@ -2236,7 +2287,7 @@ const SlugPage = ({ offices }) => {
                     </button>
                   </div>
                 ) : (
-                  <div>
+                  <div ref={externalOfficeAprrovalSectionRef}>
                     <h1
                       style={{ justifyContent: "center", display: "flex" }}
                       className={Style["almarai-bold"]}
@@ -2248,23 +2299,46 @@ const SlugPage = ({ offices }) => {
                       <label
                         htmlFor="externalOfficeStatus"
                         className="block text-sm font-medium text-gray-700"
-
-                        // className="block text-sm font-semibold mb-2"
                       >
                         اسم المكتب الخارجي
                       </label>
-                      <select
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        // name="externalOfficeStatus"
-                        ref={officeRef}
+                      <input
+                        type="text"
                         id="externalOfficeStatus"
-                      >
-                        <option value="">اختر المكتب</option>
+                        value={officeName}
+                        onChange={handleOfficeChange}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="ابدأ بالكتابة لاختيار أو إضافة مكتب"
+                      />
 
-                        {offices.map((office) => (
-                          <option value={office.office}>{office.office}</option>
-                        ))}
-                      </select>
+                      {/* Show filtered office suggestions */}
+                      {officeName && (
+                        <ul className="mt-2 border border-gray-300 rounded-md bg-white shadow-md max-h-40 overflow-auto">
+                          {filteredOffices.map((office, index) => (
+                            <li
+                              key={index}
+                              className="px-3 py-2 cursor-pointer hover:bg-gray-200"
+                              onClick={() => setOfficeName(office.office)} // Set selected office
+                            >
+                              {office.office}
+                            </li>
+                          ))}
+
+                          {/* If no matches, show input for adding a new office */}
+                          {filteredOffices.length === 0 && (
+                            <div className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={officeName}
+                                onChange={handleOfficeChange}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="أدخل اسم المكتب الجديد"
+                                // onBlur={handleAddNewOffice} // Add new office when input loses focus
+                              />
+                            </div>
+                          )}
+                        </ul>
+                      )}
                     </div>
 
                     <div className="mb-4">
@@ -2411,7 +2485,7 @@ const SlugPage = ({ offices }) => {
                         type="submit"
                         onClick={() =>
                           handleAccessFormSubmit({
-                            office: officeRef.current?.value,
+                            office: officeName,
 
                             externalOfficeStatus:
                               externalOfficeStatus.current.value,
@@ -2448,7 +2522,7 @@ const SlugPage = ({ offices }) => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الفحص الطبي") &&
                 isEditing !== "الفحص الطبي" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col" ref={checkRefSectionRef}>
                     <h1
                       style={{
                         justifyContent: "flex-start",
@@ -2496,7 +2570,7 @@ const SlugPage = ({ offices }) => {
                   </div>
                 ) : (
                   <div>
-                    <div className="col-span-3">
+                    <div className="col-span-3" ref={checkRefSectionRef}>
                       <label
                         htmlFor="medicalCheckFile"
                         className="block font-semibold text-sm"
@@ -2576,7 +2650,7 @@ const SlugPage = ({ offices }) => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الربط مع الوكالة") &&
                 isEditing !== "الربط مع الوكالة" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col" ref={agencyDateSectionRef}>
                     <h1
                       style={{
                         justifyContent: "flex-start",
@@ -2616,7 +2690,10 @@ const SlugPage = ({ offices }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                  <div
+                    className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md"
+                    ref={agencyDateSectionRef}
+                  >
                     <label
                       htmlFor="AgencyDate"
                       className="block font-semibold text-sm"
@@ -2673,7 +2750,7 @@ const SlugPage = ({ offices }) => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("التختيم في السفارة") &&
                 isEditing !== "التختيم في السفارة" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col" ref={embassySealingSectionRef}>
                     <div>
                       <h1
                         style={{
@@ -2714,7 +2791,10 @@ const SlugPage = ({ offices }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                  <div
+                    className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md"
+                    ref={embassySealingSectionRef}
+                  >
                     <label
                       htmlFor="embassysealing"
                       className="block font-semibold text-sm"
@@ -2771,7 +2851,10 @@ const SlugPage = ({ offices }) => {
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("حجز التذكرة") &&
                 isEditing !== "حجز التذكرة" ? (
-                  <div className="flex flex-col justify-center">
+                  <div
+                    className="flex flex-col justify-center"
+                    ref={kingdomEntrySectionRef}
+                  >
                     <h1
                       style={{
                         justifyContent: "flex-start",
@@ -3009,7 +3092,10 @@ const SlugPage = ({ offices }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                  <div
+                    ref={kingdomEntrySectionRef}
+                    className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md"
+                  >
                     <label
                       htmlFor="ArrivalCity"
                       className="block font-semibold text-sm"
@@ -3271,7 +3357,7 @@ const SlugPage = ({ offices }) => {
                 {/* formData.bookingStatus === "الربط" */}
                 {stages.indexOf(formData.bookingstatus) >=
                   stages.indexOf("الاستلام") && isEditing !== "الاستلام" ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col" ref={deliverySectionRef}>
                     <h1
                       style={{
                         justifyContent: "flex-start",
@@ -3325,7 +3411,10 @@ const SlugPage = ({ offices }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md">
+                  <div
+                    className="max-w-sm mx-auto p-6 bg-white rounded-lg shadow-md"
+                    ref={deliverySectionRef}
+                  >
                     <label
                       htmlFor="signatureFile"
                       className="block font-semibold text-sm"
@@ -3617,46 +3706,43 @@ const SlugPage = ({ offices }) => {
                         Confirm
                       </button>
                     </div>
-                    <div>
-                      {/* Floating button */}
-                      <button
-                        onClick={scrollToSection}
-                        style={{
-                          position: "fixed",
-                          bottom: "2%", // Position vertically in the center
-                          right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
-                          transform: "translate(-50%, -50%)", // Offset to truly center the button
-                          backgroundColor: "transparent", // Make the background transparent
-                          color: "blue", // Make the icon color blue (you can change this to any color)
-                          border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
-                          borderRadius: "10px", // Make the button slightly rounded
-                          padding: "10px 25px", // Make the button narrow
-                          fontSize: "20px",
-                          cursor: "pointer",
-                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
-                          transition: "all 0.3s ease", // Smooth transition for hover effect
-                        }}
-                        onMouseEnter={(e) => {
-                          // Change color when hovering
-                          e.target.style.backgroundColor =
-                            "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
-                          e.target.style.boxShadow =
-                            "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
-                        }}
-                        onMouseLeave={(e) => {
-                          // Reset the button style when not hovering
-                          e.target.style.backgroundColor = "transparent";
-                          e.target.style.boxShadow =
-                            "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
-                        }}
-                      >
-                        <FaArrowUp size={13} />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </VerticalTimelineElement>
             </VerticalTimeline>
+          </div>
+          <div>
+            {/* Floating button */}
+            <button
+              onClick={scrollToSection}
+              style={{
+                position: "fixed",
+                bottom: "2%", // Position vertically in the center
+                right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
+                transform: "translate(-50%, -50%)", // Offset to truly center the button
+                backgroundColor: "transparent", // Make the background transparent
+                color: "blue", // Make the icon color blue (you can change this to any color)
+                border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
+                borderRadius: "10px", // Make the button slightly rounded
+                padding: "10px 25px", // Make the button narrow
+                fontSize: "20px",
+                cursor: "pointer",
+                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
+                transition: "all 0.3s ease", // Smooth transition for hover effect
+              }}
+              onMouseEnter={(e) => {
+                // Change color when hovering
+                e.target.style.backgroundColor = "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
+                e.target.style.boxShadow = "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
+              }}
+              onMouseLeave={(e) => {
+                // Reset the button style when not hovering
+                e.target.style.backgroundColor = "transparent";
+                e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
+              }}
+            >
+              <FaArrowUp size={13} />
+            </button>
           </div>
         </div>
       </div>
