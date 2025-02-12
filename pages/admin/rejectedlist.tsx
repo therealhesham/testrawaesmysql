@@ -3,7 +3,7 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
-import { Button } from "@mui/material";
+import { button } from "@mui/material";
 import Style from "styles/Home.module.css";
 
 export default function Table() {
@@ -184,9 +184,7 @@ export default function Table() {
             />
           </div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -207,15 +205,13 @@ export default function Table() {
               }
             >
               <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
-            </Button>
+            </button>
           </div>
           <div className="flex-1 px-1">
-            <Button
+            <button
               className={
                 "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
-              variant="contained"
-              color="info"
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -225,7 +221,7 @@ export default function Table() {
               }}
             >
               <h1 className={Style["almarai-bold"]}>بحث</h1>
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -284,16 +280,14 @@ export default function Table() {
                     {item.Nationalitycopy}
                   </td>
                   <td className="p-3 text-sm text-gray-600 text-center">
-                    <Button
+                    <button
                       className={
                         "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
                       }
-                      variant="contained"
-                      color="warning"
                       onClick={() => restore(item.id, item.HomemaidIdCopy)}
                     >
                       <h1 className={Style["almarai-bold"]}>استعادة</h1>
-                    </Button>
+                    </button>
                   </td>
                 </tr>
               ))

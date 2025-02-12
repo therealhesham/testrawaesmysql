@@ -584,10 +584,10 @@ const SlugPage = (prop) => {
         id: formData.arrivals[0].id,
         SponsorIdnumber: formData.ClientID,
         SponsorPhoneNumber: formData.client.phonenumber + "",
-        PassportNumber: formData.Passportnumber,
+        PassportNumber: formData?.Passportnumber,
         Orderid: formData.id,
         HomemaIdnumber: formData.HomeMaid.id,
-        HomemaidName: formData.HomeMaid.Name,
+        HomemaidName: formData.HomeMaid?.Name,
         ExternalOFficeApproval: new Date(
           kingdomEntryRef.current.value
         ).toISOString(),
@@ -627,11 +627,11 @@ const SlugPage = (prop) => {
         id: formData.arrivals[0].id,
         SponsorIdnumber: formData.ClientID,
         SponsorPhoneNumber: formData.client.phonenumber + "",
-        PassportNumber: formData.Passportnumber,
+        PassportNumber: formData?.Passportnumber,
         Orderid: formData.id,
         HomemaIdnumber: formData.HomeMaid.id,
         externalOfficeStatus: externalOfficeStatus.current.value,
-        HomemaidName: formData.HomeMaid.Name,
+        HomemaidName: formData.HomeMaid?.Name,
         ExternalOFficeApproval: new Date(
           externalOfficeAprrovalRef.current.value
         ).toISOString(),
@@ -723,7 +723,7 @@ const SlugPage = (prop) => {
         id: formData.arrivals[0].id,
         SponsorIdnumber: formData.ClientID,
         SponsorPhoneNumber: formData.client.phonenumber + "",
-        PassportNumber: formData.Passportnumber,
+        PassportNumber: formData?.Passportnumber,
         KingdomentryDate,
         DayDate,
         KingdomentryTime,
@@ -744,7 +744,7 @@ const SlugPage = (prop) => {
         finaldestination,
         externalOfficeStatus,
         HomemaIdnumber: formData.HomeMaid.id,
-        HomemaidName: formData.HomeMaid.Name,
+        HomemaidName: formData.HomeMaid?.Name,
         Notes,
         externalmusanadcontractfile: externalFileCloudinaryImage,
         bookingstatus,
@@ -846,9 +846,11 @@ const SlugPage = (prop) => {
           break;
 
         case "الفحص الطبي":
-          setIsEditing("الفحص الطبي");
-          checkRefSectionRef.current.scrollIntoView({ behavior: "smooth" });
-        // router.locale("")
+          checkRefSectionRef.current.scrollIntoView({
+            behavior: "smooth",
+            // block: "start",
+          });
+          break;
 
         case "الربط مع الوكالة":
           agencyDateSectionRef.current.scrollIntoView({ behavior: "smooth" });
@@ -1055,7 +1057,7 @@ const SlugPage = (prop) => {
   const handleToggleDestination = () => {
     setShowAdditionalDestination(!showAdditionalDestination); // Toggle the state when the button is clicked
   };
-  // alert(formData.Passportnumber);
+  // alert(formData?.Passportnumber);
   const formik = useFormik({
     initialValues: {
       InternalmusanedContract: "",
@@ -1202,7 +1204,7 @@ const SlugPage = (prop) => {
 
   // Use effect to calculate the days on load
   useEffect(() => {
-    if (!formData.arrivals[0].MusanadDuration) return;
+    if (!formData.arrivals[0]?.MusanadDuration) return;
     calculateDaysRemaining();
     const interval = setInterval(calculateDaysRemaining, 86400000); // Recalculate every 24 hours
 
@@ -1245,7 +1247,7 @@ const SlugPage = (prop) => {
 
   // Use effect to calculate the days on load
   useEffect(() => {
-    if (!formData.arrivals[0].MusanadDuration) return;
+    if (!formData.arrivals[0]?.MusanadDuration) return;
     calculateDaysRemaining();
     const interval = setInterval(calculateDaysRemaining, 86400000); // Recalculate every 24 hours
 
@@ -1253,7 +1255,7 @@ const SlugPage = (prop) => {
   }, [formData.arrivals[0]?.MusanadDuration]);
 
   useEffect(() => {
-    if (!formData.arrivals[0].KingdomentryDate) return;
+    if (!formData.arrivals[0]?.KingdomentryDate) return;
     calculateKingdomentryDateDaysRemaining();
     const interval = setInterval(
       calculateKingdomentryDateDaysRemaining,
@@ -1611,14 +1613,14 @@ const SlugPage = (prop) => {
               <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">اسم العاملة</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
-                  {formData.HomeMaid.Name}
+                  {formData.HomeMaid?.Name}
                 </span>
               </div>
 
               <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">جواز السفر</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
-                  {formData.HomeMaid.Passportnumber}
+                  {formData.HomeMaid?.Passportnumber}
                 </span>
               </div>
             </div>
@@ -1829,7 +1831,7 @@ const SlugPage = (prop) => {
                             justifyContent: "center",
                           }}
                         >
-                          {AddgoDays(formData.arrivals[0].MusanadDuration)}
+                          {AddgoDays(formData.arrivals[0]?.MusanadDuration)}
                         </h1>
                       </div>
 
@@ -1851,7 +1853,7 @@ const SlugPage = (prop) => {
                             justifyContent: "center",
                           }}
                         >
-                          {formData.arrivals[0].MusanadDuration}
+                          {formData.arrivals[0]?.MusanadDuration}
                         </h1>
                       </div>
                       <button
@@ -2298,7 +2300,6 @@ const SlugPage = (prop) => {
                     >
                       المكتب الخارجي
                     </h1>
-
                     <div className="mb-4">
                       <label
                         htmlFor="externalOfficeStatus"
@@ -2307,6 +2308,7 @@ const SlugPage = (prop) => {
                         اسم المكتب الخارجي
                       </label>
                       <input
+                        autoComplete="off"
                         type="text"
                         id="externalOfficeStatus"
                         value={officeName}
@@ -2318,29 +2320,29 @@ const SlugPage = (prop) => {
                       {/* Show filtered office suggestions */}
                       {officeName && (
                         <ul className="mt-2 border border-gray-300 rounded-md bg-white shadow-md max-h-40 overflow-auto">
-                          {filteredOffices.map((office, index) => (
-                            <li
-                              key={index}
-                              className="px-3 py-2 cursor-pointer hover:bg-gray-200"
-                              onClick={() => setOfficeName(office.office)} // Set selected office
-                            >
-                              {office.office}
-                            </li>
-                          ))}
-
-                          {/* If no matches, show input for adding a new office */}
-                          {filteredOffices.length === 0 && (
-                            <div className="px-3 py-2">
-                              <input
-                                type="text"
-                                value={officeName}
-                                onChange={handleOfficeChange}
-                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="أدخل اسم المكتب الجديد"
-                                // onBlur={handleAddNewOffice} // Add new office when input loses focus
-                              />
-                            </div>
-                          )}
+                          {filteredOffices.length > 0
+                            ? filteredOffices
+                                .filter(
+                                  (office) => office.office !== officeName
+                                ) // Filter out selected office
+                                .map((office, index) => (
+                                  <li
+                                    key={index}
+                                    className="px-3 py-2 cursor-pointer hover:bg-gray-200"
+                                    onClick={() => setOfficeName(office.office)} // Set selected office
+                                  >
+                                    {office.office}
+                                  </li>
+                                ))
+                            : // (
+                              //   <li
+                              //     className="px-3 py-2 cursor-pointer hover:bg-gray-200"
+                              //     onClick={() => (filteredOffices = [])} // Handle adding new office when clicked
+                              //   >
+                              //     {officeName}
+                              //   </li>
+                              // )
+                              null}
                         </ul>
                       )}
                     </div>
@@ -3071,8 +3073,8 @@ const SlugPage = (prop) => {
                           style={{ justifyContent: "center", display: "flex" }}
                         >
                           {" "}
-                          {formData.arrivals[0].KingdomentryDate
-                            ? AddgoDays(formData.arrivals[0].KingdomentryDate)
+                          {formData.arrivals[0]?.KingdomentryDate
+                            ? AddgoDays(formData.arrivals[0]?.KingdomentryDate)
                             : null}
                         </h1>
                       </div>

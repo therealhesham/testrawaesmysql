@@ -1,18 +1,26 @@
 import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
+import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Button } from "react-bootstrap";
 import jwt from "jsonwebtoken";
-// import { nexepagecontext }
-// NextPageContext
+import { Button } from "@mui/material";
+import Style from "styles/Home.module.css";
+
 export default function Table() {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
-    Passport: "",
-    Nationality: "",
+    Passportnumber: "",
+    id: "",
   });
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
@@ -31,8 +39,9 @@ export default function Table() {
       const queryParams = new URLSearchParams({
         Name: filters.Name,
         age: filters.age,
-        Passport: filters.Passport,
-        Nationality: filters.Nationality,
+        id: filters.id,
+        Passportnumber: filters.Passportnumber,
+        // Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
       });
 
@@ -59,6 +68,27 @@ export default function Table() {
     }
   };
 
+  const makeRequest = async (url: string, body: object) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    return response.status === 200;
+  };
+
+  const restore = async (id: string, homeMaidId: string) => {
+    const success = await makeRequest("/api/restoreorders", {
+      id,
+      homeMaidId,
+    });
+    if (success) router.push("/admin/neworders");
+  };
+
   // Use a callback to call fetchData when the user reaches the bottom
   const loadMoreRef = useCallback(
     (node: HTMLDivElement) => {
@@ -80,9 +110,19 @@ export default function Table() {
     [loading, hasMore]
   );
 
+  // useEffect to fetch the first page of data on mount
   useEffect(() => {
     fetchData(); // Fetch the first page of data
   }, []); // Only run once on mount
+
+  // useEffect to fetch data when filters change
+  // useEffect(() => {
+  //   // Reset page and data on filter change
+  //   pageRef.current = 1;
+  //   setData([]);
+  //   setHasMore(true);
+  //   fetchData();
+  // }, [filters]); // Only re-run when filters change
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -93,18 +133,21 @@ export default function Table() {
       ...prev,
       [column]: value,
     }));
-    isFetchingRef.current = false;
-    setHasMore(true);
-    // alert(filters.Name);
-    setData([]);
-    pageRef.current = 1;
-    fetchData();
+  };
+
+  const router = useRouter();
+  const handleUpdate = (id) => {
+    router.push("./neworder/" + id);
   };
 
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">العاملات</h1>
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
+          قائمة العاملات
+        </h1>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
@@ -113,53 +156,87 @@ export default function Table() {
               type="text"
               value={filters.Name}
               onChange={(e) => handleFilterChange(e, "Name")}
-              placeholder="Filter by Name"
+              placeholder="بحث باسم العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.age}
-              onChange={(e) => handleFilterChange(e, "age")}
-              placeholder="Filter by Age"
+              value={filters.Passportnumber}
+              onChange={(e) => handleFilterChange(e, "Passportnumber")}
+              placeholder="بحث برقم الجواز"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.Passport}
-              onChange={(e) => handleFilterChange(e, "Passport")}
-              placeholder="Filter by Passport"
+              value={filters.id}
+              onChange={(e) => handleFilterChange(e, "id")}
+              placeholder="بحث برقم العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Nationality}
-              onChange={(e) => handleFilterChange(e, "Nationality")}
-              placeholder="Filter by Nationality"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
+          <div className="flex-1 px-1">
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setFilters({
+                  age: "",
+                  id: "",
+                  Passportnumber: "",
+                  Name: "",
+                });
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
+            </button>
+          </div>
+          <div className="flex-1 px-1">
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
+              onClick={() => {
+                isFetchingRef.current = false;
+                setHasMore(true);
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+              }}
+            >
+              <h1 className={Style["almarai-bold"]}>بحث</h1>
+            </button>
           </div>
         </div>
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
-              <th className="p-3 text-left text-sm font-medium">م</th>
-              <th className="p-3 text-left text-sm font-medium">الاسم</th>
-              <th className="p-3 text-left text-sm font-medium">العمر</th>
+            <tr className="bg-yellow-400 text-white">
+              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">
+                جوال العاملة
+              </th>
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">حجز</th>
+              <th className="p-3 text-left text-sm font-medium">
+                الحالة الاجتماعية
+              </th>
 
-              {/* <th className="p-3 text-left text-sm font-medium">Role</th> */}
+              <th className="p-3 text-left text-sm font-medium">استعراض</th>
             </tr>
           </thead>
           <tbody>
@@ -175,20 +252,32 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-lg text-gray-600">{item.id}</td>
-                  <td className="p-3 text-lg text-gray-600">{item.Name}</td>
-                  <td className="p-3 text-lg text-gray-600">{item.age}</td>
-                  <td className="p-3 text-lg text-gray-600">
-                    {item.Passportnumber}
-                  </td>
-                  <td className="p-3 text-lg text-gray-600">
+                  <td className="p-3 text-md text-gray-700">{item.id}</td>
+                  <td className="p-3 text-md text-gray-600">{item.Name}</td>
+                  <td className="p-3 text-md text-gray-700">{item.phone}</td>
+                  <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-lg text-gray-600">
-                    <Button onClick={() => console.log(item.id)}>حجز</Button>
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Passportnumber}
                   </td>
 
-                  {/* <td className="p-3 text-sm text-gray-600">{item.role}</td> */}
+                  <td className="p-3 text-md text-gray-700">
+                    {item.maritalstatus}
+                  </td>
+                  <td className="p-3 text-md text-gray-700">
+                    <button
+                      className={
+                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                      }
+                      onClick={() => {
+                        const url = "/admin/cvdetails/" + item.id;
+                        window.open(url, "_blank"); // Open in new window
+                      }}
+                    >
+                      <h1 className={Style["almarai-bold"]}>عرض</h1>
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -225,35 +314,4 @@ export default function Table() {
       </div>
     </Layout>
   );
-}
-export async function getServerSideProps(context: NextPageContext) {
-  const { req, res } = context;
-  try {
-    const isAuthenticated = req.cookies.authToken ? true : false;
-    console.log(req.cookies.authToken);
-    // jwtDecode(req.cookies.)
-    if (!isAuthenticated) {
-      // Redirect the user to login page before rendering the component
-      return {
-        redirect: {
-          destination: "/admin/login", // Redirect URL
-          permanent: false, // Set to true if you want a permanent redirect
-        },
-      };
-    }
-    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
-    console.log(user);
-    // If authenticated, continue with rendering the page
-    return {
-      props: { user }, // Empty object to pass props if needed
-    };
-  } catch (error) {
-    console.log("error");
-    return {
-      redirect: {
-        destination: "/admin/login", // Redirect URL
-        permanent: false, // Set to true if you want a permanent redirect
-      },
-    };
-  }
 }

@@ -29,10 +29,32 @@ export default async function handler(
         ...filters,
         deparatureDate: { not: null },
       },
+      select: {
+        Order: { select: { Name: true } },
+        OrderId: true,
+        SponsorName: true,
+        PassportNumber: true,
+        KingdomentryDate: true,
+        deparatureDate: true,
+        deparatureTime: true,
+        ArrivalCity: true,
+        medicalCheckFile: true,
+        ticketFile: true,
+        SponsorPhoneNumber: true,
+        SponsorIdnumber: true,
+        InternalmusanedContract: true,
+        finaldestination: true,
+        finalDestinationDate: true,
+        HomemaIdnumber: true,
+        HomemaidName: true,
+        Notes: true,
+        id: true,
+      },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size,
       orderBy: { id: "desc" },
     });
+    // console.log("homemiad", );
     // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);
   } catch (error) {
