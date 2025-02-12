@@ -1,14 +1,10 @@
 // pages/api/update-booking.ts
-import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
-
+import prisma from "./globalprisma";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const prisma = new PrismaClient();
-
-  console.log(req.body.id);
   try {
     const updated = await prisma.neworder.update({
       where: { id: Number(req.body.id) },
