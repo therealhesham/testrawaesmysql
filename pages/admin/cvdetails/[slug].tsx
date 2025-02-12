@@ -19,7 +19,7 @@ const ResumePage = () => {
     const parser = await fetchData.json();
     console.log(parser);
     setFilteredSuggestions(parser);
-    fetchImageDate(filteredSuggestions.Name);
+    fetchImageDate(parser.Name);
   };
   const fetchImageDate = async (name) => {
     const fetchData = await fetch("/api/getimagefromprisma/" + name, {
