@@ -388,7 +388,7 @@ export default function Table() {
                 fetchData();
               }}
             >
-              <h1 className={Style["almarai-bold"]}>ضبط</h1>
+              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
             </button>
           </div>
 

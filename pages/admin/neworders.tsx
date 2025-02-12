@@ -407,7 +407,7 @@ export default function Home() {
                     <td className="px-4 py-2">{row.age}</td>
                     <td className="px-4 py-2">
                       <button
-                        style={{ backgroundColor: "#003749" }}
+                        style={{ backgroundColor: "#4CAF50" }}
                         onClick={() =>
                           confirm(
                             row.id,
@@ -426,7 +426,7 @@ export default function Home() {
                       <div className="container mx-auto p-4">
                         {/* Trigger button to open modal */}
                         <button
-                          style={{ backgroundColor: "#4C7C83" }}
+                          style={{ backgroundColor: "#F44336" }}
                           onClick={() => OpenRejectionModal(row.id)} // This is now correctly passed as a prop
                           className="text-white px-4 py-2 rounded-lg"
                         >

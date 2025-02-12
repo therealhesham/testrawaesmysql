@@ -1,13 +1,10 @@
 // pages/api/update-booking.ts
-import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
-
+import prisma from "./globalprisma";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const prisma = new PrismaClient();
-
   try {
     const neworderCount = await prisma.neworder.count({
       where: { bookingstatus: "حجز جديد" },
@@ -26,18 +23,46 @@ export default async function handler(
       },
     });
 
+    const deparatures = await prisma.arrivallist.count({
+      where: {
+        deparatureDate: { not: null },
+      },
+    });
+
     const rejectedOrders = await prisma.neworder.count({
       where: {
         bookingstatus: "طلب مرفوض",
       },
     });
 
+    const cancelledorders = await prisma.neworder.count({
+      where: {
+        bookingstatus: "عقد ملغي",
+      },
+    });
+
+    const finished = await prisma.neworder.count({
+      where: {
+        bookingstatus: "الاستلام",
+      },
+    });
+
     const transferSponsorships = await prisma.transfer.count();
+    const offices = await prisma.offices.count();
+
+    const arrivals = await prisma.arrivallist.count({
+      where: { KingdomentryDate: { not: null } },
+    });
 
     res.status(200).json({
+      cancelledorders,
+      finished,
       rejectedOrders,
+      arrivals,
+      deparatures,
       currentorders,
       transferSponsorships,
+      offices,
       arrivalsCount,
       neworderCount,
     });
