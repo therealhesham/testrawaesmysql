@@ -4,6 +4,8 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
+import Style from "styles/Home.module.css";
+
 export default function Table() {
   const [filters, setFilters] = useState({
     ClientName: "",
@@ -136,7 +138,9 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
           الحجوزات المنتهية
         </h1>
 
@@ -180,9 +184,12 @@ export default function Table() {
             />
           </div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
+              // variant="contained"
+              // color="info"
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -199,13 +206,16 @@ export default function Table() {
                 fetchData();
               }}
             >
-              اعادة ضبط
-            </Button>
+              <h1 className={Style["almarai-regular"]}>اعادة ضبط</h1>
+            </button>
           </div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
+              // variant="contained"
+              // color="info"
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -214,15 +224,20 @@ export default function Table() {
                 fetchData();
               }}
             >
-              بحث
-            </Button>
+              <h1 className={Style["almarai-regular"]}>بحث</h1>
+            </button>
           </div>
         </div>
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className=" text-white" style={{ backgroundColor: "#000080" }}>
+            <tr
+              className=" text-white 
+              
+              bg-yellow-400
+              "
+            >
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
@@ -272,13 +287,16 @@ export default function Table() {
                     {item.Nationalitycopy}
                   </td>
                   <td className="p-3 text-md text-gray-700">
-                    <Button
-                      variant="contained"
-                      color="warning"
+                    <button
+                      className={
+                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                      }
+                      // variant="contained"
+                      // color="warning"
                       onClick={() => handleUpdate(item.id)}
                     >
-                      تحديث
-                    </Button>
+                      <h1 className={Style["almarai-regular"]}>عرض</h1>
+                    </button>
                   </td>
                 </tr>
               ))

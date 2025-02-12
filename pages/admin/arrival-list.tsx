@@ -14,6 +14,13 @@ export default function Table() {
     OrderId: "",
   });
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
@@ -60,14 +67,6 @@ export default function Table() {
       isFetchingRef.current = false;
     }
   };
-
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
-  }
 
   const makeRequest = async (url: string, body: object) => {
     const response = await fetch(url, {
@@ -147,7 +146,7 @@ export default function Table() {
         <h1
           className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
         >
-          قائمة الوصول
+          قائمة الـوصول
         </h1>
 
         {/* Filter Section */}
@@ -170,25 +169,16 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
           <div className="flex-1 px-2">
             <input
               type="text"
               value={filters.OrderId}
               onChange={(e) => handleFilterChange(e, "OrderId")}
-              placeholder="بحث برقم الطلب"
+              placeholder="بحث برقم الكفيل"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-
-          {/* <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.HomemaidId}
-              onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="Filter by CV"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div> */}
           <div className="flex-1 px-1">
             <button
               className={
@@ -198,6 +188,7 @@ export default function Table() {
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({
+                  age: "",
                   OrderId: "",
                   PassportNumber: "",
                   SponsorName: "",
@@ -232,17 +223,20 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-left text-sm font-medium">م</th>
+              <th className="p-3 text-left text-sm font-medium">رقم الطلب</th>
               <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
+
+              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">الطلب</th>
+              {/* <th className="p-3 text-left text-sm font-medium">الطلب</th> */}
               <th className="p-3 text-left text-sm font-medium">
                 تاريخ الوصول
               </th>
-              <th className="p-3 text-left text-sm font-medium">وقت الوصول</th>
+              <th className="p-3 text-left text-sm font-medium">وقت الـوصول</th>
               {/* 
               <th className="p-3 text-left text-sm font-medium">الجنسية</th>
               <th className="p-3 text-left text-sm font-medium">استعادة</th> */}
@@ -261,21 +255,25 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-600">{item.id}</td>
+                  <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
                   <td className="p-3 text-md text-gray-600">
                     {item.SponsorName}
                   </td>
                   <td className="p-3 text-md text-gray-700">
                     {item.SponsorPhoneNumber}
                   </td>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Order?.Name}
+                  </td>
                   <td className="p-3 text-md text-gray-700">
                     {item.PassportNumber}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
-
                   <td className="p-3 text-md text-gray-700">
-                    {getDate(item.KingdomentryDate)}
+                    {item?.deparatureDate
+                      ? getDate(item?.KingdomentryDate)
+                      : null}
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
@@ -299,6 +297,7 @@ export default function Table() {
             )}
           </tbody>
         </table>
+
         {/* Infinite scroll trigger */}
         {hasMore && (
           <div

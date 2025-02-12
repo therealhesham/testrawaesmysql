@@ -284,10 +284,10 @@ export default function Home({ user }) {
           user.role.toLowerCase() == "viewer".toLowerCase()) && (
           <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
             <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-              الغاء و رفـض
+              الارشيف{" "}
             </div>
             <div className="mt-10">
-              <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+              <div className="grid grid-cols-2 md:grid-cols-2 mt-6 lg:grid-cols-2 gap-6 p-8">
                 {/* Box 5 */}
                 <Link href="/admin/rejectedlist">
                   <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
@@ -326,12 +326,13 @@ export default function Home({ user }) {
             </div>
           </div>
         )}
+
         <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
           <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-            قواعد البيانات
+            الوصول و المغادرة
           </div>
           <div className="mt-10">
-            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+            <div className="grid grid-cols-2 md:grid-cols-2 mt-6 lg:grid-cols-2 gap-6 p-8">
               {/* Box 5 */}
               {/* Box 6 */}
 
@@ -366,6 +367,22 @@ export default function Home({ user }) {
                   ) : null}
                 </a>
               </Link>
+
+              {/* Box 5 */}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+            قواعد البيانات
+          </div>
+          <div className="mt-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+              {/* Box 5 */}
+              {/* Box 6 */}
+
+              {/* Box 4 */}
 
               {/* Box 5 */}
 

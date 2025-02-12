@@ -223,13 +223,16 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-left text-sm font-medium">م</th>
+              <th className="p-3 text-left text-sm font-medium">رقم الطلب</th>
               <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
+
+              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">الطلب</th>
+              {/* <th className="p-3 text-left text-sm font-medium">الطلب</th> */}
               <th className="p-3 text-left text-sm font-medium">
                 تاريخ المغادرة
               </th>
@@ -254,21 +257,25 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-600">{item.id}</td>
+                  <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
                   <td className="p-3 text-md text-gray-600">
                     {item.SponsorName}
                   </td>
                   <td className="p-3 text-md text-gray-700">
                     {item.SponsorPhoneNumber}
                   </td>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Order?.Name}
+                  </td>
                   <td className="p-3 text-md text-gray-700">
                     {item.PassportNumber}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
-
                   <td className="p-3 text-md text-gray-700">
-                    {getDate(item.deparatureDate)}
+                    {item?.deparatureDate
+                      ? getDate(item?.deparatureDate)
+                      : null}
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
