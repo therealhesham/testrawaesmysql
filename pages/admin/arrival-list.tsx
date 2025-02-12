@@ -4,6 +4,8 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
+import Style from "styles/Home.module.css";
+
 export default function Table() {
   const [filters, setFilters] = useState({
     SponsorName: "",
@@ -142,7 +144,9 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
           قائمة الوصول
         </h1>
 
@@ -153,7 +157,7 @@ export default function Table() {
               type="text"
               value={filters.SponsorName}
               onChange={(e) => handleFilterChange(e, "SponsorName")}
-              placeholder="Filter by Name"
+              placeholder="بحث باسم الكفيل"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -162,7 +166,7 @@ export default function Table() {
               type="text"
               value={filters.PassportNumber}
               onChange={(e) => handleFilterChange(e, "PassportNumber")}
-              placeholder="Filter by Passport"
+              placeholder="بحث برقم الجواز"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -171,7 +175,7 @@ export default function Table() {
               type="text"
               value={filters.OrderId}
               onChange={(e) => handleFilterChange(e, "OrderId")}
-              placeholder="Filter by Nationality"
+              placeholder="بحث برقم الطلب"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -186,10 +190,10 @@ export default function Table() {
             />
           </div> */}
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
-              style={{ backgroundColor: "#ECC383" }}
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -203,14 +207,14 @@ export default function Table() {
                 fetchData();
               }}
             >
-              اعادة ضبط
-            </Button>
+              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
+            </button>
           </div>
           <div className="flex-1 px-1">
-            <Button
-              style={{ backgroundColor: "#8D6C49" }}
-              variant="contained"
-              color="info"
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -219,32 +223,29 @@ export default function Table() {
                 fetchData();
               }}
             >
-              بحث
-            </Button>
+              <h1 className={Style["almarai-bold"]}>بحث</h1>
+            </button>
           </div>
         </div>
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-yellow-300 text-white">
+            <tr className="bg-yellow-400 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
               <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">الطلب</th>
               <th className="p-3 text-left text-sm font-medium">
-                تاريخ دخول المملكة
+                تاريخ الوصول
               </th>
-
-              <th className="p-3 text-left text-sm font-medium">
-                توقيت دخول المملكة
-              </th>
-
-              {/* <th className="p-3 text-left text-sm font-medium">تحديث</th> */}
-              {/*<th className="p-3 text-left text-sm font-medium">استعادة</th> */}
+              <th className="p-3 text-left text-sm font-medium">وقت الوصول</th>
+              {/* 
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-left text-sm font-medium">استعادة</th> */}
             </tr>
           </thead>
           <tbody>
@@ -282,16 +283,6 @@ export default function Table() {
                   </td>
 
                   {/* <td className="p-3 text-md text-gray-700">
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      onClick={() => handleUpdate(item.id)}
-                    >
-                      تحديث
-                    </Button>
-                  </td> */}
-
-                  {/* <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}
                   </td> */}
                   {/* <td className="p-3 text-sm text-gray-600">
@@ -308,7 +299,6 @@ export default function Table() {
             )}
           </tbody>
         </table>
-
         {/* Infinite scroll trigger */}
         {hasMore && (
           <div

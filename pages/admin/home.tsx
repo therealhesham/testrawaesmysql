@@ -77,14 +77,20 @@ export default function Home({ user }) {
     // setIsClient(true);
     fetchEvents();
   }, [router]);
-
+  // ;
   const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
+
+  const [cancelledorders, setCancelledorders] = useState(0);
+  const [deparaturesLength, setDeparaturesLength] = useState(0);
+
   const [newOrdersLength, setNewOrdersLength] = useState(0);
   const [homeMaidsLength, setHomeMaidsLength] = useState(0);
   const [arrivalsLength, setArrivalsLength] = useState(0);
   const [rejectedOrdersLength, setRejectedOrdersLength] = useState(0);
-
+  const [finished, setFinished] = useState(0);
   const [transferSponsorships, setTransferSponsorshipsLength] = useState(0);
+  // const []
+  const [officesLength, setOfficesLengthLength] = useState(0);
 
   transferSponsorships;
   const fetchData = async () => {
@@ -100,12 +106,16 @@ export default function Home({ user }) {
 
       if (response.status == 200) {
         console.log(res);
-        setArrivalsLength(res.arrivalsCount);
+        setDeparaturesLength(res.deparatures);
+        setArrivalsLength(res.arrivals);
         setCurrentOrdersLength(res.currentorders);
         setRejectedOrdersLength(res.rejectedOrders);
         setHomeMaidsLength(res.workers);
         setTransferSponsorshipsLength(res.transferSponsorships);
         setNewOrdersLength(res.neworderCount);
+        setFinished(res.finished);
+        setCancelledorders(res.cancelledorders);
+        setOfficesLengthLength(res.offices);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -231,7 +241,7 @@ export default function Home({ user }) {
                     الطلبات الجديدة
                   </div>
                   {newOrdersLength > 0 ? (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                       {newOrdersLength > 0 ? newOrdersLength : 0}
                     </span>
                   ) : null}
@@ -246,7 +256,7 @@ export default function Home({ user }) {
                   </div>
                   {/* Notification Badge */}
                   {currentOrdersLength > 0 ? (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                       {currentOrdersLength > 0 ? currentOrdersLength : 0}
                     </span>
                   ) : null}
@@ -260,11 +270,11 @@ export default function Home({ user }) {
                     الطلبات المنتهية
                   </div>
                   {/* Notification Badge */}
-                  {/* { > 0 ? (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {currentOrdersLength > 0 ? currentOrdersLength : 0}
-                </span>
-              ) : null} */}
+                  {finished > 0 ? (
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {finished > 0 ? finished : 0}
+                    </span>
+                  ) : null}
                 </a>
               </Link>
             </div>
@@ -287,7 +297,7 @@ export default function Home({ user }) {
                     </div>
                     {/* Notification Badge */}
                     {rejectedOrdersLength > 0 ? (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                         {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
                       </span>
                     ) : null}
@@ -301,9 +311,9 @@ export default function Home({ user }) {
                       الطلبات الملغية
                     </div>
                     {/* Notification Badge */}
-                    {rejectedOrdersLength > 0 ? (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
+                    {cancelledorders > 0 ? (
+                      <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
+                        {cancelledorders > 0 ? cancelledorders : 0}
                       </span>
                     ) : null}
                   </a>
@@ -335,7 +345,7 @@ export default function Home({ user }) {
                   </div>
                   {/* Notification Badge */}
                   {arrivalsLength > 0 ? (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                       {arrivalsLength > 0 ? arrivalsLength : 0}
                     </span>
                   ) : null}
@@ -349,9 +359,9 @@ export default function Home({ user }) {
                     قائمة المغادرة
                   </div>
                   {/* Notification Badge */}
-                  {arrivalsLength > 0 ? (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {arrivalsLength > 0 ? arrivalsLength : 0}
+                  {deparaturesLength > 0 ? (
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {deparaturesLength > 0 ? deparaturesLength : 0}
                     </span>
                   ) : null}
                 </a>
@@ -367,7 +377,7 @@ export default function Home({ user }) {
                   </div>
                   {/* Notification Badge */}
                   {homeMaidsLength > 0 ? (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                       {homeMaidsLength > 0 ? homeMaidsLength : 0}
                     </span>
                   ) : null}
@@ -382,7 +392,7 @@ export default function Home({ user }) {
                   </div>
                   {/* Notification Badge */}
                   {transferSponsorships > 0 ? (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                       {transferSponsorships > 0 ? transferSponsorships : 0}
                     </span>
                   ) : null}
@@ -407,9 +417,14 @@ export default function Home({ user }) {
                     المكاتب الخارجية
                   </div>
                   {/* Notification Badge */}
-                  <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    2
-                  </span>
+                  {/* <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full"> */}
+                  {/* 2  */}
+
+                  {officesLength > 0 ? (
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {officesLength > 0 ? officesLength : 0}
+                    </span>
+                  ) : null}
                 </a>
               </Link>
             </div>

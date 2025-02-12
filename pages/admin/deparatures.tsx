@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
+import Style from "styles/Home.module.css";
 
 export default function Table() {
   const [filters, setFilters] = useState({
@@ -142,7 +143,9 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
           قائمة المغادرة
         </h1>
 
@@ -153,7 +156,7 @@ export default function Table() {
               type="text"
               value={filters.SponsorName}
               onChange={(e) => handleFilterChange(e, "SponsorName")}
-              placeholder="Filter by Name"
+              placeholder="بحث باسم الكفيل"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -162,7 +165,7 @@ export default function Table() {
               type="text"
               value={filters.PassportNumber}
               onChange={(e) => handleFilterChange(e, "PassportNumber")}
-              placeholder="Filter by Passport"
+              placeholder="بحث برقم الجواز"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -172,14 +175,15 @@ export default function Table() {
               type="text"
               value={filters.OrderId}
               onChange={(e) => handleFilterChange(e, "OrderId")}
-              placeholder="Filter by ORDER ID"
+              placeholder="بحث برقم الكفيل"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -193,15 +197,15 @@ export default function Table() {
                 pageRef.current = 1;
                 fetchData();
               }}
-              ho
             >
-              اعادة ضبط
-            </Button>
+              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
+            </button>
           </div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -210,15 +214,15 @@ export default function Table() {
                 fetchData();
               }}
             >
-              بحث
-            </Button>
+              <h1 className={Style["almarai-bold"]}>بحث</h1>
+            </button>
           </div>
         </div>
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
+            <tr className="bg-yellow-400 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
               <th className="p-3 text-left text-sm font-medium">جوال العميل</th>

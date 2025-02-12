@@ -152,6 +152,7 @@ const SlugPage = (prop) => {
     {}
   );
   const finalDestinationDateRef = useRef(null);
+  const finalDestinationTimeRef = useRef(null);
   const deparatureTimeRef = useRef(null);
   const deliverySectionRef = useRef();
   const musanadRef = useRef();
@@ -705,6 +706,7 @@ const SlugPage = (prop) => {
       AgencyDate,
       EmbassySealing,
       BookinDate,
+      finalDestinationTime,
       bookingstatus,
       GuaranteeDurationEnd,
     } = s;
@@ -728,6 +730,7 @@ const SlugPage = (prop) => {
         deparatureTime,
         // SponsorIdnumber,
         visaNumber,
+        finalDestinationTime,
         ExternalStatusByoffice,
         deparatureDate,
         finalDestinationDate,
@@ -2928,47 +2931,24 @@ const SlugPage = (prop) => {
                     </div>
 
                     <div className="grid grid-cols-3 justify-center items-center mt-2">
-                      <div className="flex justify-center items-center flex-col">
-                        {formData.arrivals[0].finaldestination ? (
+                      {formData.arrivals[0]?.deparatureDate && (
+                        <div className="flex justify-center items-center flex-col">
                           <label
+                            htmlFor="time"
                             style={{
-                              justifyContent: "center",
                               color: "rosybrown",
-
-                              display: "flex",
                             }}
-                            htmlFor="arrivaldate"
                             className={Style["almarai-bold"]}
                           >
-                            وجهة العاملة
+                            موعد المغادرة
                           </label>
-                        ) : null}
-                        <h2
-                          className={Style["almarai-bold"]}
-                          style={{
-                            justifyContent: "center",
-                            display: "flex",
-                          }}
-                        >
-                          {formData.arrivals[0].finaldestination}
-                        </h2>
-                      </div>
-                      <div className="flex justify-center items-center flex-col">
-                        <label
-                          htmlFor="time"
-                          style={{
-                            color: "rosybrown",
-                          }}
-                          className={Style["almarai-bold"]}
-                        >
-                          موعد المغادرة
-                        </label>
-                        <strong>
-                          {formData.arrivals[0]?.deparatureTime
-                            ? formData.arrivals[0]?.deparatureTime
-                            : null}
-                        </strong>
-                      </div>
+                          <strong>
+                            {formData.arrivals[0]?.deparatureTime
+                              ? formData.arrivals[0]?.deparatureTime
+                              : null}
+                          </strong>
+                        </div>
+                      )}
 
                       {formData.arrivals[0]?.deparatureDate && (
                         <div className="flex justify-center items-center flex-col">
@@ -2988,9 +2968,35 @@ const SlugPage = (prop) => {
                           </strong>
                         </div>
                       )}
+
+                      <div className="flex justify-center items-center flex-col">
+                        {formData.arrivals[0].finaldestination ? (
+                          <label
+                            style={{
+                              justifyContent: "center",
+                              color: "rosybrown",
+
+                              display: "flex",
+                            }}
+                            htmlFor="arrivaldate"
+                            className={Style["almarai-bold"]}
+                          >
+                            وجهة العاملة الآخرى
+                          </label>
+                        ) : null}
+                        <h2
+                          className={Style["almarai-bold"]}
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                          }}
+                        >
+                          {formData.arrivals[0].finaldestination}
+                        </h2>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-3 justify-center items-center mt-2">
+                    <div className="grid grid-cols-2 justify-center items-center mt-2">
                       <div className="flex justify-center items-center flex-col">
                         {formData.arrivals[0].finalDestinationDate ? (
                           <label
@@ -3018,7 +3024,36 @@ const SlugPage = (prop) => {
                             : null}
                         </h2>
                       </div>
+                      <div className="flex justify-center items-center flex-col">
+                        {formData.arrivals[0].finalDestinationTime ? (
+                          <label
+                            style={{
+                              justifyContent: "center",
+                              color: "rosybrown",
 
+                              display: "flex",
+                            }}
+                            // htmlFor=""
+                            className={Style["almarai-bold"]}
+                          >
+                            توقيت وصول العاملة الى الوجهة الاخرى
+                          </label>
+                        ) : null}
+                        <h2
+                          style={{
+                            justifyContent: "center",
+                            display: "flex",
+                          }}
+                          className={Style["almarai-bold"]}
+                        >
+                          {formData.arrivals[0].finalDestinationTime
+                            ? formData.arrivals[0].finalDestinationTime
+                            : null}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 justify-center items-center mt-2">
                       <div className="flex justify-center items-center flex-col">
                         <strong
                           style={{
@@ -3032,6 +3067,7 @@ const SlugPage = (prop) => {
                           تاريخ انتهاء الضمان
                         </strong>
                         <h1
+                          className={Style["almarai-bold"]}
                           style={{ justifyContent: "center", display: "flex" }}
                         >
                           {" "}
@@ -3054,6 +3090,7 @@ const SlugPage = (prop) => {
                           متبقي على انتهاء الضمان
                         </label>
                         <h2
+                          className={Style["almarai-bold"]}
                           style={{
                             justifyContent: "center",
                             display: "flex",
@@ -3244,22 +3281,50 @@ const SlugPage = (prop) => {
                         </div>
                       )}
                     </div>
-
                     {showAdditionalDestination && (
-                      <div className="mt-1">
-                        <label
-                          htmlFor="finalDestinationDate"
-                          className="block font-semibold text-sm"
-                        >
-                          تاريخ الوصول الى الوجهة النهائية
-                        </label>
-                        <input
-                          ref={finalDestinationDateRef}
-                          id="finalDestinationDate"
-                          name="finalDestinationDate"
-                          type="date"
-                          className="w-full border rounded-md px-4 py-2"
-                        />
+                      <div className="grid grid-cols-2 mt-1">
+                        <div>
+                          <label
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                            }}
+                            htmlFor="finalDestinationDate"
+                            className="block font-semibold text-sm text-ellipsis whitespace-nowrap"
+                          >
+                            تاريخ الوصول
+                          </label>
+                          <input
+                            ref={finalDestinationDateRef}
+                            id="finalDestinationDate"
+                            name="finalDestinationDate"
+                            type="date"
+                            className="w-full border rounded-md px-4 py-2 "
+                          />
+                        </div>
+
+                        {showAdditionalDestination && (
+                          <div>
+                            <label
+                              style={{
+                                display: "flex",
+                                justifyContent: "center",
+                              }}
+                              htmlFor="finalDestinationTime"
+                              className="block font-semibold text-sm whitespace-nowrap text-ellipsis"
+                            >
+                              توقيت الوصول
+                            </label>
+                            <input
+                              type="time"
+                              id="finalDestinationTime"
+                              ref={finalDestinationTimeRef}
+                              // value={time}
+                              // onChange={handleTimeChange}
+                              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                     <label
@@ -3312,6 +3377,8 @@ const SlugPage = (prop) => {
                           // type="submit"
                           onClick={() =>
                             handleAccessFormSubmit({
+                              finalDestinationTime:
+                                finalDestinationTimeRef.current?.value,
                               deparatureTime: deparatureTimeRef.current?.value,
                               KingdomentryTime: arrivalTimeRef.current?.value,
                               finalDestinationDate:
