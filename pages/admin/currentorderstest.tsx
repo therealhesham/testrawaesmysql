@@ -14,7 +14,7 @@ import Modal from "components/modal";
 import RejectBooking from "./reject-booking";
 import SpinnerModal from "components/spinner";
 import { DotLoader, GridLoader } from "react-spinners";
-
+import Style from "styles/Home.module.css";
 export default function Table() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
@@ -307,19 +307,22 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
-          الحجوزات الحالية
-        </h1>
-        <div className="flex items-center justify-between p-4">
-          <div className="flex space-x-4">
+        <div className="flex items-center justify-end p-1">
+          <div className="flex">
             <button
               onClick={handleAddNewReservation}
               className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-200"
             >
-              اضافة حجز جديد
+              <h1 className={Style["almarai-bold"]}>اضافة حجز جديد</h1>
             </button>
           </div>
         </div>
+
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
+          الحجوزات الحالية
+        </h1>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
@@ -363,7 +366,9 @@ export default function Table() {
           <div></div>
           <div className="flex-1 px-1">
             <button
-              className="text-[#EFF7F9] bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
               onClick={() => {
                 setexStatus("");
                 isFetchingRef.current = false;
@@ -383,7 +388,7 @@ export default function Table() {
                 fetchData();
               }}
             >
-              ضبط
+              <h1 className={Style["almarai-bold"]}>ضبط</h1>
             </button>
           </div>
 
@@ -399,7 +404,7 @@ export default function Table() {
                 fetchData();
               }}
             >
-              بحث
+              <h1 className={Style["almarai-bold"]}>بحـث</h1>
             </button>
           </div>
         </div>
@@ -408,20 +413,25 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-left text-sm font-medium">م</th>
-              <th className="p-3 text-left text-sm font-medium">اسم العميل</th>
-
-              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
-              <th className="p-3 text-left text-sm font-medium">
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                م
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                اسم العميل
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                اسم العاملة
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 رقم عقد مساند
               </th>
-
-              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
-              <th className="p-3 text-left text-sm font-medium">
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                جوال العميل
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 رقم جواز السفر
               </th>
-
-              <th className="relative p-3 text-left text-sm font-medium">
+              <th className="relative p-3 text-center text-sm font-medium whitespace-nowrap">
                 {/* Column header with dropdown */}
                 <button
                   onClick={toggleDropdown}
@@ -448,17 +458,16 @@ export default function Table() {
 
                 {/* Dropdown Menu */}
                 {isDropdownOpen && (
-                  <div className="absolute mt-2 w-full  text-gray-800 bg-white shadow-lg rounded-md z-10">
-                    <ul className="p-2 text-sm">
+                  <div className="absolute mt-2 w-full text-gray-800 bg-[#ECC383] shadow-lg rounded-md z-10">
+                    <ul className="p-2 text-sm w-full">
                       <li
-                        className="cursor-pointer p-2 hover:bg-gray-100"
+                        className="cursor-pointer text-center hover:bg-gray-100"
                         onClick={() => {
                           setFilters((prev) => ({
                             ...prev,
                             externalOfficeStatus: "",
                           }));
                           setexStatus("");
-
                           handleFilterChangeStatus("");
                         }}
                       >
@@ -467,27 +476,28 @@ export default function Table() {
                       {nationalities.map((n) => (
                         <li
                           key={n.id}
-                          className="cursor-pointer p-2 text-gray-800 hover:bg-gray-100"
+                          className="cursor-pointer p-2 text-gray-800 hover:bg-gray-100 border-black m-2 text-ellipsis"
                           onClick={() => {
-                            // setexStatus(n.nationality);
-                            // setFilters((prev) => ({
                             setexStatus(n.nationality);
-                            //   ...prev,
-                            //   externalOfficeStatus: n.nationality,
-                            // }));
                             handleFilterChangeStatus(n.nationality);
                           }}
                         >
-                          {n.nationality}
+                          {n.nationality ===
+                          "موافقة مكتب العمل في دولة الاستقدام"
+                            ? "موافقة مكتب العمل"
+                            : n.nationality}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
               </th>
-
-              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">تحديث</th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                الجنسية
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                تحديث
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -495,56 +505,49 @@ export default function Table() {
               <tr>
                 <td
                   colSpan="6"
-                  className="p-3 text-center text-sm text-gray-500"
+                  className="p-3 text-center text-sm text-gray-500 whitespace-nowrap"
                 >
                   No results found
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-600">{item.id}</td>
-                  <td className="p-3 text-md text-gray-600">
+              data.map((item, index) => (
+                <tr
+                  key={item.id}
+                  className={`border-t ${
+                    index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                  }`} // Alternating even/odd rows
+                >
+                  <td className="p-3 text-center text-md text-gray-600 font-semibold    whitespace-nowrap">
+                    {item.id}
+                  </td>
+                  <td className="p-3 text-center text-md text-gray-600 font-semibold    whitespace-nowrap">
                     {item.ClientName}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">{item.Name}</td>
-
-                  <td className="p-3 text-md text-gray-700">
-                    {item.arrivals[0]?.InternalmusanedContract
-                      ? item.arrivals[0]?.InternalmusanedContract
-                      : null}
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                    {item.Name}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                    {item.arrivals[0]?.InternalmusanedContract || null}
+                  </td>
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.clientphonenumber}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.Passportnumber}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
-                    {item.arrivals[0]?.externalOfficeStatus
-                      ? item.arrivals[0]?.externalOfficeStatus
-                      : null}
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                    {item.arrivals[0]?.externalOfficeStatus || null}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     <button
-                      style={{
-                        // color: "#EFF7F9",
-                        backgroundColor: "#4C7C83",
-                      }}
-                      // className=" font-medium"
-                      // variant="contained"
-                      className="p-3 text-md rounded-md text-white"
-                      // color="warning"
+                      className="text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
                       onClick={() => handleUpdate(item.id)}
                     >
-                      تحديث
+                      <h1 className={Style["almarai-bold"]}>تحديث</h1>
                     </button>
                   </td>
                 </tr>

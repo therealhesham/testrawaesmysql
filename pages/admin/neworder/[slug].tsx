@@ -208,6 +208,7 @@ const SlugPage = (prop) => {
       },
       body: JSON.stringify({
         id: router.query.slug,
+        ReasonOfRejection: Canceelationreason,
       }),
     });
 

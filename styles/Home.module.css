@@ -17,6 +17,18 @@
   color: rgb(202, 156, 40);
 }
 
+.aref-ruqaa-regular {
+  font-family: "Aref Ruqaa", serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.aref-ruqaa-bold {
+  font-family: "Aref Ruqaa", serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
 @media only screen and (max-width: 786px) {
   .divbox {
     display: grid;

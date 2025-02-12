@@ -17,6 +17,8 @@ import {
 } from "react-icons/fa"; // Import icons from react-icons
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import Style from "styles/Home.module.css";
+
 import { useRouter } from "next/router";
 // import {  } from "@ant-design/icons";
 import jwt from "jsonwebtoken";
@@ -209,7 +211,9 @@ export default function Home({ user }) {
     <Layout>
       <div className="min-h-screen ">
         {/* Centered Heading */}
-        <h1 className="text-3xl font-bold mb-8 mt-8 text-center">
+        <h1
+          className={`text-3xl font-bold mb-8 mt-8 text-center ${Style["almarai-bold"]}`}
+        >
           قسم الاستقدام
         </h1>
         {user.role.toLowerCase() == "admin".toLowerCase() && (

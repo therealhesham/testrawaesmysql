@@ -26,7 +26,6 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
-  { id: 2, label: "المديرين", icon: ArticleIcon, link: "/admin/addadmin" },
   { id: 3, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
   // { id: 4, label: "Manage Tutorials", icon: VideosIcon, link: "/tutorials" },
 ];
@@ -99,7 +98,7 @@ const Sidebar = (props) => {
   }, [toggleCollapse]);
   const [image, setImage] = useState();
   const [info, setInfo] = useState();
-
+  const [role, setRole] = useState();
   // On component mount, check localStorage for saved state
   useEffect(() => {
     if (!localStorage.getItem("token")) router.push("/admin/login");
@@ -112,6 +111,7 @@ const Sidebar = (props) => {
       const info = jwtDecode(token);
       setImage(info.picture);
       setInfo(info.username);
+      setRole(info.role.toLowerCase());
     } catch (error) {
       router.push("/admin/login");
     }
@@ -175,8 +175,22 @@ const Sidebar = (props) => {
             );
           })}
         </div>
+        {role == "admin" && (
+          <Link href="/admin/addadmin">
+            <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+              <div style={{ width: "2.5rem", color: "white" }}>
+                {/* <Icon /> */}
+                <ArticleIcon fill="white" />
+              </div>
+              {!toggleCollapse && (
+                <span className="text-md font-medium text-text-light text-white">
+                  المديرين
+                </span>
+              )}
+            </a>
+          </Link>
+        )}
       </div>
-
       <div
         className={getNavItemClasses(
           {

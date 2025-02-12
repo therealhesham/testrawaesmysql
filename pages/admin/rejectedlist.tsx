@@ -4,6 +4,8 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
+import Style from "styles/Home.module.css";
+
 export default function Table() {
   const [filters, setFilters] = useState({
     ClientName: "",
@@ -136,7 +138,9 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
           الحجوزات المرفوضة
         </h1>
 
@@ -198,12 +202,18 @@ export default function Table() {
                 pageRef.current = 1;
                 fetchData();
               }}
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
             >
-              اعادة ضبط
+              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
             </Button>
           </div>
           <div className="flex-1 px-1">
             <Button
+              className={
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+              }
               variant="contained"
               color="info"
               onClick={() => {
@@ -214,7 +224,7 @@ export default function Table() {
                 fetchData();
               }}
             >
-              بحث
+              <h1 className={Style["almarai-bold"]}>بحث</h1>
             </Button>
           </div>
         </div>
@@ -222,25 +232,28 @@ export default function Table() {
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
-              <th className="p-3 text-left text-sm font-medium">م</th>
-              <th className="p-3 text-left text-sm font-medium">الاسم</th>
-              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
-              <th className="p-3 text-left text-sm font-medium">
+            <tr className="bg-yellow-400 text-white">
+              <th className="p-3 text-center text-sm font-medium">م</th>
+              <th className="p-3 text-center text-sm font-medium">الاسم</th>
+              <th className="p-3 text-center text-sm font-medium">
+                جوال العميل
+              </th>
+              <th className="p-3 text-center text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
-              <th className="p-3 text-left text-sm font-medium">سبب الرفض</th>
-
-              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">استعادة</th>
+              <th className="p-3 text-center text-sm font-medium">
+                رقم العاملة
+              </th>
+              <th className="p-3 text-center text-sm font-medium">سبب الرفض</th>
+              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-center text-sm font-medium">استعادة</th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan="6"
+                  colSpan="8"
                   className="p-3 text-center text-sm text-gray-500"
                 >
                   No results found
@@ -249,35 +262,37 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-600">{item.id}</td>
-                  <td className="p-3 text-md text-gray-600">
+                  <td className="p-3 text-md text-gray-600 text-center">
+                    {item.id}
+                  </td>
+                  <td className="p-3 text-md text-gray-600 text-center">
                     {item.ClientName}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-gray-700 text-center">
                     {item.clientphonenumber}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-gray-700 text-center">
                     {item.Passportnumber}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
-                    {item.HomemaidId}
+                  <td className="p-3 text-md text-gray-700 text-center">
+                    {item.HomemaidIdCopy}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-gray-700 text-center">
                     {item.ReasonOfRejection}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-gray-700 text-center">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-sm text-gray-600 text-center">
                     <Button
+                      className={
+                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                      }
                       variant="contained"
                       color="warning"
                       onClick={() => restore(item.id, item.HomemaidIdCopy)}
                     >
-                      استعادة
+                      <h1 className={Style["almarai-bold"]}>استعادة</h1>
                     </Button>
                   </td>
                 </tr>

@@ -16,7 +16,10 @@ export default async function handler(
     const { id, password } = req.body;
     // Find user by username
     const user = await prisma.user.findUnique({
-      where: { idnumber: Number(id) },
+      where: {
+        idnumber: Number(id),
+        // password: password
+      },
     });
     console.log(user);
     if (!user?.idnumber) {

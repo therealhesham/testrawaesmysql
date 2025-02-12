@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Layout from "example/containers/Layout";
+import jwt from "jsonwebtoken";
 
 interface Admin {
   idnumber: number;
@@ -137,14 +138,6 @@ export default function AdminPage() {
               placeholder="Username"
               className="w-full p-2 border border-gray-300 rounded"
             />
-            <input
-              type="password"
-              name="password"
-              value={newAdmin.password}
-              onChange={handleInputChange}
-              placeholder="Password"
-              className="w-full p-2 border border-gray-300 rounded"
-            />
 
             <input
               type="number"
@@ -152,6 +145,14 @@ export default function AdminPage() {
               value={newAdmin.idnumber}
               onChange={handleInputChange}
               placeholder="ID Number"
+              className="w-full p-2 border border-gray-300 rounded"
+            />
+            <input
+              type="password"
+              name="password"
+              value={newAdmin.password}
+              onChange={handleInputChange}
+              placeholder="Password"
               className="w-full p-2 border border-gray-300 rounded"
             />
 
@@ -219,4 +220,39 @@ export default function AdminPage() {
       </div>
     </Layout>
   );
+}
+
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log(user);
+    if (user.role !== "admin") {
+      return { redirect: { destination: "/admin/login", permanent: false } };
+    }
+    // If authenticated, continue with rendering the page
+    return {
+      props: { user }, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log("error");
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
 }

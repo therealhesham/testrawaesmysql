@@ -14,6 +14,8 @@ import FormWithTimeline from "./addneworderbyadmin";
 import TimeLinedForm from "example/components/stepsform";
 import Modal from "components/modal";
 import RejectBooking from "./reject-booking";
+import Style from "styles/Home.module.css";
+
 import { FaFileExcel } from "react-icons/fa";
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -344,7 +346,9 @@ export default function Home() {
         <div className="space-y-4">
           <div className="overflow-x-auto shadow-lg rounded-lg border border-white-200">
             <div className="flex items-center justify-between p-4">
-              <p className="text-2xl font-bold text-cool-gray-700">
+              <p
+                className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
+              >
                 حجوزات جديدة
               </p>
               {/* <div className="flex space-x-4">
@@ -359,10 +363,10 @@ export default function Home() {
             </div>
 
             <table className="min-w-full text-sm text-left">
-              <thead className="bg-gray-100">
+              <thead className=" bg-yellow-400">
                 <tr
-                  style={{ backgroundColor: "#FFDB58" }}
-                  className=" text-black"
+                  // style={{ backgroundColor: "#FFDB58" }}
+                  className=" text-white bg-yellow-400"
                 >
                   <th className="px-4 py-2">م</th>
                   <th className="px-4 py-2">اسم العميل</th>

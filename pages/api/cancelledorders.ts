@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "./globalprisma";
 
 export default async function handler(
   req: NextApiRequest,
@@ -43,6 +42,8 @@ export default async function handler(
         };
       }
       const homemaids = await prisma.neworder.findMany({
+        orderBy: { id: "desc" },
+
         where: {
           ...filters,
           bookingstatus: "عقد ملغي",
@@ -58,6 +59,8 @@ export default async function handler(
         where: { id: Number(req.body.id) },
         data: {
           bookingstatus: "عقد ملغي", // Update the booking status for the order
+          ReasonOfRejection: req.body.ReasonOfRejection,
+          HomeMaid: { disconnect: true },
         },
       });
       res.status(200).json(updatedOrder);
