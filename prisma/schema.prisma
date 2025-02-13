@@ -30,6 +30,21 @@ model homemaid {
   office            Office?    @relation(fields: [officeID], references: [id])
   NewOrder          neworder[]
   Client            Client[]
+// experienceType      String?  @db.VarChar(100)
+// PassportStart       String? @db.VarChar(100)
+// PassportEnd       String? @db.VarChar(100)
+// OldPeopleCare       Boolean?
+// ArabicLanguageLeveL String? @db.VarChar(100)
+// EnglishLanaguaeLevel    String? @db.VarChar(100)
+// Salary                    String? @db.VarChar(20)
+// LaundryLeveL   String? @db.VarChar(20)
+// IrongingLeveL   String? @db.VarChar(20)
+// CleaningLeveL   String? @db.VarChar(20)
+// CookingLeveL   String? @db.VarChar(20)
+// SewingLeveL   String? @db.VarChar(20)
+// BabySitterLevel String? @db.VarChar(20)
+//   createdat      DateTime?  @default(now())
+
 }
 
 model Office {
