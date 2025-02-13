@@ -26,7 +26,7 @@ model homemaid {
   phone             String?    @db.VarChar(17)
   bookingstatus     String?    @db.VarChar(255)
   ages              String?    @db.VarChar(255)
-  
+  officeName        String?    @db.VarChar(255)
   office            Office?    @relation(fields: [officeID], references: [id])
   NewOrder          neworder[]
   Client            Client[]
