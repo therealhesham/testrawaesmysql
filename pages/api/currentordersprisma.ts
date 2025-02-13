@@ -16,6 +16,8 @@ export default async function handler(
     Nationalitycopy,
     page,
     HomemaidId,
+
+    office,
   } = req.query;
   console.log(req.query);
 
@@ -27,7 +29,7 @@ export default async function handler(
   const filters: any = {};
   // ;
   if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
-
+  if (office) filters.HomeMaid = { officeName: office };
   // Apply a filter for `clientphonenumber` if present
   if (clientphonenumber)
     filters.clientphonenumber = { contains: clientphonenumber };
@@ -60,6 +62,7 @@ export default async function handler(
     const homemaids = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
       include: {
+        HomeMaid: { select: { officeName: true } },
         arrivals: {
           select: { InternalmusanedContract: true, externalOfficeStatus: true }, // Specify the fields you want
         },
@@ -96,6 +99,7 @@ export default async function handler(
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
     });
+    // console.log(homemaids[0].HomeMaid?.officeName)
     // console.log(homemaids[0].arrivals[0].InternalmusanedContract);
     // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);

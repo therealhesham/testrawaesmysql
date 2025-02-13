@@ -175,7 +175,7 @@ export default function Table() {
               type="text"
               value={filters.OrderId}
               onChange={(e) => handleFilterChange(e, "OrderId")}
-              placeholder="بحث برقم الكفيل"
+              placeholder="بحث برقم الطلب"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>

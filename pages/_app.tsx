@@ -11,7 +11,8 @@ import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/router";
 import { ToastContainer } from "react-toastify";
-
+import { SidebarProvider } from "utils/sidebarcontext";
+// import { SidebarProvider } from "context/SidebarContext";
 function MyApp({ Component, pageProps }: AppProps) {
   const [user, setUser] = useState("ssssss");
   const router = useRouter();
@@ -28,14 +29,13 @@ function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {}, []);
   // console.log(pageProps);
   return (
-    //@ts-ignore
-    // <User.Provider value={{ user, setUser }}>
-    <SessionProvider session={pageProps.session}>
-      {/* <Windmill usePreferences={true}> */}
-      <Component {...pageProps} />
-      {/* </Windmill> */}
-    </SessionProvider>
-    // </User.Provider>
+    <SidebarProvider>
+      <SessionProvider session={pageProps.session}>
+        {/* <Windmill usePreferences={true}> */}
+        <Component {...pageProps} />
+        {/* </Windmill> */}
+      </SessionProvider>
+    </SidebarProvider>
   );
 }
 export default MyApp;

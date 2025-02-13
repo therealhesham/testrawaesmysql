@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
 import axios from "axios";
+
 import * as XLSX from "xlsx";
 import { Formik, Field, Form, ErrorMessage, FormikValues } from "formik";
 import * as Yup from "yup"; // Import Yup for validation
@@ -15,7 +16,9 @@ import RejectBooking from "./reject-booking";
 import SpinnerModal from "components/spinner";
 import { DotLoader, GridLoader } from "react-spinners";
 import Style from "styles/Home.module.css";
-export default function Table() {
+import prisma from "pages/api/globalprisma";
+export default function Table({ offices }) {
+  // console.log(offices);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [modalType, setModalType] = useState<"success" | "error">("success");
@@ -135,6 +138,7 @@ export default function Table() {
   const [filters, setFilters] = useState({
     externalOfficeStatus: "",
     ClientName: "",
+    externaloffice: "",
     age: "",
     InternalmusanedContract: "",
     clientphonenumber: "",
@@ -168,6 +172,7 @@ export default function Table() {
       const queryParams = new URLSearchParams({
         searchTerm: filters.ClientName,
         age: filters.age,
+        office: filters.externaloffice,
         externalOfficeStatus: value ? value : exStatus,
         InternalmusanedContract: filters.InternalmusanedContract,
         clientphonenumber: filters.clientphonenumber,
@@ -363,6 +368,31 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
+          <div className="flex-1 px-2">
+            {/* <label
+              htmlFor="internalmusanedContract"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              اختر المكتب
+            </label> */}
+            <select
+              id="externaloffice"
+              name="externaloffice"
+              value={filters.externaloffice}
+              onChange={(e) => handleFilterChange(e, "externaloffice")}
+              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="">اختر المكتــب</option>
+              {offices.map((e) => (
+                <option key={e.id} value={e.office}>
+                  {e.office}
+                </option>
+              ))}
+              {/* Add more options as needed */}
+            </select>
+          </div>
+
           <div></div>
           <div className="flex-1 px-1">
             <button
@@ -379,6 +409,7 @@ export default function Table() {
                   age: "",
                   ClientName: "",
                   HomemaidId: "",
+                  externaloffice: "",
                   clientphonenumber: "",
                   Nationality: "",
                   Passportnumber: "",
@@ -431,13 +462,33 @@ export default function Table() {
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 رقم جواز السفر
               </th>
-              <th className="relative p-3 text-center text-sm font-medium whitespace-nowrap">
+              <th
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+                className={`relative p-3 text-center  ${
+                  exStatus ? "bg-[#3D4C73]" : null
+                } text-sm font-medium whitespace-nowrap`}
+              >
                 {/* Column header with dropdown */}
                 <button
+                  style={{
+                    padding: "3px",
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
                   onClick={toggleDropdown}
                   className="flex items-center space-x-1"
                 >
-                  <span>حالة طلب المكتب الخارجي</span>
+                  <span>
+                    {" "}
+                    {exStatus ? (
+                      <h1 className="bg-[#3D4C73]"> {exStatus}</h1>
+                    ) : (
+                      "حالة طلب المكتب الخارجي"
+                    )}
+                  </span>
                   <svg
                     className={`w-4 h-4 transform ${
                       isDropdownOpen ? "rotate-180" : ""
@@ -493,6 +544,9 @@ export default function Table() {
                 )}
               </th>
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                المكتب
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 الجنسية
               </th>
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
@@ -539,6 +593,13 @@ export default function Table() {
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.arrivals[0]?.externalOfficeStatus || null}
                   </td>
+
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                    {item.HomeMaid?.officeName
+                      ? item.HomeMaid?.officeName
+                      : null}
+                  </td>
+
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.Nationalitycopy}
                   </td>
@@ -975,4 +1036,38 @@ export default function Table() {
       </div>
     </Layout>
   );
+}
+
+export async function getServerSideProps(context: NextPageContext) {
+  const { req, res } = context;
+  try {
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    console.log(req.cookies.authToken);
+    // jwtDecode(req.cookies.)
+    if (!isAuthenticated) {
+      // Redirect the user to login page before rendering the component
+      return {
+        redirect: {
+          destination: "/admin/login", // Redirect URL
+          permanent: false, // Set to true if you want a permanent redirect
+        },
+      };
+    }
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log(user);
+    const offices = await prisma.offices.findMany();
+    // If authenticated, continue with rendering the page
+    // const offices = new
+    return {
+      props: { user, offices }, // Empty object to pass props if needed
+    };
+  } catch (error) {
+    console.log("error");
+    return {
+      redirect: {
+        destination: "/admin/login", // Redirect URL
+        permanent: false, // Set to true if you want a permanent redirect
+      },
+    };
+  }
 }
