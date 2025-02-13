@@ -512,7 +512,7 @@ export default function Table({ offices }) {
                   <div className="absolute mt-2 w-full text-gray-800 bg-[#ECC383] shadow-lg rounded-md z-10">
                     <ul className="p-2 text-sm w-full">
                       <li
-                        className="cursor-pointer text-center hover:bg-gray-100"
+                        className="cursor-pointer text-center w-full hover:bg-gray-100"
                         onClick={() => {
                           setFilters((prev) => ({
                             ...prev,
