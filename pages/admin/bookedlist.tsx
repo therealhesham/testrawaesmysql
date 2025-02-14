@@ -372,7 +372,7 @@ export default function Table() {
                   <td
                     className={`text-center  mb-4 ${Style["almarai-regular"]}`}
                   >
-                    {item?.Housed[0].isHoused ? (
+                    {item?.Housed[0]?.isHoused ? (
                       <h1>تم </h1>
                     ) : (
                       <h2
