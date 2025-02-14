@@ -21,7 +21,19 @@ export default function Table() {
     console.log(currentDate);
     return form;
   }
-  const [data, setData] = useState([]);
+  interface Item {
+    id: string;
+    Name: string;
+    phone: string;
+    Nationalitycopy: string;
+    Passportnumber: string;
+    PassportStart?: string;
+    PassportEnd?: string;
+    NewOrder: { id: string; ClientName: string }[];
+    Housed: { isHoused: boolean }[];
+  }
+
+  const [data, setData] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
 
