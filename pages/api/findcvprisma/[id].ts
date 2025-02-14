@@ -1,24 +1,31 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 
-import { PrismaClient } from "@prisma/client";
 import Airtable, { Table } from "airtable";
 
 import { Console } from "console";
 import type { NextApiRequest, NextApiResponse } from "next";
-
+import prisma from "../globalprisma";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const prisma = new PrismaClient();
   console.log(req.query);
   console.log(req.query.pid);
-  const find = await prisma.homemaid.findFirst({
+  const find = await prisma.homemaid.findUnique({
     where: { id: Number(req.query.id) },
+    include: {
+      Housed: { where: { isHoused: true } },
+      NewOrder: {
+        where: { HomemaidId: Number(req.query.id) },
+        select: { HomemaidId: true, id: true },
+      },
+    },
   });
+  // console.log(find);
   // sendSuggestion()
   //@ts-ignore
   // console.log(arr)
+  // console.log(find?.NewOrder[0].HomemaidId);
   //@ts-ignore
   res.status(200).json(find);
 }

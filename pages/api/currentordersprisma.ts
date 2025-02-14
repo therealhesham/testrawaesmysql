@@ -71,7 +71,7 @@ export default async function handler(
         ...filters,
         NOT: {
           bookingstatus: {
-            in: ["حجز جديد", "الاستلام", "عقد ملغي", "اكمال الطلب"], // Exclude these statuses
+            in: ["حجز جديد", "الاستلام", "عقد ملغي"], // Exclude these statuses
           },
         },
         // Apply the searchTerm to multiple fields (e.g., ClientName, Passportnumber)

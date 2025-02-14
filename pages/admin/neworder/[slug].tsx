@@ -1586,7 +1586,6 @@ const SlugPage = (prop) => {
                   {formData.ClientName}
                 </p>
               </div>
-
               <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">
                   البريد الالكتروني
@@ -1595,32 +1594,41 @@ const SlugPage = (prop) => {
                   {formData.client.email}
                 </p>
               </div>
-
               <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">جوال العميل</strong>
                 <p className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.client.phonenumber}
                 </p>
               </div>
-
               <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">رقم الطلب</strong>
                 <p className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.id}
                 </p>
               </div>
-
               <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">اسم العاملة</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.HomeMaid?.Name}
                 </span>
               </div>
-
               <div className="flex justify-between items-center bg-gray-100">
                 <strong className="w-32 font-extrabold">جواز السفر</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.HomeMaid?.Passportnumber}
+                </span>
+              </div>
+              {/* .HomeMaid?.officeName */}
+              <div className="flex justify-between items-center bg-gray-100">
+                <strong className="w-32 font-extrabold">الجنسية</strong>
+                <span className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.HomeMaid?.Nationality}
+                </span>
+              </div>
+              <div className="flex justify-between items-center bg-gray-100">
+                <strong className="w-32 font-extrabold">المكتب الخارجي</strong>
+                <span className="flex-1 text-right overflow-hidden text-ellipsis">
+                  {formData.HomeMaid?.officeName}
                 </span>
               </div>
             </div>
@@ -1807,7 +1815,14 @@ const SlugPage = (prop) => {
                           style={{
                             display: "flex",
                             justifyContent: "center",
-                            color: daysRemaining < 20 ? "red" : "black",
+                            color:
+                              daysRemaining < 20
+                                ? "red"
+                                : daysRemaining >= 20 && daysRemaining < 30
+                                ? "yellow"
+                                : daysRemaining >= 30
+                                ? "green"
+                                : null,
                           }}
                         >
                           {daysRemaining}
@@ -2665,7 +2680,7 @@ const SlugPage = (prop) => {
                       }}
                       className={Style["almarai-bold"]}
                     >
-                      الربط مع الوكالـة
+                      التفويض
                     </h1>
                     <h1
                       style={{

@@ -14,6 +14,10 @@ import {
   FaArchive,
   FaPlane,
   FaSuperpowers,
+  FaAddressBook,
+  FaAlignJustify,
+  FaPlaneDeparture,
+  FaPlaneArrival,
 } from "react-icons/fa"; // Import icons from react-icons
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
@@ -341,7 +345,8 @@ export default function Home({ user }) {
               <Link href="/admin/arrival-list">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
+                    <FaPlaneArrival className="mb-2 text-3xl" />{" "}
+                    {/* Flight icon */}
                     قائمة الوصول
                   </div>
                   {/* Notification Badge */}
@@ -356,7 +361,8 @@ export default function Home({ user }) {
               <Link href="/admin/deparatures">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlane className="mb-2 text-3xl" /> {/* Flight icon */}
+                    <FaPlaneDeparture className="mb-2 text-3xl" />{" "}
+                    {/* Flight icon */}
                     قائمة المغادرة
                   </div>
                   {/* Notification Badge */}
@@ -381,11 +387,8 @@ export default function Home({ user }) {
             <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
               {/* Box 5 */}
               {/* Box 6 */}
-
               {/* Box 4 */}
-
               {/* Box 5 */}
-
               <Link href="/admin/fulllist">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
@@ -400,7 +403,26 @@ export default function Home({ user }) {
                   ) : null}
                 </a>
               </Link>
+              <Link href="/admin/bookedlist">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaAddressBook className="mb-2 text-3xl" /> {/* Add icon */}
+                    قائمة العاملات المحجوزة
+                  </div>
+                  {/* Notification Badge */}
+                </a>
+              </Link>
 
+              <Link href="/admin/availablelist">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaAlignJustify className="mb-2 text-3xl" />{" "}
+                    {/* Add icon */}
+                    قائمة العاملات المتاحة
+                  </div>
+                  {/* Notification Badge */}
+                </a>
+              </Link>
               <Link href="/admin/transfersponsorship">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
@@ -415,12 +437,21 @@ export default function Home({ user }) {
                   ) : null}
                 </a>
               </Link>
-
               <Link href="/admin/clients">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
                     <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
                     قائمة العملاء
+                  </div>
+                  {/* Notification Badge */}
+                </a>
+              </Link>
+
+              <Link href="/admin/housedarrivals">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
+                    قائمة التسكين
                   </div>
                   {/* Notification Badge */}
                 </a>

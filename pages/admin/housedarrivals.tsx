@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
 import Style from "styles/Home.module.css";
-
+import { FaHouseUser } from "react-icons/fa";
 export default function Table() {
   const [filters, setFilters] = useState({
     Name: "",
@@ -27,6 +27,22 @@ export default function Table() {
 
   const pageRef = useRef(1); // Use a ref to keep track of the current page number
   const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
+  const updateHousingStatus = async (homeMaidId) => {
+    const response = await fetch("/api/confirmhousing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ homeMaidId }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      console.log("Success:", data.message);
+    } else {
+      console.log("Error:", data.error);
+    }
+  };
 
   // Fetch data with pagination
   const fetchData = async () => {
@@ -45,7 +61,7 @@ export default function Table() {
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/confirmhousing?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -54,9 +70,11 @@ export default function Table() {
       });
 
       const res = await response.json();
-      if (res && res.length > 0) {
-        setData((prevData) => [...prevData, ...res]); // Append new data
+      // console.log(res.housing[0]);
+      if (res && res.housing.length > 0) {
+        setData((prevData) => [...prevData, ...res.housing]); // Append new data
         pageRef.current += 1; // Increment page using ref
+        console.log(data);
       } else {
         setHasMore(false); // No more data to load
       }
@@ -144,9 +162,9 @@ export default function Table() {
     <Layout>
       <div className="container mx-auto p-6">
         <h1
-          className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
         >
-          قائمة العاملات
+          عاملات تم تسكينهم
         </h1>
 
         {/* Filter Section */}
@@ -223,10 +241,8 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-center text-sm font-medium">
-                رقم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-center text-sm font-medium">رقم الطلب</th>
+              <th className="p-3 text-center  text-sm font-medium">
                 اسم العاملة
               </th>
               <th className="p-3 text-center text-sm font-medium">
@@ -243,13 +259,13 @@ export default function Table() {
               <th className="p-3 text-center text-sm font-medium">
                 نهاية الجواز
               </th>
-
               <th className="p-3 text-center text-sm font-medium">
-                الحالة الاجتماعية
+                اسم العميل
               </th>
-              <th className="p-3 text-center text-sm font-medium">المكتب</th>
 
-              <th className="p-3 text-center text-sm font-medium">استعراض</th>
+              {/* <th className="p-3 text-center text-sm font-medium">تسكين</th> */}
+
+              {/* <th className="p-3 text-center text-sm font-medium">استعراض</th> */}
             </tr>
           </thead>
           <tbody>
@@ -265,49 +281,116 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md  text-center text-gray-700">
+                  {/* {alert(item.id)} */}
+                  {/* <td
+                  
+                    // className="p-3 text-md text-gray-700"
+                    className={`text-center  mb-4 ${Style["almarai-light"]}`}
+                  >
                     {item.id}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-600">
-                    {item.Name}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item.phone}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Nationalitycopy}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Passportnumber}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item?.PassportStart ? item?.PassportStart : null}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item?.PassportEnd ? item?.PassportEnd : null}
-                  </td>
+                  </td> */}
 
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.maritalstatus}
-                  </td>
-
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.officeName}
-                  </td>
-
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    <button
-                      className={
-                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-                      }
+                  <td>
+                    <h1
+                      className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
                       onClick={() => {
-                        const url = "/admin/cvdetails/" + item.id;
+                        const url = "/admin/neworder/" + item?.neworder.id;
                         window.open(url, "_blank"); // Open in new window
                       }}
                     >
-                      <h1 className={Style["almarai-bold"]}>عرض</h1>
-                    </button>
+                      {item?.neworder.id ? item?.neworder.id : "لا يوجد بيان"}
+                    </h1>
                   </td>
+
+                  <td
+                    className={`text-center cursor-pointer text-purple-900 text-lg  mb-4 ${Style["almarai-light"]}`}
+                    onClick={() => {
+                      const url = "/admin/cvdetails/" + item?.HomeMaid.id;
+                      window.open(url, "_blank"); // Open in new window
+                    }}
+                  >
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.HomeMaid.Name
+                        ? item?.HomeMaid.Name
+                        : "لا يوجد بيان"}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 ${Style["almarai-light"]}`}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.HomeMaid.phone ? item?.HomeMaid.phone : "لا يوجد"}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.HomeMaid.Nationalitycopy
+                        ? item?.HomeMaid.Nationalitycopy
+                        : "لا يوجد بيان"}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.HomeMaid.Passportnumber
+                        ? item?.HomeMaid.Passportnumber
+                        : "لا يوجد بيان"}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.HomeMaid.PassportStart
+                        ? item?.HomeMaid.PassportStart
+                        : null}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4`}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.HomeMaid.PassportEnd
+                        ? item?.HomeMaid.PassportEnd
+                        : null}
+                    </h1>
+                  </td>
+
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.neworder.ClientName
+                        ? item?.neworder.ClientName
+                        : null}
+                    </h1>
+                  </td>
+                  {/* 
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      // onClick={() => updateHousingStatus(item.id)}
+                      className="text-center cursor-pointer"
+                      style={{ display: "flex", justifyContent: "center" }}
+                    >
+                      <FaHouseUser />
+                    </h1>
+                  </td> */}
+
+                  {/* <td>
+                    <h1
+                      className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
+                      onClick={() =>
+                        router.push("/admin/neworder/" + NewOrder[0]?.id)
+                      }
+                    >
+                      {item.NewOrder[0]?.id}
+                    </h1>
+                  </td> */}
                 </tr>
               ))
             )}

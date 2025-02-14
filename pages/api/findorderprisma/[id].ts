@@ -17,7 +17,7 @@ export default async function handler(
     include: { HomeMaid: true, client: true, arrivals: true },
     where: { id: { equals: Number(req.query.id) } },
   });
-  console.log(find);
+  console.log(find?.HomeMaid?.officeName);
   // sendSuggestion()
   //@ts-ignore
   // console.log(arr)

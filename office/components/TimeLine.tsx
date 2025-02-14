@@ -58,7 +58,7 @@ const Timeline = ({ stages, currentstatus, changeTimeline }) => {
                   : "text-gray-500"
               }`}
             >
-              {stage}
+              {stage == "الربط مع الوكالة" ? "التفويض" : stage}
             </div>
           </div>
         );
