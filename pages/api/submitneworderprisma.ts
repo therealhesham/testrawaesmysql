@@ -1,7 +1,6 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
-
-const prisma = new PrismaClient(); // Instantiate PrismaClient outside the handler to improve performance.
+import prisma from "./globalprisma";
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,6 +14,9 @@ export default async function handler(
     ClientName,
     PhoneNumber,
     HomemaidId,
+
+    address,
+    nationalId,
     age,
     clientphonenumber,
     Name,
@@ -23,10 +25,11 @@ export default async function handler(
     email,
     Nationality,
     Religion,
+    city,
     externalOfficeStatus,
     ExperienceYears,
   } = req.body;
-
+  console.log(req.body);
   try {
     const existingOrder = await prisma.neworder.findFirst({
       where: { HomeMaid: { id: HomemaidId } },
@@ -53,10 +56,14 @@ export default async function handler(
         Religion,
         PhoneNumber: "0",
         ages: age + "",
+        housed: { create: { HomeMaidId: HomemaidId } },
 
         client: {
           create: {
             email,
+            address,
+            city,
+            nationalId,
             fullname: ClientName, // Ensure the name field in the schema is 'fullname'
             phonenumber: clientphonenumber, // Ensure the phonenumber field in the schema matches
           },

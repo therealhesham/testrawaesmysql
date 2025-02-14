@@ -45,7 +45,7 @@ export default function Table() {
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/availablelist?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -136,17 +136,14 @@ export default function Table() {
   };
 
   const router = useRouter();
-  const handleUpdate = (id) => {
-    router.push("./neworder/" + id);
-  };
 
   return (
     <Layout>
       <div className="container mx-auto p-6">
         <h1
-          className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
         >
-          قائمة العاملات
+          عاملات متاحة للحجز
         </h1>
 
         {/* Filter Section */}
@@ -223,33 +220,28 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-center text-sm font-medium">
-                رقم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                اسم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-left text-sm font-medium">رقم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+              <th className="p-3 text-left text-sm font-medium">
                 جوال العاملة
               </th>
-              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
 
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-left text-sm font-medium">
                 بداية الجواز
               </th>
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-left text-sm font-medium">
                 نهاية الجواز
               </th>
 
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-left text-sm font-medium">
                 الحالة الاجتماعية
               </th>
-              <th className="p-3 text-center text-sm font-medium">المكتب</th>
 
-              <th className="p-3 text-center text-sm font-medium">استعراض</th>
+              <th className="p-3 text-left text-sm font-medium">استعراض</th>
             </tr>
           </thead>
           <tbody>
@@ -265,37 +257,26 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md  text-center text-gray-700">
-                    {item.id}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-600">
-                    {item.Name}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item.phone}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">{item.id}</td>
+                  <td className="p-3 text-md text-gray-600">{item.Name}</td>
+                  <td className="p-3 text-md text-gray-700">{item.phone}</td>
+                  <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">
                     {item?.PassportStart ? item?.PassportStart : null}
                   </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">
                     {item?.PassportEnd ? item?.PassportEnd : null}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">
                     {item.maritalstatus}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.officeName}
-                  </td>
-
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">
                     <button
                       className={
                         "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"

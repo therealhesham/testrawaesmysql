@@ -13,6 +13,7 @@ export default function Table() {
     Passportnumber: "",
     id: "",
   });
+  const router = useRouter();
 
   function getDate(date) {
     const currentDate = new Date(date); // Original date
@@ -33,19 +34,20 @@ export default function Table() {
     if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
     isFetchingRef.current = true;
     setLoading(true);
-
+    console.log(router.query.office);
     try {
       // Build the query string for filters
       const queryParams = new URLSearchParams({
         Name: filters.Name,
         age: filters.age,
+        office: router.query.office,
         id: filters.id,
         Passportnumber: filters.Passportnumber,
         // Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/homemaidoffices?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -93,6 +95,7 @@ export default function Table() {
   const loadMoreRef = useCallback(
     (node: HTMLDivElement) => {
       if (loading || !hasMore) return;
+      if (router.query.office == undefined) return;
 
       const observer = new IntersectionObserver(
         (entries) => {
@@ -112,8 +115,10 @@ export default function Table() {
 
   // useEffect to fetch the first page of data on mount
   useEffect(() => {
+    // alert(router.query.office == undefined);
+    if (router.query.office == undefined) return;
     fetchData(); // Fetch the first page of data
-  }, []); // Only run once on mount
+  }, [router.query]); // Only run once on mount
 
   // useEffect to fetch data when filters change
   // useEffect(() => {
@@ -135,7 +140,6 @@ export default function Table() {
     }));
   };
 
-  const router = useRouter();
   const handleUpdate = (id) => {
     router.push("./neworder/" + id);
   };
@@ -143,11 +147,19 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1
-          className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
-        >
-          قائمة العاملات
-        </h1>
+        <div className="grid grid-cols-2">
+          {/* <h1
+          >
+            قائمة عاملات مكتب
+          </h1> */}
+
+          <h1
+            className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+          >
+            {" "}
+            {router.query.office}
+          </h1>
+        </div>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">

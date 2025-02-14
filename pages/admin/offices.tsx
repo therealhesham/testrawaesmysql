@@ -1,11 +1,12 @@
 //@ts-nocheck
 //@ts-ignore
 import Layout from "example/containers/Layout";
+import { useRouter } from "next/router";
 import FailedModal from "office/components/failedbutton";
 import SuccessModal from "office/components/successcoponent";
 import { useEffect, useState } from "react";
-
 export default function ExternalOffices() {
+  const router = useRouter();
   // Define initial offices with people data
   const initialOffices = [
     {
@@ -169,7 +170,7 @@ export default function ExternalOffices() {
   }
   const [fetchedOffices, setFetchedOffices] = useState([]);
   const getter = async () => {
-    const waiter = await fetch("../api/externalofficesprisma");
+    const waiter = await fetch("/api/externalofficesprisma");
     const waiterjson = await waiter.json();
     setFetchedOffices(waiterjson);
   };
@@ -334,15 +335,17 @@ export default function ExternalOffices() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {fetchedOffices.map((office) => (
             <div
+              onClick={() => {
+                router.push("/admin/homemaidoffices?office=" + office.office);
+              }}
               key={office.id}
               className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-all cursor-pointer"
-              onClick={() => handleOfficeClick(office.id)}
             >
               <h2 className="text-xl font-semibold">{office.office}</h2>
               <p className="text-gray-600"> {office.Country}</p>
 
               {/* Available and Booked Numbers */}
-              <div className="flex justify-between mt-4">
+              {/* <div className="flex justify-between mt-4">
                 <div className="flex items-center">
                   <span className="bg-green-500 text-white text-sm font-semibold rounded-full w-8 h-8 flex items-center justify-center">
                     {office.available}
@@ -355,7 +358,7 @@ export default function ExternalOffices() {
                   </span>
                   <span className="ml-2 text-gray-600">Booked</span>
                 </div>
-              </div>
+              </div> */}
             </div>
           ))}
         </div>

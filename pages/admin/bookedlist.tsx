@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { Button } from "@mui/material";
 import Style from "styles/Home.module.css";
-
+import { FaHouseUser } from "react-icons/fa";
 export default function Table() {
   const [filters, setFilters] = useState({
     Name: "",
@@ -27,6 +27,24 @@ export default function Table() {
 
   const pageRef = useRef(1); // Use a ref to keep track of the current page number
   const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
+  const updateHousingStatus = async (homeMaidId) => {
+    const response = await fetch("/api/confirmhousing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ homeMaidId }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      const url = "/admin/cvdetails/" + homeMaidId;
+      window.open(url, "_blank"); // Open in new window
+      console.log("Success:", data.message);
+    } else {
+      console.log("Error:", data.error);
+    }
+  };
 
   // Fetch data with pagination
   const fetchData = async () => {
@@ -45,7 +63,7 @@ export default function Table() {
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/bookedlist?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -144,9 +162,9 @@ export default function Table() {
     <Layout>
       <div className="container mx-auto p-6">
         <h1
-          className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
         >
-          قائمة العاملات
+          قائمة العاملات المحجوزة
         </h1>
 
         {/* Filter Section */}
@@ -223,10 +241,8 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-center text-sm font-medium">
-                رقم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
+              <th className="p-3 text-center text-sm font-medium">رقم الطلب</th>
+              <th className="p-3 text-center  text-sm font-medium">
                 اسم العاملة
               </th>
               <th className="p-3 text-center text-sm font-medium">
@@ -243,13 +259,13 @@ export default function Table() {
               <th className="p-3 text-center text-sm font-medium">
                 نهاية الجواز
               </th>
-
               <th className="p-3 text-center text-sm font-medium">
-                الحالة الاجتماعية
+                اسم العميل
               </th>
-              <th className="p-3 text-center text-sm font-medium">المكتب</th>
 
-              <th className="p-3 text-center text-sm font-medium">استعراض</th>
+              <th className="p-3 text-center text-sm font-medium">تسكين</th>
+
+              {/* <th className="p-3 text-center text-sm font-medium">استعراض</th> */}
             </tr>
           </thead>
           <tbody>
@@ -265,49 +281,109 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md  text-center text-gray-700">
+                  {/* <td
+                    // className="p-3 text-md text-gray-700"
+                    className={`text-center  mb-4 ${Style["almarai-light"]}`}
+                  >
                     {item.id}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-600">
-                    {item.Name}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item.phone}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Nationalitycopy}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Passportnumber}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item?.PassportStart ? item?.PassportStart : null}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item?.PassportEnd ? item?.PassportEnd : null}
-                  </td>
+                  </td> */}
 
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.maritalstatus}
-                  </td>
-
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.officeName}
-                  </td>
-
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    <button
-                      className={
-                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-                      }
+                  <td>
+                    <h1
+                      className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
                       onClick={() => {
-                        const url = "/admin/cvdetails/" + item.id;
+                        const url = "/admin/neworder/" + item.NewOrder[0]?.id;
                         window.open(url, "_blank"); // Open in new window
                       }}
                     >
-                      <h1 className={Style["almarai-bold"]}>عرض</h1>
-                    </button>
+                      {item.NewOrder[0]?.id}
+                    </h1>
                   </td>
+
+                  <td
+                    className={`text-center cursor-pointer text-purple-900 text-lg  mb-4 ${Style["almarai-light"]}`}
+                    onClick={() => {
+                      const url = "/admin/cvdetails/" + item.id;
+                      window.open(url, "_blank"); // Open in new window
+                    }}
+                  >
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item.Name}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 ${Style["almarai-light"]}`}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item.phone}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item.Nationalitycopy}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item.Passportnumber}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4 `}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.PassportStart ? item?.PassportStart : null}
+                    </h1>
+                  </td>
+                  <td className={`text-center  mb-4`}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.PassportEnd ? item?.PassportEnd : null}
+                    </h1>
+                  </td>
+
+                  <td className={`text-center  mb-4 w-20`}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item.NewOrder[0]?.ClientName}
+                    </h1>
+                  </td>
+
+                  <td
+                    className={`text-center  mb-4 ${Style["almarai-regular"]}`}
+                  >
+                    {item?.Housed[0].isHoused ? (
+                      <h1>تم </h1>
+                    ) : (
+                      <h2
+                        className={
+                          "text-green-600 cursor-pointer  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                        }
+                        onClick={() => updateHousingStatus(item.id)}
+                      >
+                        موافقة
+                      </h2>
+                    )}
+                  </td>
+
+                  {/* <td>
+                    <h1
+                      className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
+                      onClick={() =>
+                        router.push("/admin/neworder/" + NewOrder[0]?.id)
+                      }
+                    >
+                      {item.NewOrder[0]?.id}
+                    </h1>
+                  </td> */}
                 </tr>
               ))
             )}
