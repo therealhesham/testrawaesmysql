@@ -271,7 +271,7 @@ export default function Table() {
                   </td>
 
                   <td className="p-3 text-md text-gray-700">
-                    {item?.deparatureDate
+                    {item?.KingdomentryDate
                       ? getDate(item?.KingdomentryDate)
                       : null}
                   </td>
