@@ -35,12 +35,14 @@ export default async function handler(
           some: {}, // Filters where no related neworder exists for this homemaid
         },
       },
+      // ordersBy: "desc",
       include: {
         NewOrder: { select: { id: true, ClientName: true } },
         Housed: { select: { isHoused: true } },
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
+      orderBy: { id: "desc" },
     });
     // console.log();
     // console.log(homemaids[0].NewOrder[0].ClientName);

@@ -26,8 +26,9 @@ export default async function handler(
     // Fetch data with the filters and pagination
     const homemaids = await prisma.arrivallist.findMany({
       where: {
-        KingdomentryDate: { not: null },
         ...filters,
+        KingdomentryDate: { not: null },
+        KingdomentryTime: { not: null },
         //   bookingstatus: "طلب مرفوض",
       },
       select: {
