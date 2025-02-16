@@ -311,7 +311,7 @@ export default function Table({ offices }) {
   };
   return (
     <Layout>
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 overflow-auto">
         <div className="flex items-center justify-end p-1">
           <div className="flex">
             <button

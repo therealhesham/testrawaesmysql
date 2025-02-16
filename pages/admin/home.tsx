@@ -11,6 +11,7 @@ import {
   FaTasks,
   FaUserTie,
   FaHome,
+  FaList,
   FaArchive,
   FaPlane,
   FaSuperpowers,
@@ -18,14 +19,16 @@ import {
   FaAlignJustify,
   FaPlaneDeparture,
   FaPlaneArrival,
+  FaArrowUp,
 } from "react-icons/fa"; // Import icons from react-icons
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Style from "styles/Home.module.css";
 
 import { useRouter } from "next/router";
 // import {  } from "@ant-design/icons";
 import jwt from "jsonwebtoken";
+import { HomeIcon } from "icons";
 // Helper function to calculate remaining days
 const calculateRemainingDays = (eventDate) => {
   const today = new Date();
@@ -221,9 +224,14 @@ export default function Home({ user }) {
   //   return <div>Loading...</div>;
   // }
   // "sss"
+  const sectionRef = useRef(null);
+  const scrollToSection = () => {
+    sectionRef.current.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <Layout>
-      <div className="min-h-screen ">
+      <div className="min-h-screen " ref={sectionRef}>
         {/* Centered Heading */}
         <h1
           className={`text-3xl font-bold mb-8 mt-8 text-center ${Style["almarai-bold"]}`}
@@ -381,7 +389,7 @@ export default function Home({ user }) {
 
         <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
           <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-            قواعد البيانات
+            العاملات
           </div>
           <div className="mt-10">
             <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
@@ -392,7 +400,7 @@ export default function Home({ user }) {
               <Link href="/admin/fulllist">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    <FaList className="mb-2 text-3xl" /> {/* Add icon */}
                     بيانات العاملات
                   </div>
                   {/* Notification Badge */}
@@ -423,6 +431,31 @@ export default function Home({ user }) {
                   {/* Notification Badge */}
                 </a>
               </Link>
+
+              <Link href="/admin/housedarrivals">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    قائمة التسكين
+                  </div>
+                  {/* Notification Badge */}
+                </a>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
+          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
+            قواعد البيانات
+          </div>
+          <div className="mt-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
+              {/* Box 5 */}
+              {/* Box 6 */}
+              {/* Box 4 */}
+              {/* Box 5 */}
+
               <Link href="/admin/transfersponsorship">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
@@ -447,16 +480,6 @@ export default function Home({ user }) {
                 </a>
               </Link>
 
-              <Link href="/admin/housedarrivals">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
-                    قائمة التسكين
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
-
               {/* Box 7 */}
               <Link href="/admin/offices">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
@@ -476,6 +499,39 @@ export default function Home({ user }) {
                 </a>
               </Link>
             </div>
+          </div>
+          <div>
+            {/* Floating button */}
+            <button
+              onClick={scrollToSection}
+              style={{
+                position: "fixed",
+                bottom: "2%", // Position vertically in the center
+                right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
+                transform: "translate(-50%, -50%)", // Offset to truly center the button
+                backgroundColor: "transparent", // Make the background transparent
+                color: "blue", // Make the icon color blue (you can change this to any color)
+                border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
+                borderRadius: "10px", // Make the button slightly rounded
+                padding: "10px 25px", // Make the button narrow
+                fontSize: "20px",
+                cursor: "pointer",
+                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
+                transition: "all 0.3s ease", // Smooth transition for hover effect
+              }}
+              onMouseEnter={(e) => {
+                // Change color when hovering
+                e.target.style.backgroundColor = "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
+                e.target.style.boxShadow = "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
+              }}
+              onMouseLeave={(e) => {
+                // Reset the button style when not hovering
+                e.target.style.backgroundColor = "transparent";
+                e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
+              }}
+            >
+              <FaArrowUp size={13} />
+            </button>
           </div>
         </div>
       </div>
