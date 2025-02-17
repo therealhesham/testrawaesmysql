@@ -186,7 +186,7 @@ export default function Table() {
           <div className="flex-1 px-1">
             <button
               className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300 min-w-[120px]"
               }
               onClick={() => {
                 isFetchingRef.current = false;

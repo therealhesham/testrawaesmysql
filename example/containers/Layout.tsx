@@ -35,9 +35,11 @@ function Layout({ children }: ILayout) {
   return (
     // <SidebarProvider>
     <div
-      className={`flex h-screen bg-gray-50 dark:bg-gray-900 ${
-        isSidebarOpen && "overflow-hidden"
-      }`}
+      className={`flex h-screen w-screen  bg-gray-50 dark:bg-gray-900 
+        `}
+      // ${
+      // isSidebarOpen && "overflow-scroll"
+      // }`}
     >
       <Sidebar />
       {/* <Sidebar /> */}
