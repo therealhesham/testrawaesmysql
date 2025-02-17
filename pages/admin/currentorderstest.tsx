@@ -600,11 +600,11 @@ export default function Table({ offices }) {
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-center text-md text-gray-700 w-12 font-semibold    ">
-                    <h1 className="flex flex-wrap">
-                      {/* {" "} */}
-                      {item.arrivals[0]?.externalOfficeStatus || null}
-                    </h1>
+                  <td className="p-3 text-center text-md items-center text-gray-700 w-12 font-semibold    ">
+                    {/* <h1 className="flex flex-wrap text-center items-center"> */}
+                    {/* {" "} */}
+                    {item.arrivals[0]?.externalOfficeStatus || null}
+                    {/* </h1> */}
                   </td>
 
                   <td className="p-3 text-center text-md  text-gray-700  font-semibold    ">
