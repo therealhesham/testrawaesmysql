@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef, useContext } from "react";
 import Layout from "example/containers/Layout";
 import { Button } from "@mui/material";
-import Style from "styles/home.module.css";
+import Style from "styles/Home.module.css";
 import { User } from "utils/usercontext";
 
 export default function Table() {

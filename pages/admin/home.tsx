@@ -23,7 +23,7 @@ import {
 } from "react-icons/fa"; // Import icons from react-icons
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import Style from "styles/Home.module.css";
+import Style from "/styles/Home.module.css";
 
 import { useRouter } from "next/router";
 // import {  } from "@ant-design/icons";

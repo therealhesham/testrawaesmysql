@@ -1,4 +1,4 @@
-import DashboardCard from "components/accDashboardcard";
+// import DashboardCard from "components/accDashboardcard";
 import Sidebar from "components/accSidebar";
 const Dashboard = () => {
   const transactions = [
