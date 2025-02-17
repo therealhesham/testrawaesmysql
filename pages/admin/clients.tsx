@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useRef, useContext } from "react";
 import Layout from "example/containers/Layout";
 import { Button } from "@mui/material";
+import Style from "styles/home.module.css";
 import { User } from "utils/usercontext";
 
 export default function Table() {
@@ -88,6 +89,13 @@ export default function Table() {
     }));
   };
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
   const makeRequest = async (url: string, body: object) => {
     const response = await fetch(url, {
       method: "POST",
@@ -135,7 +143,9 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold text-center mb-4">
+        <h1
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+        >
           قائمة العملاء
         </h1>
 
@@ -179,9 +189,10 @@ export default function Table() {
             />
           </div> */}
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              // variant="contained"
+              // color="info"
+              className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
               onClick={() => {
                 isFetchingRef.current = false;
                 setState({ data: [], hasMore: true, loading: false });
@@ -194,12 +205,13 @@ export default function Table() {
               }}
             >
               اعادة ضبط
-            </Button>
+            </button>
           </div>
           <div className="flex-1 px-1">
-            <Button
-              variant="contained"
-              color="info"
+            <button
+              className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
+              // variant="contained"
+              // color="info"
               onClick={() => {
                 isFetchingRef.current = false;
                 setState({ data: [], hasMore: true, loading: false });
@@ -208,14 +220,14 @@ export default function Table() {
               }}
             >
               بحث
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-purple-600 text-white">
+            <tr className="bg-yellow-500 text-white">
               <th className="p-3 text-left text-sm font-medium">م</th>
               <th className="p-3 text-left text-sm font-medium">الاسم</th>
               <th className="p-3 text-left text-sm font-medium">بريد العميل</th>
@@ -246,7 +258,7 @@ export default function Table() {
                     {item.phonenumber}
                   </td>
                   <td className="p-3 text-sm text-gray-600">
-                    {item.createdat}
+                    {item?.createdat ? getDate(item.createdat) : nnull}
                   </td>
                   <td className="p-3 text-sm text-gray-600">
                     <Button

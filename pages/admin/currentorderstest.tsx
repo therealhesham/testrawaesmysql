@@ -284,7 +284,10 @@ export default function Table({ offices }) {
   const handleNextStep = () => {
     setCurrentStep((prevStep) => prevStep + 1);
   };
-
+  const handleClicker = (id) => {
+    const url = "/admin/cvdetails/" + id;
+    window.open(url, "_blank");
+  };
   const handlePreviousStep = () => {
     setCurrentStep((prevStep) => prevStep - 1);
   };
@@ -311,7 +314,7 @@ export default function Table({ offices }) {
   };
   return (
     <Layout>
-      <div className="container mx-auto p-6 overflow-auto">
+      <div className="container mx-auto p-6 ">
         <div className="flex items-center justify-end p-1">
           <div className="flex">
             <button
@@ -441,11 +444,11 @@ export default function Table({ offices }) {
         </div>
 
         {/* Table */}
-        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
+        <table className="w-full overflow-x-scroll border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
-                م
+                تحديث
               </th>
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 اسم العميل
@@ -464,11 +467,11 @@ export default function Table({ offices }) {
               </th>
               <th
                 style={{
-                  width: "220px",
+                  // width: "220px",
                   display: "flex",
                   justifyContent: "center",
                 }}
-                className={`relative p-3 text-center  ${
+                className={`relative p-3 w-[250px] text-center  ${
                   exStatus ? "bg-[#3D4C73]" : null
                 } text-sm font-medium whitespace-nowrap`}
               >
@@ -480,14 +483,14 @@ export default function Table({ offices }) {
                     justifyContent: "center",
                   }}
                   onClick={toggleDropdown}
-                  className="flex items-center space-x-1"
+                  className="flex items-center justify-center space-x-1"
                 >
                   <span>
                     {" "}
                     {exStatus ? (
-                      <h1 className="bg-[#3D4C73]"> {exStatus}</h1>
+                      <h1 className="bg-[#3D4C73] text-center"> {exStatus}</h1>
                     ) : (
-                      "حالة طلب المكتب الخارجي"
+                      <h1 className="text-center"> حالة طلب المكتب الخارجي</h1>
                     )}
                   </span>
                   <svg
@@ -510,7 +513,7 @@ export default function Table({ offices }) {
 
                 {/* Dropdown Menu */}
                 {isDropdownOpen && (
-                  <div className="absolute mt-2 w-full overflow-y-auto text-gray-800 bg-[#ECC383] shadow-lg rounded-md z-10">
+                  <div className="absolute mt-4 w-[320px] overflow-y-auto text-gray-800 bg-[#ECC383] shadow-lg rounded-md z-10">
                     <ul className="p-2 text-sm w-full ">
                       <li
                         className="cursor-pointer text-center  hover:bg-gray-100"
@@ -544,15 +547,15 @@ export default function Table({ offices }) {
                   </div>
                 )}
               </th>
-              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+              <th className="p-3 text-center  w-12   text-sm font-medium whitespace-nowrap">
                 المكتب
               </th>
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 الجنسية
               </th>
-              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+              {/* <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 تحديث
-              </th>
+              </th> */}
             </tr>
           </thead>
           <tbody>
@@ -573,13 +576,19 @@ export default function Table({ offices }) {
                     index % 2 === 0 ? "bg-gray-50" : "bg-white"
                   }`} // Alternating even/odd rows
                 >
-                  <td className="p-3 text-center text-md text-gray-600 font-semibold    whitespace-nowrap">
-                    {item.id}
+                  <td
+                    onClick={() => router.push("/admin/neworder/" + item.id)}
+                    className="p-3 text-center  cursor-pointer  text-md font-semibold    whitespace-nowrap"
+                  >
+                    <h1 className="text-purple-500"> {item.id}</h1>
                   </td>
-                  <td className="p-3 text-center text-md text-gray-600 font-semibold    whitespace-nowrap">
+                  <td className="p-3 text-center  text-md text-gray-600 font-semibold    whitespace-nowrap">
                     {item.ClientName}
                   </td>
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                  <td
+                    // onClick={() => handleClicker(item?.HomeMaid.id)}
+                    className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap"
+                  >
                     {item.Name}
                   </td>
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
@@ -591,27 +600,30 @@ export default function Table({ offices }) {
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.Passportnumber}
                   </td>
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
-                    {item.arrivals[0]?.externalOfficeStatus || null}
+                  <td className="p-3 text-center text-md text-gray-700 w-12 font-semibold    ">
+                    <h1 className="flex flex-wrap">
+                      {/* {" "} */}
+                      {item.arrivals[0]?.externalOfficeStatus || null}
+                    </h1>
                   </td>
 
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                  <td className="p-3 text-center text-md  text-gray-700  font-semibold    ">
                     {item.HomeMaid?.officeName
                       ? item.HomeMaid?.officeName
                       : null}
                   </td>
 
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    ">
                     {item.Nationalitycopy}
                   </td>
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                  {/* <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     <button
                       className="text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
                       onClick={() => handleUpdate(item.id)}
                     >
                       <h1 className={Style["almarai-bold"]}>تحديث</h1>
                     </button>
-                  </td>
+                  </td> */}
                 </tr>
               ))
             )}

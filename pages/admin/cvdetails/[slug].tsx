@@ -68,7 +68,7 @@ const ResumePage = () => {
   // Book
   return (
     <Layout>
-      <div className="bg-gray-100 min-h-screen py-12 px-6" dir="rtl">
+      <div className="bg-gray-50 min-h-screen py-12 px-6" dir="rtl">
         <div style={{ left: "90%" }} className=" top-5"></div>
 
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">

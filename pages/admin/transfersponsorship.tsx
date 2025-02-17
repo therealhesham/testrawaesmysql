@@ -28,44 +28,44 @@ const TransferPage = () => {
   };
   // Define Yup Validation Schema
   const validationSchema = Yup.object({
-    client: Yup.string().required("اسم العميل القديم مطلوب"),
+    client: Yup.string().optional("اسم العميل القديم مطلوب"),
     mobilenumber: Yup.string()
       .matches(/^\d+$/, "Mobile number must contain only digits")
-      .required("Mobile number is required"),
-    nationalidnumber: Yup.string().required("National ID is required"),
-    passportnumber: Yup.string().required("Passport number is required"),
-    homemaid: Yup.string().required("Home maid name is required"),
-    nationality: Yup.string().required("Nationality is required"),
-    kingdomentrydate: Yup.date().required("Kingdom entry date is required"),
-    daydate: Yup.date().required("Day date is required"),
+      .optional("Mobile number is optional"),
+    nationalidnumber: Yup.string().optional("National ID is optional"),
+    passportnumber: Yup.string().optional("Passport number is optional"),
+    homemaid: Yup.string().optional("Home maid name is optional"),
+    nationality: Yup.string().optional("Nationality is optional"),
+    kingdomentrydate: Yup.date().optional("Kingdom entry date is optional"),
+    daydate: Yup.date().optional("Day date is optional"),
     workduration: Yup.number()
       .positive("Work duration must be a positive number")
-      .required("Work duration is required"),
-    newclientname: Yup.string().required("New client name is required"),
+      .optional("Work duration is optional"),
+    newclientname: Yup.string().optional("New client name is optional"),
     newclientmobilenumber: Yup.string()
       .matches(/^\d+$/, "Mobile number must contain only digits")
-      .required("New client mobile number is required"),
-    newclientnationalidnumber: Yup.string().required(
-      "New client national ID is required"
+      .optional("New client mobile number is optional"),
+    newclientnationalidnumber: Yup.string().optional(
+      "New client national ID is optional"
     ),
-    newclientcity: Yup.string().required("New client city is required"),
-    experimentstart: Yup.date().required("Experiment start date is required"),
-    experimentend: Yup.date().required("Experiment end date is required"),
+    newclientcity: Yup.string().optional("New client city is optional"),
+    experimentstart: Yup.date().optional("Experiment start date is optional"),
+    experimentend: Yup.date().optional("Experiment end date is optional"),
     dealcost: Yup.number()
       .positive("Deal cost must be a positive number")
-      .required("Deal cost is required"),
+      .optional("Deal cost is optional"),
     paid: Yup.number()
       .positive("Paid amount must be a positive number")
-      .required("Paid amount is required"),
+      .optional("Paid amount is optional"),
     restofpaid: Yup.number()
       .positive("Rest of paid amount must be a positive number")
-      .required("Rest of paid amount is required"),
-    experimentresult: Yup.string().required("Experiment result is required"),
-    accomaditionnumber: Yup.string().required(
-      "Accommodation number is required"
+      .optional("Rest of paid amount is optional"),
+    experimentresult: Yup.string().optional("Experiment result is optional"),
+    accomaditionnumber: Yup.string().optional(
+      "Accommodation number is optional"
     ),
-    marketeername: Yup.string().required("Marketer name is required"),
-    notes: Yup.string().required("Notes are required"),
+    marketeername: Yup.string().optional("Marketer name is optional"),
+    notes: Yup.string().optional("Notes are required"),
   });
 
   // Handle form submission
@@ -83,7 +83,7 @@ const TransferPage = () => {
       if (response.ok) {
         showSuccessModal();
         resetForm(); // Reset form after successful submission
-        showForm(false);
+        setShowForm(!showForm);
       } else {
         showErrorModal();
       }

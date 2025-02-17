@@ -10,6 +10,8 @@ import { User } from "utils/usercontext";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/router";
+import "@fortawesome/fontawesome-free/css/all.css";
+
 import { ToastContainer } from "react-toastify";
 import { SidebarProvider } from "utils/sidebarcontext";
 // import { SidebarProvider } from "context/SidebarContext";
@@ -18,6 +20,13 @@ function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
   const usercontext = useContext(User);
+  useEffect(() => {
+    // Add a class to the body
+    // document.body.classList.add("bg-gray-100");
+    // document.body.classList.add("w-full");
+    // Clean up (optional)
+  }, []);
+
   useEffect(() => {
     // if (usercontext?.user == "ssssss") return router.push("/admin/login");
     // if (!localStorage.getItem("token")) router.push("/admin/login");
@@ -32,8 +41,10 @@ function MyApp({ Component, pageProps }: AppProps) {
     <SidebarProvider>
       <SessionProvider session={pageProps.session}>
         {/* <Windmill usePreferences={true}> */}
+        {/* <div className="bg-gray-50"> */}
         <Component {...pageProps} />
         {/* </Windmill> */}
+        {/* </div> */}
       </SessionProvider>
     </SidebarProvider>
   );

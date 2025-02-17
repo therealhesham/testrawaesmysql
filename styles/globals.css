@@ -2,10 +2,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@100..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&display=swap");
+/* @apply w-[80%] mx-auto; */
 html,
 body {
+  /* background-color: green; */
   padding: 0;
   margin: 0;
+  /* background-color: blue; */
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
