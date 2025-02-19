@@ -1,5 +1,7 @@
 import { useRouter } from "next/router";
+import ErrorModal from "office/components/errormodal";
 import React, { useState } from "react";
+// import Loader from "./Loader/Loader";
 // interface ModalProps {
 //   isOpen: boolean;
 //   onClose: () => void;
@@ -19,7 +21,11 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
   const [nationalId, setNationalId] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const [errormodaopen, setIserrorModalOpen] = useState(false);
+  const [errormessage, seterrormessage] = useState("");
   const postData = async (e) => {
+    try {
+    } catch (e) {}
     e.preventDefault();
     const fetchData = await fetch("/api/submitneworderprisma/", {
       body: JSON.stringify({
@@ -56,17 +62,42 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
     if (fetchData.status == 200) {
       router.push("/admin/neworder/" + data.id);
     } else {
-      setError(fetchData.message);
+      setIserrorModalOpen(true);
+      seterrormessage(data.message);
     }
   };
 
   return (
     <div
-      className="fixed inset-0 w-full bg-gray-500 bg-opacity-50 flex justify-center items-center"
+      className="fixed inset-0 w-full bg-gray-500 bg-opacity-50 flex justify-center items-center "
       onClick={onClose}
     >
+      <ErrorModal
+        isErrorModalOpen={errormodaopen}
+        onClose={() => setIserrorModalOpen(false)}
+        message={errormessage}
+      />
+      <div className="absolute top-4 right-10">
+        <button onClick={onClose} className="text-gray-500 hover:text-black">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            className="h-8 w-8"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
       <div
-        className="bg-white p-8 rounded-lg shadow-lg"
+        className="bg-white p-8 rounded-lg shadow-lg w-96"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-2xl font-semibold text-center mb-4">تسجيل</h2>

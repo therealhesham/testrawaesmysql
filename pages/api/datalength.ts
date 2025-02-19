@@ -17,8 +17,11 @@ export default async function handler(
 
     const currentorders = await prisma.neworder.count({
       where: {
-        NOT: { bookingstatus: "حجز جديد" },
-        AND: { bookingstatus: { not: { equals: "طلب مرفوض" } } },
+        NOT: {
+          bookingstatus: {
+            in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"], // Exclude these statuses
+          },
+        },
         // and:{}
       },
     });

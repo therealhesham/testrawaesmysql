@@ -74,6 +74,7 @@ export default async function handler(
       KingdomentryTime,
       nationalidNumber,
       finalDestinationTime,
+      profileStatus,
       Orderid,
       EmbassySealing,
       BookinDate,
@@ -125,9 +126,6 @@ export default async function handler(
       ? new Date(finalDestinationDate).toISOString()
       : null;
 
-    console.log(validDeparatureDate);
-
-    console.log(validKingdomEntryDate);
     const ss = {
       finaldestination,
       deparatureTime,
@@ -178,7 +176,7 @@ export default async function handler(
     // Prisma update queries
     await prisma.neworder.update({
       where: { id: Orderid },
-      data: { bookingstatus },
+      data: { bookingstatus, profileStatus },
     });
 
     const createarrivallist = await prisma.arrivallist.update({

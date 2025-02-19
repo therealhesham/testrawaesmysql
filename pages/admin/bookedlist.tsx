@@ -275,7 +275,7 @@ export default function Table() {
                 اسم العميل
               </th>
 
-              <th className="p-3 text-center text-sm font-medium">تسكين</th>
+              {/* <th className="p-3 text-center text-sm font-medium">تسكين</th> */}
 
               {/* <th className="p-3 text-center text-sm font-medium">استعراض</th> */}
             </tr>
@@ -368,7 +368,7 @@ export default function Table() {
                       {item.NewOrder[0]?.ClientName}
                     </h1>
                   </td>
-
+                  {/* 
                   <td
                     className={`text-center  mb-4 ${Style["almarai-regular"]}`}
                   >
@@ -384,7 +384,7 @@ export default function Table() {
                         موافقة
                       </h2>
                     )}
-                  </td>
+                  </td> */}
 
                   {/* <td>
                     <h1

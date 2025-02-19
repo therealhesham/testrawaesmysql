@@ -228,14 +228,18 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-500 text-white">
-              <th className="p-3 text-left text-sm font-medium">م</th>
-              <th className="p-3 text-left text-sm font-medium">الاسم</th>
-              <th className="p-3 text-left text-sm font-medium">بريد العميل</th>
-              <th className="p-3 text-left text-sm font-medium">الجوال</th>
-              <th className="p-3 text-left text-sm font-medium">
+              <th className="p-3 text-center text-sm font-medium">م</th>
+              <th className="p-3 text-center text-sm font-medium">الاسم</th>
+              <th className="p-3 text-center text-sm font-medium">
+                بريد العميل
+              </th>
+              <th className="p-3 text-center text-sm font-medium">الجوال</th>
+              <th className="p-3 text-center text-sm font-medium">
                 تاريخ اضافة العميل
               </th>
-              <th className="p-3 text-left text-sm font-medium">عدد الطلبات</th>
+              <th className="p-3 text-center text-sm font-medium">
+                عدد الطلبات
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -251,16 +255,22 @@ export default function Table() {
             ) : (
               state.data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-sm text-gray-600">{item.id}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.fullname}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.email}</td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-sm text-pretty text-gray-600">
+                    {item.id}
+                  </td>
+                  <td className="p-3 text-sm text-center text-gray-600">
+                    {item.fullname}
+                  </td>
+                  <td className="p-3 text-sm text-center text-gray-600">
+                    {item.email}
+                  </td>
+                  <td className="p-3 text-sm text-center text-gray-600">
                     {item.phonenumber}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-sm text-center text-gray-600">
                     {item?.createdat ? getDate(item.createdat) : nnull}
                   </td>
-                  <td className="p-3 text-sm text-gray-600">
+                  <td className="p-3 text-sm text-center text-gray-600">
                     <Button
                       variant="contained"
                       color="warning"

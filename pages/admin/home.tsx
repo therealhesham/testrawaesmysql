@@ -249,7 +249,7 @@ export default function Home({ user }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
               {/* Box 1 */}
-              <Link href="/admin/neworders">
+              <Link href="/admin/neworderstest">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
                     <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
@@ -339,6 +339,21 @@ export default function Home({ user }) {
                 </a>
               </Link>
 
+              <Link href="/admin/deparaturesfromsaudi">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaPlaneDeparture className="mb-2 text-3xl" />{" "}
+                    {/* Flight icon */}
+                    قائمة المغادرة من المملكة
+                  </div>
+                  {/* Notification Badge */}
+                  {deparaturesLength > 0 ? (
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {deparaturesLength > 0 ? deparaturesLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
               {/* Box 5 */}
             </div>
           </div>

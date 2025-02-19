@@ -294,11 +294,11 @@ export default function Table() {
                     <h1
                       className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
                       onClick={() => {
-                        const url = "/admin/neworder/" + item?.neworder.id;
+                        const url = "/admin/neworder/" + item?.id;
                         window.open(url, "_blank"); // Open in new window
                       }}
                     >
-                      {item?.neworder.id ? item?.neworder.id : "لا يوجد بيان"}
+                      {item?.id ? item?.id : "لا يوجد بيان"}
                     </h1>
                   </td>
 
@@ -312,8 +312,8 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid.Name
-                        ? item?.HomeMaid.Name
+                      {item?.HomeMaid?.Name
+                        ? item?.HomeMaid?.Name
                         : "لا يوجد بيان"}
                     </h1>
                   </td>
@@ -365,9 +365,7 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.neworder.ClientName
-                        ? item?.neworder.ClientName
-                        : null}
+                      {item?.ClientName ? item?.ClientName : null}
                     </h1>
                   </td>
                   {/* 

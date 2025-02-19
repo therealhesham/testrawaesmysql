@@ -38,6 +38,7 @@ export default async function handler(
 
     // Fetch clients with the count of their orders
     const clients = await prisma.client.findMany({
+      orderBy: { id: "desc" },
       where: { ...filters },
       select: {
         id: true, // Select the client id or any other necessary client data

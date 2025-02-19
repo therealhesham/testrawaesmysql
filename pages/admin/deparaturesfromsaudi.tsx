@@ -8,14 +8,19 @@ import Style from "styles/Home.module.css";
 
 export default function Table() {
   const [filters, setFilters] = useState({
-    ClientName: "",
+    SponsorName: "",
     age: "",
-    clientphonenumber: "",
-    Passportnumber: "",
-    Nationality: "",
-    HomemaidId: "",
+    PassportNumber: "",
+    OrderId: "",
   });
 
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false); // Loading state
   const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
@@ -30,17 +35,17 @@ export default function Table() {
     setLoading(true);
 
     try {
+      // Build the query string for filters
       const queryParams = new URLSearchParams({
-        searchTerm: filters.ClientName,
+        SponsorName: filters.SponsorName,
         age: filters.age,
-        clientphonenumber: filters.clientphonenumber,
-        HomemaidId: filters.HomemaidId,
-        Passportnumber: filters.Passportnumber,
-        Nationalitycopy: filters.Nationality,
+        OrderId: filters.OrderId,
+        PassportNumber: filters.PassportNumber,
+        // Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/endedorders?${queryParams}`, {
+      const response = await fetch(`/api/deparaturefromsaudi?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -139,9 +144,9 @@ export default function Table() {
     <Layout>
       <div className="container mx-auto p-6">
         <h1
-          className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
         >
-          الحجوزات المنتهية
+          قائمة المغادرة من المملكة
         </h1>
 
         {/* Filter Section */}
@@ -149,27 +154,18 @@ export default function Table() {
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.ClientName}
-              onChange={(e) => handleFilterChange(e, "ClientName")}
-              placeholder="بحث باسم العميل / العاملة"
+              value={filters.SponsorName}
+              onChange={(e) => handleFilterChange(e, "SponsorName")}
+              placeholder="بحث باسم الكفيل"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.Passportnumber}
-              onChange={(e) => handleFilterChange(e, "Passportnumber")}
-              placeholder="بحث برقم جواز السفر"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div>
-            <input
-              type="text"
-              value={filters.clientphonenumber}
-              onChange={(e) => handleFilterChange(e, "clientphonenumber")}
-              placeholder="بحث برقم الجوال"
+              value={filters.PassportNumber}
+              onChange={(e) => handleFilterChange(e, "PassportNumber")}
+              placeholder="بحث برقم الجواز"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -177,9 +173,9 @@ export default function Table() {
           <div className="flex-1 px-2">
             <input
               type="text"
-              value={filters.HomemaidId}
-              onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="بحث برقم العاملة"
+              value={filters.OrderId}
+              onChange={(e) => handleFilterChange(e, "OrderId")}
+              placeholder="بحث برقم الطلب"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -188,25 +184,21 @@ export default function Table() {
               className={
                 "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
-              // variant="contained"
-              // color="info"
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({
-                  clientphonenumber: "",
                   age: "",
-                  ClientName: "",
-                  HomemaidId: "",
-                  Nationality: "",
-                  Passportnumber: "",
+                  OrderId: "",
+                  PassportNumber: "",
+                  SponsorName: "",
                 });
                 setData([]);
                 pageRef.current = 1;
                 fetchData();
               }}
             >
-              <h1 className={Style["almarai-regular"]}>اعادة ضبط</h1>
+              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
             </button>
           </div>
           <div className="flex-1 px-1">
@@ -214,8 +206,6 @@ export default function Table() {
               className={
                 "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
-              // variant="contained"
-              // color="info"
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
@@ -224,7 +214,7 @@ export default function Table() {
                 fetchData();
               }}
             >
-              <h1 className={Style["almarai-regular"]}>بحث</h1>
+              <h1 className={Style["almarai-bold"]}>بحث</h1>
             </button>
           </div>
         </div>
@@ -232,27 +222,30 @@ export default function Table() {
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr
-              className=" text-white 
-              
-              bg-yellow-400
-              "
-            >
-              <th className="p-3 text-center text-sm font-medium">رقم الطلب</th>
-              <th className="p-3 text-center text-sm font-medium">الاسم</th>
-              <th className="p-3 text-center text-sm font-medium">
-                جوال العميل
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
+            <tr className="bg-yellow-400 text-white">
+              <th className="p-3 text-left text-sm font-medium">رقم الطلب</th>
+              <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
+              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
+
+              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+
+              <th className="p-3 text-left text-sm font-medium">
                 رقم جواز السفر
               </th>
-              <th className="p-3 text-center text-sm font-medium">
-                رقم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">سبب الرفض</th>
 
-              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-center text-sm font-medium">استعراض</th>
+              <th className="p-3 text-left text-sm font-medium">
+                مدينة المغادرة
+              </th>
+              {/* <th className="p-3 text-left text-sm font-medium">الطلب</th> */}
+              <th className="p-3 text-left text-sm font-medium">
+                تاريخ المغادرة
+              </th>
+              <th className="p-3 text-left text-sm font-medium">
+                وقت المغادرة
+              </th>
+              {/* 
+              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-left text-sm font-medium">استعادة</th> */}
             </tr>
           </thead>
           <tbody>
@@ -268,42 +261,49 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-600 text-center">
-                    {item.id}
+                  <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
+                  <td className="p-3 text-md text-gray-600">
+                    {item.SponsorName}
                   </td>
-                  <td className="p-3 text-md text-gray-600 text-center">
-                    {item.ClientName}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.clientphonenumber}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Passportnumber}
+                  <td className="p-3 text-md text-gray-700">
+                    {item.SponsorPhoneNumber}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.HomemaidId}
+                  <td className="p-3 text-md text-gray-700">
+                    {item.Order?.Name}
+                  </td>
+                  <td className="p-3 text-md text-gray-700">
+                    {item.PassportNumber}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.ReasonOfRejection}
+                  <td className="p-3 text-md text-gray-700">
+                    {item?.DeparatureFromSaudiCity
+                      ? item?.DeparatureFromSaudiCity
+                      : null}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700 text-center">
+                  <td className="p-3 text-md text-gray-700">
+                    {item?.DeparatureFromSaudiDate
+                      ? getDate(item?.DeparatureFromSaudiDate)
+                      : null}
+                  </td>
+
+                  <td className="p-3 text-md text-gray-700">
+                    {item.DeparatureFromSaudiTime}
+                  </td>
+
+                  {/* <td className="p-3 text-md text-gray-700">
                     {item.Nationalitycopy}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    <button
-                      className={
-                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-                      }
-                      // variant="contained"
-                      // color="warning"
-                      onClick={() => handleUpdate(item.id)}
+                  </td> */}
+                  {/* <td className="p-3 text-sm text-gray-600">
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
                     >
-                      <h1 className={Style["almarai-regular"]}>عرض</h1>
-                    </button>
-                  </td>
+                      استعادة
+                    </Button>
+                  </td> */}
                 </tr>
               ))
             )}
