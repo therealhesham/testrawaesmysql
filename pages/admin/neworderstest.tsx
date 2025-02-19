@@ -575,9 +575,9 @@ export default function Table({ offices }) {
                   </td>
 
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    ">
-                    {item.Nationalitycopy}
+                    {item.Nationality}
                   </td>
-                  <td className="px-4 py-2">{item.age}</td>
+                  <td className="px-4 py-2 text-center">{item.ages}</td>
 
                   {/* Modal Section */}
                   {rejectionmodalNo == item.id && (

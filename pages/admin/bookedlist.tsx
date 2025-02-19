@@ -304,18 +304,18 @@ export default function Table() {
                     <h1
                       className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
                       onClick={() => {
-                        const url = "/admin/neworder/" + item.NewOrder[0]?.id;
+                        const url = "/admin/neworder/" + item.id;
                         window.open(url, "_blank"); // Open in new window
                       }}
                     >
-                      {item.NewOrder[0]?.id}
+                      {item?.id}
                     </h1>
                   </td>
 
                   <td
                     className={`text-center cursor-pointer text-purple-900 text-lg  mb-4 ${Style["almarai-light"]}`}
                     onClick={() => {
-                      const url = "/admin/cvdetails/" + item.id;
+                      const url = "/admin/cvdetails/" + item.HomemaidId;
                       window.open(url, "_blank"); // Open in new window
                     }}
                   >
@@ -329,14 +329,14 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item.phone}
+                      {item?.PhoneNumber}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 `}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item.Nationalitycopy}
+                      {item?.Nationality}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 `}>
@@ -350,14 +350,18 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.PassportStart ? item?.PassportStart : null}
+                      {item?.HomeMaid?.PassportStart
+                        ? item?.HomeMaid?.PassportStart
+                        : null}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4`}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.PassportEnd ? item?.PassportEnd : null}
+                      {item?.HomeMaid?.PassportEnd
+                        ? item?.HomeMaid?.PassportEnd
+                        : null}
                     </h1>
                   </td>
 
@@ -365,7 +369,7 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item.NewOrder[0]?.ClientName}
+                      {item.ClientName}
                     </h1>
                   </td>
                   {/* 

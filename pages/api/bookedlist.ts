@@ -14,7 +14,7 @@ export default async function handler(
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
 
-  if (id) filters.id = { equals: Number(id) };
+  if (id) filters.HomemaidId = { equals: Number(id) };
   if (Name) filters.Name = { contains: (Name as string).toLowerCase() };
   if (age) filters.age = { equals: parseInt(age as string, 10) };
   if (Passportnumber)
@@ -27,28 +27,23 @@ export default async function handler(
     };
 
   try {
-    // Fetch data from homemaid where there is no associated neworder
-    const homemaids = await prisma.homemaid.findMany({
+    const booked = await prisma.neworder.findMany({
       where: {
         ...filters,
-        NewOrder: {
-          some: {},
-          // Filters where no related neworder exists for this homemaid
+        HomemaidId: { gt: 0 },
+        NOT: {
+          bookingstatus: {
+            in: ["عقد ملغي", "طلب مرفوض"],
+          },
         },
-      },
-      // ordersBy: "desc",
-      include: {
-        // orderBy: { id: "desc" },
-        NewOrder: {
-          select: { id: true, ClientName: true },
-          orderBy: { id: "desc" },
-        },
-        // Housed: { select: { isHoused: true } },
-      },
+      }, // ordersBy: "desc",
+
+      orderBy: { id: "desc" },
+      include: { HomeMaid: true },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
     });
-    res.status(200).json(homemaids);
+    res.status(200).json(booked);
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });

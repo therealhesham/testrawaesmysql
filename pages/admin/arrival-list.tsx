@@ -223,23 +223,34 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-left text-sm font-medium">رقم الطلب</th>
-              <th className="p-3 text-left text-sm font-medium">اسم الكفيل</th>
-              <th className="p-3 text-left text-sm font-medium">جوال العميل</th>
+              <th className="p-3 text-center text-sm font-medium">رقم الطلب</th>
+              <th className="p-3 text-center text-sm font-medium">
+                اسم الكفيل
+              </th>
+              <th className="p-3 text-center text-sm font-medium">
+                جوال العميل
+              </th>
 
-              <th className="p-3 text-left text-sm font-medium">اسم العاملة</th>
+              <th className="p-3 text-center text-sm font-medium">
+                اسم العاملة
+              </th>
 
-              <th className="p-3 text-left text-sm font-medium">
+              <th className="p-3 text-center text-sm font-medium">
                 رقم جواز السفر
               </th>
-              {/* <th className="p-3 text-left text-sm font-medium">الطلب</th> */}
-              <th className="p-3 text-left text-sm font-medium">
+
+              <th className="p-3 text-center text-sm font-medium">من</th>
+              <th className="p-3 text-center text-sm font-medium">الى</th>
+              {/* <th className="p-3 text-center text-sm font-medium">الطلب</th> */}
+              <th className="p-3 text-center text-sm font-medium">
                 تاريخ الوصول
               </th>
-              <th className="p-3 text-left text-sm font-medium">وقت الـوصول</th>
+              <th className="p-3 text-center text-sm font-medium">
+                وقت الـوصول
+              </th>
               {/* 
-              <th className="p-3 text-left text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-left text-sm font-medium">استعادة</th> */}
+              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
+              <th className="p-3 text-center text-sm font-medium">استعادة</th> */}
             </tr>
           </thead>
           <tbody>
@@ -255,32 +266,42 @@ export default function Table() {
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-700">{item.OrderId}</td>
-                  <td className="p-3 text-md text-gray-600">
+                  <td
+                    onClick={() =>
+                      router.push("/admin/neworder/" + item.OrderId)
+                    }
+                    className="p-3 text-md text-center  cursor-pointer text-purple-700 hover:bg-gray-400"
+                  >
+                    {item.OrderId}
+                  </td>
+                  <td className="p-3 text-md text-center  text-gray-600">
                     {item.SponsorName}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-center  text-gray-700">
                     {item.SponsorPhoneNumber}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-center  text-gray-700">
                     {item.Order?.Name}
                   </td>
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-center  text-gray-700">
                     {item.PassportNumber}
                   </td>
 
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-center  text-gray-700">
+                    {item?.ArrivalCity}
+                  </td>
+                  <td className="p-3 text-md text-center  text-gray-700">
+                    {item?.finaldestination}
+                  </td>
+                  <td className="p-3 text-md text-center  text-gray-700">
                     {item?.KingdomentryDate
                       ? getDate(item?.KingdomentryDate)
                       : null}
                   </td>
-
-                  <td className="p-3 text-md text-gray-700">
+                  <td className="p-3 text-md text-center  text-gray-700">
                     {item.KingdomentryTime}
                   </td>
-
-                  {/* <td className="p-3 text-md text-gray-700">
+                  {/* <td className="p-3 text-md text-center  text-gray-700">
                     {item.Nationalitycopy}
                   </td> */}
                   {/* <td className="p-3 text-sm text-gray-600">
