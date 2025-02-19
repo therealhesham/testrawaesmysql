@@ -14,14 +14,20 @@ export default async function handler(
   const find = await prisma.homemaid.findUnique({
     where: { id: Number(req.query.id) },
     include: {
-      Housed: { where: { isHoused: true } },
+      Housed: true,
       NewOrder: {
+        // include: { arrivals: true },
         where: { HomemaidId: Number(req.query.id) },
-        select: { HomemaidId: true, id: true },
+        select: {
+          HomemaidId: true,
+          id: true,
+          arrivals: true,
+          profileStatus: true,
+        },
       },
     },
   });
-  // console.log(find);
+  // console.log(find?.);
   // sendSuggestion()
   //@ts-ignore
   // console.log(arr)

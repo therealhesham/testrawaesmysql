@@ -667,6 +667,7 @@ const SlugPage = (prop) => {
     console.log(s);
     // e.preventDefault();
     const {
+      profileStatus,
       KingdomentryTime,
       deparatureTime,
       nationalidNumber,
@@ -726,6 +727,7 @@ const SlugPage = (prop) => {
         PassportNumber: formData?.Passportnumber,
         KingdomentryDate,
         DayDate,
+        profileStatus,
         KingdomentryTime,
         deparatureTime,
         // SponsorIdnumber,
@@ -1619,13 +1621,13 @@ const SlugPage = (prop) => {
                 </span>
               </div>
               {/* .HomeMaid?.officeName */}
-              <div className="flex justify-between items-center bg-gray-100">
+              <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">الجنسية</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.HomeMaid?.Nationality}
                 </span>
               </div>
-              <div className="flex justify-between items-center bg-gray-100">
+              <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">المكتب الخارجي</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
                   {formData.HomeMaid?.officeName}
@@ -2394,7 +2396,9 @@ const SlugPage = (prop) => {
                           ref={externalOfficeStatus}
                           id="externalOfficeStatus"
                         >
-                          <option value="فحص طبي"></option>
+                          <option value="">...</option>
+
+                          <option value="فحص طبي">فحص طبي</option>
                           <option value="خلو سوابق">خلو سوابق</option>
                           <option value="موافقة مكتب العمل في دولة الاستقدام">
                             موافقة مكتب العمل في دولة الاستقدام
@@ -2424,7 +2428,9 @@ const SlugPage = (prop) => {
                           ref={ExternalStatusByofficeRef}
                           id="externalOfficeStatus"
                         >
-                          <option value="فحص طبي"></option>
+                          <option value="">...</option>
+                          <option value="فحص طبي">فحص طبي</option>
+
                           <option value="خلو سوابق">خلو سوابق</option>
                           <option value="موافقة مكتب العمل في دولة الاستقدام">
                             موافقة مكتب العمل في دولة الاستقدام
@@ -3394,6 +3400,7 @@ const SlugPage = (prop) => {
                           // type="submit"
                           onClick={() =>
                             handleAccessFormSubmit({
+                              profileStatus: "وصول العاملة",
                               finalDestinationTime:
                                 finalDestinationTimeRef.current?.value,
                               deparatureTime: deparatureTimeRef.current?.value,
@@ -3654,25 +3661,6 @@ const SlugPage = (prop) => {
                       <h2 className="text-xl font-semibold text-gray-800">
                         صندوق رفع الملفات
                       </h2>
-                      <button
-                        onClick={closeBooksModal}
-                        className="text-gray-600 hover:text-gray-800"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          className="h-6 w-6"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
                     </div>
 
                     {/* Modal Body */}
@@ -3771,12 +3759,6 @@ const SlugPage = (prop) => {
                     {/* Modal Footer */}
                     {/* Modal Footer */}
                     <div className="flex justify-center space-x-4 mt-6">
-                      <button
-                        onClick={closeBooksModal}
-                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
-                      >
-                        Close
-                      </button>
                       <button
                         onClick={() =>
                           handleAccessFormSubmit({

@@ -52,7 +52,43 @@ export default function Table({ offices }) {
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
   // const [email, setEmail] = useState("");
+  const OpenRejectionModal = (id) => {
+    setrejectionmodalNo(id);
+    setIsModalRejectionOpen(true);
+  }; // Function to open the modal
+  const confirm = async (
+    id,
+    date,
+    SponsorName,
+    PassportNumber,
+    HomemaidName
+  ) => {
+    const submitter = await fetch("/api/confirmrequest", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
 
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        SponsorName,
+        PassportNumber,
+        HomemaidName,
+        // createdAt: date,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      setDate(Date.now());
+      // alert("confirmed");
+
+      setIsModalRejectionOpen(false); // Close the modal after rejection
+      router.push("/admin/neworder/" + id);
+    }
+  };
   const nationalities = [
     { id: 1, nationality: "فحص طبي" },
     { id: 2, nationality: "خلو سوابق" },
@@ -182,7 +218,7 @@ export default function Table({ offices }) {
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/currentordersprisma?${queryParams}`, {
+      const response = await fetch(`/api/newordersprismatest?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -225,6 +261,37 @@ export default function Table({ offices }) {
     },
     [loading, hasMore]
   );
+  const [reason, setReason] = useState("");
+  const [isModalRejectionOpen, setIsModalRejectionOpen] = useState(false);
+  const [rejectionmodalNo, setrejectionmodalNo] = useState("");
+  const handleCancelRejectionModal = () => {
+    setrejectionmodalNo("");
+    setIsModalRejectionOpen(false); // Function to close the modal
+  };
+  const handleReject = async (id) => {
+    const submitter = await fetch("/api/rejectbookingprisma", {
+      method: "post",
+      headers: {
+        Accept: "application/json",
+
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id,
+        ReasonOfRejection: reason,
+      }),
+    });
+
+    // alert(submitter.status);
+    if (submitter.status == 200) {
+      // alert(submitter.status);
+      setDate(Date.now());
+      setrejectionmodalNo("");
+      setData([]);
+      setPage(0);
+      setIsModalRejectionOpen(false); // Close the modal after rejection
+    }
+  };
 
   // useEffect to fetch the first page of data on mount
   useEffect(() => {
@@ -314,22 +381,11 @@ export default function Table({ offices }) {
   };
   return (
     <Layout>
-      <div className="mx-auto p-6 ">
-        <div className="flex items-center justify-end p-1">
-          <div className="flex">
-            <button
-              onClick={handleAddNewReservation}
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-200"
-            >
-              <h1 className={Style["almarai-bold"]}>اضافة حجز جديد</h1>
-            </button>
-          </div>
-        </div>
-
+      <div className="container mx-auto p-6 ">
         <h1
           className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
         >
-          الحجوزات الحالية
+          الحجوزات الجديدة
         </h1>
 
         {/* Filter Section */}
@@ -361,17 +417,6 @@ export default function Table({ offices }) {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.InternalmusanedContract}
-              onChange={(e) => handleFilterChange(e, "InternalmusanedContract")}
-              placeholder="بحث برقم مساند"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
           <div className="flex-1 px-2">
             {/* <label
               htmlFor="internalmusanedContract"
@@ -448,111 +493,37 @@ export default function Table({ offices }) {
           <thead>
             <tr className="bg-yellow-400 text-white">
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
-                تحديث
+                رقم الطلب
               </th>
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 اسم العميل
               </th>
-              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
-                اسم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
-                رقم عقد مساند
-              </th>
+
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 جوال العميل
               </th>
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
-                رقم جواز السفر
+                اسم الخادمة
               </th>
-              <th
-                style={{
-                  // width: "220px",
-                  display: "flex",
-                  justifyContent: "center",
-                }}
-                className={`relative p-3 w-[250px] text-center  ${
-                  exStatus ? "bg-[#3D4C73]" : null
-                } text-sm font-medium whitespace-nowrap`}
-              >
-                {/* Column header with dropdown */}
-                <button
-                  style={{
-                    padding: "3px",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                  onClick={toggleDropdown}
-                  className="flex items-center justify-center space-x-1"
-                >
-                  <span>
-                    {" "}
-                    {exStatus ? (
-                      <h1 className="bg-[#3D4C73] text-center"> {exStatus}</h1>
-                    ) : (
-                      <h1 className="text-center"> حالة طلب المكتب الخارجي</h1>
-                    )}
-                  </span>
-                  <svg
-                    className={`w-4 h-4 transform ${
-                      isDropdownOpen ? "rotate-180" : ""
-                    }`}
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
 
-                {/* Dropdown Menu */}
-                {isDropdownOpen && (
-                  <div className="absolute mt-4 w-[320px] overflow-y-auto text-gray-800 bg-[#ECC383] shadow-lg rounded-md z-10">
-                    <ul className="p-2 text-sm w-full ">
-                      <li
-                        className="cursor-pointer text-center  hover:bg-gray-100"
-                        onClick={() => {
-                          setFilters((prev) => ({
-                            ...prev,
-                            externalOfficeStatus: "",
-                          }));
-                          setexStatus("");
-                          handleFilterChangeStatus("");
-                        }}
-                      >
-                        الكل
-                      </li>
-                      {nationalities.map((n) => (
-                        <li
-                          key={n.id}
-                          className="cursor-pointer p-2 text-gray-800 hover:bg-gray-100 border-black m-2 text-ellipsis"
-                          onClick={() => {
-                            setexStatus(n.nationality);
-                            handleFilterChangeStatus(n.nationality);
-                          }}
-                        >
-                          {n.nationality ===
-                          "موافقة مكتب العمل في دولة الاستقدام"
-                            ? "موافقة مكتب العمل"
-                            : n.nationality}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                رقم الخادمة
               </th>
               <th className="p-3 text-center  w-12   text-sm font-medium whitespace-nowrap">
-                المكتب
-              </th>
-              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 الجنسية
               </th>
+
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                العمر
+              </th>
+
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                موافقة
+              </th>
+              <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
+                رفض
+              </th>
+
               {/* <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
                 تحديث
               </th> */}
@@ -577,17 +548,19 @@ export default function Table({ offices }) {
                   }`} // Alternating even/odd rows
                 >
                   <td
-                    onClick={() => router.push("/admin/neworder/" + item.id)}
-                    className="p-3 text-center border  
-                    hover:bg-gray-400
-                    
-                    cursor-pointer  text-md font-semibold    whitespace-nowrap"
+                    // onClick={() => router.push("/admin/neworder/" + item.id)}
+                    className="p-3 text-center  cursor-pointer  text-md font-semibold    whitespace-nowrap"
                   >
                     <h1 className="text-purple-500"> {item.id}</h1>
                   </td>
                   <td className="p-3 text-center  text-md text-gray-600 font-semibold    whitespace-nowrap">
-                    {item.ClientName}
+                    <h1> {item.ClientName}</h1>
                   </td>
+
+                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
+                    {item.clientphonenumber}
+                  </td>
+
                   <td
                     onClick={() =>
                       router.push("/admin/cvdetails/" + item.HomemaidId)
@@ -598,29 +571,187 @@ export default function Table({ offices }) {
                     <h1 className="text-purple-500"> {item.Name}</h1>
                   </td>
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
-                    {item.arrivals[0]?.InternalmusanedContract || null}
-                  </td>
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
-                    {item.clientphonenumber}
-                  </td>
-                  <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
-                    {item.Passportnumber}
-                  </td>
-                  <td className="p-3 text-center text-md items-center text-gray-700 w-12 font-semibold    ">
-                    {/* <h1 className="flex flex-wrap text-center items-center"> */}
-                    {/* {" "} */}
-                    {item.arrivals[0]?.externalOfficeStatus || null}
-                    {/* </h1> */}
-                  </td>
-
-                  <td className="p-3 text-center text-md  text-gray-700  font-semibold    ">
-                    {item.HomeMaid?.officeName
-                      ? item.HomeMaid?.officeName
-                      : null}
+                    <h1> {item.HomemaidId}</h1>
                   </td>
 
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    ">
                     {item.Nationalitycopy}
+                  </td>
+                  <td className="px-4 py-2">{item.age}</td>
+
+                  {/* Modal Section */}
+                  {rejectionmodalNo == item.id && (
+                    <div className="fixed inset-0  bg-opacity-75 flex justify-center items-center z-50">
+                      <div className="bg-white rounded-lg shadow-lg p-6 space-y-6 w-96">
+                        <h1 className="text-2xl font-semibold text-gray-800">
+                          رفض طلب العميل
+                        </h1>
+
+                        {/* Booking Details Section */}
+                        <div className="border-b pb-4">
+                          <p className="text-gray-600">
+                            رقم الحجز: <strong>{item.id}</strong>
+                          </p>
+                          <p className="text-gray-600">
+                            اسم العميل: <strong>{item.ClientName}</strong>
+                          </p>
+                          <p className="text-gray-600">
+                            تاريخ الحجز: <strong>{item.createdAt}</strong>
+                          </p>
+                          <p className="text-gray-600">
+                            حالة الحجز:{" "}
+                            <span className="text-red-500">
+                              {item.bookingstatus}
+                            </span>
+                          </p>
+                        </div>
+
+                        {/* Reason for rejection (Text Area instead of select) */}
+                        <div>
+                          <label
+                            htmlFor="reason"
+                            className="block text-gray-700 font-medium mb-2"
+                          >
+                            سبب الرفض
+                          </label>
+                          <textarea
+                            id="reason"
+                            name="reason"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            placeholder="سبب الرفض..."
+                            className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            rows={4} // Adjust the number of rows as needed
+                          />
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex justify-end gap-4">
+                          <button
+                            onClick={handleCancelRejectionModal}
+                            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                          >
+                            اغلاق
+                          </button>
+                          <button
+                            onClick={() => handleReject(item.id)}
+                            disabled={!reason}
+                            className={`px-4 py-2 rounded-lg text-white focus:outline-none focus:ring-2 ${
+                              reason
+                                ? "bg-red-500 hover:bg-red-600 focus:ring-red-500"
+                                : "bg-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            تأكيد
+                          </button>
+                        </div>
+
+                        {/* Close modal when clicked outside */}
+                        <div />
+                      </div>
+                    </div>
+                  )}
+                  <td className="  text-center">
+                    <button
+                      style={{ backgroundColor: "#4CAF50" }}
+                      onClick={() =>
+                        confirm(
+                          item.id,
+                          item.createdAt,
+                          item.ClientName,
+                          item.PassportNumber,
+                          item.Name
+                        )
+                      }
+                      className="px-6 py-2  text-white font-semibold rounded-lg shadow-md  focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
+                    >
+                      موافقة
+                    </button>
+                  </td>
+                  <td className="  text-center">
+                    {/* <div className="container mx-auto p-4 text-center"> */}
+                    {/* Trigger button to open modal */}
+                    <button
+                      style={{ backgroundColor: "#F44336" }}
+                      onClick={() => OpenRejectionModal(item.id)} // This is now correctly passed as a prop
+                      className="text-white px-4 py-2 rounded-lg"
+                    >
+                      رفض الطلب
+                    </button>
+
+                    {/* Modal Section */}
+                    {rejectionmodalNo == item.id && (
+                      <div className="fixed inset-0  bg-opacity-75 flex justify-center items-center z-50">
+                        <div className="bg-white rounded-lg shadow-lg p-6 space-y-6 w-96">
+                          <h1 className="text-2xl font-semibold text-gray-800">
+                            رفض طلب العميل
+                          </h1>
+
+                          {/* Booking Details Section */}
+                          <div className="border-b pb-4">
+                            <p className="text-gray-600">
+                              رقم الحجز: <strong>{item.id}</strong>
+                            </p>
+                            <p className="text-gray-600">
+                              اسم العميل: <strong>{item.ClientName}</strong>
+                            </p>
+                            <p className="text-gray-600">
+                              تاريخ الحجز: <strong>{item.createdAt}</strong>
+                            </p>
+                            <p className="text-gray-600">
+                              حالة الحجز:{" "}
+                              <span className="text-red-500">
+                                {item.bookingstatus}
+                              </span>
+                            </p>
+                          </div>
+
+                          {/* Reason for rejection (Text Area instead of select) */}
+                          <div>
+                            <label
+                              htmlFor="reason"
+                              className="block text-gray-700 font-medium mb-2"
+                            >
+                              سبب الرفض
+                            </label>
+                            <textarea
+                              id="reason"
+                              name="reason"
+                              value={reason}
+                              onChange={(e) => setReason(e.target.value)}
+                              placeholder="سبب الرفض..."
+                              className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              rows={4} // Adjust the number of rows as needed
+                            />
+                          </div>
+
+                          {/* Buttons */}
+                          <div className="flex justify-end gap-4">
+                            <button
+                              onClick={handleCancelRejectionModal}
+                              className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                            >
+                              اغلاق
+                            </button>
+                            <button
+                              onClick={() => handleReject(item.id)}
+                              disabled={!reason}
+                              className={`px-4 py-2 rounded-lg text-white focus:outline-none focus:ring-2 ${
+                                reason
+                                  ? "bg-red-500 hover:bg-red-600 focus:ring-red-500"
+                                  : "bg-gray-400 cursor-not-allowed"
+                              }`}
+                            >
+                              تأكيد
+                            </button>
+                          </div>
+
+                          {/* Close modal when clicked outside */}
+                          <div />
+                        </div>
+                      </div>
+                    )}
+                    {/* </div> */}
                   </td>
                   {/* <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     <button
@@ -663,6 +794,8 @@ export default function Table({ offices }) {
             )}
           </div>
         )}
+        {/* Modal Section */}
+
         {modalOpen && (
           <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
             {spinned ? (

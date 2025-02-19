@@ -26,6 +26,7 @@ export default async function handler(
     // Counting the number of new orders (optimized if necessary)
     const orders = await prisma.neworder.findMany({
       where: { clientID: Number(slug) },
+      include: { arrivals: { select: { visaNumber: true } } },
     });
     // Respond with the found data
     res.status(201).json(orders);

@@ -115,6 +115,8 @@ model neworder {
   HomemaidId         Int?
   HomemaidIdCopy     Int?
   bookingstatus      String?   @db.VarChar(255)
+  profileStatus      String?   @db.VarChar(255)
+
   ReasonOfRejection  String?   @db.VarChar(255)
   housed              housing[]
   Nationalitycopy    String?   @db.VarChar(255)
@@ -197,6 +199,7 @@ finaldestination          String?
 visaNumber                String?   @db.VarChar(191)
 deparatureDate            DateTime?
 deparatureTime            String?
+startWoringDate       DateTime?
 
 ExternalStatusByoffice    String?
 finalDestinationDate      DateTime?
@@ -217,6 +220,11 @@ finalDestinationTime          String? @db.VarChar(30)
   DayDate                   DateTime? @default(now())
   ExternalDateLinking       DateTime?
   ExternalOFficeApproval    DateTime?
+ DeparatureFromSaudiCity      String?  @db.VarChar(100)
+ ArrivalOutSaudiCity      String?  @db.VarChar(100)
+ DeparatureFromSaudiDate      DateTime? 
+ DeparatureFromSaudiTime      String?  @db.VarChar(100)
+
   AgencyDate                DateTime?
   EmbassySealing            DateTime?
   externalOfficeFile        String?   @db.VarChar(191)
@@ -258,8 +266,9 @@ model Transfer {
 
 model offices {
   id                    Int       @id @default(autoincrement())
-  office            String    @db.VarChar(191) @unique
-Country         String    @db.VarChar(191)
+  office            String?    @db.VarChar(191) @unique
+Country         String?    @db.VarChar(191)
+phoneNumber     String ?@db.VarChar(191)
 HomeMaid  homemaid[]
 }
 model housing{

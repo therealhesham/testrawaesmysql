@@ -384,10 +384,7 @@ export default function Home() {
               </thead>
               <tbody className="bg-white">
                 {data.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b             hover:bg-gray-300 cursor-pointer"
-                  >
+                  <tr key={row.id} className="border-b ">
                     <td className="px-4 py-2 text-lg">{row.id}</td>
                     <td className="px-4 py-2">{row.ClientName}</td>
                     <td className="px-4 py-2">{row.clientphonenumber}</td>
@@ -396,7 +393,7 @@ export default function Home() {
 
                     <td
                       onClick={() =>
-                        router.push("/admin/cvdetails/" + HomemaidId)
+                        router.push("/admin/cvdetails/" + row.HomemaidId)
                       }
                       className="px-3 py-2 cursor-pointer decoration-black"
                     >

@@ -6,7 +6,9 @@ export default function ErrorModal({ message, onClose, isErrorModalOpen }) {
   return isErrorModalOpen ? (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-        <h2 className="text-lg font-semibold text-red-500">طلب مرفوض</h2>
+        <h2 className="text-lg font-semibold text-red-500">
+          {message ? "خطا في التسجيل" : "طلب مرفوض"}
+        </h2>
         <p className="text-sm text-gray-800 mt-2">{message}</p>
         <button
           onClick={onClose}

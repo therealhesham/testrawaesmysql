@@ -63,17 +63,10 @@ export default async function handler(
       orderBy: { id: "desc" },
       include: {
         HomeMaid: { select: { officeName: true } },
-        arrivals: {
-          select: { InternalmusanedContract: true, externalOfficeStatus: true }, // Specify the fields you want
-        },
       },
       where: {
+        bookingstatus: "حجز جديد",
         ...filters,
-        NOT: {
-          bookingstatus: {
-            in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"], // Exclude these statuses
-          },
-        },
         // Apply the searchTerm to multiple fields (e.g., ClientName, Passportnumber)
         AND: [
           {

@@ -292,6 +292,10 @@ const TransferPage = () => {
         break;
     }
   }
+  const [isOpen, setIsOpen] = useState(false); // لفتح أو إغلاق ال
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen); // تغيير حالة القائمة
+  };
 
   // Manage selected columns visibility
   const [selectedColumns, setSelectedColumns] = useState({
@@ -339,7 +343,7 @@ const TransferPage = () => {
           onClick={() => setShowForm(!showForm)}
           className="mb-4 px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-yellow-500"
         >
-          {showForm ? "Hide Form" : "Add New Transfer"}
+          {showForm ? "الغاء" : "اضافة معاملة"}
         </button>
 
         {/* Form */}
@@ -424,26 +428,37 @@ const TransferPage = () => {
         ) : (
           <div>
             <div className="mb-4">
-              <h2 className="text-lg font-medium mb-2">
-                Select Columns to Show
+              <h2
+                className="cursor-pointer bg-gray-400 rounded-md w-[160px] p-4 text-lg font-medium mb-2"
+                onClick={() => setIsOpen(!isOpen)}
+              >
+                اختر الاعمدة
               </h2>
-              <div className="space-x-4">
-                {Object.keys(selectedColumns).map((column) => (
-                  <label key={column} className="inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedColumns[column]}
-                      onChange={() => handleColumnToggle(column)}
-                      className="form-checkbox"
-                    />
-                    <span className="ml-2">
-                      {isEnglish(column)
-                        ? ConvertArabic(column)
-                        : column.replace(/([A-Z])/g, " $1").toUpperCase()}
-                    </span>
-                  </label>
-                ))}
-              </div>
+              {isOpen && (
+                <div className="absolute mt-2 w-80 bg-white shadow-lg rounded-md z-10">
+                  <ul className="overflow-auto h-[200px] grid grid-cols-2 gap-2">
+                    {Object.keys(selectedColumns).map((column) => (
+                      <li
+                        onClick={() => handleColumnToggle(column)}
+                        key={column}
+                        className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedColumns[column]}
+                          // onChange={handleChange}
+                          className="form-checkbox"
+                        />
+                        <span className="ml-2">
+                          {isEnglish(column)
+                            ? ConvertArabic(column)
+                            : column.replace(/([A-Z])/g, " $1").toUpperCase()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="overflow-x-auto bg-white shadow-md rounded-md">

@@ -32,21 +32,22 @@ export default async function handler(
       where: {
         ...filters,
         NewOrder: {
-          some: {}, // Filters where no related neworder exists for this homemaid
+          some: {},
+          // Filters where no related neworder exists for this homemaid
         },
       },
       // ordersBy: "desc",
       include: {
-        NewOrder: { select: { id: true, ClientName: true } },
-        Housed: { select: { isHoused: true } },
+        // orderBy: { id: "desc" },
+        NewOrder: {
+          select: { id: true, ClientName: true },
+          orderBy: { id: "desc" },
+        },
+        // Housed: { select: { isHoused: true } },
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
-      orderBy: { id: "desc" },
     });
-    // console.log();
-    // console.log(homemaids[0].NewOrder[0].ClientName);
-    // Send the filtered and paginated data as the response
     res.status(200).json(homemaids);
   } catch (error) {
     console.error("Error fetching data:", error);
