@@ -347,11 +347,11 @@ export default function Home({ user }) {
                     قائمة المغادرة من المملكة
                   </div>
                   {/* Notification Badge */}
-                  {deparaturesLength > 0 ? (
+                  {/* {deparaturesLength > 0 ? (
                     <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
                       {deparaturesLength > 0 ? deparaturesLength : 0}
                     </span>
-                  ) : null}
+                  ) : null} */}
                 </a>
               </Link>
               {/* Box 5 */}

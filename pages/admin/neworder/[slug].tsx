@@ -1624,7 +1624,7 @@ const SlugPage = (prop) => {
               <div className="flex justify-between items-center bg-gray-300">
                 <strong className="w-32 font-extrabold">الجنسية</strong>
                 <span className="flex-1 text-right overflow-hidden text-ellipsis">
-                  {formData.HomeMaid?.Nationality}
+                  {formData.HomeMaid?.Nationalitycopy}
                 </span>
               </div>
               <div className="flex justify-between items-center bg-gray-300">

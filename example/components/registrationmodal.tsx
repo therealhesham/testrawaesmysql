@@ -101,7 +101,7 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-2xl font-semibold text-center mb-4">تسجيل</h2>
-        <form onSubmit={postData}>
+        <form>
           <div className="mb-4">
             <label className="block text-gray-700">الاسم</label>
             <input
@@ -114,13 +114,13 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700">الاسم</label>
+            <label className="block text-gray-700">رقم الهوية</label>
             <input
               type="text"
               value={nationalId}
               onChange={(e) => setNationalId(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded"
-              placeholder="أدخل الرقم القومي"
+              placeholder="أدخل الرقم الهوية"
             />
           </div>
 
@@ -170,6 +170,7 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
           <span>{error}</span>
           <div className="flex justify-center gap-4">
             <button
+              onClick={postData}
               type="submit"
               className="bg-teal-500 text-white py-2 px-4 rounded-lg"
             >

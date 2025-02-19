@@ -54,7 +54,7 @@ export default async function handler(
         ClientName,
         clientphonenumber,
         Religion,
-        PhoneNumber: "0",
+        PhoneNumber: PhoneNumber,
         ages: age + "",
         housed: { create: { HomeMaidId: HomemaidId } },
 
