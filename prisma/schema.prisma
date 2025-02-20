@@ -19,7 +19,7 @@ model homemaid {
   ExperienceYears   String?    @db.VarChar(255)
   maritalstatus     String?    @db.VarChar(255)
   Experience        String?    @db.VarChar(255)
-  dateofbirth       DateTime?
+  dateofbirth       String?    @db.VarChar(255)
   Nationality       Json?
   age               Int?
   flag              Json?
