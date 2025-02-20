@@ -549,9 +549,9 @@ export default function Table({ offices }) {
                 >
                   <td
                     // onClick={() => router.push("/admin/neworder/" + item.id)}
-                    className="p-3 text-center  cursor-pointer  text-md font-semibold    whitespace-nowrap"
+                    className="p-3 text-center    text-md font-semibold    whitespace-nowrap"
                   >
-                    <h1 className="text-purple-500"> {item.id}</h1>
+                    <h1 className="text-gray-600"> {item.id}</h1>
                   </td>
                   <td className="p-3 text-center  text-md text-gray-600 font-semibold    whitespace-nowrap">
                     <h1> {item.ClientName}</h1>
