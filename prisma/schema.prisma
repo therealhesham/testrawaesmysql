@@ -116,7 +116,7 @@ model neworder {
   HomemaidIdCopy     Int?
   bookingstatus      String?   @db.VarChar(255)
   profileStatus      String?   @db.VarChar(255)
-
+transactios transactions[]
   ReasonOfRejection  String?   @db.VarChar(255)
   housed              housing[]
   Nationalitycopy    String?   @db.VarChar(255)
@@ -279,5 +279,17 @@ HomeMaidId        Int @unique
 HomeMaid        homemaid @relation(references: [id],fields: [HomeMaidId])
 newOrderId    Int?
 neworder        neworder? @relation(references: [id],fields: [newOrderId])
+  
+}
+
+
+model transactions{
+transaction_id Int @id @default(autoincrement())
+order_id    Int
+Details     String? @db.VarChar(100)
+Order         neworder @relation(references: [id],fields: [order_id])
+amount     Decimal?
+transaction_type    String? 
+transaction_date   DateTime? @default(now())
   
 }

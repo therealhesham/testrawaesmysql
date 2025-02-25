@@ -25,9 +25,9 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
-  { id: 2, label: "المديرين", icon: ArticleIcon, link: "/admin/addadmin" },
-  { id: 3, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
+  { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/accounting/dashboard" },
+  // { id: 2, label: "المديرين", icon: ArticleIcon, link: "/admin/addadmin" },
+  // { id: 3, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
   // { id: 4, label: "Manage Tutorials", icon: VideosIcon, link: "/tutorials" },
 ];
 
@@ -43,7 +43,7 @@ const Sidebar = (props) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-blue-400 p-4 h-screen px-4 pt-8 pb-4 bg-light flex justify-between flex-col",
+    "bg-blue-400 p-4  px-4 pt-8 pb-4 bg-light flex justify-between flex-col  ",
     {
       "w-80": !toggleCollapse,
       "w-20": toggleCollapse,
