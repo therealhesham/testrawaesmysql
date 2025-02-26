@@ -107,9 +107,9 @@ const Sidebar = (props) => {
       setToggleCollapse(JSON.parse(savedState));
     }
     const token = localStorage.getItem("token");
-    const info = jwtDecode(token);
-    setImage(info.picture);
-    setInfo(info.username);
+    // const info = jwtDecode(token);
+    // setImage(info.picture);
+    // setInfo(info.username);
   }, []);
 
   return (

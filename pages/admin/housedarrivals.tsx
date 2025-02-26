@@ -61,13 +61,16 @@ export default function Table() {
         page: String(pageRef.current),
       });
 
-      const response = await fetch(`/api/confirmhousing?${queryParams}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        method: "get",
-      });
+      const response = await fetch(
+        `/api/confirmhousinginformation?${queryParams}`,
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          method: "get",
+        }
+      );
 
       const res = await response.json();
       // console.log(res.housing[0]);
@@ -294,26 +297,26 @@ export default function Table() {
                     <h1
                       className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
                       onClick={() => {
-                        const url = "/admin/neworder/" + item?.id;
+                        const url = "/admin/neworder/" + item?.Order.id;
                         window.open(url, "_blank"); // Open in new window
                       }}
                     >
-                      {item?.id ? item?.id : "لا يوجد بيان"}
+                      {item?.Order.id ? item?.Order.id : "لا يوجد بيان"}
                     </h1>
                   </td>
 
                   <td
                     className={`text-center cursor-pointer text-purple-900 text-lg  mb-4 ${Style["almarai-light"]}`}
                     onClick={() => {
-                      const url = "/admin/cvdetails/" + item?.HomeMaid.id;
+                      const url = "/admin/cvdetails/" + item?.Order.HomeMaid.id;
                       window.open(url, "_blank"); // Open in new window
                     }}
                   >
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid?.Name
-                        ? item?.HomeMaid?.Name
+                      {item?.Order.HomeMaid.Name
+                        ? item?.Order.HomeMaid.Name
                         : "لا يوجد بيان"}
                     </h1>
                   </td>
@@ -321,15 +324,17 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid.phone ? item?.HomeMaid.phone : "لا يوجد"}
+                      {item?.Order.HomeMaid.phone
+                        ? item?.Order.HomeMaid.phone
+                        : "لا يوجد"}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 `}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid.Nationalitycopy
-                        ? item?.HomeMaid.Nationalitycopy
+                      {item?.Order.HomeMaid.Nationalitycopy
+                        ? item?.Order.HomeMaid.Nationalitycopy
                         : "لا يوجد بيان"}
                     </h1>
                   </td>
@@ -337,8 +342,8 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid.Passportnumber
-                        ? item?.HomeMaid.Passportnumber
+                      {item?.Order.HomeMaid.Passportnumber
+                        ? item?.Order.HomeMaid.Passportnumber
                         : "لا يوجد بيان"}
                     </h1>
                   </td>
@@ -346,8 +351,8 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid.PassportStart
-                        ? item?.HomeMaid.PassportStart
+                      {item?.Order.HomeMaid.PassportStart
+                        ? item?.Order.HomeMaid.PassportStart
                         : null}
                     </h1>
                   </td>
@@ -355,8 +360,8 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.HomeMaid.PassportEnd
-                        ? item?.HomeMaid.PassportEnd
+                      {item?.Order.HomeMaid.PassportStart
+                        ? item?.Order.HomeMaid.PassportStart
                         : null}
                     </h1>
                   </td>
@@ -365,7 +370,7 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.ClientName ? item?.ClientName : null}
+                      {item?.Order.ClientName ? item?.Order.ClientName : null}
                     </h1>
                   </td>
                   {/* 

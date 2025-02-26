@@ -16,6 +16,7 @@ import {
   FaLanguage,
   FaTools,
 } from "react-icons/fa"; // Importing icons
+import RegistrationHousingModal from "example/components/registerhousingmodal";
 const ResumePage = () => {
   const [filteredSuggestions, setFilteredSuggestions] = useState({
     Housed: [],
@@ -26,6 +27,7 @@ const ResumePage = () => {
   const [Existing, setExisting] = useState(false);
   const [image, setImage] = useState("");
   const [query, setQuery] = useState("");
+  const [isHousingModalOpen, setIsHousingModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
   const handleChangeProfile = async (e) => {
@@ -262,8 +264,9 @@ const ResumePage = () => {
                     </button>
 
                     <button
-                      onClick={() =>
-                        updateHousingStatus(filteredSuggestions?.id, "تسكين")
+                      onClick={
+                        () => setIsHousingModalOpen(true)
+                        // updateHousingStatus(filteredSuggestions?.id, "تسكين")
                       }
                       className={`                ${
                         filteredSuggestions?.NewOrder[0]?.profileStatus ==
@@ -483,6 +486,11 @@ const ResumePage = () => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         filteredSuggestions={filteredSuggestions}
+      />
+      <RegistrationHousingModal
+        id={filteredSuggestions?.NewOrder[0]?.id}
+        isOpen={isHousingModalOpen}
+        onClose={() => setIsHousingModalOpen(false)}
       />
     </Layout>
   );
