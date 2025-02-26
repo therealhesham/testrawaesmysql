@@ -119,6 +119,7 @@ model neworder {
 transactios transactions[]
   ReasonOfRejection  String?   @db.VarChar(255)
   housed              housing[]
+  income              income[]
   Nationalitycopy    String?   @db.VarChar(255)
   Name               String?   @db.VarChar(255)
   Religion           String?   @db.VarChar(255)
@@ -143,6 +144,8 @@ transactios transactions[]
   HomeMaid           homemaid? @relation(fields: [HomemaidId], references: [id])
   OrderStatus        OrderStatus[]
   arrivals        arrivallist[]
+  inHouse        housedworker[]
+
 }
 
 model OrderStatus {
@@ -284,6 +287,30 @@ neworder        neworder? @relation(references: [id],fields: [newOrderId])
 
 
 model transactions{
+transaction_id Int @id @default(autoincrement())
+order_id    Int
+Details     String? @db.VarChar(100)
+Order         neworder @relation(references: [id],fields: [order_id])
+amount     Decimal?
+transaction_type    String? 
+transaction_date   DateTime? @default(now())
+  
+}
+
+model housedworker{
+id          Int @id @default(autoincrement())
+order_id    Int
+Details     String? @db.VarChar(100)
+Order         neworder @relation(references: [id],fields: [order_id])
+houseentrydate     DateTime?
+transaction_type    String? 
+deliveryDate     DateTime?
+// transaction_date   DateTime? @default(now())
+  
+}
+
+
+model income{
 transaction_id Int @id @default(autoincrement())
 order_id    Int
 Details     String? @db.VarChar(100)
