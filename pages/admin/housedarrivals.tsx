@@ -251,6 +251,9 @@ export default function Table() {
               <th className="p-3 text-center text-sm font-medium">
                 جوال العاملة
               </th>
+
+              <th className="p-3 text-center text-sm font-medium">ملاحظات</th>
+
               <th className="p-3 text-center text-sm font-medium">الجنسية</th>
               <th className="p-3 text-center text-sm font-medium">
                 رقم جواز السفر
@@ -329,6 +332,15 @@ export default function Table() {
                         : "لا يوجد"}
                     </h1>
                   </td>
+
+                  <td className={`text-center  mb-4 ${Style["almarai-light"]}`}>
+                    <h1
+                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
+                    >
+                      {item?.Details ? item?.Details : "لا يوجد"}
+                    </h1>
+                  </td>
+
                   <td className={`text-center  mb-4 `}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}

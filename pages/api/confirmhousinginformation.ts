@@ -54,6 +54,7 @@ export default async function handler(req, res) {
       });
       await prisma.housedworker.create({
         data: {
+          Details: req.body.details,
           houseentrydate: newObj.houseentrydate,
           deliveryDate: newObj.deliverydate,
           Order: { connect: { id: homeMaidId } },
@@ -70,19 +71,53 @@ export default async function handler(req, res) {
     }
   } else if (req.method === "GET") {
     // Set the page size for pagination
-    const { page } = req.query;
+    const { Name, age, Passportnumber, id, Nationality, page } = req.query;
 
     const pageSize = 10;
     const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+    // Build the filter object dynamically based on query parameters
+    interface Filters {
+      Order: {
+        HomeMaid: {
+          id?: { equals: any };
+          Name: { contains: string };
+          Passportnumber: { contains: string };
+        };
+      };
+    }
+    const filters: Filters = {
+      Order: {
+        HomeMaid: {
+          Name: { contains: "" },
+          Passportnumber: { contains: "" },
+          id: { equals: id },
+        },
+      },
+    };
 
-    // // Ensure HomeMaidId is provided in the query
-    // if (!homeMaidId) {
-    //   return res.status(400).json({ error: "HomeMaidId is required" });
-    // }
+    if (id) filters.Order.HomeMaid.id = { equals: Number(id) };
+    else {
+      delete filters.Order.HomeMaid.id;
+    }
 
+    if (Name) filters.Order.HomeMaid.Name = { contains: Name as string };
+
+    // if (age) filters.age = { equals: parseInt(age as string, 10) };
+    if (Passportnumber)
+      filters.Order.HomeMaid.Passportnumber = {
+        contains: (Passportnumber as string).toLowerCase(),
+      };
+
+    if (Nationality)
+      filters.Nationalitycopy = {
+        contains: (Nationality as string).toLowerCase(),
+      };
+    console.log(filters);
     try {
       // Fetch the housing record based on HomeMaidId
       const housing = await prisma.housedworker.findMany({
+        where: { ...filters },
+
         include: { Order: { include: { arrivals: true, HomeMaid: true } } },
         skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
         take: pageSize, // Limit the results to the page size

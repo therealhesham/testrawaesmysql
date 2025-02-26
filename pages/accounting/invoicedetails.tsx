@@ -227,6 +227,19 @@ export default function InvoiceEditor() {
     "عمولة وبدلات - ( وصول العامله )",
     "تذكرة باص لنقل العامله ",
   ];
+
+  const incomeDataauto = [
+    "رواتب",
+    "عمولات",
+    "اتصالات",
+    "اعلانات",
+    "مصاريف حكومية",
+    "مواصلات و بنزين",
+    "مراجعات",
+    "معيشة",
+    "تأمينات اجتماعية",
+  ];
+
   const [entries, setEntries] = useState([
     { debit: 500, credit: 0, description: "خدمة تصميم", date: "2025-02-21" },
     { debit: 0, credit: 300, description: "دفع من العميل", date: "2025-02-20" },
@@ -650,13 +663,23 @@ export default function InvoiceEditor() {
 
                 <tr className="odd:bg-gray-50">
                   <td className="px-4 py-2 border">
-                    <input
-                      type="text"
-                      value={inComeDetails}
-                      onChange={(e) => onChangeIncomeDetails(e.target.value)}
-                      className="w-full p-2 border rounded-lg"
-                      placeholder="البيان"
-                    />
+                    <div>
+                      <Autocomplete
+                        onChange={(event, newValue) => {
+                          onChangeIncomeDetails(newValue);
+                        }}
+                        // onChange={(e) => alert(e.target.value)}
+                        options={incomeDataauto}
+                        sx={{ width: 300 }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            // onChange={(e) => setNewDetails(e.target.value)}
+                            label="بيان"
+                          />
+                        )}
+                      />
+                    </div>
                   </td>
 
                   <td className="px-4 py-2 border">
