@@ -14,10 +14,11 @@ const RegistrationHousingModal = ({
   onClose,
   id,
   filteredSuggestions,
+  setDate,
 }) => {
   if (!isOpen) return null;
   // alert(id);
-
+  const [details, setdetails] = useState("");
   const [deliveryDate, setDeliveyDate] = useState("");
   const [houseentrydate, sethouseentrydate] = useState("");
   const [error, setError] = useState("");
@@ -31,6 +32,7 @@ const RegistrationHousingModal = ({
     const fetchData = await fetch("/api/confirmhousinginformation/", {
       body: JSON.stringify({
         // ...values,
+        details: details,
         homeMaidId: id,
         houseentrydate: houseentrydate,
         deliveryDate,
@@ -47,6 +49,7 @@ const RegistrationHousingModal = ({
 
     if (fetchData.status == 200) {
       onClose();
+      setDate();
       // router.push("/admin/neworder/" + data.id);
     } else {
       setIserrorModalOpen(true);
@@ -90,24 +93,22 @@ const RegistrationHousingModal = ({
         <h2 className="text-2xl font-semibold text-center mb-4">تسكين</h2>
         <form>
           <div className="mb-4">
-            <label className="block text-gray-700">
-              تاريخ الاستلام في المكتب
-            </label>
+            <label className="block text-gray-700">تاريخ التسكين</label>
             <input
               type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveyDate(e.target.value)}
+              value={houseentrydate}
+              onChange={(e) => sethouseentrydate(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded"
               // placeholder="أدخل اسمك"
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700">تاريخ التسكين</label>
+            <label className="block text-gray-700">تفاصيل</label>
             <input
-              type="date"
-              value={houseentrydate}
-              onChange={(e) => sethouseentrydate(e.target.value)}
+              type="text"
+              value={details}
+              onChange={(e) => setdetails(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded"
               // placeholder="أدخل اسمك"
             />

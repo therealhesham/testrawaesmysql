@@ -488,6 +488,7 @@ const ResumePage = () => {
         filteredSuggestions={filteredSuggestions}
       />
       <RegistrationHousingModal
+        setDate={() => setDate(Date.now())}
         id={filteredSuggestions?.NewOrder[0]?.id}
         isOpen={isHousingModalOpen}
         onClose={() => setIsHousingModalOpen(false)}
