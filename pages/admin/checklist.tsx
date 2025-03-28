@@ -35,6 +35,8 @@ export default function Checklist() {
         }),
       });
       reset();
+
+      router.push("/admin/checklisttable"); // إعادة التوجيه بعد الإرسال
     } catch (error) {
       console.error("Error submitting check-in:", error);
     }
