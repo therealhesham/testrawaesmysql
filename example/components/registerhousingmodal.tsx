@@ -16,9 +16,16 @@ const RegistrationHousingModal = ({
   filteredSuggestions,
   setDate,
 }) => {
+
+  
   if (!isOpen) return null;
   // alert(id);
   const [details, setdetails] = useState("");
+  
+  const [reason, setReason] = useState("");
+
+const [employee,setEmployee]=useState("")
+
   const [deliveryDate, setDeliveyDate] = useState("");
   const [houseentrydate, sethouseentrydate] = useState("");
   const [error, setError] = useState("");
@@ -32,6 +39,7 @@ const RegistrationHousingModal = ({
     const fetchData = await fetch("/api/confirmhousinginformation/", {
       body: JSON.stringify({
         // ...values,
+        reason,employee,
         details: details,
         homeMaidId: id,
         houseentrydate: houseentrydate,
@@ -104,16 +112,60 @@ const RegistrationHousingModal = ({
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700">تفاصيل</label>
+            <label className="block text-gray-700">تاريخ الاستلام</label>
             <input
-              type="text"
-              value={details}
-              onChange={(e) => setdetails(e.target.value)}
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveyDate(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded"
               // placeholder="أدخل اسمك"
             />
           </div>
 
+
+
+          <div className="mb-4">
+            <label className="block text-gray-700">الموظف</label>
+            <input
+              type="text"
+              value={employee}
+              onChange={(e) => setEmployee(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded"
+              // placeholder="أدخل اسمك"
+            />
+          </div>
+
+
+          <div className="mb-4">
+            <label className="block text-gray-700">سبب التسكين</label>
+            <select className="rounded-md" onChange={(e)=>setReason(e.target.value)}>
+
+              <option value="">...</option>
+
+              <option value="نقل كفالة">نقل كفالة</option>
+              <option value="انتظار الترحيل">انتظار الترحيل</option>
+              <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
+              <option value="رفض العمل للسفر">رفض العمل للسفر</option>
+              <option value="رفض العم لنقل الكفالة">رفض العمل لنقل الكفالة</option>
+
+
+
+            </select>
+          </div>
+
+
+<div className="mb-4">
+
+            <input
+
+              type="text"
+              value={details}
+              onChange={(e) => setdetails(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded"
+              placeholder="التفاصيل"
+            />
+
+  </div>
           <span>{error}</span>
           <div className="flex justify-center gap-4">
             <button

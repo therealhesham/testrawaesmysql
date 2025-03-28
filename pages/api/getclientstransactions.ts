@@ -45,7 +45,6 @@ export default async function handler(
         return result;
       }
 
-      // استدعاء الدالة لحساب الرصيد المتبقي للزبون برقم 1
       const transactionsWithBalance = await calculateRemainingBalanceRaw(
         Number(req.query.customerId),
         Number(req.query.homemaidId)

@@ -47,6 +47,22 @@ Education String? @db.VarChar(60)
 Housed          housing[]   
 }
 
+model CheckIn {
+  id              Int       @id @default(autoincrement())
+  housedWorkerId  Int       // حقل جديد للربط مع housedworker
+  breakfastOption String?   @db.VarChar(255)
+  breakfastNotes  String?   @db.VarChar(255)
+  lunchOption     String?   @db.VarChar(255)
+  lunchNotes      String?   @db.VarChar(255)
+  supperOption    String?   @db.VarChar(255)
+  supperNotes     String?   @db.VarChar(255)
+  complaint       String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+cost              String?
+  // العلاقة مع housedworker
+  HousedWorker    housedworker? @relation(fields: [housedWorkerId], references: [id])
+}
 model Office {
   id         Int       @id @default(autoincrement())
   Officename String    @unique @db.VarChar(191)
@@ -297,18 +313,23 @@ transaction_date   DateTime? @default(now())
   
 }
 
-model housedworker{
-id          Int @id @default(autoincrement())
-order_id    Int @unique
-Details     String? @db.VarChar(100)
-Order         neworder @relation(references: [id],fields: [order_id])
-houseentrydate     DateTime?
-transaction_type    String? 
-deliveryDate     DateTime?
-// transaction_date   DateTime? @default(now())
-  
-}
 
+model housedworker {
+  id             Int       @id @default(autoincrement())
+  order_id       Int       @unique
+  Reason         String?   @db.VarChar(100)
+  employee       String?   @db.VarChar(100)
+  Details        String?   @db.VarChar(255)
+  houseentrydate DateTime?
+  transaction_type String?
+  deliveryDate   DateTime?
+  
+  // العلاقة مع CheckIn
+  checkIns       CheckIn[] // يحتوي على جميع سجلات CheckIn المرتبطة بهذا العامل
+  
+  // العلاقة مع neworder
+  Order          neworder  @relation(fields: [order_id], references: [id])
+}
 
 model income{
 transaction_id Int @id @default(autoincrement())

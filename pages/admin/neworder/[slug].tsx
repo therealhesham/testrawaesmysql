@@ -18,6 +18,8 @@ import jwt from "jsonwebtoken";
 import SpinnerModal from "components/spinner";
 import SuccessModal from "office/components/successcoponent";
 import { Spinner } from "react-bootstrap";
+import { jwtDecode } from "jwt-decode";
+
 import RejectBooking from "../reject-booking";
 import ErrorModal from "office/components/errormodal";
 import axios from "axios";
@@ -53,7 +55,7 @@ import { set } from "mongoose";
 // GridLoader
 const SlugPage = (prop) => {
   const router = useRouter();
-
+const employeeRef = useRef(null)
   const [offices, setOffices] = useState(prop.offices);
   const [datenow, setDate] = useState(Date.now());
   useEffect(() => {
@@ -654,6 +656,7 @@ const SlugPage = (prop) => {
     }
     // closeModal(); // Close the modal after submission
   };
+  
 
   const handleAccessFormSubmit = async (s) => {
     // setModalSpinnerOpen(true);
@@ -1203,11 +1206,14 @@ const SlugPage = (prop) => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Convert to days
     setDaysRemaining(diffDays);
   };
-
+const [user,setUser]=useState("")
   // Use effect to calculate the days on load
   useEffect(() => {
     if (!formData.arrivals[0]?.MusanadDuration) return;
     calculateDaysRemaining();
+    const token = localStorage.get("token")
+    const decodedHeader = jwtDecode(token);
+setUser(decodedHeader.username)
     const interval = setInterval(calculateDaysRemaining, 86400000); // Recalculate every 24 hours
 
     return () => clearInterval(interval); // Cleanup interval on unmount
@@ -1231,7 +1237,7 @@ const SlugPage = (prop) => {
 
   // Filter offices based on user input for autocomplete
   const filteredOffices = offices.filter((office) =>
-    office.office.toLowerCase().includes(officeName.toLowerCase())
+    office?.office?.toLowerCase().includes(officeName.toLowerCase())
   );
 
   // Target date (change this to your desired date)
@@ -3538,6 +3544,24 @@ const SlugPage = (prop) => {
                         name="deliveryinput"
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
+
+
+
+
+                      {/* <label
+                        htmlFor="employee"
+                        className="block text-sm font-medium text-gray-700"
+                      >
+                         الموظف
+                      </label>
+                      <input
+                        // ref={employeeRef}
+                        type="text"
+                        id="employee"
+                        name="employee"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      /> */}
+
 
                       <input
                         id="deliveryfile"

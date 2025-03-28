@@ -9,7 +9,7 @@ export default async function handler(req, res) {
       arrivalCity,
       deparatureDate,
       houseentrydate,
-      deliverydate,
+      deliveryDate,
       StartingDate,
       startWoringDate,
       DeparatureTime,
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       houseentrydate: houseentrydate
         ? new Date(houseentrydate).toISOString()
         : null,
-      deliverydate: deliverydate ? new Date(deliverydate).toISOString() : null,
+      deliverydate: deliveryDate ? new Date(deliveryDate).toISOString() : null,
       startWoringDate:
         profileStatus == "بدأت العمل" ? new Date().toISOString() : null,
       DeparatureFromSaudiCity: deparatureCity,
@@ -41,7 +41,6 @@ export default async function handler(req, res) {
       );
     }
     const newObj = excludeEmptyFields(object);
-    // Ensure HomeMaidId is provided
     if (!homeMaidId) {
       return res.status(400).json({ error: "HomeMaidId is required" });
     }
@@ -49,19 +48,41 @@ export default async function handler(req, res) {
     try {
       const housing = await prisma.neworder.update({
         where: { id: homeMaidId },
-        // include: { inHouse:{ include:{Order:{include:{}}}} },
         data: { profileStatus: "تسكين" },
       });
-      await prisma.housedworker.create({
-        data: {
-          Details: req.body.details,
-          houseentrydate: newObj.houseentrydate,
-          deliveryDate: newObj.deliverydate,
-          Order: { connect: { id: homeMaidId } },
-        },
+
+      const search = await prisma.housedworker.findFirst({
+        where: { order_id: homeMaidId },
       });
 
-      // Return a success message
+      if (!search) {
+        await prisma.housedworker.create({
+          data: {
+            employee: req.body.employee,
+            Reason: req.body.reason,
+            Details: req.body.details,
+            houseentrydate: newObj.houseentrydate,
+            deliveryDate: newObj.deliveryDate,
+            Order: { connect: { id: homeMaidId } },
+          },
+        });
+      } else {
+        await prisma.housedworker.update({
+          where: { order_id: homeMaidId },
+          data: {
+            employee: req.body.employee,
+            Reason: req.body.reason,
+            Details: req.body.details,
+            houseentrydate: req.body.houseentrydate
+              ? new Date(req.body.houseentrydate).toISOString()
+              : search.houseentrydate,
+            deliveryDate: req.body.deliverDate
+              ? new Date(req.body.deliveryDate)
+              : search.deliveryDate,
+          },
+        });
+      }
+
       return res
         .status(200)
         .json({ message: "Housing updated successfully", housing });
@@ -70,65 +91,86 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Error updating housing" });
     }
   } else if (req.method === "GET") {
-    // Set the page size for pagination
-    const { Name, age, Passportnumber, id, Nationality, page } = req.query;
+    const {
+      Name,
+      age,
+      Passportnumber,
+      id,
+      Nationality,
+      page,
+      sortKey,
+      sortDirection,
+    } = req.query;
 
     const pageSize = 10;
-    const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+    const pageNumber = parseInt(page, 10) || 1;
+
     // Build the filter object dynamically based on query parameters
-    interface Filters {
+    const filters = {
       Order: {
         HomeMaid: {
-          id?: { equals: any };
-          Name: { contains: string };
-          Passportnumber: { contains: string };
-        };
-      };
-    }
-    const filters: Filters = {
-      Order: {
-        HomeMaid: {
-          Name: { contains: "" },
-          Passportnumber: { contains: "" },
-          id: { equals: id },
+          Name: { contains: Name || "" },
+          Passportnumber: { contains: Passportnumber || "" },
+          ...(id && { id: { equals: Number(id) } }),
         },
       },
     };
 
-    if (id) filters.Order.HomeMaid.id = { equals: Number(id) };
-    else {
-      delete filters.Order.HomeMaid.id;
+    if (Nationality)
+      filters.Nationalitycopy = { contains: Nationality.toLowerCase() };
+
+    // Build the sorting object dynamically based on sortKey and sortDirection
+    let orderBy = {};
+    if (sortKey) {
+      switch (sortKey) {
+        case "id":
+          orderBy = { Order: { id: sortDirection || "asc" } };
+          break;
+        case "Name":
+          orderBy = { Order: { HomeMaid: { Name: sortDirection || "asc" } } };
+          break;
+        case "phone":
+          orderBy = { Order: { HomeMaid: { phone: sortDirection || "asc" } } };
+          break;
+        case "Details":
+          orderBy = { Details: sortDirection || "asc" };
+          break;
+        case "Nationalitycopy":
+          orderBy = {
+            Order: { HomeMaid: { Nationalitycopy: sortDirection || "asc" } },
+          };
+          break;
+        case "Passportnumber":
+          orderBy = {
+            Order: { HomeMaid: { Passportnumber: sortDirection || "asc" } },
+          };
+          break;
+        case "PassportStart":
+          orderBy = {
+            Order: { HomeMaid: { PassportStart: sortDirection || "asc" } },
+          };
+          break;
+        case "ClientName":
+          orderBy = { Order: { ClientName: sortDirection || "asc" } };
+          break;
+        default:
+          orderBy = {};
+      }
     }
 
-    if (Name) filters.Order.HomeMaid.Name = { contains: Name as string };
-
-    // if (age) filters.age = { equals: parseInt(age as string, 10) };
-    if (Passportnumber)
-      filters.Order.HomeMaid.Passportnumber = {
-        contains: (Passportnumber as string).toLowerCase(),
-      };
-
-    if (Nationality)
-      filters.Nationalitycopy = {
-        contains: (Nationality as string).toLowerCase(),
-      };
-    console.log(filters);
     try {
-      // Fetch the housing record based on HomeMaidId
       const housing = await prisma.housedworker.findMany({
         where: { ...filters },
-
         include: { Order: { include: { arrivals: true, HomeMaid: true } } },
-        skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-        take: pageSize, // Limit the results to the page size
+        skip: (pageNumber - 1) * pageSize,
+        take: pageSize,
+        orderBy: orderBy, // Apply sorting
       });
-      // Check if housing is found
+
       if (!housing) {
         return res.status(404).json({ error: "Housing not found" });
       }
 
-      // console.log(housing[0].Order.);
-      // Return the housing data
       return res.status(200).json({ housing });
     } catch (error) {
       console.error(error);
