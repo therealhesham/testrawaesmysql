@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Layout from "example/containers/Layout";
+import Style from "styles/Home.module.css";
 
 const CheckInTable = () => {
   const [checkInData, setCheckInData] = useState([]);
@@ -54,6 +55,11 @@ const CheckInTable = () => {
       <div className="container mx-auto p-4">
         {/* Table */}
         <div className="overflow-x-auto">
+          <h1
+            className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
+          >
+            بيانات الاعاشة
+          </h1>
           <table className="min-w-full bg-white border border-gray-200">
             <thead className="bg-gray-100">
               <tr>
@@ -61,22 +67,22 @@ const CheckInTable = () => {
                   ID
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Full Name
+                  الاسم
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Breakfast
+                  الافطار
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Lunch
+                  الغداء
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Supper
+                  العشاء
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Complaint
+                  الشكوى
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Cost
+                  تكلفة
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
                   Created At
