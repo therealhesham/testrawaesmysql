@@ -1,12 +1,42 @@
 import { BookFilled } from "@ant-design/icons";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
+import * as React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
-import { Button } from "@mui/material";
+
+import {
+  Button,
+  Modal,
+  Box,
+  TextField,
+  Checkbox,
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+} from "@mui/material";
 import Style from "styles/Home.module.css";
 import { FaHouseUser } from "react-icons/fa";
+
 export default function Table() {
+  const [employeeType, setEmployeeType] = useState("");
+
+  const [details, setdetails] = useState("");
+
+  const [reason, setReason] = useState("");
+
+  const [employee, setEmployee] = useState("");
+
+  const [deliveryDate, setDeliveyDate] = useState("");
+  const [houseentrydate, sethouseentrydate] = useState("");
+  const [error, setError] = useState("");
+  const [errormodaopen, setIserrorModalOpen] = useState(false);
+  const [errormessage, seterrormessage] = useState("");
+
+  const [expandedRow, setExpandedRow] = useState(null);
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
@@ -14,51 +44,73 @@ export default function Table() {
     id: "",
   });
 
+  const router = useRouter();
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [openAddModal, setOpenAddModal] = useState(false);
+  const [newHomeMaid, setNewHomeMaid] = useState({});
+  const [newExternalHomemaid, setExternalHomemaid] = useState({
+    Nationalitycopy: "",
+    Name: "",
+    Religion: "",
+    Passportnumber: "",
+    clientphonenumbe: "",
+    houseentrydate: "",
+    deliveryDate: "",
+    details: "",
+    reason: "",
+    employee: "",
+    ExperienceYears: "",
+    maritalstatus: "",
+    Experience: "",
+    dateofbirth: "",
+    age: 0,
+    phone: "",
+    bookingstatus: "",
+    ages: "",
+    officeName: "",
+    experienceType: "",
+    PassportStart: "",
+    PassportEnd: "",
+    OldPeopleCare: "",
+    ArabicLanguageLeveL: "",
+    EnglishLanguageLevel: "",
+    Salary: "",
+    LaundryLeveL: "",
+    IroningLevel: "",
+    CleaningLeveL: "",
+    CookingLeveL: "",
+    SewingLeveL: "",
+    BabySitterLevel: "",
+    Education: "",
+  });
+  const [searchQuery, setSearchQuery] = useState(""); // حالة لمربع البحث
+
+  const pageRef = useRef(1);
+  const isFetchingRef = useRef(false);
+
   function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const currentDate = new Date(date);
     const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
     return form;
   }
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false); // Loading state
-  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
 
-  const pageRef = useRef(1); // Use a ref to keep track of the current page number
-  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
-  const updateHousingStatus = async (homeMaidId) => {
-    const response = await fetch("/api/confirmhousing", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ homeMaidId }),
-    });
-
-    const data = await response.json();
-    if (response.ok) {
-      console.log("Success:", data.message);
-    } else {
-      console.log("Error:", data.error);
-    }
-  };
-
-  // Fetch data with pagination
   const fetchData = async () => {
-    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
+    if (isFetchingRef.current || !hasMore) return;
     isFetchingRef.current = true;
     setLoading(true);
 
     try {
-      // Build the query string for filters
       const queryParams = new URLSearchParams({
         Name: filters.Name,
         age: filters.age,
         id: filters.id,
         Passportnumber: filters.Passportnumber,
-        // Nationalitycopy: filters.Nationality,
         page: String(pageRef.current),
+        sortKey: sortConfig.key || "",
+        sortDirection: sortConfig.direction,
       });
 
       const response = await fetch(
@@ -73,13 +125,11 @@ export default function Table() {
       );
 
       const res = await response.json();
-      // console.log(res.housing[0]);
       if (res && res.housing.length > 0) {
-        setData((prevData) => [...prevData, ...res.housing]); // Append new data
-        pageRef.current += 1; // Increment page using ref
-        console.log(data);
+        setData((prevData) => [...prevData, ...res.housing]);
+        pageRef.current += 1;
       } else {
-        setHasMore(false); // No more data to load
+        setHasMore(false);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -88,62 +138,125 @@ export default function Table() {
       isFetchingRef.current = false;
     }
   };
+  const postData = async (e) => {
+    try {
+    } catch (e) {}
+    e.preventDefault();
+    const fetchData = await fetch("/api/confirmhousinginformation/", {
+      body: JSON.stringify({
+        // ...values,
+        reason,
+        employee,
+        details: details,
+        homeMaidId: newHomeMaid.id,
+        houseentrydate: houseentrydate,
+        deliveryDate,
 
-  const makeRequest = async (url: string, body: object) => {
-    const response = await fetch(url, {
-      method: "POST",
+        // fullname: name,
+      }),
+      method: "post",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
     });
+    const data = await fetchData.json();
 
-    return response.status === 200;
+    if (fetchData.status == 200) {
+      // onClose();
+      // setDate();
+      handleCloseAddModal();
+      setOpenAddModal(false);
+      setNewHomeMaid({
+        officeID: "",
+        Nationalitycopy: "",
+        Name: "",
+        Religion: "",
+        Passportnumber: "",
+        clientphonenumber: "",
+        ExperienceYears: "",
+        maritalstatus: "",
+        Experience: "",
+        dateofbirth: "",
+        age: "",
+        phone: "",
+        bookingstatus: "",
+        ages: "",
+        officeName: "",
+        experienceType: "",
+        PassportStart: "",
+        PassportEnd: "",
+        OldPeopleCare: false,
+        ArabicLanguageLeveL: "",
+        EnglishLanguageLevel: "",
+        Salary: "",
+        LaundryLeveL: "",
+        IroningLevel: "",
+        CleaningLeveL: "",
+        CookingLeveL: "",
+        SewingLeveL: "",
+        BabySitterLevel: "",
+        Education: "",
+      });
+      setEmployeeType(""); // إعادة تعيين نوع العاملة
+      setSearchQuery(""); // إعادة تعيين مربع البحث
+      isFetchingRef.current = false;
+      setHasMore(true);
+      setData([]);
+      pageRef.current = 1;
+      // fetchData();
+      // fetchData();
+      // router.push("/admin/neworder/" + data.id);
+    } else {
+      // setIserrorModalOpen(true);
+      // seterrormessage(data.message);
+    }
   };
 
-  const restore = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/restoreorders", {
-      id,
-      homeMaidId,
+  const updateHousingStatus = async (homeMaidId) => {
+    const response = await fetch("/api/confirmhousing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ homeMaidId }),
     });
-    if (success) router.push("/admin/neworders");
+    const data = await response.json();
+    if (response.ok) {
+      console.log("Success:", data.message);
+    } else {
+      console.log("Error:", data.error);
+    }
   };
 
-  // Use a callback to call fetchData when the user reaches the bottom
+  const handleRowClick = (id) => {
+    setExpandedRow((prevRow) => (prevRow === id ? null : id));
+  };
+
   const loadMoreRef = useCallback(
     (node: HTMLDivElement) => {
       if (loading || !hasMore) return;
-
       const observer = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            fetchData(); // Fetch next page of data
+            fetchData();
           }
         },
         { threshold: 1.0 }
       );
-
       if (node) observer.observe(node);
-
       return () => observer.disconnect();
     },
     [loading, hasMore]
   );
 
-  // useEffect to fetch the first page of data on mount
+  const handleEmployeeChange = (e) => {
+    setEmployeeType(e.target.value);
+  };
+  const [date, setDate] = useState("");
   useEffect(() => {
-    fetchData(); // Fetch the first page of data
-  }, []); // Only run once on mount
-
-  // useEffect to fetch data when filters change
-  // useEffect(() => {
-  //   // Reset page and data on filter change
-  //   pageRef.current = 1;
-  //   setData([]);
-  //   setHasMore(true);
-  //   fetchData();
-  // }, [filters]); // Only re-run when filters change
+    fetchData();
+  }, [date]);
 
   const handleFilterChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -156,19 +269,181 @@ export default function Table() {
     }));
   };
 
-  const router = useRouter();
-  const handleUpdate = (id) => {
-    router.push("./neworder/" + id);
+  const requestSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+    setData([]);
+    pageRef.current = 1;
+    setHasMore(true);
+    fetchData();
+  };
+
+  const handleOpenAddModal = () => {
+    setOpenAddModal(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setOpenAddModal(false);
+    setNewHomeMaid({
+      officeID: "",
+      Nationalitycopy: "",
+      Name: "",
+      Religion: "",
+      Passportnumber: "",
+      clientphonenumber: "",
+      ExperienceYears: "",
+      maritalstatus: "",
+      Experience: "",
+      dateofbirth: "",
+      age: "",
+      phone: "",
+      bookingstatus: "",
+      ages: "",
+      officeName: "",
+      experienceType: "",
+      PassportStart: "",
+      PassportEnd: "",
+      OldPeopleCare: false,
+      ArabicLanguageLeveL: "",
+      EnglishLanguageLevel: "",
+      Salary: "",
+      LaundryLeveL: "",
+      IroningLevel: "",
+      CleaningLeveL: "",
+      CookingLeveL: "",
+      SewingLeveL: "",
+      BabySitterLevel: "",
+      Education: "",
+    });
+    setEmployeeType(""); // إعادة تعيين نوع العاملة
+    setSearchQuery(""); // إعادة تعيين مربع البحث
+  };
+
+  const handleNewHomeMaidChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setExternalHomemaid((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSaveNewHomeMaid = async () => {
+    try {
+      const response = await fetch("/api/addexternalhomemaid", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newExternalHomemaid),
+      });
+      if (response.ok) {
+        handleCloseAddModal();
+        setOpenAddModal(false);
+        setNewHomeMaid({
+          officeID: "",
+          Nationalitycopy: "",
+          Name: "",
+          Religion: "",
+          Passportnumber: "",
+          clientphonenumber: "",
+          ExperienceYears: "",
+          maritalstatus: "",
+          Experience: "",
+          dateofbirth: "",
+          age: "",
+          phone: "",
+          bookingstatus: "",
+          ages: "",
+          officeName: "",
+          experienceType: "",
+          PassportStart: "",
+          PassportEnd: "",
+          OldPeopleCare: false,
+          ArabicLanguageLeveL: "",
+          EnglishLanguageLevel: "",
+          Salary: "",
+          LaundryLeveL: "",
+          IroningLevel: "",
+          CleaningLeveL: "",
+          CookingLeveL: "",
+          SewingLeveL: "",
+          BabySitterLevel: "",
+          Education: "",
+        });
+        setEmployeeType(""); // إعادة تعيين نوع العاملة
+        setSearchQuery(""); // إعادة تعيين مربع البحث
+        isFetchingRef.current = false;
+        setHasMore(true);
+        setData([]);
+        pageRef.current = 1;
+        fetchData();
+      } else {
+        console.error("خطأ في إضافة العاملة:", await response.json());
+      }
+    } catch (error) {
+      console.error("خطأ في الاتصال بالخادم:", error);
+    }
+  };
+  const [isPasportVerified, setIsPassportVerified] = useState(false);
+  // دالة البحث عن العاملة الداخلية
+  const handleSearch = async () => {
+    try {
+      setIsPassportVerified(false);
+      const response = await fetch(
+        `/api/searchhomemaid?Passportnumber=${searchQuery}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.ok) {
+        const result = await response.json();
+        console.log("نتيجة البحث:", result);
+        // يمكنك هنا تحديث `newHomeMaid` بالبيانات المسترجعة إذا لزم الأمر
+        setNewHomeMaid(result);
+        // handleSaveNewHomeMaid(); // حفظ البيانات مباشرة بعد البحث
+        setIsPassportVerified(true);
+      } else {
+        console.error("خطأ في البحث:", await response.json());
+      }
+    } catch (error) {
+      console.error("خطأ في الاتصال بالخادم:", error);
+    }
   };
 
   return (
     <Layout>
       <div className="container mx-auto p-6">
-        <h1
-          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
-        >
-          عاملات تم تسكينهم
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1
+            className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
+          >
+            عاملات تم تسكينهم
+          </h1>
+          <div>
+            {" "}
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="warning"
+              onClick={handleOpenAddModal}
+            >
+              تسكين عاملة
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => router.push("/admin/checklisttable")}
+            >
+              بيانات الاعاشة
+            </Button>
+          </div>
+        </div>
 
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
@@ -190,7 +465,6 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-
           <div className="flex-1 px-2">
             <input
               type="text"
@@ -203,17 +477,12 @@ export default function Table() {
           <div className="flex-1 px-1">
             <button
               className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                "text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
-                setFilters({
-                  age: "",
-                  id: "",
-                  Passportnumber: "",
-                  Name: "",
-                });
+                setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
                 setData([]);
                 pageRef.current = 1;
                 fetchData();
@@ -225,7 +494,7 @@ export default function Table() {
           <div className="flex-1 px-1">
             <button
               className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                "text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
               onClick={() => {
                 isFetchingRef.current = false;
@@ -244,41 +513,91 @@ export default function Table() {
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-center text-sm font-medium">رقم الطلب</th>
-              <th className="p-3 text-center  text-sm font-medium">
-                اسم العاملة
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("id")}
+              >
+                رقم الطلب{" "}
+                {sortConfig.key === "id" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-              <th className="p-3 text-center text-sm font-medium">
-                جوال العاملة
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Name")}
+              >
+                اسم العاملة{" "}
+                {sortConfig.key === "Name" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-
-              <th className="p-3 text-center text-sm font-medium">ملاحظات</th>
-
-              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-center text-sm font-medium">
-                رقم جواز السفر
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("phone")}
+              >
+                جوال العاملة{" "}
+                {sortConfig.key === "phone" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-
-              <th className="p-3 text-center text-sm font-medium">
-                بداية الجواز
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Details")}
+              >
+                سبب التسكين{" "}
+                {sortConfig.key === "Reason" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-              <th className="p-3 text-center text-sm font-medium">
-                نهاية الجواز
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Details")}
+              >
+                تاريخ التسكين{" "}
+                {sortConfig.key === "houseentrydate" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-              <th className="p-3 text-center text-sm font-medium">
-                اسم العميل
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Nationalitycopy")}
+              >
+                الجنسية{" "}
+                {sortConfig.key === "Nationalitycopy" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-
-              {/* <th className="p-3 text-center text-sm font-medium">تسكين</th> */}
-
-              {/* <th className="p-3 text-center text-sm font-medium">استعراض</th> */}
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Passportnumber")}
+              >
+                رقم جواز السفر{" "}
+                {sortConfig.key === "Passportnumber" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+              </th>
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("employee")}
+              >
+                الموظف{" "}
+                {sortConfig.key === "employee" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+              </th>
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("ClientName")}
+              >
+                اسم العميل{" "}
+                {sortConfig.key === "ClientName" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+              </th>
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                // onClick={() => requestSort("ClientName")}
+              >
+                تسجيل في الاعاشة{" "}
+              </th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan="6"
+                  colSpan="9"
                   className="p-3 text-center text-sm text-gray-500"
                 >
                   No results found
@@ -286,138 +605,440 @@ export default function Table() {
               </tr>
             ) : (
               data.map((item) => (
-                <tr key={item.id} className="border-t">
-                  {/* {alert(item.id)} */}
-                  {/* <td
-                  
-                    // className="p-3 text-md text-gray-700"
-                    className={`text-center  mb-4 ${Style["almarai-light"]}`}
-                  >
-                    {item.id}
-                  </td> */}
-
-                  <td>
-                    <h1
-                      className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
+                <React.Fragment key={item.id}>
+                  <tr className="border-t">
+                    <td>
+                      <h1
+                        className={`text-center cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
+                        onClick={() => {
+                          const url = "/admin/neworder/" + item?.Order.id;
+                          window.open(url, "_blank");
+                        }}
+                      >
+                        {item?.Order.id ? item?.Order.id : "لا يوجد بيان"}
+                      </h1>
+                    </td>
+                    <td
+                      className={`text-center cursor-pointer text-purple-900 text-lg mb-4 ${Style["almarai-light"]}`}
                       onClick={() => {
-                        const url = "/admin/neworder/" + item?.Order.id;
-                        window.open(url, "_blank"); // Open in new window
+                        const url =
+                          "/admin/cvdetails/" + item?.Order.HomeMaid.id;
+                        window.open(url, "_blank");
                       }}
                     >
-                      {item?.Order.id ? item?.Order.id : "لا يوجد بيان"}
-                    </h1>
-                  </td>
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.Order.HomeMaid.Name
+                          ? item?.Order.HomeMaid.Name
+                          : "لا يوجد بيان"}
+                      </h1>
+                    </td>
+                    <td
+                      className={`text-center mb-4 ${Style["almarai-light"]}`}
+                    >
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.Order.HomeMaid.phone
+                          ? item?.Order.HomeMaid.phone
+                          : "لا يوجد"}
+                      </h1>
+                    </td>
+                    <td
+                      className={`text-center mb-4 ${Style["almarai-light"]}`}
+                      onClick={() => handleRowClick(item.id)}
+                    >
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.Reason ? item?.Reason : "لا يوجد"}
+                      </h1>
+                    </td>
+                    <td
+                      className={`text-center mb-4 ${Style["almarai-light"]}`}
+                      onClick={() => handleRowClick(item.id)}
+                    >
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.houseentrydate
+                          ? getDate(item?.houseentrydate)
+                          : "لا يوجد"}
+                      </h1>
+                    </td>
+                    <td className={`text-center mb-4`}>
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.Order.HomeMaid.Nationalitycopy
+                          ? item?.Order.HomeMaid.Nationalitycopy
+                          : "لا يوجد بيان"}
+                      </h1>
+                    </td>
+                    <td className={`text-center mb-4`}>
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.Order.HomeMaid.Passportnumber
+                          ? item?.Order.HomeMaid.Passportnumber
+                          : "لا يوجد بيان"}
+                      </h1>
+                    </td>
+                    <td className={`text-center mb-4`}>
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.employee ? item?.employee : "لا يوجد بيان"}
+                      </h1>
+                    </td>
+                    <td className={`text-center mb-4`}>
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.Order.ClientName ? item?.Order.ClientName : null}
+                      </h1>
+                    </td>
 
-                  <td
-                    className={`text-center cursor-pointer text-purple-900 text-lg  mb-4 ${Style["almarai-light"]}`}
-                    onClick={() => {
-                      const url = "/admin/cvdetails/" + item?.Order.HomeMaid.id;
-                      window.open(url, "_blank"); // Open in new window
-                    }}
-                  >
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.HomeMaid.Name
-                        ? item?.Order.HomeMaid.Name
-                        : "لا يوجد بيان"}
-                    </h1>
-                  </td>
-                  <td className={`text-center  mb-4 ${Style["almarai-light"]}`}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.HomeMaid.phone
-                        ? item?.Order.HomeMaid.phone
-                        : "لا يوجد"}
-                    </h1>
-                  </td>
-
-                  <td className={`text-center  mb-4 ${Style["almarai-light"]}`}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Details ? item?.Details : "لا يوجد"}
-                    </h1>
-                  </td>
-
-                  <td className={`text-center  mb-4 `}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.HomeMaid.Nationalitycopy
-                        ? item?.Order.HomeMaid.Nationalitycopy
-                        : "لا يوجد بيان"}
-                    </h1>
-                  </td>
-                  <td className={`text-center  mb-4 `}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.HomeMaid.Passportnumber
-                        ? item?.Order.HomeMaid.Passportnumber
-                        : "لا يوجد بيان"}
-                    </h1>
-                  </td>
-                  <td className={`text-center  mb-4 `}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.HomeMaid.PassportStart
-                        ? item?.Order.HomeMaid.PassportStart
-                        : null}
-                    </h1>
-                  </td>
-                  <td className={`text-center  mb-4`}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.HomeMaid.PassportStart
-                        ? item?.Order.HomeMaid.PassportStart
-                        : null}
-                    </h1>
-                  </td>
-
-                  <td className={`text-center  mb-4 `}>
-                    <h1
-                      className={`text-center  mb-4 ${Style["almarai-bold"]}`}
-                    >
-                      {item?.Order.ClientName ? item?.Order.ClientName : null}
-                    </h1>
-                  </td>
-                  {/* 
-                  <td className={`text-center  mb-4 `}>
-                    <h1
-                      // onClick={() => updateHousingStatus(item.id)}
-                      className="text-center cursor-pointer"
-                      style={{ display: "flex", justifyContent: "center" }}
-                    >
-                      <FaHouseUser />
-                    </h1>
-                  </td> */}
-
-                  {/* <td>
-                    <h1
-                      className={`text-center  cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
-                      onClick={() =>
-                        router.push("/admin/neworder/" + NewOrder[0]?.id)
-                      }
-                    >
-                      {item.NewOrder[0]?.id}
-                    </h1>
-                  </td> */}
-                </tr>
+                    <td className={`text-center mb-4`}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() =>
+                          router.push("/admin/checklist?id=" + item?.Order.id)
+                        }
+                      >
+                        تسجيل
+                      </Button>
+                    </td>
+                  </tr>
+                  {expandedRow === item.id && (
+                    <tr className="bg-gray-100">
+                      <td colSpan="9" className="p-3 text-center">
+                        <div>
+                          <p>{item?.Details}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>
         </table>
 
-        {/* Infinite scroll trigger */}
-        {hasMore && (
-          <div
-            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
-            className="flex justify-center mt-6"
+        {/* Modal لإضافة عاملة جديدة */}
+        <Modal open={openAddModal} onClose={handleCloseAddModal}>
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              maxHeight: "80vh",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              overflowY: "auto",
+            }}
           >
+            <h2 className={Style["almarai-bold"]}>تسكين عاملة</h2>
+            <FormControl fullWidth>
+              <InputLabel id="demo-simple-select-label">نوع العاملة</InputLabel>
+              <Select
+                labelId="demo-simple-select-label"
+                id="demo-simple-select"
+                value={employeeType}
+                label="نوع العاملة"
+                onChange={handleEmployeeChange}
+              >
+                <MenuItem value="external">عاملة خارجية</MenuItem>
+                <MenuItem value="internal">عاملة داخلية</MenuItem>
+              </Select>
+            </FormControl>
+
+            {employeeType === "internal" ? (
+              // عرض مربع البحث فقط إذا كانت العاملة داخلية
+              <Box mt={2}>
+                <TextField
+                  fullWidth
+                  label="رقم جواز العاملة"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  margin="normal"
+                />
+
+                <Box mt={2} display="flex" justifyContent="space-between">
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSearch}
+                  >
+                    بحث
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleCloseAddModal}
+                  >
+                    إلغاء
+                  </Button>
+                </Box>
+
+                {isPasportVerified && (
+                  <div>
+                    <Typography>Order Id : {newHomeMaid.id}</Typography>
+                    <div className="mb-4">
+                      <label className="block text-gray-700">
+                        تاريخ التسكين
+                      </label>
+                      <input
+                        type="date"
+                        value={houseentrydate}
+                        onChange={(e) => sethouseentrydate(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        // placeholder="أدخل اسمك"
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-gray-700">
+                        تاريخ الاستلام
+                      </label>
+                      <input
+                        type="date"
+                        value={deliveryDate}
+                        onChange={(e) => setDeliveyDate(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        // placeholder="أدخل اسمك"
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-gray-700">الموظف</label>
+                      <input
+                        type="text"
+                        value={employee}
+                        onChange={(e) => setEmployee(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        // placeholder="أدخل اسمك"
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-gray-700">سبب التسكين</label>
+                      <select
+                        className="rounded-md"
+                        onChange={(e) => setReason(e.target.value)}
+                      >
+                        <option value="">...</option>
+
+                        <option value="نقل كفالة">نقل كفالة</option>
+                        <option value="انتظار الترحيل">انتظار الترحيل</option>
+                        <option value="مشكلة مكتب العمل">
+                          مشكلة مكتب العمل
+                        </option>
+                        <option value="رفض العمل للسفر">رفض العمل للسفر</option>
+                        <option value="رفض العم لنقل الكفالة">
+                          رفض العمل لنقل الكفالة
+                        </option>
+                      </select>
+                    </div>
+
+                    <div className="mb-4">
+                      <input
+                        type="text"
+                        value={details}
+                        onChange={(e) => setdetails(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        placeholder="التفاصيل"
+                      />
+                    </div>
+                    <button onClick={postData}> تسجيل </button>
+                    <span>{error}</span>
+                  </div>
+                )}
+              </Box>
+            ) : employeeType === "external" ? (
+              // عرض النموذج الكامل إذا كانت العاملة خارجية
+              <>
+                <TextField
+                  fullWidth
+                  label="اسم العاملة"
+                  name="Name"
+                  value={newExternalHomemaid.Name}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="رقم الجواز"
+                  name="Passportnumber"
+                  value={newExternalHomemaid.Passportnumber}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="الجنسية"
+                  name="Nationalitycopy"
+                  value={newExternalHomemaid.Nationalitycopy}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="الديانة"
+                  name="Religion"
+                  value={newExternalHomemaid.Religion}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="رقم الهاتف"
+                  name="phone"
+                  value={newExternalHomemaid.phone}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="سنوات الخبرة"
+                  name="ExperienceYears"
+                  value={newExternalHomemaid.ExperienceYears}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="الحالة الاجتماعية"
+                  name="maritalstatus"
+                  value={newExternalHomemaid.maritalstatus}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="الخبرة"
+                  name="Experience"
+                  value={newExternalHomemaid.Experience}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="تاريخ الميلاد"
+                  name="dateofbirth"
+                  type="date"
+                  value={newExternalHomemaid.dateofbirth}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="اسم المكتب"
+                  name="officeName"
+                  value={newHomeMaid.officeName}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="تاريخ بداية الجواز"
+                  name="PassportStart"
+                  type="date"
+                  value={newExternalHomemaid.PassportStart}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="تاريخ نهاية الجواز"
+                  type="date"
+                  name="PassportEnd"
+                  value={newExternalHomemaid.PassportEnd}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="اسم الموظف"
+                  name="employee"
+                  value={newExternalHomemaid.employee}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <div className="mb-4">
+                  <label className="block text-gray-700">سبب التسكين</label>
+                  <select
+                    name="reason"
+                    className="rounded-md"
+                    onChange={handleNewHomeMaidChange}
+                  >
+                    <option value="">...</option>
+
+                    <option value="نقل كفالة">نقل كفالة</option>
+                    <option value="انتظار الترحيل">انتظار الترحيل</option>
+                    <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
+                    <option value="رفض العمل للسفر">رفض العمل للسفر</option>
+                    <option value="رفض العم لنقل الكفالة">
+                      رفض العمل لنقل الكفالة
+                    </option>
+                  </select>
+                </div>
+                <TextField
+                  fullWidth
+                  label="ملاحظات"
+                  name="details"
+                  value={newExternalHomemaid.details}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="تاريخ التسكين"
+                  name="houseentrydate"
+                  value={newExternalHomemaid.houseentrydate}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="تاريخ الاستلام"
+                  name="deliveryDate"
+                  value={newExternalHomemaid.deliveryDate}
+                  onChange={handleNewHomeMaidChange}
+                  margin="normal"
+                />
+                <div></div>
+                <Box mt={2} display="flex" justifyContent="space-between">
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSaveNewHomeMaid}
+                  >
+                    حفظ
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleCloseAddModal}
+                  >
+                    إلغاء
+                  </Button>
+                </Box>
+              </>
+            ) : null}
+          </Box>
+        </Modal>
+
+        {hasMore && (
+          <div ref={loadMoreRef} className="flex justify-center mt-6">
             {loading && (
               <div className="flex justify-center items-center">
                 <svg

@@ -444,7 +444,7 @@ export default function Table({ offices }) {
         </div>
 
         {/* Table */}
-        <table className="w-full overflow-x-scroll border-collapse bg-white shadow-md rounded-md">
+        <table className="w-full overflow-x-scroll  border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
               <th className="p-3 text-center text-sm font-medium whitespace-nowrap">
