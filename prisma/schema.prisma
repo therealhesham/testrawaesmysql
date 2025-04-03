@@ -323,7 +323,7 @@ model housedworker {
   houseentrydate DateTime?
   transaction_type String?
   deliveryDate   DateTime?
-  
+  status    String?   @db.VarChar(100)
   // العلاقة مع CheckIn
   checkIns       CheckIn[] // يحتوي على جميع سجلات CheckIn المرتبطة بهذا العامل
   

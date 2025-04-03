@@ -90,6 +90,7 @@ export default function Table() {
 
   const pageRef = useRef(1);
   const isFetchingRef = useRef(false);
+const [ID,setID]=useState("")
 
   function getDate(date) {
     const currentDate = new Date(date);
@@ -213,6 +214,45 @@ export default function Table() {
     }
   };
 
+
+
+const [status,setStatus] = useState("")
+const postUpdatedStatus =async ()=>{
+const response = await fetch("/api/updatestatus", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status ,ID}),
+    });
+    const data = await response.json();
+    if (response.ok) {
+
+
+
+      setOpenStatusModal(false)
+               isFetchingRef.current = false;
+                setHasMore(true);
+                setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
+                setData([]);
+                pageRef.current = 1;
+                fetchData();
+
+      // console.log("Success:", data.message);
+    } else {
+      // console.log("Error:", data.error);
+    }
+
+  
+}
+
+  const [openStatusModal,setOpenStatusModal] = useState(false)
+
+const handleCloseStatusModal = ()=>{
+setOpenStatusModal(false)
+
+
+}
   const updateHousingStatus = async (homeMaidId) => {
     const response = await fetch("/api/confirmhousing", {
       method: "POST",
@@ -585,6 +625,12 @@ export default function Table() {
                 {sortConfig.key === "ClientName" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
+                           <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("ClientName")}
+              >
+                حالة العاملة
+              </th>
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 // onClick={() => requestSort("ClientName")}
@@ -702,6 +748,27 @@ export default function Table() {
 
                     <td className={`text-center mb-4`}>
                       <Button
+                      onClick={()=>
+                        
+{
+setID(item.id)
+                       setOpenStatusModal(true)
+} 
+
+                          
+                        }
+                      //تحديث حالة العاملة
+                        variant="contained"
+                        color="warning"
+                        
+                      >
+                                                {item?.status != "Null" ? item?.status : "تعديل"}
+                      </Button>
+                    </td>
+
+
+                    <td className={`text-center mb-4`}>
+                      <Button
                         variant="contained"
                         color="primary"
                         onClick={() =>
@@ -726,6 +793,37 @@ export default function Table() {
             )}
           </tbody>
         </table>
+
+
+<Modal open={openStatusModal} onClose={handleCloseStatusModal}>
+   <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              maxHeight: "80vh",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              overflowY: "auto",
+            }}
+          >
+            <h2 className={Style["almarai-bold"]}>تحديث حالة العاملة</h2>
+ <TextField
+                  fullWidth
+                  // label="رقم جواز العاملة"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  margin="normal"
+                />
+                           <button onClick={postUpdatedStatus} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+  تحديث
+</button>
+</Box>
+  </Modal>
 
         {/* Modal لإضافة عاملة جديدة */}
         <Modal open={openAddModal} onClose={handleCloseAddModal}>
@@ -856,7 +954,10 @@ export default function Table() {
                         placeholder="التفاصيل"
                       />
                     </div>
-                    <button onClick={postData}> تسجيل </button>
+                    <button onClick={postData} className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+  تسجيل
+</button>
+                    {/* <button > تسجيل </button> */}
                     <span>{error}</span>
                   </div>
                 )}
