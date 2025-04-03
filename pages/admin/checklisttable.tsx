@@ -171,8 +171,7 @@ const CheckInTable = () => {
                   <td className="py-2 px-4 border-b">
                     {(row.breakfastCost || null) +
                       (row.lunchCost || null) +
-                      (row.supperCost || null) +
-                      (row.cost || null)}
+                      (row.supperCost || null)}
                   </td>{" "}
                   <td className="py-2 px-4 border-b">
                     {getDate(row.createdAt)}
