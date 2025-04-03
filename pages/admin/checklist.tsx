@@ -6,9 +6,8 @@ import { useForm } from "react-hook-form";
 
 export default function Checklist() {
   const [selectedGuest, setSelectedGuest] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [guests, setGuests] = useState([]);
-  const { register, handleSubmit, reset } = useForm();
+  const { register, handleSubmit, reset, setValue, getValues } = useForm();
   const router = useRouter();
 
   // البحث في الـ API بناءً على الإدخال
@@ -28,6 +27,15 @@ export default function Checklist() {
 
   const onSubmit = async (data) => {
     try {
+      // تأكد من إرسال التفاصيل التي أدخلها المستخدم إذا اختار "أخرى"
+      mealOptions.forEach((meal) => {
+        if (data[meal.id]?.option === "اخرى" && data[meal.id]?.otherDetails) {
+          // إذا كان المستخدم قد أدخل نصًا في خانة "أخرى"
+          data[meal.id].option = data[meal.id].otherDetails; // قم بتعيين القيمة التي أدخلها في خانة "أخرى"
+        }
+      });
+
+      // إرسال البيانات إلى الـ API أو قاعدة البيانات
       await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,8 +76,22 @@ export default function Checklist() {
         "سمبوسة",
       ],
     },
-    { id: "supper", label: "العشاء", options: ["عادي", "", "لا يوجد", "اخرى"] },
+    { id: "supper", label: "العشاء", options: ["عادي", "لا يوجد", "اخرى"] },
   ];
+
+  const [extraMeal, setExtraMeal] = useState({
+    breakfast: false,
+    lunch: false,
+    supper: false,
+  });
+
+  const handleMealChange = (mealId, value) => {
+    if (value === "اخرى") {
+      setExtraMeal((prev) => ({ ...prev, [mealId]: true }));
+    } else {
+      setExtraMeal((prev) => ({ ...prev, [mealId]: false }));
+    }
+  };
 
   return (
     <Layout>
@@ -112,6 +134,9 @@ export default function Checklist() {
                         <select
                           {...register(`${meal.id}.option`)}
                           className="w-full p-2 border rounded-md"
+                          onChange={(e) =>
+                            handleMealChange(meal.id, e.target.value)
+                          }
                         >
                           <option value="">اختر نوع الوجبة</option>
                           {meal.options.map((option) => (
@@ -120,7 +145,18 @@ export default function Checklist() {
                             </option>
                           ))}
                         </select>
-                        {/* حقل التكلفة */}
+                        {/* إضافة خانة إدخال عندما يتم اختيار "أخرى" */}
+                        {extraMeal[meal.id] && (
+                          <div className="mt-2">
+                            <label className="font-medium">تفاصيل أخرى</label>
+                            <input
+                              {...register(`${meal.id}.otherDetails`)}
+                              type="text"
+                              className="w-full p-2 border rounded-md"
+                              placeholder="أدخل تفاصيل أخرى"
+                            />
+                          </div>
+                        )}
                         <div className="mt-2">
                           <label className="font-medium">تكلفة الوجبة</label>
                           <input
@@ -130,29 +166,11 @@ export default function Checklist() {
                             placeholder="أدخل التكلفة"
                           />
                         </div>
-                        {/* 
-                        <textarea
-                          {...register(`${meal.id}.notes`)}
-                          className="w-full p-2 border rounded-md"
-                          placeholder={`ملاحظات عن ${meal.label}...`}
-                          rows={2}
-                        /> */}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* <div>
-                  <h3 className="font-semibold mb-2">تكاليف اضافية</h3>
-                  <textarea
-                    {...register("cost")}
-                    className="w-full p-2 border rounded-md"
-                    placeholder="التكلفة الإجمالية"
-                    rows={2}
-                  />
-                </div> */}
-
-                {/* قسم الشكاوى */}
                 <div>
                   <h3 className="font-semibold mb-2">الشكاوى</h3>
                   <textarea
