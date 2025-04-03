@@ -3,12 +3,14 @@ import { useRouter } from "next/router";
 import prisma from "pages/api/globalprisma";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+
 export default function Checklist() {
   const [selectedGuest, setSelectedGuest] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [guests, setGuests] = useState([]);
   const { register, handleSubmit, reset } = useForm();
   const router = useRouter();
+
   // البحث في الـ API بناءً على الإدخال
   useEffect(() => {
     if (!router) return;
@@ -46,10 +48,27 @@ export default function Checklist() {
     {
       id: "breakfast",
       label: "الإفطار",
-      options: ["عادي", "نباتي", "لا يوجد"],
+      options: ["عادي", "لا يوجد", "اخرى"],
     },
-    { id: "lunch", label: "الغداء", options: ["عادي", "نباتي", "لا شيء"] },
-    { id: "supper", label: "العشاء", options: ["عادي", "نباتي", "لا شيء"] },
+    {
+      id: "lunch",
+      label: "الغداء",
+      options: [
+        "شاورما",
+        "فاهيتا",
+        "لا شيء",
+        "برجر",
+        "كنتاكي",
+        "فطيرة",
+        "بيتزا",
+        "كبسة",
+        "مندي",
+        "مقلوبة",
+        "الدجاج المقلي",
+        "سمبوسة",
+      ],
+    },
+    { id: "supper", label: "العشاء", options: ["عادي", "", "لا يوجد", "اخرى"] },
   ];
 
   return (
@@ -63,13 +82,6 @@ export default function Checklist() {
 
             {/* اختيار الضيف مع البحث */}
             <div className="mb-6">
-              {/* <input
-                type="text"
-                className="w-full p-2 border rounded-md mb-2"
-                placeholder="ابحث عن الضيف (الاسم أو رقم الغرفة)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              /> */}
               <select
                 className="w-full p-2 border rounded-md"
                 onChange={(e) => {
@@ -108,26 +120,37 @@ export default function Checklist() {
                             </option>
                           ))}
                         </select>
+                        {/* حقل التكلفة */}
+                        <div className="mt-2">
+                          <label className="font-medium">تكلفة الوجبة</label>
+                          <input
+                            {...register(`${meal.id}.cost`)}
+                            type="number"
+                            className="w-full p-2 border rounded-md"
+                            placeholder="أدخل التكلفة"
+                          />
+                        </div>
+                        {/* 
                         <textarea
                           {...register(`${meal.id}.notes`)}
                           className="w-full p-2 border rounded-md"
                           placeholder={`ملاحظات عن ${meal.label}...`}
                           rows={2}
-                        />
+                        /> */}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div>
-                  <h3 className="font-semibold mb-2">التكلفة</h3>
+                {/* <div>
+                  <h3 className="font-semibold mb-2">تكاليف اضافية</h3>
                   <textarea
                     {...register("cost")}
                     className="w-full p-2 border rounded-md"
-                    placeholder="التكلفة"
+                    placeholder="التكلفة الإجمالية"
                     rows={2}
                   />
-                </div>
+                </div> */}
 
                 {/* قسم الشكاوى */}
                 <div>
