@@ -10,6 +10,32 @@ const CheckInTable = () => {
   const [totalPages, setTotalPages] = useState(1); // Total pages from API
   const rowsPerPage = 3; // Number of rows per page (limit)
 
+  function getDayOfWeek(date) {
+    const daysOfWeek = [
+      "الأحد",
+      "الإثنين",
+      "الثلاثاء",
+      "الأربعاء",
+      "الخميس",
+      "الجمعة",
+      "السبت",
+    ];
+    const dateObject = new Date(date);
+    const dayOfWeek = dateObject.getDay(); // الحصول على اليوم من 0 إلى 6
+    return daysOfWeek[dayOfWeek]; // إرجاع اليوم بالاسم باللغة العربية
+  }
+
+  // اختبار الدالة:
+  const date = "2025-04-03"; // يمكنك تغيير التاريخ حسب الحاجة
+  console.log(getDayOfWeek(date)); // سيطبع: الخميس
+
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
   useEffect(() => {
     const fetchCheckInData = async () => {
       setLoading(true);
@@ -42,6 +68,19 @@ const CheckInTable = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
+  // Calculate the total cost
+  const calculateTotalCost = () => {
+    return checkInData.reduce((total, row) => {
+      return (
+        total +
+        (row.breakfastCost || 0) +
+        (row.lunchCost || 0) +
+        (row.supperCost || 0) +
+        (row.cost || 0)
+      );
+    }, 0);
+  };
+
   // Render loading, error, or table
   if (loading) {
     return <div className="text-center p-4">Loading...</div>;
@@ -50,6 +89,9 @@ const CheckInTable = () => {
   if (error) {
     return <div className="text-center p-4 text-red-500">Error: {error}</div>;
   }
+
+  const totalCost = calculateTotalCost();
+
   return (
     <Layout>
       <div className="container mx-auto p-4">
@@ -73,20 +115,33 @@ const CheckInTable = () => {
                   الافطار
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
+                  تكلفة الافطار
+                </th>
+                <th className="py-2 px-4 border-b text-left text-gray-600">
                   الغداء
+                </th>
+                <th className="py-2 px-4 border-b text-left text-gray-600">
+                  تكلفة الغداء
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
                   العشاء
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
+                  تكلفة العشاء
+                </th>
+                <th className="py-2 px-4 border-b text-left text-gray-600">
                   الشكوى
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  تكلفة
+                  الاجمالي
+                </th>{" "}
+                <th className="py-2 px-4 border-b text-left text-gray-600">
+                  التاريخ
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  Created At
+                  اليوم
                 </th>
+                {/* New column */}
               </tr>
             </thead>
             <tbody>
@@ -97,23 +152,44 @@ const CheckInTable = () => {
                     {row.HousedWorker?.Order.HomeMaid?.Name}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {row.breakfastOption || "N/A"}
+                    {row.breakfastOption || ""}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {row.lunchOption || "N/A"}
+                    {row.breakfastCost || ""}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {row.supperOption || "N/A"}
+                    {row.lunchOption || ""}
                   </td>
+                  <td className="py-2 px-4 border-b">{row.lunchCost || ""}</td>
+                  <td className="py-2 px-4 border-b">
+                    {row.supperOption || ""}
+                  </td>
+                  <td className="py-2 px-4 border-b">{row.supperCost || ""}</td>
                   <td className="py-2 px-4 border-b">
                     {row.complaint || "None"}
                   </td>
-                  <td className="py-2 px-4 border-b">{row.cost || "None"}</td>
                   <td className="py-2 px-4 border-b">
-                    {new Date(row.createdAt).toLocaleString()}
+                    {(row.breakfastCost || null) +
+                      (row.lunchCost || null) +
+                      (row.supperCost || null) +
+                      (row.cost || null)}
+                  </td>{" "}
+                  <td className="py-2 px-4 border-b">
+                    {getDate(row.createdAt)}
                   </td>
+                  <td className="py-2 px-4 border-b">
+                    {getDayOfWeek(getDate(row.createdAt))}
+                  </td>
+                  {/* New total column */}
                 </tr>
               ))}
+              {/* Row for total cost */}
+              {/* <tr className="font-bold bg-gray-200">
+                <td colSpan="10" className="py-2 px-4 text-right">
+                  المجموع الكلي
+                </td>
+                <td className="py-2 px-4">{totalCost}</td>
+              </tr> */}
             </tbody>
           </table>
         </div>

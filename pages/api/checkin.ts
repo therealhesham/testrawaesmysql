@@ -36,6 +36,18 @@ export default async function handler(req, res) {
               supper !== "" ? supper.option : existingCheckIn.supperOption,
             complaint:
               complaint !== undefined ? complaint : existingCheckIn.complaint,
+            lunchCost:
+              lunch.cost !== ""
+                ? parseInt(lunch.cost)
+                : existingCheckIn.lunchCost,
+            supperCost:
+              supper.cost !== ""
+                ? parseInt(supper.cost)
+                : existingCheckIn.supperCost,
+            breakfastCost:
+              breakfast.cost !== ""
+                ? parseInt(breakfast.cost)
+                : existingCheckIn.breakfastCost,
           },
         });
         return res.status(200).json(updatedCheckIn);
@@ -49,6 +61,9 @@ export default async function handler(req, res) {
             lunchOption: lunch.option || null,
             supperOption: supper.option || null,
             complaint: complaint || null,
+            lunchCost: lunch.cost ? parseInt(lunch.cost) : null,
+            supperCost: supper.cost ? parseInt(supper.cost) : null,
+            breakfastCost: breakfast.cost ? parseInt(breakfast.cost) : null,
           },
         });
         return res.status(200).json(newCheckIn);

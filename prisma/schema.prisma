@@ -53,6 +53,10 @@ model CheckIn {
   breakfastOption String?   @db.VarChar(255)
   breakfastNotes  String?   @db.VarChar(255)
   lunchOption     String?   @db.VarChar(255)
+  lunchCost     Int? 
+supperCost     Int?
+breakfastCost  Int?
+
   lunchNotes      String?   @db.VarChar(255)
   supperOption    String?   @db.VarChar(255)
   supperNotes     String?   @db.VarChar(255)
