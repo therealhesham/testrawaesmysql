@@ -262,7 +262,7 @@ const ResumePage = () => {
                     >
                       بدأت العمل
                     </button>
-
+                    {/* 
                     <button
                       onClick={
                         () => setIsHousingModalOpen(true)
@@ -283,7 +283,7 @@ const ResumePage = () => {
                       // className="bg-yellow-500 rounded-md p-2 text-white text-md"
                     >
                       تسكين
-                    </button>
+                    </button> */}
                     <button
                       onClick={handleOpenModalDeparature}
                       className={`                ${

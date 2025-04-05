@@ -16,13 +16,16 @@ export default async function handler(req, res) {
   try {
     // البحث عن العاملة باستخدام Passportnumber
     const homeMaid = await prisma.neworder.findFirst({
+      include: { HomeMaid: { select: { Name: true } } },
       where: {
-        Passportnumber: Passportnumber,
-      }
+        Passportnumber: { contains: Passportnumber }, // تأكد من تحويله إلى نص
+      },
     });
 
     if (!homeMaid) {
-      return res.status(404).json({ error: "No homemaid found with this Passportnumber" });
+      return res
+        .status(404)
+        .json({ error: "No homemaid found with this Passportnumber" });
     }
 
     // إرجاع بيانات العاملة
