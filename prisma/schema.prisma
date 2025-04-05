@@ -10,6 +10,7 @@ datasource db {
 model homemaid {
   id                Int        @id @default(autoincrement())
   officeID          Int?
+  weeklyStatusId   weeklyStatus[]
   Nationalitycopy   String?    @db.VarChar(255)
   Name              String?    @db.VarChar(255)
   Religion          String?    @db.VarChar(255)
@@ -46,7 +47,20 @@ BabySitterLevel String? @db.VarChar(20)
 Education String? @db.VarChar(60)
 Housed          housing[]   
 }
+model weeklyStatus{
+  id              Int       @id @default(autoincrement())
 
+homeMaid_id  Int
+  status          String?   @db.VarChar(255)
+  date            DateTime? 
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  HomeMaid        homemaid? @relation(fields: [homeMaid_id], references: [id])  
+
+  employee          String?   @db.VarChar(255)
+
+  
+}
 model CheckIn {
   id              Int       @id @default(autoincrement())
   housedWorkerId  Int       // حقل جديد للربط مع housedworker

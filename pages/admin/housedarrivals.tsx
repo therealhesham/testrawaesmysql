@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 import * as React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
-
+import { jwtDecode } from "jwt-decode";
 import {
   Button,
   Modal,
@@ -139,10 +139,17 @@ export default function Table() {
       isFetchingRef.current = false;
     }
   };
+  const [employeeName, setEmployeeName] = useState("");
   const postData = async (e) => {
     try {
-    } catch (e) {}
+      const decoded = jwtDecode(localStorage.getItem("token"));
+      console.log(decoded);
+      setEmployee(decoded.username);
+    } catch (e) {
+      router.push("/login");
+    }
     e.preventDefault();
+    if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
     const fetchData = await fetch("/api/confirmhousinginformation/", {
       body: JSON.stringify({
         // ...values,
@@ -215,13 +222,26 @@ export default function Table() {
   };
 
   const [status, setStatus] = useState("");
+  const [dateStatus, setDateStatus] = useState("");
   const postUpdatedStatus = async () => {
-    const response = await fetch("/api/updatestatus", {
+    try {
+      const decoded = jwtDecode(localStorage.getItem("token"));
+      console.log(decoded);
+      setEmployee(decoded.username);
+    } catch (e) {
+      router.push("/login");
+    }
+    const response = await fetch("/api/weekly-status", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ status, ID }),
+      body: JSON.stringify({
+        status,
+        ID,
+        date: dateStatus,
+        employee: jwtDecode(localStorage.getItem("token")).username,
+      }),
     });
     const data = await response.json();
     if (response.ok) {
@@ -362,13 +382,24 @@ export default function Table() {
   };
 
   const handleSaveNewHomeMaid = async () => {
+    const decoded = jwtDecode(localStorage.getItem("token"));
+    console.log(decoded);
+    setExternalHomemaid({
+      ...newExternalHomemaid,
+      employee: decoded.username,
+    });
+    if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
+
     try {
       const response = await fetch("/api/addexternalhomemaid", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(newExternalHomemaid),
+        body: JSON.stringify({
+          ...newExternalHomemaid,
+          employee: decoded.username,
+        }),
       });
       if (response.ok) {
         handleCloseAddModal();
@@ -418,6 +449,8 @@ export default function Table() {
       console.error("خطأ في الاتصال بالخادم:", error);
     }
   };
+
+  // const [employee, setEmployee] = useState("");
   const [isPasportVerified, setIsPassportVerified] = useState(false);
   // دالة البحث عن العاملة الداخلية
   const handleSearch = async () => {
@@ -458,6 +491,14 @@ export default function Table() {
           </h1>
           <div>
             {" "}
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="secondary"
+              onClick={() => router.push("/admin/workersstatus")}
+            >
+              حالات العاملات
+            </Button>
             <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
@@ -740,14 +781,14 @@ export default function Table() {
                     <td className={`text-center mb-4`}>
                       <Button
                         onClick={() => {
-                          setID(item.id);
+                          setID(item?.Order.HomeMaid.id);
                           setOpenStatusModal(true);
                         }}
                         //تحديث حالة العاملة
                         variant="contained"
                         color="warning"
                       >
-                        {item?.status ? item?.status : "تعديل"}
+                        تعديل
                       </Button>
                     </td>
 
@@ -800,6 +841,16 @@ export default function Table() {
               // label="رقم جواز العاملة"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              margin="normal"
+            />
+
+            <TextField
+              fullWidth
+              type="date"
+              label="تاريخ الحالة"
+              // label="رقم جواز العاملة"
+              value={dateStatus}
+              onChange={(e) => setDateStatus(e.target.value)}
               margin="normal"
             />
             <button
@@ -921,6 +972,7 @@ export default function Table() {
                     <div className="mb-4">
                       <label className="block text-gray-700">سبب التسكين</label>
                       <select
+                        required
                         className="rounded-md"
                         onChange={(e) => setReason(e.target.value)}
                       >
@@ -1074,6 +1126,7 @@ export default function Table() {
                   margin="normal"
                 />
                 <TextField
+                  style={{ display: "none" }}
                   fullWidth
                   label="اسم الموظف"
                   name="employee"

@@ -161,7 +161,7 @@ const CheckInTable = () => {
               {checkInData.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50 ">
                   <td
-                    className={`text-center cursor-pointer text-purple-900 text-lg mb-4 ${Style["almarai-regular"]}`}
+                    className={`text-center cursor-pointer text-purple-900 text-lg mb-4 `}
                     onClick={() => {
                       const url =
                         "/admin/cvdetails/" +
