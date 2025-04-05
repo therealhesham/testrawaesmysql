@@ -109,7 +109,7 @@ export default function Table() {
         Name: filters.Name,
         // age: filters.age,
         // id: filters.id,
-        // Passportnumber: filters.Passportnumber,
+        Passportnumber: filters.Passportnumber,
         page: String(pageRef.current),
         sortKey: sortConfig.key || "",
         sortDirection: sortConfig.direction,
@@ -298,15 +298,7 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.id}
-              onChange={(e) => handleFilterChange(e, "id")}
-              placeholder="بحث برقم العاملة"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
+
           <div className="flex-1 px-1">
             <button
               className={
@@ -316,7 +308,7 @@ export default function Table() {
                 isFetchingRef.current = false;
                 setHasMore(true);
                 setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
-                setData([]);
+                setWorkers([]);
                 pageRef.current = 1;
                 fetchData();
               }}
@@ -332,7 +324,7 @@ export default function Table() {
               onClick={() => {
                 isFetchingRef.current = false;
                 setHasMore(true);
-                setData([]);
+                setWorkers([]);
                 pageRef.current = 1;
                 fetchData();
               }}
@@ -352,35 +344,42 @@ export default function Table() {
           }}
         >
           <thead>
-            <tr>
+            <tr className="bg-yellow-400 text-white">
               <th
+                className="bg-yellow-400 text-white"
                 style={{
                   border: "1px solid #ddd",
                   padding: "8px",
-                  backgroundColor: "#f4f4f4", // لون الخلفية لرأس الجدول
-                  color: "#333", // لون النص
                   textAlign: "left", // محاذاة النص
                 }}
               >
                 اسم العاملة
               </th>
               <th
+                className="bg-yellow-400 text-white"
                 style={{
                   border: "1px solid #ddd",
                   padding: "8px",
-                  backgroundColor: "#f4f4f4", // لون الخلفية لرأس الجدول
-                  color: "#333", // لون النص
+                  textAlign: "left", // محاذاة النص
+                }}
+              >
+                رقم الجواز
+              </th>
+              <th
+                className="bg-yellow-400 text-white"
+                style={{
+                  border: "1px solid #ddd",
+                  padding: "8px",
                   textAlign: "left", // محاذاة النص
                 }}
               >
                 الحالة
               </th>
               <th
+                className="bg-yellow-400 text-white"
                 style={{
                   border: "1px solid #ddd",
                   padding: "8px",
-                  backgroundColor: "#f4f4f4", // لون الخلفية لرأس الجدول
-                  color: "#333", // لون النص
                   textAlign: "left", // محاذاة النص
                 }}
               >
@@ -388,15 +387,14 @@ export default function Table() {
               </th>
 
               <th
+                className="bg-yellow-400 text-white"
                 style={{
                   border: "1px solid #ddd",
                   padding: "8px",
-                  backgroundColor: "#f4f4f4", // لون الخلفية لرأس الجدول
-                  color: "#333", // لون النص
                   textAlign: "left", // محاذاة النص
                 }}
               >
-                آخر تحديث
+                التاريخ
               </th>
             </tr>
           </thead>
@@ -407,6 +405,14 @@ export default function Table() {
                   {worker?.HomeMaid?.Name}
                 </td>
                 <td style={{ border: "1px solid #ddd", padding: "8px" }}>
+                  {worker?.HomeMaid?.Passportnumber}
+                </td>
+                <td
+                  style={{
+                    border: "1px solid #ddd",
+                    padding: "8px",
+                  }}
+                >
                   {worker?.status}
                 </td>
 

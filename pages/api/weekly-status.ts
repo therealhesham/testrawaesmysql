@@ -21,10 +21,19 @@ export default async function handler(
       const pageNumber = parseInt(page as string, 10) || 1;
       // جلب جميع السجلات من جدول weeklyStatus
       const weeklyStatuses = await prisma.weeklyStatus.findMany({
+        where: {
+          HomeMaid: {
+            Name: { contains: typeof Name === "string" ? Name : "" },
+            Passportnumber: {
+              contains:
+                typeof Passportnumber === "string" ? Passportnumber : "",
+            },
+          },
+        },
         skip: (pageNumber - 1) * pageSize,
         take: 10,
         orderBy: {
-          id: "desc", // ترتيب السجلات حسب التاريخ بشكل تنازلي
+          date: "desc", // ترتيب السجلات حسب التاريخ بشكل تنازلي
         },
         include: {
           HomeMaid: true, // جلب بيانات العاملة المرتبطة
