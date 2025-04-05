@@ -8,11 +8,17 @@ export default async function handler(req, res) {
     try {
       // Get page and limit from query parameters, with defaults
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 3;
+      const limit = parseInt(req.query.limit) || 10; // Default limit
+      const name = req.query.name || ""; // Search query
       const skip = (page - 1) * limit; // Calculate offset
 
       // Fetch paginated data
       const checkIns = await prisma.checkIn.findMany({
+        where: {
+          HousedWorker: {
+            Order: { HomeMaid: { Name: { contains: name } } },
+          },
+        },
         include: {
           HousedWorker: { include: { Order: { include: { HomeMaid: true } } } },
         },

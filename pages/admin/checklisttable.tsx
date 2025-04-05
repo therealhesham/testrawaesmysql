@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
+import { set } from "mongoose";
 
 const CheckInTable = () => {
   const [checkInData, setCheckInData] = useState([]);
@@ -8,7 +9,8 @@ const CheckInTable = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1); // Total pages from API
-  const rowsPerPage = 3; // Number of rows per page (limit)
+  const [searchQuery, setSearchQuery] = useState(""); // New state for search query
+  const rowsPerPage = 10; // Number of rows per page (limit)
 
   function getDayOfWeek(date) {
     const daysOfWeek = [
@@ -25,30 +27,25 @@ const CheckInTable = () => {
     return daysOfWeek[dayOfWeek]; // إرجاع اليوم بالاسم باللغة العربية
   }
 
-  // اختبار الدالة:
-  const date = "2025-04-03"; // يمكنك تغيير التاريخ حسب الحاجة
-  console.log(getDayOfWeek(date)); // سيطبع: الخميس
-
   function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const currentDate = new Date(date);
     const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
     return form;
   }
+  const [date, setDate] = useState(new Date());
   useEffect(() => {
     const fetchCheckInData = async () => {
       setLoading(true);
       try {
         const response = await fetch(
-          `/api/checkins?page=${currentPage}&limit=${rowsPerPage}`
-        ); // Pass page and limit as query params
+          `/api/checkins?page=${currentPage}&limit=${rowsPerPage}&name=${searchQuery}` // Pass page and limit as query params
+        );
         if (!response.ok) {
           throw new Error("Failed to fetch check-in data");
         }
-        const { data, totalPages } = await response.json(); // Expecting { data: [], totalPages: number }
+        const { data, totalPages } = await response.json();
         setCheckInData(data);
-        setTotalPages(totalPages); // Update total pages from API
+        setTotalPages(totalPages);
         setLoading(false);
       } catch (err) {
         setError(err.message);
@@ -57,9 +54,14 @@ const CheckInTable = () => {
     };
 
     fetchCheckInData();
-  }, [currentPage]); // Refetch when currentPage changes
+  }, [currentPage, date]);
 
-  // Handle page navigation
+  const handleSearch = () => {
+    setCurrentPage(1); // Reset to the first page when searching
+
+    setDate(new Date()); // Reset date to current date when searching
+  };
+
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
@@ -68,7 +70,6 @@ const CheckInTable = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
-  // Calculate the total cost
   const calculateTotalCost = () => {
     return checkInData.reduce((total, row) => {
       return (
@@ -81,7 +82,6 @@ const CheckInTable = () => {
     }, 0);
   };
 
-  // Render loading, error, or table
   if (loading) {
     return <div className="text-center p-4">Loading...</div>;
   }
@@ -95,6 +95,23 @@ const CheckInTable = () => {
   return (
     <Layout>
       <div className="container mx-auto p-4">
+        {/* Search Input and Button */}
+        <div className="mb-4 flex items-center ">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث بالاسم..."
+            className="p-2 border rounded"
+          />
+          <button
+            onClick={handleSearch}
+            className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
+          >
+            بحث
+          </button>
+        </div>
+
         {/* Table */}
         <div className="overflow-x-auto">
           <h1
@@ -106,10 +123,7 @@ const CheckInTable = () => {
             <thead className="bg-gray-100">
               <tr>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
-                  ID
-                </th>
-                <th className="py-2 px-4 border-b text-left text-gray-600">
-                  الاسم
+                  اسم العاملة
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
                   الافطار
@@ -134,21 +148,27 @@ const CheckInTable = () => {
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
                   الاجمالي
-                </th>{" "}
+                </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
                   التاريخ
                 </th>
                 <th className="py-2 px-4 border-b text-left text-gray-600">
                   اليوم
                 </th>
-                {/* New column */}
               </tr>
             </thead>
             <tbody>
               {checkInData.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="py-2 px-4 border-b">{row.id}</td>
-                  <td className="py-2 px-4 border-b">
+                <tr key={row.id} className="hover:bg-gray-50 ">
+                  <td
+                    className={`text-center cursor-pointer text-purple-900 text-lg mb-4 ${Style["almarai-regular"]}`}
+                    onClick={() => {
+                      const url =
+                        "/admin/cvdetails/" +
+                        row.HousedWorker?.Order.HomeMaid.id;
+                      window.open(url, "_blank");
+                    }}
+                  >
                     {row.HousedWorker?.Order.HomeMaid?.Name}
                   </td>
                   <td className="py-2 px-4 border-b">
@@ -169,26 +189,18 @@ const CheckInTable = () => {
                     {row.complaint || "None"}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {(row.breakfastCost || null) +
-                      (row.lunchCost || null) +
-                      (row.supperCost || null)}
-                  </td>{" "}
+                    {(row.breakfastCost || 0) +
+                      (row.lunchCost || 0) +
+                      (row.supperCost || 0)}
+                  </td>
                   <td className="py-2 px-4 border-b">
                     {getDate(row.createdAt)}
                   </td>
                   <td className="py-2 px-4 border-b">
                     {getDayOfWeek(getDate(row.createdAt))}
                   </td>
-                  {/* New total column */}
                 </tr>
               ))}
-              {/* Row for total cost */}
-              {/* <tr className="font-bold bg-gray-200">
-                <td colSpan="10" className="py-2 px-4 text-right">
-                  المجموع الكلي
-                </td>
-                <td className="py-2 px-4">{totalCost}</td>
-              </tr> */}
             </tbody>
           </table>
         </div>

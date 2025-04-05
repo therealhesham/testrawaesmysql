@@ -828,7 +828,12 @@ export default function Table() {
               overflowY: "auto",
             }}
           >
-            <h2 className={Style["almarai-bold"]}>تسكين عاملة</h2>
+            <h2
+              className={Style["almarai-bold"]}
+              style={{ marginBottom: "4px" }}
+            >
+              تسكين عاملة
+            </h2>
             <FormControl fullWidth>
               <InputLabel id="demo-simple-select-label">نوع العاملة</InputLabel>
               <Select
@@ -874,6 +879,8 @@ export default function Table() {
                 {isPasportVerified && (
                   <div>
                     <Typography>Order Id : {newHomeMaid.id}</Typography>
+                    <Typography>اسم العاملة : {newHomeMaid.Name}</Typography>
+
                     <div className="mb-4">
                       <label className="block text-gray-700">
                         تاريخ التسكين
@@ -1018,6 +1025,11 @@ export default function Table() {
                   onChange={handleNewHomeMaidChange}
                   margin="normal"
                 />
+
+                <label className="block text-gray-700 font-bold mb-1">
+                  تاريخ الميلاد
+                </label>
+
                 <TextField
                   fullWidth
                   label="تاريخ الميلاد"
@@ -1035,6 +1047,10 @@ export default function Table() {
                   onChange={handleNewHomeMaidChange}
                   margin="normal"
                 />
+                <label className="block text-gray-700 font-bold mb-1">
+                  تاريخ بداية الجواز
+                </label>
+
                 <TextField
                   fullWidth
                   label="تاريخ بداية الجواز"
@@ -1044,6 +1060,10 @@ export default function Table() {
                   onChange={handleNewHomeMaidChange}
                   margin="normal"
                 />
+                <label className="block text-gray-700 font-bold mb-1">
+                  تاريخ نهاية الجواز
+                </label>
+
                 <TextField
                   fullWidth
                   label="تاريخ نهاية الجواز"
@@ -1087,6 +1107,10 @@ export default function Table() {
                   onChange={handleNewHomeMaidChange}
                   margin="normal"
                 />
+                <label className="block text-gray-700 font-bold mb-1">
+                  تاريخ التسكين
+                </label>
+
                 <TextField
                   fullWidth
                   type="date"

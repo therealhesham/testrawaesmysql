@@ -413,6 +413,16 @@ export default function Home({ user }) {
                   {/* Notification Badge */}
                 </a>
               </Link>
+
+              <Link href="/admin/checklisttable">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
+                    قائمة الاعاشة
+                  </div>
+                  {/* Notification Badge */}
+                </a>
+              </Link>
             </div>
           </div>
         </div>
