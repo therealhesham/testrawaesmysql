@@ -980,9 +980,7 @@ export default function Table() {
                   <div>
                     {/* <Typography>Ordex : {newHomeMaid.id}</Typography> */}
                     <Typography>اسم العاملة : {newHomeMaid.Name}</Typography>
-                    <Typography>
-                      رقم العاملة : {newHomeMaid.HomeMaid.id}
-                    </Typography>
+                    <Typography>رقم العاملة : {newHomeMaid.id}</Typography>
 
                     <div className="mb-4">
                       <label className="block text-gray-700">

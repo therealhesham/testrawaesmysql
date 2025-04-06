@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const whereClause = {
       Passportnumber: Passportnumber ? { contains: Passportnumber } : undefined,
       Name: Name ? { contains: Name } : undefined,
-      HomeMaid: id ? { id: { equals: Number(id) } } : undefined,
+      id: id ? { equals: Number(id) } : undefined,
     };
 
     // Remove any undefined keys from the whereClause to prevent Prisma errors
@@ -22,20 +22,20 @@ export default async function handler(req, res) {
       Object.entries(whereClause).filter(([_, value]) => value !== undefined)
     );
 
-    // Search for the homeMaid with the dynamic where clause
-    const homeMaid = await prisma.neworder.findMany({
+    const homeMaids = await prisma.homemaid.findMany({
       take: 10,
-      include: { HomeMaid: { select: { Name: true, id: true } } },
       where: filteredWhereClause,
     });
 
-    if (!homeMaid.length) {
+    // Search for the homeMaid with the dynamic where clause
+
+    if (!homeMaids.length) {
       return res
         .status(404)
         .json({ error: "No homemaid found matching the criteria" });
     }
 
-    return res.status(200).json(homeMaid);
+    return res.status(200).json(homeMaids);
   } catch (error) {
     console.error("Error searching homemaid:", error);
     return res.status(500).json({ error: "Internal server error" });
