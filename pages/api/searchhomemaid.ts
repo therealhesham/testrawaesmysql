@@ -7,28 +7,34 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { Passportnumber,Name } = req.query;
-
-  // if (!Passportnumber) {
-  //   return res.status(400).json({ error: "Passportnumber is required" });
-  // }
+  const { Passportnumber, Name, id } = req.query;
 
   try {
-    // البحث عن العاملة باستخدام Passportnumber
-    const homeMaid = await prisma.neworder.findMany({take:10,
-      include: { HomeMaid: { select: { Name: true } } },
-      where: {
-        Passportnumber: { contains: Passportnumber },Name:{contains:Name} // تأكد من تحويله إلى نص
-      },
+    // Prepare the where clause
+    const whereClause = {
+      Passportnumber: Passportnumber ? { contains: Passportnumber } : undefined,
+      Name: Name ? { contains: Name } : undefined,
+      HomeMaid: id ? { id: { equals: Number(id) } } : undefined,
+    };
+
+    // Remove any undefined keys from the whereClause to prevent Prisma errors
+    const filteredWhereClause = Object.fromEntries(
+      Object.entries(whereClause).filter(([_, value]) => value !== undefined)
+    );
+
+    // Search for the homeMaid with the dynamic where clause
+    const homeMaid = await prisma.neworder.findMany({
+      take: 10,
+      include: { HomeMaid: { select: { Name: true, id: true } } },
+      where: filteredWhereClause,
     });
 
-    if (!homeMaid) {
+    if (!homeMaid.length) {
       return res
         .status(404)
-        .json({ error: "No homemaid found with this Passportnumber" });
+        .json({ error: "No homemaid found matching the criteria" });
     }
 
-    // إرجاع بيانات العاملة
     return res.status(200).json(homeMaid);
   } catch (error) {
     console.error("Error searching homemaid:", error);

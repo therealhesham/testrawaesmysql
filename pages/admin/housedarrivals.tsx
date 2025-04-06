@@ -92,9 +92,6 @@ export default function Table() {
   const isFetchingRef = useRef(false);
   const [ID, setID] = useState("");
 
-
-
-
   function getDate(date) {
     const currentDate = new Date(date);
     const form = currentDate.toISOString().split("T")[0];
@@ -309,10 +306,9 @@ export default function Table() {
   };
   const [date, setDate] = useState("");
   useEffect(() => {
-          const decoded = jwtDecode(localStorage.getItem("token"));
-      console.log(decoded);
-      setEmployee(decoded.username);
-
+    const decoded = jwtDecode(localStorage.getItem("token"));
+    console.log(decoded);
+    setEmployee(decoded.username);
 
     fetchData();
   }, [date]);
@@ -458,16 +454,17 @@ export default function Table() {
     }
   };
 
-  const newSearchedHomeMaid =(e)=>{
-
+  const newSearchedHomeMaid = (e) => {
     setNewHomeMaid(e);
-        setIsPassportVerified(true);
-setFindResults(false)
-               }
+    setIsPassportVerified(true);
+    setFindResults(false);
+  };
 
-const [nameQuery,setNameQuery]=useState("")
-const [results,setResults]=useState([])
-const [findResults,setFindResults]=useState(false)
+  const [nameQuery, setNameQuery] = useState("");
+  const [idQuery, setIdQuery] = useState("");
+
+  const [results, setResults] = useState([]);
+  const [findResults, setFindResults] = useState(false);
   // const [employee, setEmployee] = useState("");
   const [isPasportVerified, setIsPassportVerified] = useState(false);
   // دالة البحث عن العاملة الداخلية
@@ -475,7 +472,7 @@ const [findResults,setFindResults]=useState(false)
     try {
       setIsPassportVerified(false);
       const response = await fetch(
-        `/api/searchhomemaid?Passportnumber=${searchQuery}&Name=${nameQuery}`,
+        `/api/searchhomemaid?Passportnumber=${searchQuery}&Name=${nameQuery}&id=${idQuery}`,
         {
           method: "GET",
           headers: {
@@ -488,8 +485,8 @@ const [findResults,setFindResults]=useState(false)
         console.log("نتيجة البحث:", result);
 
         // يمكنك هنا تحديث `newHomeMaid` بالبيانات المسترجعة إذا لزم الأمر
-        setResults(result)
-        setFindResults(true)
+        setResults(result);
+        setFindResults(true);
         // handleSaveNewHomeMaid(); // حفظ البيانات مباشرة بعد البحث
       } else {
         console.error("خطأ في البحث:", await response.json());
@@ -604,14 +601,14 @@ const [findResults,setFindResults]=useState(false)
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              <th
+              {/* <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("id")}
               >
                 رقم الطلب{" "}
                 {sortConfig.key === "id" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th>
+              </th> */}
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("Name")}
@@ -704,7 +701,7 @@ const [findResults,setFindResults]=useState(false)
               data.map((item) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
-                    <td>
+                    {/* <td>
                       <h1
                         className={`text-center cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
                         onClick={() => {
@@ -714,7 +711,7 @@ const [findResults,setFindResults]=useState(false)
                       >
                         {item?.Order.id ? item?.Order.id : "لا يوجد بيان"}
                       </h1>
-                    </td>
+                    </td> */}
                     <td
                       className={`text-center cursor-pointer text-purple-900 text-lg mb-4 ${Style["almarai-light"]}`}
                       onClick={() => {
@@ -923,6 +920,14 @@ const [findResults,setFindResults]=useState(false)
               <Box mt={2}>
                 <TextField
                   fullWidth
+                  label="رقم العاملة"
+                  value={idQuery}
+                  onChange={(e) => setIdQuery(e.target.value)}
+                  margin="normal"
+                />
+
+                <TextField
+                  fullWidth
                   label="اسم العاملة"
                   value={nameQuery}
                   onChange={(e) => setNameQuery(e.target.value)}
@@ -935,14 +940,24 @@ const [findResults,setFindResults]=useState(false)
                   onChange={(e) => setSearchQuery(e.target.value)}
                   margin="normal"
                 />
-               
-                {findResults&&
-   <div id="dropdown" class=" left-0 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-md ">
-      <ul>
-        {results.map(e=>
-        <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer" onClick={()=>newSearchedHomeMaid(e)}>{e.Name}</li>)}
-      </ul>
-    </div>}
+
+                {findResults && (
+                  <div
+                    id="dropdown"
+                    class=" left-0 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-md "
+                  >
+                    <ul>
+                      {results.map((e) => (
+                        <li
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => newSearchedHomeMaid(e)}
+                        >
+                          {e.Name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <Box mt={2} display="flex" justifyContent="space-between">
                   <Button
@@ -963,8 +978,11 @@ const [findResults,setFindResults]=useState(false)
 
                 {isPasportVerified && (
                   <div>
-                    <Typography>Order Id : {newHomeMaid.id}</Typography>
+                    {/* <Typography>Ordex : {newHomeMaid.id}</Typography> */}
                     <Typography>اسم العاملة : {newHomeMaid.Name}</Typography>
+                    <Typography>
+                      رقم العاملة : {newHomeMaid.HomeMaid.id}
+                    </Typography>
 
                     <div className="mb-4">
                       <label className="block text-gray-700">
@@ -992,7 +1010,7 @@ const [findResults,setFindResults]=useState(false)
                       />
                     </div>
 
-                    <div className="mb-4 hidden" >
+                    <div className="mb-4 hidden">
                       <label className="block text-gray-700">الموظف</label>
                       <input
                         type="text"
