@@ -92,6 +92,9 @@ export default function Table() {
   const isFetchingRef = useRef(false);
   const [ID, setID] = useState("");
 
+
+
+
   function getDate(date) {
     const currentDate = new Date(date);
     const form = currentDate.toISOString().split("T")[0];
@@ -306,6 +309,11 @@ export default function Table() {
   };
   const [date, setDate] = useState("");
   useEffect(() => {
+          const decoded = jwtDecode(localStorage.getItem("token"));
+      console.log(decoded);
+      setEmployee(decoded.username);
+
+
     fetchData();
   }, [date]);
 
@@ -450,6 +458,16 @@ export default function Table() {
     }
   };
 
+  const newSearchedHomeMaid =(e)=>{
+
+    setNewHomeMaid(e);
+        setIsPassportVerified(true);
+setFindResults(false)
+               }
+
+const [nameQuery,setNameQuery]=useState("")
+const [results,setResults]=useState([])
+const [findResults,setFindResults]=useState(false)
   // const [employee, setEmployee] = useState("");
   const [isPasportVerified, setIsPassportVerified] = useState(false);
   // دالة البحث عن العاملة الداخلية
@@ -457,7 +475,7 @@ export default function Table() {
     try {
       setIsPassportVerified(false);
       const response = await fetch(
-        `/api/searchhomemaid?Passportnumber=${searchQuery}`,
+        `/api/searchhomemaid?Passportnumber=${searchQuery}&Name=${nameQuery}`,
         {
           method: "GET",
           headers: {
@@ -468,10 +486,11 @@ export default function Table() {
       if (response.ok) {
         const result = await response.json();
         console.log("نتيجة البحث:", result);
+
         // يمكنك هنا تحديث `newHomeMaid` بالبيانات المسترجعة إذا لزم الأمر
-        setNewHomeMaid(result);
+        setResults(result)
+        setFindResults(true)
         // handleSaveNewHomeMaid(); // حفظ البيانات مباشرة بعد البحث
-        setIsPassportVerified(true);
       } else {
         console.error("خطأ في البحث:", await response.json());
       }
@@ -537,7 +556,7 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div className="flex-1 px-2">
+          {/* <div className="flex-1 px-2">
             <input
               type="text"
               value={filters.id}
@@ -545,7 +564,7 @@ export default function Table() {
               placeholder="بحث برقم العاملة"
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
-          </div>
+          </div> */}
           <div className="flex-1 px-1">
             <button
               className={
@@ -904,11 +923,26 @@ export default function Table() {
               <Box mt={2}>
                 <TextField
                   fullWidth
+                  label="اسم العاملة"
+                  value={nameQuery}
+                  onChange={(e) => setNameQuery(e.target.value)}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
                   label="رقم جواز العاملة"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   margin="normal"
                 />
+               
+                {findResults&&
+   <div id="dropdown" class=" left-0 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-md ">
+      <ul>
+        {results.map(e=>
+        <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer" onClick={()=>newSearchedHomeMaid(e)}>{e.Name}</li>)}
+      </ul>
+    </div>}
 
                 <Box mt={2} display="flex" justifyContent="space-between">
                   <Button
@@ -958,7 +992,7 @@ export default function Table() {
                       />
                     </div>
 
-                    <div className="mb-4">
+                    <div className="mb-4 hidden" >
                       <label className="block text-gray-700">الموظف</label>
                       <input
                         type="text"

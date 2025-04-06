@@ -7,18 +7,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { Passportnumber } = req.query;
+  const { Passportnumber,Name } = req.query;
 
-  if (!Passportnumber) {
-    return res.status(400).json({ error: "Passportnumber is required" });
-  }
+  // if (!Passportnumber) {
+  //   return res.status(400).json({ error: "Passportnumber is required" });
+  // }
 
   try {
     // البحث عن العاملة باستخدام Passportnumber
-    const homeMaid = await prisma.neworder.findFirst({
+    const homeMaid = await prisma.neworder.findMany({take:10,
       include: { HomeMaid: { select: { Name: true } } },
       where: {
-        Passportnumber: { contains: Passportnumber }, // تأكد من تحويله إلى نص
+        Passportnumber: { contains: Passportnumber },Name:{contains:Name} // تأكد من تحويله إلى نص
       },
     });
 
