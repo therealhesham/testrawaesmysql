@@ -101,7 +101,7 @@ export default function Table() {
   const fetchData = async () => {
     if (isFetchingRef.current || !hasMore) return;
     isFetchingRef.current = true;
-    setLoading(true);
+    // setLoading(true);
 
     try {
       const queryParams = new URLSearchParams({
@@ -141,11 +141,14 @@ export default function Table() {
   };
   const [employeeName, setEmployeeName] = useState("");
   const postData = async (e) => {
+    setLoading(true);
     try {
       const decoded = jwtDecode(localStorage.getItem("token"));
       console.log(decoded);
       setEmployee(decoded.username);
     } catch (e) {
+      setLoading(false);
+
       router.push("/login");
     }
     e.preventDefault();
@@ -211,11 +214,15 @@ export default function Table() {
       isFetchingRef.current = false;
       setHasMore(true);
       setData([]);
+      setLoading(false);
+
       pageRef.current = 1;
       // fetchData();
       // fetchData();
       // router.push("/admin/neworder/" + data.id);
     } else {
+      setLoading(false);
+
       // setIserrorModalOpen(true);
       // seterrormessage(data.message);
     }
@@ -386,14 +393,20 @@ export default function Table() {
   };
 
   const handleSaveNewHomeMaid = async () => {
-    const decoded = jwtDecode(localStorage.getItem("token"));
-    console.log(decoded);
-    setExternalHomemaid({
-      ...newExternalHomemaid,
-      employee: decoded.username,
-    });
-    if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
+    setLoading(true);
+    try {
+      const decoded = jwtDecode(localStorage.getItem("token"));
+      console.log(decoded);
+      setExternalHomemaid({
+        ...newExternalHomemaid,
+        employee: decoded.username,
+      });
+      // if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
+    } catch (error) {
+      setLoading(false);
 
+      router.push("/admin/login");
+    }
     try {
       const response = await fetch("/api/addexternalhomemaid", {
         method: "POST",
@@ -402,10 +415,9 @@ export default function Table() {
         },
         body: JSON.stringify({
           ...newExternalHomemaid,
-          employee: decoded.username,
         }),
       });
-      if (response.ok) {
+      if (response.status == 200) {
         handleCloseAddModal();
         setOpenAddModal(false);
         setNewHomeMaid({
@@ -443,13 +455,19 @@ export default function Table() {
         setSearchQuery(""); // إعادة تعيين مربع البحث
         isFetchingRef.current = false;
         setHasMore(true);
+
         setData([]);
         pageRef.current = 1;
         fetchData();
+        setLoading(false);
       } else {
+        setLoading(false);
+
         console.error("خطأ في إضافة العاملة:", await response.json());
       }
     } catch (error) {
+      setLoading(false);
+
       console.error("خطأ في الاتصال بالخادم:", error);
     }
   };
@@ -469,6 +487,7 @@ export default function Table() {
   const [isPasportVerified, setIsPassportVerified] = useState(false);
   // دالة البحث عن العاملة الداخلية
   const handleSearch = async () => {
+    // setLoading(true);
     try {
       setIsPassportVerified(false);
       const response = await fetch(
@@ -487,12 +506,15 @@ export default function Table() {
         // يمكنك هنا تحديث `newHomeMaid` بالبيانات المسترجعة إذا لزم الأمر
         setResults(result);
         setFindResults(true);
+        setLoading(false);
         // handleSaveNewHomeMaid(); // حفظ البيانات مباشرة بعد البحث
       } else {
         console.error("خطأ في البحث:", await response.json());
+        setLoading(false);
       }
     } catch (error) {
       console.error("خطأ في الاتصال بالخادم:", error);
+      setLoading(false);
     }
   };
 
@@ -500,6 +522,36 @@ export default function Table() {
     <Layout>
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-4">
+          {loading && (
+            <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+                <svg
+                  className="animate-spin h-8 w-8 text-blue-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 1 1 8 8 8 8 0 0 1-8-8z"
+                  ></path>
+                </svg>
+                <span className="ml-4 text-lg font-semibold text-blue-500">
+                  Loading...
+                </span>
+              </div>
+            </div>
+          )}
+
           <h1
             className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
           >
@@ -715,17 +767,14 @@ export default function Table() {
                     <td
                       className={`text-center cursor-pointer text-purple-900 text-lg mb-4 ${Style["almarai-light"]}`}
                       onClick={() => {
-                        const url =
-                          "/admin/cvdetails/" + item?.Order.HomeMaid.id;
+                        const url = "/admin/cvdetails/" + item?.Order.id;
                         window.open(url, "_blank");
                       }}
                     >
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
-                        {item?.Order.HomeMaid.Name
-                          ? item?.Order.HomeMaid.Name
-                          : "لا يوجد بيان"}
+                        {item?.Order.Name ? item?.Order.Name : "لا يوجد بيان"}
                       </h1>
                     </td>
                     <td
@@ -734,9 +783,7 @@ export default function Table() {
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
-                        {item?.Order.HomeMaid.phone
-                          ? item?.Order.HomeMaid.phone
-                          : "لا يوجد"}
+                        {item?.Order.phone ? item?.Order.phone : "لا يوجد"}
                       </h1>
                     </td>
                     <td
@@ -765,8 +812,8 @@ export default function Table() {
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
-                        {item?.Order.HomeMaid.Nationalitycopy
-                          ? item?.Order.HomeMaid.Nationalitycopy
+                        {item?.Order.Nationalitycopy
+                          ? item?.Order.Nationalitycopy
                           : "لا يوجد بيان"}
                       </h1>
                     </td>
@@ -774,8 +821,8 @@ export default function Table() {
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
-                        {item?.Order.HomeMaid.Passportnumber
-                          ? item?.Order.HomeMaid.Passportnumber
+                        {item?.Order.Passportnumber
+                          ? item?.Order.Passportnumber
                           : "لا يوجد بيان"}
                       </h1>
                     </td>
@@ -797,7 +844,7 @@ export default function Table() {
                     <td className={`text-center mb-4`}>
                       <Button
                         onClick={() => {
-                          setID(item?.Order.HomeMaid.id);
+                          setID(item?.Order.id);
                           setOpenStatusModal(true);
                         }}
                         //تحديث حالة العاملة

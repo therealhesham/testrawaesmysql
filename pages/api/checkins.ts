@@ -16,11 +16,11 @@ export default async function handler(req, res) {
       const checkIns = await prisma.checkIn.findMany({
         where: {
           HousedWorker: {
-            Order: { HomeMaid: { Name: { contains: name } } },
+            Order:  { Name: { contains: name } },
           },
         },
         include: {
-          HousedWorker: { include: { Order: { include: { HomeMaid: true } } } },
+          HousedWorker: { include: { Order:true } },
         },
         skip: skip,
         take: limit,

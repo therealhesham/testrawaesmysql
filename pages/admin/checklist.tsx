@@ -116,7 +116,7 @@ export default function Checklist() {
                 <option value="">اختر الضيف</option>
                 {guests?.map((guest) => (
                   <option key={guest.id} value={guest.id}>
-                    {guest.Order.HomeMaid?.Name}
+                    {guest.Order.Name}
                   </option>
                 ))}
               </select>
