@@ -46,6 +46,8 @@ SewingLeveL   String? @db.VarChar(20)
 BabySitterLevel String? @db.VarChar(20)
 Education String? @db.VarChar(60)
 Housed          housing[]   
+  inHouse        housedworker[]
+
 }
 model weeklyStatus{
   id              Int       @id @default(autoincrement())
@@ -178,7 +180,6 @@ transactios transactions[]
   HomeMaid           homemaid? @relation(fields: [HomemaidId], references: [id])
   OrderStatus        OrderStatus[]
   arrivals        arrivallist[]
-  inHouse        housedworker[]
 
 }
 
@@ -334,7 +335,7 @@ transaction_date   DateTime? @default(now())
 
 model housedworker {
   id             Int       @id @default(autoincrement())
-  order_id       Int       @unique
+  homeMaid_id       Int       @unique
   Reason         String?   @db.VarChar(100)
   employee       String?   @db.VarChar(100)
   Details        String?   @db.VarChar(255)
@@ -346,7 +347,7 @@ model housedworker {
   checkIns       CheckIn[] // يحتوي على جميع سجلات CheckIn المرتبطة بهذا العامل
   
   // العلاقة مع neworder
-  Order          neworder  @relation(fields: [order_id], references: [id])
+  Order          homemaid  @relation(fields: [homeMaid_id], references: [id])
 }
 
 model income{

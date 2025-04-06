@@ -46,13 +46,8 @@ export default async function handler(req, res) {
     }
 
     try {
-      const housing = await prisma.neworder.update({
-        where: { id: homeMaidId },
-        data: { profileStatus: "تسكين" },
-      });
-
       const search = await prisma.housedworker.findFirst({
-        where: { order_id: homeMaidId },
+        where: { homeMaid_id: homeMaidId },
       });
 
       if (!search) {
@@ -63,12 +58,12 @@ export default async function handler(req, res) {
             Details: req.body.details,
             houseentrydate: newObj.houseentrydate,
             deliveryDate: newObj.deliveryDate,
-            Order: { connect: { id: homeMaidId } },
+            homeMaid_id: homeMaidId,
           },
         });
       } else {
         await prisma.housedworker.update({
-          where: { order_id: homeMaidId },
+          where: { homeMaid_id: homeMaidId },
           data: {
             employee: req.body.employee,
             Reason: req.body.reason,
@@ -83,9 +78,7 @@ export default async function handler(req, res) {
         });
       }
 
-      return res
-        .status(200)
-        .json({ message: "Housing updated successfully", housing });
+      return res.status(200).json({ message: "Housing updated successfully" });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Error updating housing" });
@@ -108,11 +101,9 @@ export default async function handler(req, res) {
     // Build the filter object dynamically based on query parameters
     const filters = {
       Order: {
-        HomeMaid: {
-          Name: { contains: Name || "" },
-          Passportnumber: { contains: Passportnumber || "" },
-          ...(id && { id: { equals: Number(id) } }),
-        },
+        Name: { contains: Name || "" },
+        Passportnumber: { contains: Passportnumber || "" },
+        ...(id && { id: { equals: Number(id) } }),
       },
     };
 
@@ -123,36 +114,23 @@ export default async function handler(req, res) {
     let orderBy = {};
     if (sortKey) {
       switch (sortKey) {
-        case "id":
-          orderBy = { Order: { id: sortDirection || "asc" } };
-          break;
         case "Name":
-          orderBy = { Order: { HomeMaid: { Name: sortDirection || "asc" } } };
+          orderBy = { Order: { Name: sortDirection || "asc" } };
           break;
         case "phone":
-          orderBy = { Order: { HomeMaid: { phone: sortDirection || "asc" } } };
+          orderBy = { Order: { phone: sortDirection || "asc" } };
           break;
         case "Details":
           orderBy = { Details: sortDirection || "asc" };
           break;
         case "Nationalitycopy":
           orderBy = {
-            Order: { HomeMaid: { Nationalitycopy: sortDirection || "asc" } },
+            Order: { Nationalitycopy: sortDirection || "asc" },
           };
           break;
-        case "Passportnumber":
-          orderBy = {
-            Order: { HomeMaid: { Passportnumber: sortDirection || "asc" } },
-          };
-          break;
-        case "PassportStart":
-          orderBy = {
-            Order: { HomeMaid: { PassportStart: sortDirection || "asc" } },
-          };
-          break;
-        case "ClientName":
-          orderBy = { Order: { ClientName: sortDirection || "asc" } };
-          break;
+        // case "ClientName":
+        //   orderBy = { Order: { ClientName: sortDirection || "asc" } };
+        //   break;
         default:
           orderBy = {};
       }
@@ -161,7 +139,7 @@ export default async function handler(req, res) {
     try {
       const housing = await prisma.housedworker.findMany({
         where: { ...filters },
-        include: { Order: { include: { arrivals: true, HomeMaid: true } } },
+        include: { Order: true },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
         orderBy: orderBy, // Apply sorting

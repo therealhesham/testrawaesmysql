@@ -165,11 +165,11 @@ const CheckInTable = () => {
                     onClick={() => {
                       const url =
                         "/admin/cvdetails/" +
-                        row.HousedWorker?.Order.HomeMaid.id;
+                        row.HousedWorker?.id;
                       window.open(url, "_blank");
                     }}
                   >
-                    {row.HousedWorker?.Order.HomeMaid?.Name}
+                    {row.HousedWorker?.Order?.Name}
                   </td>
                   <td className="py-2 px-4 border-b">
                     {row.breakfastOption || ""}

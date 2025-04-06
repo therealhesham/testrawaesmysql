@@ -26,7 +26,6 @@ export default async function handler(
         // dateofbirth: req.body.dateofbirth.replace("-", "/"),
         PassportStart: req.body.PassportStart,
         PassportEnd: req.body.PassportEnd,
-        NewOrder: { create: { clientphonenumber: "00000" } },
       },
       include: { NewOrder: true },
 
@@ -44,7 +43,7 @@ export default async function handler(
         Reason: req.body.reason,
         Details: req.body.details,
         employee: req.body.employee,
-        order_id: newexternal.NewOrder[0].id,
+        homeMaid_id: newexternal.id,
       },
     });
     res.status(200).json(newHoused);
