@@ -16,14 +16,15 @@ export default async function handler(req, res) {
       const checkIns = await prisma.checkIn.findMany({
         where: {
           HousedWorker: {
-            Order:  { Name: { contains: name } },
+            Order: { Name: { contains: name } },
           },
         },
         include: {
-          HousedWorker: { include: { Order:true } },
+          HousedWorker: { include: { Order: true } },
         },
         skip: skip,
         take: limit,
+        orderBy: { CheckDate: "desc" },
       });
 
       // Get total count for pagination

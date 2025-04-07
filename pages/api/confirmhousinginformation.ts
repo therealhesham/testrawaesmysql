@@ -2,8 +2,7 @@ import prisma from "./globalprisma";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
-
-console.log(req.body)
+    console.log(req.body);
 
     const {
       homeMaidId,
