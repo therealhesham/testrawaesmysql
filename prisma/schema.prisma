@@ -72,7 +72,7 @@ model CheckIn {
   lunchCost     Int? 
 supperCost     Int?
 breakfastCost  Int?
-
+CheckDate   DateTime?
   lunchNotes      String?   @db.VarChar(255)
   supperOption    String?   @db.VarChar(255)
   supperNotes     String?   @db.VarChar(255)

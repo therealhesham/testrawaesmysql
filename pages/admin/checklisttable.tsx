@@ -163,9 +163,7 @@ const CheckInTable = () => {
                   <td
                     className={`text-center cursor-pointer text-purple-900 text-lg mb-4 `}
                     onClick={() => {
-                      const url =
-                        "/admin/cvdetails/" +
-                        row.HousedWorker?.id;
+                      const url = "/admin/cvdetails/" + row.HousedWorker?.id;
                       window.open(url, "_blank");
                     }}
                   >
@@ -194,10 +192,10 @@ const CheckInTable = () => {
                       (row.supperCost || 0)}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {getDate(row.createdAt)}
+                    {getDate(row.CheckDate)}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {getDayOfWeek(getDate(row.createdAt))}
+                    {getDayOfWeek(getDate(row.CheckDate))}
                   </td>
                 </tr>
               ))}

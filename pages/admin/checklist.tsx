@@ -10,6 +10,8 @@ export default function Checklist() {
   const { register, handleSubmit, reset, setValue, getValues } = useForm();
   const router = useRouter();
 
+  const [selectedDate, setSelectedDate] = useState(""); // State for the selected date
+
   // البحث في الـ API بناءً على الإدخال
   useEffect(() => {
     if (!router) return;
@@ -36,17 +38,22 @@ export default function Checklist() {
       });
 
       // إرسال البيانات إلى الـ API أو قاعدة البيانات
-      await fetch("/api/checkin", {
+      const posting = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
           guestId: selectedGuest.id,
+          checkDate: selectedDate, // Include the selected date in the data
         }),
       });
-      reset();
+      if (posting.status == 200) {
+        reset();
 
-      router.push("/admin/checklisttable"); // إعادة التوجيه بعد الإرسال
+        router.push("/admin/checklisttable"); // إعادة التوجيه بعد الإرسال
+      } else {
+        alert("خطأ في الارسال");
+      }
     } catch (error) {
       console.error("Error submitting check-in:", error);
     }
@@ -101,6 +108,17 @@ export default function Checklist() {
             <h1 className="text-2xl font-bold mb-6 text-center">
               تسجيل في قائمة الاعاشة
             </h1>
+
+            {/* اختيار تاريخ */}
+            <div className="mb-6">
+              <label className="font-medium">اختار التاريخ</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
 
             {/* اختيار الضيف مع البحث */}
             <div className="mb-6">

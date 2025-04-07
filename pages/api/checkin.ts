@@ -13,12 +13,10 @@ export default async function handler(req, res) {
       const existingCheckIn = await prisma.checkIn.findFirst({
         where: {
           housedWorkerId: parseInt(guestId),
-          createdAt: {
-            gte: today, // أكبر من أو يساوي بداية اليوم
-            lt: new Date(today.getTime() + 24 * 60 * 60 * 1000), // أقل من نهاية اليوم
-          },
+          CheckDate: new Date(req.body.checkDate).toISOString(), // تحويل التاريخ إلى ISO string للمقارنة
         },
       });
+      console.log(existingCheckIn);
       console.log(breakfast.option);
       if (existingCheckIn) {
         // تحديث السجل الموجود إذا كان هناك بيانات جديدة فقط
@@ -55,6 +53,7 @@ export default async function handler(req, res) {
         // إنشاء سجل جديد إذا لم يكن موجودًا
         const newCheckIn = await prisma.checkIn.create({
           data: {
+            CheckDate: new Date(req.body.checkDate).toISOString(), // تحويل التاريخ إلى ISO string
             cost: req.body.cost,
             housedWorkerId: parseInt(guestId),
             breakfastOption: breakfast.option || null,
