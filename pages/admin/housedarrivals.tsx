@@ -43,7 +43,45 @@ export default function Table() {
     Passportnumber: "",
     id: "",
   });
+  const [openEditModal, setOpenEditModal] = useState(false);
 
+  const handleCloseEditModal = () => {
+    setDeliveyDate("");
+    sethouseentrydate("");
+    setNewHomeMaid({
+      id: 0,
+      officeID: "",
+      Nationalitycopy: "",
+      Name: "",
+      Religion: "",
+      Passportnumber: "",
+      clientphonenumber: "",
+      ExperienceYears: "",
+      maritalstatus: "",
+      Experience: "",
+      dateofbirth: "",
+      age: "",
+      phone: "",
+      bookingstatus: "",
+      ages: "",
+      officeName: "",
+      experienceType: "",
+      PassportStart: "",
+      PassportEnd: "",
+      OldPeopleCare: false,
+      ArabicLanguageLeveL: "",
+      EnglishLanguageLevel: "",
+      Salary: "",
+      LaundryLeveL: "",
+      IroningLevel: "",
+      CleaningLeveL: "",
+      CookingLeveL: "",
+      SewingLeveL: "",
+      BabySitterLevel: "",
+      Education: "",
+    });
+    setOpenEditModal(false);
+  };
   const router = useRouter();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -209,6 +247,7 @@ export default function Table() {
         BabySitterLevel: "",
         Education: "",
       });
+      handleCloseEditModal();
       setEmployeeType(""); // إعادة تعيين نوع العاملة
       setSearchQuery(""); // إعادة تعيين مربع البحث
       isFetchingRef.current = false;
@@ -397,10 +436,8 @@ export default function Table() {
     try {
       const decoded = jwtDecode(localStorage.getItem("token"));
       console.log(decoded);
-      setExternalHomemaid({
-        ...newExternalHomemaid,
-        employee: decoded.username,
-      });
+
+      setEmployee(decoded.username);
       // if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
     } catch (error) {
       setLoading(false);
@@ -415,6 +452,7 @@ export default function Table() {
         },
         body: JSON.stringify({
           ...newExternalHomemaid,
+          employee,
         }),
       });
       if (response.status == 200) {
@@ -523,7 +561,7 @@ export default function Table() {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-4">
           {loading && (
-            <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+            <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-100">
               <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
                 <svg
                   className="animate-spin h-8 w-8 text-blue-500"
@@ -717,14 +755,14 @@ export default function Table() {
                 {sortConfig.key === "employee" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-              <th
+              {/* <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("ClientName")}
               >
                 اسم العميل{" "}
                 {sortConfig.key === "ClientName" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th>
+              </th> */}
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("ClientName")}
@@ -736,6 +774,12 @@ export default function Table() {
                 // onClick={() => requestSort("ClientName")}
               >
                 تسجيل في الاعاشة{" "}
+              </th>
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                // onClick={() => requestSort("ClientName")}
+              >
+                تعديل بيانات التسكين{" "}
               </th>
             </tr>
           </thead>
@@ -833,13 +877,13 @@ export default function Table() {
                         {item?.employee ? item?.employee : "لا يوجد بيان"}
                       </h1>
                     </td>
-                    <td className={`text-center mb-4`}>
+                    {/* <td className={`text-center mb-4`}>
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
                         {item?.Order.ClientName ? item?.Order.ClientName : null}
                       </h1>
-                    </td>
+                    </td> */}
 
                     <td className={`text-center mb-4`}>
                       <Button
@@ -864,6 +908,24 @@ export default function Table() {
                         }
                       >
                         تسجيل
+                      </Button>
+                    </td>
+                    <td className={`text-center mb-4`}>
+                      <Button
+                        onClick={() => {
+                          // setNewHomeMaid({...newHomeMaid,id:item?.Order.id,Name:item?.Order.Name})
+
+                          setNewHomeMaid({
+                            id: item?.Order.id,
+                            Name: item?.Order.Name,
+                          });
+                          setOpenEditModal(true);
+                        }}
+                        //تحديث حالة العاملة
+                        variant="contained"
+                        color="secondary"
+                      >
+                        تعديل
                       </Button>
                     </td>
                   </tr>
@@ -923,6 +985,116 @@ export default function Table() {
               تحديث
             </button>
           </Box>
+        </Modal>
+
+        <Modal open={openEditModal} onClose={handleCloseEditModal}>
+          <div>
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 600,
+                maxHeight: "80vh",
+                bgcolor: "background.paper",
+                boxShadow: 24,
+                p: 4,
+                borderRadius: 2,
+                overflowY: "auto",
+              }}
+            >
+              <h2
+                className={Style["almarai-bold"]}
+                style={{ marginBottom: "4px" }}
+              >
+                تعديل بيانات
+              </h2>
+
+              <div>
+                {/* <Typography>Ordex : {newHomeMaid.id}</Typography> */}
+                <Typography>اسم العاملة : {newHomeMaid?.Name}</Typography>
+                <Typography>رقم العاملة : {newHomeMaid?.id}</Typography>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700">تاريخ التسكين</label>
+                  <input
+                    type="date"
+                    value={houseentrydate}
+                    onChange={(e) => sethouseentrydate(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded"
+                    // placeholder="أدخل اسمك"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700">تاريخ الاستلام</label>
+                  <input
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveyDate(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded"
+                    // placeholder="أدخل اسمك"
+                  />
+                </div>
+
+                <div className="mb-4 hidden">
+                  <label className="block text-gray-700">الموظف</label>
+                  <input
+                    type="text"
+                    value={employee}
+                    onChange={(e) => setEmployee(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded"
+                    // placeholder="أدخل اسمك"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-gray-700">سبب التسكين</label>
+                  <select
+                    required
+                    className="rounded-md"
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    <option value="">...</option>
+
+                    <option value="نقل كفالة">نقل كفالة</option>
+                    <option value="انتظار الترحيل">انتظار الترحيل</option>
+                    <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
+                    <option value="رفض العمل للسفر">رفض العمل للسفر</option>
+                    <option value="رفض العم لنقل الكفالة">
+                      رفض العمل لنقل الكفالة
+                    </option>
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={details}
+                    onChange={(e) => setdetails(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded"
+                    placeholder="التفاصيل"
+                  />
+                </div>
+                <button
+                  onClick={postData}
+                  className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                >
+                  تسجيل
+                </button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={handleCloseEditModal}
+                >
+                  إلغاء
+                </Button>
+                {/* <button > تسجيل </button> */}
+                <span>{error}</span>
+              </div>
+            </Box>
+          </div>
         </Modal>
 
         {/* Modal لإضافة عاملة جديدة */}
@@ -991,7 +1163,7 @@ export default function Table() {
                 {findResults && (
                   <div
                     id="dropdown"
-                    class=" left-0 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-md "
+                    className=" left-0 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-md "
                   >
                     <ul>
                       {results.map((e) => (

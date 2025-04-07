@@ -348,7 +348,7 @@ const ResumePage = () => {
               </h3>
               <h3 className="col-span-4 col-start-3">
                 {filteredSuggestions?.dateofbirth
-                  ? getDate(filteredSuggestions?.dateofbirth)
+                  ? filteredSuggestions?.dateofbirth
                   : null}
               </h3>
               <h3 className="text-xl font-semibold col-span-1 text-gray-800">
@@ -446,25 +446,25 @@ const ResumePage = () => {
                 الطبخ
               </h3>
               <h3 className="col-span-4 col-start-3">
-                {filteredSuggestions?.CookingLevel || "بيانات غير متاحة"}
+                {filteredSuggestions?.CookingLeveL || "بيانات غير متاحة"}
               </h3>
               <h3 className="text-xl font-semibold col-span-1 text-gray-800">
                 الغسيل
               </h3>
               <h3 className="col-span-4 col-start-3">
-                {filteredSuggestions?.LaundryLevel || "بيانات غير متاحة"}
+                {filteredSuggestions?.LaundryLeveL || "بيانات غير متاحة"}
               </h3>
               <h3 className="text-xl font-semibold col-span-1 text-gray-800">
                 التنظيف
               </h3>
               <h3 className="col-span-4 col-start-3">
-                {filteredSuggestions?.CleaningLevel || "بيانات غير متاحة"}
+                {filteredSuggestions?.CleaningLeveL || "بيانات غير متاحة"}
               </h3>
               <h3 className="text-xl font-semibold col-span-1 text-gray-800">
                 الخياطة
               </h3>
               <h3 className="col-span-4 col-start-3">
-                {filteredSuggestions?.SewingLevel || "بيانات غير متاحة"}
+                {filteredSuggestions?.SewingLeveL || "بيانات غير متاحة"}
               </h3>
             </div>
           </div>
