@@ -2,6 +2,9 @@ import prisma from "./globalprisma";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
+
+console.log(req.body)
+
     const {
       homeMaidId,
       profileStatus,
@@ -44,7 +47,6 @@ export default async function handler(req, res) {
     if (!homeMaidId) {
       return res.status(400).json({ error: "HomeMaidId is required" });
     }
-
     try {
       const search = await prisma.housedworker.findFirst({
         where: { homeMaid_id: homeMaidId },
