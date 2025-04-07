@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
-import { set } from "mongoose";
+import { useRouter } from "next/router"; // استيراد useRouter
+import { ChevronLeftIcon } from "@heroicons/react/solid"; // استيراد أيقونة الرجوع
 
 const CheckInTable = () => {
+  const router = useRouter(); // تعريف useRouter
+
   const [checkInData, setCheckInData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1); // Total pages from API
-  const [searchQuery, setSearchQuery] = useState(""); // New state for search query
-  const rowsPerPage = 10; // Number of rows per page (limit)
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const rowsPerPage = 10;
 
   function getDayOfWeek(date) {
     const daysOfWeek = [
@@ -23,8 +26,8 @@ const CheckInTable = () => {
       "السبت",
     ];
     const dateObject = new Date(date);
-    const dayOfWeek = dateObject.getDay(); // الحصول على اليوم من 0 إلى 6
-    return daysOfWeek[dayOfWeek]; // إرجاع اليوم بالاسم باللغة العربية
+    const dayOfWeek = dateObject.getDay();
+    return daysOfWeek[dayOfWeek];
   }
 
   function getDate(date) {
@@ -32,13 +35,15 @@ const CheckInTable = () => {
     const form = currentDate.toISOString().split("T")[0];
     return form;
   }
+
   const [date, setDate] = useState(new Date());
+
   useEffect(() => {
     const fetchCheckInData = async () => {
       setLoading(true);
       try {
         const response = await fetch(
-          `/api/checkins?page=${currentPage}&limit=${rowsPerPage}&name=${searchQuery}` // Pass page and limit as query params
+          `/api/checkins?page=${currentPage}&limit=${rowsPerPage}&name=${searchQuery}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch check-in data");
@@ -57,9 +62,8 @@ const CheckInTable = () => {
   }, [currentPage, date]);
 
   const handleSearch = () => {
-    setCurrentPage(1); // Reset to the first page when searching
-
-    setDate(new Date()); // Reset date to current date when searching
+    setCurrentPage(1);
+    setDate(new Date());
   };
 
   const handleNextPage = () => {
@@ -82,6 +86,10 @@ const CheckInTable = () => {
     }, 0);
   };
 
+  const handleBack = () => {
+    router.back(); // العودة إلى الصفحة السابقة
+  };
+
   if (loading) {
     return <div className="text-center p-4">Loading...</div>;
   }
@@ -95,6 +103,15 @@ const CheckInTable = () => {
   return (
     <Layout>
       <div className="container mx-auto p-4">
+        {/* زر الرجوع مع الأيقونة */}
+        <button
+          onClick={handleBack}
+          className="flex items-center px-4 py-2  bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"
+        >
+          <ChevronLeftIcon className="w-5 h-5 mr-2" /> {/* أيقونة الرجوع */}
+          رجوع
+        </button>
+
         {/* Search Input and Button */}
         <div className="mb-4 flex items-center ">
           <input
@@ -159,9 +176,9 @@ const CheckInTable = () => {
             </thead>
             <tbody>
               {checkInData.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50 ">
+                <tr key={row.id} className="hover:bg-gray-50">
                   <td
-                    className={`text-center cursor-pointer text-purple-900 text-lg mb-4 `}
+                    className="text-center cursor-pointer text-purple-900 text-lg mb-4"
                     onClick={() => {
                       const url = "/admin/cvdetails/" + row.HousedWorker?.id;
                       window.open(url, "_blank");
