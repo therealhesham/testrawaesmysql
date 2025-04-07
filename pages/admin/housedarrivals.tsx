@@ -172,6 +172,7 @@ export default function Table() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
+      setLoading(false);
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
@@ -351,12 +352,19 @@ export default function Table() {
     setEmployeeType(e.target.value);
   };
   const [date, setDate] = useState("");
-  useEffect(() => {
-    const decoded = jwtDecode(localStorage.getItem("token"));
-    console.log(decoded);
-    setEmployee(decoded.username);
 
+  useEffect(() => {
+    setLoading(true);
+    try {
+      const decoded = jwtDecode(localStorage.getItem("token"));
+      console.log(decoded);
+      setEmployee(decoded.username);
+    } catch (e) {
+      setLoading(false);
+      router.push("admin/login");
+    }
     fetchData();
+    // setLoading(false);
   }, [date]);
 
   const handleFilterChange = (
@@ -561,7 +569,7 @@ export default function Table() {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-4">
           {loading && (
-            <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-100">
+            <div className="absolute  inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
               <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
                 <svg
                   className="animate-spin h-8 w-8 text-blue-500"
