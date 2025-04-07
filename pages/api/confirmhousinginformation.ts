@@ -72,7 +72,7 @@ export default async function handler(req, res) {
             houseentrydate: req.body.houseentrydate
               ? new Date(req.body.houseentrydate).toISOString()
               : search.houseentrydate,
-            deliveryDate: req.body.deliverDate
+            deliveryDate: req.body.deliveryDate
               ? new Date(req.body.deliveryDate)
               : search.deliveryDate,
           },

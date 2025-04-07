@@ -739,6 +739,16 @@ export default function Table() {
                 {sortConfig.key === "houseentrydate" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
+
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Details")}
+              >
+                تاريخ التسليم{" "}
+                {sortConfig.key === "houseentrydate" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+              </th>
+
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("Nationalitycopy")}
@@ -857,6 +867,19 @@ export default function Table() {
                       >
                         {item?.houseentrydate
                           ? getDate(item?.houseentrydate)
+                          : "لا يوجد"}
+                      </h1>
+                    </td>
+
+                    <td
+                      className={`text-center mb-4 ${Style["almarai-light"]}`}
+                      onClick={() => handleRowClick(item.id)}
+                    >
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.deliveryDate
+                          ? getDate(item?.deliveryDate)
                           : "لا يوجد"}
                       </h1>
                     </td>
