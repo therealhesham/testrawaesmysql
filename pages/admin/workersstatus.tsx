@@ -5,6 +5,8 @@ import * as React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import jwt from "jsonwebtoken";
 import { jwtDecode } from "jwt-decode";
+import { ChevronLeftIcon } from "@heroicons/react/solid"; // استيراد أيقونة الرجوع
+
 import {
   Button,
   Modal,
@@ -141,6 +143,9 @@ export default function Table() {
   const [status, setStatus] = useState("");
   const [dateStatus, setDateStatus] = useState("");
   const [openStatusModal, setOpenStatusModal] = useState(false);
+  const handleBack = () => {
+    router.back(); // العودة إلى الصفحة السابقة
+  };
 
   const handleCloseStatusModal = () => {
     setOpenStatusModal(false);
@@ -269,6 +274,14 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
+        <button
+          onClick={handleBack}
+          className="flex items-center px-4 py-2  bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"
+        >
+          <ChevronLeftIcon className="w-5 h-5 mr-2" /> {/* أيقونة الرجوع */}
+          رجوع
+        </button>
+
         <div className="flex justify-between items-center mb-4">
           <h1
             className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
