@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import prisma from "pages/api/globalprisma";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { ChevronLeftIcon } from "@heroicons/react/solid"; // استيراد أيقونة الرجوع
 
 export default function Checklist() {
   const [selectedGuest, setSelectedGuest] = useState(null);
@@ -99,11 +100,21 @@ export default function Checklist() {
       setExtraMeal((prev) => ({ ...prev, [mealId]: false }));
     }
   };
+  const handleBack = () => {
+    router.back(); // العودة إلى الصفحة السابقة
+  };
 
   return (
     <Layout>
       <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12 w-full">
         <div className="relative py-3 sm:max-w-3xl sm:mx-auto w-full">
+          <button
+            onClick={handleBack}
+            className="flex items-center px-4 py-2  bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"
+          >
+            <ChevronLeftIcon className="w-5 h-5 mr-2" /> {/* أيقونة الرجوع */}
+            رجوع
+          </button>
           <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20 w-full">
             <h1 className="text-2xl font-bold mb-6 text-center">
               تسجيل في قائمة الاعاشة
