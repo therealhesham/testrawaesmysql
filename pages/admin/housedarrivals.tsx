@@ -20,13 +20,121 @@ import {
 } from "@mui/material";
 import Style from "styles/Home.module.css";
 import { FaHouseUser } from "react-icons/fa";
+import { set } from "mongoose";
 
 export default function Table() {
   const [employeeType, setEmployeeType] = useState("");
+  const [deparatureDate, setDeparatureDate] = useState("");
+  const [timeDeparature, setTimeDeparature] = useState("");
+  const [deparatureFromSaudi, setDeparatureFromSaudi] = useState("");
+  // Handler for updating the departure date
+  const handleDateChange = (e) => {
+    setDeparatureDate(e.target.value);
+  };
 
+  // Handler for updating the departure time
+  const handleTimeChange = (e) => {
+    setTimeDeparature(e.target.value);
+  };
+
+  // Submit handler function
+  const handleSubmit = async () => {
+    // Your submit logic here (e.g., sending data to API)
+    const departureData = {
+      departureDate: deparatureDate,
+      departureTime: timeDeparature,
+    };
+
+    const fetchData = await fetch("/api/housingdeparature", {
+      body: JSON.stringify({
+        // ...values,
+        employee,
+        reason: deparatureReason,
+        details: details,
+        homeMaid: newHomeMaid.id,
+        departureDate: deparatureDate,
+        deparatureFromSaudi,
+        departureTime: timeDeparature,
+        // fullname: name,
+      }),
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await fetchData.json();
+
+    if (fetchData.status == 201) {
+      // onClose();
+      // setDate();
+      handleCloseAddModal();
+      setOpenAddModal(false);
+      setNewHomeMaid({
+        officeID: "",
+        Nationalitycopy: "",
+        Name: "",
+        Religion: "",
+        Passportnumber: "",
+        clientphonenumber: "",
+        ExperienceYears: "",
+        maritalstatus: "",
+        Experience: "",
+        dateofbirth: "",
+        age: "",
+        phone: "",
+        bookingstatus: "",
+        ages: "",
+        officeName: "",
+        experienceType: "",
+        PassportStart: "",
+        PassportEnd: "",
+        OldPeopleCare: false,
+        ArabicLanguageLeveL: "",
+        EnglishLanguageLevel: "",
+        Salary: "",
+        LaundryLeveL: "",
+        IroningLevel: "",
+        CleaningLeveL: "",
+        CookingLeveL: "",
+        SewingLeveL: "",
+        BabySitterLevel: "",
+        Education: "",
+      });
+      handleCloseEditModal();
+      setEmployeeType(""); // إعادة تعيين نوع العاملة
+      setSearchQuery(""); // إعادة تعيين مربع البحث
+      isFetchingRef.current = false;
+      setHasMore(true);
+      setData([]);
+      setLoading(false);
+
+      pageRef.current = 1;
+      // fetchData();
+      // fetchData();
+      // router.push("/admin/neworder/" + data.id);
+    } else {
+      setLoading(false);
+
+      // setIserrorModalOpen(true);
+      // seterrormessage(data.message);
+    }
+
+    console.log("Departure data submitted: ", departureData);
+
+    // Close modal after submission (optional)
+    handleCloseDeparatureModal();
+  };
   const [details, setdetails] = useState("");
+  const [deparatureReason, setDeparatueReason] = useState("");
 
   const [reason, setReason] = useState("");
+  const handleCloseDeparatureModal = () => {
+    setDeparatueReason("");
+
+    setOpenDeparatureModal(false);
+  };
+  const [openDeparatureModal, setOpenDeparatureModal] = useState(false);
 
   const [employee, setEmployee] = useState("");
 
@@ -568,6 +676,28 @@ export default function Table() {
     <Layout>
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-4">
+          <div className="absolute top-4 right-10">
+            <button
+              // onClick={handleExitClick}
+              className="text-gray-500 hover:text-black"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                className="h-8 w-8"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
           {loading && (
             <div className="absolute  inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
               <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
@@ -605,6 +735,14 @@ export default function Table() {
           </h1>
           <div>
             {" "}
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="secondary"
+              onClick={() => router.push("/admin/checklistpackage")}
+            >
+              تسجيل الاعاشات
+            </Button>
             <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
@@ -791,13 +929,20 @@ export default function Table() {
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 // onClick={() => requestSort("ClientName")}
               >
-                تسجيل في الاعاشة{" "}
+                تعديل في الاعاشة{" "}
               </th>
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 // onClick={() => requestSort("ClientName")}
               >
                 تعديل بيانات التسكين{" "}
+              </th>
+
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                // onClick={() => requestSort("ClientName")}
+              >
+                مغادرة السكن{" "}
               </th>
             </tr>
           </thead>
@@ -938,7 +1083,7 @@ export default function Table() {
                           router.push("/admin/checklist?id=" + item?.Order.id)
                         }
                       >
-                        تسجيل
+                        تعديل
                       </Button>
                     </td>
                     <td className={`text-center mb-4`}>
@@ -959,6 +1104,20 @@ export default function Table() {
                         تعديل
                       </Button>
                     </td>
+                    <td className={`text-center mb-4`}>
+                      <Button
+                        onClick={() => {
+                          setNewHomeMaid({ id: item?.Order.id });
+                          setOpenDeparatureModal(true);
+                          // setNewHomeMaid({...newHomeMaid,id:item?.Order.id,Name:item?.Order.Name})
+                        }}
+                        //تحديث حالة العاملة
+                        variant="contained"
+                        color="error"
+                      >
+                        مغادرة
+                      </Button>
+                    </td>
                   </tr>
                   {expandedRow === item.id && (
                     <tr className="bg-gray-100">
@@ -975,6 +1134,115 @@ export default function Table() {
           </tbody>
         </table>
 
+        <Modal open={openDeparatureModal} onClose={handleCloseDeparatureModal}>
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              maxHeight: "80vh",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              overflowY: "auto",
+            }}
+          >
+            <h2 className="almarai-bold">مغادرة من السكن</h2>
+
+            <div className="mb-4">
+              <label
+                style={{ display: "flex", justifyContent: "center" }}
+                htmlFor="date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                تاريخ المغادرة
+              </label>
+              <input
+                onChange={(e) => setDeparatureDate(e.target.value)}
+                value={deparatureDate}
+                id="deparaturedate"
+                name="deparaturedate"
+                type="date"
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700">سبب التسكين</label>
+              <select
+                required
+                className="rounded-md"
+                onChange={(e) => setDeparatueReason(e.target.value)}
+              >
+                <option value="">...</option>
+
+                <option value="سافرت">سافرت</option>
+                <option value="نقل كفالة">نقل كفالة</option>
+                <option value="رجعت للكقيل">رجعت للكفيل</option>
+                <option value="هربت">هربت</option>
+                <option value="تم تسليمها لجهة حكومية">
+                  تم تسليمها لجهة حكومية
+                </option>
+                <option value="تم تسليمها لجهة حكومية">المستشفى</option>
+              </select>
+            </div>
+
+            {deparatureReason === "سافرت" && (
+              <div>
+                <div className="mb-4">
+                  <label
+                    style={{ display: "flex", justifyContent: "center" }}
+                    htmlFor="date"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    تاريخ المغادرة
+                  </label>
+                  <input
+                    onChange={(e) => setDeparatureFromSaudi(e.target.value)}
+                    value={deparatureFromSaudi}
+                    id="deparatureFromSaudi"
+                    name="deparatureFromSaudi"
+                    type="date"
+                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label
+                    style={{ display: "flex", justifyContent: "center" }}
+                    htmlFor="time"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    توقيت المغادرة
+                  </label>
+                  <input
+                    type="time"
+                    id="time"
+                    value={timeDeparature}
+                    onChange={handleTimeChange}
+                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleCloseDeparatureModal}
+              className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+              اغلاق
+            </button>
+
+            <button
+              onClick={handleSubmit}
+              className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+              تحديث
+            </button>
+          </Box>
+        </Modal>
         <Modal open={openStatusModal} onClose={handleCloseStatusModal}>
           <Box
             sx={{
@@ -1283,7 +1551,9 @@ export default function Table() {
                         <option value="مشكلة مكتب العمل">
                           مشكلة مكتب العمل
                         </option>
-                        <option value="رفض العمل للسفر">رفض العمل للسفر</option>
+                        <option value="رفض العمل للسفر">
+                          رفض العامل للسفر
+                        </option>
                         <option value="رفض العم لنقل الكفالة">
                           رفض العمل لنقل الكفالة
                         </option>
@@ -1299,6 +1569,7 @@ export default function Table() {
                         placeholder="التفاصيل"
                       />
                     </div>
+
                     <button
                       onClick={postData}
                       className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -1307,6 +1578,8 @@ export default function Table() {
                     </button>
                     {/* <button > تسجيل </button> */}
                     <span>{error}</span>
+
+                    <div></div>
                   </div>
                 )}
               </Box>

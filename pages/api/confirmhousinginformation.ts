@@ -54,6 +54,11 @@ export default async function handler(req, res) {
       if (!search) {
         await prisma.housedworker.create({
           data: {
+            checkIns: {
+              create: {
+                CheckDate: newObj.houseentrydate, // Ensure this is a valid date
+              },
+            },
             employee: req.body.employee,
             Reason: req.body.reason,
             Details: req.body.details,

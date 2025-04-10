@@ -3,7 +3,9 @@ import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
 import { useRouter } from "next/router"; // استيراد useRouter
 import { ChevronLeftIcon } from "@heroicons/react/solid"; // استيراد أيقونة الرجوع
-
+import {
+  Button
+} from "@mui/material";
 const CheckInTable = () => {
   const router = useRouter(); // تعريف useRouter
 
@@ -111,7 +113,31 @@ const CheckInTable = () => {
           <ChevronLeftIcon className="w-5 h-5 mr-2" /> {/* أيقونة الرجوع */}
           رجوع
         </button>
-
+<div id="hesham" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+  <Button
+    style={{ marginLeft: "10px" }}
+    variant="contained"
+    color="secondary"
+    onClick={() => router.push("/admin/workersstatus")}
+  >
+    حالات العاملات
+  </Button>
+  <Button
+    style={{ marginLeft: "10px" }}
+    variant="contained"
+    color="warning"
+    onClick={() => router.push("/admin/housedarrivals")}
+  >
+    جدول التسكين
+  </Button>
+  {/* <Button
+    variant="contained"
+    color="primary"
+    onClick={() => router.push("/admin/checklisttable")}
+  >
+    بيانات الاعاشة
+  </Button> */}
+</div>
         {/* Search Input and Button */}
         <div className="mb-4 flex items-center ">
           <input

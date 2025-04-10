@@ -20,17 +20,23 @@ export default async function handler(req, res) {
           },
         },
         include: {
-          HousedWorker: { include: { Order: true } },
+          HousedWorker: { where: { isActive: true }, include: { Order: true } },
         },
         skip: skip,
         take: limit,
-        orderBy: { CheckDate: "desc" },
+        // orderBy: { CheckDate: "desc" },
       });
 
       // Get total count for pagination
-      const totalCount = await prisma.checkIn.count();
+      const totalCount = await prisma.checkIn.count({
+        where: {
+          HousedWorker: {
+            Order: { Name: { contains: name } },
+          },
+        },
+      });
       const totalPages = Math.ceil(totalCount / limit);
-      console.log(checkIns);
+      // console.log(checkIns);
       // Return data and pagination info
       res.status(200).json({
         data: checkIns,

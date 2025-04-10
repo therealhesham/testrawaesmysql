@@ -16,6 +16,7 @@ export default async function handler(
   const page = req.query.id - 1;
   console.log(page);
   const find = await prisma.neworder.findMany({
+    where: { isHidden: false },
     select: {
       age: true,
       ages: true,

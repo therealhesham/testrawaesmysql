@@ -274,6 +274,24 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
+        <div id="hesham" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="warning"
+              onClick={() => router.push("/admin/housedarrivals")}
+
+            >
+            جدول التسكين
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => router.push("/admin/checklisttable")}
+            >
+              بيانات الاعاشة
+            </Button>
+          </div>
         <button
           onClick={handleBack}
           className="flex items-center px-4 py-2  bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"

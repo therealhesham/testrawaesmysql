@@ -31,6 +31,7 @@ export default async function handler(
       skip: (Number(pid) - 1) * 10,
       take: 10,
       where: {
+        isHidden: false,
         NOT: { bookingstatus: "حجز جديد" },
         AND: { bookingstatus: { not: { equals: "طلب مرفوض" } } },
       },
