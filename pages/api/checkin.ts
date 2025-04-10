@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       if (existingCheckIn) {
         // تحديث السجل الموجود إذا كان هناك بيانات جديدة فقط
         const updatedCheckIn = await prisma.checkIn.update({
-          where: { id: existingCheckIn.id },
+          where: { id: existingCheckIn.id, isActive: true },
           data: {
             cost: req.body.cost ? req.body.cost : existingCheckIn.cost,
             breakfastOption:
