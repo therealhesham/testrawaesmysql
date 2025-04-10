@@ -64,6 +64,7 @@ homeMaid_id  Int
   
 }
 model CheckIn {
+  isActive        Boolean? @default(true)
   id              Int       @id @default(autoincrement())
   housedWorkerId  Int       // حقل جديد للربط مع housedworker
   breakfastOption String?   @db.VarChar(255)
@@ -153,6 +154,8 @@ model neworder {
   bookingstatus      String?   @db.VarChar(255)
   profileStatus      String?   @db.VarChar(255)
 transactios transactions[]
+  isHidden        Boolean? @default(false)
+
   ReasonOfRejection  String?   @db.VarChar(255)
   housed              housing[]
   income              income[]
@@ -334,10 +337,14 @@ transaction_date   DateTime? @default(now())
 
 
 model housedworker {
+deparatureReason  String?   @db.VarChar(100) 
+deparatureHousingDate  DateTime? 
+
   id             Int       @id @default(autoincrement())
   homeMaid_id       Int       @unique
   Reason         String?   @db.VarChar(100)
   employee       String?   @db.VarChar(100)
+  isActive        Boolean? @default(true)
   Details        String?   @db.VarChar(255)
   houseentrydate DateTime?
   transaction_type String?
