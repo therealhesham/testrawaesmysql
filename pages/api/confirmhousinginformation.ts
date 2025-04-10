@@ -117,7 +117,7 @@ export default async function handler(req, res) {
       filters.Nationalitycopy = { contains: Nationality.toLowerCase() };
 
     // Build the sorting object dynamically based on sortKey and sortDirection
-    let orderBy = {};
+    let orderBy = { id: "desc" }; // Default sorting by id in descending order
     if (sortKey) {
       switch (sortKey) {
         case "Name":

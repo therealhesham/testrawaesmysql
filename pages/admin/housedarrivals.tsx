@@ -889,6 +889,15 @@ export default function Table() {
 
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Details")}
+              >
+                تاريخ المغادرة{" "}
+                {/* {sortConfig.key === "houseentrydate" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")} */}
+              </th>
+
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("Nationalitycopy")}
               >
                 الجنسية{" "}
@@ -1012,7 +1021,7 @@ export default function Table() {
                       >
                         {item?.houseentrydate
                           ? getDate(item?.houseentrydate)
-                          : "لا يوجد"}
+                          : ""}
                       </h1>
                     </td>
 
@@ -1023,18 +1032,28 @@ export default function Table() {
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
-                        {item?.deliveryDate
-                          ? getDate(item?.deliveryDate)
-                          : "لا يوجد"}
+                        {item?.deliveryDate ? getDate(item?.deliveryDate) : ""}
                       </h1>
                     </td>
+                    <td
+                      className={`text-center mb-4 ${Style["almarai-light"]}`}
+                    >
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.deparatureHousingDate
+                          ? getDate(item?.deparatureHousingDate)
+                          : "لم يغادر بعد"}
+                      </h1>
+                    </td>
+
                     <td className={`text-center mb-4`}>
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
                         {item?.Order.Nationalitycopy
                           ? item?.Order.Nationalitycopy
-                          : "لا يوجد بيان"}
+                          : ""}
                       </h1>
                     </td>
                     <td className={`text-center mb-4`}>
@@ -1169,11 +1188,17 @@ export default function Table() {
                 className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div className="mb-4">
-              <label className="block text-gray-700">سبب التسكين</label>
+            <div className="mb-4 w-full">
+              <label
+                style={{ display: "flex", justifyContent: "center" }}
+                htmlFor="date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                سبب المغادرة
+              </label>
               <select
                 required
-                className="rounded-md"
+                className="rounded-md w-full"
                 onChange={(e) => setDeparatueReason(e.target.value)}
               >
                 <option value="">...</option>
@@ -1360,9 +1385,9 @@ export default function Table() {
                     <option value="نقل كفالة">نقل كفالة</option>
                     <option value="انتظار الترحيل">انتظار الترحيل</option>
                     <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
-                    <option value="رفض العمل للسفر">رفض العمل للسفر</option>
+                    <option value="رفض العمل للسفر">رفض العامل للسفر</option>
                     <option value="رفض العم لنقل الكفالة">
-                      رفض العمل لنقل الكفالة
+                      رفض العامل لنقل الكفالة
                     </option>
                   </select>
                 </div>
