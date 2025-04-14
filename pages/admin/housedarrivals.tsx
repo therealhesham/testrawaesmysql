@@ -52,8 +52,10 @@ export default function Table() {
         reason: deparatureReason,
         details: details,
         homeMaid: newHomeMaid.id,
-        departureDate: deparatureDate,
-        deparatureFromSaudi,
+        departureDate: new Date(deparatureDate).toISOString(),
+        deparatureFromSaudi: deparatureFromSaudi
+          ? new Date(deparatureFromSaudi).toISOString()
+          : null,
         departureTime: timeDeparature,
         // fullname: name,
       }),
