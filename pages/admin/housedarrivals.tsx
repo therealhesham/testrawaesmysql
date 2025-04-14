@@ -1426,7 +1426,7 @@ export default function Table() {
                   إلغاء
                 </Button>
                 {/* <button > تسجيل </button> */}
-                <span>{errowr}</span>
+                <span>{error}</span>
               </div>
             </Box>
           </div>
