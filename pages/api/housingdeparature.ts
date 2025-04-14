@@ -21,9 +21,7 @@ export default async function handler(
           HomemaidIdCopy: req.body.homeMaid,
           arrivals: {
             create: {
-              DeparatureFromSaudiDate: new Date(
-                req.body.deparatureFromSaudi
-              ).toISOString(),
+              DeparatureFromSaudiDate: req.body.deparatureFromSaudi,
               HomemaIdnumber: req.body.homeMaid, // Replace with the actual unique field for 'arrivallist'
 
               deparatureTime: req.body.departureTime,
@@ -39,7 +37,7 @@ export default async function handler(
         data: {
           isActive: false,
           deparatureReason: "سافرت",
-          deparatureHousingDate: new Date(req.body.departureDate).toISOString(),
+          deparatureHousingDate: req.body.departureDate,
         },
       });
 
@@ -68,9 +66,7 @@ export default async function handler(
               data: {
                 DeparatureFromSaudiTime: req.body.departureTime,
 
-                DeparatureFromSaudiDate: new Date(
-                  req.body.deparatureFromSaudi
-                ).toISOString(),
+                DeparatureFromSaudiDate: req.body.deparatureFromSaudi,
               },
             },
           },
@@ -84,7 +80,7 @@ export default async function handler(
         data: {
           isActive: false,
           deparatureReason: "سافرت",
-          deparatureHousingDate: new Date(req.body.departureDate).toISOString(),
+          deparatureHousingDate: req.body.departureDate,
           checkIns: {
             updateMany: {
               where: { isActive: true }, // Add appropriate conditions here
