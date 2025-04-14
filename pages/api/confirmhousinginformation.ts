@@ -144,7 +144,10 @@ export default async function handler(req, res) {
 
     try {
       const housing = await prisma.housedworker.findMany({
-        where: { ...filters },
+        where: {
+          ...filters,
+          deparatureHousingDate: null,
+        },
         include: { Order: true },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,

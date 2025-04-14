@@ -44,7 +44,7 @@ export default function Table() {
       departureDate: deparatureDate,
       departureTime: timeDeparature,
     };
-
+    setLoadingScreen(true);
     const fetchData = await fetch("/api/housingdeparature", {
       body: JSON.stringify({
         // ...values,
@@ -110,6 +110,7 @@ export default function Table() {
       setHasMore(true);
       setData([]);
       setLoading(false);
+      setLoadingScreen(false);
 
       pageRef.current = 1;
       // fetchData();
@@ -120,7 +121,9 @@ export default function Table() {
 
       // setIserrorModalOpen(true);
       // seterrormessage(data.message);
+      setLoadingScreen(false);
     }
+    setLoadingScreen(false);
 
     console.log("Departure data submitted: ", departureData);
 
@@ -145,6 +148,7 @@ export default function Table() {
   const [error, setError] = useState("");
   const [errormodaopen, setIserrorModalOpen] = useState(false);
   const [errormessage, seterrormessage] = useState("");
+  const [loadingScreen, setLoadingScreen] = useState(false);
 
   const [expandedRow, setExpandedRow] = useState(null);
   const [filters, setFilters] = useState({
@@ -290,6 +294,7 @@ export default function Table() {
   };
   const [employeeName, setEmployeeName] = useState("");
   const postData = async (e) => {
+    setLoadingScreen(true);
     setLoading(true);
     try {
       const decoded = jwtDecode(localStorage.getItem("token"));
@@ -301,7 +306,10 @@ export default function Table() {
       router.push("/login");
     }
     e.preventDefault();
-    if (reason.length < 1) return alert("يرجى ادخال سبب التسكين");
+    if (reason.length < 1) {
+      setLoadingScreen(false);
+      return alert("يرجى ادخال سبب التسكين");
+    }
     const fetchData = await fetch("/api/confirmhousinginformation/", {
       body: JSON.stringify({
         // ...values,
@@ -365,6 +373,7 @@ export default function Table() {
       setHasMore(true);
       setData([]);
       setLoading(false);
+      setLoadingScreen(false);
 
       pageRef.current = 1;
       // fetchData();
@@ -372,7 +381,7 @@ export default function Table() {
       // router.push("/admin/neworder/" + data.id);
     } else {
       setLoading(false);
-
+      setLoadingScreen(false);
       // setIserrorModalOpen(true);
       // seterrormessage(data.message);
     }
@@ -1417,7 +1426,7 @@ export default function Table() {
                   إلغاء
                 </Button>
                 {/* <button > تسجيل </button> */}
-                <span>{error}</span>
+                <span>{errowr}</span>
               </div>
             </Box>
           </div>
@@ -1803,6 +1812,15 @@ export default function Table() {
             ) : null}
           </Box>
         </Modal>
+        {loadingScreen && (
+          <Modal open={loadingScreen}>
+            <Box>
+              <div className="fixed inset-0  opacity-50 flex items-center justify-center bg-white z-1000">
+                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            </Box>
+          </Modal>
+        )}
 
         {hasMore && (
           <div ref={loadMoreRef} className="flex justify-center mt-6">
