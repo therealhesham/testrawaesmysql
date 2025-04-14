@@ -37,99 +37,6 @@ export default function Table() {
     setTimeDeparature(e.target.value);
   };
 
-  // Submit handler function
-  const handleSubmit = async () => {
-    // Your submit logic here (e.g., sending data to API)
-    const departureData = {
-      departureDate: deparatureDate,
-      departureTime: timeDeparature,
-    };
-    setLoadingScreen(true);
-    const fetchData = await fetch("/api/housingdeparature", {
-      body: JSON.stringify({
-        // ...values,
-        employee,
-        reason: deparatureReason,
-        details: details,
-        homeMaid: newHomeMaid.id,
-        departureDate: new Date(deparatureDate).toISOString(),
-        deparatureFromSaudi: deparatureFromSaudi
-          ? new Date(deparatureFromSaudi).toISOString()
-          : null,
-        departureTime: timeDeparature,
-        // fullname: name,
-      }),
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-    const data = await fetchData.json();
-
-    if (fetchData.status == 201) {
-      // onClose();
-      // setDate();
-      handleCloseAddModal();
-      setOpenAddModal(false);
-      setNewHomeMaid({
-        officeID: "",
-        Nationalitycopy: "",
-        Name: "",
-        Religion: "",
-        Passportnumber: "",
-        clientphonenumber: "",
-        ExperienceYears: "",
-        maritalstatus: "",
-        Experience: "",
-        dateofbirth: "",
-        age: "",
-        phone: "",
-        bookingstatus: "",
-        ages: "",
-        officeName: "",
-        experienceType: "",
-        PassportStart: "",
-        PassportEnd: "",
-        OldPeopleCare: false,
-        ArabicLanguageLeveL: "",
-        EnglishLanguageLevel: "",
-        Salary: "",
-        LaundryLeveL: "",
-        IroningLevel: "",
-        CleaningLeveL: "",
-        CookingLeveL: "",
-        SewingLeveL: "",
-        BabySitterLevel: "",
-        Education: "",
-      });
-      handleCloseEditModal();
-      setEmployeeType(""); // إعادة تعيين نوع العاملة
-      setSearchQuery(""); // إعادة تعيين مربع البحث
-      isFetchingRef.current = false;
-      setHasMore(true);
-      setData([]);
-      setLoading(false);
-      setLoadingScreen(false);
-
-      pageRef.current = 1;
-      // fetchData();
-      // fetchData();
-      // router.push("/admin/neworder/" + data.id);
-    } else {
-      setLoading(false);
-
-      // setIserrorModalOpen(true);
-      // seterrormessage(data.message);
-      setLoadingScreen(false);
-    }
-    setLoadingScreen(false);
-
-    console.log("Departure data submitted: ", departureData);
-
-    // Close modal after submission (optional)
-    handleCloseDeparatureModal();
-  };
   const [details, setdetails] = useState("");
   const [deparatureReason, setDeparatueReason] = useState("");
 
@@ -250,7 +157,7 @@ export default function Table() {
     return form;
   }
 
-  const fetchData = async () => {
+  async function fetchData() {
     if (isFetchingRef.current || !hasMore) return;
     isFetchingRef.current = true;
     // setLoading(true);
@@ -291,7 +198,7 @@ export default function Table() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  };
+  }
   const [employeeName, setEmployeeName] = useState("");
   const postData = async (e) => {
     setLoadingScreen(true);
@@ -683,6 +590,100 @@ export default function Table() {
     }
   };
 
+  // Submit handler function
+  const handleSubmit = async () => {
+    // Your submit logic here (e.g., sending data to API)
+    const departureData = {
+      departureDate: deparatureDate,
+      departureTime: timeDeparature,
+    };
+    setLoadingScreen(true);
+    const fetchDeparatureData = await fetch("/api/housingdeparature", {
+      body: JSON.stringify({
+        // ...values,
+        employee,
+        reason: deparatureReason,
+        details: details,
+        homeMaid: newHomeMaid.id,
+        departureDate: new Date(deparatureDate).toISOString(),
+        deparatureFromSaudi: deparatureFromSaudi
+          ? new Date(deparatureFromSaudi).toISOString()
+          : null,
+        departureTime: timeDeparature,
+        // fullname: name,
+      }),
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await fetchDeparatureData.json();
+
+    if (fetchDeparatureData.status == 201) {
+      // onClose();
+      // setDate();
+      handleCloseAddModal();
+      setOpenAddModal(false);
+      setNewHomeMaid({
+        officeID: "",
+        Nationalitycopy: "",
+        Name: "",
+        Religion: "",
+        Passportnumber: "",
+        clientphonenumber: "",
+        ExperienceYears: "",
+        maritalstatus: "",
+        Experience: "",
+        dateofbirth: "",
+        age: "",
+        phone: "",
+        bookingstatus: "",
+        ages: "",
+        officeName: "",
+        experienceType: "",
+        PassportStart: "",
+        PassportEnd: "",
+        OldPeopleCare: false,
+        ArabicLanguageLeveL: "",
+        EnglishLanguageLevel: "",
+        Salary: "",
+        LaundryLeveL: "",
+        IroningLevel: "",
+        CleaningLeveL: "",
+        CookingLeveL: "",
+        SewingLeveL: "",
+        BabySitterLevel: "",
+        Education: "",
+      });
+
+      handleCloseEditModal();
+      setEmployeeType(""); // إعادة تعيين نوع العاملة
+      setSearchQuery(""); // إعادة تعيين مربع البحث
+      isFetchingRef.current = false;
+      setHasMore(true);
+      setData([]);
+      setLoading(false);
+      setLoadingScreen(false);
+
+      pageRef.current = 1;
+      fetchData();
+      // fetchData();
+      // router.push("/admin/neworder/" + data.id);
+    } else {
+      setLoading(false);
+
+      // setIserrorModalOpen(true);
+      // seterrormessage(data.message);
+      setLoadingScreen(false);
+    }
+    setLoadingScreen(false);
+
+    console.log("Departure data submitted: ", departureData);
+
+    // Close modal after submission (optional)
+    handleCloseDeparatureModal();
+  };
   return (
     <Layout>
       <div className="container mx-auto p-6">
