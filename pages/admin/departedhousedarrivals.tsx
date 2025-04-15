@@ -174,7 +174,7 @@ export default function Table() {
       });
 
       const response = await fetch(
-        `/api/confirmhousinginformation?${queryParams}`,
+        `/api/departedhousedarrivals?${queryParams}`,
         {
           headers: {
             Accept: "application/json",
@@ -387,7 +387,7 @@ export default function Table() {
       setEmployee(decoded.username);
     } catch (e) {
       setLoading(false);
-      router.push("/admin/login");
+      router.push("admin/login");
     }
     fetchData();
     // setLoading(false);
@@ -743,7 +743,7 @@ export default function Table() {
           <h1
             className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
           >
-            عاملات تم تسكينهم
+            عاملات غادرت التسكين
           </h1>
           <div>
             {" "}
@@ -772,7 +772,6 @@ export default function Table() {
               تسكين عاملة
             </Button>
             <Button
-              style={{ marginLeft: "10px" }}
               variant="contained"
               color="primary"
               onClick={() => router.push("/admin/checklisttable")}
@@ -782,10 +781,10 @@ export default function Table() {
             <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
-              color="error"
-              onClick={() => router.push("/admin/departedhousedarrivals")}
+              color="success"
+              onClick={() => router.push("/admin/housedarrivals")}
             >
-              عاملات غادرت التسكين
+              قائمة التسكين
             </Button>
           </div>
         </div>
@@ -910,6 +909,15 @@ export default function Table() {
 
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
+                onClick={() => requestSort("Details")}
+              >
+                تاريخ المغادرة{" "}
+                {/* {sortConfig.key === "houseentrydate" &&
+                  (sortConfig.direction === "asc" ? "▲" : "▼")} */}
+              </th>
+
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("Nationalitycopy")}
               >
                 الجنسية{" "}
@@ -940,31 +948,6 @@ export default function Table() {
                 {sortConfig.key === "ClientName" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th> */}
-              <th
-                className="p-3 text-center text-sm font-medium cursor-pointer"
-                onClick={() => requestSort("ClientName")}
-              >
-                حالة العاملة
-              </th>
-              <th
-                className="p-3 text-center text-sm font-medium cursor-pointer"
-                // onClick={() => requestSort("ClientName")}
-              >
-                تعديل في الاعاشة{" "}
-              </th>
-              <th
-                className="p-3 text-center text-sm font-medium cursor-pointer"
-                // onClick={() => requestSort("ClientName")}
-              >
-                تعديل بيانات التسكين{" "}
-              </th>
-
-              <th
-                className="p-3 text-center text-sm font-medium cursor-pointer"
-                // onClick={() => requestSort("ClientName")}
-              >
-                مغادرة السكن{" "}
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -1047,6 +1030,17 @@ export default function Table() {
                         {item?.deliveryDate ? getDate(item?.deliveryDate) : ""}
                       </h1>
                     </td>
+                    <td
+                      className={`text-center mb-4 ${Style["almarai-light"]}`}
+                    >
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {item?.deparatureHousingDate
+                          ? getDate(item?.deparatureHousingDate)
+                          : "لم يغادر بعد"}
+                      </h1>
+                    </td>
 
                     <td className={`text-center mb-4`}>
                       <h1
@@ -1072,71 +1066,6 @@ export default function Table() {
                       >
                         {item?.employee ? item?.employee : "لا يوجد بيان"}
                       </h1>
-                    </td>
-                    {/* <td className={`text-center mb-4`}>
-                      <h1
-                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
-                      >
-                        {item?.Order.ClientName ? item?.Order.ClientName : null}
-                      </h1>
-                    </td> */}
-
-                    <td className={`text-center mb-4`}>
-                      <Button
-                        onClick={() => {
-                          setID(item?.Order.id);
-                          setOpenStatusModal(true);
-                        }}
-                        //تحديث حالة العاملة
-                        variant="contained"
-                        color="warning"
-                      >
-                        تعديل
-                      </Button>
-                    </td>
-
-                    <td className={`text-center mb-4`}>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() =>
-                          router.push("/admin/checklist?id=" + item?.Order.id)
-                        }
-                      >
-                        تعديل
-                      </Button>
-                    </td>
-                    <td className={`text-center mb-4`}>
-                      <Button
-                        onClick={() => {
-                          // setNewHomeMaid({...newHomeMaid,id:item?.Order.id,Name:item?.Order.Name})
-
-                          setNewHomeMaid({
-                            id: item?.Order.id,
-                            Name: item?.Order.Name,
-                          });
-                          setOpenEditModal(true);
-                        }}
-                        //تحديث حالة العاملة
-                        variant="contained"
-                        color="secondary"
-                      >
-                        تعديل
-                      </Button>
-                    </td>
-                    <td className={`text-center mb-4`}>
-                      <Button
-                        onClick={() => {
-                          setNewHomeMaid({ id: item?.Order.id });
-                          setOpenDeparatureModal(true);
-                          // setNewHomeMaid({...newHomeMaid,id:item?.Order.id,Name:item?.Order.Name})
-                        }}
-                        //تحديث حالة العاملة
-                        variant="contained"
-                        color="error"
-                      >
-                        مغادرة
-                      </Button>
                     </td>
                   </tr>
                   {expandedRow === item.id && (
