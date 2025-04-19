@@ -180,7 +180,11 @@ const ResumePage = () => {
           <div className="flex items-center mb-8 gap-5">
             {/* Profile Image */}
             <img
-              src={image}
+              src={
+                image?.contains("irtable")
+                  ? image
+                  : filteredSuggestions?.Picture
+              }
               alt="Profile"
               className="w-32 h-32 rounded-lg border-4 border-bg-[#3D4C73] mr-6"
             />

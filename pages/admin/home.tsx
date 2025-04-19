@@ -383,6 +383,20 @@ export default function Home({ user }) {
                   ) : null}
                 </a>
               </Link>
+              <Link href="/admin/newhomemaid">
+                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
+                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
+                    <FaList className="mb-2 text-3xl" /> {/* Add icon */}
+                    اضافة عاملة
+                  </div>
+                  {/* Notification Badge */}
+                  {homeMaidsLength > 0 ? (
+                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
+                      {homeMaidsLength > 0 ? homeMaidsLength : 0}
+                    </span>
+                  ) : null}
+                </a>
+              </Link>
               <Link href="/admin/bookedlist">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
