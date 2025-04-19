@@ -181,7 +181,7 @@ const ResumePage = () => {
             {/* Profile Image */}
             <img
               src={
-                image?.contains("irtable")
+                image?.includes("irtable")
                   ? image
                   : filteredSuggestions?.Picture
               }
