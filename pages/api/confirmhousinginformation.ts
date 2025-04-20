@@ -93,6 +93,7 @@ export default async function handler(req, res) {
     const {
       Name,
       age,
+      reason,
       Passportnumber,
       id,
       Nationality,
@@ -106,6 +107,7 @@ export default async function handler(req, res) {
 
     // Build the filter object dynamically based on query parameters
     const filters = {
+      Reason: { contains: reason || "" },
       Order: {
         Name: { contains: Name || "" },
         Passportnumber: { contains: Passportnumber || "" },
