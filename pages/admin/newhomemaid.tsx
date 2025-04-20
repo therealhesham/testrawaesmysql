@@ -40,6 +40,9 @@ export default function NewHomemaid({ offices }) {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [cloudinaryImage, setCloudinaryImage] = useState("");
+  const [image2, setImage2] = useState<File | null>(null);
+  const [preview2, setPreview2] = useState<string | null>(null);
+  const [cloudinaryImage2, setCloudinaryImage2] = useState("");
   const [officeName, setOfficeName] = useState("");
   const [Nationalitycopy, setNationalitycopy] = useState("");
   const router = useRouter();
@@ -77,7 +80,31 @@ export default function NewHomemaid({ offices }) {
       setPreview(response.data.secure_url);
     } catch (error) {
       console.error("Upload failed", error);
-      setErrorMessage("فشل رفع الصورة. حاول مرة أخرى.");
+      setErrorMessage("فشل رفع الصورة الأولى. حاول مرة أخرى.");
+      setIsErrorModalOpen(true);
+    }
+  };
+
+  const handleUpload2 = async (e) => {
+    const file = e.target.files[0];
+    setImage2(file);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "z8q1vykv");
+    formData.append("cloud_name", "duo8svqci");
+    formData.append("folder", "samples");
+
+    try {
+      const response = await axios.post(
+        `https://api.cloudinary.com/v1_1/duo8svqci/image/upload`,
+        formData
+      );
+      setCloudinaryImage2(response.data.secure_url);
+      setPreview2(response.data.secure_url);
+    } catch (error) {
+      console.error("Upload failed for second image", error);
+      setErrorMessage("فشل رفع الصورة الثانية. حاول مرة أخرى.");
       setIsErrorModalOpen(true);
     }
   };
@@ -88,7 +115,12 @@ export default function NewHomemaid({ offices }) {
     const body = [
       {
         fields: {
-          Picture: [{ url: cloudinaryImage }],
+          Picture: [
+            { url: cloudinaryImage },
+            ...(cloudinaryImage2 ? [{ url: cloudinaryImage2 }] : []),
+          ],
+          cloudinaryImage2: cloudinaryImage2,
+          cloudinaryImage: cloudinaryImage,
           "Name - الاسم": form.Name,
           "Nationality copy": Nationalitycopy,
           "Religion - الديانة": form.Religion,
@@ -118,16 +150,16 @@ export default function NewHomemaid({ offices }) {
       });
 
       if (res.ok) {
-        setIsSuccessModalOpen(true); // إظهار Success Modal
+        setIsSuccessModalOpen(true);
       } else {
         const errorData = await res.json();
         setErrorMessage(errorData.message || "حدث خطأ أثناء الحفظ.");
-        setIsErrorModalOpen(true); // إظهار Error Modal
+        setIsErrorModalOpen(true);
       }
     } catch (error) {
       console.error("Submission failed", error);
       setErrorMessage("حدث خطأ غير متوقع. حاول مرة أخرى.");
-      setIsErrorModalOpen(true); // إظهار Error Modal
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -269,24 +301,47 @@ export default function NewHomemaid({ offices }) {
               )}
             </div>
 
-            {/* Image Upload */}
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Upload Image
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleUpload}
-                className="mt-2"
-              />
-              {preview && (
-                <img
-                  src={preview}
-                  alt="Preview"
-                  className="mt-4 w-40 h-40 object-cover rounded"
+            {/* Images Upload */}
+            <div className="col-span-2 flex flex-col gap-4">
+              {/* First Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  رفع الصورة الأولى
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUpload}
+                  className="mt-2"
                 />
-              )}
+                {preview && (
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="mt-4 w-40 h-40 object-cover rounded"
+                  />
+                )}
+              </div>
+
+              {/* Second Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  رفع الصورة الثانية
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUpload2}
+                  className="mt-2"
+                />
+                {preview2 && (
+                  <img
+                    src={preview2}
+                    alt="Preview Second Image"
+                    className="mt-4 w-40 h-40 object-cover rounded"
+                  />
+                )}
+              </div>
             </div>
 
             <button
