@@ -24,33 +24,33 @@ export default async function handler(req: any, res: any) {
     // }
 
     try {
-      const data = req.body;
-
+      const { fields } = req.body[0];
+      console.log(fields["Name - الاسم"]);
       const newHomemaid = await prisma.homemaid.create({
         data: {
-          Name: data.fields["Name - الاسم"],
-          Nationalitycopy: data.fields["Nationality copy"],
-          Religion: data.fields["Religion - الديانة"],
-          Passportnumber: data.fields["Passport number - رقم الجواز"],
-          ExperienceYears: data.fields["Experience - الخبرة"],
-          maritalstatus: data.fields["marital status - الحالة الاجتماعية"],
-          Experience: data.fields["Experience - الخبرة"],
-          dateofbirth: data.fields["date of birth - تاريخ الميلاد"],
+          Name: fields["Name - الاسم"],
+          Nationalitycopy: fields["Nationality copy"],
+          Religion: fields["Religion - الديانة"],
+          Passportnumber: fields["Passport number - رقم الجواز"],
+          ExperienceYears: fields["Experience - الخبرة"],
+          maritalstatus: fields["marital status - الحالة الاجتماعية"],
+          Experience: fields["Experience - الخبرة"],
+          dateofbirth: fields["date of birth - تاريخ الميلاد"],
           // age: data.age,
-          phone: data.fields["phone"],
-          clientphonenumber: data.fields["clientphonenumber"],
-          bookingstatus: data.fields["bookingstatus"],
-          Education: data.fields["Education -  التعليم"],
-          ArabicLanguageLeveL: data.fields["Arabic -  العربية"],
-          EnglishLanguageLevel: data.fields["English - الانجليزية"],
-          LaundryLeveL: data.fields["laundry - الغسيل"],
-          IroningLevel: data.fields["Ironing - كوي"],
-          CleaningLeveL: data.fields["cleaning - التنظيف"],
-          CookingLeveL: data.fields["Cooking - الطبخ"],
-          SewingLeveL: data.fields["sewing - الخياطة"],
-          BabySitterLevel: data.fields["Babysitting - العناية بالأطفال"],
-          Salary: data.fields["Salary - الراتب"],
-          officeName: data.fields["officeName"],
+          phone: fields["phone"],
+          clientphonenumber: fields["clientphonenumber"],
+          bookingstatus: fields["bookingstatus"],
+          Education: fields["Education -  التعليم"],
+          ArabicLanguageLeveL: fields["Arabic -  العربية"],
+          EnglishLanguageLevel: fields["English - الانجليزية"],
+          LaundryLeveL: fields["laundry - الغسيل"],
+          IroningLevel: fields["Ironing - كوي"],
+          CleaningLeveL: fields["cleaning - التنظيف"],
+          CookingLeveL: fields["Cooking - الطبخ"],
+          SewingLeveL: fields["sewing - الخياطة"],
+          BabySitterLevel: fields["Babysitting - العناية بالأطفال"],
+          Salary: fields["Salary - الراتب"],
+          officeName: fields["officeName"],
           // Picture: data.Picture || null,
         },
       });

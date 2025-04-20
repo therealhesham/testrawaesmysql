@@ -61,6 +61,7 @@ export default function Table() {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
+    reason: "",
     Passportnumber: "",
     id: "",
   });
@@ -166,6 +167,7 @@ export default function Table() {
       const queryParams = new URLSearchParams({
         Name: filters.Name,
         age: filters.age,
+        reason: filters.reason,
         id: filters.id,
         Passportnumber: filters.Passportnumber,
         page: String(pageRef.current),
@@ -810,6 +812,21 @@ export default function Table() {
               className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
+          <div className="flex-1 px-2">
+            <select onChange={(e) => handleFilterChange(e, "reason")}>
+              <option value="">اختر سبب التسكين</option>
+              <option value="نقل كفالة">نقل كفالة</option>
+              <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
+              <option value="رفض العامل للسفر">رفض العامل للسفر</option>
+              <option value="رفض العمل لنقل الكفالة">
+                رفض العمل لنقل الكفالة
+              </option>
+
+              <option value="انتظار الترحيل">انتظار الترحيل</option>
+            </select>
+          </div>
+
           {/* <div className="flex-1 px-2">
             <input
               type="text"
