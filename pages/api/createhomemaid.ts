@@ -51,7 +51,8 @@ export default async function handler(req: any, res: any) {
           BabySitterLevel: fields["Babysitting - العناية بالأطفال"],
           Salary: fields["Salary - الراتب"],
           officeName: fields["officeName"],
-          // Picture: data.Picture || null,
+          Picture: fields.cloudinaryImage || null,
+          FullPicture: fields.cloudinaryImage2 || null,
         },
       });
 
