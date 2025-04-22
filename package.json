@@ -33,7 +33,7 @@
     "fast-sort": "^3.4.0",
     "filter-obj": "^6.1.0",
     "formik": "^2.2.10",
-    "heroicons": "^2.2.0",
+    "heroicons": "^1.0.2",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "jspdf-autotable": "^3.8.4",
