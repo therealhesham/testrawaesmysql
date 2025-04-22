@@ -699,85 +699,89 @@ export default function Table() {
   const handleSessionSubmit = async () => {
     // Submit handler function
     setLoadingScreen(true);
-    const fetchDeparatureData = await fetch("/api/sessions", {
-      body: JSON.stringify({
-        // ...values,
-        reason: sessionReason,
+    try {
+      const fetchDeparatureData = await fetch("/api/sessions", {
+        body: JSON.stringify({
+          // ...values,
+          reason: sessionReason,
 
-        time: sessionTime,
+          time: sessionTime,
 
-        idnumber: idSession,
-        date: new Date(sessionDate).toISOString(),
-      }),
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-    const data = await fetchDeparatureData.json();
-
-    if (fetchDeparatureData.status == 201) {
-      // onClose();
-      handleCloseAddModal();
-      setOpenAddModal(false);
-      setNewHomeMaid({
-        officeID: "",
-        Nationalitycopy: "",
-        Name: "",
-        Religion: "",
-        Passportnumber: "",
-        clientphonenumber: "",
-        ExperienceYears: "",
-        maritalstatus: "",
-        Experience: "",
-        dateofbirth: "",
-        age: "",
-        phone: "",
-        bookingstatus: "",
-        ages: "",
-        officeName: "",
-        experienceType: "",
-        PassportStart: "",
-        PassportEnd: "",
-        OldPeopleCare: false,
-        ArabicLanguageLeveL: "",
-        EnglishLanguageLevel: "",
-        Salary: "",
-        LaundryLeveL: "",
-        IroningLevel: "",
-        CleaningLeveL: "",
-        CookingLeveL: "",
-        SewingLeveL: "",
-        BabySitterLevel: "",
-        Education: "",
+          idnumber: idSession,
+          date: new Date(sessionDate).toISOString(),
+        }),
+        method: "post",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       });
+      const data = await fetchDeparatureData.json();
+
+      if (fetchDeparatureData.status == 201) {
+        // onClose();
+        handleCloseAddModal();
+        setOpenAddModal(false);
+        setNewHomeMaid({
+          officeID: "",
+          Nationalitycopy: "",
+          Name: "",
+          Religion: "",
+          Passportnumber: "",
+          clientphonenumber: "",
+          ExperienceYears: "",
+          maritalstatus: "",
+          Experience: "",
+          dateofbirth: "",
+          age: "",
+          phone: "",
+          bookingstatus: "",
+          ages: "",
+          officeName: "",
+          experienceType: "",
+          PassportStart: "",
+          PassportEnd: "",
+          OldPeopleCare: false,
+          ArabicLanguageLeveL: "",
+          EnglishLanguageLevel: "",
+          Salary: "",
+          LaundryLeveL: "",
+          IroningLevel: "",
+          CleaningLeveL: "",
+          CookingLeveL: "",
+          SewingLeveL: "",
+          BabySitterLevel: "",
+          Education: "",
+        });
+        setLoadingScreen(false);
+
+        handleCloseEditModal();
+        setEmployeeType(""); // إعادة تعيين نوع العاملة
+        setSearchQuery(""); // إعادة تعيين مربع البحث
+        isFetchingRef.current = false;
+        setHasMore(true);
+        setData([]);
+        setLoading(false);
+        setLoadingScreen(false);
+
+        pageRef.current = 1;
+        fetchData();
+        // fetchData();
+        // router.push("/admin/neworder/" + data.id);
+      } else {
+        setLoading(false);
+
+        // setIserrorModalOpen(true);
+        // seterrormessage(data.message);
+        setLoadingScreen(false);
+      }
       setLoadingScreen(false);
 
-      handleCloseEditModal();
-      setEmployeeType(""); // إعادة تعيين نوع العاملة
-      setSearchQuery(""); // إعادة تعيين مربع البحث
-      isFetchingRef.current = false;
-      setHasMore(true);
-      setData([]);
-      setLoading(false);
-      setLoadingScreen(false);
-
-      pageRef.current = 1;
-      fetchData();
-      // fetchData();
-      // router.push("/admin/neworder/" + data.id);
-    } else {
-      setLoading(false);
-
-      // setIserrorModalOpen(true);
-      // seterrormessage(data.message);
+      // Close modal after submission (optional)
+      handleCloseDeparatureModal();
+    } catch (error) {
       setLoadingScreen(false);
     }
-    setLoadingScreen(false);
-
-    // Close modal after submission (optional)
-    handleCloseDeparatureModal();
   };
 
   return (

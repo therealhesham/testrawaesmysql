@@ -146,7 +146,7 @@ export default function NotificationDropdown() {
         ) : null}
 
         {open && (
-          <div className="absolute  left-0 mt-2 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700">
+          <div className="absolute  left-125 mt-2 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700">
             <div className="p-4 text-sm text-white dark:text-gray-100 border-b dark:border-gray-700 font-semibold bg-[dodgerblue]">
               Notifications
             </div>

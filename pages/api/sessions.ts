@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         data: {
           title: `تم تحديد موعد جلسة`,
           message: `تم تحديد موعد جلسة جديدة رقم ${newSession.id} للعاملة ${newSession.user?.Name} `,
-          userId: req.body.employee || "لا يوجد بيان",
+          userId: userId || "لا يوجد بيان",
           isRead: false,
         },
       });
@@ -53,8 +53,16 @@ export default async function handler(req, res) {
 
     return res.status(201).json({ newSession });
   } else if (req.method === "GET") {
-    const { Name, age, Passportnumber, id, page, sortKey, reason, sortDirection } =
-      req.query;
+    const {
+      Name,
+      age,
+      Passportnumber,
+      id,
+      page,
+      sortKey,
+      reason,
+      sortDirection,
+    } = req.query;
 
     const pageSize = 10;
     const pageNumber = parseInt(page, 10) || 1;
@@ -90,4 +98,4 @@ export default async function handler(req, res) {
   } else {
     return res.status(405).json({ error: "Method not allowed" });
   }
-}ث
+}
