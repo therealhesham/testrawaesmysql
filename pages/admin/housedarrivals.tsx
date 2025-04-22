@@ -39,8 +39,16 @@ export default function Table() {
 
   const [details, setdetails] = useState("");
   const [deparatureReason, setDeparatueReason] = useState("");
+  const [sessionReason, setSessionReason] = useState("");
+  const [sessionTime, setSessionTime] = useState("");
 
   const [reason, setReason] = useState("");
+  const [openSessionModal, setOpenSessionModal] = useState(false);
+
+  const handleCloseSessionModal = () => {
+    setOpenSessionModal(false);
+  };
+
   const handleCloseDeparatureModal = () => {
     setDeparatueReason("");
 
@@ -295,6 +303,7 @@ export default function Table() {
       // seterrormessage(data.message);
     }
   };
+  const [sessionDate, setSessionDate] = useState("");
 
   const [status, setStatus] = useState("");
   const [dateStatus, setDateStatus] = useState("");
@@ -554,6 +563,7 @@ export default function Table() {
 
   const [nameQuery, setNameQuery] = useState("");
   const [idQuery, setIdQuery] = useState("");
+  const [idSession, SetIDSession] = useState(0);
 
   const [results, setResults] = useState([]);
   const [findResults, setFindResults] = useState(false);
@@ -686,6 +696,90 @@ export default function Table() {
     // Close modal after submission (optional)
     handleCloseDeparatureModal();
   };
+  const handleSessionSubmit = async () => {
+    // Submit handler function
+    setLoadingScreen(true);
+    const fetchDeparatureData = await fetch("/api/sessions", {
+      body: JSON.stringify({
+        // ...values,
+        reason: sessionReason,
+
+        time: sessionTime,
+
+        idnumber: idSession,
+        date: new Date(sessionDate).toISOString(),
+      }),
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await fetchDeparatureData.json();
+
+    if (fetchDeparatureData.status == 201) {
+      // onClose();
+      handleCloseAddModal();
+      setOpenAddModal(false);
+      setNewHomeMaid({
+        officeID: "",
+        Nationalitycopy: "",
+        Name: "",
+        Religion: "",
+        Passportnumber: "",
+        clientphonenumber: "",
+        ExperienceYears: "",
+        maritalstatus: "",
+        Experience: "",
+        dateofbirth: "",
+        age: "",
+        phone: "",
+        bookingstatus: "",
+        ages: "",
+        officeName: "",
+        experienceType: "",
+        PassportStart: "",
+        PassportEnd: "",
+        OldPeopleCare: false,
+        ArabicLanguageLeveL: "",
+        EnglishLanguageLevel: "",
+        Salary: "",
+        LaundryLeveL: "",
+        IroningLevel: "",
+        CleaningLeveL: "",
+        CookingLeveL: "",
+        SewingLeveL: "",
+        BabySitterLevel: "",
+        Education: "",
+      });
+      setLoadingScreen(false);
+
+      handleCloseEditModal();
+      setEmployeeType(""); // إعادة تعيين نوع العاملة
+      setSearchQuery(""); // إعادة تعيين مربع البحث
+      isFetchingRef.current = false;
+      setHasMore(true);
+      setData([]);
+      setLoading(false);
+      setLoadingScreen(false);
+
+      pageRef.current = 1;
+      fetchData();
+      // fetchData();
+      // router.push("/admin/neworder/" + data.id);
+    } else {
+      setLoading(false);
+
+      // setIserrorModalOpen(true);
+      // seterrormessage(data.message);
+      setLoadingScreen(false);
+    }
+    setLoadingScreen(false);
+
+    // Close modal after submission (optional)
+    handleCloseDeparatureModal();
+  };
+
   return (
     <Layout>
       <div className="container mx-auto p-6">
@@ -791,7 +885,6 @@ export default function Table() {
             </Button>
           </div>
         </div>
-
         {/* Filter Section */}
         <div className="flex justify-between mb-4">
           <div className="flex-1 px-2">
@@ -870,7 +963,6 @@ export default function Table() {
             </button>
           </div>
         </div>
-
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
@@ -981,6 +1073,12 @@ export default function Table() {
                 // onClick={() => requestSort("ClientName")}
               >
                 مغادرة السكن{" "}
+              </th>
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                // onClick={() => requestSort("ClientName")}
+              >
+                اضافة جلسة
               </th>
             </tr>
           </thead>
@@ -1155,6 +1253,20 @@ export default function Table() {
                         مغادرة
                       </Button>
                     </td>
+
+                    <td className={`text-center mb-4`}>
+                      <Button
+                        onClick={() => {
+                          SetIDSession(item?.Order.id);
+                          setOpenSessionModal(true);
+                        }}
+                        //تحديث حالة العاملة
+                        variant="contained"
+                        color="success"
+                      >
+                        اضافة
+                      </Button>
+                    </td>
                   </tr>
                   {expandedRow === item.id && (
                     <tr className="bg-gray-100">
@@ -1170,7 +1282,92 @@ export default function Table() {
             )}
           </tbody>
         </table>
+        <Modal open={openSessionModal} onClose={handleCloseSessionModal}>
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              maxHeight: "80vh",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              overflowY: "auto",
+            }}
+          >
+            <h2 className="almarai-bold">اضافة جلسة</h2>
 
+            <div className="mb-4">
+              <label
+                style={{ display: "flex", justifyContent: "center" }}
+                htmlFor="date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                سبب الجلسة
+              </label>
+              <input
+                onChange={(e) => setSessionReason(e.target.value)}
+                value={sessionReason}
+                id="deparaturedate"
+                name="deparaturedate"
+                type="text"
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label
+                style={{ display: "flex", justifyContent: "center" }}
+                htmlFor="date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                تاريخ الجلسة
+              </label>
+              <input
+                onChange={(e) => setSessionDate(e.target.value)}
+                value={sessionDate}
+                id="deparaturedate"
+                name="deparaturedate"
+                type="date"
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label
+                style={{ display: "flex", justifyContent: "center" }}
+                htmlFor="date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                توقيت الجلسة
+              </label>
+              <input
+                onChange={(e) => setSessionTime(e.target.value)}
+                value={sessionTime}
+                id="deparaturedate"
+                name="deparaturedate"
+                type="time"
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <button
+              onClick={handleCloseSessionModal}
+              className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+              اغلاق
+            </button>
+            <button
+              onClick={handleSessionSubmit}
+              className="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            >
+              تحديث
+            </button>
+          </Box>
+        </Modal>
         <Modal open={openDeparatureModal} onClose={handleCloseDeparatureModal}>
           <Box
             sx={{
@@ -1328,7 +1525,6 @@ export default function Table() {
             </button>
           </Box>
         </Modal>
-
         <Modal open={openEditModal} onClose={handleCloseEditModal}>
           <div>
             <Box
@@ -1438,7 +1634,6 @@ export default function Table() {
             </Box>
           </div>
         </Modal>
-
         {/* Modal لإضافة عاملة جديدة */}
         <Modal open={openAddModal} onClose={handleCloseAddModal}>
           <Box
@@ -1828,7 +2023,6 @@ export default function Table() {
             </Box>
           </Modal>
         )}
-
         {hasMore && (
           <div ref={loadMoreRef} className="flex justify-center mt-6">
             {loading && (

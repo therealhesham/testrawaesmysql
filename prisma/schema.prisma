@@ -50,6 +50,8 @@ Education String? @db.VarChar(60)
 Housed          housing[]   
   inHouse        housedworker[]
 
+
+Session Session[]
 }
 model weeklyStatus{
   id              Int       @id @default(autoincrement())
@@ -139,6 +141,32 @@ model User {
   notifications notifications[]
 }
 
+
+model Session {
+  id            Int       @id @default(autoincrement())
+  reason      String    @db.VarChar(191)
+  date          DateTime?   
+  result          String?
+  idnumber      Int      
+  createdAt          DateTime? @default(now())
+  updatedAt          DateTime? @updatedAt
+time            String?
+  user            homemaid?     @relation(fields: [idnumber], references: [id]) 
+}
+
+model Rating {
+  id            Int       @id @default(autoincrement())
+  idOrder      Int?      
+
+isRated     Boolean   @default(false)
+reason      String? @db.VarChar(255)
+  createdAt          DateTime? @default(now())
+  updatedAt          DateTime? @updatedAt
+  Order            neworder?     @relation(fields: [idOrder], references: [id]) 
+}
+
+
+
 model FemalWorker {
   id                  Int       @id @default(autoincrement())
   clientname          String    @db.VarChar(191)
@@ -174,7 +202,7 @@ model neworder {
   profileStatus      String?   @db.VarChar(255)
 transactios transactions[]
   isHidden        Boolean? @default(false)
-
+ratings       Rating[]
   ReasonOfRejection  String?   @db.VarChar(255)
   housed              housing[]
   income              income[]

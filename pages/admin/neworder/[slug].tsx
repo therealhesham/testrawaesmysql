@@ -2,6 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Timeline from "office/components/TimeLine";
+
+import RatingModal from "components/TimeLine";
+
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { ClipboardCopyIcon } from "@heroicons/react/solid"; // Import the clipboard icon
@@ -141,6 +144,7 @@ const SlugPage = (prop) => {
   }
   const [dateDateTime, setDateTime] = useState("");
   const [time, setTime] = useState("");
+        const [isRatingModalOpen,setIsRatingModalOpen]=useState(false)
 
   const handleDateChange = (e) => {
     setDateTime(e.target.value);
@@ -148,6 +152,18 @@ const SlugPage = (prop) => {
 
   const handleTimeChange = (e) => {
     setTime(e.target.value);
+  };
+  const handleCreate = async (form: { idOrder: string; isRated: boolean; reason: string }) => {
+    const res = await fetch('/api/ratings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idOrder: Number(form.idOrder),
+        isRated: form.isRated,
+        reason: form.reason,
+      }),
+    });
+    if (res.ok) fetchRatings();
   };
 
   const [formDataReservationChange, setFormDataReservationChange] = useState(
@@ -779,6 +795,7 @@ const SlugPage = (prop) => {
       showSuccessModal();
       setDate(Date.now());
       scrollToSection();
+      if(deliveryDate) return setIsRatingModalOpen(true);
     } else {
       setModalSpinnerOpen(false);
 
@@ -1536,6 +1553,11 @@ const SlugPage = (prop) => {
             </div>
           </div>
         )}
+     <RatingModal
+        isOpen={isRatingModalOpen}
+        onClose={() => setIsRatingModalOpen(false)}
+        onSubmit={handleCreate}
+      />
 
         <Modal
           isOpen={isModalOpen}
