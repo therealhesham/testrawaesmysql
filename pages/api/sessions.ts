@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 
     // Build the filter object dynamically based on query parameters
     const filters = {
-      reason: { contains: reason || "", mode: "insensitive" }, // Case-insensitive search
+      reason: { contains: reason || "" }, // Case-insensitive search
       // Uncomment and add more filters if needed
       // Passportnumber: { contains: Passportnumber || "" },
       // ...(id && { id: { equals: Number(id) } }),
