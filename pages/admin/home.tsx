@@ -233,6 +233,11 @@ export default function Home({ user }) {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 " ref={sectionRef}>
+        <Head>
+          <title>الصفحة الرئيسية</title>
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+
         {/* <div> */}
         {/* <NotificationDropdown /> */}
         {/* </div> */}
@@ -476,11 +481,11 @@ export default function Home({ user }) {
                   {/* Notification Badge */}
                 </a>
               </Link>
-  <Link href="/admin/sessions">
+              <Link href="/admin/sessions">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
                     <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
-                     الجلسات
+                    الجلسات
                   </div>
                   {/* Notification Badge */}
                 </a>
