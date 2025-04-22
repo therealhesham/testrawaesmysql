@@ -29,6 +29,7 @@ import { useRouter } from "next/router";
 // import {  } from "@ant-design/icons";
 import jwt from "jsonwebtoken";
 import { HomeIcon } from "icons";
+import NotificationDropdown from "components/notifications";
 // Helper function to calculate remaining days
 const calculateRemainingDays = (eventDate) => {
   const today = new Date();
@@ -233,7 +234,7 @@ export default function Home({ user }) {
     <Layout>
       <div className="min-h-screen bg-gray-50 " ref={sectionRef}>
         {/* <div> */}
-
+        {/* <NotificationDropdown /> */}
         {/* </div> */}
         {/* Centered Heading */}
         <h1
