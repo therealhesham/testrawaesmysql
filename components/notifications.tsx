@@ -122,7 +122,7 @@ export default function NotificationDropdown() {
       <div ref={dropdownRef}>
         <button
           onClick={() => setOpen(!open)}
-          className="p-2 rounded-full left-0 hover:bg-gray-200 dark:hover:bg-gray-700 transition bg-orange-300"
+          className="p-2 rounded-full left-0 hover:bg-gray-500 dark:hover:bg-gray-700 transition bg-gray-300"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
