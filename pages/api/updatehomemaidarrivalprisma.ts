@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+import jwt from "jsonwebtoken";
 
 // import {getPrismaClient} from "../../utils/prisma";
 // prisma
@@ -180,9 +181,30 @@ export default async function handler(
     });
 
     const createarrivallist = await prisma.arrivallist.update({
+      include: { Order: { include: { HomeMaid: true } } },
       where: { id },
       data: dataToUpdate,
     });
+
+    try {
+      const token = req.cookies?.authToken;
+      let userId: string | null = null;
+
+      if (token) {
+        const decoded: any = jwt.verify(token, "rawaesecret");
+        userId = decoded?.username;
+      }
+
+      await prisma.logs.create({
+        data: {
+          Status: `   تم تحديث بيانات الوصول  للطلب رقم ${createarrivallist.Order?.HomeMaid?.Name}  الى  ${createarrivallist.Order?.bookingstatus}  `,
+          homemaidId: createarrivallist.Order?.HomemaidId,
+          userId: userId,
+        },
+      });
+    } catch (error) {
+      console.error("Error updatin logs:", error);
+    }
 
     res.status(200).json(createarrivallist);
   } catch (error) {
