@@ -139,9 +139,22 @@ model User {
   idnumber      Int?      @unique
 
   notifications notifications[]
+
+  logs logs[]
 }
 
 
+
+model logs{
+
+  id            Int       @id @default(autoincrement())
+  Status        String?   @db.VarChar(255)
+  createdAt     DateTime? @default(now())
+  updatedAt     DateTime? @updatedAt
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [username])
+  
+}
 model Session {
   id            Int       @id @default(autoincrement())
   reason      String    @db.VarChar(191)

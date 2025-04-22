@@ -53,24 +53,16 @@ export default async function handler(req, res) {
 
     return res.status(201).json({ newSession });
   } else if (req.method === "GET") {
-    const {
-      Name,
-      age,
-      Passportnumber,
-      id,
-      Nationality,
-      page,
-      sortKey,
-      reason,
-      sortDirection,
-    } = req.query;
+    const { Name, age, Passportnumber, id, page, sortKey, reason, sortDirection } =
+      req.query;
 
     const pageSize = 10;
     const pageNumber = parseInt(page, 10) || 1;
 
     // Build the filter object dynamically based on query parameters
     const filters = {
-      reason: { contains: reason || "" },
+      reason: { contains: reason || "", mode: "insensitive" }, // Case-insensitive search
+      // Uncomment and add more filters if needed
       // Passportnumber: { contains: Passportnumber || "" },
       // ...(id && { id: { equals: Number(id) } }),
     };
@@ -78,27 +70,24 @@ export default async function handler(req, res) {
     try {
       const session = await prisma.session.findMany({
         include: { user: true },
-        where: {
-          ...filters,
-        },
+        where: filters,
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
+        orderBy: sortKey
+          ? { [sortKey]: sortDirection || "asc" }
+          : { id: "asc" }, // Default sorting by id
       });
 
-      if (!session) {
-        return res.status(404).json({ error: "session not found" });
+      if (!session || session.length === 0) {
+        return res.status(404).json({ error: "No sessions found" });
       }
-
-      // ✅ استخراج التوكن من الكوكي
-      // console.log("s", req.cookies);
-      // const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
 
       return res.status(200).json({ session });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: "Error fetching housing" });
+      return res.status(500).json({ error: "Error fetching sessions" });
     }
   } else {
     return res.status(405).json({ error: "Method not allowed" });
   }
-}
+}ث
