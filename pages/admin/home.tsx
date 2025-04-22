@@ -3,6 +3,8 @@
 "use client";
 import Layout from "example/containers/Layout";
 import Link from "next/link";
+import Head from "next/head";
+
 import {
   FaPlus,
   FaAviato,
