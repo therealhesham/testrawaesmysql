@@ -9,6 +9,7 @@ import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/router";
 import jwt from "jsonwebtoken";
+import NotificationDropdown from "components/notifications";
 
 interface ILayout {
   children: React.ReactNode;
@@ -42,8 +43,12 @@ function Layout({ children }: ILayout) {
       // }`}
     >
       <Sidebar />
+
       {/* <Sidebar /> */}
       <div className="flex flex-col flex-1 w-full">
+        <div className="  flex justify-start " style={{ marginLeft: "20%" }}>
+          <NotificationDropdown />
+        </div>
         {/* <Header /> */}
         <Main>{children}</Main>
       </div>
