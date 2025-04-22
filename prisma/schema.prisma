@@ -65,6 +65,21 @@ homeMaid_id  Int
 
   
 }
+
+model notifications {
+  id              Int       @id @default(autoincrement())
+title        String?   @db.VarChar(55)
+
+message        String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isRead          Boolean?  @default(false)
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [username]) 
+
+}
+
+
 model CheckIn {
   isActive        Boolean? @default(true)
   id              Int       @id @default(autoincrement())
@@ -116,10 +131,12 @@ model User {
   phonenumber   String?   @unique @db.VarChar(15)
   admin         Boolean?  @default(false)
   pictureurl    String?   @default("")
-  username      String    @db.VarChar(191)
+  username      String    @unique @db.VarChar(191)
   password      String    @db.VarChar(191)
   role          String?   @default("قسم الاستقدام")
   idnumber      Int?      @unique
+
+  notifications notifications[]
 }
 
 model FemalWorker {
