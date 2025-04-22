@@ -84,7 +84,7 @@ export default function Home() {
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border">
             <thead>
-              <tr>
+              <tr className="bg-yellow-400 text-white">
                 <th
                   className="px-4 py-2 border cursor-pointer"
                   onClick={() => handleSort("id")}
