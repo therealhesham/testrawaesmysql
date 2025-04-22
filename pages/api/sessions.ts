@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         idnumber,
         reason,
         date,
-        time,
+        time: time ? time : "00:00",
       },
     });
 
