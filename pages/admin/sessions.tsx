@@ -6,35 +6,43 @@ export default function Home() {
   const [sessions, setSessions] = useState([]);
   const [page, setPage] = useState(1);
   const [reasonFilter, setReasonFilter] = useState("");
-  const [nationalityFilter, setNationalityFilter] = useState("");
   const [sortKey, setSortKey] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const fetchSessions = async () => {
     setLoading(true);
+    setError(null);
     try {
       const query = new URLSearchParams({
-        page,
+        page: page.toString(),
         ...(reasonFilter && { reason: reasonFilter }),
-        ...(nationalityFilter && { Nationality: nationalityFilter }),
         ...(sortKey && { sortKey, sortDirection }),
       }).toString();
 
       const response = await fetch(`/api/sessions?${query}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch sessions");
+      }
       const data = await response.json();
       setSessions(data.session || []);
     } catch (error) {
       console.error("Error fetching sessions:", error);
+      setError("Failed to load sessions. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchSessions();
-  }, [page, reasonFilter, nationalityFilter, sortKey, sortDirection]);
+  }, [page, reasonFilter, sortKey, sortDirection]);
 
   const handleSort = (key) => {
+    const validSortKeys = ["id", "reason", "user.Name"]; // Valid sort keys
+    if (!validSortKeys.includes(key)) return;
+
     if (sortKey === key) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -42,13 +50,12 @@ export default function Home() {
       setSortDirection("asc");
     }
   };
+
   function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
+    const currentDate = new Date(date);
+    return currentDate.toISOString().split("T")[0];
   }
+
   return (
     <Layout>
       <div className="container mx-auto p-4">
@@ -69,6 +76,9 @@ export default function Home() {
             className="border p-2 rounded"
           />
         </div>
+
+        {/* Error Message */}
+        {error && <div className="text-red-500 mb-4">{error}</div>}
 
         {/* Table */}
         <div className="overflow-x-auto">
@@ -91,10 +101,10 @@ export default function Home() {
                 </th>
                 <th
                   className="px-4 py-2 border cursor-pointer"
-                  onClick={() => handleSort("Nationalitycopy")}
+                  onClick={() => handleSort("user.Name")}
                 >
                   اسم العاملة
-                  {sortKey === "Nationalitycopy" &&
+                  {sortKey === "user.Name" &&
                     (sortDirection === "asc" ? "↑" : "↓")}
                 </th>
                 <th className="px-4 py-2 border">تاريخ الجلسة</th>
