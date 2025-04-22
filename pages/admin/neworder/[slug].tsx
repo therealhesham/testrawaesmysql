@@ -3,8 +3,6 @@ import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Timeline from "office/components/TimeLine";
 
-import RatingModal from "components/TimeLine";
-
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { ClipboardCopyIcon } from "@heroicons/react/solid"; // Import the clipboard icon
@@ -55,6 +53,7 @@ import {
 import CancelBooking from "example/components/cancelbookingmodal";
 import prisma from "pages/api/globalprisma";
 import { set } from "mongoose";
+import RatingModal from "components/RatingModal";
 // GridLoader
 const SlugPage = (prop) => {
   const router = useRouter();
