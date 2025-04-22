@@ -52,6 +52,8 @@ Housed          housing[]
 
 
 Session Session[]
+
+logs logs[]
 }
 model weeklyStatus{
   id              Int       @id @default(autoincrement())
@@ -147,13 +149,14 @@ model User {
 
 model logs{
 
-  id            Int       @id @default(autoincrement())
+  id            Int       @id @default(autoincrement()) 
   Status        String?   @db.VarChar(255)
   createdAt     DateTime? @default(now())
   updatedAt     DateTime? @updatedAt
   userId        String?
+  homemaidId  Int?
   user          User?     @relation(fields: [userId], references: [username])
-  
+  homemaid      homemaid? @relation(fields: [homemaidId], references: [id])
 }
 model Session {
   id            Int       @id @default(autoincrement())
