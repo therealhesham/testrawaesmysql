@@ -242,6 +242,7 @@ const CheckInTable = () => {
                   <td className="py-2 px-4 border-b">
                     {(row.breakfastCost || 0) +
                       (row.lunchCost || 0) +
+                      (row.DailyCost || 0) +
                       (row.supperCost || 0)}
                   </td>
                   <td className="py-2 px-4 border-b">

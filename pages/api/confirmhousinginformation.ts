@@ -65,6 +65,7 @@ export default async function handler(req, res) {
             houseentrydate: newObj.houseentrydate,
             deliveryDate: newObj.deliveryDate,
             homeMaid_id: homeMaidId,
+            deparatureHousingDate: null,
           },
         });
       } else {
@@ -73,6 +74,7 @@ export default async function handler(req, res) {
           data: {
             employee: req.body.employee,
             Reason: req.body.reason,
+            deparatureHousingDate: null,
             Details: req.body.details,
             houseentrydate: req.body.houseentrydate
               ? new Date(req.body.houseentrydate).toISOString()

@@ -32,7 +32,7 @@ export default function Checklist() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          checkDate: selectedDate, // Include the selected date in the data
+          checkDate: new Date(selectedDate).toISOString(), // Include the selected date in the data
         }),
       });
       if (posting.status == 200) {

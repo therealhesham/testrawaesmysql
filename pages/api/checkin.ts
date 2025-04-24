@@ -13,7 +13,7 @@ export default async function handler(req, res) {
       const existingCheckIn = await prisma.checkIn.findFirst({
         where: {
           housedWorkerId: parseInt(guestId),
-          CheckDate: new Date(req.body.checkDate).toISOString(), // تحويل التاريخ إلى ISO string للمقارنة
+          CheckDate: req.body.checkDate, // تحويل التاريخ إلى ISO string للمقارنة
         },
       });
       console.log(existingCheckIn);
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
         // إنشاء سجل جديد إذا لم يكن موجودًا
         const newCheckIn = await prisma.checkIn.create({
           data: {
-            CheckDate: new Date(req.body.checkDate).toISOString(), // تحويل التاريخ إلى ISO string
+            CheckDate: req.body.checkDate, // تحويل التاريخ إلى ISO string
             cost: req.body.cost,
             housedWorkerId: parseInt(guestId),
             breakfastOption: breakfast.option || null,

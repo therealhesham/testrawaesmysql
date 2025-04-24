@@ -84,27 +84,6 @@ message        String?   @db.VarChar(255)
 }
 
 
-model CheckIn {
-  isActive        Boolean? @default(true)
-  id              Int       @id @default(autoincrement())
-  housedWorkerId  Int       // حقل جديد للربط مع housedworker
-  breakfastOption String?   @db.VarChar(255)
-  breakfastNotes  String?   @db.VarChar(255)
-  lunchOption     String?   @db.VarChar(255)
-  lunchCost     Int? 
-supperCost     Int?
-breakfastCost  Int?
-CheckDate   DateTime?
-  lunchNotes      String?   @db.VarChar(255)
-  supperOption    String?   @db.VarChar(255)
-  supperNotes     String?   @db.VarChar(255)
-  complaint       String?   @db.VarChar(255)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-cost              String?
-  // العلاقة مع housedworker
-  HousedWorker    housedworker? @relation(fields: [housedWorkerId], references: [id])
-}
 model Office {
   id         Int       @id @default(autoincrement())
   Officename String    @unique @db.VarChar(191)
@@ -146,7 +125,17 @@ model User {
 }
 
 
+model Cash{
+  id            Int       @id @default(autoincrement()) 
+ createdAt     DateTime? @default(now())
+  updatedAt     DateTime? @updatedAt
 
+  amount        Decimal?
+  transaction_type String? @db.VarChar(100)
+  Month       String? @db.VarChar(100)
+  Year       String? @db.VarChar(100)
+  
+}
 model logs{
 
   id            Int       @id @default(autoincrement()) 
@@ -420,6 +409,28 @@ deparatureHousingDate  DateTime?
   Order          homemaid  @relation(fields: [homeMaid_id], references: [id])
 }
 
+model CheckIn {
+  isActive        Boolean? @default(true)
+  id              Int       @id @default(autoincrement())
+  housedWorkerId  Int       // حقل جديد للربط مع housedworker
+  breakfastOption String?   @db.VarChar(255)
+  breakfastNotes  String?   @db.VarChar(255)
+  lunchOption     String?   @db.VarChar(255)
+  lunchCost     Int? 
+supperCost     Int?
+breakfastCost  Int?
+CheckDate   DateTime?
+  lunchNotes      String?   @db.VarChar(255)
+  supperOption    String?   @db.VarChar(255)
+  supperNotes     String?   @db.VarChar(255)
+  complaint       String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+cost              String?
+DailyCost         Decimal?
+  // العلاقة مع housedworker
+  HousedWorker    housedworker? @relation(fields: [housedWorkerId], references: [id])
+}
 model income{
 transaction_id Int @id @default(autoincrement())
 order_id    Int

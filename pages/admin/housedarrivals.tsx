@@ -23,6 +23,13 @@ import { FaHouseUser } from "react-icons/fa";
 import { set } from "mongoose";
 
 export default function Table() {
+  const [openCashModal, setOpenCashModal] = useState(false);
+  const [newCashRecord, setNewCashRecord] = useState({
+    amount: "",
+    transaction_type: "",
+    Month: "",
+  });
+  const [cashError, setCashError] = useState("");
   const [employeeType, setEmployeeType] = useState("");
   const [deparatureDate, setDeparatureDate] = useState("");
   const [timeDeparature, setTimeDeparature] = useState("");
@@ -783,7 +790,63 @@ export default function Table() {
       setLoadingScreen(false);
     }
   };
+  const handleOpenCashModal = () => {
+    setOpenCashModal(true);
+  };
 
+  const handleCloseCashModal = () => {
+    setOpenCashModal(false);
+    setNewCashRecord({
+      amount: "",
+      transaction_type: "",
+      Month: "",
+    });
+    setCashError("");
+  };
+
+  const handleCashRecordChange = (e) => {
+    const { name, value } = e.target;
+    setNewCashRecord((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveCashRecord = async () => {
+    setLoadingScreen(true);
+    try {
+      const response = await fetch("/api/addcash", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: newCashRecord.amount,
+          transaction_type: newCashRecord.transaction_type,
+          Month: newCashRecord.Month,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 201) {
+        handleCloseCashModal();
+        setLoadingScreen(false);
+        // إعادة تحميل البيانات إذا لزم الأمر
+        isFetchingRef.current = false;
+        setHasMore(true);
+        setData([]);
+        pageRef.current = 1;
+        fetchData();
+      } else {
+        setCashError(data.error || "فشل في إضافة السجل النقدي");
+        setLoadingScreen(false);
+      }
+    } catch (error) {
+      setCashError("خطأ في الاتصال بالخادم");
+      setLoadingScreen(false);
+    }
+  };
   return (
     <Layout>
       <div className="container mx-auto p-6">
@@ -847,13 +910,37 @@ export default function Table() {
           </h1>
           <div>
             {" "}
-            <Button
+            {/* <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
               color="secondary"
               onClick={() => router.push("/admin/checklistpackage")}
             >
-              تسجيل الاعاشات
+              تسجيل الاعاشات - تفصيلي و وجبات
+            </Button> */}
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="secondary"
+              onClick={() => router.push("/admin/distributecash")}
+            >
+              تسجيل الاعاشات - توزيع نقدي
+            </Button>
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="secondary"
+              onClick={() => router.push("/admin/cashtable")}
+            >
+              سجلات النقد
+            </Button>
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
+              color="success"
+              onClick={handleOpenCashModal}
+            >
+              إدارة النقد
             </Button>
             <Button
               style={{ marginLeft: "10px" }}
@@ -875,7 +962,7 @@ export default function Table() {
               style={{ marginLeft: "10px" }}
               variant="contained"
               color="primary"
-              onClick={() => router.push("/admin/checklisttable")}
+              onClick={() => router.push("/admin/checkedtable")}
             >
               بيانات الاعاشة
             </Button>
@@ -1059,12 +1146,12 @@ export default function Table() {
               >
                 حالة العاملة
               </th>
-              <th
+              {/* <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 // onClick={() => requestSort("ClientName")}
               >
                 تعديل في الاعاشة{" "}
-              </th>
+              </th> */}
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 // onClick={() => requestSort("ClientName")}
@@ -1214,7 +1301,7 @@ export default function Table() {
                       </Button>
                     </td>
 
-                    <td className={`text-center mb-4`}>
+                    {/* <td className={`text-center mb-4`}>
                       <Button
                         variant="contained"
                         color="primary"
@@ -1223,7 +1310,7 @@ export default function Table() {
                         }
                       >
                         تعديل
-                      </Button>
+                      </Button> */}
                     </td>
                     <td className={`text-center mb-4`}>
                       <Button
@@ -1286,6 +1373,114 @@ export default function Table() {
             )}
           </tbody>
         </table>
+        <Modal open={openCashModal} onClose={handleCloseCashModal}>
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              maxHeight: "80vh",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              overflowY: "auto",
+            }}
+          >
+            <h2 className={Style["almarai-bold"]}>إضافة سجل نقدي</h2>
+
+            <TextField
+              fullWidth
+              label="المبلغ"
+              name="amount"
+              type="number"
+              value={newCashRecord.amount}
+              onChange={handleCashRecordChange}
+              margin="normal"
+              required
+            />
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel>نوع العملية</InputLabel>
+              <Select
+                name="transaction_type"
+                value={newCashRecord.transaction_type}
+                onChange={handleCashRecordChange}
+                required
+              >
+                <MenuItem value="income">إيراد</MenuItem>
+                <MenuItem value="expense">مصروف</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel>الشهر</InputLabel>
+              <Select
+                name="Month"
+                value={newCashRecord.Month}
+                onChange={handleCashRecordChange}
+                required
+              >
+                <MenuItem value="1">يناير</MenuItem>
+                <MenuItem value="2">فبراير</MenuItem>
+                <MenuItem value="3">مارس</MenuItem>
+                <MenuItem value="4">أبريل</MenuItem>
+                <MenuItem value="5">مايو</MenuItem>
+                <MenuItem value="6">يونيو</MenuItem>
+                <MenuItem value="7">يوليو</MenuItem>
+                <MenuItem value="8">أغسطس</MenuItem>
+                <MenuItem value="9">سبتمبر</MenuItem>
+                <MenuItem value="10">أكتوبر</MenuItem>
+                <MenuItem value="11">نوفمبر</MenuItem>
+                <MenuItem value="12">ديسمبر</MenuItem>
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel>السنة</InputLabel>
+              <Select
+                name="Year"
+                value={newCashRecord.Year}
+                onChange={handleCashRecordChange}
+                required
+              >
+                {[...Array(6)].map((_, index) => {
+                  const year = new Date().getFullYear() - 3 + index;
+                  return (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+
+            {cashError && (
+              <Typography color="error" variant="body2" sx={{ mt: 2 }}>
+                {cashError}
+              </Typography>
+            )}
+
+            <Box mt={2} display="flex" justifyContent="space-between">
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSaveCashRecord}
+              >
+                حفظ
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleCloseCashModal}
+              >
+                إلغاء
+              </Button>
+            </Box>
+          </Box>
+        </Modal>
         <Modal open={openSessionModal} onClose={handleCloseSessionModal}>
           <Box
             sx={{

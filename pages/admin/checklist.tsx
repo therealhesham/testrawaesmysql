@@ -45,7 +45,7 @@ export default function Checklist() {
         body: JSON.stringify({
           ...data,
           guestId: selectedGuest.id,
-          checkDate: selectedDate, // Include the selected date in the data
+          checkDate: new Date(selectedDate).toISOString(), // Include the selected date in the data
         }),
       });
       if (posting.status == 200) {
