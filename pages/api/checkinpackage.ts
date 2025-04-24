@@ -7,14 +7,14 @@ export default async function handler(req, res) {
 
       const existingCheckIn = await prisma.checkIn.findFirst({
         where: {
-          CheckDate: new Date(req.body.checkDate).toISOString(), // تحويل التاريخ إلى ISO string للمقارنة
+          CheckDate: req.body.checkDate, // تحويل التاريخ إلى ISO string للمقارنة
         },
       });
 
       if (existingCheckIn) {
         // تحديث السجل الموجود إذا كان هناك بيانات جديدة فقط
         const updatedCheckIn = await prisma.checkIn.updateMany({
-          where: { CheckDate: new Date(req.body.checkDate).toISOString() },
+          where: { CheckDate: req.body.checkDate },
           data: {
             cost: req.body.cost ? req.body.cost : existingCheckIn.cost,
             breakfastOption:
@@ -49,11 +49,11 @@ export default async function handler(req, res) {
             // ,
 
             // checkIns: {
-            //   some: { CheckDate: new Date(req.body.checkDate).toISOString() },
+            //   some: { CheckDate: req.body.checkDate },
             // },
             // // تأكد من أن هذه هي الطريقة الصحيحة للبحث بناءً على CheckDate
             // على سبيل المثال، إذا كانت الضيوف مرتبطين بتاريخ CheckIn أو تاريخ آخر.
-            // checkInDate: new Date(req.body.checkDate).toISOString(), // افترض أن هناك حقل مرتبط بتاريخ CheckIn
+            // checkInDate: req.body.checkDate, // افترض أن هناك حقل مرتبط بتاريخ CheckIn
           },
           select: {
             id: true, // اختيار guestId فقط
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         const guestIds = guests.map((guest) => guest.id);
 
         const dataToInsert = guests.map((guest) => ({
-          CheckDate: new Date(req.body.checkDate).toISOString(),
+          CheckDate: req.body.checkDate,
           cost: req.body.cost,
           housedWorkerId: guest.id, // استخدام guestId المستخلص
           breakfastOption: breakfast.option || null,

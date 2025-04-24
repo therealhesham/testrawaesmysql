@@ -15,8 +15,9 @@ import {
   FaBriefcase,
   FaLanguage,
   FaTools,
-} from "react-icons/fa"; // Importing icons
+} from "react-icons/fa";
 import RegistrationHousingModal from "example/components/registerhousingmodal";
+
 const ResumePage = () => {
   const [filteredSuggestions, setFilteredSuggestions] = useState({
     Housed: [],
@@ -24,18 +25,19 @@ const ResumePage = () => {
     NewOrder: [],
     Picture: [{ url: "" }],
   });
+  const [logs, setLogs] = useState([]); // State to store logs
   const [Existing, setExisting] = useState(false);
   const [image, setImage] = useState("");
   const [query, setQuery] = useState("");
   const [isHousingModalOpen, setIsHousingModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
+
   const handleChangeProfile = async (e) => {
     const submitter = await fetch("/api/changeprofile", {
       method: "post",
       headers: {
         Accept: "application/json",
-
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -44,15 +46,11 @@ const ResumePage = () => {
       }),
     });
 
-    // alert(submitter.status);
     if (submitter.ok) {
-      // alert(submitter.status);
       setDate(Date.now());
-      // setSubmitted(true);
-      // router.push("/admin/cvdetails/" + router.query.slug);
     }
   };
-  // const [profileStatus, setProfileStatus] = useState("");
+
   const updateHousingStatus = async (homeMaidId, profileStatus) => {
     const response = await fetch("/api/confirmhousing", {
       method: "POST",
@@ -67,34 +65,50 @@ const ResumePage = () => {
 
     const data = await response.json();
     if (response.ok) {
-      // router.push("/admin/cvdetails/" + homeMaidId);
-      // const url = ;
       setDate(Date.now());
-      // window.open(url); // Open in new window
       console.log("Success:", data.message);
     } else {
       console.log("Error:", data.error);
     }
   };
+
   const handleBooking = () => {
-    setIsModalOpen(true); // Open the modal when "حجز" is clicked
+    setIsModalOpen(true);
   };
-  // alert(filteredSuggestions?.NewOrder[0]?.HomemaidId);
+
   const handleCloseModal = () => {
-    setIsModalOpen(false); // Close the modal
+    setIsModalOpen(false);
   };
+
   const fetchdata = async (id) => {
     const fetchData = await fetch("/api/findcvprisma/" + id, {
       cache: "default",
     });
     const parser = await fetchData.json();
     setExisting(true);
-    console.log(parser);
     setFilteredSuggestions(parser);
     fetchImageDate(parser.Name);
   };
+
+  const fetchLogs = async (id) => {
+    try {
+      const response = await fetch(`/api/logs?id=${id}`, {
+        method: "GET",
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setLogs(data);
+      } else {
+        console.error("Error fetching logs:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching logs:", error);
+    }
+  };
+
   const [date, setDate] = useState(Date.now());
   const [homeMaidId, sethomeMaidId] = useState(0);
+
   const fetchImageDate = async (name) => {
     const fetchData = await fetch("/api/getimagefromprisma/" + name, {
       method: "get",
@@ -102,18 +116,21 @@ const ResumePage = () => {
     const parser = await fetchData.json();
     setImage(parser.result);
   };
+
   const openOrder = () => {
     router.push("/admin/neworder/" + filteredSuggestions?.NewOrder[0]?.id);
   };
+
   useEffect(() => {
     if (!router.query.slug) return;
     fetchdata(router.query.slug);
+    fetchLogs(router.query.slug); // Fetch logs when slug changes
     sethomeMaidId(router.query.slug);
   }, [router.query.slug]);
+
   useEffect(() => {
-    // if (!router.query.slug) return;
     fetchdata(router.query.slug);
-    // sethomeMaidId(router.query.slug);
+    fetchLogs(router.query.slug); // Refetch logs on date change
   }, [date]);
 
   function getDate(date) {
@@ -133,13 +150,13 @@ const ResumePage = () => {
   };
 
   const handleModalDeparatureSubmit = (inputValue) => {
-    console.log("Input Value:", inputValue); // Here you can process the input value
-    // Add your logic to handle the submitted value
+    console.log("Input Value:", inputValue);
   };
+
   const ReRender = () => {
     setDate(Date.now());
   };
-  // Book
+
   return (
     <Layout>
       <div className="bg-gray-50 min-h-screen py-12 px-6" dir="rtl">
@@ -153,32 +170,8 @@ const ResumePage = () => {
         />
 
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-          {/* Booking Button */}
-          {/* <div className="relative flex flex-column">
-            {filteredSuggestions?.NewOrder[0]?.HomemaidId && (
-              <div className="absolute top-5 grid grid-cols-1 text-center left-5 bg-transparent text-purple-600  font-bold w-60 h-32 items-center justify-center  z-10">
-                <span className="text-xl">تغيير حالة العاملة</span>
-                <select
-                  onChange={handleChangeProfile}
-                  className="rounded-md"
-                  // name="externalOfficeStatus"
-                  // ref={externalOfficeStatus}
-                  // id="externalOfficeStatus"
-                >
-                  <option value=""></option>
-
-                  <option value="وصول العاملة">وصول العاملة</option>
-                  <option value="مغادرة العاملة"> مغادرة العاملة</option>
-
-                  <option value="تسكين">تسكين</option>
-                  <option value="امتناع عن العمل">امتناع عن العمل</option>
-                </select>
-              </div>
-            )}
-          </div> */}
-          {/* Header Section */}
+          {/* Existing Header and Profile Section */}
           <div className="flex items-center mb-8 gap-5">
-            {/* Profile Image */}
             <img
               src={
                 image?.includes("irtable")
@@ -188,7 +181,6 @@ const ResumePage = () => {
               alt="Profile"
               className="w-32 h-32 rounded-lg border-4 border-bg-[#3D4C73] mr-6"
             />
-            {/* Profile Details */}
             <div>
               <h1 className="text-3xl font-bold text-gray-800">
                 {filteredSuggestions?.Name}
@@ -217,9 +209,7 @@ const ResumePage = () => {
                 <a
                   href="mailto:email@example.com"
                   className="text-blue-500 hover:text-blue-700"
-                >
-                  {/* <FaEnvelope /> Email Icon */}
-                </a>
+                ></a>
 
                 {Existing && (
                   <button
@@ -239,10 +229,7 @@ const ResumePage = () => {
                 {filteredSuggestions?.NewOrder[0]?.profileStatus ==
                   "وصول العاملة" ||
                 filteredSuggestions?.NewOrder[0]?.profileStatus ? (
-                  <div
-                    // style={{ display: "flex", flexDirection: "row" }}
-                    className=" justify-between flex flex-row align-middle gap-2"
-                  >
+                  <div className=" justify-between flex flex-row align-middle gap-2">
                     <button
                       onClick={() =>
                         updateHousingStatus(
@@ -250,62 +237,39 @@ const ResumePage = () => {
                           "بدأت العمل"
                         )
                       }
-                      className={`                ${
+                      className={`${
                         filteredSuggestions?.NewOrder[0]?.profileStatus ==
                         "بدأت العمل"
                           ? " bg-gray-400 rounded-md p-2 text-white text-md"
                           : "bg-pink-500 rounded-md p-2 text-white text-md"
-                      }  `}
+                      }`}
                       disabled={
                         filteredSuggestions?.NewOrder[0]?.profileStatus ==
                         "بدأت العمل"
                           ? true
                           : false
                       }
-                      // className="bg-yellow-500 rounded-md p-2 text-white text-md"
                     >
                       بدأت العمل
                     </button>
-                    {/* 
-                    <button
-                      onClick={
-                        () => setIsHousingModalOpen(true)
-                        // updateHousingStatus(filteredSuggestions?.id, "تسكين")
-                      }
-                      className={`                ${
-                        filteredSuggestions?.NewOrder[0]?.profileStatus ==
-                        "تسكين"
-                          ? " bg-gray-400 rounded-md p-2 text-white text-md"
-                          : "bg-orange-400 rounded-md p-2 text-white text-md"
-                      }  `}
-                      disabled={
-                        filteredSuggestions?.NewOrder[0]?.profileStatus ==
-                        "تسكين"
-                          ? true
-                          : false
-                      }
-                      // className="bg-yellow-500 rounded-md p-2 text-white text-md"
-                    >
-                      تسكين
-                    </button> */}
                     <button
                       onClick={handleOpenModalDeparature}
-                      className={`                ${
+                      className={`${
                         filteredSuggestions?.NewOrder[0]?.profileStatus ==
                         "مغادرة"
                           ? " bg-gray-400 rounded-md p-2 text-white text-md"
                           : "bg-red-500 rounded-md p-2 text-white text-md"
-                      }  `}
+                      }`}
                     >
                       مغادرة
                     </button>
                     <button
-                      className={`                ${
+                      className={`${
                         filteredSuggestions?.NewOrder[0]?.profileStatus ==
                         "امتناع عن العمل"
                           ? " bg-gray-400 rounded-md p-2 text-white text-md"
                           : "bg-purple-500 rounded-md p-2 text-white text-md"
-                      }  `}
+                      }`}
                       onClick={() =>
                         updateHousingStatus(
                           filteredSuggestions?.id,
@@ -319,21 +283,6 @@ const ResumePage = () => {
                 ) : (
                   ""
                 )}
-
-                {/* <div className="flex flex-row gap-2">
-                 
-                  {filteredSuggestions?.Housed[0] && (
-                    <button
-                      onClick={() => {
-                        updateHousingStatus(Number(router.query.slug));
-                      }}
-                      className="bg-purple-500  text-white py-2 px-4 rounded-lg hover:bg-teal-700"
-                    >
-                      {"تسكين"}
-                    </button>
-                  )}
-                </div>
-              </div> */}
               </div>
             </div>
           </div>
@@ -470,6 +419,57 @@ const ResumePage = () => {
               <h3 className="col-span-4 col-start-3">
                 {filteredSuggestions?.SewingLeveL || "بيانات غير متاحة"}
               </h3>
+            </div>
+          </div>
+
+          {/* Logs Section */}
+          <div className="mb-8">
+            <h2
+              className="text-2xl font-semibold text-gray-800 mb-4 flex flex-row align-baseline items-center"
+              style={{ color: "brown" }}
+            >
+              <FaTools /> سجل الأنشطة
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="py-2 px-4 border-b text-right">المعرف</th>
+                    <th className="py-2 px-4 border-b text-right">الحالة</th>
+                    <th className="py-2 px-4 border-b text-right">التاريخ</th>
+                    <th className="py-2 px-4 border-b text-right">ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.length > 0 ? (
+                    logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50">
+                        <td className="py-2 px-4 border-b text-right">
+                          {log.id}
+                        </td>
+                        <td className="py-2 px-4 border-b text-right">
+                          {log.profileStatus || "غير محدد"}
+                        </td>
+                        <td className="py-2 px-4 border-b text-right">
+                          {getDate(log.createdAt)}
+                        </td>
+                        <td className="py-2 px-4 border-b text-right">
+                          {log.notes || "لا توجد ملاحظات"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="py-2 px-4 border-b text-center text-gray-500"
+                      >
+                        لا توجد سجلات متاحة
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 

@@ -45,6 +45,7 @@ export default function NotificationDropdown() {
           },
         });
         const data = await response.json();
+        if (data.error) return router.push("/login");
         setNotifications(data);
       } catch (error) {
         console.error("Error fetching notifications:", error);
@@ -151,7 +152,7 @@ export default function NotificationDropdown() {
               Notifications
             </div>
             <ul className="max-h-60 overflow-y-auto">
-              {notifications.map((notification) => (
+              {notifications?.map((notification) => (
                 <li
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification.id)}
@@ -159,7 +160,7 @@ export default function NotificationDropdown() {
                     notification.isRead ? "opacity-50" : ""
                   }`}
                 >
-                  {formatMessage(notification.title)}
+                  {formatMessage(notification?.title)}
                 </li>
               ))}
               {notifications.length === 0 && (
