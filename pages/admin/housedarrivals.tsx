@@ -1310,8 +1310,8 @@ export default function Table() {
                         }
                       >
                         تعديل
-                      </Button> */}
-                    </td>
+                      </Button>
+                    </td> */}
                     <td className={`text-center mb-4`}>
                       <Button
                         onClick={() => {
