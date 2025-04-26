@@ -9,9 +9,6 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // ✅ استخراج التوكن من الكوكي
-    // console.log("s", req.cookies);
-    // const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
     const token = req.cookies?.authToken;
     let userId: string | null = null;
 

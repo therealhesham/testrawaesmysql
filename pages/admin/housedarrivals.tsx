@@ -1,4 +1,6 @@
 import { BookFilled } from "@ant-design/icons";
+import Head from "next/head";
+
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import * as React from "react";
@@ -48,7 +50,7 @@ export default function Table() {
   const [deparatureReason, setDeparatueReason] = useState("");
   const [sessionReason, setSessionReason] = useState("");
   const [sessionTime, setSessionTime] = useState("");
-
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [reason, setReason] = useState("");
   const [openSessionModal, setOpenSessionModal] = useState(false);
 
@@ -120,7 +122,78 @@ export default function Table() {
     setOpenEditModal(false);
   };
   const router = useRouter();
+  const [openCheckInModal, setOpenCheckInModal] = useState(false);
+  const [checkInDate, setCheckInDate] = useState("");
+  const [checkInError, setCheckInError] = useState("");
   const [data, setData] = useState([]);
+  const handleOpenCheckInModal = () => {
+    setOpenCheckInModal(true);
+    setCheckInDate(""); // إعادة تعيين التاريخ
+    setCheckInError(""); // إعادة تعيين الخطأ
+  };
+
+  const handleCloseCheckInModal = () => {
+    setOpenCheckInModal(false);
+    setCheckInDate("");
+    setCheckInError("");
+  };
+
+  const handleCreateCheckIns = async () => {
+    setLoadingScreen(true);
+    try {
+      const response = await fetch("/api/newday", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          CheckDate: checkInDate
+            ? new Date(checkInDate).toISOString()
+            : new Date().toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+      if (response.status === 201) {
+        setCheckInError(data.message);
+        setShowConfirmModal(true); // نظهر الـ Confirmation Modal
+      } else if (response.status === 200) {
+        handleCloseCheckInModal();
+        // إعادة تحميل البيانات إذا لزم الأمر
+        isFetchingRef.current = false;
+        setHasMore(true);
+        setData([]);
+        pageRef.current = 1;
+        fetchData();
+      } else {
+        setCheckInError(data.message || "فشل في إنشاء سجلات الإعاشة");
+      }
+    } catch (error) {
+      setCheckInError("خطأ في الاتصال بالخادم");
+    } finally {
+      setLoadingScreen(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    try {
+      const response = await fetch("/api/newdayforcing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ CheckDate: new Date(checkInDate).toISOString() }),
+      });
+      const data = await response.json();
+      if (response.status === 200) {
+        setShowConfirmModal(false);
+        setCheckInError("");
+        handleCloseCheckInModal(); // نقفل كل حاجة لما ينجح
+      } else {
+        setCheckInError(data.message || "حدث خطأ أثناء المتابعة");
+      }
+    } catch (error) {
+      setCheckInError("حدث خطأ أثناء الاتصال بالخادم");
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -850,6 +923,11 @@ export default function Table() {
   return (
     <Layout>
       <div className="container mx-auto p-6">
+        <Head>
+          <title>عاملات في السكن </title>
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+
         <div className="flex justify-between items-center mb-4">
           <div className="absolute top-4 right-10">
             <button
@@ -921,10 +999,18 @@ export default function Table() {
             <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
+              color="info"
+              onClick={handleOpenCheckInModal}
+            >
+              إنشاء تسجيلات الإعاشة
+            </Button>
+            <Button
+              style={{ marginLeft: "10px" }}
+              variant="contained"
               color="secondary"
               onClick={() => router.push("/admin/distributecash")}
             >
-              تسجيل الاعاشات - توزيع نقدي
+              توزيع النقد
             </Button>
             <Button
               style={{ marginLeft: "10px" }}
@@ -1401,7 +1487,7 @@ export default function Table() {
               margin="normal"
               required
             />
-
+            {/* 
             <FormControl fullWidth margin="normal">
               <InputLabel>نوع العملية</InputLabel>
               <Select
@@ -1413,7 +1499,7 @@ export default function Table() {
                 <MenuItem value="income">إيراد</MenuItem>
                 <MenuItem value="expense">مصروف</MenuItem>
               </Select>
-            </FormControl>
+            </FormControl> */}
 
             <FormControl fullWidth margin="normal">
               <InputLabel>الشهر</InputLabel>
@@ -1475,6 +1561,102 @@ export default function Table() {
                 variant="outlined"
                 color="secondary"
                 onClick={handleCloseCashModal}
+              >
+                إلغاء
+              </Button>
+            </Box>
+          </Box>
+        </Modal>
+        <Modal open={openCheckInModal} onClose={handleCloseCheckInModal}>
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              maxHeight: "80vh",
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 4,
+              borderRadius: 2,
+              overflowY: "auto",
+            }}
+          >
+            <h2 className={Style["almarai-bold"]}>إنشاء تسجيلات الإعاشة</h2>
+
+            <TextField
+              fullWidth
+              label="تاريخ التسجيل"
+              type="date"
+              value={checkInDate}
+              onChange={(e) => setCheckInDate(e.target.value)}
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+            />
+
+            {checkInError && !showConfirmModal && (
+              <Typography color="error" variant="body2" sx={{ mt: 2 }}>
+                {checkInError}
+              </Typography>
+            )}
+
+            <Box mt={2} display="flex" justifyContent="space-between">
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleCreateCheckIns}
+                disabled={!checkInDate}
+              >
+                إنشاء
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleCloseCheckInModal}
+              >
+                إلغاء
+              </Button>
+            </Box>
+          </Box>
+        </Modal>
+
+        {/* Confirmation Modal لما يظهر الـ error بتاع الـ 201 */}
+        <Modal
+          open={showConfirmModal}
+          onClose={() => setShowConfirmModal(false)}
+        >
+          <Box
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 400,
+              bgcolor: "background.paper",
+              boxShadow: 24,
+              p: 3,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" gutterBottom>
+              تأكيد المتابعة
+            </Typography>
+            <Typography color="error" variant="body2" sx={{ mb: 2 }}>
+              {checkInError}
+            </Typography>
+            <Box display="flex" justifyContent="space-between">
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleContinue}
+              >
+                متابعة
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => setShowConfirmModal(false)}
               >
                 إلغاء
               </Button>
