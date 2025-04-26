@@ -15,6 +15,7 @@ import {
 import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
+import NotificationDropdown from "components/notifications";
 
 interface MenuItem {
   id: number;
@@ -121,6 +122,7 @@ const Sidebar = (props) => {
       <div className="flex flex-col">
         <div className="flex items-center justify-center relative">
           <div className="flex flex-col items-center justify-center pl-1 gap-4">
+            <NotificationDropdown />
             <img
               src={image}
               alt="Profile"

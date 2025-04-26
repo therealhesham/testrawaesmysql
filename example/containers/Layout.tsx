@@ -47,7 +47,6 @@ function Layout({ children }: ILayout) {
       {/* <Sidebar /> */}
       <div className="flex flex-col flex-1 w-full">
         <div className="  flex justify-start " style={{ marginLeft: "20%" }}>
-          <NotificationDropdown />
         </div>
         {/* <Header /> */}
         <Main>{children}</Main>

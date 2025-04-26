@@ -57,13 +57,20 @@ export default function Home() {
 
   const handleModalConfirm = async () => {
     setShowModal(false);
-    await handleSubmit({ preventDefault: () => {} }, true); // Proceed with forceDistribute = true
+    await handleSubmit({ preventDefault: () => {} }, true);
   };
 
   const handleModalCancel = () => {
     setShowModal(false);
     setError("تم إلغاء التوزيع.");
   };
+
+  // Generate years for the dropdown (e.g., last 3 years and next 2 years)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from(
+    { length: 6 },
+    (_, index) => currentYear - 3 + index
+  );
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -84,16 +91,30 @@ export default function Home() {
             >
               الشهر
             </label>
-            <input
-              type="text"
+            <select
               id="month"
               name="month"
               value={formData.month}
               onChange={handleChange}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="مثال: 01"
-            />
+            >
+              <option value="" disabled>
+                اختر الشهر
+              </option>
+              <option value="1">يناير</option>
+              <option value="2">فبراير</option>
+              <option value="3">مارس</option>
+              <option value="4">أبريل</option>
+              <option value="5">مايو</option>
+              <option value="6">يونيو</option>
+              <option value="7">يوليو</option>
+              <option value="8">أغسطس</option>
+              <option value="9">سبتمبر</option>
+              <option value="10">أكتوبر</option>
+              <option value="11">نوفمبر</option>
+              <option value="12">ديسمبر</option>
+            </select>
           </div>
 
           <div>
@@ -103,16 +124,23 @@ export default function Home() {
             >
               العام
             </label>
-            <input
-              type="text"
+            <select
               id="year"
               name="year"
               value={formData.year}
               onChange={handleChange}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="مثال: 2025"
-            />
+            >
+              <option value="" disabled>
+                اختر العام
+              </option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

@@ -120,7 +120,6 @@ export default async function handler(
 
     // 7. Calculate daily amount based on remaining cash
     const dailyAmount = remainingCash / daysRemaining;
-
     // 8. Fetch active check-ins for the specified date
     const checkIns = await prisma.checkIn.findMany({
       where: {
