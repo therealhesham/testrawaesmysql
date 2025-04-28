@@ -35,44 +35,6 @@ export default function CashTable() {
   return (
     <Layout>
       <div className="overflow-x-auto mt-6">
-        <nav className="bg-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex">
-                <div className="flex-shrink-0 flex items-center">
-                  <Link href="/">
-                    <span className="text-2xl font-bold text-yellow-600">
-                      Logo
-                    </span>
-                  </Link>
-                </div>
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <Link href="/">
-                    <span className="border-transparent text-yellow-600 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                      Home
-                    </span>
-                  </Link>
-                  <Link href="/about">
-                    <span className="border-transparent text-yellow-600 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                      About
-                    </span>
-                  </Link>
-                  <Link href="/services">
-                    <span className="border-transparent text-yellow-600 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                      Services
-                    </span>
-                  </Link>
-                  <Link href="/contact">
-                    <span className="border-transparent text-yellow-600 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                      Contact
-                    </span>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </nav>
-
         <h1
           className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
         >
