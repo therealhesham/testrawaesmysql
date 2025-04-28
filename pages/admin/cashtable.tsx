@@ -1,5 +1,7 @@
 import EditCashModal from "components/editcashmodal";
 import Layout from "example/containers/Layout";
+import Style from "styles/Home.module.css";
+
 import Link from "next/link";
 import { useState, useEffect } from "react";
 export default function CashTable() {
@@ -97,7 +99,7 @@ export default function CashTable() {
                 className="border-t border-gray-100 hover:bg-gray-50"
               >
                 <td className="py-2 px-4">{index + 1}</td>
-                <td className="py-2 px-4">{cash.amount} ج.م</td>
+                <td className="py-2 px-4">{cash.amount}ر.س</td>
                 <td className="py-2 px-4">{cash.transaction_type}</td>
                 <td className="py-2 px-4">{cash.Month}</td>
                 <td className="py-2 px-4">{cash.Year}</td>
