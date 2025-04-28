@@ -898,7 +898,7 @@ export default function Table() {
           amount: newCashRecord.amount,
           transaction_type: newCashRecord.transaction_type,
           Month: newCashRecord.Month,
-          Year:newCashRecord.Year,
+          Year:newCashRecord.Year.toString(),
         }),
       });
 
