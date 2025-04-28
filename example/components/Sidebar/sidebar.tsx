@@ -122,7 +122,7 @@ const Sidebar = (props) => {
       <div className="flex flex-col">
         <div className="flex items-center justify-center relative">
           <div className="flex flex-col items-center justify-center pl-1 gap-4">
-            <NotificationDropdown />
+            {/* <NotificationDropdown /> */}
             <img
               src={image}
               alt="Profile"
