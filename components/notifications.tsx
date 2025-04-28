@@ -147,7 +147,7 @@ export default function NotificationDropdown() {
         ) : null}
 
         {open && (
-          <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700">
+          <div className="absolute  left-125 mt-2 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700">
             <div className="p-4 text-sm text-white dark:text-gray-100 border-b dark:border-gray-700 font-semibold bg-[dodgerblue]">
               Notifications
             </div>
@@ -156,7 +156,7 @@ export default function NotificationDropdown() {
                 <li
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification.id)}
-                  className={`px-4 py-2 h-[60px] hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
+                  className={`px-4 py-2  h-[60px] hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
                     notification.isRead ? "opacity-50" : ""
                   }`}
                 >
