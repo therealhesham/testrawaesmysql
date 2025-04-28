@@ -125,17 +125,6 @@ model User {
 }
 
 
-model Cash{
-  id            Int       @id @default(autoincrement()) 
- createdAt     DateTime? @default(now())
-  updatedAt     DateTime? @updatedAt
-
-  amount        Decimal?
-  transaction_type String? @db.VarChar(100)
-  Month       String? @db.VarChar(100)
-  Year       String? @db.VarChar(100)
-  
-}
 model logs{
 
   id            Int       @id @default(autoincrement()) 
@@ -430,6 +419,18 @@ cost              String?
 DailyCost         Decimal?
   // العلاقة مع housedworker
   HousedWorker    housedworker? @relation(fields: [housedWorkerId], references: [id])
+}
+
+model Cash{
+  id            Int       @id @default(autoincrement()) 
+ createdAt     DateTime? @default(now())
+  updatedAt     DateTime? @updatedAt
+
+  amount        Decimal?
+  transaction_type String? @db.VarChar(100)
+  Month       String? @db.VarChar(100)
+  Year       String? @db.VarChar(100)
+  
 }
 model income{
 transaction_id Int @id @default(autoincrement())
