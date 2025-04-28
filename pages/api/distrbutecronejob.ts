@@ -13,8 +13,6 @@ export default async function handler(
   request: NextApiRequest,
   response: NextApiResponse
 ) {
-
-
   try {
     if (request.method === "GET") {
       // Handle daily check-in creation
@@ -151,7 +149,20 @@ export default async function handler(
           DailyCost: costPerWorker,
         },
       });
-
+      try {
+        await prisma.notifications.create({
+          data: {
+            title: `تسجيل اعاشات اتوماتيكيا بتاريخ ${new Date(
+              today
+            ).toISOString()}`,
+            message: `تم تسجيل اعاشات  لـ${workerCount}لعاملات  <br/>
+`,
+            isRead: false,
+          },
+        });
+      } catch (e) {
+        console.log(e);
+      }
       // Return success response
       return response.status(200).json({
         success: true,
