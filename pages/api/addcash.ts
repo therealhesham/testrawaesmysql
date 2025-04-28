@@ -43,21 +43,20 @@ export default async function handler(req, res) {
               0
             );
 
-
-// const totalSpent = await prisma.checkIn.aggregate({
-//   where: {
-//     CheckDate: {
-//       gte: new Date(`${cash.Year}-${cash.Month}-01`),
-//       lt: new Date(
-//         new Date(`${cash.Year}-${cash.Month}-01`).setMonth(
-//           new Date(`${cash.Year}-${cash.Month}-01`).getMonth() + 1
-//         )
-//       ),
-//     },
-//   },
-//   _sum: { DailyCost: true },
-// });
-// const spent = Number(totalSpent._sum.DailyCost) || 0;
+            // const totalSpent = await prisma.checkIn.aggregate({
+            //   where: {
+            //     CheckDate: {
+            //       gte: new Date(`${cash.Year}-${cash.Month}-01`),
+            //       lt: new Date(
+            //         new Date(`${cash.Year}-${cash.Month}-01`).setMonth(
+            //           new Date(`${cash.Year}-${cash.Month}-01`).getMonth() + 1
+            //         )
+            //       ),
+            //     },
+            //   },
+            //   _sum: { DailyCost: true },
+            // });
+            // const spent = Number(totalSpent._sum.DailyCost) || 0;
 
             // حساب المتبقي
             const remaining = Number(cash.amount) - totalSpent;
@@ -94,7 +93,7 @@ export default async function handler(req, res) {
             amount: parseFloat(amount),
             transaction_type,
             Month,
-            Year,
+            Year: Year.toString(),
           },
         });
         res.status(201).json(newCash);
