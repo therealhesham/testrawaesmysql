@@ -88,7 +88,9 @@ export default async function handler(req, res) {
 
       try {
         const homeMaidIds = await prisma.homemaid.findUnique({
-          id: homeMaidId,
+          where: {
+            id: homeMaidId,
+          },
         });
 
         const notification = await prisma.notifications.create({
