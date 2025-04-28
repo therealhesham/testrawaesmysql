@@ -29,7 +29,7 @@ export default function Table() {
   const [newCashRecord, setNewCashRecord] = useState({
     amount: "",
     transaction_type: "",
-    Year:"",
+    Year: "",
     Month: "",
   });
   const [cashError, setCashError] = useState("");
@@ -181,7 +181,9 @@ export default function Table() {
       const response = await fetch("/api/newdayforcing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ CheckDate: new Date(checkInDate).toISOString() }),
+        body: JSON.stringify({
+          CheckDate: new Date(checkInDate).toISOString(),
+        }),
       });
       const data = await response.json();
       if (response.status === 200) {
@@ -898,7 +900,7 @@ export default function Table() {
           amount: newCashRecord.amount,
           transaction_type: newCashRecord.transaction_type,
           Month: newCashRecord.Month,
-          Year:newCashRecord.Year.toString(),
+          Year: newCashRecord.Year.toString(),
         }),
       });
 
