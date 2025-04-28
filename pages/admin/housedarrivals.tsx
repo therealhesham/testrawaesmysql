@@ -996,7 +996,7 @@ export default function Table() {
             >
               تسجيل الاعاشات - تفصيلي و وجبات
             </Button> */}
-            <Button
+            {/* <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
               color="info"
@@ -1011,7 +1011,7 @@ export default function Table() {
               onClick={() => router.push("/admin/distributecash")}
             >
               توزيع النقد
-            </Button>
+            </Button> */}
             <Button
               style={{ marginLeft: "10px" }}
               variant="contained"
