@@ -93,7 +93,7 @@ export default async function handler(req, res) {
             amount: parseFloat(amount),
             transaction_type,
             Month,
-            Year: Year.toString(),
+            Year,
           },
         });
         res.status(201).json(newCash);
