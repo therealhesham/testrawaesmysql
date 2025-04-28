@@ -1,4 +1,3 @@
-
 import EditCashModal from "components/editcashmodal";
 import Layout from "example/containers/Layout";
 import { useState, useEffect } from "react";
@@ -56,8 +55,8 @@ export default function CashTable() {
                 <td className="py-2 px-4">{cash.transaction_type}</td>
                 <td className="py-2 px-4">{cash.Month}</td>
                 <td className="py-2 px-4">{cash.Year}</td>
-                <td className="py-2 px-4">{cash.spent} ج.م</td>
-                <td className="py-2 px-4">{cash.remaining} ج.م</td>
+                <td className="py-2 px-4">{cash.spent} ر.س</td>
+                <td className="py-2 px-4">{cash.remaining} ر.س</td>
                 <td className="py-2 px-4">
                   <button
                     onClick={() => handleEdit(cash)}
