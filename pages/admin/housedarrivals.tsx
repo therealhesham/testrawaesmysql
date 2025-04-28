@@ -29,6 +29,7 @@ export default function Table() {
   const [newCashRecord, setNewCashRecord] = useState({
     amount: "",
     transaction_type: "",
+    Year:"",
     Month: "",
   });
   const [cashError, setCashError] = useState("");
@@ -897,6 +898,7 @@ export default function Table() {
           amount: newCashRecord.amount,
           transaction_type: newCashRecord.transaction_type,
           Month: newCashRecord.Month,
+          Year:newCashRecord.Year,
         }),
       });
 

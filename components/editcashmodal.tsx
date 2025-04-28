@@ -4,6 +4,7 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
   const [amount, setAmount] = useState("");
   const [transactionType, setTransactionType] = useState("");
   const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
 
   useEffect(() => {
     if (cashData) {
@@ -14,7 +15,7 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
   }, [cashData]);
 
   const handleSubmit = async () => {
-    const res = await fetch("/api/cash", {
+    const res = await fetch("/api/addcash", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -22,8 +23,9 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
       body: JSON.stringify({
         id: cashData.id,
         amount,
-        transaction_type: transactionType,
+        // transaction_type: transactionType,
         Month: month,
+        Year: year,
       }),
     });
 
@@ -50,7 +52,7 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
           className="w-full px-3 py-2 border rounded mb-4"
         />
 
-        <label className="block mb-2">نوع العملية</label>
+        {/* <label className="block mb-2">نوع العملية</label>
         <select
           value={transactionType}
           onChange={(e) => setTransactionType(e.target.value)}
@@ -59,7 +61,7 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
           <option value="">-- اختر --</option>
           <option value="إيراد">إيراد</option>
           <option value="مصاريف">مصاريف</option>
-        </select>
+        </select> */}
 
         <label className="block mb-2">الشهر</label>
         <input
