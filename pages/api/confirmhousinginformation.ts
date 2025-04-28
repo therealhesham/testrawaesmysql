@@ -86,16 +86,23 @@ export default async function handler(req, res) {
         });
       }
 
-      const notification = await prisma.notifications.create({
-        data: {
-          title: `تسكين عاملة منزلية`,
-          message: `تم تسكين العاملة   بنجاح <br/>
-              يمكنك فحص المعلومات في قسم التسكين ......  <a href="/admin/housedarrivals" target="_blank" className="text-blue-500">اضغط هنا</a>`,
-          userId: req.body.employee,
-          isRead: false,
-        },
-      });
+      try {
+        const homeMaidIds = await prisma.homemaid.findUnique({
+          id: homeMaidId,
+        });
 
+        const notification = await prisma.notifications.create({
+          data: {
+            title: `تسكين عاملة  ${homeMaidIds?.Name}منزلية`,
+            message: `تم تسكين العاملة   بنجاح <br/>
+              يمكنك فحص المعلومات في قسم التسكين ......  <a href="/admin/housedarrivals" target="_blank" className="text-blue-500">اضغط هنا</a>`,
+            userId: req.body.employee,
+            isRead: false,
+          },
+        });
+      } catch (e) {
+        console.log(e);
+      }
       return res.status(200).json({ message: "Housing updated successfully" });
     } catch (error) {
       console.error(error);
