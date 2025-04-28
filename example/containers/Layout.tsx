@@ -56,7 +56,7 @@ function Layout({ children }: ILayout) {
                 <div className="flex-shrink-0">
                   <Link href="/admin/home">
                     <span className="text-2xl font-bold text-yellow-600">
-                      Rawaes
+                      روائس للإستقدام
                     </span>
                   </Link>
                 </div>
@@ -73,7 +73,7 @@ function Layout({ children }: ILayout) {
                       قسم التسكين
                     </span>
                   </Link>
-                  <Link href="/admin/neworders">
+                  <Link href="/admin/neworderstest">
                     <span className="border-transparent text-yellow-500 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                       قسم الطلبات
                     </span>
