@@ -2,6 +2,8 @@
 
 import { useContext, useEffect } from "react";
 import SidebarContext, { SidebarProvider } from "context/SidebarContext";
+import Style from "styles/Home.module.css";
+import Link from "next/link";
 import Sidebar from "example/components/Sidebar/sidebar";
 import Header from "example/components/Header";
 import Main from "./Main";
@@ -46,8 +48,44 @@ function Layout({ children }: ILayout) {
 
       {/* <Sidebar /> */}
       <div className="flex flex-col flex-1 w-full">
-        <div className="  flex justify-start " style={{ marginLeft: "20%" }}>
-        </div>
+        <nav className="bg-white shadow-lg" dir="rtl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16">
+              <div className="flex">
+                <div className="flex-shrink-0 flex items-center">
+                  <Link href="/admin/home">
+                    <span className="text-2xl font-bold text-yellow-600">
+                      Rawaes
+                    </span>
+                  </Link>
+                </div>
+                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                  <Link href="/admin/home">
+                    <span className="border-transparent text-yellow-500 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                      الرئيسية
+                    </span>
+                  </Link>
+                  <Link href="/admin/housedarrivals">
+                    <span className="border-transparent text-yellow-500 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                      قسم التسكين
+                    </span>
+                  </Link>
+                  <Link href="/admin/neworders">
+                    <span className="border-transparent text-yellow-500 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                      قسم الطلبات
+                    </span>
+                  </Link>
+                  <NotificationDropdown />
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <div
+          className="  flex justify-start "
+          style={{ marginLeft: "20%" }}
+        ></div>
         {/* <Header /> */}
         <Main>{children}</Main>
       </div>
