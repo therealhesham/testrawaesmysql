@@ -1,5 +1,5 @@
 //@ts-nocheck
-
+import * as React from "react";
 import { useContext, useEffect } from "react";
 import SidebarContext, { SidebarProvider } from "context/SidebarContext";
 import Style from "styles/Home.module.css";
@@ -20,6 +20,8 @@ interface ILayout {
 function Layout({ children }: ILayout) {
   const { isSidebarOpen } = useContext(SidebarContext);
   const router = useRouter();
+  const user = {};
+
   //   useEffect(()=>{
 
   // try {
@@ -34,7 +36,20 @@ function Layout({ children }: ILayout) {
   //   }
 
   // },[])
-
+  const [image, setImage] = React.useState<string | null>(null);
+  useEffect(() => {
+    if (!localStorage.getItem("token")) router.push("/admin/login");
+    try {
+      const token = localStorage.getItem("token");
+      const info = jwtDecode(token);
+      setImage(info.picture);
+      // setInfo(info.username);
+      // setRole(info.role.toLowerCase());
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      router.push("/admin/login");
+    }
+  }, []);
   return (
     // <SidebarProvider>
     <div
@@ -62,7 +77,7 @@ function Layout({ children }: ILayout) {
                 </div>
 
                 {/* Navigation Links */}
-                <div className="hidden sm:mr-6 sm:flex sm:items-center sm:space-x-8 sm:space-x-reverse">
+                {/* <div className="hidden sm:mr-6 sm:flex sm:items-center sm:space-x-8 sm:space-x-reverse">
                   <Link href="/admin/home">
                     <span className="border-transparent text-yellow-500 hover:border-yellow-600 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                       الرئيسية
@@ -78,12 +93,33 @@ function Layout({ children }: ILayout) {
                       قسم الطلبات
                     </span>
                   </Link>
-                </div>
+                </div> */}
               </div>
 
-              {/* Notification Bell */}
-              <div className="flex items-center">
+              {/* Right Section: Notification, Profile Picture, and Logout Button */}
+              <div className="flex items-center space-x-4 space-x-reverse">
+                {/* Notification Bell */}
                 <NotificationDropdown />
+
+                {/* Profile Picture or First Letter */}
+                <div className="flex-shrink-0">
+                  <img
+                    className="h-10 w-10 rounded-full object-cover"
+                    src={image ? image : "/images/1.jpg"}
+                    alt="الصورة الشخصية"
+                  />
+                </div>
+
+                {/* Logout Button */}
+                <button
+                  className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                  onClick={() => {
+                    // منطق تسجيل الخروج (مثل مسح التوكن أو إعادة التوجيه)
+                    console.log("تسجيل الخروج");
+                  }}
+                >
+                  تسجيل الخروج
+                </button>
               </div>
             </div>
           </div>

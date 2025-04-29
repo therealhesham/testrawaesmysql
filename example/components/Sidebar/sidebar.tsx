@@ -12,10 +12,12 @@ import {
   UsersIcon,
   VideosIcon,
 } from "../../../components/icons";
+
 import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import NotificationDropdown from "components/notifications";
+import { FaCog } from "react-icons/fa";
 
 interface MenuItem {
   id: number;
@@ -28,7 +30,6 @@ const menuItems: MenuItem[] = [
   { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
   { id: 3, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
 ];
-
 const Sidebar = (props) => {
   const { toggleCollapse, setToggleCollapse } = useSidebar();
   const [isCollapsible, setIsCollapsible] = useState(false);
@@ -169,6 +170,19 @@ const Sidebar = (props) => {
             );
           })}
         </div>
+        <Link href="/admin/settings">
+          <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+            <div style={{ width: "2.5rem", color: "white" }}>
+              <FaCog />
+            </div>
+            {!toggleCollapse && (
+              <span className="text-md font-medium text-text-light text-white">
+                الإعدادات
+              </span>
+            )}
+          </a>
+        </Link>
+
         {role === "admin" && (
           <Link href="/admin/addadmin">
             <a className="flex py-4 px-3 items-center justify-center w-full h-full">
