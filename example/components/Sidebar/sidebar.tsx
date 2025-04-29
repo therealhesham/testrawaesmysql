@@ -16,7 +16,8 @@ import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import NotificationDropdown from "components/notifications";
-import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt } from "react-icons/fa";
+import { MenuAlt1Icon } from "@heroicons/react/solid";
 
 interface MenuItem {
   id: number;
@@ -37,7 +38,7 @@ const menuItems: MenuItem[] = [
   {
     id: 2,
     label: "الطلبات",
-    icon: ArticleIcon,
+    icon: FaFirstOrderAlt,
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
       { id: 22, label: "طلبات ملغاة", link: "/admin/cancelledorders" },
@@ -100,7 +101,7 @@ const Sidebar = (props) => {
   const getNavItemClasses = useCallback(
     (menu: MenuItem) => {
       return classNames(
-        "flex items-center cursor-pointer hover:bg-light-lighter rounded w-full overflow-hidden whitespace-nowrap text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4",
+        "flex items-center px-5 cursor-pointer hover:bg-light-lighter rounded w-full overflow-hidden whitespace-nowrap text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4",
         {
           "bg-light-lighter": activeMenu?.id === menu.id,
         }
@@ -177,7 +178,9 @@ const Sidebar = (props) => {
         <div className="flex items-center justify-center relative">
           <div className="flex flex-col items-center justify-center pl-1 gap-4">
             <img
-              src={image}
+                    src={image ? image : "/images/favicon.ico"}
+
+              // src={image}
               alt="Profile"
               className="rounded-full w-24 h-24 object-cover"
             />
@@ -241,14 +244,14 @@ const Sidebar = (props) => {
                   )}
                 </div>
                 {!toggleCollapse && subItems && openMenu === menu.id && (
-                  <div className="w-full">
+                  <div className="w-full flex justify-center" style={{flexWrap:"wrap"}}>
                     {subItems.map((subItem) => (
                       <div
                         key={subItem.id}
                         className={getSubNavItemClasses(subItem)}
                       >
                         <Link href={subItem.link}>
-                          <a className="flex items-center justify-center w-full h-full">
+                          <a className="flex items-center   justify-center w-full h-full">
                             <span className="text-sm font-medium text-text-light text-white">
                               {subItem.label}
                             </span>

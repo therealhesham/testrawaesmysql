@@ -105,7 +105,7 @@ function Layout({ children }: ILayout) {
                 <div className="flex-shrink-0">
                   <img
                     className="h-10 w-10 rounded-full object-cover"
-                    src={image ? image : "/images/1.jpg"}
+                    src={image ? image : "/images/favicon.ico"}
                     alt="الصورة الشخصية"
                   />
                 </div>

@@ -519,7 +519,7 @@ export default function Home({ user }) {
               style={{
                 position: "fixed",
                 bottom: "2%", // Position vertically in the center
-                right: "1%", // Position horizontally in the center (you can adjust this to move horizontally)
+                left: "5%", // Position horizontally in the center (you can adjust this to move horizontally)
                 transform: "translate(-50%, -50%)", // Offset to truly center the button
                 backgroundColor: "transparent", // Make the background transparent
                 color: "blue", // Make the icon color blue (you can change this to any color)
