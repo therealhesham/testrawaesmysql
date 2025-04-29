@@ -244,11 +244,11 @@ export default function Home({ user }) {
         {/* <NotificationDropdown /> */}
         {/* </div> */}
         {/* Centered Heading */}
-        <h1
+        {/* <h1
           className={`text-3xl font-bold mb-8 mt-8 bg-gray-50 text-center ${Style["almarai-bold"]}`}
         >
           قسم الاستقدام
-        </h1>
+        </h1> */}
         {user.role.toLowerCase() == "admin".toLowerCase() && (
           <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
             <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
