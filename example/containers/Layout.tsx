@@ -52,7 +52,7 @@ function Layout({ children }: ILayout) {
   }, []);
   return (
     // <SidebarProvider>
-    <div
+    <div dir="rtl"
       className={`flex h-screen w-screen  bg-gray-50 dark:bg-gray-900 
         `}
       // ${
