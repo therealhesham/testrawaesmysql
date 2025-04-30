@@ -32,6 +32,19 @@ export default function Table() {
     Year: "",
     Month: "",
   });
+  const [days, setDays] = useState(0);
+
+  function calcualtinghousingdays(date){
+
+const startDate = new Date(date);
+    const currentDate = new Date();
+    
+    // حساب الفرق بالأيام
+    const differenceInTime = startDate.getTime() - currentDate.getTime();
+    const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
+    
+    return differenceInDays
+  }
   const [cashError, setCashError] = useState("");
   const [employeeType, setEmployeeType] = useState("");
   const [deparatureDate, setDeparatureDate] = useState("");
@@ -1245,6 +1258,14 @@ export default function Table() {
               >
                 حالة العاملة
               </th>
+
+              <th
+                className="p-3 text-center text-sm font-medium cursor-pointer"
+                // onClick={() => requestSort("ClientName")}
+              >
+                عدد الايام في السكن
+              </th>
+
               {/* <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 // onClick={() => requestSort("ClientName")}
@@ -1399,6 +1420,17 @@ export default function Table() {
                         تعديل
                       </Button>
                     </td>
+
+
+
+                    <td className={`text-center mb-4`}>
+                      <h1
+                        className={`text-center mb-4 ${Style["almarai-bold"]}`}
+                      >
+                        {calcualtinghousingdays(item?.houseentrydate)   }
+                      </h1>
+                    </td>
+
 
                     {/* <td className={`text-center mb-4`}>
                       <Button
