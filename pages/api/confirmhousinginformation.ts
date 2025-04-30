@@ -166,6 +166,15 @@ export default async function handler(req, res) {
     }
 
     try {
+
+  // Fetch the total count of housed workers
+      const totalCount = await prisma.housedworker.count({
+        where: {
+          ...filters,
+          deparatureHousingDate: null,
+        },
+      });
+
       const housing = await prisma.housedworker.findMany({
         where: {
           ...filters,
@@ -181,7 +190,7 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: "Housing not found" });
       }
 
-      return res.status(200).json({ housing });
+      return res.status(200).json({ housing ,totalCount});
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Error fetching housing" });
