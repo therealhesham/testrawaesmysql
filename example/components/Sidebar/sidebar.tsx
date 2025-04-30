@@ -41,7 +41,7 @@ const menuItems: MenuItem[] = [
     icon: FaFirstOrderAlt,
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
-      { id: 22, label: "طلبات ملغاة", link: "/admin/cancelledorders" },
+      { id: 22, label: "طلبات منتهية", link: "/admin/endedorders" },
       // { id: 23, label: "طلبات مكتملة", link: "/admin/orders/completed" },
     ],
   },

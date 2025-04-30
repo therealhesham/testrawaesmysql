@@ -56,18 +56,18 @@ export default function HousedWorkers() {
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white border border-gray-200">
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="py-2 px-4 border-b text-left">ID</th>
-                    <th className="py-2 px-4 border-b text-left">
+                  <tr className="bg-gray-100 text-center">
+                    <th className="py-2 px-4 border-b text-center">ID</th>
+                    <th className="py-2 px-4 border-b text-center">
                       اسم العاملة
                     </th>
-                    <th className="py-2 px-4 border-b text-left">
+                    <th className="py-2 px-4 border-b text-center">
                       تاريخ التسكين
                     </th>
-                    <th className="py-2 px-4 border-b text-left">
+                    <th className="py-2 px-4 border-b text-center">
                       حالة الاعاشة
                     </th>
-                    <th className="py-2 px-4 border-b text-left">
+                    <th className="py-2 px-4 border-b text-center">
                       اجمالي التكلفة
                     </th>
                   </tr>
@@ -75,7 +75,7 @@ export default function HousedWorkers() {
                 <tbody>
                   {workers.length > 0 &&
                     workers.map((worker) => (
-                      <tr key={worker.id} className="hover:bg-gray-50">
+                      <tr key={worker.id} className="hover:bg-gray-50 text-center">
                         <td className="py-2 px-4 border-b">{worker.id}</td>
                         <td className="py-2 px-4 border-b text-blue-600 underline cursor-pointer">
                           <a href={`/admin/worker/${worker.id}`}>
