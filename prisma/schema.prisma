@@ -381,6 +381,8 @@ model housedworker {
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
 
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   id             Int       @id @default(autoincrement())
   homeMaid_id       Int       @unique
   Reason         String?   @db.VarChar(100)
