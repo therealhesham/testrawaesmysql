@@ -21,6 +21,21 @@ function Layout({ children }: ILayout) {
   const { isSidebarOpen } = useContext(SidebarContext);
   const router = useRouter();
   const user = {};
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/logout", {
+        method: "POST",
+      });
+
+      if (response.status === 200) {
+        router.push("/admin/login");
+      } else {
+        console.error("Logout failed");
+      }
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
+  };
 
   //   useEffect(()=>{
 
@@ -114,7 +129,9 @@ function Layout({ children }: ILayout) {
                 <button
                   className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
                   onClick={() => {
-                    // منطق تسجيل الخروج (مثل مسح التوكن أو إعادة التوجيه)
+        onClick={handleLogout}
+
+
                     console.log("تسجيل الخروج");
                   }}
                 >
