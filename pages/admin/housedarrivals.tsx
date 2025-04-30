@@ -264,7 +264,7 @@ const startDate = new Date(date);
 
   const [totalCount, setTotalCount] = useState(0); // New state for total count
 
-  const [page,setPage]=useState("")
+  const [page,setPage]=useState(0)
   async function fetchData() {
     if (isFetchingRef.current || !hasMore) return;
     isFetchingRef.current = true;
@@ -281,7 +281,7 @@ const startDate = new Date(date);
         sortKey: sortConfig.key || "",
         sortDirection: sortConfig.direction,
       });
-setPage(queryParams.get("page"))
+setPage(pageRef.current)
       const response = await fetch(
         `/api/confirmhousinginformation?${queryParams}`,
         {
@@ -1304,7 +1304,7 @@ setPage(queryParams.get("page"))
               data.map((item,index) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
-                    <td className="text-center">{(totalCount-index-(10* (parseInt(page)-1))) }</td>
+                    <td className="text-center">{(totalCount-index-(10 * (page-1))) }</td>
 
                     {/* <td>
                       <h1
