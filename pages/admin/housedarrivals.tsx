@@ -1009,23 +1009,6 @@ setPage(queryParams.get("page"))
           >
             عاملات تم تسكينهم
           </h1>
-<Typography variant="h6" className={Style["almarai-bold"]}>
-  إجمالي عدد العاملات في السكن:{" "}
-  <span
-    style={{
-      backgroundColor: "green",
-      borderRadius: "50%",
-      color: "white",
-      padding: "5px 10px",
-      display: "inline-flex",
-      justifyContent: "center",
-      alignItems: "center",
-      minWidth: "30px", // لضمان شكل دائري حتى لو كان الرقم قصير
-    }}
-  >
-    {totalCount}
-  </span>
-</Typography>
           <div>
             {" "}
             {/* <Button
@@ -1321,7 +1304,7 @@ setPage(queryParams.get("page"))
               data.map((item,index) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
-                    <td className="text-center">{(totalCount-(10*(parseInt(page)-1))-index) }</td>
+                    <td className="text-center">{(totalCount-index-(10*(parseInt(page)-1))) }</td>
 
                     {/* <td>
                       <h1
