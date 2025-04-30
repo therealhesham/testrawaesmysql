@@ -448,7 +448,7 @@ const ResumePage = () => {
                           {log.id}
                         </td>
                         <td className="py-2 px-4 border-b text-right">
-                          {log.profileStatus || "غير محدد"}
+                          {log.Status || "غير محدد"}
                         </td>
                         <td className="py-2 px-4 border-b text-right">
                           {getDate(log.createdAt)}
