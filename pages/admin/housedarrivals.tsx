@@ -249,6 +249,9 @@ export default function Table() {
     return form;
   }
 
+  const [totalCount, setTotalCount] = useState(0); // New state for total count
+
+  
   async function fetchData() {
     if (isFetchingRef.current || !hasMore) return;
     isFetchingRef.current = true;
@@ -280,8 +283,11 @@ export default function Table() {
       const res = await response.json();
       if (res && res.housing.length > 0) {
         setData((prevData) => [...prevData, ...res.housing]);
+                setTotalCount(res.totalCount); // Set the total count from API response
         pageRef.current += 1;
       } else {
+                setTotalCount(res.totalCount); // Set the total count from API response
+        
         setHasMore(false);
       }
     } catch (error) {
@@ -990,6 +996,9 @@ export default function Table() {
           >
             عاملات تم تسكينهم
           </h1>
+            <Typography variant="h6" className={Style["almarai-bold"]}>
+              إجمالي عدد العاملات في السكن: {totalCount}
+            </Typography>
           <div>
             {" "}
             {/* <Button
