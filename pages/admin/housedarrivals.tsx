@@ -1009,21 +1009,22 @@ const startDate = new Date(date);
           >
             عاملات تم تسكينهم
           </h1>
-<Typography
-  variant="h6"
-  className={Style["almarai-bold"]}
-  sx={{
-    backgroundColor: "green",
-    borderRadius: "50%",
-    color: "white", // لضمان تباين النص مع الخلف  // لضمان تباين النص مع الخلفية
-    padding: "10px",
-    display: "inline-flex",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "fit-content",
-  }}
->
-  إجمالي عدد العاملات في السكن: {totalCount}
+<Typography variant="h6" className={Style["almarai-bold"]}>
+  إجمالي عدد العاملات في السكن:{" "}
+  <span
+    style={{
+      backgroundColor: "green",
+      borderRadius: "50%",
+      color: "white",
+      padding: "5px 10px",
+      display: "inline-flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minWidth: "30px", // لضمان شكل دائري حتى لو كان الرقم قصير
+    }}
+  >
+    {totalCount}
+  </span>
 </Typography>
           <div>
             {" "}
