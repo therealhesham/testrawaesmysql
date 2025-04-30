@@ -389,7 +389,7 @@ deparatureHousingDate  DateTime?
   employee       String?   @db.VarChar(100)
   isActive        Boolean? @default(true)
   Details        String?   @db.VarChar(255)
-  houseentrydate DateTime
+  houseentrydate DateTime?
   transaction_type String?
   deliveryDate   DateTime?
   status    String?   @db.VarChar(100)
