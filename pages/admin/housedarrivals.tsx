@@ -281,7 +281,7 @@ const startDate = new Date(date);
         sortKey: sortConfig.key || "",
         sortDirection: sortConfig.direction,
       });
-setPage(pageRef.current)
+// setPage()
       const response = await fetch(
         `/api/confirmhousinginformation?${queryParams}`,
         {
@@ -1304,7 +1304,7 @@ setPage(pageRef.current)
               data.map((item,index) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
-                    <td className="text-center">{(totalCount-index-(10 * (page-1))) }</td>
+                    <td className="text-center">{(totalCount-index-(10 * (pageRef.current-1))) }</td>
 
                     {/* <td>
                       <h1
