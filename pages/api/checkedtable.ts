@@ -17,9 +17,6 @@ export default async function handler(
     const offset = (page - 1) * pageSize;
 
     // Construct the WHERE clause for search
-    const searchCondition = search
-      ? prisma.sql`WHERE h.Name LIKE ${`%${search}%`}`
-      : prisma.sql``;
 
     const data = await prisma.$queryRaw`
       SELECT 
@@ -32,7 +29,7 @@ export default async function handler(
       FROM housedworker hw
       LEFT JOIN \`homemaid\` h ON hw.homeMaid_id = h.id
       LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
-      ${searchCondition}
+      WHERE h.Name LIKE ${search}
       GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive
       ORDER BY hw.id DESC
       LIMIT ${pageSize} OFFSET ${offset};
@@ -45,7 +42,8 @@ export default async function handler(
         FROM housedworker hw
         LEFT JOIN \`homemaid\` h ON hw.homeMaid_id = h.id
         LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
-        ${searchCondition}
+              WHERE h.Name LIKE ${search}
+
         GROUP BY hw.id
       ) as grouped;
     `;

@@ -30,7 +30,7 @@ export default function HousedWorkers() {
     setError(null);
     try {
       const response = await fetch(
-        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${searchQuery}`
+        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery)}`
       );
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);
