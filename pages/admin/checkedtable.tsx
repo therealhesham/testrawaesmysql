@@ -16,25 +16,33 @@ export default function HousedWorkers() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+  const [searchQuery, setSearchQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function getDate(date: string) {
+    const currentDate = new Date(date);
     const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
     return form;
   }
 
   const fetchWorkers = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch(
-        `/api/checkedtable?page=${page}&pageSize=${pageSize}`
+        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery)}`
       );
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
       const result = await response.json();
-      setWorkers(result.data);
-      setTotalPages(result.totalPages);
+      // Ensure result.data is an array; fallback to empty array if undefined
+      setWorkers(Array.isArray(result.data) ? result.data : []);
+      setTotalPages(result.totalPages || 1);
     } catch (error) {
       console.error("Error fetching workers:", error);
+      setError("فشل في جلب البيانات. حاول مرة أخرى.");
+      setWorkers([]); // Reset workers to empty array on error
     } finally {
       setLoading(false);
     }
@@ -42,15 +50,35 @@ export default function HousedWorkers() {
 
   useEffect(() => {
     fetchWorkers();
-  }, [page]);
+  }, [page, searchQuery]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page when search query changes
+  };
 
   return (
     <Layout>
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4">بيانات الاعاشة</h1>
 
+        {/* Search Input */}
+        <div className="mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="ابحث بالاسم..."
+            className="w-50 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        {error && (
+          <div className="text-red-500 text-center mb-4">{error}</div>
+        )}
+
         {loading ? (
-          <div className="text-center">Loading...</div>
+          <div className="text-center">جاري التحميل...</div>
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -73,7 +101,7 @@ export default function HousedWorkers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {workers.length > 0 &&
+                  {workers.length > 0 ? (
                     workers.map((worker) => (
                       <tr key={worker.id} className="hover:bg-gray-50 text-center">
                         <td className="py-2 px-4 border-b">{worker.id}</td>
@@ -94,7 +122,14 @@ export default function HousedWorkers() {
                           {worker.totalDailyCost}
                         </td>
                       </tr>
-                    ))}
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-2 px-4 text-center">
+                        لا توجد بيانات لعرضها
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

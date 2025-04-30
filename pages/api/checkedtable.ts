@@ -10,10 +10,16 @@ export default async function handler(
   }
 
   try {
-    // Read page and pageSize from query string, with defaults
+    // Read page, pageSize, and search from query string, with defaults
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const search = (req.query.search as string) || "";
     const offset = (page - 1) * pageSize;
+
+    // Construct the WHERE clause for search
+    const searchCondition = search
+      ? prisma.sql`WHERE h.Name LIKE ${`%${search}%`}`
+      : prisma.sql``;
 
     const data = await prisma.$queryRaw`
       SELECT 
@@ -24,12 +30,11 @@ export default async function handler(
         hw.isActive,
         IFNULL(SUM(ci.DailyCost), 0) AS totalDailyCost
       FROM housedworker hw
-
       LEFT JOIN \`homemaid\` h ON hw.homeMaid_id = h.id
       LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
+      ${searchCondition}
       GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive
-        order by hw.id desc
-
+      ORDER BY hw.id DESC
       LIMIT ${pageSize} OFFSET ${offset};
     `;
 
@@ -40,8 +45,8 @@ export default async function handler(
         FROM housedworker hw
         LEFT JOIN \`homemaid\` h ON hw.homeMaid_id = h.id
         LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
+        ${searchCondition}
         GROUP BY hw.id
-        
       ) as grouped;
     `;
 
