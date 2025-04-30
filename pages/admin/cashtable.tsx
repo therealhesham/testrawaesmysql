@@ -43,7 +43,7 @@ export default function CashTable() {
 
         <table className="min-w-full bg-white border border-gray-200 shadow-md rounded-md">
           <thead>
-            <tr className="bg-gray-100 text-gray-700 text-left">
+            <tr className="bg-gray-100 text-gray-700 text-center">
               <th className="py-3 px-4">#</th>
               <th className="py-3 px-4">القيمة</th>
               <th className="py-3 px-4">النوع</th>
@@ -56,9 +56,13 @@ export default function CashTable() {
           </thead>
           <tbody>
             {cashData.map((cash, index) => (
+
+
+
               <tr
                 key={cash.id}
-                className="border-t border-gray-100 hover:bg-gray-50"
+                className="border-t border-gray-100 hover:bg-gray-50 text-center"
+
               >
                 <td className="py-2 px-4">{index + 1}</td>
                 <td className="py-2 px-4">{cash.amount}ر.س</td>
