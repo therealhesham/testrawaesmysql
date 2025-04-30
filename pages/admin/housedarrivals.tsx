@@ -1321,7 +1321,7 @@ setPage(queryParams.get("page"))
               data.map((item,index) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
-                    <td className="text-center">{(parseInt(page) - 1) * 10 + index + 1}</td>
+                    <td className="text-center">{(totalCount-(10*parseInt(page))-index) }</td>
 
                     {/* <td>
                       <h1
