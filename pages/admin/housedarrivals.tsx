@@ -1053,7 +1053,7 @@ const startDate = new Date(date);
               توزيع النقد
             </Button> */}
             <Button
-              style={{ marginLeft: "10px" }}
+              style={{ marginLeft: "1px" }}
               variant="contained"
               color="secondary"
               onClick={() => router.push("/admin/cashtable")}
@@ -1061,7 +1061,7 @@ const startDate = new Date(date);
               سجلات النقد
             </Button>
             <Button
-              style={{ marginLeft: "10px" }}
+              style={{ marginLeft: "1px" }}
               variant="contained"
               color="success"
               onClick={handleOpenCashModal}
@@ -1069,7 +1069,7 @@ const startDate = new Date(date);
               إدارة النقد
             </Button>
             <Button
-              style={{ marginLeft: "10px" }}
+              style={{ marginLeft: "1px" }}
               variant="contained"
               color="secondary"
               onClick={() => router.push("/admin/workersstatus")}
@@ -1077,7 +1077,7 @@ const startDate = new Date(date);
               حالات العاملات
             </Button>
             <Button
-              style={{ marginLeft: "10px" }}
+              style={{ marginLeft: "1px" }}
               variant="contained"
               color="warning"
               onClick={handleOpenAddModal}
@@ -1085,7 +1085,7 @@ const startDate = new Date(date);
               تسكين عاملة
             </Button>
             <Button
-              style={{ marginLeft: "10px" }}
+              style={{ marginLeft: "1px" }}
               variant="contained"
               color="primary"
               onClick={() => router.push("/admin/checkedtable")}
@@ -1093,7 +1093,7 @@ const startDate = new Date(date);
               بيانات الاعاشة
             </Button>
             <Button
-              style={{ marginLeft: "10px" }}
+              style={{ marginLeft: "1px" }}
               variant="contained"
               color="error"
               onClick={() => router.push("/admin/departedhousedarrivals")}
