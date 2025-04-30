@@ -447,7 +447,7 @@ const ResumePage = () => {
                         <td className="py-2 px-4 border-b text-right">
                           {log.id}
                         </td>
-                        <td className="py-2 px-4 border-b text-right">
+                        <td className="py-2 px-4 border-b text-right  " style={{color:"maroon"}}>
                           {log.Status || "غير محدد"}
                         </td>
                         <td className="py-2 px-4 border-b text-right">
