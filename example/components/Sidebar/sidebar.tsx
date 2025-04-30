@@ -214,7 +214,7 @@ const Sidebar = (props) => {
           </button>
         </div>
 
-        <div className="flex flex-col items-start mt-24">
+        <div className="flex flex-col  mt-24  items-center mr-3">
           {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
             const classes = getNavItemClasses(menu);
             return (
