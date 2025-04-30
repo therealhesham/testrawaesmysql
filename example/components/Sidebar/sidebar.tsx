@@ -16,7 +16,7 @@ import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import NotificationDropdown from "components/notifications";
-import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt, FaPersonBooth } from "react-icons/fa";
 import { MenuAlt1Icon } from "@heroicons/react/solid";
 
 interface MenuItem {
@@ -54,13 +54,23 @@ const menuItems: MenuItem[] = [
       { id: 22, label: "الاعاشات", link: "/admin/checkedtable" },
       // { id: 23, label: "طلبات مكتملة", link: "/admin/orders/completed" },
     ],
+  },
+  {
+    id: 8,
+    label: "العاملات",
+    icon: FaPersonBooth ,
+    subItems: [
+      { id: 21, label: "قائمة العاملات", link: "/admin/fulllist" },
+      { id: 22, label: "اضافة عاملة", link: "/admin/newhomemaid" },
+      // { id: 23, label: "طلبات مكتملة", link: "/admin/orders/completed" },
+    ],
   },{
     id: 3,
     label: "الإعدادات",
     icon: FaCog,
 
     link:"/admin/settings"
-  },
+  }
 ];
 
 const Sidebar = (props) => {
