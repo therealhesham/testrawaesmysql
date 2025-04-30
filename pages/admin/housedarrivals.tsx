@@ -40,7 +40,7 @@ const startDate = new Date(date);
     const currentDate = new Date();
     
     // حساب الفرق بالأيام
-    const differenceInTime = currentDate.getTime()+startDate.getTime()  ;
+    const differenceInTime = currentDate.getTime()-startDate.getTime()  ;
     const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
     
     return differenceInDays
