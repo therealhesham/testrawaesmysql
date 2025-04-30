@@ -61,6 +61,14 @@ export default async function handler(
         },
       });
 
+
+try {
+  await prisma.logs.create({data:{homemaidId:newWeeklyStatus.homeMaid_id,Status:`تم تحديث الحالة الى ${status}`,userId:employee  }})
+} catch (error) {
+  console.log(error)
+}
+
+
       return res.status(201).json(newWeeklyStatus);
     }
 
