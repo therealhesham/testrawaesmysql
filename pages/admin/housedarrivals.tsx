@@ -1304,7 +1304,7 @@ const startDate = new Date(date);
               data.map((item,index) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
-                    <td className="text-center">{(totalCount-index-(10 * (pageRef.current-1))) }</td>
+                    <td className="text-center">{(totalCount-index)}</td>
 
                     {/* <td>
                       <h1
