@@ -10,14 +10,13 @@ export default async function handler(
   }
 
   try {
-    // Read page, pageSize, and search from query string, with defaults
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;
-    const search = (req.query.search as string) || "";
+    const search = (req.query.search as string)?.trim() || "";
     const offset = (page - 1) * pageSize;
+    const searchPattern = `%${search}%`;
 
-    // Construct the WHERE clause for search
-
+    // Main data query with CAST to ensure totalDailyCost is a float
     const data = await prisma.$queryRaw`
       SELECT 
         hw.id,
@@ -25,27 +24,22 @@ export default async function handler(
         hw.employee,
         hw.houseentrydate,
         hw.isActive,
-        IFNULL(SUM(ci.DailyCost), 0) AS totalDailyCost
+        CAST(IFNULL(SUM(ci.DailyCost), 0) AS DECIMAL(10,2)) AS totalDailyCost
       FROM housedworker hw
-      LEFT JOIN \`homemaid\` h ON hw.homeMaid_id = h.id
+      LEFT JOIN homemaid h ON hw.homeMaid_id = h.id
       LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
-      WHERE h.Name LIKE ${search}
+      WHERE h.Name LIKE ${searchPattern} OR ${search} = ''
       GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive
       ORDER BY hw.id DESC
       LIMIT ${pageSize} OFFSET ${offset};
     `;
 
-    // Total count (needed to calculate total pages)
+    // Total count query
     const countResult: any = await prisma.$queryRaw`
-      SELECT COUNT(*) as count FROM (
-        SELECT hw.id
-        FROM housedworker hw
-        LEFT JOIN \`homemaid\` h ON hw.homeMaid_id = h.id
-        LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
-              WHERE h.Name LIKE ${search}
-
-        GROUP BY hw.id
-      ) as grouped;
+      SELECT COUNT(DISTINCT hw.id) as count
+      FROM housedworker hw
+      LEFT JOIN homemaid h ON hw.homeMaid_id = h.id
+      WHERE h.Name LIKE ${searchPattern} OR ${search} = '';
     `;
 
     const totalItems = Number(countResult[0]?.count || 0);

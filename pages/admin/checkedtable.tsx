@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import Layout from "example/containers/Layout";
 
 interface HousedWorker {
-  Order: any;
   id: number;
   Name: string | null;
   houseentrydate: string | null;
   isActive: boolean | null;
-  totalDailyCost: number;
+  totalDailyCost: number | string; // Allow string in case of unexpected type
 }
 
 export default function HousedWorkers() {
@@ -19,10 +18,10 @@ export default function HousedWorkers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  function getDate(date: string) {
+  function getDate(date: string | null) {
+    if (!date) return "N/A";
     const currentDate = new Date(date);
-    const form = currentDate.toISOString().split("T")[0];
-    return form;
+    return currentDate.toISOString().split("T")[0];
   }
 
   const fetchWorkers = async () => {
@@ -30,19 +29,18 @@ export default function HousedWorkers() {
     setError(null);
     try {
       const response = await fetch(
-        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery)}`
+        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery.trim())}`
       );
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);
       }
       const result = await response.json();
-      // Ensure result.data is an array; fallback to empty array if undefined
       setWorkers(Array.isArray(result.data) ? result.data : []);
       setTotalPages(result.totalPages || 1);
     } catch (error) {
       console.error("Error fetching workers:", error);
       setError("فشل في جلب البيانات. حاول مرة أخرى.");
-      setWorkers([]); // Reset workers to empty array on error
+      setWorkers([]);
     } finally {
       setLoading(false);
     }
@@ -54,7 +52,13 @@ export default function HousedWorkers() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    setPage(1); // Reset to first page when search query changes
+    setPage(1);
+  };
+
+  // Helper function to format totalDailyCost
+  const formatCost = (cost: number | string) => {
+    const num = typeof cost === "string" ? parseFloat(cost) : cost;
+    return isNaN(num) ? "0.00" : num.toFixed(2);
   };
 
   return (
@@ -62,7 +66,6 @@ export default function HousedWorkers() {
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-4">بيانات الاعاشة</h1>
 
-        {/* Search Input */}
         <div className="mb-4">
           <input
             type="text"
@@ -107,19 +110,17 @@ export default function HousedWorkers() {
                         <td className="py-2 px-4 border-b">{worker.id}</td>
                         <td className="py-2 px-4 border-b text-blue-600 underline cursor-pointer">
                           <a href={`/admin/worker/${worker.id}`}>
-                            {worker.Name || "N/A"}
+                            {worker.Name || "غير متوفر"}
                           </a>
                         </td>
                         <td className="py-2 px-4 border-b">
-                          {worker.houseentrydate
-                            ? getDate(worker.houseentrydate)
-                            : "N/A"}
+                          {getDate(worker.houseentrydate)}
                         </td>
                         <td className="py-2 px-4 border-b">
                           {worker.isActive ? "في السكن" : "غادرت"}
                         </td>
                         <td className="py-2 px-4 border-b">
-                          {worker.totalDailyCost}
+                          {formatCost(worker.totalDailyCost)}
                         </td>
                       </tr>
                     ))
@@ -134,7 +135,6 @@ export default function HousedWorkers() {
               </table>
             </div>
 
-            {/* Pagination controls */}
             <div className="flex justify-center mt-4 space-x-2">
               <button
                 onClick={() => setPage((p) => Math.max(p - 1, 1))}
