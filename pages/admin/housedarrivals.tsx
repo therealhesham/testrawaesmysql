@@ -264,7 +264,7 @@ const startDate = new Date(date);
 
   const [totalCount, setTotalCount] = useState(0); // New state for total count
 
-  
+  const [page,setPage]=useState("")
   async function fetchData() {
     if (isFetchingRef.current || !hasMore) return;
     isFetchingRef.current = true;
@@ -281,7 +281,7 @@ const startDate = new Date(date);
         sortKey: sortConfig.key || "",
         sortDirection: sortConfig.direction,
       });
-
+setPage(queryParams.get("page"))
       const response = await fetch(
         `/api/confirmhousinginformation?${queryParams}`,
         {
@@ -1184,14 +1184,14 @@ const startDate = new Date(date);
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white">
-              {/* <th
+               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("id")}
               >
-                رقم الطلب{" "}
+                #
                 {sortConfig.key === "id" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th> */}
+              </th> 
               <th
                 className="p-3 text-center text-sm font-medium cursor-pointer"
                 onClick={() => requestSort("Name")}
@@ -1318,9 +1318,11 @@ const startDate = new Date(date);
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              data.map((item,index) => (
                 <React.Fragment key={item.id}>
                   <tr className="border-t">
+                    <td className="text-center">{(parseInt(page) - 1) * 10 + index + 1}</td>
+
                     {/* <td>
                       <h1
                         className={`text-center cursor-pointer text-purple-700 mb-4 ${Style["almarai-bold"]}`}
