@@ -40,7 +40,7 @@ const startDate = new Date(date);
     const currentDate = new Date();
     
     // حساب الفرق بالأيام
-    const differenceInTime = startDate.getTime() - currentDate.getTime();
+    const differenceInTime = currentDate.getTime()+startDate.getTime()  ;
     const differenceInDays = Math.ceil(differenceInTime / (1000 * 3600 * 24));
     
     return differenceInDays
@@ -1009,9 +1009,22 @@ const startDate = new Date(date);
           >
             عاملات تم تسكينهم
           </h1>
-            <Typography variant="h6" className={Style["almarai-bold"]}>
-              إجمالي عدد العاملات في السكن: {totalCount}
-            </Typography>
+<Typography
+  variant="h6"
+  className={Style["almarai-bold"]}
+  sx={{
+    backgroundColor: "green",
+    borderRadius: "50%",
+    color: "white", // لضمان تباين النص مع الخلف  // لضمان تباين النص مع الخلفية
+    padding: "10px",
+    display: "inline-flex",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "fit-content",
+  }}
+>
+  إجمالي عدد العاملات في السكن: {totalCount}
+</Typography>
           <div>
             {" "}
             {/* <Button
