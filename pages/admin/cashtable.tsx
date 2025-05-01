@@ -43,7 +43,7 @@ export default function CashTable() {
 
         <table className="min-w-full bg-white border border-gray-200 shadow-md rounded-md">
           <thead>
-            <tr className="bg-gray-100 text-gray-700 text-center">
+            <tr className="bg-yellow-400 text-white text-center">
               <th className="py-3 px-4">#</th>
               <th className="py-3 px-4">القيمة</th>
               <th className="py-3 px-4">النوع</th>

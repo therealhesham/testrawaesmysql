@@ -17,7 +17,7 @@ export default async function handler(req, res) {
       DeparatureTime,
     } = req.body;
     if(!houseentrydate)
-{      return res.status(500).json({ error: "Error updating housing" });
+{      return res.status(500).json({ error: "تاريخ التسكين مطلوب" });
 }    const object = {
       houseentrydate: houseentrydate
         ? new Date(houseentrydate).toISOString()

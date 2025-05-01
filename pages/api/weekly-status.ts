@@ -49,7 +49,7 @@ export default async function handler(
       if (!status) {
         return res
           .status(400)
-          .json({ error: "homeMaid_id and status are required" });
+          .json({ error: "حالة العاملة مطلوبة" });
       }
 
       const newWeeklyStatus = await prisma.weeklyStatus.create({
