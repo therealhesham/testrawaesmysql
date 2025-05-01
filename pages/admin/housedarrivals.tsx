@@ -23,6 +23,7 @@ import {
 import Style from "styles/Home.module.css";
 import { FaHouseUser } from "react-icons/fa";
 import { set } from "mongoose";
+import ErrorModal from "components/modalcomponent";
 
 export default function Table() {
   const [openCashModal, setOpenCashModal] = useState(false);
@@ -84,7 +85,8 @@ const startDate = new Date(date);
   const [deliveryDate, setDeliveyDate] = useState("");
   const [houseentrydate, sethouseentrydate] = useState("");
   const [error, setError] = useState("");
-  const [errormodaopen, setIserrorModalOpen] = useState(false);
+  
+  const [errormodalopen, setIserrorModalOpen] = useState(false);
   const [errormessage, seterrormessage] = useState("");
   const [loadingScreen, setLoadingScreen] = useState(false);
 
@@ -327,7 +329,11 @@ const startDate = new Date(date);
     e.preventDefault();
     if (reason.length < 1) {
       setLoadingScreen(false);
-      return alert("يرجى ادخال سبب التسكين");
+      
+      setIserrorModalOpen(true)
+      setErrorModalMessage("يرجى ادخال سبب التسكين")
+      // return alert("");
+
     }
     const fetchData = await fetch("/api/confirmhousinginformation/", {
       body: JSON.stringify({
@@ -399,8 +405,13 @@ const startDate = new Date(date);
       // fetchData();
       // router.push("/admin/neworder/" + data.id);
     } else {
+
       setLoading(false);
       setLoadingScreen(false);
+      setErrorModalMessage(data.error)
+      setIsModalOpen(true)
+      
+
       // setIserrorModalOpen(true);
       // seterrormessage(data.message);
     }
@@ -430,7 +441,7 @@ const startDate = new Date(date);
       }),
     });
     const data = await response.json();
-    if (response.ok) {
+    if (response.status == 201) {
       setOpenStatusModal(false);
       isFetchingRef.current = false;
       setHasMore(true);
@@ -441,6 +452,9 @@ const startDate = new Date(date);
 
       // console.log("Success:", data.message);
     } else {
+      setIsModalOpen(true)
+      // setIserrorModalOpen(true)
+      setErrorModalMessage(data.error)
       // console.log("Error:", data.error);
     }
   };
@@ -486,7 +500,8 @@ const startDate = new Date(date);
     },
     [loading, hasMore]
   );
-
+ const [isModalOpen, setIsModalOpen] = useState(false);
+const [errorModalMessage,setErrorModalMessage]=useState("")
   const handleEmployeeChange = (e) => {
     setEmployeeType(e.target.value);
   };
@@ -1909,8 +1924,9 @@ const startDate = new Date(date);
           </Box>
         </Modal>
         <Modal open={openStatusModal} onClose={handleCloseStatusModal}>
-          <Box
+          <Box 
             sx={{
+              // zIndex:9,
               position: "absolute",
               top: "50%",
               left: "50%",
@@ -2438,7 +2454,15 @@ const startDate = new Date(date);
               </>
             ) : null}
           </Box>
+        
         </Modal>
+
+           <ErrorModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        errorMessage={errorModalMessage}
+        title={"خطأ"}
+      />
         {loadingScreen && (
           <Modal open={loadingScreen}>
             <Box>
