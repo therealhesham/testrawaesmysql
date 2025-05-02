@@ -16,7 +16,7 @@ import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import NotificationDropdown from "components/notifications";
-import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt, FaPersonBooth } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt, FaPersonBooth, FaHome } from "react-icons/fa";
 import { MenuAlt1Icon } from "@heroicons/react/solid";
 
 interface MenuItem {
@@ -34,7 +34,9 @@ interface SubMenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
+  { id: 1, label: "الرئيسية", icon: FaHome, link: "/admin/home" },
+
+  
   {
     id: 2,
     label: "الطلبات",
@@ -184,125 +186,116 @@ const Sidebar = (props) => {
         maxWidth: "20rem",
       }}
     >
-      <div className="flex flex-col">
-        <div className="flex items-center justify-center relative">
-          <div className="flex flex-col items-center justify-center pl-1 gap-4">
-            <img
-                    src={image ? image : "/images/favicon.ico"}
+<div className="flex flex-col relative">
+  {/* العنوان والصورة والزرار */}
+  <div className="flex items-center justify-center relative " dir="ltr">
+    <div className="flex flex-col items-center justify-center pl-1 gap-4">
+      <img
+        src={image ? image : "/images/favicon.ico"}
+        alt="Profile"
+        className="rounded-full w-24 h-24 object-cover"
+      />
+      <span
+        className={classNames(
+          "mt-2 text-lg font-medium text-white text-text",
+          {
+            hidden: toggleCollapse,
+          }
+        )}
+      >
+        Welcome {info}
+      </span>
+    </div>
 
-              // src={image}
-              alt="Profile"
-              className="rounded-full w-24 h-24 object-cover"
-            />
-            <span
-              className={classNames(
-                "mt-2 text-lg font-medium text-white text-text",
-                {
-                  hidden: toggleCollapse,
-                }
-              )}
-            >
-              Welcome {info}
-            </span>
-          </div>
-          <button
-            aria-label="Collapse Sidebar"
-            className={collapseIconClasses}
-            onClick={handleSidebarToggle}
-          >
-            <CollapsIcon />
-          </button>
-        </div>
+    {/* زرار الكولابس على الشمال */}
+    <button
+      aria-label="Collapse Sidebar"
+      className={`${collapseIconClasses} absolute left-2 top-2`} // الزرار في الزاوية العليا اليسرى
+      onClick={handleSidebarToggle}
+    >
+      <CollapsIcon />
+    </button>
+  </div>
 
-        <div className="flex flex-col  mt-24  items-center mr-3">
-          {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
-            const classes = getNavItemClasses(menu);
-            return (
-              <div key={menu.id}>
-                <div className={classes} onClick={() => toggleSubMenu(menu.id)}>
-                  {menu.link ? (
-                    <Link href={menu.link}>
-                      <a className="flex py-4 px-3 items-center justify-center w-full h-full">
-                        <div style={{ width: "2.5rem", color: "white" }}>
-                          <Icon />
-                        </div>
-                        {!toggleCollapse && (
-                          <span className="text-md font-medium text-text-light text-white">
-                            {menu.label}
-                          </span>
-                        )}
-                      </a>
-                    </Link>
-                  ) : (
-                    <div className="flex py-4 px-3 items-center justify-center w-full h-full">
-                      <div style={{ width: "2.5rem", color: "white" }}>
-                        <Icon />
-                      </div>
-                      {!toggleCollapse && (
-                        <span className="text-md font-medium text-text-light text-white">
-                          {menu.label}
-                        </span>
-                      )}
-                      {!toggleCollapse && subItems && (
-                        <FaChevronDown
-                          className={classNames("ml-2", {
-                            "rotate-180": openMenu === menu.id,
-                          })}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-                {!toggleCollapse && subItems && openMenu === menu.id && (
-                  <div className="w-full flex justify-center" style={{flexWrap:"wrap"}}>
-                    {subItems.map((subItem) => (
-                      <div
-                        key={subItem.id}
-                        className={getSubNavItemClasses(subItem)}
-                      >
-                        <Link href={subItem.link}>
-                          <a className="flex items-center   justify-center w-full h-full">
-                            <span className="text-sm font-medium text-text-light text-white">
-                              {subItem.label}
-                            </span>
-                          </a>
-                        </Link>
-                      </div>
-                    ))}
+  {/* عناصر القائمة */}
+  <div className="flex flex-col mt-24 items-center mr-3">
+    {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
+      const classes = getNavItemClasses(menu);
+      return (
+        <div key={menu.id}>
+          <div className={classes} onClick={() => toggleSubMenu(menu.id)}>
+            {menu.link ? (
+              <Link href={menu.link}>
+                <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+                  <div style={{ width: "2.5rem", color: "white" }}>
+                    <Icon />
                   </div>
+                  {!toggleCollapse && (
+                    <span className="text-md font-medium text-text-light text-white">
+                      {menu.label}
+                    </span>
+                  )}
+                </a>
+              </Link>
+            ) : (
+              <div className="flex py-4 px-3 items-center justify-center w-full h-full">
+                <div style={{ width: "2.5rem", color: "white" }}>
+                  <Icon />
+                </div>
+                {!toggleCollapse && (
+                  <span className="text-md font-medium text-text-light text-white">
+                    {menu.label}
+                  </span>
+                )}
+                {!toggleCollapse && subItems && (
+                  <FaChevronDown
+                    className={classNames("ml-2", {
+                      "rotate-180": openMenu === menu.id,
+                    })}
+                  />
                 )}
               </div>
-            );
-          })}
-        </div>
-        {/* <Link href="/admin/settings">
-          <a className="flex py-4 px-3 items-center justify-center w-full h-full">
-            <div style={{ width: "2.5rem", color: "white" }}>
-              <FaCog />
-            </div>
-            {!toggleCollapse && (
-              <span className="text-md font-medium text-text-light text-white">
-                الإعدادات
-              </span>
             )}
-          </a>
-        </Link> */}
+          </div>
 
-        {role === "admin" && (
-          <Link href="/admin/addadmin">
-            <a className="flex py-4 px-3 items-center justify-center w-full h-full">
-              <div style={{ width: "2.5rem", color: "white" }}>
-                <ArticleIcon fill="white" />
-              </div>
-              {!toggleCollapse && (
-                <span className="text-md font-medium text-text-light text-white">
-                  المديرين
-                </span>
-              )}
-            </a>
-          </Link>
+          {/* عناصر السب منيو */}
+          {!toggleCollapse && subItems && openMenu === menu.id && (
+            <div className="w-full flex justify-center" style={{ flexWrap: "wrap" }}>
+              {subItems.map((subItem) => (
+                <div key={subItem.id} className={getSubNavItemClasses(subItem)}>
+                  <Link href={subItem.link}>
+                    <a className="flex items-center justify-center w-full h-full">
+                      <span className="text-sm font-medium text-text-light text-white">
+                        {subItem.label}
+                      </span>
+                    </a>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+
+  {/* رابط المديرين في حالة admin */}
+  {role === "admin" && (
+    <Link href="/admin/addadmin">
+      <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+        <div style={{ width: "2.5rem", color: "white" }}>
+          <ArticleIcon fill="white" />
+        </div>
+        {!toggleCollapse && (
+          <span className="text-md font-medium text-text-light text-white">
+            المديرين
+          </span>
         )}
-      </div>
+      </a>
+    </Link>
+  )}
+</div>
+
       <div
         className={getNavItemClasses({
           id: 0,
