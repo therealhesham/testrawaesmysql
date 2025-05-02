@@ -967,7 +967,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
         </Head>
 
         <div className="flex justify-between items-center mb-4">
-          <div className="absolute top-4 right-10">
+          {/* <div className="absolute top-20 left-10">
             <button
               // onClick={handleExitClick}
               className="text-gray-500 hover:text-black"
@@ -987,7 +987,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                 />
               </svg>
             </button>
-          </div>
+          </div> */}
 
           {loading && (
             <div className="absolute  inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
