@@ -15,6 +15,13 @@ export default async function handler(
 ) {
   try {
     if (request.method === "GET") {
+      function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
       // Handle daily check-in creation
       const today = new Date();
       const startOfDayS = startOfDay(today); // بداية اليوم
@@ -152,9 +159,7 @@ export default async function handler(
       try {
         await prisma.notifications.create({
           data: {
-            title: `تسجيل اعاشات اتوماتيكيا بتاريخ ${new Date(
-              today
-            ).toISOString()}`,
+            title: `تسجيل اعاشات اتوماتيكيا بتاريخ ${getDate(today)}`,
             message: `تم تسجيل اعاشات  لـ${workerCount}لعاملات  <br/>
 `,
             isRead: false,
