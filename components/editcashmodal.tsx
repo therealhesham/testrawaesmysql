@@ -1,3 +1,4 @@
+import { set } from "mongoose";
 import { useState, useEffect } from "react";
 
 export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
@@ -7,10 +8,12 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
   const [year, setYear] = useState("");
 
   useEffect(() => {
+
     if (cashData) {
       setAmount(cashData.amount || "");
       setTransactionType(cashData.transaction_type || "");
       setMonth(cashData.Month || "");
+    setYear(cashData.Year || "");
     }
   }, [cashData]);
 
@@ -68,6 +71,16 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
           type="text"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
+          className="w-full px-3 py-2 border rounded mb-4"
+        />
+
+
+
+        <label className="block mb-2">السنة</label>
+        <input
+          type="text"
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
           className="w-full px-3 py-2 border rounded mb-4"
         />
 
