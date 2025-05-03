@@ -5,55 +5,78 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ message: "Method Not Allowed" });
-  }
-
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 10;
-    const search = (req.query.search as string)?.trim() || "";
-    const offset = (page - 1) * pageSize;
-    const searchPattern = `%${search}%`;
+    if (req.method === "GET") {
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const search = (req.query.search as string)?.trim() || "";
+      const offset = (page - 1) * pageSize;
+      const searchPattern = `%${search}%`;
 
-    // Main data query with INNER JOIN for CheckIn and isActive filter
-    const data = await prisma.$queryRaw`
-      SELECT 
-        hw.id,
-        h.Name AS Name,
-        hw.employee,
-        ci.CheckDate,
-        hw.houseentrydate,
-        hw.isActive,
-        CAST(IFNULL(SUM(ci.DailyCost), 0) AS DECIMAL(10,2)) AS totalDailyCost
-      FROM housedworker hw
-      INNER JOIN homemaid h ON hw.homeMaid_id = h.id
-      INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
-      WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true
-      GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive, ci.CheckDate
-      ORDER BY hw.id DESC
-      LIMIT ${pageSize} OFFSET ${offset};
-    `;
+      // Main data query with INNER JOIN for CheckIn and isActive filter
+      const data = await prisma.$queryRaw`
+        SELECT 
+          hw.id,
+          h.Name AS Name,
+          hw.employee,
+          ci.CheckDate,
+          hw.houseentrydate,
+          hw.isActive,
+          CAST(IFNULL(SUM(ci.DailyCost), 0) AS DECIMAL(10,2)) AS totalDailyCost
+        FROM housedworker hw
+        INNER JOIN homemaid h ON hw.homeMaid_id = h.id
+        INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
+        WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true
+        GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive, ci.CheckDate
+        ORDER BY hw.id DESC
+        LIMIT ${pageSize} OFFSET ${offset};
+      `;
 
-    // Total count query with INNER JOIN for CheckIn and isActive filter
-    const countResult: any = await prisma.$queryRaw`
-      SELECT COUNT(DISTINCT hw.id) as count
-      FROM housedworker hw
-      INNER JOIN homemaid h ON hw.homeMaid_id = h.id
-      INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
-      WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true;
-    `;
+      // Total count query with INNER JOIN for CheckIn and isActive filter
+      const countResult: any = await prisma.$queryRaw`
+        SELECT COUNT(DISTINCT hw.id) as count
+        FROM housedworker hw
+        INNER JOIN homemaid h ON hw.homeMaid_id = h.id
+        INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
+        WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true;
+      `;
 
-    const totalItems = Number(countResult[0]?.count || 0);
-    const totalPages = Math.ceil(totalItems / pageSize);
+      const totalItems = Number(countResult[0]?.count || 0);
+      const totalPages = Math.ceil(totalItems / pageSize);
 
-    res.status(200).json({
-      page,
-      pageSize,
-      totalPages,
-      totalItems,
-      data,
-    });
+      res.status(200).json({
+        page,
+        pageSize,
+        totalPages,
+        totalItems,
+        data,
+      });
+    } else if (req.method === "DELETE") {
+      const { date } = req.query;
+
+      if (!date || typeof date !== "string") {
+        return res.status(400).json({ message: "التاريخ مطلوب ويجب أن يكون نصًا." });
+      }
+
+      // تحويل التاريخ إلى تنسيق صالح (YYYY-MM-DD)
+      const formattedDate = new Date(date);
+      if (isNaN(formattedDate.getTime())) {
+        return res.status(400).json({ message: "تاريخ غير صالح." });
+      }
+      const dateString = formattedDate.toISOString().split("T")[0];
+
+      // حذف السجلات من جدول CheckIn بناءً على CheckDate
+      const deleteResult = await prisma.$executeRaw`
+        DELETE FROM CheckIn
+        WHERE DATE(CheckDate) = ${dateString};
+      `;
+
+      res.status(200).json({
+        message: `تم حذف ${deleteResult} سجل بنجاح.`,
+      });
+    } else {
+      res.status(405).json({ message: "Method Not Allowed" });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
