@@ -214,31 +214,27 @@ const Sidebar = () => {
                 <div className={classes} onClick={() => toggleSubMenu(menu.id)}>
                   {menu.link ? (
                     <Link href={menu.link}>
-                      <a className="flex items-center justify-between w-full h-full py-4 px-3">
-                        <div className="flex items-center">
-                          <div style={{ width: "2.5rem", color: "white" }}>
-                            <Icon />
-                          </div>
-                          {!toggleCollapse && (
-                            <span className="text-md font-medium text-white mr-2">
-                              {menu.label}
-                            </span>
-                          )}
-                        </div>
-                      </a>
-                    </Link>
-                  ) : (
-                    <div className="flex items-center justify-between w-full h-full py-4 px-3">
-                      <div className="flex items-center">
+                      <a className="flex py-4 px-3 items-center justify-center w-full h-full">
                         <div style={{ width: "2.5rem", color: "white" }}>
                           <Icon />
                         </div>
                         {!toggleCollapse && (
-                          <span className="text-md font-medium text-white mr-2">
+                          <span className="text-md font-medium text-white">
                             {menu.label}
                           </span>
                         )}
+                      </a>
+                    </Link>
+                  ) : (
+                    <div className="flex py-4 px-3 items-center justify-center w-full h-full">
+                      <div style={{ width: "2.5rem", color: "white" }}>
+                        <Icon />
                       </div>
+                      {!toggleCollapse && (
+                        <span className="text-md font-medium text-white">
+                          {menu.label}
+                        </span>
+                      )}
                       {!toggleCollapse && subItems && (
                         <FaChevronDown
                           className={classNames("ml-2", {
@@ -272,18 +268,15 @@ const Sidebar = () => {
 
         {role === "admin" && (
           <Link href="/admin/addadmin">
-                          <a className="flex items-center justify-center w-full h-full">
-
-              <div className="flex items-center">
-                <div style={{ width: "2.5rem", color: "white" }}>
-                  <ArticleIcon fill="white" />
-                </div>
-                {!toggleCollapse && (
-                  <span className="text-md font-medium text-white mr-2">
-                    المديرين
-                  </span>
-                )}
+            <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+              <div style={{ width: "2.5rem", color: "white" }}>
+                <ArticleIcon fill="white" />
               </div>
+              {!toggleCollapse && (
+                <span className="text-md font-medium text-white">
+                  المديرين
+                </span>
+              )}
             </a>
           </Link>
         )}
@@ -298,16 +291,14 @@ const Sidebar = () => {
         })}
         onClick={handleLogout}
       >
-        <div className="flex items-center">
-          <div style={{ width: "2.5rem" }}>
-            <LogoutIcon fill="white" />
-          </div>
-          {!toggleCollapse && (
-            <span className="text-md font-medium text-white mr-2">
-              تسجيل الخروج
-            </span>
-          )}
+        <div style={{ width: "2.5rem" }}>
+          <LogoutIcon fill="white" />
         </div>
+        {!toggleCollapse && (
+          <span className="text-md font-medium text-white">
+            تسجيل الخروج
+          </span>
+        )}
       </div>
     </div>
   );
