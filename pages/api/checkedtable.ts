@@ -22,15 +22,17 @@ export default async function handler(
         hw.id,
         h.Name AS Name,
         hw.employee,
+        ci.CheckDate,
         hw.houseentrydate,
-        hw.isActive,
+         hw.isActive,
         CAST(IFNULL(SUM(ci.DailyCost), 0) AS DECIMAL(10,2)) AS totalDailyCost
       FROM housedworker hw
       LEFT JOIN homemaid h ON hw.homeMaid_id = h.id
       LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
       WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true
-      GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive
+      GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive, ci.CheckDate
       ORDER BY hw.id DESC
+      
       LIMIT ${pageSize} OFFSET ${offset};
     `;
 
