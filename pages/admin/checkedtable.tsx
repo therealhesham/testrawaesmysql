@@ -21,6 +21,9 @@ export default function HousedWorkers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDistributeModalOpen, setIsDistributeModalOpen] = useState(false);
+  const [distributeDate, setDistributeDate] = useState<string>("");
+  const [distributeError, setDistributeError] = useState<string | null>(null);
 
   function getDate(date: string | null) {
     if (!date) return "N/A";
@@ -79,12 +82,44 @@ export default function HousedWorkers() {
       }
       setIsModalOpen(false);
       setSelectedDate("");
-      fetchWorkers(); // إعادة جلب البيانات بعد الحذف
+      fetchWorkers();
     } catch (error) {
       console.error("Error deleting records:", error);
       setDeleteError("فشل في حذف السجلات. حاول مرة أخرى.");
     }
   };
+const handleDistribute = async () => {
+  if (!distributeDate) {
+    setDistributeError("يرجى اختيار تاريخ.");
+    return;
+  }
+  setDistributeError(null);
+  try {
+    const adjustedDate = new Date(distributeDate);
+    adjustedDate.setHours(adjustedDate.getHours() + 3); // Add 3 hours
+alert(adjustedDate)
+    const response = await fetch("/api/distrbuitecashmanually", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ date: adjustedDate }), // Send adjusted date
+    });
+    if (!response.ok) {
+      throw new Error(`فشل في توزيع الإعاشات: ${response.statusText}`);
+    }
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || "فشل في توزيع الإعاشات.");
+    }
+    setIsDistributeModalOpen(false);
+    setDistributeDate("");
+    fetchWorkers();
+  } catch (error) {
+    console.error("Error distributing check-ins:", error);
+    setDistributeError("فشل في توزيع الإعاشات. حاول مرة أخرى.");
+  }
+};
 
   return (
     <Layout>
@@ -99,12 +134,20 @@ export default function HousedWorkers() {
             placeholder="ابحث بالاسم..."
             className="w-1/3 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            حذف سجلات
-          </button>
+          <div className="flex space-x-2">
+            {/* <button
+              onClick={() => setIsDistributeModalOpen(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              توزيع الإعاشات
+            </button> */}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              حذف سجلات
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -215,6 +258,44 @@ export default function HousedWorkers() {
                   className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   حذف
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* مودال توزيع الإعاشات */}
+        {isDistributeModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">توزيع الإعاشات</h2>
+              <p className="mb-4">اختر تاريخ الإعاشة:</p>
+              <label className="block mb-2 font-semibold">تاريخ الإعاشة</label>
+              <input
+                type="date"
+                value={distributeDate}
+                onChange={(e) => setDistributeDate(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {distributeError && (
+                <div className="text-red-500 mb-4">{distributeError}</div>
+              )}
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setIsDistributeModalOpen(false);
+                    setDistributeDate("");
+                    setDistributeError(null);
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleDistribute}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  تأكيد
                 </button>
               </div>
             </div>
