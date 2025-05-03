@@ -141,7 +141,7 @@ export default function NotificationDropdown() {
           </svg>
         </button>
         {notifications.length > 0 ? (
-          <span className="absolute top-2    bg-[#FF0000] text-white text-xs font-bold px-2 py-1 rounded-full">
+          <span className="relative bottom-6 left-5   bg-[#FF0000] text-white text-xs font-bold px-2 py-1 rounded-full">
             {notifications.length > 0 ? notifications.length : 0}
           </span>
         ) : null}
