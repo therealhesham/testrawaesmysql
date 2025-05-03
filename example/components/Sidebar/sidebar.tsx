@@ -1,18 +1,23 @@
 import classNames from "classnames";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import jwt from "jsonwebtoken";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   ArticleIcon,
   CollapsIcon,
   HomeIcon,
+  LogoIcon,
   LogoutIcon,
+  UsersIcon,
+  VideosIcon,
 } from "../../../components/icons";
 import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import NotificationDropdown from "components/notifications";
-import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt, FaPersonBooth } from "react-icons/fa";
+import { MenuAlt1Icon } from "@heroicons/react/solid";
 
 interface MenuItem {
   id: number;
@@ -37,43 +42,47 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
       { id: 22, label: "طلبات منتهية", link: "/admin/endedorders" },
+      // { id: 23, label: "طلبات مكتملة", link: "/admin/orders/completed" },
     ],
   },
   {
     id: 4,
     label: "التسكين",
-    icon: FaHotel,
+    icon: FaHotel ,
     subItems: [
-      { id: 41, label: "قائمة التسكين", link: "/admin/housedarrivals" },
-      { id: 42, label: "الاعاشات", link: "/admin/checkedtable" },
+      { id: 21, label: "قائمة التسكين", link: "/admin/housedarrivals" },
+      { id: 22, label: "الاعاشات", link: "/admin/checkedtable" },
+      // { id: 23, label: "طلبات مكتملة", link: "/admin/orders/completed" },
     ],
   },
   {
     id: 8,
     label: "العاملات",
-    icon: FaPersonBooth,
+    icon: FaPersonBooth ,
     subItems: [
-      { id: 81, label: "قائمة العاملات", link: "/admin/fulllist" },
-      { id: 82, label: "اضافة عاملة", link: "/admin/newhomemaid" },
+      { id: 21, label: "قائمة العاملات", link: "/admin/fulllist" },
+      { id: 22, label: "اضافة عاملة", link: "/admin/newhomemaid" },
+      // { id: 23, label: "طلبات مكتملة", link: "/admin/orders/completed" },
     ],
-  },
-  {
+  },{
     id: 3,
     label: "الإعدادات",
     icon: FaCog,
-    link: "/admin/settings",
-  },
+
+    link:"/admin/settings"
+  }
 ];
 
-const Sidebar = () => {
+const Sidebar = (props) => {
   const { toggleCollapse, setToggleCollapse } = useSidebar();
   const [isCollapsible, setIsCollapsible] = useState(false);
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const router = useRouter();
-  const [image, setImage] = useState<string | undefined>();
-  const [info, setInfo] = useState<string | undefined>();
-  const [role, setRole] = useState<string | undefined>();
+  const [image, setImage] = useState();
+  const [info, setInfo] = useState();
+  const [role, setRole] = useState();
 
+  // Memoize active menu item based on the current route
   const activeMenu = useMemo(
     () =>
       menuItems.find(
@@ -85,7 +94,7 @@ const Sidebar = () => {
   );
 
   const wrapperClasses = classNames(
-    "bg-teal-600 h-screen px-4 pt-8 pb-4 flex justify-between flex-col",
+    "bg-teal-600 p-4 h-screen px-4 pt-8 pb-4 bg-light flex justify-between flex-col",
     {
       "w-80": !toggleCollapse,
       "w-20": toggleCollapse,
@@ -93,7 +102,7 @@ const Sidebar = () => {
   );
 
   const collapseIconClasses = classNames(
-    "p-4 rounded bg-teal-700 absolute left-2 top-2",
+    "p-4 rounded bg-light-lighter absolute right-0",
     {
       "rotate-180": toggleCollapse,
     }
@@ -102,9 +111,9 @@ const Sidebar = () => {
   const getNavItemClasses = useCallback(
     (menu: MenuItem) => {
       return classNames(
-        "flex items-center px-5 py-3 cursor-pointer hover:bg-teal-500 rounded w-full overflow-hidden whitespace-nowrap text-md font-medium text-white",
+        "flex items-center px-5 cursor-pointer hover:bg-light-lighter rounded w-full overflow-hidden whitespace-nowrap text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4",
         {
-          "bg-teal-500": activeMenu?.id === menu.id,
+          "bg-light-lighter": activeMenu?.id === menu.id,
         }
       );
     },
@@ -114,9 +123,9 @@ const Sidebar = () => {
   const getSubNavItemClasses = useCallback(
     (subItem: SubMenuItem) => {
       return classNames(
-        "flex items-center cursor-pointer hover:bg-teal-500 rounded w-full overflow-hidden whitespace-nowrap text-sm font-medium text-white py-2 justify-center",
+        "flex items-center cursor-pointer hover:bg-light-lighter rounded w-full overflow-hidden whitespace-nowrap text-sm font-medium text-text-light text-white py-2 justify-center",
         {
-          "bg-teal-500": router.pathname === subItem.link,
+          "bg-light-lighter": router.pathname === subItem.link,
         }
       );
     },
@@ -152,22 +161,17 @@ const Sidebar = () => {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/admin/login");
-      return;
-    }
-
+    if (!localStorage.getItem("token")) router.push("/admin/login");
     try {
-      const decoded = jwtDecode<{ picture: string; username: string; role: string }>(token);
-      setImage(decoded.picture);
-      setInfo(decoded.username);
-      setRole(decoded.role.toLowerCase());
+      const token = localStorage.getItem("token");
+      const info = jwtDecode(token);
+      setImage(info.picture);
+      setInfo(info.username);
+      setRole(info.role.toLowerCase());
     } catch (error) {
-      console.error("Error decoding token:", error);
       router.push("/admin/login");
     }
-  }, [router]);
+  }, []);
 
   return (
     <div
@@ -180,112 +184,120 @@ const Sidebar = () => {
         maxWidth: "20rem",
       }}
     >
-      <div className="flex flex-col relative">
-        <div className="flex items-center justify-center relative" dir="ltr">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <img
-              src={image || "/images/favicon.ico"}
-              alt="Profile"
-              className="rounded-full w-24 h-24 object-cover"
-            />
-            <span
-              className={classNames("mt-2 text-lg font-medium text-white", {
-                hidden: toggleCollapse,
-              })}
-            >
-              مرحبا {info}
-            </span>
-          </div>
+<div className="flex flex-col relative">
+  {/* العنوان والصورة والزرار */}
+  <div className="flex items-center justify-center relative " dir="ltr">
+    <div className="flex flex-col items-center justify-center pl-1 gap-4">
+      <img
+        src={image ? image : "/images/favicon.ico"}
+        alt="Profile"
+        className="rounded-full w-24 h-24 object-cover"
+      />
+      <span
+        className={classNames(
+          "mt-2 text-lg font-medium text-white text-text",
+          {
+            hidden: toggleCollapse,
+          }
+        )}
+      >
+        Welcome {info}
+      </span>
+    </div>
 
-          <button
-            aria-label="Collapse Sidebar"
-            className={collapseIconClasses}
-            onClick={handleSidebarToggle}
-          >
-            <CollapsIcon />
-          </button>
-        </div>
+    {/* زرار الكولابس على الشمال */}
+    <button
+      aria-label="Collapse Sidebar"
+      className={`${collapseIconClasses} absolute left-2 top-2`} // الزرار في الزاوية العليا اليسرى
+      onClick={handleSidebarToggle}
+    >
+      <CollapsIcon />
+    </button>
+  </div>
 
-        <div className="flex flex-col mt-12 items-center mr-3">
-          {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
-            const classes = getNavItemClasses(menu);
-            return (
-              <div key={menu.id}>
-                <div className={classes} onClick={() => toggleSubMenu(menu.id)}>
-                  {menu.link ? (
-                    <Link href={menu.link}>
-                      <a className="flex py-4 px-3 items-center justify-center w-full h-full">
-                        <div style={{ width: "2.5rem", color: "white" }}>
-                          <Icon />
-                        </div>
-                        {!toggleCollapse && (
-                          <span className="text-md font-medium text-white">
-                            {menu.label}
-                          </span>
-                        )}
-                      </a>
-                    </Link>
-                  ) : (
-                    <div className="flex py-4 px-3 items-center justify-center w-full h-full">
-                      <div style={{ width: "2.5rem", color: "white" }}>
-                        <Icon />
-                      </div>
-                      {!toggleCollapse && (
-                        <span className="text-md font-medium text-white">
-                          {menu.label}
-                        </span>
-                      )}
-                      {!toggleCollapse && subItems && (
-                        <FaChevronDown
-                          className={classNames("ml-2", {
-                            "rotate-180": openMenu === menu.id,
-                          })}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {!toggleCollapse && subItems && openMenu === menu.id && (
-                  <div className="w-full flex justify-center flex-col items-center">
-                    {subItems.map((subItem) => (
-                      <div key={subItem.id} className={getSubNavItemClasses(subItem)}>
-                        <Link href={subItem.link}>
-                          <a className="flex items-center justify-center w-full h-full">
-                            <span className="text-sm font-medium text-white">
-                              {subItem.label}
-                            </span>
-                          </a>
-                        </Link>
-                      </div>
-                    ))}
+  {/* عناصر القائمة */}
+  <div className="flex flex-col mt-24 items-center mr-3">
+    {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
+      const classes = getNavItemClasses(menu);
+      return (
+        <div key={menu.id}>
+          <div className={classes} onClick={() => toggleSubMenu(menu.id)}>
+            {menu.link ? (
+              <Link href={menu.link}>
+                <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+                  <div style={{ width: "2.5rem", color: "white" }}>
+                    <Icon />
                   </div>
+                  {!toggleCollapse && (
+                    <span className="text-md font-medium text-text-light text-white">
+                      {menu.label}
+                    </span>
+                  )}
+                </a>
+              </Link>
+            ) : (
+              <div className="flex py-4 px-3 items-center justify-center w-full h-full">
+                <div style={{ width: "2.5rem", color: "white" }}>
+                  <Icon />
+                </div>
+                {!toggleCollapse && (
+                  <span className="text-md font-medium text-text-light text-white">
+                    {menu.label}
+                  </span>
+                )}
+                {!toggleCollapse && subItems && (
+                  <FaChevronDown
+                    className={classNames("ml-2", {
+                      "rotate-180": openMenu === menu.id,
+                    })}
+                  />
                 )}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
 
-        {role === "admin" && (
-          <Link href="/admin/addadmin">
-            <a className="flex py-4 px-3 items-center justify-center w-full h-full">
-              <div style={{ width: "2.5rem", color: "white" }}>
-                <ArticleIcon fill="white" />
-              </div>
-              {!toggleCollapse && (
-                <span className="text-md font-medium text-white">
-                  المديرين
-                </span>
-              )}
-            </a>
-          </Link>
+          {/* عناصر السب منيو */}
+          {!toggleCollapse && subItems && openMenu === menu.id && (
+            <div className="w-full flex justify-center" style={{ flexWrap: "wrap" }}>
+              {subItems.map((subItem) => (
+                <div key={subItem.id} className={getSubNavItemClasses(subItem)}>
+                  <Link href={subItem.link}>
+                    <a className="flex items-center justify-center w-full h-full">
+                      <span className="text-sm font-medium text-text-light text-white">
+                        {subItem.label}
+                      </span>
+                    </a>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+
+  {/* رابط المديرين في حالة admin */}
+  {role === "admin" && (
+    <Link href="/admin/addadmin">
+      <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+        <div style={{ width: "2.5rem", color: "white" }}>
+          <ArticleIcon fill="white" />
+        </div>
+        {!toggleCollapse && (
+          <span className="text-md font-medium text-text-light text-white">
+            المديرين
+          </span>
         )}
-      </div>
+      </a>
+    </Link>
+  )}
+</div>
 
       <div
         className={getNavItemClasses({
           id: 0,
-          label: "تسجيل الخروج",
+          label: "Logout",
           icon: LogoutIcon,
           link: "/",
         })}
@@ -295,8 +307,8 @@ const Sidebar = () => {
           <LogoutIcon fill="white" />
         </div>
         {!toggleCollapse && (
-          <span className="text-md font-medium text-white">
-            تسجيل الخروج
+          <span className="text-md font-medium text-text-light text-white">
+            Logout
           </span>
         )}
       </div>
