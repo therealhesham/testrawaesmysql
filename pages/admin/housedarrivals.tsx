@@ -1053,6 +1053,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
+               className={` ${Style["almarai-bold"]}`}
+
               color="secondary"
               onClick={() => router.push("/admin/cashtable")}
             >
@@ -1061,6 +1063,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
+               className={` ${Style["almarai-bold"]}`}
+
               color="success"
               onClick={handleOpenCashModal}
             >
@@ -1068,6 +1072,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             </Button>
             <Button
               style={{ marginLeft: "1px" }}
+               className={` ${Style["almarai-bold"]}`}
+
               variant="contained"
               color="secondary"
               onClick={() => router.push("/admin/workersstatus")}
@@ -1076,6 +1082,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             </Button>
             <Button
               style={{ marginLeft: "1px" }}
+               className={` ${Style["almarai-bold"]}`}
+
               variant="contained"
               color="warning"
               onClick={handleOpenAddModal}
@@ -1085,6 +1093,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
+               className={` ${Style["almarai-bold"]}`}
+
               color="primary"
               onClick={() => router.push("/admin/checkedtable")}
             >
@@ -1093,6 +1103,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
+               className={` ${Style["almarai-bold"]}`}
+
               color="error"
               onClick={() => router.push("/admin/departedhousedarrivals")}
             >

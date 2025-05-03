@@ -1,17 +1,38 @@
 import EditCashModal from "components/editcashmodal";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
+import {
+  Button,
+  Modal,
+  Box,
+  TextField,
+  Checkbox,
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+} from "@mui/material";
 
 import { useState, useEffect } from "react";
 
 export default function CashTable() {
+  const [cashError, setCashError] = useState("");
+
   const [cashData, setCashData] = useState([]);
   const [selectedCash, setSelectedCash] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [cashToDelete, setCashToDelete] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
+const [openCashModal, setOpenCashModal] = useState(false);
+  const [newCashRecord, setNewCashRecord] = useState({
+    amount: "",
+    transaction_type: "",
+    Year: "",
+    Month: "",
+  });
   // Function to convert month number to Arabic month name
   const getArabicMonthName = (monthNumber) => {
     const monthNames = [
@@ -84,16 +105,79 @@ export default function CashTable() {
       closeDeleteModal();
     }
   };
+    const handleOpenCashModal = () => {
+    setOpenCashModal(true);
+  };
+
+  const handleCloseCashModal = () => {
+    setOpenCashModal(false);
+    setNewCashRecord({
+      amount: "",
+      transaction_type: "",
+      Year: "",
+      Month: "",
+    });
+    setCashError("");
+  };
+
+  const handleCashRecordChange = (e) => {
+    const { name, value } = e.target;
+    setNewCashRecord((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveCashRecord = async () => {
+    try {
+      const response = await fetch("/api/addcash", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: newCashRecord.amount,
+          transaction_type: newCashRecord.transaction_type,
+          Month: newCashRecord.Month,
+          Year: newCashRecord.Year.toString(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 201) {
+        handleCloseCashModal();
+        // إعادة تحميل البيانات إذا لزم الأمر
+        fetchData();
+      } else {
+        setCashError(data.error || "فشل في إضافة السجل النقدي");
+      }
+    } catch (error) {
+      setCashError("خطأ في الاتصال بالخادم");
+    }
+  };
+
 
   return (
     <Layout>
       <div className="overflow-x-auto mt-6">
+<Button
+              style={{ marginLeft: "20px",marginTop: "20px" }}
+              variant="contained"
+              color="success"
+              onClick={handleOpenCashModal}
+               className={` ${Style["almarai-bold"]}`}
+            >
+              إدارة النقد
+            </Button>
+     
         <h1
           className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
         >
           قائمة الكاش
         </h1>
-
+<div >
+            </div>
         <table className="min-w-full bg-white border border-gray-200 shadow-md rounded-md">
           <thead>
             <tr className="bg-yellow-400 text-white text-center">
@@ -205,7 +289,117 @@ export default function CashTable() {
             </div>
           </div>
         )}
+         <Modal open={openCashModal} onClose={handleCloseCashModal}>
+           <Box
+             sx={{
+               position: "absolute",
+               top: "50%",
+               left: "50%",
+               transform: "translate(-50%, -50%)",
+               width: 600,
+               maxHeight: "80vh",
+               bgcolor: "background.paper",
+               boxShadow: 24,
+               p: 4,
+               borderRadius: 2,
+               overflowY: "auto",
+             }}
+           >
+             <h2 className={Style["almarai-bold"]}>إضافة سجل نقدي</h2>
+ 
+             <TextField
+               fullWidth
+               label="المبلغ"
+               name="amount"
+               type="number"
+               value={newCashRecord.amount}
+               onChange={handleCashRecordChange}
+               margin="normal"
+               required
+             />
+             {/* 
+             <FormControl fullWidth margin="normal">
+               <InputLabel>نوع العملية</InputLabel>
+               <Select
+                 name="transaction_type"
+                 value={newCashRecord.transaction_type}
+                 onChange={handleCashRecordChange}
+                 required
+               >
+                 <MenuItem value="income">إيراد</MenuItem>
+                 <MenuItem value="expense">مصروف</MenuItem>
+               </Select>
+             </FormControl> */}
+ 
+             <FormControl fullWidth margin="normal">
+               <InputLabel>الشهر</InputLabel>
+               <Select
+                 name="Month"
+                 value={newCashRecord.Month}
+                 onChange={handleCashRecordChange}
+                 required
+               >
+                 <MenuItem value="1">يناير</MenuItem>
+                 <MenuItem value="2">فبراير</MenuItem>
+                 <MenuItem value="3">مارس</MenuItem>
+                 <MenuItem value="4">أبريل</MenuItem>
+                 <MenuItem value="5">مايو</MenuItem>
+                 <MenuItem value="6">يونيو</MenuItem>
+                 <MenuItem value="7">يوليو</MenuItem>
+                 <MenuItem value="8">أغسطس</MenuItem>
+                 <MenuItem value="9">سبتمبر</MenuItem>
+                 <MenuItem value="10">أكتوبر</MenuItem>
+                 <MenuItem value="11">نوفمبر</MenuItem>
+                 <MenuItem value="12">ديسمبر</MenuItem>
+               </Select>
+             </FormControl>
+ 
+             <FormControl fullWidth margin="normal">
+               <InputLabel>السنة</InputLabel>
+               <Select
+                 name="Year"
+                 value={newCashRecord.Year}
+                 onChange={handleCashRecordChange}
+                 required
+               >
+                 {[...Array(6)].map((_, index) => {
+                   const year = new Date().getFullYear() - 3 + index;
+                   return (
+                     <MenuItem key={year} value={year}>
+                       {year}
+                     </MenuItem>
+                   );
+                 })}
+               </Select>
+             </FormControl>
+ 
+             {cashError && (
+               <Typography color="error" variant="body2" sx={{ mt: 2 }}>
+                 {cashError}
+               </Typography>
+             )}
+ 
+             <Box mt={2} display="flex" justifyContent="space-between">
+               <Button
+                 variant="contained"
+                 color="primary"
+                 onClick={handleSaveCashRecord}
+               >
+                 حفظ
+               </Button>
+               <Button
+                 variant="outlined"
+                 color="secondary"
+                 onClick={handleCloseCashModal}
+               >
+                 إلغاء
+               </Button>
+             </Box>
+           </Box>
+         </Modal>
+
       </div>
+ 
     </Layout>
   );
 }
