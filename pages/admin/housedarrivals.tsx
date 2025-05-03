@@ -1940,9 +1940,10 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
               overflowY: "auto",
             }}
           >
-            <h2 className={Style["almarai-bold"]}>تحديث حالة العاملة</h2>
+            <h2 className={Style["almarai-bold"]}>تحديث/اضافة حالة العاملة</h2>
             <TextField
               fullWidth
+              placeholder="حالة العاملة"
               // label="رقم جواز العاملة"
               value={status}
               onChange={(e) => setStatus(e.target.value)}

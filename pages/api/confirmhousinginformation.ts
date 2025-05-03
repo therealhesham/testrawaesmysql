@@ -16,6 +16,8 @@ export default async function handler(req, res) {
       startWoringDate,
       DeparatureTime,
     } = req.body;
+    if(!req.body.reason)
+      return res.status(500).json({ error: "سبب التسكين مطلوب" });
     if(!houseentrydate)
 {      return res.status(500).json({ error: "تاريخ التسكين مطلوب" });
 }    const object = {

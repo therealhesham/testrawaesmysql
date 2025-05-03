@@ -96,6 +96,10 @@ export default function HousedWorkers() {
                       تاريخ التسكين
                     </th>
                     <th className="py-2 px-4 border-b text-center">
+                      تاريخ الاعاشة
+                    </th>
+
+                    <th className="py-2 px-4 border-b text-center">
                       حالة الاعاشة
                     </th>
                     <th className="py-2 px-4 border-b text-center">
@@ -115,6 +119,9 @@ export default function HousedWorkers() {
                         </td>
                         <td className="py-2 px-4 border-b">
                           {getDate(worker.houseentrydate)}
+                        </td>
+                        <td className="py-2 px-4 border-b">
+                          {getDate(worker.CheckDate)}
                         </td>
                         <td className="py-2 px-4 border-b">
                           {worker.isActive ? "في السكن" : "غادرت"}
