@@ -317,3 +317,65 @@ const Sidebar = (props) => {
 };
 
 export default Sidebar;
+
+// import { useState } from 'react';
+// import Link from 'next/link';
+// import { FaBars, FaTimes, FaHome, FaUser, FaCog } from 'react-icons/fa';
+
+// const Sidebar = () => {
+//   const [isOpen, setIsOpen] = useState(false);
+
+//   const toggleSidebar = () => {
+//     setIsOpen(!isOpen);
+//   };
+
+//   return (
+//     <div className="flex">
+//       <div
+//         className={`${
+//           isOpen ? 'w-64' : 'w-16'
+//         } bg-gray-800 text-white h-screen transition-all duration-300 ease-in-out flex flex-col`}
+//       >
+//         <div className="flex items-center justify-between p-4">
+//           {isOpen && <h1 className="text-xl font-bold">Menu</h1>}
+//           <button onClick={toggleSidebar} className="text-2xl focus:outline-none">
+//             {isOpen ? <FaTimes /> : <FaBars />}
+//           </button>
+//         </div>
+//         <nav className="flex-1">
+//           <ul>
+//             <li>
+//               <Link href="/">
+//                 <a className="flex items-center p-4 hover:bg-gray-700">
+//                   <FaHome className="text-xl" />
+//                   {isOpen && <span className="ml-4">Home</span>}
+//                 </a>
+//               </Link>
+//             </li>
+//             <li>
+//               <Link href="/profile">
+//                 <a className="flex items-center p-4 hover:bg-gray-700">
+//                   <FaUser className="text-xl" />
+//                   {isOpen && <span className="ml-4">Profile</span>}
+//                 </a>
+//               </Link>
+//             </li>
+//             <li>
+//               <Link href="/settings">
+//                 <a className="flex items-center p-4 hover:bg-gray-700">
+//                   <FaCog className="text-xl" />
+//                   {isOpen && <span className="ml-4">Settings</span>}
+//                 </a>
+//               </Link>
+//             </li>
+//           </ul>
+//         </nav>
+//       </div>
+//       <div className="flex-1 p-4">
+//         {/* Main content goes here */}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Sidebar;
