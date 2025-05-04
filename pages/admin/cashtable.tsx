@@ -11,6 +11,11 @@ import {
   Select,
   MenuItem,
   Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import { useState, useEffect, useMemo } from "react";
 
@@ -24,6 +29,7 @@ export default function CashTable() {
     spent?: number;
     remaining?: number;
     transaction_type?: string;
+    cashLogs?: { id: number; Status: string; createdAt: string; updatedAt: string; userId: number | null; cashID: number }[];
   }
 
   const [cashData, setCashData] = useState<CashRecord[]>([]);
@@ -49,50 +55,43 @@ export default function CashTable() {
     Year: "",
     Month: "",
   });
+  const [openLogsMonth, setOpenLogsMonth] = useState(null); // حالة لتتبع الشهر المفتوح لعرض الـ logs
 
-  // التاريخ الحالي لتحديد السنة والشهر الحالي
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // الشهر يبدأ من 0، لذا نضيف 1
+  const currentMonth = currentDate.getMonth() + 1;
   const years = useMemo(
     () => Array.from({ length: 3 }, (_, i) => currentYear - 1 + i),
     [currentYear]
-  ); // قائمة السنوات
+  );
 
-  // تعريف الحالة للسنة المختارة (تلقائيًا السنة الحالية)
   const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  // توليد قائمة بجميع شهور السنة المختارة
   const generateAllMonths = () => {
-    const months = Array.from({ length: 12 }, (_, i) => i + 1); // الشهور من 1 إلى 12
+    const months = Array.from({ length: 12 }, (_, i) => i + 1);
     return months.map((month) => ({
       Month: month,
       Year: selectedYear,
     }));
   };
 
-  // دمج البيانات المسترجعة مع قائمة الشهور
   const mergeDataWithMonths = (fetchedData: CashRecord[]) => {
-    console.log("Fetched Data:", fetchedData); // تتبع البيانات المسترجعة
     const allMonths = generateAllMonths();
     const mergedData = allMonths.map((monthRecord) => {
       const matchingRecord = fetchedData.find(
         (data) =>
-          parseInt(data.Month) === monthRecord.Month && // تحويل Month إلى number
-          data.Year.toString() === monthRecord.Year.toString() // التأكد من تطابق Year
+          parseInt(data.Month) === monthRecord.Month &&
+          data.Year.toString() === monthRecord.Year.toString()
       );
       return matchingRecord || monthRecord;
     });
-    console.log("Merged Data:", mergedData); // تتبع البيانات بعد الدمج
     return mergedData;
   };
 
-  // تحديد ما إذا كان الشهر في المستقبل
   const isFutureMonth = (month: number) => {
     return selectedYear > currentYear || (selectedYear === currentYear && month > currentMonth);
   };
 
-  // تحويل رقم الشهر إلى اسم الشهر بالعربية
   const getArabicMonthName = (monthNumber) => {
     const monthNames = [
       "يناير",
@@ -111,20 +110,17 @@ export default function CashTable() {
     return monthNames[parseInt(monthNumber) - 1] || monthNumber;
   };
 
-  // إنشاء قائمة الشهور المسموح بها (الشهر الحالي والشهر القادم)
   const getAllowedMonths = () => {
     const months = [];
     const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
     const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear;
 
-    // إضافة الشهر الحالي
     months.push({
       month: currentMonth,
       year: currentYear,
       name: getArabicMonthName(currentMonth),
     });
 
-    // إضافة الشهر القادم
     months.push({
       month: nextMonth,
       year: nextMonthYear,
@@ -134,7 +130,6 @@ export default function CashTable() {
     return months;
   };
 
-  // قائمة السنوات المسموح بها (السنة الحالية والسنة التالية إذا لزم الأمر)
   const allowedYears = [currentYear];
   if (currentMonth === 12) {
     allowedYears.push(currentYear + 1);
@@ -152,7 +147,6 @@ export default function CashTable() {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       const data = await res.json();
-      console.log("API Response:", data); // تتبع البيانات من الـ API
       const mergedData = mergeDataWithMonths(data);
       setCashData(mergedData);
     } catch (error) {
@@ -288,7 +282,7 @@ export default function CashTable() {
       if (response.status === 200) {
         setCashError("");
         handleCloseCashModal();
-        fetchData(); // Refresh the table data
+        fetchData();
       } else {
         setCashError(data.error || "فشل في إضافة المبلغ");
       }
@@ -319,7 +313,6 @@ export default function CashTable() {
       [name]: value,
     }));
 
-    // تحديث السنة تلقائيًا بناءً على الشهر المختار
     if (name === "Month") {
       const selectedMonth = getAllowedMonths().find(
         (m) => m.month === Number(value)
@@ -339,7 +332,6 @@ export default function CashTable() {
     const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
     const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear;
 
-    // التحقق من أن الشهر والسنة المختارين ضمن النطاق المسموح
     if (
       (selectedYear === currentYear && selectedMonth > currentMonth + 1) ||
       (selectedYear === nextMonthYear && selectedMonth > nextMonth) ||
@@ -374,6 +366,11 @@ export default function CashTable() {
     } catch (error) {
       setCashAddError("خطأ في الاتصال بالخادم");
     }
+  };
+
+  const toggleLogs = (month, year) => {
+    const key = `${month}-${year}`;
+    setOpenLogsMonth(openLogsMonth === key ? null : key);
   };
 
   return (
@@ -430,66 +427,114 @@ export default function CashTable() {
             <tbody>
               {cashData.map((cash, index) => {
                 const isFuture = isFutureMonth(cash.Month);
+                const logsKey = `${cash.Month}-${cash.Year}`;
+                const showLogs = openLogsMonth === logsKey;
+
                 return (
-                  <tr
-                    key={`${cash.Year}-${cash.Month}`}
-                    className={`border-t border-gray-100 hover:bg-gray-50 text-center ${
-                      isFuture ? "text-gray-400" : ""
-                    }`}
-                  >
-                    <td className="py-2 px-4">{index + 1}</td>
-                    <td className="py-2 px-4">{cash.Year}</td>
-                    <td className="py-2 px-4">{getArabicMonthName(cash.Month)}</td>
-                    <td className="py-2 px-4">
-                      {cash.amount ? `${cash.amount} ر.س` : "-"}
-                    </td>
-                    <td className="py-2 px-4">
-                      {cash.spent ? `${cash.spent} ر.س` : "-"}
-                    </td>
-                    <td className="py-2 px-4">
-                      {cash.remaining ? `${cash.remaining} ر.س` : "-"}
-                    </td>
-                    <td className="py-2 px-4">
-                      <button
-                        onClick={() => handleOpenCashModal(cash.Month, cash.Year)}
-                        className={`${Style["almarai-bold"]} bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ${
-                          isFuture ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        disabled={isFuture}
-                      >
-                        إضافة مبلغ
-                      </button>
-                    </td>
-                    <td className="py-2 px-4">
-                      <button
-                        onClick={() => handleEdit(cash)}
-                        className={`${Style["almarai-bold"]} bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600 ${
-                          !cash.id || isFuture ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        disabled={!cash.id || isFuture}
-                      >
-                        تعديل
-                      </button>
-                    </td>
-                    <td className="py-2 px-4">
-                      <button
-                        onClick={() => openDeleteModal(cash)}
-                        className={`${Style["almarai-bold"]} bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ${
-                          !cash.id || isFuture ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        disabled={!cash.id || isFuture}
-                      >
-                        حذف
-                      </button>
-                    </td>
-                  </tr>
+                  <>
+                    <tr
+                      key={`${cash.Year}-${cash.Month}`}
+                      className={`border-t border-gray-100 hover:bg-gray-50 text-center ${
+                        isFuture ? "text-gray-400" : ""
+                      }`}
+                    >
+                      <td className="py-2 px-4">{index + 1}</td>
+                      <td className="py-2 px-4">{cash.Year}</td>
+                      <td className="py-2 px-4">
+                        <button
+                          onClick={() => toggleLogs(cash.Month, cash.Year)}
+                          className={`${Style["almarai-bold"]} text-blue-600 hover:underline ${
+                            !cash.cashLogs?.length || isFuture
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                          disabled={!cash.cashLogs?.length || isFuture}
+                        >
+                          {getArabicMonthName(cash.Month)}
+                        </button>
+                      </td>
+                      <td className="py-2 px-4">
+                        {cash.amount ? `${cash.amount} ر.س` : "-"}
+                      </td>
+                      <td className="py-2 px-4">
+                        {cash.spent ? `${cash.spent} ر.س` : "-"}
+                      </td>
+                      <td className="py-2 px-4">
+                        {cash.remaining ? `${cash.remaining} ر.س` : "-"}
+                      </td>
+                      <td className="py-2 px-4">
+                        <button
+                          onClick={() => handleOpenCashModal(cash.Month, cash.Year)}
+                          className={`${Style["almarai-bold"]} bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 ${
+                            isFuture ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                          disabled={isFuture}
+                        >
+                          إضافة مبلغ
+                        </button>
+                      </td>
+                      <td className="py-2 px-4">
+                        <button
+                          onClick={() => handleEdit(cash)}
+                          className={`${Style["almarai-bold"]} bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-600 ${
+                            !cash.id || isFuture ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                          disabled={!cash.id || isFuture}
+                        >
+                          تعديل
+                        </button>
+                      </td>
+                      <td className="py-2 px-4">
+                        <button
+                          onClick={() => openDeleteModal(cash)}
+                          className={`${Style["almarai-bold"]} bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 ${
+                            !cash.id || isFuture ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                          disabled={!cash.id || isFuture}
+                        >
+                          حذف
+                        </button>
+                      </td>
+                    </tr>
+                    {showLogs && cash.cashLogs?.length > 0 && (
+                      <tr>
+                        <td colSpan={9} className="p-4">
+                          <Table size="small" className="bg-gray-100 rounded-md">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>معرف السجل</TableCell>
+                                <TableCell>الحالة</TableCell>
+                                <TableCell>تاريخ الإنشاء</TableCell>
+                                <TableCell>تاريخ التحديث</TableCell>
+                                <TableCell>معرف المستخدم</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {cash.cashLogs.map((log) => (
+                                <TableRow key={log.id}>
+                                  <TableCell>{log.id}</TableCell>
+                                  <TableCell>{log.Status}</TableCell>
+                                  <TableCell>
+                                    {new Date(log.createdAt).toLocaleString()}
+                                  </TableCell>
+                                  <TableCell>
+                                    {new Date(log.updatedAt).toLocaleString()}
+                                  </TableCell>
+                                  <TableCell>{log.userId || "-"}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 );
               })}
             </tbody>
           </table>
         )}
 
-        {/* Edit Modal */}
         <EditCashModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
@@ -497,7 +542,6 @@ export default function CashTable() {
           onSave={handleModalSave}
         />
 
-        {/* Delete Confirmation Modal */}
         {isDeleteModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -555,7 +599,6 @@ export default function CashTable() {
           </div>
         )}
 
-        {/* Add Cash Modal */}
         <Modal open={openCashModal} onClose={handleCloseCashModal}>
           <Box
             sx={{
@@ -622,7 +665,6 @@ export default function CashTable() {
           </Box>
         </Modal>
 
-        {/* Add Cash Record Modal */}
         <Modal open={openCashAddModal} onClose={handleCloseCashAddModal}>
           <Box
             sx={{
@@ -657,23 +699,6 @@ export default function CashTable() {
                 ))}
               </Select>
             </FormControl>
-
-            {/* <FormControl fullWidth margin="normal">
-              <InputLabel>السنة</InputLabel>
-              <Select
-                name="Year"
-                value={newCashAddRecord.Year}
-                onChange={handleCashAddRecordChange}
-                required
-                disabled // تعطيل حقل السنة لأنه سيتم تحديده تلقائيًا مع الشهر
-              >
-                {allowedYears.map((year) => (
-                  <MenuItem key={year} value={year}>
-                    {year}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl> */}
 
             <TextField
               fullWidth
