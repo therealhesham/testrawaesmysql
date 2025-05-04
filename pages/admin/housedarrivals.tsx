@@ -1060,7 +1060,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             >
               سجلات النقد
             </Button>
-            <Button
+            {/* <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
                className={` ${Style["almarai-bold"]}`}
@@ -1069,7 +1069,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
               onClick={handleOpenCashModal}
             >
               إدارة النقد
-            </Button>
+            </Button> */}
             <Button
               style={{ marginLeft: "1px" }}
                className={` ${Style["almarai-bold"]}`}
