@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { amount, month, year } = req.body;
+  const { amount, month, year, userId } = req.body;
 
   if (!amount || !month || !year) {
     return res.status(400).json({ error: 'Amount, month, and year are required' });
@@ -17,6 +17,9 @@ export default async function handler(req, res) {
       where: { Month: month.toString(), Year: year },
     });
 
+    let logStatus;
+    let cashRecordId;
+
     if (cashRecord) {
       cashRecord = await prisma.cash.update({
         where: { id: cashRecord.id },
@@ -25,6 +28,8 @@ export default async function handler(req, res) {
           updatedAt: new Date(),
         },
       });
+      logStatus = 'UPDATED';
+      cashRecordId = cashRecord.id;
     } else {
       cashRecord = await prisma.cash.create({
         data: {
@@ -34,7 +39,22 @@ export default async function handler(req, res) {
           Year: year,
         },
       });
+      logStatus = 'CREATED';
+      cashRecordId = cashRecord.id;
     }
+try {
+    // Create a log entry
+    await prisma.cashLogs.create({
+      data: {
+        Status: logStatus,
+        userId: userId || null,
+        cashID: cashRecordId,
+      },
+    });
+  
+} catch (error) {
+console.log(error)  
+}
 
     return res.status(200).json({ message: 'Amount added successfully', cashRecord });
   } catch (error) {

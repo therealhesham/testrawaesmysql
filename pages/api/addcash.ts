@@ -6,19 +6,19 @@ export default async function handler(req, res) {
   switch (method) {
     case "GET":
       try {
-        const { month, transaction_type, year } = req.query;
+        const { month, transaction_type, year, userId } = req.query;
         const where = {};
         if (month) where.Month = parseInt(month);
         if (transaction_type) where.transaction_type = transaction_type;
         if (year) where.Year = year;
 
-        // جلب سجلات الكاش
+        // Fetch cash records
         const cashRecords = await prisma.cash.findMany({
-          where,
+          where,include:{cashLogs:true},
           orderBy: [{ Year: "asc" }, { Month: "asc" }],
         });
 
-        // حساب التكاليف المصروفة والمتبقية لكل سجل
+        // Calculate spent and remaining costs for each record
         const result = await Promise.all(
           cashRecords.map(async (cash) => {
             const checkIns = await prisma.checkIn.findMany({
@@ -41,7 +41,6 @@ export default async function handler(req, res) {
             );
 
             const remaining = Number(cash.amount) - totalSpent;
-
             return {
               ...cash,
               spent: totalSpent,
@@ -59,9 +58,9 @@ export default async function handler(req, res) {
 
     case "POST":
       try {
-        const { amount, transaction_type, Month, Year } = req.body;
+        const { amount, transaction_type, Month, Year, userId } = req.body;
         const existingCash = await prisma.cash.findFirst({
-          where: { Month:Month.toString(), Year:Year, transaction_type },
+          where: { Month: Month.toString(), Year: Year, transaction_type },
         });
         if (existingCash) {
           return res.status(400).json({
@@ -71,11 +70,27 @@ export default async function handler(req, res) {
         const newCash = await prisma.cash.create({
           data: {
             amount: parseFloat(amount),
-            // transaction_type,
-            Month:Month.toString( ),
+            transaction_type,
+            Month: Month.toString(),
             Year,
           },
         });
+try {
+    // Log the creation action
+        await prisma.cashLogs.create({
+          data: {
+            Status: 'CREATED',
+            userId: userId || null,
+            cashID: newCash.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+} catch (error) {
+  console.log(error)
+}
+      
         res.status(201).json(newCash);
       } catch (error) {
         console.error(error);
@@ -85,7 +100,7 @@ export default async function handler(req, res) {
 
     case "PUT":
       try {
-        const { id, amount, transaction_type, Month, Year } = req.body;
+        const { id, amount, transaction_type, Month, Year, userId } = req.body;
         if (!id) {
           return res.status(400).json({ error: "ID is required" });
         }
@@ -98,6 +113,22 @@ export default async function handler(req, res) {
             Year,
           },
         });
+try {
+        // Log the update action
+        await prisma.cashLogs.create({
+          data: {
+            Status: 'UPDATED',
+            userId: userId || null,
+            cashID: updatedCash.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+  
+} catch (error) {
+  console.log(error)
+}
+
         res.status(200).json(updatedCash);
       } catch (error) {
         res.status(500).json({ error: "Failed to update cash record" });
@@ -106,13 +137,38 @@ export default async function handler(req, res) {
 
     case "DELETE":
       try {
-        const { id } = req.query;
+        const { id, userId } = req.query;
         if (!id) {
           return res.status(400).json({ error: "ID is required" });
         }
+
+        // Fetch the cash record to log before deletion
+        const cashRecord = await prisma.cash.findUnique({
+          where: { id: parseInt(id) },
+        });
+
+        if (!cashRecord) {
+          return res.status(404).json({ error: "Cash record not found" });
+        }
+
         await prisma.cash.delete({
           where: { id: parseInt(id) },
         });
+try{
+        // Log the deletion action
+        await prisma.cashLogs.create({
+          data: {
+            Status: 'DELETED',
+            userId: userId || null,
+            cashID: parseInt(id),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+      }catch(e){
+console.log(e)
+
+      }
         res.status(204).end();
       } catch (error) {
         res.status(500).json({ error: "Failed to delete cash record" });

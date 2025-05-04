@@ -122,8 +122,23 @@ model User {
   notifications notifications[]
 
   logs logs[]
+
+  cashLogs cashLogs[]
 }
 
+
+
+model cashLogs{
+
+  id            Int       @id @default(autoincrement()) 
+  Status        String?   @db.VarChar(255)
+  createdAt     DateTime? @default(now())
+  updatedAt     DateTime? @updatedAt
+  userId        String?
+  cashID  Int?
+  user          User?     @relation(fields: [userId], references: [username])
+  cashRecord      Cash? @relation(fields: [cashID], references: [id])
+}
 
 model logs{
 
@@ -433,6 +448,8 @@ model Cash{
   Month       String? @db.VarChar(100)
   Year       String? @db.VarChar(100)
   
+
+  cashLogs cashLogs[]
 }
 model income{
 transaction_id Int @id @default(autoincrement())
