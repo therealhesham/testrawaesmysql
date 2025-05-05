@@ -143,7 +143,7 @@ export default function HousedWorkers() {
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="ابحث بالاسم..."
-              className="w-1/3 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-1/1 p-2 border border-gray-300  rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="flex space-x-2">
