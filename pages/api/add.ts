@@ -1,5 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import jwt from "jsonwebtoken";
+import prisma from "./globalprisma";
+
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -43,10 +44,19 @@ export default async function handler(req, res) {
       cashRecordId = cashRecord.id;
     }
 try {
+        const token = req.cookies?.authToken;
+        let userId: string | null = null;
+  
+        if (token) {
+          const decoded: any = jwt.verify(token, "rawaesecret");
+          userId = decoded?.username;
+        }
+  
+  
     // Create a log entry
     await prisma.cashLogs.create({
       data: {
-        Status: logStatus,
+        Status: "تم اضافة كاش  بتاريخ " + new Date().toLocaleDateString(),
         userId: userId || null,
         cashID: cashRecordId,
       },

@@ -162,14 +162,8 @@ export default function CashTable() {
     setIsEditModalOpen(true);
   };
 
-  const handleModalSave = (updatedCash) => {
-    setCashData((prev) =>
-      prev.map((item) =>
-        item.Month === updatedCash.Month && item.Year === updatedCash.Year
-          ? updatedCash
-          : item
-      )
-    );
+  const handleModalSave = (updatedCash) => {//فانكشن تعديل الكاش ..يستعيد السجلات بعد الحفظ
+    fetchData(); // Refresh data after saving
   };
 
   const openDeleteModal = (cash) => {
@@ -502,24 +496,24 @@ export default function CashTable() {
                           <Table size="small" className="bg-gray-100 rounded-md">
                             <TableHead>
                               <TableRow>
-                                <TableCell>معرف السجل</TableCell>
+                                {/* <TableCell>معرف السجل</TableCell> */}
                                 <TableCell>الحالة</TableCell>
                                 <TableCell>تاريخ الإنشاء</TableCell>
-                                <TableCell>تاريخ التحديث</TableCell>
+                                {/* <TableCell>تاريخ التحديث</TableCell> */}
                                 <TableCell>معرف المستخدم</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
                               {cash.cashLogs.map((log) => (
                                 <TableRow key={log.id}>
-                                  <TableCell>{log.id}</TableCell>
+                                  {/* <TableCell>{log.id}</TableCell> */}
                                   <TableCell>{log.Status}</TableCell>
                                   <TableCell>
                                     {new Date(log.createdAt).toLocaleString()}
                                   </TableCell>
-                                  <TableCell>
+                                  {/* <TableCell>
                                     {new Date(log.updatedAt).toLocaleString()}
-                                  </TableCell>
+                                  </TableCell> */}
                                   <TableCell>{log.userId || "-"}</TableCell>
                                 </TableRow>
                               ))}
