@@ -1,5 +1,6 @@
 import { BookFilled } from "@ant-design/icons";
 import Head from "next/head";
+import { FaCheckCircle, FaTimesCircle, FaInfoCircle, FaUser, FaClock, FaCalendar } from 'react-icons/fa'; // استيراد أيقونات إضافية
 
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
@@ -34,7 +35,13 @@ export default function Table() {
     Month: "",
   });
   const [days, setDays] = useState(0);
-
+const statusIcons = {
+  'مكتمل': <FaCheckCircle className="text-green-500" />,
+  'ملغى': <FaTimesCircle className="text-red-500" />,
+  'معلق': <FaInfoCircle className="text-blue-500" />,
+  // أضف المزيد من الحالات حسب الحاجة
+  'افتراضي': <FaInfoCircle className="text-gray-500" />, // حالة افتراضية
+};
   function calcualtinghousingdays(date){
 
 const startDate = new Date(date);
@@ -1520,9 +1527,43 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                   </tr>
                   {expandedRow === item.id && (
                     <tr className="bg-gray-100">
-                      <td colSpan={9} className="p-3 text-center">
+                      <td colSpan={14} className="p-3 text-center">
                         <div>
                           <p className={Style["almarai-bold"]}> <span style={{color:"green"}}>الحالة</span>  : {item?.Order. weeklyStatusId[item?.Order.weeklyStatusId.length-1]?.status} </p>
+                        {item?.Order. weeklyStatusId[item?.Order.weeklyStatusId.length-1]?.status && item?.Order. weeklyStatusId[item?.Order.weeklyStatusId.length-1]?.status?.length > 0 && (
+                          <tr>
+                            <td colSpan={9} className="p-4">
+                              <div className="bg-gray-100 rounded-md p-4 space-y-2 text-sm">
+                                {item?.Order. logs.map((log) => (
+                                  <div key={log.id} className="flex items-center gap-2">
+                                    {/* أيقونة الحالة */}
+                                    <div className="flex-shrink-0">
+                                      {statusIcons[log.Status] || statusIcons['افتراضي']}
+                                    </div>
+                                    <span className="flex items-center gap-2">
+                                      {/* نص الحالة */}
+                                      <span className="text-blue-600 font-medium">{log.Status}</span>
+                                      {" بواسطة "}
+                                      {/* أيقونة المستخدم */}
+                                      <FaUser className="text-green-600 inline-block" />
+                                      <span className="text-green-600 font-medium">{log.userId || "مستخدم غير معروف"}</span>
+                                      {/* أيقونة الوقت إذا كان هناك timestamp */}
+                                     {" في يوم "}
+                                      {/* {log.timestamp && ( */}
+                                        <span className="text-purple-500 flex items-center gap-1">
+                                          <FaCalendar className="inline-block" />
+                                          {new Date(log.createdAt).toLocaleDateString('ar-EG')}
+                                        </span>
+                                      {/* )} */}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                                      
+                        
                         </div>
                       </td>
                     </tr>

@@ -34,18 +34,17 @@ export default async function handler(
           hw.id,
           h.Name AS Name,
           hw.employee,
-          ci.CheckDate,
           hw.houseentrydate,
           hw.isActive,
           CAST(IFNULL(SUM(ci.DailyCost), 0) AS DECIMAL(10,2)) AS totalDailyCost
         FROM housedworker hw
         INNER JOIN homemaid h ON hw.homeMaid_id = h.id
-        INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
+        LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
         WHERE (h.Name LIKE ? OR ? = '') 
           AND hw.isActive = true
           ${dateCondition}
-        GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive, ci.CheckDate
-        ORDER BY ci.CheckDate DESC
+        GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive
+        ORDER BY hw.houseentrydate DESC
         LIMIT ? OFFSET ?;
         `,
         ...params
@@ -66,7 +65,7 @@ export default async function handler(
         SELECT COUNT(DISTINCT hw.id) as count
         FROM housedworker hw
         INNER JOIN homemaid h ON hw.homeMaid_id = h.id
-        INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
+        LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
         WHERE (h.Name LIKE ? OR ? = '') 
           AND hw.isActive = true
           ${dateCondition};
