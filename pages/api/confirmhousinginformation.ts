@@ -214,7 +214,7 @@ try {
           ...filters,
           deparatureHousingDate: null,
         },
-        include: { Order:{include:{weeklyStatusId:true}}},
+        include: { Order:{include:{weeklyStatusId:true,logs:true}},},
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
         orderBy: orderBy, // Apply sorting
