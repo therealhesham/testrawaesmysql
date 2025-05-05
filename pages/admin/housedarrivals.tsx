@@ -1367,10 +1367,12 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                       </h1>
                     </td>
                     <td
-                      className={`text-center mb-4 ${Style["almarai-light"]}`}
-                      onClick={() => handleRowClick(item.id)}
+                      className={`text-center mb-4 ${Style["almarai-light"]} ${item?.Order. weeklyStatusId[item?.Order.weeklyStatusId.length-1]?.status?"cursor-pointer text-purple-700":"text-purple-500"} `}
+                      
+                      onClick={item?.Order. weeklyStatusId[item?.Order.weeklyStatusId.length-1]?() => handleRowClick(item?.id):()=>console.log("no func")}
                     >
                       <h1
+
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
                         {item?.Reason ? item?.Reason : "لا يوجد"}
@@ -1378,7 +1380,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                     </td>
                     <td
                       className={`text-center mb-4 ${Style["almarai-light"]}`}
-                      onClick={() => handleRowClick(item.id)}
+                      // onClick={() => handleRowClick(item.id)}
                     >
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
@@ -1391,7 +1393,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
 
                     <td
                       className={`text-center mb-4 ${Style["almarai-light"]}`}
-                      onClick={() => handleRowClick(item.id)}
+                      // onClick={() => handleRowClick(item.id)}
                     >
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
