@@ -10,11 +10,26 @@ export default async function handler(
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
       const search = (req.query.search as string)?.trim() || "";
+      const checkDate = (req.query.checkDate as string)?.trim() || "";
       const offset = (page - 1) * pageSize;
       const searchPattern = `%${search}%`;
 
+      // Prepare parameters for the query
+      const params: any[] = [searchPattern, search, pageSize, offset];
+      let dateCondition = "";
+      if (checkDate) {
+        const formattedDate = new Date(checkDate);
+        if (isNaN(formattedDate.getTime())) {
+          return res.status(400).json({ message: "تاريخ غير صالح." });
+        }
+        const dateString = formattedDate.toISOString().split("T")[0];
+        dateCondition = `AND DATE(ci.CheckDate) = ?`;
+        params.splice(params.length - 2, 0, dateString); // Insert date before pageSize and offset
+      }
+
       // Main data query with INNER JOIN for CheckIn and isActive filter
-      const data = await prisma.$queryRaw`
+      const data = await prisma.$queryRawUnsafe(
+        `
         SELECT 
           hw.id,
           h.Name AS Name,
@@ -26,20 +41,38 @@ export default async function handler(
         FROM housedworker hw
         INNER JOIN homemaid h ON hw.homeMaid_id = h.id
         INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
-        WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true
+        WHERE (h.Name LIKE ? OR ? = '') 
+          AND hw.isActive = true
+          ${dateCondition}
         GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive, ci.CheckDate
-        ORDER BY hw.id DESC
-        LIMIT ${pageSize} OFFSET ${offset};
-      `;
+        ORDER BY ci.CheckDate DESC
+        LIMIT ? OFFSET ?;
+        `,
+        ...params
+      );
 
       // Total count query with INNER JOIN for CheckIn and isActive filter
-      const countResult: any = await prisma.$queryRaw`
+      const countParams = [searchPattern, search];
+      if (checkDate) {
+        const formattedDate = new Date(checkDate);
+        if (!isNaN(formattedDate.getTime())) {
+          const dateString = formattedDate.toISOString().split("T")[0];
+          countParams.push(dateString);
+        }
+      }
+
+      const countResult: any = await prisma.$queryRawUnsafe(
+        `
         SELECT COUNT(DISTINCT hw.id) as count
         FROM housedworker hw
         INNER JOIN homemaid h ON hw.homeMaid_id = h.id
         INNER JOIN CheckIn ci ON hw.id = ci.housedworkerId
-        WHERE (h.Name LIKE ${searchPattern} OR ${search} = '') AND hw.isActive = true;
-      `;
+        WHERE (h.Name LIKE ? OR ? = '') 
+          AND hw.isActive = true
+          ${dateCondition};
+        `,
+        ...countParams
+      );
 
       const totalItems = Number(countResult[0]?.count || 0);
       const totalPages = Math.ceil(totalItems / pageSize);
