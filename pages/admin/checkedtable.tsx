@@ -31,15 +31,16 @@ export default function HousedWorkers() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const getCurrentWeekStart = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const diff = (dayOfWeek + 1) % 7;
-    const saturday = new Date(today);
-    saturday.setDate(today.getDate() - diff);
-    return saturday.toISOString().split("T")[0];
-  };
-
+const getCurrentWeekStart = () => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 (الأحد) إلى 6 (السبت)
+  // حساب عدد الأيام للرجوع للسبت اللي فات
+  const diff = dayOfWeek === 0 ? 1 : dayOfWeek; // إذا الأحد، نرجع يوم واحد، غيره نرجع dayOfWeek
+  const saturday = new Date(today);
+  saturday.setDate(today.getDate() - diff);
+  saturday.setHours(0, 0, 0, 0); // نضبط الوقت على بداية اليوم
+  return saturday.toISOString().split("T")[0]; // بيرجع YYYY-MM-DD
+};
   const fetchWorkers = async (weekStart: string) => {
     setLoading(true);
     setError(null);
