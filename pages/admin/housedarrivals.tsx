@@ -1518,9 +1518,9 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                   </tr>
                   {expandedRow === item.id && (
                     <tr className="bg-gray-100">
-                      <td colSpan="9" className="p-3 text-center">
+                      <td colSpan={9} className="p-3 text-center">
                         <div>
-                          <p>{item?.Details}</p>
+                          <p className={Style["almarai-bold"]}> <span style={{color:"green"}}>الحالة</span>  : {item?.Order. weeklyStatusId[item?.Order.weeklyStatusId.length-1]?.status} </p>
                         </div>
                       </td>
                     </tr>

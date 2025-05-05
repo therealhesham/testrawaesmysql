@@ -174,7 +174,7 @@ try {
       filters.Nationalitycopy = { contains: Nationality.toLowerCase() };
 
     // Build the sorting object dynamically based on sortKey and sortDirection
-    let orderBy = { id: "desc" }; // Default sorting by id in descending order
+    let orderBy = { id: "desc" as SortOrder }; // Default sorting by id in descending order
     if (sortKey) {
       switch (sortKey) {
         case "Name":
@@ -214,16 +214,16 @@ try {
           ...filters,
           deparatureHousingDate: null,
         },
-        include: { Order: true },
+        include: { Order:{include:{weeklyStatusId:true}}},
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
         orderBy: orderBy, // Apply sorting
       });
-
+// housing[0].Order. weeklyStatusId[housing[0].Order.weeklyStatusId.length-1]?.status
       if (!housing) {
         return res.status(404).json({ error: "Housing not found" });
       }
-
+// housing[0].Order.
       return res.status(200).json({ housing ,totalCount});
     } catch (error) {
       console.error(error);
