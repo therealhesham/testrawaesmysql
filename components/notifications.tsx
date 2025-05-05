@@ -76,6 +76,23 @@ export default function NotificationDropdown() {
     }
   };
 
+  // Handle clear all notifications
+  const handleClearNotifications = async () => {
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) throw new Error("Failed to clear notifications");
+
+      setNotifications([]);
+      setOpen(false);
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+    }
+  };
+
   // Handle number click in message
   const handleNumberClick = (number: string) => {
     router.push(`/cvdetails/${number}`);
@@ -131,8 +148,16 @@ export default function NotificationDropdown() {
         {/* Dropdown Menu */}
         {open && (
           <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl z-50 border border-gray-200 dark:border-gray-800 transform transition-all duration-300 ease-in-out">
-            <div className="p-4 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-xl">
-              الإشعارات
+            <div className="p-4 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-xl flex justify-between items-center">
+              <span>الإشعارات</span>
+              {notifications.length > 0 && (
+                <button
+                  onClick={handleClearNotifications}
+                  className="text-xs text-white hover:text-gray-200 underline"
+                >
+                  مسح الكل
+                </button>
+              )}
             </div>
             <ul className="max-h-80 overflow-y-auto">
               {notifications.length > 0 ? (
@@ -170,7 +195,7 @@ export default function NotificationDropdown() {
               ✕
             </button>
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-              تفاصيل 
+              تفاصيل
             </h2>
             <div className="space-y-4">
               <div>

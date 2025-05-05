@@ -56,7 +56,22 @@ export default async function handler(
       return res.status(200).json(notifications);
     }
 
-    res.setHeader("Allow", ["GET", "POST"]);
+    // ✅ DELETE: حذف جميع الإشعارات للمستخدم
+    if (req.method === "DELETE") {
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      await prisma.notifications.deleteMany({
+        where: {
+          userId: userId,
+        },
+      });
+
+      return res.status(204).json({ message: "All notifications cleared" });
+    }
+
+    res.setHeader("Allow", ["GET", "POST", "DELETE"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   } catch (error) {
     console.error("Error in notifications API:", error);
