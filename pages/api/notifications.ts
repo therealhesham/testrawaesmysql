@@ -62,10 +62,9 @@ export default async function handler(
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      await prisma.notifications.deleteMany({
-        where: {
-          userId: userId,
-        },
+      await prisma.notifications.updateMany({
+       
+        data: {isRead: true },
       });
 
       return res.status(204).json({ message: "All notifications cleared" });
