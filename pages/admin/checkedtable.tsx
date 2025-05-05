@@ -1,80 +1,98 @@
 import { useEffect, useState } from "react";
 import Layout from "example/containers/Layout";
 
+interface DailyCosts {
+  [date: string]: number;
+}
+
 interface HousedWorker {
   id: number;
   Name: string | null;
   houseentrydate: string | null;
   isActive: boolean | null;
-  totalDailyCost: number | string;
-  CheckDate?: string | null;
+  dailyCosts: DailyCosts;
+}
+
+interface ApiResponse {
+  startDate: string;
+  endDate: string;
+  workers: HousedWorker[];
+  dailyTotals: { [date: string]: number };
 }
 
 export default function HousedWorkers() {
   const [workers, setWorkers] = useState<HousedWorker[]>([]);
+  const [dailyTotals, setDailyTotals] = useState<{ [date: string]: number }>({});
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
+  const [startDate, setStartDate] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [checkDateFilter, setCheckDateFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isDistributeModalOpen, setIsDistributeModalOpen] = useState(false);
-  const [distributeDate, setDistributeDate] = useState<string>("");
-  const [distributeError, setDistributeError] = useState<string | null>(null);
-  const [isDateFilterModalOpen, setIsDateFilterModalOpen] = useState(false); // New state for filter modal
-  const [tempFilterDate, setTempFilterDate] = useState<string>(""); // Temporary date for modal
 
-  function getDate(date: string | null) {
-    if (!date) return "N/A";
-    const currentDate = new Date(date);
-    return currentDate.toISOString().split("T")[0];
-  }
+  const getCurrentWeekStart = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = (dayOfWeek + 1) % 7;
+    const saturday = new Date(today);
+    saturday.setDate(today.getDate() - diff);
+    return saturday.toISOString().split("T")[0];
+  };
 
-  const fetchWorkers = async () => {
+  const fetchWorkers = async (weekStart: string) => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch(
-        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery.trim())}&checkDate=${encodeURIComponent(checkDateFilter)}`
+        `/api/checkedtable?startDate=${encodeURIComponent(weekStart)}&search=${encodeURIComponent(searchQuery.trim())}`
       );
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);
       }
-      const result = await response.json();
-      setWorkers(Array.isArray(result.data) ? result.data : []);
-      setTotalPages(result.totalPages || 1);
+      const result: ApiResponse = await response.json();
+      setWorkers(Array.isArray(result.workers) ? result.workers : []);
+      setDailyTotals(result.dailyTotals || {});
+      setStartDate(result.startDate);
     } catch (error) {
       console.error("Error fetching workers:", error);
       setError("فشل في جلب البيانات. حاول مرة أخرى.");
       setWorkers([]);
+      setDailyTotals({});
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchWorkers();
-  }, [page, searchQuery, checkDateFilter]);
+    const weekStart = getCurrentWeekStart();
+    fetchWorkers(weekStart);
+  }, [searchQuery]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    setPage(1);
+  const getWeekDays = (start: string) => {
+    const days: { date: string; label: string }[] = [];
+    const startDate = new Date(start);
+    const dayNames = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      days.push({
+        date: date.toISOString().split("T")[0],
+        label: `${dayNames[i]} ${date.toLocaleDateString("ar-EG", { day: "numeric", month: "numeric" })}`,
+      });
+    }
+    return days;
   };
 
-  const handleApplyDateFilter = () => {
-    setCheckDateFilter(tempFilterDate);
-    setIsDateFilterModalOpen(false);
-    setTempFilterDate("");
-    setPage(1);
-  };
+  const weekDays = startDate ? getWeekDays(startDate) : [];
 
-  const formatCost = (cost: number | string) => {
-    const num = typeof cost === "string" ? parseFloat(cost) : cost;
-    return isNaN(num) ? "0.00" : num.toFixed(2);
+  const handleWeekChange = (direction: "prev" | "next") => {
+    const currentStart = new Date(startDate);
+    const newStart = new Date(currentStart);
+    newStart.setDate(currentStart.getDate() + (direction === "next" ? 7 : -7));
+    const newStartDate = newStart.toISOString().split("T")[0];
+    setStartDate(newStartDate);
+    fetchWorkers(newStartDate);
   };
 
   const handleDelete = async () => {
@@ -90,182 +108,172 @@ export default function HousedWorkers() {
       if (!response.ok) {
         throw new Error(`فشل في الحذف: ${response.statusText}`);
       }
-      setIsModalOpen(false);
+      setIsDeleteModalOpen(false);
       setSelectedDate("");
-      fetchWorkers();
+      fetchWorkers(startDate);
     } catch (error) {
       console.error("Error deleting records:", error);
       setDeleteError("فشل في حذف السجلات. حاول مرة أخرى.");
     }
   };
 
-  const handleDistribute = async () => {
-    if (!distributeDate) {
-      setDistributeError("يرجى اختيار تاريخ.");
-      return;
-    }
-    setDistributeError(null);
-    try {
-      const adjustedDate = new Date(distributeDate);
-      adjustedDate.setHours(adjustedDate.getHours() + 3);
-      const response = await fetch("/api/distrbuitecashmanually", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ date: adjustedDate }),
-      });
-      if (!response.ok) {
-        throw new Error(`فشل في توزيع الإعاشات: ${response.statusText}`);
-      }
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || "فشل في توزيع الإعاشات.");
-      }
-      setIsDistributeModalOpen(false);
-      setDistributeDate("");
-      fetchWorkers();
-    } catch (error) {
-      console.error("Error distributing check-ins:", error);
-      setDistributeError("فشل في توزيع الإعاشات. حاول مرة أخرى.");
+  const formatCost = (cost: number) => {
+    return isNaN(cost) ? "0.00" : cost.toFixed(2);
+  };
+
+  // Function to determine cell background color based on date
+  const getCellBackgroundClass = (date: string) => {
+    const today = new Date().toISOString().split("T")[0];
+    const cellDate = new Date(date);
+    const todayDate = new Date(today);
+    if (cellDate.toDateString() === todayDate.toDateString()) {
+      return "bg-blue-100 group relative"; // Current day
+    } else if (cellDate < todayDate) {
+      return "bg-green-100"; // Past days
+    } else {
+      return "bg-gray-100"; // Future days
     }
   };
 
   return (
     <Layout>
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">بيانات الإعاشة</h1>
+      <div dir="rtl" className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-right">بيانات الإعاشة الأسبوعية</h1>
 
-        <div className="flex justify-between mb-4">
-          <div className="flex space-x-4">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={handleSearchChange}
-              placeholder="ابحث بالاسم..."
-              className="w-1/1 p-2 border border-gray-300  rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث بالاسم..."
+            className="w-full sm:w-1/3 p-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+          />
+          <div className="flex space-x-3 space-x-reverse">
             <button
-              onClick={() => setIsDateFilterModalOpen(true)}
-              className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600"
-            >
-بحث بتاريخ الاعاشة            </button>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition duration-200"
             >
               حذف سجلات
+            </button>
+            <button
+              onClick={() => handleWeekChange("prev")}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:bg-gray-300 transition duration-200"
+            >
+              الأسبوع السابق
+            </button>
+            <button
+              onClick={() => handleWeekChange("next")}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:bg-gray-300 transition duration-200"
+            >
+              الأسبوع التالي
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="text-red-500 text-center mb-4">{error}</div>
+          <div className="text-red-600 text-center mb-6 bg-red-100 p-3 rounded-lg">{error}</div>
         )}
 
         {loading ? (
-          <div className="text-center">جاري التحميل...</div>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500"></div>
+          </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white border border-gray-200">
-                <thead>
-                  <tr className="bg-gray-100 text-center">
-                    <th className="py-2 px-4 border-b text-center">ID</th>
-                    <th className="py-2 px-4 border-b text-center">اسم العاملة</th>
-                    <th className="py-2 px-4 border-b text-center">تاريخ التسكين</th>
-                    <th className="py-2 px-4 border-b text-center">تاريخ الإعاشة</th>
-                    <th className="py-2 px-4 border-b text-center">حالة الإعاشة</th>
-                    <th className="py-2 px-4 border-b text-center">إجمالي التكلفة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workers.length > 0 ? (
-                    workers.map((worker) => (
-                      <tr key={worker.id} className="hover:bg-gray-50 text-center">
-                        <td className="py-2 px-4 border-b">{worker.id}</td>
-                        <td className="py-2 px-4 border-b text-blue-600 underline cursor-pointer">
-                          <a href={`/admin/worker/${worker.id}`}>
-                            {worker.Name || "غير متوفر"}
-                          </a>
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {getDate(worker.houseentrydate)}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {getDate(worker.CheckDate)}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {worker.isActive ? "في السكن" : "غادرت"}
-                        </td>
-                        <td className="py-2 px-4 border-b">
-                          {formatCost(worker.totalDailyCost)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="py-2 px-4 text-center">
-                        لا توجد بيانات لعرضها
+          <div className="overflow-x-auto shadow-lg rounded-lg">
+            <table className="min-w-full bg-white border border-gray-200">
+              <thead>
+                <tr className="bg-blue-50 text-gray-700 text-right">
+                  <th className="py-3 px-6 border-b font-semibold">اسم العاملة</th>
+                  {weekDays.map((day) => (
+                    <th key={day.date} className="py-3 px-6 border-b font-semibold">
+                      {day.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {workers.length > 0 ? (
+                  workers.map((worker) => (
+                    <tr key={worker.id} className="hover:bg-gray-50 transition duration-150 text-right">
+                      <td className="py-3 px-6 border-b">
+                        <a
+                          href={`/admin/worker/${worker.id}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {worker.Name || "غير متوفر"}
+                        </a>
                       </td>
+                      {weekDays.map((day) => (
+                        <td
+                          key={day.date}
+                          className={`py-3 px-6 border-b text-center ${getCellBackgroundClass(day.date)}`}
+                        >
+                          {formatCost(worker.dailyCosts[day.date] || 0)}
+                          {getCellBackgroundClass(day.date).includes("bg-blue-100") && (
+                            <div className="absolute left-1/2 transform -translate-x-1/2 -top-10 hidden group-hover:block bg-gray-800 text-white text-sm rounded-lg p-2 shadow-lg">
+                              سيتم توزيع الإعاشات في آخر اليوم أوتوماتيكيًا
+                            </div>
+                          )}
+                        </td>
+                      ))}
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-center mt-4 space-x-2">
-              <button
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                disabled={page === 1}
-                className="px-4 py-2 border rounded disabled:opacity-50"
-              >
-                السابق
-              </button>
-              <span className="px-4 py-2">
-                الصفحة {page} من {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                disabled={page === totalPages}
-                className="px-4 py-2 border rounded disabled:opacity-50"
-              >
-                التالي
-              </button>
-            </div>
-          </>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={weekDays.length + 1} className="py-4 px-6 text-center text-gray-500">
+                      لا توجد بيانات لعرضها
+                    </td>
+                  </tr>
+                )}
+                <tr className="bg-blue-50 font-semibold text-right">
+                  <td className="py-3 px-6 border-b">إجمالي اليوم</td>
+                  {weekDays.map((day) => (
+                    <td
+                      key={day.date}
+                      className={`py-3 px-6 border-b text-center ${getCellBackgroundClass(day.date)}`}
+                    >
+                      {formatCost(dailyTotals[day.date] || 0)}
+                      {getCellBackgroundClass(day.date).includes("bg-blue-100") && (
+                        <div className="absolute left-1/2 transform -translate-x-1/2 -top-10 hidden group-hover:block bg-gray-800 text-white text-sm rounded-lg p-2 shadow-lg">
+                          سيتم توزيع الإعاشات في آخر اليوم أوتوماتيكيًا
+                        </div>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
         )}
 
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">حذف سجلات الإعاشة</h2>
-              <p className="mb-4">اختر تاريخ السجلات المراد حذفها:</p>
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform scale-95 animate-scale-in">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4 text-right">حذف سجلات الإعاشة</h2>
+              <p className="mb-4 text-gray-600 text-right">اختر تاريخ السجلات المراد حذفها:</p>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 mb-4"
               />
               {deleteError && (
-                <div className="text-red-500 mb-4">{deleteError}</div>
+                <div className="text-red-600 mb-4 bg-red-100 p-2 rounded-lg text-right">{deleteError}</div>
               )}
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-3 space-x-reverse">
                 <button
                   onClick={() => {
-                    setIsModalOpen(false);
+                    setIsDeleteModalOpen(false);
                     setSelectedDate("");
                     setDeleteError(null);
                   }}
-                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:bg-gray-300 transition duration-200"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 transition duration-200"
                 >
                   حذف
                 </button>
@@ -273,76 +281,23 @@ export default function HousedWorkers() {
             </div>
           </div>
         )}
-
-        {isDateFilterModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">بحث بتاريخ الاعاشة</h2>
-              <p className="mb-4">اختر تاريخ الإعاشة:</p>
-              <input
-                type="date"
-                value={tempFilterDate}
-                onChange={(e) => setTempFilterDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setIsDateFilterModalOpen(false);
-                    setTempFilterDate("");
-                  }}
-                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
-                >
-                  إلغاء
-                </button>
-                <button
-                  onClick={handleApplyDateFilter}
-                  className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600"
-                >
-                  تأكيد
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isDistributeModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">توزيع الإعاشات</h2>
-              <p className="mb-4">اختر تاريخ الإعاشة:</p>
-              <label className="block mb-2 font-semibold">تاريخ الإعاشة</label>
-              <input
-                type="date"
-                value={distributeDate}
-                onChange={(e) => setDistributeDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {distributeError && (
-                <div className="text-red-500 mb-4">{distributeError}</div>
-              )}
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setIsDistributeModalOpen(false);
-                    setDistributeDate("");
-                    setDistributeError(null);
-                  }}
-                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
-                >
-                  إلغاء
-                </button>
-                <button
-                  onClick={handleDistribute}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  تأكيد
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      <style jsx>{`
+        @keyframes scale-in {
+          from {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out forwards;
+        }
+      `}</style>
     </Layout>
   );
 }

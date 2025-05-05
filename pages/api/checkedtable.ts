@@ -7,27 +7,28 @@ export default async function handler(
 ) {
   try {
     if (req.method === "GET") {
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const startDate = (req.query.startDate as string)?.trim() || "";
       const search = (req.query.search as string)?.trim() || "";
-      const checkDate = (req.query.checkDate as string)?.trim() || "";
-      const offset = (page - 1) * pageSize;
       const searchPattern = `%${search}%`;
 
-      // Prepare parameters for the query
-      const params: any[] = [searchPattern, search, pageSize, offset];
-      let dateCondition = "";
-      if (checkDate) {
-        const formattedDate = new Date(checkDate);
-        if (isNaN(formattedDate.getTime())) {
-          return res.status(400).json({ message: "تاريخ غير صالح." });
-        }
-        const dateString = formattedDate.toISOString().split("T")[0];
-        dateCondition = `AND DATE(ci.CheckDate) = ?`;
-        params.splice(params.length - 2, 0, dateString); // Insert date before pageSize and offset
+      if (!startDate) {
+        return res.status(400).json({ message: "تاريخ البداية مطلوب." });
       }
 
-      // Main data query with INNER JOIN for CheckIn and isActive filter
+      // تحويل تاريخ البداية إلى تنسيق صالح
+      const start = new Date(startDate);
+      if (isNaN(start.getTime())) {
+        return res.status(400).json({ message: "تاريخ بداية غير صالح." });
+      }
+
+      // حساب تاريخ نهاية الأسبوع (6 أيام بعد تاريخ البداية)
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+
+      const startDateString = start.toISOString().split("T")[0];
+      const endDateString = end.toISOString().split("T")[0];
+
+      // استعلام لجلب البيانات
       const data = await prisma.$queryRawUnsafe(
         `
         SELECT 
@@ -36,52 +37,58 @@ export default async function handler(
           hw.employee,
           hw.houseentrydate,
           hw.isActive,
-          CAST(IFNULL(SUM(ci.DailyCost), 0) AS DECIMAL(10,2)) AS totalDailyCost
+          ci.CheckDate,
+          CAST(IFNULL(ci.DailyCost, 0) AS DECIMAL(10,2)) AS DailyCost
         FROM housedworker hw
         INNER JOIN homemaid h ON hw.homeMaid_id = h.id
         LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
-        WHERE (h.Name LIKE ? OR ? = '') 
+        WHERE (h.Name LIKE ? OR ? = '')
           AND hw.isActive = true
-          ${dateCondition}
-        GROUP BY hw.id, h.Name, hw.employee, hw.houseentrydate, hw.isActive
-        ORDER BY hw.houseentrydate DESC
-        LIMIT ? OFFSET ?;
+          AND (ci.CheckDate IS NULL OR (DATE(ci.CheckDate) BETWEEN ? AND ?))
+        ORDER BY h.Name, ci.CheckDate;
         `,
-        ...params
+        searchPattern,
+        search,
+        startDateString,
+        endDateString
       );
 
-      // Total count query with INNER JOIN for CheckIn and isActive filter
-      const countParams = [searchPattern, search];
-      if (checkDate) {
-        const formattedDate = new Date(checkDate);
-        if (!isNaN(formattedDate.getTime())) {
-          const dateString = formattedDate.toISOString().split("T")[0];
-          countParams.push(dateString);
+      // تجميع البيانات حسب العاملة واليوم
+      const workersMap = new Map();
+      const dailyTotals: { [key: string]: number } = {};
+
+      for (const row of data) {
+        const workerId = row.id;
+        if (!workersMap.has(workerId)) {
+          workersMap.set(workerId, {
+            id: workerId,
+            Name: row.Name,
+            employee: row.employee,
+            houseentrydate: row.houseentrydate,
+            isActive: row.isActive,
+            dailyCosts: {},
+          });
+        }
+
+        if (row.CheckDate) {
+          const checkDate = new Date(row.CheckDate).toISOString().split("T")[0];
+          workersMap.get(workerId).dailyCosts[checkDate] = Number(row.DailyCost);
+
+          // حساب إجمالي اليوم
+          if (!dailyTotals[checkDate]) {
+            dailyTotals[checkDate] = 0;
+          }
+          dailyTotals[checkDate] += Number(row.DailyCost);
         }
       }
 
-      const countResult: any = await prisma.$queryRawUnsafe(
-        `
-        SELECT COUNT(DISTINCT hw.id) as count
-        FROM housedworker hw
-        INNER JOIN homemaid h ON hw.homeMaid_id = h.id
-        LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
-        WHERE (h.Name LIKE ? OR ? = '') 
-          AND hw.isActive = true
-          ${dateCondition};
-        `,
-        ...countParams
-      );
-
-      const totalItems = Number(countResult[0]?.count || 0);
-      const totalPages = Math.ceil(totalItems / pageSize);
+      const workers = Array.from(workersMap.values());
 
       res.status(200).json({
-        page,
-        pageSize,
-        totalPages,
-        totalItems,
-        data,
+        startDate: startDateString,
+        endDate: endDateString,
+        workers,
+        dailyTotals,
       });
     } else if (req.method === "DELETE") {
       const { date } = req.query;
