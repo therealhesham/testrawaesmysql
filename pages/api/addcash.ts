@@ -1,4 +1,5 @@
 import prisma from "./globalprisma";
+import jwt from "jsonwebtoken";
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -76,10 +77,18 @@ export default async function handler(req, res) {
           },
         });
 try {
-    // Log the creation action
+         const token = req.cookies?.authToken;
+          let userId: string | null = null;
+    
+          if (token) {
+            const decoded: any = jwt.verify(token, "rawaesecret");
+            userId = decoded?.username;
+          }
+    
+  // Log the creation action
         await prisma.cashLogs.create({
           data: {
-            Status: 'CREATED',
+            Status: 'تم اضافة كاش  بتاريخ ' + new Date().toLocaleDateString(),
             userId: userId || null,
             cashID: newCash.id,
             createdAt: new Date(),
@@ -114,10 +123,18 @@ try {
           },
         });
 try {
+         const token = req.cookies?.authToken;
+          let userId: string | null = null;
+    
+          if (token) {
+            const decoded: any = jwt.verify(token, "rawaesecret");
+            userId = decoded?.username;
+          }
+   
         // Log the update action
         await prisma.cashLogs.create({
           data: {
-            Status: 'UPDATED',
+            Status: 'تم تعديل الكاش  بتاريخ ' + new Date().toLocaleDateString(),
             userId: userId || null,
             cashID: updatedCash.id,
             createdAt: new Date(),
@@ -146,7 +163,7 @@ try {
         const cashRecord = await prisma.cash.findUnique({
           where: { id: parseInt(id) },
         });
-
+console.log(cashRecord)
         if (!cashRecord) {
           return res.status(404).json({ error: "Cash record not found" });
         }
@@ -156,9 +173,17 @@ try {
         });
 try{
         // Log the deletion action
+        const token = req.cookies?.authToken;
+         let userId: string | null = null;
+   
+         if (token) {
+           const decoded: any = jwt.verify(token, "rawaesecret");
+           userId = decoded?.username;
+         }
+  
         await prisma.cashLogs.create({
           data: {
-            Status: 'DELETED',
+            Status: 'تم حذف كاش  بتاريخ ' + new Date().toLocaleDateString(),
             userId: userId || null,
             cashID: parseInt(id),
             createdAt: new Date(),
@@ -171,6 +196,7 @@ console.log(e)
       }
         res.status(204).end();
       } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Failed to delete cash record" });
       }
       break;
