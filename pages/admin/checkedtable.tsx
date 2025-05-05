@@ -17,6 +17,7 @@ export default function HousedWorkers() {
   const [pageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [checkDateFilter, setCheckDateFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -24,6 +25,8 @@ export default function HousedWorkers() {
   const [isDistributeModalOpen, setIsDistributeModalOpen] = useState(false);
   const [distributeDate, setDistributeDate] = useState<string>("");
   const [distributeError, setDistributeError] = useState<string | null>(null);
+  const [isDateFilterModalOpen, setIsDateFilterModalOpen] = useState(false); // New state for filter modal
+  const [tempFilterDate, setTempFilterDate] = useState<string>(""); // Temporary date for modal
 
   function getDate(date: string | null) {
     if (!date) return "N/A";
@@ -36,7 +39,7 @@ export default function HousedWorkers() {
     setError(null);
     try {
       const response = await fetch(
-        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery.trim())}`
+        `/api/checkedtable?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(searchQuery.trim())}&checkDate=${encodeURIComponent(checkDateFilter)}`
       );
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);
@@ -55,10 +58,17 @@ export default function HousedWorkers() {
 
   useEffect(() => {
     fetchWorkers();
-  }, [page, searchQuery]);
+  }, [page, searchQuery, checkDateFilter]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    setPage(1);
+  };
+
+  const handleApplyDateFilter = () => {
+    setCheckDateFilter(tempFilterDate);
+    setIsDateFilterModalOpen(false);
+    setTempFilterDate("");
     setPage(1);
   };
 
@@ -88,38 +98,38 @@ export default function HousedWorkers() {
       setDeleteError("فشل في حذف السجلات. حاول مرة أخرى.");
     }
   };
-const handleDistribute = async () => {
-  if (!distributeDate) {
-    setDistributeError("يرجى اختيار تاريخ.");
-    return;
-  }
-  setDistributeError(null);
-  try {
-    const adjustedDate = new Date(distributeDate);
-    adjustedDate.setHours(adjustedDate.getHours() + 3); // Add 3 hours
-alert(adjustedDate)
-    const response = await fetch("/api/distrbuitecashmanually", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ date: adjustedDate }), // Send adjusted date
-    });
-    if (!response.ok) {
-      throw new Error(`فشل في توزيع الإعاشات: ${response.statusText}`);
+
+  const handleDistribute = async () => {
+    if (!distributeDate) {
+      setDistributeError("يرجى اختيار تاريخ.");
+      return;
     }
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || "فشل في توزيع الإعاشات.");
+    setDistributeError(null);
+    try {
+      const adjustedDate = new Date(distributeDate);
+      adjustedDate.setHours(adjustedDate.getHours() + 3);
+      const response = await fetch("/api/distrbuitecashmanually", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ date: adjustedDate }),
+      });
+      if (!response.ok) {
+        throw new Error(`فشل في توزيع الإعاشات: ${response.statusText}`);
+      }
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "فشل في توزيع الإعاشات.");
+      }
+      setIsDistributeModalOpen(false);
+      setDistributeDate("");
+      fetchWorkers();
+    } catch (error) {
+      console.error("Error distributing check-ins:", error);
+      setDistributeError("فشل في توزيع الإعاشات. حاول مرة أخرى.");
     }
-    setIsDistributeModalOpen(false);
-    setDistributeDate("");
-    fetchWorkers();
-  } catch (error) {
-    console.error("Error distributing check-ins:", error);
-    setDistributeError("فشل في توزيع الإعاشات. حاول مرة أخرى.");
-  }
-};
+  };
 
   return (
     <Layout>
@@ -127,20 +137,21 @@ alert(adjustedDate)
         <h1 className="text-2xl font-bold mb-4">بيانات الإعاشة</h1>
 
         <div className="flex justify-between mb-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder="ابحث بالاسم..."
-            className="w-1/3 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="flex space-x-4">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="ابحث بالاسم..."
+              className="w-1/3 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
           <div className="flex space-x-2">
-            {/* <button
-              onClick={() => setIsDistributeModalOpen(true)}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            <button
+              onClick={() => setIsDateFilterModalOpen(true)}
+              className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600"
             >
-              توزيع الإعاشات
-            </button> */}
+بحث بتاريخ الاعاشة            </button>
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
@@ -227,7 +238,6 @@ alert(adjustedDate)
           </>
         )}
 
-        {/* مودال الحذف */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
@@ -264,7 +274,38 @@ alert(adjustedDate)
           </div>
         )}
 
-        {/* مودال توزيع الإعاشات */}
+        {isDateFilterModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+              <h2 className="text-xl font-bold mb-4">فلتر بالتاريخ</h2>
+              <p className="mb-4">اختر تاريخ الإعاشة:</p>
+              <input
+                type="date"
+                value={tempFilterDate}
+                onChange={(e) => setTempFilterDate(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setIsDateFilterModalOpen(false);
+                    setTempFilterDate("");
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleApplyDateFilter}
+                  className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600"
+                >
+                  تأكيد
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isDistributeModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
