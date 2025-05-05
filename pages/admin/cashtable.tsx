@@ -500,7 +500,7 @@ export default function CashTable() {
                                 <TableCell>الحالة</TableCell>
                                 <TableCell>تاريخ الإنشاء</TableCell>
                                 {/* <TableCell>تاريخ التحديث</TableCell> */}
-                                <TableCell>معرف المستخدم</TableCell>
+                                <TableCell>اسم المستخدم</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
