@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-// import { BellIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/router";
+
 interface Notification {
   id: number;
   message: string;
   isRead: boolean;
+  userId?: string;
+  title?: string;
 }
 
 export default function NotificationDropdown() {
@@ -14,24 +16,18 @@ export default function NotificationDropdown() {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [selectedNotification, setSelectedNotification] =
-    useState<Notification | null>(null);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Fetch notifications
@@ -40,9 +36,7 @@ export default function NotificationDropdown() {
       try {
         const response = await fetch("/api/notifications", {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
         const data = await response.json();
         if (data.error) return router.push("/login");
@@ -63,54 +57,41 @@ export default function NotificationDropdown() {
     }
 
     try {
-      // Optimistic update
       setNotifications((prev) =>
-        prev.map((notif) =>
-          notif.id === id ? { ...notif, isRead: true } : notif
-        )
+        prev.map((notif) => (notif.id === id ? { ...notif, isRead: true } : notif))
       );
 
       const response = await fetch(`/api/notifications/${id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isRead: true }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to mark notification as read");
-      }
+      if (!response.ok) throw new Error("Failed to mark notification as read");
     } catch (error) {
       console.error("Error marking notification as read:", error);
-      // Rollback optimistic update if request fails
       setNotifications((prev) =>
-        prev.map((notif) =>
-          notif.id === id ? { ...notif, isRead: false } : notif
-        )
+        prev.map((notif) => (notif.id === id ? { ...notif, isRead: false } : notif))
       );
     }
   };
 
-  // Function to handle clicking on the number in the message
+  // Handle number click in message
   const handleNumberClick = (number: string) => {
-    router.push("/cvdetails/" + number);
-    // alert(`تم الضغط على الرقم: ${number}`);
-    // هنا ممكن تضيف أي إجراء تاني
+    router.push(`/cvdetails/${number}`);
   };
 
-  // Function to replace the number in message with a clickable span
+  // Format message with clickable numbers
   const formatMessage = (message: string) => {
     return message.split(" ").map((word, index) => {
-      // إذا كانت الكلمة رقم
       if (!isNaN(Number(word))) {
         return (
           <span
             key={index}
-            className="text-blue-500 cursor-pointer"
+            className="text-blue-600 font-medium cursor-pointer hover:underline"
             onClick={() => handleNumberClick(word)}
           >
-            {word}
+            {word}{" "}
           </span>
         );
       }
@@ -120,10 +101,11 @@ export default function NotificationDropdown() {
 
   return (
     <>
-      <div ref={dropdownRef}>
+      <div ref={dropdownRef} className="relative">
+        {/* Notification Button */}
         <button
           onClick={() => setOpen(!open)}
-          className="p-2 rounded-full left-0 hover:bg-gray-500 dark:hover:bg-gray-700 transition bg-gray-300"
+          className="relative p-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -131,7 +113,7 @@ export default function NotificationDropdown() {
             viewBox="0 0 24 24"
             strokeWidth={1.5}
             stroke="currentColor"
-            className="size-6"
+            className="w-6 h-6"
           >
             <path
               strokeLinecap="round"
@@ -139,33 +121,37 @@ export default function NotificationDropdown() {
               d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
             />
           </svg>
+          {notifications.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+              {notifications.length}
+            </span>
+          )}
         </button>
-        {notifications.length > 0 ? (
-          <span className="relative bottom-6 left-5   bg-[#FF0000] text-white text-xs font-bold px-2 py-1 rounded-full">
-            {notifications.length > 0 ? notifications.length : 0}
-          </span>
-        ) : null}
 
+        {/* Dropdown Menu */}
         {open && (
-          <div className="absolute  left-125 mt-2 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50 border border-gray-200 dark:border-gray-700">
-            <div className="p-4 text-sm text-white dark:text-gray-100 border-b dark:border-gray-700 font-semibold bg-[dodgerblue]">
-              Notifications
+          <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl z-50 border border-gray-200 dark:border-gray-800 transform transition-all duration-300 ease-in-out">
+            <div className="p-4 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-xl">
+              الإشعارات
             </div>
-            <ul className="max-h-60 overflow-y-auto">
-              {notifications?.map((notification) => (
-                <li
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification.id)}
-                  className={`px-4 py-2  h-[60px] hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
-                    notification.isRead ? "opacity-50" : ""
-                  }`}
-                >
-                  {formatMessage(notification?.title)}
-                </li>
-              ))}
-              {notifications.length === 0 && (
-                <li className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
-                  📧 لا يوجد إشعارات
+            <ul className="max-h-80 overflow-y-auto">
+              {notifications.length > 0 ? (
+                notifications.map((notification) => (
+                  <li
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification.id)}
+                    className={`flex items-center px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors duration-200 ${
+                      notification.isRead ? "opacity-60" : ""
+                    }`}
+                  >
+                    <span className="text-gray-700 dark:text-gray-200 text-sm">
+                      {formatMessage(notification?.title || notification.message)}
+                    </span>
+                  </li>
+                ))
+              ) : (
+                <li className="px-4 py-3 text-gray-500 dark:text-gray-400 text-center">
+                  📬 لا توجد إشعارات
                 </li>
               )}
             </ul>
@@ -175,26 +161,36 @@ export default function NotificationDropdown() {
 
       {/* Modal */}
       {isModalOpen && selectedNotification && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full relative">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 scale-100">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors duration-200"
             >
-              ✖
+              ✕
             </button>
-            <h2 className="text-lg font-semibold mb-2  text-gray-800 dark:text-gray-100">
-              اشعار
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+              تفاصيل 
             </h2>
-
-            <div>
-              <h3>بواسطة</h3>
-              <h5>{selectedNotification?.userId}</h5>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  بواسطة
+                </h3>
+                <p className="text-gray-800 dark:text-gray-200">
+                  {selectedNotification?.userId || "غير محدد"}
+                </p>
+              </div>
+              <div className="text-gray-700 dark:text-gray-200 text-sm leading-relaxed">
+                {formatMessage(selectedNotification.message)}
+              </div>
             </div>
-            <div
-              className="text-gray-700 dark:text-gray-200"
-              dangerouslySetInnerHTML={{ __html: selectedNotification.message }}
-            ></div>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="mt-6 w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+            >
+              إغلاق
+            </button>
           </div>
         </div>
       )}

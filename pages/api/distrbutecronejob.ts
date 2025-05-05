@@ -160,7 +160,7 @@ export default async function handler(
         await prisma.notifications.create({
           data: {
             title: `تسجيل اعاشات اتوماتيكيا بتاريخ ${getDate(today)}`,
-            message: `تم تسجيل اعاشات  لـ${workerCount}لعاملات  <br/>
+            message: `تم تسجيل اعاشات  لـ${workerCount}عاملة   
 `,
             isRead: false,
           },

@@ -277,7 +277,7 @@ export default function HousedWorkers() {
         {isDateFilterModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">فلتر بالتاريخ</h2>
+              <h2 className="text-xl font-bold mb-4">بحث بتاريخ الاعاشة</h2>
               <p className="mb-4">اختر تاريخ الإعاشة:</p>
               <input
                 type="date"
