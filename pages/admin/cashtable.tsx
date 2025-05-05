@@ -18,6 +18,9 @@ import {
   TableRow,
 } from "@mui/material";
 import { useState, useEffect, useMemo } from "react";
+import Head from "next/head";
+import { FaCheckCircle, FaTimesCircle, FaInfoCircle, FaUser, FaClock } from 'react-icons/fa'; // استيراد أيقونات إضافية
+
 
 export default function CashTable() {
   const [cashError, setCashError] = useState("");
@@ -31,7 +34,13 @@ export default function CashTable() {
     transaction_type?: string;
     cashLogs?: { id: number; Status: string; createdAt: string; updatedAt: string; userId: number | null; cashID: number }[];
   }
-
+const statusIcons = {
+  'مكتمل': <FaCheckCircle className="text-green-500" />,
+  'ملغى': <FaTimesCircle className="text-red-500" />,
+  'معلق': <FaInfoCircle className="text-blue-500" />,
+  // أضف المزيد من الحالات حسب الحاجة
+  'افتراضي': <FaInfoCircle className="text-gray-500" />, // حالة افتراضية
+};
   const [cashData, setCashData] = useState<CashRecord[]>([]);
   const [selectedCash, setSelectedCash] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -370,6 +379,11 @@ export default function CashTable() {
   return (
     <Layout>
       <div className="overflow-x-auto mt-6">
+        <Head>
+          <title>
+سجلات النقد - مشروع الاستقدام
+</title>
+        </Head>
         <div className="flex items-center justify-between mb-4">
           <Button
             variant="contained"
@@ -490,38 +504,37 @@ export default function CashTable() {
                         </button>
                       </td>
                     </tr>
-                    {showLogs && cash.cashLogs?.length > 0 && (
-                      <tr>
-                        <td colSpan={9} className="p-4">
-                          <Table size="small" className="bg-gray-100 rounded-md">
-                            <TableHead>
-                              <TableRow>
-                                {/* <TableCell>معرف السجل</TableCell> */}
-                                <TableCell>الحالة</TableCell>
-                                <TableCell>تاريخ الإنشاء</TableCell>
-                                {/* <TableCell>تاريخ التحديث</TableCell> */}
-                                <TableCell>اسم المستخدم</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {cash.cashLogs.map((log) => (
-                                <TableRow key={log.id}>
-                                  {/* <TableCell>{log.id}</TableCell> */}
-                                  <TableCell>{log.Status}</TableCell>
-                                  <TableCell>
-                                    {new Date(log.createdAt).toLocaleString()}
-                                  </TableCell>
-                                  {/* <TableCell>
-                                    {new Date(log.updatedAt).toLocaleString()}
-                                  </TableCell> */}
-                                  <TableCell>{log.userId || "-"}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </td>
-                      </tr>
-                    )}
+{showLogs && cash.cashLogs?.length > 0 && (
+  <tr>
+    <td colSpan={9} className="p-4">
+      <div className="bg-gray-100 rounded-md p-4 space-y-2 text-sm">
+        {cash.cashLogs.map((log) => (
+          <div key={log.id} className="flex items-center gap-2">
+            {/* أيقونة الحالة */}
+            <div className="flex-shrink-0">
+              {statusIcons[log.Status] || statusIcons['افتراضي']}
+            </div>
+            <span className="flex items-center gap-2">
+              {/* نص الحالة */}
+              <span className="text-blue-600 font-medium">{log.Status}</span>
+              {" بواسطة "}
+              {/* أيقونة المستخدم */}
+              <FaUser className="text-green-600 inline-block" />
+              <span className="text-green-600 font-medium">{log.userId || "مستخدم غير معروف"}</span>
+              {/* أيقونة الوقت إذا كان هناك timestamp */}
+              {log.timestamp && (
+                <span className="text-gray-500 flex items-center gap-1">
+                  <FaClock className="inline-block" />
+                  {new Date(log.timestamp).toLocaleString('ar-EG')}
+                </span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </td>
+  </tr>
+)}
                   </>
                 );
               })}

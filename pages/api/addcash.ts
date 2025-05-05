@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
         // Fetch cash records
         const cashRecords = await prisma.cash.findMany({
-          where,include:{cashLogs:true},
+          where,include:{cashLogs:{orderBy:{createdAt:"desc"}}},
           orderBy: [{ Year: "asc" }, { Month: "asc" }],
         });
 
@@ -88,7 +88,9 @@ try {
   // Log the creation action
         await prisma.cashLogs.create({
           data: {
-            Status: 'تم اضافة كاش  بتاريخ ' + new Date().toLocaleDateString(),
+            Status: ` تم اضافة كاش لشهر ${Month} سنة ${Year}  بمبلغ
+${amount}
+             بتاريخ ${new Date().toLocaleDateString()} `,
             userId: userId || null,
             cashID: newCash.id,
             createdAt: new Date(),
@@ -113,6 +115,9 @@ try {
         if (!id) {
           return res.status(400).json({ error: "ID is required" });
         }
+        const existingCash = await prisma.cash.findFirst({
+          where: { Month: Month.toString(), Year: Year, transaction_type },
+        });
         const updatedCash = await prisma.cash.update({
           where: { id: parseInt(id) },
           data: {
@@ -134,7 +139,11 @@ try {
         // Log the update action
         await prisma.cashLogs.create({
           data: {
-            Status: 'تم تعديل الكاش  بتاريخ ' + new Date().toLocaleDateString(),
+            Status: `تم  تعديل الكاش من
+             ${existingCash?.amount} الى
+              ${amount}
+             بتاريخ ${new Date().toLocaleDateString()} `,
+
             userId: userId || null,
             cashID: updatedCash.id,
             createdAt: new Date(),

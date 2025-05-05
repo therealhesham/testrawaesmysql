@@ -56,7 +56,9 @@ try {
     // Create a log entry
     await prisma.cashLogs.create({
       data: {
-        Status: "تم اضافة كاش  بتاريخ " + new Date().toLocaleDateString(),
+           Status: `تم  اضافة كاش الى المبلغ الموجود وقيمة الزيادة
+              ${amount}
+             بتاريخ ${new Date().toLocaleDateString()} `,
         userId: userId || null,
         cashID: cashRecordId,
       },
