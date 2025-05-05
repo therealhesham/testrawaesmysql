@@ -72,6 +72,20 @@ export default async function handler(req, res) {
             deparatureHousingDate: null,
           },
         });
+
+try {
+  await prisma.logs.create({data:{
+
+
+    Status: `تم تسكين العاملة منزلية بتاريخ ${new Date().toLocaleDateString()}`,
+    userId: req.body.employee,
+    homemaidId: homeMaidId,
+  }})
+
+} catch (error) {
+ console.log(error) 
+}
+
       } else {
         await prisma.housedworker.update({
           where: { homeMaid_id: homeMaidId },
@@ -88,6 +102,19 @@ export default async function handler(req, res) {
               : search.deliveryDate,
           },
         });
+ try {
+  await prisma.logs.create({data:{
+
+
+    Status: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ ${new Date().toLocaleDateString()}`,
+    userId: req.body.employee,
+    homemaidId: homeMaidId,
+  }})
+
+} catch (error) {
+ console.log(error) 
+}
+ 
       }
 
       try {
@@ -109,6 +136,9 @@ export default async function handler(req, res) {
       } catch (e) {
         console.log(e);
       }
+
+
+
       return res.status(200).json({ message: "Housing updated successfully" });
     } catch (error) {
       console.error(error);
