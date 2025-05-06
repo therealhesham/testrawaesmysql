@@ -1,55 +1,72 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+import { startOfWeek, endOfWeek, format, subWeeks } from "date-fns";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === "GET") {
       const {
         Name,
-        age,
         Passportnumber,
-        id,
-        Nationality,
-        page,
-        sortKey,
-        sortDirection,
+        page = "1",
+        weeks = "4", // عدد الأسابيع الافتراضي (يمكن تمريره كـ query parameter)
       } = req.query;
+
       const pageSize = 10;
       const pageNumber = parseInt(page as string, 10) || 1;
-      // جلب جميع السجلات من جدول weeklyStatus
-      const weeklyStatuses = await prisma.weeklyStatus.findMany({
-        where: {
-          HomeMaid: {
-            Name: { contains: typeof Name === "string" ? Name : "" },
-            Passportnumber: {
-              contains:
-                typeof Passportnumber === "string" ? Passportnumber : "",
+      const numWeeks = parseInt(weeks as string, 10) || 4;
+
+      // تحديد تاريخ بداية ونهاية الأسابيع
+      const today = new Date();
+      const weeksData = [];
+
+      // جلب بيانات الحالات لآخر numWeeks أسابيع
+      for (let i = 0; i < numWeeks; i++) {
+        const weekStart = startOfWeek(subWeeks(today, i), { weekStartsOn: 6 }); // السبت
+        const weekEnd = endOfWeek(subWeeks(today, i), { weekStartsOn: 6 }); // الجمعة
+
+        const weeklyStatuses = await prisma.weeklyStatus.findMany({
+          where: {
+            HomeMaid: {
+              Name: { contains: typeof Name === "string" ? Name : "" },
+              Passportnumber: {
+                contains: typeof Passportnumber === "string" ? Passportnumber : "",
+              },
+            },
+            date: {
+              gte: weekStart,
+              lte: weekEnd,
             },
           },
-        },
-        skip: (pageNumber - 1) * pageSize,
-        take: 10,
-        orderBy: {
-          date: "desc", // ترتيب السجلات حسب التاريخ بشكل تنازلي
-        },
-        include: {
-          HomeMaid: true, // جلب بيانات العاملة المرتبطة
-        },
-      });
-      return res.status(200).json(weeklyStatuses);
+          orderBy: { date: "desc" }, // ترتيب حسب التاريخ لجلب آخر حالة
+          include: { HomeMaid: true },
+          take: pageSize,
+          skip: (pageNumber - 1) * pageSize,
+        });
+
+        // تجميع الحالات بحيث نأخذ آخر حالة لكل عاملة في الأسبوع
+        const uniqueStatuses = new Map();
+        weeklyStatuses.forEach((status) => {
+          const maidId = status.homeMaid_id;
+          if (!uniqueStatuses.has(maidId)) {
+            uniqueStatuses.set(maidId, status);
+          }
+        });
+
+        weeksData.push({
+          week: `${format(weekStart, "yyyy-MM-dd")} - ${format(weekEnd, "yyyy-MM-dd")}`,
+          statuses: Array.from(uniqueStatuses.values()),
+        });
+      }
+
+      return res.status(200).json({ weeks: weeksData });
     }
 
     if (req.method === "POST") {
-      // إضافة سجل جديد إلى جدول weeklyStatus
       const { homeMaid_id, status, date, employee } = req.body;
 
       if (!status) {
-        return res
-          .status(400)
-          .json({ error: "حالة العاملة مطلوبة" });
+        return res.status(400).json({ error: "حالة العاملة مطلوبة" });
       }
 
       const newWeeklyStatus = await prisma.weeklyStatus.create({
@@ -61,18 +78,21 @@ export default async function handler(
         },
       });
 
-
-try {
-  await prisma.logs.create({data:{homemaidId:newWeeklyStatus.homeMaid_id,Status:`تم تحديث الحالة الى ${status}`,userId:employee  }})
-} catch (error) {
-  console.log(error)
-}
-
+      try {
+        await prisma.logs.create({
+          data: {
+            homemaidId: newWeeklyStatus.homeMaid_id,
+            Status: `تم تحديث الحالة الى ${status}`,
+            userId: employee,
+          },
+        });
+      } catch (error) {
+        console.log(error);
+      }
 
       return res.status(201).json(newWeeklyStatus);
     }
 
-    // إذا كانت الطريقة غير مدعومة
     res.setHeader("Allow", ["GET", "POST"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   } catch (error) {

@@ -274,52 +274,75 @@ const startDate = new Date(date);
   const [totalCount, setTotalCount] = useState(0); // New state for total count
 
   const [page,setPage]=useState(0)
-  async function fetchData() {
-    if (isFetchingRef.current || !hasMore) return;
-    isFetchingRef.current = true;
-    // setLoading(true);
+  const handleReset = () => {
+  // إعادة تعيين جميع الحالات ذات الصلة
+  setFilters({
+    Name: "",
+    age: "",
+    reason: "",
+    Passportnumber: "",
+    id: "",
+  });
+  setData([]);
+  setHasMore(true);
+  setExpandedRow(null); // إعادة تعيين الصف الموسع
+  setSearchQuery(""); // إعادة تعيين مربع البحث
+  pageRef.current = 1;
+  isFetchingRef.current = false;
 
-    try {
-      const queryParams = new URLSearchParams({
-        Name: filters.Name,
-        age: filters.age,
-        reason: filters.reason,
-        id: filters.id,
-        Passportnumber: filters.Passportnumber,
-        page: String(pageRef.current),
-        sortKey: sortConfig.key || "",
-        sortDirection: sortConfig.direction,
-      });
-// setPage()
-      const response = await fetch(
-        `/api/confirmhousinginformation?${queryParams}`,
-        {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          method: "get",
-        }
-      );
+  // استدعاء fetchData بعد التأكد من تحديث الحالة
+  setTimeout(() => {
+    fetchData();
+  }, 0);
+};
 
-      const res = await response.json();
-      if (res && res.housing.length > 0) {
-        setData((prevData) => [...prevData, ...res.housing]);
-                setTotalCount(res.totalCount); // Set the total count from API response
-        pageRef.current += 1;
-      } else {
-                setTotalCount(res.totalCount); // Set the total count from API response
-        
-        setHasMore(false);
+async function fetchData() {
+  if (isFetchingRef.current || !hasMore) return;
+  isFetchingRef.current = true;
+  setLoading(true);
+
+  try {
+    const queryParams = new URLSearchParams({
+      Name: filters.Name,
+      age: filters.age,
+      reason: filters.reason,
+      id: filters.id,
+      Passportnumber: filters.Passportnumber,
+      page: String(pageRef.current),
+      sortKey: sortConfig.key || "",
+      sortDirection: sortConfig.direction,
+    });
+
+    const response = await fetch(
+      `/api/confirmhousinginformation?${queryParams}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "GET",
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setLoading(false);
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
+    );
+
+    const res = await response.json();
+    if (res && res.housing.length > 0) {
+      setData((prevData) => [...prevData, ...res.housing]);
+      setTotalCount(res.totalCount);
+      pageRef.current += 1;
+    } else {
+      setTotalCount(res.totalCount);
+      setHasMore(false);
     }
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    setError("خطأ في جلب البيانات");
+  } finally {
+    setLoading(false);
+    isFetchingRef.current = false;
   }
+}
+
+
   const [employeeName, setEmployeeName] = useState("");
   const postData = async (e) => {
     setLoadingScreen(true);
@@ -450,13 +473,14 @@ const startDate = new Date(date);
     const data = await response.json();
     if (response.status == 201) {
       setOpenStatusModal(false);
-      isFetchingRef.current = false;
-      setHasMore(true);
-      setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
-      setData([]);
-      pageRef.current = 1;
-      fetchData();
+      // isFetchingRef.current = false;
+      // setHasMore(true);
+      // setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
+      // setData([]);
+      // pageRef.current = 1;
+      // fetchData();
 
+handleReset()      
       // console.log("Success:", data.message);
     } else {
       setIsModalOpen(true)
@@ -1164,21 +1188,12 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             />
           </div> */}
           <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
-            </button>
+<button
+  className="text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
+  onClick={handleReset}
+>
+  <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
+</button>
           </div>
           <div className="flex-1 px-1">
             <button
