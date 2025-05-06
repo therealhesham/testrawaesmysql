@@ -8,22 +8,25 @@ export default async function handler(
   try {
     if (req.method === "GET") {
       const startDate = (req.query.startDate as string)?.trim() || "";
+      const endDate = (req.query.endDate as string)?.trim() || "";
       const search = (req.query.search as string)?.trim() || "";
       const searchPattern = `%${search}%`;
 
-      if (!startDate) {
-        return res.status(400).json({ message: "تاريخ البداية مطلوب." });
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "تاريخ البداية وتاريخ النهاية مطلوبان." });
       }
 
-      // تحويل تاريخ البداية إلى تنسيق صالح
+      // تحويل التواريخ إلى تنسيق صالح
       const start = new Date(startDate);
-      if (isNaN(start.getTime())) {
-        return res.status(400).json({ message: "تاريخ بداية غير صالح." });
+      const end = new Date(endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ message: "تاريخ بداية أو نهاية غير صالح." });
       }
 
-      // حساب تاريخ نهاية الأسبوع (6 أيام بعد تاريخ البداية)
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
+      // التأكد من أن تاريخ البداية لا يسبق تاريخ النهاية
+      if (start > end) {
+        return res.status(400).json({ message: "تاريخ البداية يجب أن يكون قبل تاريخ النهاية." });
+      }
 
       const startDateString = start.toISOString().split("T")[0];
       const endDateString = end.toISOString().split("T")[0];

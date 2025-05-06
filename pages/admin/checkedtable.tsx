@@ -25,28 +25,36 @@ export default function HousedWorkers() {
   const [dailyTotals, setDailyTotals] = useState<{ [date: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-const getCurrentWeekStart = () => {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 (الأحد) إلى 6 (السبت)
-  // حساب عدد الأيام للرجوع للسبت اللي فات
-  const diff = dayOfWeek === 0 ? 1 : dayOfWeek; // إذا الأحد، نرجع يوم واحد، غيره نرجع dayOfWeek
-  const saturday = new Date(today);
-  saturday.setDate(today.getDate() - diff);
-  saturday.setHours(0, 0, 0, 0); // نضبط الوقت على بداية اليوم
-  return saturday.toISOString().split("T")[0]; // بيرجع YYYY-MM-DD
-};
-  const fetchWorkers = async (weekStart: string) => {
+  const getCurrentWeekStart = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 (الأحد) إلى 6 (السبت)
+    const diff = dayOfWeek === 0 ? 1 : dayOfWeek; // إذا الأحد، نرجع يوم واحد، غيره نرجع dayOfWeek
+    const saturday = new Date(today);
+    saturday.setDate(today.getDate() - diff);
+    saturday.setHours(0, 0, 0, 0);
+    return saturday.toISOString().split("T")[0];
+  };
+
+  const getCurrentWeekEnd = (start: string) => {
+    const startDate = new Date(start);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    return endDate.toISOString().split("T")[0];
+  };
+
+  const fetchWorkers = async (start: string, end: string) => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch(
-        `/api/checkedtable?startDate=${encodeURIComponent(weekStart)}&search=${encodeURIComponent(searchQuery.trim())}`
+        `/api/checkedtable?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}&search=${encodeURIComponent(searchQuery.trim())}`
       );
       if (!response.ok) {
         throw new Error(`API error: ${response.statusText}`);
@@ -55,6 +63,7 @@ const getCurrentWeekStart = () => {
       setWorkers(Array.isArray(result.workers) ? result.workers : []);
       setDailyTotals(result.dailyTotals || {});
       setStartDate(result.startDate);
+      setEndDate(result.endDate);
     } catch (error) {
       console.error("Error fetching workers:", error);
       setError("فشل في جلب البيانات. حاول مرة أخرى.");
@@ -67,33 +76,62 @@ const getCurrentWeekStart = () => {
 
   useEffect(() => {
     const weekStart = getCurrentWeekStart();
-    fetchWorkers(weekStart);
+    const weekEnd = getCurrentWeekEnd(weekStart);
+    setStartDate(weekStart);
+    setEndDate(weekEnd);
+    fetchWorkers(weekStart, weekEnd);
   }, [searchQuery]);
 
-  const getWeekDays = (start: string) => {
+  const getWeekDays = (start: string, end: string) => {
     const days: { date: string; label: string }[] = [];
     const startDate = new Date(start);
-    const dayNames = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
+    const endDate = new Date(end);
+    const dayNames = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+      const dayIndex = date.getDay();
       days.push({
         date: date.toISOString().split("T")[0],
-        label: `${dayNames[i]} ${date.toLocaleDateString("ar-EG", { day: "numeric", month: "numeric" })}`,
+        label: `${dayNames[dayIndex]} ${date.toLocaleDateString("ar-EG", { day: "numeric", month: "numeric" })}`,
       });
     }
     return days;
   };
 
-  const weekDays = startDate ? getWeekDays(startDate) : [];
+  const weekDays = startDate && endDate ? getWeekDays(startDate, endDate) : [];
 
   const handleWeekChange = (direction: "prev" | "next") => {
     const currentStart = new Date(startDate);
+    const currentEnd = new Date(endDate);
+    const diffDays = Math.ceil((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const newStart = new Date(currentStart);
-    newStart.setDate(currentStart.getDate() + (direction === "next" ? 7 : -7));
+    const newEnd = new Date(currentEnd);
+    if (direction === "next") {
+      newStart.setDate(currentStart.getDate() + diffDays);
+      newEnd.setDate(currentEnd.getDate() + diffDays);
+    } else {
+      newStart.setDate(currentStart.getDate() - diffDays);
+      newEnd.setDate(currentEnd.getDate() - diffDays);
+    }
     const newStartDate = newStart.toISOString().split("T")[0];
+    const newEndDate = newEnd.toISOString().split("T")[0];
     setStartDate(newStartDate);
-    fetchWorkers(newStartDate);
+    setEndDate(newEndDate);
+    fetchWorkers(newStartDate, newEndDate);
+  };
+
+  const handleDateFilter = () => {
+    if (!startDate || !endDate) {
+      setError("يرجى اختيار تاريخ البداية وتاريخ النهاية.");
+      return;
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) {
+      setError("تاريخ البداية يجب أن يكون قبل تاريخ النهاية.");
+      return;
+    }
+    fetchWorkers(startDate, endDate);
   };
 
   const handleDelete = async () => {
@@ -111,7 +149,7 @@ const getCurrentWeekStart = () => {
       }
       setIsDeleteModalOpen(false);
       setSelectedDate("");
-      fetchWorkers(startDate);
+      fetchWorkers(startDate, endDate);
     } catch (error) {
       console.error("Error deleting records:", error);
       setDeleteError("فشل في حذف السجلات. حاول مرة أخرى.");
@@ -122,33 +160,52 @@ const getCurrentWeekStart = () => {
     return isNaN(cost) ? "0.00" : cost.toFixed(2);
   };
 
-  // Function to determine cell background color based on date
   const getCellBackgroundClass = (date: string) => {
     const today = new Date().toISOString().split("T")[0];
     const cellDate = new Date(date);
     const todayDate = new Date(today);
     if (cellDate.toDateString() === todayDate.toDateString()) {
-      return "bg-blue-100 group relative"; // Current day
+      return "bg-blue-100 group relative";
     } else if (cellDate < todayDate) {
-      return "bg-green-100"; // Past days
+      return "bg-green-100";
     } else {
-      return "bg-gray-100"; // Future days
+      return "bg-gray-100";
     }
   };
 
   return (
     <Layout>
       <div dir="rtl" className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-right">بيانات الإعاشة الأسبوعية</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-right">بيانات الإعاشة</h1>
 
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث بالاسم..."
-            className="w-full sm:w-1/3 p-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
-          />
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ابحث بالاسم..."
+              className="w-full sm:w-1/3 p-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+            />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full sm:w-auto p-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full sm:w-auto p-3 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+            />
+            <button
+              onClick={handleDateFilter}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition duration-200"
+            >
+              تصفية
+            </button>
+          </div>
           <div className="flex space-x-3 space-x-reverse">
             <button
               onClick={() => setIsDeleteModalOpen(true)}
@@ -160,13 +217,13 @@ const getCurrentWeekStart = () => {
               onClick={() => handleWeekChange("prev")}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:bg-gray-300 transition duration-200"
             >
-              الأسبوع السابق
+              الفترة السابقة
             </button>
             <button
               onClick={() => handleWeekChange("next")}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow hover:bg-gray-300 transition duration-200"
             >
-              الأسبوع التالي
+              الفترة التالية
             </button>
           </div>
         </div>
