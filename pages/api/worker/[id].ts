@@ -13,9 +13,16 @@ export default async function handler(
 
   try {
     const checkIns = await prisma.$queryRaw`
-      SELECT id, CheckDate, DailyCost      FROM CheckIn
-      WHERE housedWorkerId = ${Number(id)}
-      ORDER BY id DESC
+      SELECT 
+        c.id, 
+        c.CheckDate, 
+        c.DailyCost,
+        h.Name AS workername
+      FROM CheckIn c
+      INNER JOIN housedworker hw ON c.housedWorkerId = hw.id
+      INNER JOIN homemaid h ON hw.homeMaid_id = h.id
+      WHERE c.housedWorkerId = ${Number(id)}
+      ORDER BY c.id DESC
     `;
 
     res.status(200).json(checkIns);
