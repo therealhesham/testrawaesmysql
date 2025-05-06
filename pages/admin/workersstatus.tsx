@@ -1,483 +1,440 @@
-import { BookFilled } from "@ant-design/icons";
-import Layout from "example/containers/Layout";
+import { Button, TextField, Typography } from "@mui/material";
 import { useRouter } from "next/router";
-import * as React from "react";
-import { useEffect, useState, useCallback, useRef } from "react";
-import jwt from "jsonwebtoken";
-import { jwtDecode } from "jwt-decode";
-import { ChevronLeftIcon } from "@heroicons/react/solid"; // استيراد أيقونة الرجوع
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Layout from "example/containers/Layout"; // Adjust the path as needed
+import { ChevronLeftIcon } from "@heroicons/react/solid";
+import { format, parseISO } from "date-fns";
 
-import {
-  Button,
-  Modal,
-  Box,
-  TextField,
-  Checkbox,
-  FormControlLabel,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-} from "@mui/material";
-import Style from "styles/Home.module.css";
-import { FaHouseUser } from "react-icons/fa";
+// TypeScript interfaces
+interface Worker {
+  id: string;
+  homeMaid_id: string;
+  HomeMaid: { Name: string; Passportnumber: string };
+  status: string;
+  employee: string;
+  date: string;
+}
 
-export default function Table() {
-  const [employeeType, setEmployeeType] = useState("");
-  const [workers, setWorkers] = useState([]);
+interface Filters {
+  Name: string;
+  Passportnumber: string;
+}
 
-  const [details, setdetails] = useState("");
-
-  const [reason, setReason] = useState("");
-
-  const [employee, setEmployee] = useState("");
-
-  const [deliveryDate, setDeliveyDate] = useState("");
-  const [houseentrydate, sethouseentrydate] = useState("");
-  const [error, setError] = useState("");
-  const [errormodaopen, setIserrorModalOpen] = useState(false);
-  const [errormessage, seterrormessage] = useState("");
-
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [filters, setFilters] = useState({
-    Name: "",
-    age: "",
-    Passportnumber: "",
-    id: "",
-  });
-
-  const router = useRouter();
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
-  const [openAddModal, setOpenAddModal] = useState(false);
-  const [newHomeMaid, setNewHomeMaid] = useState({});
-  const [newExternalHomemaid, setExternalHomemaid] = useState({
-    Nationalitycopy: "",
-    Name: "",
-    Religion: "",
-    Passportnumber: "",
-    clientphonenumbe: "",
-    houseentrydate: "",
-    deliveryDate: "",
-    details: "",
-    reason: "",
-    employee: "",
-    ExperienceYears: "",
-    maritalstatus: "",
-    Experience: "",
-    dateofbirth: "",
-    age: 0,
-    phone: "",
-    bookingstatus: "",
-    ages: "",
-    officeName: "",
-    experienceType: "",
-    PassportStart: "",
-    PassportEnd: "",
-    OldPeopleCare: "",
-    ArabicLanguageLeveL: "",
-    EnglishLanguageLevel: "",
-    Salary: "",
-    LaundryLeveL: "",
-    IroningLevel: "",
-    CleaningLeveL: "",
-    CookingLeveL: "",
-    SewingLeveL: "",
-    BabySitterLevel: "",
-    Education: "",
-  });
-  const [searchQuery, setSearchQuery] = useState(""); // حالة لمربع البحث
-
-  const pageRef = useRef(1);
-  const isFetchingRef = useRef(false);
-  const [ID, setID] = useState("");
-
-  function getDate(date) {
-    const currentDate = new Date(date);
-    const form = currentDate.toISOString().split("T")[0];
-    return form;
+// Date formatting function
+const formatDate = (date: string): string => {
+  try {
+    return format(parseISO(date), "yyyy-MM-dd");
+  } catch {
+    return date;
   }
+};
 
-  const fetchData = async () => {
-    if (isFetchingRef.current || !hasMore) return;
+// Hook to fetch workers
+const useFetchWorkers = (
+  filters: Filters,
+  pageRef: React.MutableRefObject<number>,
+  setWorkers: React.Dispatch<React.SetStateAction<Worker[]>>,
+  setHasMore: React.Dispatch<React.SetStateAction<boolean>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+  setError: React.Dispatch<React.SetStateAction<string | null>>
+) => {
+  const isFetchingRef = useRef(false);
+
+  const fetchData = useCallback(async () => {
+    if (isFetchingRef.current || !setHasMore) return;
     isFetchingRef.current = true;
     setLoading(true);
+    setError(null);
 
     try {
       const queryParams = new URLSearchParams({
         Name: filters.Name,
-        // age: filters.age,
-        // id: filters.id,
         Passportnumber: filters.Passportnumber,
         page: String(pageRef.current),
-        sortKey: sortConfig.key || "",
-        sortDirection: sortConfig.direction,
       });
 
       const response = await fetch(`/api/weekly-status?${queryParams}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        method: "get",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        method: "GET",
       });
 
-      const res = await response.json();
-      if (res && res.length > 0) {
-        setWorkers((prevData) => [...prevData, ...res]);
+      if (!response.ok) {
+        throw new Error("فشل في جلب البيانات");
+      }
+
+      const data: Worker[] = await response.json();
+      if (data?.length > 0) {
+        setWorkers((prev) => [...prev, ...data]);
         pageRef.current += 1;
       } else {
         setHasMore(false);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
+      setError("حدث خطأ أثناء جلب البيانات. يرجى المحاولة مرة أخرى.");
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  };
+  }, [filters, pageRef, setWorkers, setHasMore, setLoading, setError]);
 
+  return fetchData;
+};
+
+// FilterSection component
+const FilterSection: React.FC<{
+  filters: Filters;
+  onFilterChange: (e: React.ChangeEvent<HTMLInputElement>, column: keyof Filters) => void;
+  onReset: () => void;
+  onSearch: () => void;
+}> = React.memo(({ filters, onFilterChange, onReset, onSearch }) => (
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <input
+      type="text"
+      value={filters.Name}
+      onChange={(e) => onFilterChange(e, "Name")}
+      placeholder="بحث باسم العاملة"
+      className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-right shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    <input
+      type="text"
+      value={filters.Passportnumber}
+      onChange={(e) => onFilterChange(e, "Passportnumber")}
+      placeholder="بحث برقم الجواز"
+      className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-right shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    <div className="flex gap-4">
+      <button
+        onClick={onReset}
+        className="rounded-lg bg-gray-500 py-3 font-semibold text-white shadow-md transition-all duration-300 hover:bg-gray-600 flex-1"
+      >
+        إعادة ضبط
+      </button>
+      <button
+        onClick={onSearch}
+        className="rounded-lg bg-blue-600 py-3 font-semibold text-white shadow-md transition-all duration-300 hover:bg-blue-700 flex-1"
+      >
+        بحث
+      </button>
+    </div>
+  </div>
+));
+
+// WorkersTable component
+const WorkersTable: React.FC<{
+  workers: Worker[];
+  expandedRow: string | null;
+  onRowClick: (id: string) => void;
+}> = React.memo(({ workers, expandedRow, onRowClick }) => {
+  return (
+    <div className="overflow-hidden rounded-lg bg-white shadow-lg">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-yellow-500 text-white">
+            {["اسم العاملة", "رقم الجواز", "الحالة", "الموظف", "التاريخ"].map((header) => (
+              <th key={header} className="px-4 py-3 text-right font-semibold">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {workers.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-3 text-center text-gray-500">
+                لا توجد عاملات مسكنات حاليًا
+              </td>
+            </tr>
+          ) : (
+            workers.map((worker) => (
+              <tr
+                key={worker.id}
+                // onClick={() => onRowClick(worker.id)}
+                className={`cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+                  expandedRow === worker.id ? "bg-gray-100" : ""
+                }`}
+              >
+                <td className="border-b border-gray-200 px-4 py-3 text-right">{worker.HomeMaid.Name}</td>
+                <td className="border-b border-gray-200 px-4 py-3 text-right">
+                  {worker.HomeMaid.Passportnumber}
+                </td>
+                <td className="border-b border-gray-200 px-4 py-3 text-right">
+                  {worker.status === "غير محدد" ? (
+                    <span className="text-gray-500">{worker.status}</span>
+                  ) : (
+                    worker.status
+                  )}
+                </td>
+                <td className="border-b border-gray-200 px-4 py-3 text-right">{worker.employee}</td>
+                <td className="border-b border-gray-200 px-4 py-3 text-right">{formatDate(worker.date)}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+// StatusModal component
+const StatusModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  status: string;
+  dateStatus: string;
+  onStatusChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDateStatusChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSave: () => void;
+}> = React.memo(({ open, onClose, status, dateStatus, onStatusChange, onDateStatusChange, onSave }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg">
+        <Typography variant="h6" className="mb-4 text-right font-bold">
+          تحديث الحالة
+        </Typography>
+        <div className="grid grid-cols-1 gap-4">
+          <TextField
+            label="الحالة"
+            value={status}
+            onChange={onStatusChange}
+            fullWidth
+            className="text-right"
+            required
+            error={!status}
+            helperText={!status ? "الحالة مطلوبة" : ""}
+          />
+          <TextField
+            label="تاريخ الحالة"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={dateStatus}
+            onChange={onDateStatusChange}
+            fullWidth
+            className="text-right"
+          />
+        </div>
+        <div className="mt-6 flex justify-end gap-4">
+          <Button
+            variant="contained"
+            className="bg-blue-600 text-white"
+            onClick={onClose}
+          >
+            إغلاق
+          </Button>
+          <Button
+            variant="contained"
+            className="bg-green-600 text-white"
+            onClick={onSave}
+            disabled={!status}
+          >
+            تحديث
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Main Table component
+const Table: React.FC = () => {
+  const router = useRouter();
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>({
+    Name: "",
+    Passportnumber: "",
+  });
   const [status, setStatus] = useState("");
   const [dateStatus, setDateStatus] = useState("");
   const [openStatusModal, setOpenStatusModal] = useState(false);
-  const handleBack = () => {
-    router.back(); // العودة إلى الصفحة السابقة
-  };
+  const [selectedHomeMaidId, setSelectedHomeMaidId] = useState<string | null>(null);
+  const pageRef = useRef(1);
 
-  const handleCloseStatusModal = () => {
-    setOpenStatusModal(false);
-  };
-  const updateHousingStatus = async (homeMaidId) => {
-    const response = await fetch("/api/confirmhousing", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ homeMaidId }),
-    });
-    const data = await response.json();
-    if (response.ok) {
-      console.log("Success:", data.message);
-    } else {
-      console.log("Error:", data.error);
-    }
-  };
+  const fetchData = useFetchWorkers(filters, pageRef, setWorkers, setHasMore, setLoading, setError);
 
-  const handleRowClick = (id) => {
-    setExpandedRow((prevRow) => (prevRow === id ? null : id));
-  };
-
-  const loadMoreRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (loading || !hasMore) return;
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            fetchData();
-          }
-        },
-        { threshold: 1.0 }
-      );
-      if (node) observer.observe(node);
-      return () => observer.disconnect();
-    },
-    [loading, hasMore]
-  );
-
-  const handleEmployeeChange = (e) => {
-    setEmployeeType(e.target.value);
-  };
-  const [date, setDate] = useState("");
   useEffect(() => {
     fetchData();
-  }, [date]);
+  }, [fetchData]);
 
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    column: string
-  ) => {
-    const value = e.target.value;
-    setFilters((prev) => ({
-      ...prev,
-      [column]: value,
-    }));
+  const handleBack = () => router.back();
+
+  const handleRowClick = (id: string) => {
+    setExpandedRow((prev) => (prev === id ? null : id));
+    const worker = workers.find((w) => w.id === id);
+    if (worker) {
+      setSelectedHomeMaidId(worker.homeMaid_id);
+      setStatus(worker.status === "غير محدد" ? "" : worker.status);
+      setDateStatus(worker.date ? formatDate(worker.date) : "");
+      setOpenStatusModal(true);
+    }
   };
 
-  const requestSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-    setData([]);
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>, column: keyof Filters) => {
+    setFilters((prev) => ({ ...prev, [column]: e.target.value }));
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      Name: "",
+      Passportnumber: "",
+    });
+    setWorkers([]);
     pageRef.current = 1;
     setHasMore(true);
     fetchData();
   };
 
-  const handleOpenAddModal = () => {
-    setOpenAddModal(true);
+  const handleSearch = () => {
+    setWorkers([]);
+    pageRef.current = 1;
+    setHasMore(true);
+    fetchData();
   };
 
-  const handleCloseAddModal = () => {
-    setOpenAddModal(false);
-    setNewHomeMaid({
-      officeID: "",
-      Nationalitycopy: "",
-      Name: "",
-      Religion: "",
-      Passportnumber: "",
-      clientphonenumber: "",
-      ExperienceYears: "",
-      maritalstatus: "",
-      Experience: "",
-      dateofbirth: "",
-      age: "",
-      phone: "",
-      bookingstatus: "",
-      ages: "",
-      officeName: "",
-      experienceType: "",
-      PassportStart: "",
-      PassportEnd: "",
-      OldPeopleCare: false,
-      ArabicLanguageLeveL: "",
-      EnglishLanguageLevel: "",
-      Salary: "",
-      LaundryLeveL: "",
-      IroningLevel: "",
-      CleaningLeveL: "",
-      CookingLeveL: "",
-      SewingLeveL: "",
-      BabySitterLevel: "",
-      Education: "",
-    });
-    setEmployeeType(""); // إعادة تعيين نوع العاملة
-    setSearchQuery(""); // إعادة تعيين مربع البحث
+  const handleCloseStatusModal = () => {
+    setOpenStatusModal(false);
+    setStatus("");
+    setDateStatus("");
+    setSelectedHomeMaidId(null);
   };
 
-  const handleNewHomeMaidChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setExternalHomemaid((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  const handleSaveStatus = async () => {
+    if (!selectedHomeMaidId || !status) {
+      alert("يرجى اختيار حالة ومعرف العاملة");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/weekly-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ID: selectedHomeMaidId,
+          status,
+          date: dateStatus || new Date().toISOString(),
+          employee: "admin",
+        }),
+      });
+
+      if (response.ok) {
+        handleCloseStatusModal();
+        setWorkers([]);
+        pageRef.current = 1;
+        setHasMore(true);
+        fetchData();
+      } else {
+        const data = await response.json();
+        alert(data.error || "فشل تحديث الحالة");
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert("حدث خطأ أثناء تحديث الحالة");
+    }
   };
 
-  // const [employee, setEmployee] = useState("");
-  const [isPasportVerified, setIsPassportVerified] = useState(false);
-  // دالة البحث عن العاملة الداخلية
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node || loading || !hasMore) return;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) fetchData();
+        },
+        { threshold: 1.0 }
+      );
+      observer.observe(node);
+      return () => observer.disconnect();
+    },
+    [loading, hasMore, fetchData]
+  );
 
   return (
     <Layout>
-      <div className="container mx-auto p-6">
-        <div id="hesham" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <Button
-              style={{ marginLeft: "10px" }}
-              variant="contained"
-              color="warning"
-              onClick={() => router.push("/admin/housedarrivals")}
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <button
+            onClick={handleBack}
+            className="flex items-center rounded-lg bg-gray-600 px-4 py-2 text-white shadow-md transition-all duration-300 hover:bg-gray-700"
+          >
+            <ChevronLeftIcon className="mr-2 h-5 w-5" />
+            رجوع
+          </button>
+          <div className="flex gap-4">
+            <button
+        className="rounded-lg bg-blue-600 py-3 font-semibold text-white shadow-md transition-all duration-300 hover:bg-blue-700 flex-1"
 
+              // className="rounded-lg bg-yellow-500 font-semibold text-white shadow-md transition-all duration-300 hover:bg-yellow-600"
+              onClick={() => router.push("/admin/housedarrivals")}
             >
-            جدول التسكين
-            </Button>
-            <Button
+              جدول التسكين
+            </button>
+            {/* <Button
               variant="contained"
-              color="primary"
+              className="rounded-lg bg-blue-600 font-semibold text-white shadow-md transition-all duration-300 hover:bg-blue-700"
               onClick={() => router.push("/admin/checklisttable")}
             >
-              بيانات الاعاشة
-            </Button>
-          </div>
-        <button
-          onClick={handleBack}
-          className="flex items-center px-4 py-2  bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"
-        >
-          <ChevronLeftIcon className="w-5 h-5 mr-2" /> {/* أيقونة الرجوع */}
-          رجوع
-        </button>
-
-        <div className="flex justify-between items-center mb-4">
-          <h1
-            className={`text-left font-medium text-2xl ${Style["almarai-bold"]}`}
-          >
-            حالات العاملات
-          </h1>
-          <div></div>
-        </div>
-
-        {/* Filter Section */}
-        <div className="flex justify-between mb-4">
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Name}
-              onChange={(e) => handleFilterChange(e, "Name")}
-              placeholder="بحث باسم العاملة"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Passportnumber}
-              onChange={(e) => handleFilterChange(e, "Passportnumber")}
-              placeholder="بحث برقم الجواز"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
-                setWorkers([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
-            </button>
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9] bg-[#3D4C73] text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setWorkers([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>بحث</h1>
-            </button>
+              بيانات الإعاشة
+            </Button> */}
           </div>
         </div>
 
-        {/* Table */}
-        <table
-          style={{
-            backgroundColor: "white",
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: "20px",
-          }}
-        >
-          <thead>
-            <tr className="bg-yellow-400 text-white">
-              <th
-                className="bg-yellow-400 text-white"
-                style={{
-                  border: "1px solid #ddd",
-                  padding: "8px",
-                  textAlign: "left", // محاذاة النص
-                }}
-              >
-                اسم العاملة
-              </th>
-              <th
-                className="bg-yellow-400 text-white"
-                style={{
-                  border: "1px solid #ddd",
-                  padding: "8px",
-                  textAlign: "left", // محاذاة النص
-                }}
-              >
-                رقم الجواز
-              </th>
-              <th
-                className="bg-yellow-400 text-white"
-                style={{
-                  border: "1px solid #ddd",
-                  padding: "8px",
-                  textAlign: "left", // محاذاة النص
-                }}
-              >
-                الحالة
-              </th>
-              <th
-                className="bg-yellow-400 text-white"
-                style={{
-                  border: "1px solid #ddd",
-                  padding: "8px",
-                  textAlign: "left", // محاذاة النص
-                }}
-              >
-                الموظف
-              </th>
+        <Typography variant="h4" className="mb-6 text-right font-bold text-gray-800">
+          حالات العاملات الأسبوعية
+        </Typography>
 
-              <th
-                className="bg-yellow-400 text-white"
-                style={{
-                  border: "1px solid #ddd",
-                  padding: "8px",
-                  textAlign: "left", // محاذاة النص
-                }}
-              >
-                التاريخ
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {workers.map((worker) => (
-              <tr key={worker.id}>
-                <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                  {worker?.HomeMaid?.Name}
-                </td>
-                <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                  {worker?.HomeMaid?.Passportnumber}
-                </td>
-                <td
-                  style={{
-                    border: "1px solid #ddd",
-                    padding: "8px",
-                  }}
-                >
-                  {worker?.status}
-                </td>
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-100 p-4 text-red-700">
+            {error}
+          </div>
+        )}
 
-                <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                  {worker?.employee}
-                </td>
+        <FilterSection
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onReset={handleResetFilters}
+          onSearch={handleSearch}
+        />
 
-                <td style={{ border: "1px solid #ddd", padding: "8px" }}>
-                  {getDate(worker?.date)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <WorkersTable workers={workers} expandedRow={expandedRow} onRowClick={handleRowClick} />
+
+        <StatusModal
+          open={openStatusModal}
+          onClose={handleCloseStatusModal}
+          status={status}
+          dateStatus={dateStatus}
+          onStatusChange={(e) => setStatus(e.target.value)}
+          onDateStatusChange={(e) => setDateStatus(e.target.value)}
+          onSave={handleSaveStatus}
+        />
 
         {hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center mt-6">
+          <div ref={loadMoreRef} className="mt-6 flex justify-center">
             {loading && (
-              <div className="flex justify-center items-center">
+              <div className="flex items-center gap-3">
                 <svg
-                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
+                  className="h-6 w-6 animate-spin text-blue-600"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  stroke="currentColor"
                 >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
                   <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
                   />
                 </svg>
-                Loading...
+                <span className="font-medium text-gray-600">جاري التحميل...</span>
               </div>
             )}
           </div>
@@ -485,4 +442,6 @@ export default function Table() {
       </div>
     </Layout>
   );
-}
+};
+
+export default Table;
