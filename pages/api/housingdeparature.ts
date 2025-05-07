@@ -19,14 +19,19 @@ export default async function handler(
           isHidden: true,
           // : req.body.homeMaid,
           HomemaidIdCopy: req.body.homeMaid,
-          arrivals: {
-            create: {
-              DeparatureFromSaudiDate: req.body.deparatureFromSaudi,
-              HomemaIdnumber: req.body.homeMaid, // Replace with the actual unique field for 'arrivallist'
+//           arrivals: {
+//             create: {
+//               DeparatureFromSaudiDate: req.body.deparatureFromSaudi,
+//               HomemaIdnumber: req.body.homeMaid, // Replace with the actual unique field for 'arrivallist'
+// WorkDuration: req.body.workDuration||"sss",
+// Cost: req.body.cost||"sss",
+// ArrivalCity: req.body.arrivalCity,
+//               DeparatureFromSaudiCity: req.body.deparatureCity,
 
-              deparatureTime: req.body.departureTime,
-            },
-          },
+//               deparatureTime: req.body.departureTime,
+//             },
+          // },
+          
           HomeMaid: { connect: { id: req.body.homeMaid } },
           clientphonenumber: "sss", // Ensure this field is provided in the request body
         },

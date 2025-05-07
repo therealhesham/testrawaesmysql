@@ -122,7 +122,7 @@ model User {
   notifications notifications[]
 
   logs logs[]
-
+emaillist emaillist[]
   cashLogs cashLogs[]
 }
 
@@ -278,6 +278,16 @@ model MaleWorker {
   notes               String    @db.VarChar(191)
 }
 
+
+model emaillist{
+id                       Int       @id @default(autoincrement())
+  email                     String?   @db.VarChar(191)
+department            String?   @db.VarChar(191)
+  createdAt                DateTime? @default(now())
+  updatedAt                DateTime? @updatedAt
+  userId                   Int?
+  User                     User?     @relation(fields: [userId], references: [id])
+}
 model arrivallist {
   id                        Int       @id @default(autoincrement())
   SponsorName               String?   @db.VarChar(191)

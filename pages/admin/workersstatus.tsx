@@ -11,8 +11,8 @@ interface Worker {
   status: string;
   employee: string;
   date: string;
+  hasNoStatus: boolean; // حقل جديد
 }
-
 interface WeekData {
   week: string;
   statuses: Worker[];
@@ -126,37 +126,60 @@ const WeeklyTable: React.FC<{
   <div className="space-y-8">
     {weeksData.map((week) => (
       <div key={week.week} className="overflow-hidden rounded-lg bg-white shadow-lg">
-        <Typography variant="h6" className="bg-yellow-500 px-4 py-3 text-right font-semibold text-white">
+        <Typography
+          variant="h6"
+          className="bg-yellow-500 px-4 py-3 text-right font-semibold text-white"
+        >
           الأسبوع: {week.week}
         </Typography>
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-gray-100">
-              {["اسم العاملة", "رقم الجواز", "الحالة", "الموظف", "التاريخ"].map((header) => (
-                <th key={header} className="px-4 py-3 text-right font-semibold">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {week.statuses.map((worker) => (
-              <tr
-                key={worker.id}
-                onClick={() => onRowClick(worker.id)}
-                className={`cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
-                  expandedRow === worker.id ? "bg-gray-100" : ""
-                }`}
-              >
-                <td className="border-b border-gray-200 px-4 py-3 text-right">{worker.HomeMaid.Name}</td>
-                <td className="border-b border-gray-200 px-4 py-3 text-right">{worker.HomeMaid.Passportnumber}</td>
-                <td className="border-b border-gray-200 px-4 py-3 text-right">{worker.status}</td>
-                <td className="border-b border-gray-200 px-4 py-3 text-right">{worker.employee}</td>
-                <td className="border-b border-gray-200 px-4 py-3 text-right">{formatDate(worker.date)}</td>
+        {week.statuses.length === 0 ? (
+          <div className="bg-gray-200 p-4 text-center">
+            <Typography variant="body1" className="text-gray-500">
+              لا توجد حالات متاحة لهذا الأسبوع
+            </Typography>
+          </div>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                {["اسم العاملة", "رقم الجواز", "الحالة", "الموظف", "التاريخ"].map(
+                  (header) => (
+                    <th key={header} className="px-4 py-3 text-right font-semibold">
+                      {header}
+                    </th>
+                  )
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+          <tbody>
+  {week.statuses.map((worker) => (
+    <tr
+      key={worker.id}
+      onClick={() => onRowClick(worker.id)}
+      className={`cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+        expandedRow === worker.id ? "bg-gray-100" : ""
+      } ${worker.hasNoStatus ? "bg-gray-400 text-white" : ""}`} // لون جاف للعاملات بدون حالة
+    >
+      <td className="border-b border-gray-200 px-4 py-3 text-right">
+        {worker.HomeMaid.Name}
+      </td>
+      <td className="border-b border-gray-200 px-4 py-3 text-right">
+        {worker.HomeMaid.Passportnumber}
+      </td>
+      <td className="border-b border-gray-200 px-4 py-3 text-right">
+        {worker.status}
+      </td>
+      <td className="border-b border-gray-200 px-4 py-3 text-right">
+        {worker.employee}
+      </td>
+      <td className="border-b border-gray-200 px-4 py-3 text-right">
+        {formatDate(worker.date)}
+      </td>
+    </tr>
+  ))}
+</tbody>
+          </table>
+        )}
       </div>
     ))}
   </div>

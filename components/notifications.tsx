@@ -95,7 +95,7 @@ export default function NotificationDropdown() {
 
   // Handle number click in message
   const handleNumberClick = (number: string) => {
-    router.push(`/cvdetails/${number}`);
+  console.log(`/cvdetails/${number}`);
   };
 
   // Format message with clickable numbers

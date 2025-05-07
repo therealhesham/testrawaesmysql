@@ -4,63 +4,80 @@ import { startOfWeek, endOfWeek, format, subWeeks } from "date-fns";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    if (req.method === "GET") {
-      const {
-        Name,
-        Passportnumber,
-        page = "1",
-        weeks = "4", // عدد الأسابيع الافتراضي (يمكن تمريره كـ query parameter)
-      } = req.query;
+ if (req.method === "GET") {
+  const {
+    Name,
+    Passportnumber,
+    page = "1",
+    weeks = "4",
+  } = req.query;
 
-      const pageSize = 10;
-      const pageNumber = parseInt(page as string, 10) || 1;
-      const numWeeks = parseInt(weeks as string, 10) || 4;
+  const pageSize = 10;
+  const pageNumber = parseInt(page as string, 10) || 1;
+  const numWeeks = parseInt(weeks as string, 10) || 4;
 
-      // تحديد تاريخ بداية ونهاية الأسابيع
-      const today = new Date();
-      const weeksData = [];
+  const today = new Date();
+  const weeksData = [];
 
-      // جلب بيانات الحالات لآخر numWeeks أسابيع
-      for (let i = 0; i < numWeeks; i++) {
-        const weekStart = startOfWeek(subWeeks(today, i), { weekStartsOn: 6 }); // السبت
-        const weekEnd = endOfWeek(subWeeks(today, i), { weekStartsOn: 6 }); // الجمعة
+  for (let i = 0; i < numWeeks; i++) {
+    const weekStart = startOfWeek(subWeeks(today, i), { weekStartsOn: 6 });
+    const weekEnd = endOfWeek(subWeeks(today, i), { weekStartsOn: 6 });
 
-        const weeklyStatuses = await prisma.weeklyStatus.findMany({
+    // جلب العاملات من homemaid مع housedworker حيث deparatureHousingDate هو null
+    const maids = await prisma.homemaid.findMany({
+      where: {
+        Name: { contains: typeof Name === "string" ? Name : "" },
+        Passportnumber: {
+          contains: typeof Passportnumber === "string" ? Passportnumber : "",
+        },
+        inHouse: {
+          some: {
+            deparatureHousingDate: null,
+          },
+        },
+      },
+      include: {
+        inHouse: {
           where: {
-            HomeMaid: {
-              Name: { contains: typeof Name === "string" ? Name : "" },
-              Passportnumber: {
-                contains: typeof Passportnumber === "string" ? Passportnumber : "",
-              },
-            },
+            deparatureHousingDate: null,
+          },
+        },
+        weeklyStatusId: {
+          where: {
             date: {
               gte: weekStart,
               lte: weekEnd,
             },
           },
-          orderBy: { date: "desc" }, // ترتيب حسب التاريخ لجلب آخر حالة
-          include: { HomeMaid: true },
-          take: pageSize,
-          skip: (pageNumber - 1) * pageSize,
-        });
+          orderBy: { date: "desc" },
+          take: 1, // جلب آخر حالة فقط
+        },
+      },
+      take: pageSize,
+      skip: (pageNumber - 1) * pageSize,
+    });
 
-        // تجميع الحالات بحيث نأخذ آخر حالة لكل عاملة في الأسبوع
-        const uniqueStatuses = new Map();
-        weeklyStatuses.forEach((status) => {
-          const maidId = status.homeMaid_id;
-          if (!uniqueStatuses.has(maidId)) {
-            uniqueStatuses.set(maidId, status);
-          }
-        });
+    // تحويل البيانات إلى تنسيق مناسب
+    const statuses = maids.map((maid) => ({
+      id: maid.id.toString(),
+      HomeMaid: {
+        Name: maid.Name || "",
+        Passportnumber: maid.Passportnumber || "",
+      },
+      status: maid.weeklyStatusId[0]?.status || "غير محدد", // إذا لم يكن هناك حالة
+      employee: maid.weeklyStatusId[0]?.employee || "",
+      date: maid.weeklyStatusId[0]?.date || new Date(),
+      hasNoStatus: !maid.weeklyStatusId.length, // حقل لتحديد إذا كانت بدون حالة
+    }));
 
-        weeksData.push({
-          week: `${format(weekStart, "yyyy-MM-dd")} - ${format(weekEnd, "yyyy-MM-dd")}`,
-          statuses: Array.from(uniqueStatuses.values()),
-        });
-      }
+    weeksData.push({
+      week: `${format(weekStart, "yyyy-MM-dd")} - ${format(weekEnd, "yyyy-MM-dd")}`,
+      statuses,
+    });
+  }
 
-      return res.status(200).json({ weeks: weeksData });
-    }
+  return res.status(200).json({ weeks: weeksData });
+}
 
     if (req.method === "POST") {
       const { homeMaid_id, status, date, employee } = req.body;
