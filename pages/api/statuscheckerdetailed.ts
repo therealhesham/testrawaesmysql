@@ -12,23 +12,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get the date 7 days ago
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-console.log(sevenDaysAgo)
-    // Raw MySQL query to count active housed workers without recent status updates
-   const result = await prisma.$queryRaw`
-  SELECT 
-    hw.*
-   FROM housedworker hw
-  JOIN homemaid hm ON hw.homeMaid_id = hm.id
-  WHERE 
-    hw.deparatureHousingDate IS NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM weeklyStatus ws 
-      WHERE ws.homeMaid_id = hm.id 
-      AND ws.date >= ${sevenDaysAgo}
-    )
-`;
 
-  
+    // Raw MySQL query to count active housed workers without recent status updates
+    const result = await prisma.$queryRaw`
+      SELECT 
+        hw.id,
+        hw.homeMaid_id,
+        hm.Name,
+        hm.Nationalitycopy,
+        hw.employee,
+        hw.houseentrydate,
+        hw.status
+      FROM housedworker hw
+      JOIN homemaid hm ON hw.homeMaid_id = hm.id
+      WHERE 
+        hw.deparatureHousingDate IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM weeklyStatus ws 
+          WHERE ws.homeMaid_id = hm.id 
+          AND ws.date >= ${sevenDaysAgo}
+        )
+    `;
+
     return res.status(200).json(result);
   } catch (error) {
     console.error('Error checking housed worker status:', error);

@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (noRecentStatusCount > 0) {
       const notification = await prisma.notifications.create({
         data: {
-          title: 'لا يوجد تحديثات حالة ',
+          title: 'لا يوجد تحديثات حالة',
           message: ` هناك ${noRecentStatusCount}  لم يتم تحديث حالتهم`,
           isRead: false,
           createdAt: new Date(),
