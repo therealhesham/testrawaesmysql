@@ -53,7 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           take: 1, // جلب آخر حالة فقط
         },
       },
-      take: pageSize,
+      // take: pageSize,
       skip: (pageNumber - 1) * pageSize,
     });
 
