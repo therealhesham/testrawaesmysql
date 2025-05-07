@@ -207,7 +207,12 @@ export default function NotificationDropdown() {
                 </p>
               </div>
               <div className="text-gray-700 dark:text-gray-200 text-sm leading-relaxed">
-                {formatMessage(selectedNotification.message)}
+                {selectedNotification.title =="لا يوجد تحديثات حالة"?<span> 
+                 { formatMessage(selectedNotification.message)} <br/>
+
+                 للاطلاع على عاملات لم يتم تغيير حالتهم  
+                  <a href="/admin/workersstatus" target="_blank" className="text-blue-500">اضغط هنا</a>
+                   </span>: formatMessage(selectedNotification.message)}
               </div>
             </div>
             <button
