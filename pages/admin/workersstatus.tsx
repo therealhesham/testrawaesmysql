@@ -84,7 +84,7 @@ const result =       await axios.post('/api/weekly-status', {
           {workers.map((worker) => (
             <div
               key={worker.id}
-              className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-all duration-300 border-l-4 border-purple-500"
+              className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition-all duration-300 border-l-4 border-teal-500"
             >
               <h2 className="text-2xl font-semibold text-gray-800 font-arabic">{worker.Name}</h2>
               <p className="text-gray-600 font-arabic">الجنسية: {worker.Nationalitycopy}</p>
@@ -94,7 +94,7 @@ const result =       await axios.post('/api/weekly-status', {
               <p className="text-gray-600 font-arabic">الحالة الحالية: {worker.status || 'لا توجد حالة'}</p>
               <button
                 onClick={() => setStatusModal({ show: true, workerId: worker.homeMaid_id })}
-                className="mt-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-md hover:from-purple-700 hover:to-pink-700 transition-colors font-arabic"
+                className="mt-4 bg-gradient-to-r from-teal-600 to-teal-400 text-white px-4 py-2 rounded-md  font-bold transition-colors font-arabic"
               >
                 تحديث الحالة
               </button>

@@ -16,7 +16,7 @@ import ReportsIcon from "components/icons/reports";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import NotificationDropdown from "components/notifications";
-import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt, FaPersonBooth } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaLaptopHouse, FaHotel, FaFirstOrder, FaFirstOrderAlt, FaPersonBooth, FaAddressBook, FaEnvelope } from "react-icons/fa";
 import { MenuAlt1Icon } from "@heroicons/react/solid";
 
 interface MenuItem {
@@ -279,18 +279,32 @@ const Sidebar = (props) => {
 
   {/* رابط المديرين في حالة admin */}
   {role === "admin" && (
-    <Link href="/admin/addadmin">
-      <a className="flex py-4 px-3 items-center justify-center w-full h-full">
-        <div style={{ width: "2.5rem", color: "white" }}>
-          <ArticleIcon fill="white" />
-        </div>
-        {!toggleCollapse && (
-          <span className="text-md font-medium text-text-light text-white">
-            المديرين
-          </span>
-        )}
-      </a>
-    </Link>
+    <div className=
+    
+        "flex flex-col items-center px-5 cursor-pointer hover:bg-light-lighter rounded w-full overflow-hidden whitespace-nowrap text-md font-medium text-text-light text-white  justify-center pl-1 gap-4"
+        ><Link href="/admin/addadmin">
+            <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+              <div style={{ width: "2.5rem", color: "white" }}>
+                <ArticleIcon fill="white" />
+              </div>
+              {!toggleCollapse && (
+                <span className="text-md font-medium text-text-light text-white">
+                  المديرين
+                </span>
+              )}
+            </a>
+          </Link><Link href="/admin/addemail">
+              <a className="flex py-4 px-3 items-center justify-center w-full h-full">
+                <div style={{ width: "2.5rem", color: "white" }}>
+                  <FaEnvelope fill="white" />
+                </div>
+                {!toggleCollapse && (
+                  <span className="text-md font-medium text-text-light text-white">
+                    قائمة البريد
+                  </span>
+                )}
+              </a>
+            </Link></div>
   )}
 </div>
 

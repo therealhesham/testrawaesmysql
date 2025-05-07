@@ -211,7 +211,7 @@ export default function NotificationDropdown() {
                  { formatMessage(selectedNotification.message)} <br/>
 
                  للاطلاع على عاملات لم يتم تغيير حالتهم  
-                  <a href="/admin/workersstatus" target="_blank" className="text-blue-500">اضغط هنا</a>
+                  <a href="/admin/workersstatus" target="_blank" className="text-blue-500"> اضغط هنا</a>
                    </span>: formatMessage(selectedNotification.message)}
               </div>
             </div>
