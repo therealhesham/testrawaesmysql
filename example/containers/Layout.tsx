@@ -12,6 +12,7 @@ import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/router";
 import jwt from "jsonwebtoken";
 import NotificationDropdown from "components/notifications";
+import { FaEnvelope } from "react-icons/fa";
 
 interface ILayout {
   children: React.ReactNode;
@@ -119,7 +120,11 @@ function Layout({ children }: ILayout) {
               <div className="flex items-center space-x-4 space-x-reverse">
                 {/* Notification Bell */}
                 <NotificationDropdown />
-
+{/* <Link href="/admin/emails" title="البريد الإلكتروني">
+                  <div className="text-purple-400 hover:text-purple-600 cursor-pointer">
+                    <FaEnvelope className="h-7 w-6" />
+                  </div>
+                </Link> */}
                 {/* Profile Picture or First Letter */}
                 <div className="flex-shrink-0">
                   <img
