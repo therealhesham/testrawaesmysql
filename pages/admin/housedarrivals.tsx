@@ -1,4 +1,6 @@
 import { BookFilled } from "@ant-design/icons";
+import Link from "next/link";
+
 import Head from "next/head";
 import { FaCheckCircle, FaTimesCircle, FaInfoCircle, FaUser, FaClock, FaCalendar } from 'react-icons/fa'; // استيراد أيقونات إضافية
 
@@ -451,13 +453,17 @@ async function fetchData() {
   const [status, setStatus] = useState("");
   const [dateStatus, setDateStatus] = useState("");
   const postUpdatedStatus = async () => {
+    setLoadingScreen(true);
     try {
       const decoded = jwtDecode(localStorage.getItem("token"));
       console.log(decoded);
       setEmployee(decoded.username);
     } catch (e) {
-      router.push("/login");
+    setLoadingScreen(false);
+
+      return router.push("/login");
     }
+    
     const response = await fetch("/api/weekly-status", {
       method: "POST",
       headers: {
@@ -473,6 +479,8 @@ async function fetchData() {
     const data = await response.json();
     if (response.status == 201) {
       setOpenStatusModal(false);
+    setLoadingScreen(false);
+    
       // isFetchingRef.current = false;
       // setHasMore(true);
       // setFilters({ age: "", id: "", Passportnumber: "", Name: "" });
@@ -483,6 +491,8 @@ async function fetchData() {
 handleReset()      
       // console.log("Success:", data.message);
     } else {
+    setLoadingScreen(false);
+    
       setIsModalOpen(true)
       // setIserrorModalOpen(true)
       setErrorModalMessage(data.error)
@@ -991,7 +1001,8 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
   };
   return (
     <Layout>
-      <div className="container mx-auto p-6">
+            <div className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans relative">
+        
         <Head>
           <title>عاملات في السكن </title>
           <link rel="icon" href="/favicon.ico" />
@@ -1084,7 +1095,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
-               className={` ${Style["almarai-bold"]}`}
+               className={` ${Style["almarai-bold"]} font-bold`}
 
               color="secondary"
               onClick={() => router.push("/admin/cashtable")}
@@ -1101,7 +1112,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             >
               إدارة النقد
             </Button> */}
-            <Button
+            {/* <Button
               style={{ marginLeft: "1px" }}
                className={` ${Style["almarai-bold"]}`}
 
@@ -1110,10 +1121,10 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
               onClick={() => router.push("/admin/workersstatus")}
             >
               حالات العاملات
-            </Button>
+            </Button> */}
             <Button
               style={{ marginLeft: "1px" }}
-               className={` ${Style["almarai-bold"]}`}
+               className={` ${Style["almarai-bold"]} font-bold `}
 
               variant="contained"
               color="warning"
@@ -1121,7 +1132,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
             >
               تسكين عاملة
             </Button>
-            <Button
+            {/* <Button
               style={{ marginLeft: "1px" }}
               variant="contained"
                className={` ${Style["almarai-bold"]}`}
@@ -1130,17 +1141,26 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
               onClick={() => router.push("/admin/checkedtable")}
             >
               بيانات الاعاشة
-            </Button>
+            </Button> */}
             <Button
-              style={{ marginLeft: "1px" }}
+              style={{ marginLeft: "10px" }}
               variant="contained"
-               className={` ${Style["almarai-bold"]}`}
+               className={` font-bold ${Style["almarai-bold"]}`}
 
               color="error"
               onClick={() => router.push("/admin/departedhousedarrivals")}
             >
               عاملات غادرت التسكين
+
             </Button>
+    <Link href="/admin/home">
+                  <button
+                    className=" top-4 left-5 text-gray-600 hover:text-gray-800 text-2xl font-bold focus:outline-none transition duration-200"
+                    aria-label="إغلاق والعودة إلى الرئيسية"
+                  >
+                    ✕
+                  </button>
+                </Link>
           </div>
         </div>
         {/* Filter Section */}
@@ -1442,7 +1462,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                           : "لا يوجد بيان"}
                       </h1>
                     </td>
-                    <td className={`text-center mb-4`}>
+                    <td className={`text-center  mb-4`}>
                       <h1
                         className={`text-center mb-4 ${Style["almarai-bold"]}`}
                       >
@@ -1457,12 +1477,13 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                       </h1>
                     </td> */}
 
-                    <td className={`text-center mb-4`}>
+                    <td className={`text-center font-bold mb-4`}>
                       <Button
                         onClick={() => {
                           setID(item?.Order.id);
                           setOpenStatusModal(true);
                         }}
+                        className="font-bold"
                         //تحديث حالة العاملة
                         variant="contained"
                         color="warning"
@@ -1504,6 +1525,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                           });
                           setOpenEditModal(true);
                         }}
+                        className="font-bold"
                         //تحديث حالة العاملة
                         variant="contained"
                         color="secondary"
@@ -1518,6 +1540,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                           setOpenDeparatureModal(true);
                           // setNewHomeMaid({...newHomeMaid,id:item?.Order.id,Name:item?.Order.Name})
                         }}
+                        className="font-bold"
                         //تحديث حالة العاملة
                         variant="contained"
                         color="error"
@@ -1532,6 +1555,7 @@ const [errorModalMessage,setErrorModalMessage]=useState("")
                           SetIDSession(item?.Order.id);
                           setOpenSessionModal(true);
                         }}
+                        className="font-bold"
                         //تحديث حالة العاملة
                         variant="contained"
                         color="success"

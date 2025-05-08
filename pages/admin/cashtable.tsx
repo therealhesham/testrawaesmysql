@@ -1,6 +1,7 @@
 import EditCashModal from "components/editcashmodal";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
+// Link
 import {
   Button,
   Modal,
@@ -20,6 +21,7 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import Head from "next/head";
 import { FaCheckCircle, FaTimesCircle, FaInfoCircle, FaUser, FaClock } from 'react-icons/fa'; // استيراد أيقونات إضافية
+import Link from "next/link";
 
 
 export default function CashTable() {
@@ -44,6 +46,8 @@ const statusIcons = {
   const [cashData, setCashData] = useState<CashRecord[]>([]);
   const [selectedCash, setSelectedCash] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [loadingScreen, setLoadingScreen] = useState(false);
+  
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [cashToDelete, setCashToDelete] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -267,6 +271,7 @@ const statusIcons = {
   };
 
   const handleSaveCashRecord = async () => {
+    setLoadingScreen(true)
     try {
       const response = await fetch("/api/add", {
         method: "POST",
@@ -286,10 +291,16 @@ const statusIcons = {
         setCashError("");
         handleCloseCashModal();
         fetchData();
+    setLoadingScreen(false)
+
       } else {
         setCashError(data.error || "فشل في إضافة المبلغ");
+    setLoadingScreen(false)
+
       }
     } catch (error) {
+    setLoadingScreen(false)
+
       setCashError("خطأ في الاتصال بالخادم");
     }
   };
@@ -345,6 +356,7 @@ const statusIcons = {
     }
 
     try {
+      setLoadingScreen(true)
       const response = await fetch("/api/addcash", {
         method: "POST",
         headers: {
@@ -363,11 +375,17 @@ const statusIcons = {
       if (response.status === 201) {
         handleCloseCashAddModal();
         fetchData();
+    setLoadingScreen(false)
+
       } else {
         setCashAddError(data.error || "فشل في إضافة السجل النقدي");
+    setLoadingScreen(false)
+
       }
     } catch (error) {
       setCashAddError("خطأ في الاتصال بالخادم");
+    setLoadingScreen(false)
+
     }
   };
 
@@ -378,12 +396,21 @@ const statusIcons = {
 
   return (
     <Layout>
-      <div className="overflow-x-auto mt-6">
+           <div className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans relative">
+
         <Head>
           <title>
 سجلات النقد - مشروع الاستقدام
 </title>
         </Head>
+        <Link href="/admin/home">
+                  <button
+                    className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 text-2xl font-bold focus:outline-none transition duration-200"
+                    aria-label="إغلاق والعودة إلى الرئيسية"
+                  >
+                    ✕
+                  </button>
+                </Link>
         <div className="flex items-center justify-between mb-4">
           <Button
             variant="contained"
@@ -742,7 +769,18 @@ const statusIcons = {
             </Box>
           </Box>
         </Modal>
+ 
+         {loadingScreen && (
+           <Modal open={loadingScreen}>
+             <Box>
+               <div className="fixed inset-0  opacity-50 flex items-center justify-center bg-white z-1000">
+                 <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+               </div>
+             </Box>
+           </Modal>
+         )}
       </div>
+ 
     </Layout>
   );
 }
