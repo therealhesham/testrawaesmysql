@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import Layout from "example/containers/Layout";
+import Link from "next/link"; 
+import {
+  Modal,
+  Box,
+} from "@mui/material";
 
 interface DailyCosts {
   [date: string]: number;
@@ -31,11 +36,13 @@ export default function HousedWorkers() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [loadingScreen, setLoadingScreen] = useState(false);
 
+    
   const getCurrentWeekStart = () => {
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 (الأحد) إلى 6 (السبت)
-    const diff = dayOfWeek === 0 ? 1 : dayOfWeek; // إذا الأحد، نرجع يوم واحد، غيره نرجع dayOfWeek
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? 1 : dayOfWeek;
     const saturday = new Date(today);
     saturday.setDate(today.getDate() - diff);
     saturday.setHours(0, 0, 0, 0);
@@ -121,6 +128,7 @@ export default function HousedWorkers() {
   };
 
   const handleDateFilter = () => {
+
     if (!startDate || !endDate) {
       setError("يرجى اختيار تاريخ البداية وتاريخ النهاية.");
       return;
@@ -140,17 +148,22 @@ export default function HousedWorkers() {
       return;
     }
     setDeleteError(null);
+    setLoadingScreen(true);
     try {
+      setLoadingScreen(true)
       const response = await fetch(`/api/checkedtable?date=${selectedDate}`, {
         method: "DELETE",
       });
       if (!response.ok) {
+        setLoadingScreen(false);
         throw new Error(`فشل في الحذف: ${response.statusText}`);
       }
       setIsDeleteModalOpen(false);
       setSelectedDate("");
       fetchWorkers(startDate, endDate);
+      setLoadingScreen(false);
     } catch (error) {
+      setLoadingScreen(false);
       console.error("Error deleting records:", error);
       setDeleteError("فشل في حذف السجلات. حاول مرة أخرى.");
     }
@@ -164,18 +177,29 @@ export default function HousedWorkers() {
     const today = new Date().toISOString().split("T")[0];
     const cellDate = new Date(date);
     const todayDate = new Date(today);
+
     if (cellDate.toDateString() === todayDate.toDateString()) {
-      return "bg-blue-100 group relative";
+      return "bg-blue-100 group relative"; // Today's date
     } else if (cellDate < todayDate) {
-      return "bg-green-100";
+      return "bg-green-100"; // Past dates
     } else {
-      return "bg-gray-100";
+      return "bg-gray-100"; // Future dates
     }
   };
 
   return (
     <Layout>
-      <div dir="rtl" className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans">
+      <div dir="rtl" className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans relative">
+        {/* Close Button (X) */}
+        <Link href="/admin/home">
+          <button
+            className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 text-2xl font-bold focus:outline-none transition duration-200"
+            aria-label="إغلاق والعودة إلى الرئيسية"
+          >
+            ✕
+          </button>
+        </Link>
+
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-right">بيانات الإعاشة</h1>
 
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
@@ -229,7 +253,7 @@ export default function HousedWorkers() {
         </div>
 
         {error && (
-          <div className="text-red-600 text-center mb-6 bg-red-100 p-3 rounded-lg">{error}</div>
+          <div className="text-red-600 text-center.mb-6 bg-red-100 p-3 rounded-lg">{error}</div>
         )}
 
         {loading ? (
@@ -303,6 +327,15 @@ export default function HousedWorkers() {
             </table>
           </div>
         )}
+         {loadingScreen && (
+                   <Modal open={loadingScreen}>
+                     <Box>
+                       <div className="fixed inset-0  opacity-50 flex items-center justify-center bg-white z-1000">
+                         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                       </div>
+                     </Box>
+                   </Modal>
+                 )}
 
         {isDeleteModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300">

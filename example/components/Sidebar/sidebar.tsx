@@ -83,15 +83,15 @@ const Sidebar = (props) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-gradient-to-b from-teal-700 to-teal-900 text-white h-screen flex flex-col shadow-2xl transition-all duration-300",
+    "bg-[#1a4d4f] text-white h-screen flex flex-col shadow-xl transition-all duration-500 ease-in-out font-inter",
     {
-      "w-64": !toggleCollapse,
-      "w-16": toggleCollapse,
+      "w-72": !toggleCollapse,
+      "w-20": toggleCollapse,
     }
   );
 
   const collapseIconClasses = classNames(
-    "p-2 rounded-full bg-teal-800/50 hover:bg-teal-700 absolute left-2 top-2 transition-transform duration-200",
+    "p-3 rounded-full bg-teal-900/70 hover:bg-teal-700/90 absolute left-3 top-3 transition-transform duration-300 ease-in-out",
     {
       "rotate-180": toggleCollapse,
     }
@@ -100,9 +100,9 @@ const Sidebar = (props) => {
   const getNavItemClasses = useCallback(
     (menu: MenuItem) => {
       return classNames(
-        "flex items-center px-4 py-3 mx-2 my-1 rounded-lg hover:bg-teal-700/50 transition-colors duration-200",
+        "flex items-center px-4 py-3 mx-3 my-1 rounded-xl hover:bg-teal-700/60 transition-all duration-300 ease-in-out cursor-pointer group",
         {
-          "bg-teal-600/50": activeMenu?.id === menu.id,
+          "bg-teal-600/70 shadow-md": activeMenu?.id === menu.id,
           "justify-center": toggleCollapse,
         }
       );
@@ -113,9 +113,9 @@ const Sidebar = (props) => {
   const getSubNavItemClasses = useCallback(
     (subItem: SubMenuItem) => {
       return classNames(
-        "flex items-center px-8 py-2 mx-2 my-1 rounded-lg hover:bg-teal-700/30 transition-colors duration-200 text-sm",
+        "flex items-center px-8 py-2 mx-3 my-1 rounded-lg hover:bg-teal-700/40 transition-all duration-300 ease-in-out text-sm font-semibold",
         {
-          "bg-teal-600/30": router.pathname === subItem.link,
+          "bg-teal-600/40": router.pathname === subItem.link,
         }
       );
     },
@@ -167,19 +167,19 @@ const Sidebar = (props) => {
       className={wrapperClasses}
       onMouseEnter={onMouseOver}
       onMouseLeave={onMouseOver}
-      style={{ transition: "width 300ms cubic-bezier(0.2, 0, 0, 1) 0s" }}
+      style={{ transition: "width 500ms cubic-bezier(0.4, 0, 0.2, 1) 0s" }}
     >
       <div className="flex flex-col relative">
         {/* Header Section */}
-        <div className="flex items-center justify-center relative p-4 border-b border-teal-600/30">
+        <div className="flex items-center justify-center relative p-6 border-b border-teal-700/30">
           {!toggleCollapse && (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <img
                 src={image || "/images/favicon.ico"}
                 alt="Profile"
-                className="rounded-full w-16 h-16 object-cover ring-2 ring-teal-500/50"
+                className="rounded-full w-20 h-20 object-cover ring-2 ring-teal-400/50 transition-all duration-300"
               />
-              <span className="text-sm font-medium text-teal-100">
+              <span className="text-base font-semibold text-teal-100">
                 مرحباً {info}
               </span>
             </div>
@@ -188,7 +188,7 @@ const Sidebar = (props) => {
             <img
               src={image || "/images/favicon.ico"}
               alt="Profile"
-              className="rounded-full w-10 h-10 object-cover ring-2 ring-teal-500/50"
+              className="rounded-full w-12 h-12 object-cover ring-2 ring-teal-400/50"
             />
           )}
           <button
@@ -196,89 +196,94 @@ const Sidebar = (props) => {
             className={collapseIconClasses}
             onClick={handleSidebarToggle}
           >
-            <CollapsIcon className="w-5 h-5" />
+            <CollapsIcon className="w-6 h-6 text-teal-200" />
           </button>
         </div>
 
         {/* Menu Items */}
-        <nav className="flex flex-col mt-6">
-          {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
-            const classes = getNavItemClasses(menu);
-            return (
-              <div key={menu.id}>
-                <div className={classes} onClick={() => subItems && toggleSubMenu(menu.id)}>
-                  {menu.link ? (
-                    <Link href={menu.link}>
-                      <a className="flex items-center w-full h-full">
-                        <Icon className="w-6 h-6" />
-                        {!toggleCollapse && (
-                          <span className="text-sm font-medium mr-4">{menu.label}</span>
-                        )}
-                      </a>
-                    </Link>
-                  ) : (
-                    <div className="flex items-center w-full h-full">
-                      <Icon className="w-6 h-6" />
-                      {!toggleCollapse && (
-                        <>
-                          <span className="text-sm font-medium mr-4">{menu.label}</span>
-                          {subItems && (
-                            <FaChevronDown
-                              className={classNames("ml-auto w-4 h-4", {
-                                "rotate-180": openMenu === menu.id,
-                              })}
-                            />
-                          )}
-                        </>
-                      )}
-                    </div>
+       <nav className="flex flex-col mt-8">
+  {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
+    const classes = getNavItemClasses(menu);
+    return (
+      <div key={menu.id}>
+        <div className={classes} onClick={() => subItems && toggleSubMenu(menu.id)}>
+          {menu.link ? (
+            <Link href={menu.link}>
+              <a className="flex items-center w-full h-full">
+                <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+                {!toggleCollapse && (
+                  <span className="text-sm font-medium mr-4 ml-3">{menu.label}</span>
+                )}
+              </a>
+            </Link>
+          ) : (
+            <div className="flex items-center  w-full h-full">
+              <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+              {!toggleCollapse && (
+                <div className="flex items-center flex-1">
+                  <span className="text-sm font-medium mr-4 ml-3">{menu.label}</span>
+                  {subItems && (
+                    <FaChevronDown
+                       className={classNames("w-4 h-4 transition-transform duration-300 hidden", {
+                        "rotate-180": openMenu === menu.id,
+                      })}
+                    />
                   )}
                 </div>
-
-                {/* Submenu Items */}
-                {!toggleCollapse && subItems && openMenu === menu.id && (
-                  <div className="mt-1">
-                    {subItems.map((subItem) => (
-                      <div key={subItem.id} className={getSubNavItemClasses(subItem)}>
-                        <Link href={subItem.link}>
-                          <a className="flex items-center w-full h-full">
-                            <span className="text-sm">{subItem.label}</span>
-                          </a>
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Admin Links */}
-          {role === "admin" && !toggleCollapse && (
-            <div className="mt-4">
-              <div className={getNavItemClasses({ id: 9, label: "المديرين", icon: ArticleIcon })}>
-                <Link href="/admin/addadmin">
-                  <a className="flex items-center w-full h-full">
-                    <ArticleIcon className="w-6 h-6" />
-                    <span className="text-sm font-medium mr-4">المديرين</span>
-                  </a>
-                </Link>
-              </div>
-              <div className={getNavItemClasses({ id: 10, label: "قائمة البريد", icon: FaEnvelope })}>
-                <Link href="/admin/addemail">
-                  <a className="flex items-center w-full h-full">
-                    <FaEnvelope className="w-6 h-6" />
-                    <span className="text-sm font-medium mr-4">قائمة البريد</span>
-                  </a>
-                </Link>
-              </div>
+              )}
             </div>
           )}
-        </nav>
+        </div>
+
+        {/* Submenu Items */}
+        {!toggleCollapse && subItems && openMenu === menu.id && (
+          <div
+            className="mt-2 overflow-hidden transition-all duration-300 ease-in-out"
+            style={{
+              maxHeight: openMenu === menu.id ? `${subItems.length * 48}px` : "0px",
+            }}
+          >
+            {subItems.map((subItem) => (
+              <div key={subItem.id} className={getSubNavItemClasses(subItem)}>
+                <Link href={subItem.link}>
+                  <a className="flex items-center w-full h-full">
+                    <span className="text-sm font-semibold">{subItem.label}</span>
+                  </a>
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  })}
+
+  {/* Admin Links */}
+  {role === "admin" && !toggleCollapse && (
+    <div className="mt-6">
+      <div className={getNavItemClasses({ id: 9, label: "المديرين", icon: ArticleIcon })}>
+        <Link href="/admin/addadmin">
+          <a className="flex items-center w-full cursor-pointer h-full">
+            <ArticleIcon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+            <span className="text-sm font-medium mr-4 ml-3">المديرين</span>
+          </a>
+        </Link>
+      </div>
+      <div className={getNavItemClasses({ id: 10, label: "قائمة البريد", icon: FaEnvelope })}>
+        <Link href="/admin/addemail">
+          <a className="flex items-center w-full h-full">
+            <FaEnvelope className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+            <span className="text-sm font-medium mr-4 ml-3">قائمة البريد</span>
+          </a>
+        </Link>
+      </div>
+    </div>
+  )}
+</nav>
       </div>
 
       {/* Logout Button */}
-      <div className="mt-auto p-4 border-t border-teal-600/30">
+      <div className="mt-auto p-6 border-t border-teal-700/30">
         <div
           className={getNavItemClasses({
             id: 0,
@@ -288,8 +293,8 @@ const Sidebar = (props) => {
           })}
           onClick={handleLogout}
         >
-          <LogoutIcon className="w-6 h-6" />
-          {!toggleCollapse && <span className="text-sm font-medium mr-4">Logout</span>}
+          <LogoutIcon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+          {!toggleCollapse && <span className="text-sm font-medium mr-4 ml-3">Logout</span>}
         </div>
       </div>
     </div>

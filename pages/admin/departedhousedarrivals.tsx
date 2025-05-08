@@ -1,4 +1,5 @@
 import { BookFilled } from "@ant-design/icons";
+import Link from "next/link";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import * as React from "react";
@@ -686,7 +687,17 @@ export default function Table() {
   };
   return (
     <Layout>
-      <div className="container mx-auto p-6">
+            <div className="container mx-auto p-6 bg-gray-50 min-h-screen font-sans relative">
+      
+      {/* <div className="container mx-auto p-6"> */}
+          <Link href="/admin/home">
+                  <button
+                    className="absolute top-4 left-4 text-gray-600 hover:text-gray-800 text-2xl font-bold focus:outline-none transition duration-200"
+                    aria-label="إغلاق والعودة إلى الرئيسية"
+                  >
+                    ✕
+                  </button>
+                </Link>
         <div className="flex justify-between items-center mb-4">
           <div className="absolute top-4 right-10">
             <button
@@ -745,7 +756,7 @@ export default function Table() {
           >
             عاملات غادرت التسكين
           </h1>
-          <div>
+          {/* <div>
             {" "}
             <Button
               style={{ marginLeft: "10px" }}
@@ -786,7 +797,7 @@ export default function Table() {
             >
               قائمة التسكين
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {/* Filter Section */}
