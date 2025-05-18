@@ -11,6 +11,8 @@ import {
 import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
+import { FacebookMessengerIcon } from "next-share";
+import { MessageOutlined } from "@ant-design/icons";
 
 interface MenuItem {
   id: number;
@@ -53,6 +55,15 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 21, label: "قائمة العاملات", link: "/admin/fulllist" },
       { id: 22, label: "اضافة عاملة", link: "/admin/newhomemaid" },
+    ],
+  },
+  {
+    id: 12,
+    label: "المراسلات",
+    icon: MessageOutlined,
+    subItems: [
+      { id: 21, label: "قائمة المراسلات", link: "/admin/messages_list" },
+      { id: 22, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
     ],
   },
   {
