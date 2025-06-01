@@ -32,6 +32,7 @@ import { useRouter } from "next/router";
 import jwt from "jsonwebtoken";
 import { HomeIcon } from "icons";
 import NotificationDropdown from "components/notifications";
+import Chat from "./chat";
 // Helper function to calculate remaining days
 const calculateRemainingDays = (eventDate) => {
   const today = new Date();
@@ -592,6 +593,7 @@ export default function Home({ user }) {
             </div>
           </div>
         )}
+{/* <Chat/> */}
       </div>
     </Layout>
   );
