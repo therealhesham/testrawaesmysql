@@ -8,7 +8,6 @@ WORKDIR /app
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps
-ENV NODE_OPTIONS=--openssl-legacy-provider
 # Rebuild the source code only when needed
 FROM node:16-alpine AS builder
 WORKDIR /app
@@ -19,6 +18,7 @@ COPY --from=deps /app/node_modules ./node_modules
 RUN npx prisma generate
 # Build the Next.js app
 
+ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
 # Production image, copy all necessary files
