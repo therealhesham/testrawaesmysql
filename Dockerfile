@@ -2,9 +2,6 @@
 FROM node:22-bullseye AS deps
 WORKDIR /app
 
-# Install OpenSSL
-RUN apk add --no-cache openssl
-
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps
