@@ -8,7 +8,7 @@ WORKDIR /app
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps
-
+ENV NODE_OPTIONS=--openssl-legacy-provider
 # Rebuild the source code only when needed
 FROM node:18-alpine AS builder
 WORKDIR /app
