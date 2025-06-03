@@ -1,22 +1,15 @@
 # Install dependencies only when needed
-FROM node:22-alpine AS deps
+FROM node:18-alpine AS deps
 WORKDIR /app
 
-# Install canvas dependencies
-RUN apk add --no-cache \
-    build-base \
-    g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev
+
 
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Rebuild the source code only when needed
-FROM node:22-alpine AS builder
+FROM node:18-alpine AS builder
 WORKDIR /app
 
 COPY . .
@@ -27,7 +20,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production image, copy all necessary files
-FROM node:22-alpine AS runner
+FROM node:18-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
