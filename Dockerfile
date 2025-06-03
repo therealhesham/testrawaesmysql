@@ -1,5 +1,5 @@
 # Install dependencies only when needed
-FROM node:22-alpine AS deps
+FROM node:22-bullseye AS deps
 WORKDIR /app
 
 # Install OpenSSL
@@ -10,7 +10,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
-FROM node:22-alpine AS builder
+FROM node:22-bullseye AS builder
 WORKDIR /app
 
 COPY . .
@@ -25,7 +25,7 @@ ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
 # Production image, copy all necessary files
-FROM node:22-alpine AS runner
+FROM node:22-bullseye AS runner
 WORKDIR /app
 
 COPY --from=builder /app/public ./public
