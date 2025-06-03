@@ -4,6 +4,8 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 
 
+RUN apk add --no-cache openssl1.1-compat
+
 
 # Install dependencies
 COPY package.json package-lock.json* ./
