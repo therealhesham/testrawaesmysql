@@ -20,6 +20,7 @@ COPY --from=deps /app/node_modules ./node_modules
 RUN npx prisma generate
 
 # Build the Next.js app
+
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npm run build
 
