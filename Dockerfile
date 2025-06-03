@@ -1,4 +1,4 @@
-FROM node:22-alpine AS deps
+FROM node:18-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -13,7 +13,7 @@ COPY --from=deps /app/node_modules ./node_modules
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:18-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
