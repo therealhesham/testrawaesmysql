@@ -23,8 +23,8 @@ RUN npm run build
 FROM node:18-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NODE_OPTIONS --openssl-legacy-provider
+ENV NODE_ENV=production
+ENV NODE_OPTIONS=--openssl-legacy-provider
 # Copy only the output of the build
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
