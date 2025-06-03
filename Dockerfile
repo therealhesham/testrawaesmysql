@@ -14,9 +14,11 @@ WORKDIR /app
 
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
+ENV NODE_OPTIONS=--openssl-legacy-provider
 
 RUN npx prisma generate
 # Build the Next.js app
+
 RUN npm run build
 
 # Production image, copy all necessary files
