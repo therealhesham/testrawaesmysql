@@ -247,7 +247,8 @@ export default function Home() {
   const [excelData, setExcelData] = useState([]);
   const exportToExcel = async () => {
     try {
-      const response = await fetch(`/api/neworderlistprisma/`, {
+      const response = await fetch(`/api/neworderlistprisma/
+        `+ page, {
         method: "get",
       });
 
