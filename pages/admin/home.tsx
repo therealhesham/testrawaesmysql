@@ -258,7 +258,7 @@ export default function Home({ user }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
               {/* Box 1 */}
-              <Link href="/admin/neworderstest">
+              <Link href="/admin/neworders">
                 <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
                   <div className="text-xl font-semibold flex flex-col justify-center items-center">
                     <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
