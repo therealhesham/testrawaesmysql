@@ -1,5 +1,5 @@
-//@ts-ignore
 //@ts-nocheck
+//@ts-ignore
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 
 import { PrismaClient } from "@prisma/client";
@@ -18,6 +18,7 @@ export default async function handler(
   const find = await prisma.neworder.findMany({
     where: { isHidden: false },
     select: {
+    HomeMaid:{select:{Name:true}},
       age: true,
       ages: true,
       id: true,

@@ -153,12 +153,11 @@ export default function Home() {
   useEffect(() => {
     fetchData(page);
   }, [page]);
-  const confirm = async (
+  const confirm = async (HomemaidName,
     id,
     date,
     SponsorName,
     PassportNumber,
-    HomemaidName
   ) => {
     const submitter = await fetch("/api/confirmrequest", {
       method: "post",
@@ -390,7 +389,7 @@ export default function Home() {
                     <td className="px-4 py-2">{row.ClientName}</td>
                     <td className="px-4 py-2">{row.clientphonenumber}</td>
 
-                    <td className="px-4 py-2">{row.Name}</td>
+                    <td className="px-4 py-2">{row.HomeMaid.Name}</td>
 
                     <td
                       onClick={() =>
@@ -407,12 +406,11 @@ export default function Home() {
                       <button
                         style={{ backgroundColor: "#4CAF50" }}
                         onClick={() =>
-                          confirm(
+                          confirm(row.HomeMaid.Name,
                             row.id,
                             row.createdAt,
                             row.ClientName,
                             row.PassportNumber,
-                            row.Name
                           )
                         }
                         className="px-6 py-2  text-white font-semibold rounded-lg shadow-md  focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"

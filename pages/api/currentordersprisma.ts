@@ -62,7 +62,7 @@ export default async function handler(
     const homemaids = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
       include: {
-        HomeMaid: { select: { officeName: true } },
+        HomeMaid: { select: { officeName: true,Passportnumber:true ,Name:true} },
         arrivals: {
           select: { InternalmusanedContract: true, externalOfficeStatus: true }, // Specify the fields you want
         },
@@ -74,27 +74,7 @@ export default async function handler(
             in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"], // Exclude these statuses
           },
         },
-        // Apply the searchTerm to multiple fields (e.g., ClientName, Passportnumber)
-        AND: [
-          {
-            OR: [
-              {
-                ClientName: {
-                  contains: searchTerm
-                    ? (searchTerm as string).toLowerCase()
-                    : "",
-                },
-              },
-              {
-                Name: {
-                  contains: searchTerm
-                    ? (searchTerm as string).toLowerCase()
-                    : "",
-                },
-              },
-            ],
-          },
-        ],
+      
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size

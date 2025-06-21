@@ -595,7 +595,7 @@ export default function Table({ offices }) {
                     // onClick={() => handleClicker(item?.HomeMaid.id)}
                     className="p-3 text-center text-md cursor-pointer text-gray-700 font-semibold    whitespace-nowrap"
                   >
-                    <h1 className="text-purple-500"> {item.Name}</h1>
+                    <h1 className="text-purple-500"> {item.HomeMaid.Name}</h1>
                   </td>
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
                     {item.arrivals[0]?.InternalmusanedContract || null}
@@ -604,7 +604,7 @@ export default function Table({ offices }) {
                     {item.clientphonenumber}
                   </td>
                   <td className="p-3 text-center text-md text-gray-700 font-semibold    whitespace-nowrap">
-                    {item.Passportnumber}
+                    {item?.HomeMaid?.Passportnumber}
                   </td>
                   <td className="p-3 text-center text-md items-center text-gray-700 w-12 font-semibold    ">
                     {/* <h1 className="flex flex-wrap text-center items-center"> */}
