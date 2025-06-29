@@ -39,7 +39,7 @@ export default async function handler(
       }, // ordersBy: "desc",
 
       orderBy: { id: "desc" },
-      include: { HomeMaid: true },
+      include: { HomeMaid: {include:{office:true}} },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size
     });

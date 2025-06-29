@@ -322,28 +322,28 @@ export default function Table() {
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item.Name}
+                      {item.HomeMaid.Name}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 ${Style["almarai-light"]}`}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.PhoneNumber}
+                      {item?.HomeMaid.phone}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 `}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item?.Nationality}
+                      {item?.HomeMaid?.office?.Country?item?.HomeMaid.office?.Country:""}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 `}>
                     <h1
                       className={`text-center  mb-4 ${Style["almarai-bold"]}`}
                     >
-                      {item.Passportnumber}
+                      {item.HomeMaid.Passportnumber}
                     </h1>
                   </td>
                   <td className={`text-center  mb-4 `}>
