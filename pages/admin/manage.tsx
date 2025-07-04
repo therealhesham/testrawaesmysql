@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import prisma from "pages/api/globalprisma";
+import Layout from "example/containers/Layout";
 
 interface Homemaid {
   id: number;
@@ -53,7 +54,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
   // Handle drag start
   const handleDragStart = (e: React.DragEvent<HTMLLIElement>, id: number) => {
     draggedItemId = id;
-    e.currentTarget.classList.add("opacity-50", "scale-105");
+    e.currentTarget.classList.add("opacity-70", "scale-102");
   };
 
   // Handle drag over
@@ -83,7 +84,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
     await updateDatabase(updatedHomemaids);
 
     draggedItemId = null;
-    e.currentTarget.classList.remove("opacity-50", "scale-105");
+    e.currentTarget.classList.remove("opacity-70", "scale-102");
   };
 
   // Handle keyboard reordering
@@ -124,23 +125,24 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
   };
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">
-        Order Homemaids
+    <Layout>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl py-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+      <h1 className="text-3xl sm:text-4xl font-extrabold mb-8 text-gray-900 tracking-tight">
+        Manage Homemaids
       </h1>
       
       {/* Country selection dropdown */}
-      <div className="mb-6">
-        <label htmlFor="country-select" className="mr-2 text-gray-700">
-          Prioritize by Country:
+      <div className="mb-8 flex items-center gap-4">
+        <label htmlFor="country-select" className="text-lg font-medium text-gray-700">
+          Filter by Country:
         </label>
         <select
           id="country-select"
           value={selectedCountry}
           onChange={(e) => handleCountrySort(e.target.value)}
-          className="p-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500"
+          className="p-3 border border-gray-300 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200"
         >
-          <option value="">None</option>
+          <option value="">All Countries</option>
           {countries.map((country) => (
             <option key={country} value={country}>
               {country}
@@ -149,45 +151,47 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
         </select>
       </div>
 
-      <ul className="minHome-h-[200px] p-2 rounded-lg bg-gray-50">
+      <ul className="p-4 rounded-xl bg-white shadow-lg">
         {homemaids.map((homemaid, index) => (
           <li
             key={homemaid.id}
             draggable
             onDragStart={(e) => handleDragStart(e, homemaid.id)}
             onDragOver={handleDragOver}
-            onDragEnd={(e) => e.currentTarget.classList.remove("opacity-50", "scale-105")}
+            onDragEnd={(e) => e.currentTarget.classList.remove("opacity-70", "scale-102")}
             onDrop={(e) => handleDrop(e, homemaid.id)}
             onKeyDown={(e) => handleKeyDown(e, homemaid, index)}
             tabIndex={0}
-            className="p-4 mb-2 rounded-lg shadow-sm flex items-center bg-white hover:bg-gray-100 transition-all duration-200 cursor-move select-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-4 mb-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-300 cursor-move select-none shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             aria-label={`Drag or move ${homemaid.Name} to reorder`}
           >
-            {homemaid.Picture?.url ? (
-              <img
-                src={homemaid.Picture.url}
-                alt={homemaid.Name}
-                className="w-16 h-16 mr-4 object-cover rounded-md"
-                onError={(e) => (e.currentTarget.src = "/fallback-image.jpg")}
-              />
-            ) : (
-              <div className="w-16 h-16 mr-4 bg-gray-200 rounded-md flex items-center justify-center">
-                <span className="text-gray-500">No Image</span>
+            <div className="flex items-center gap-4">
+              {homemaid.Picture?.url ? (
+                <img
+                  src={homemaid.Picture.url}
+                  alt={homemaid.Name}
+                  className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                  onError={(e) => (e.currentTarget.src = "/fallback-image.jpg")}
+                />
+              ) : (
+                <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
+                  <span className="text-gray-500 text-sm font-medium">No Image</span>
+                </div>
+              )}
+              <div className="flex flex-col flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-lg text-gray-900">{homemaid.Name}</span>
+                  <span className="text-sm text-gray-500">Order: {homemaid.displayOrder}</span>
+                </div>
+                <span className="text-sm text-gray-600 mt-1">{homemaid?.office?.Country || 'No Country'}</span>
+                <span className="text-sm text-gray-500">ID: {homemaid?.id}</span>
               </div>
-            )}
-            <div className="flex flex-col">
-              <span className="font-semibold text-gray-800">{homemaid.Name}</span>
-              <span className="text-sm text-gray-600"> {homemaid?.office?.Country}</span>
-             <span className="text-sm text-gray-600"> {homemaid?.id}</span>
-
-              <span className="ml-2 text-sm text-gray-500">
-                (Order: {homemaid.displayOrder})
-              </span>
             </div>
           </li>
         ))}
       </ul>
     </div>
+    </Layout>
   );
 }
 
