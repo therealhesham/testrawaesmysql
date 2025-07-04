@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 import prisma from "pages/api/globalprisma";
 interface Homemaid {
   id: number;
@@ -62,10 +62,10 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
       if (!response.ok) {
         throw new Error("Failed to update order");
       }
-      toast.success("Order updated successfully!");
+      // toast.success("Order updated successfully!");
     } catch (error) {
       console.error("Error updating order:", error);
-      toast.error("Failed to update order. Please try again.");
+      // toast.error("Failed to update order. Please try again.");
       setHomemaids(initialHomemaids); // Revert on error
     }
 
@@ -104,10 +104,10 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
       if (!response.ok) {
         throw new Error("Failed to update order");
       }
-      toast.success("Order updated successfully!");
+      // toast.success("Order updated successfully!");
     } catch (error) {
       console.error("Error updating order:", error);
-      toast.error("Failed to update order. Please try again.");
+      // toast.error("Failed to update order. Please try again.");
       setHomemaids(initialHomemaids); // Revert on error
     }
   };
