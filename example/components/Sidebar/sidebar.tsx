@@ -8,7 +8,7 @@ import {
   HomeIcon,
   LogoutIcon,
 } from "../../../components/icons";
-import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import { FacebookMessengerIcon } from "next-share";
@@ -56,6 +56,11 @@ const menuItems: MenuItem[] = [
       { id: 21, label: "قائمة العاملات", link: "/admin/fulllist" },
       { id: 22, label: "اضافة عاملة", link: "/admin/newhomemaid" },
     ],
+  },  {
+    id: 45,
+    label: "content management",
+    icon: FaDailymotion,
+  link: "/admin/manage",
   },
   {
     id: 12,
