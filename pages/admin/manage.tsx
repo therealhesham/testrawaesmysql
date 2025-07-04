@@ -175,9 +175,11 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
                 <span className="text-gray-500">No Image</span>
               </div>
             )}
-            <div className="flex-1">
+            <div className="flex flex-col">
               <span className="font-semibold text-gray-800">{homemaid.Name}</span>
               <span className="text-sm text-gray-600"> {homemaid?.office?.Country}</span>
+             <span className="text-sm text-gray-600"> {homemaid?.id}</span>
+
               <span className="ml-2 text-sm text-gray-500">
                 (Order: {homemaid.displayOrder})
               </span>
