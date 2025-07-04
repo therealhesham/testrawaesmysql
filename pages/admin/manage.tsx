@@ -1,14 +1,13 @@
-
-
 import { useState } from "react";
 import { useRouter } from "next/router";
-// import { toast } from "react-toastify";
 import prisma from "pages/api/globalprisma";
+
 interface Homemaid {
   id: number;
   Name: string;
   Picture?: { url: string } | null;
   displayOrder: number;
+  office?: { Country: string } | null;
 }
 
 interface ManageHomemaidsProps {
@@ -17,8 +16,39 @@ interface ManageHomemaidsProps {
 
 export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsProps) {
   const [homemaids, setHomemaids] = useState<Homemaid[]>(initialHomemaids);
+  const [selectedCountry, setSelectedCountry] = useState<string>("");
   const router = useRouter();
   let draggedItemId: number | null = null;
+
+  // Get unique countries from homemaids
+  const countries = Array.from(
+    new Set(homemaids.map((h) => h.office?.Country).filter((c): c is string => !!c))
+  );
+
+  // Handle country selection
+  const handleCountrySort = async (country: string) => {
+    setSelectedCountry(country);
+    
+    const sortedHomemaids = [...homemaids].sort((a, b) => {
+      if (country === "") return a.displayOrder - b.displayOrder;
+      
+      const aCountry = a.office?.Country || "";
+      const bCountry = b.office?.Country || "";
+      
+      if (aCountry === country && bCountry !== country) return -1;
+      if (aCountry !== country && bCountry === country) return 1;
+      return a.displayOrder - b.displayOrder;
+    });
+
+    // Update displayOrder
+    const updatedHomemaids = sortedHomemaids.map((homemaid, index) => ({
+      ...homemaid,
+      displayOrder: index,
+    }));
+
+    setHomemaids(updatedHomemaids);
+    await updateDatabase(updatedHomemaids);
+  };
 
   // Handle drag start
   const handleDragStart = (e: React.DragEvent<HTMLLIElement>, id: number) => {
@@ -28,7 +58,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
 
   // Handle drag over
   const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    e.preventDefault(); // Allow drop
+    e.preventDefault();
   };
 
   // Handle drop
@@ -49,46 +79,29 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
       displayOrder: index,
     }));
 
-    setHomemaids(updatedHomemaids); // Optimistic update
-
-    // Update database
-    try {
-      const response = await fetch("/api/reorder", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ homemaids: updatedHomemaids }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update order");
-      }
-      // toast.success("Order updated successfully!");
-    } catch (error) {
-      console.error("Error updating order:", error);
-      // toast.error("Failed to update order. Please try again.");
-      setHomemaids(initialHomemaids); // Revert on error
-    }
+    setHomemaids(updatedHomemaids);
+    await updateDatabase(updatedHomemaids);
 
     draggedItemId = null;
-    e.currentTarget.classList.remove(...["opacity-50", "scale-105"]);
+    e.currentTarget.classList.remove("opacity-50", "scale-105");
   };
 
   // Handle keyboard reordering
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLLIElement>, homemaid: Homemaid, index: number) => {
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLLIElement>, homemaid: Homemaid, index: number) => {
     if (e.key === "ArrowUp" && index > 0) {
       e.preventDefault();
       const newHomemaids = [...homemaids];
       [newHomemaids[index], newHomemaids[index - 1]] = [newHomemaids[index - 1], newHomemaids[index]];
       const updatedHomemaids = newHomemaids.map((h, i) => ({ ...h, displayOrder: i }));
       setHomemaids(updatedHomemaids);
-      updateDatabase(updatedHomemaids);
+      await updateDatabase(updatedHomemaids);
     } else if (e.key === "ArrowDown" && index < homemaids.length - 1) {
       e.preventDefault();
       const newHomemaids = [...homemaids];
       [newHomemaids[index], newHomemaids[index + 1]] = [newHomemaids[index + 1], newHomemaids[index]];
       const updatedHomemaids = newHomemaids.map((h, i) => ({ ...h, displayOrder: i }));
       setHomemaids(updatedHomemaids);
-      updateDatabase(updatedHomemaids);
+      await updateDatabase(updatedHomemaids);
     }
   };
 
@@ -104,27 +117,46 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
       if (!response.ok) {
         throw new Error("Failed to update order");
       }
-      // toast.success("Order updated successfully!");
     } catch (error) {
       console.error("Error updating order:", error);
-      // toast.error("Failed to update order. Please try again.");
-      setHomemaids(initialHomemaids); // Revert on error
+      setHomemaids(initialHomemaids);
     }
   };
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-4xl">
       <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">
-        Manage Homemaids Order
+        Order Homemaids
       </h1>
-      <ul className="min-h-[200px] p-2 rounded-lg bg-gray-50">
+      
+      {/* Country selection dropdown */}
+      <div className="mb-6">
+        <label htmlFor="country-select" className="mr-2 text-gray-700">
+          Prioritize by Country:
+        </label>
+        <select
+          id="country-select"
+          value={selectedCountry}
+          onChange={(e) => handleCountrySort(e.target.value)}
+          className="p-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">None</option>
+          {countries.map((country) => (
+            <option key={country} value={country}>
+              {country}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <ul className="minHome-h-[200px] p-2 rounded-lg bg-gray-50">
         {homemaids.map((homemaid, index) => (
           <li
             key={homemaid.id}
             draggable
             onDragStart={(e) => handleDragStart(e, homemaid.id)}
             onDragOver={handleDragOver}
-            onDragEnd={(e) => e.currentTarget.classList.remove(...["opacity-50", "scale-105"])}
+            onDragEnd={(e) => e.currentTarget.classList.remove("opacity-50", "scale-105")}
             onDrop={(e) => handleDrop(e, homemaid.id)}
             onKeyDown={(e) => handleKeyDown(e, homemaid, index)}
             tabIndex={0}
@@ -145,6 +177,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
             )}
             <div className="flex-1">
               <span className="font-semibold text-gray-800">{homemaid.Name}</span>
+              <span className="text-sm text-gray-600"> {homemaid?.office?.Country}</span>
               <span className="ml-2 text-sm text-gray-500">
                 (Order: {homemaid.displayOrder})
               </span>
@@ -162,9 +195,11 @@ export async function getServerSideProps() {
     select: {
       id: true,
       Name: true,
+      office: true,
       Picture: true,
       displayOrder: true,
     },
   });
+
   return { props: { initialHomemaids: homemaids } };
 }
