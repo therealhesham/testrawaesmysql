@@ -33,7 +33,7 @@ export default async function handler(
 
   try {
     // Fetch data with the filters and pagination
-    const homemaids = await prisma.homemaid.findMany({
+    const homemaids = await prisma.homemaid.findMany({include:{office:{select:{Country:true}}},
       where: filters,
       orderBy: { id: "desc" },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
