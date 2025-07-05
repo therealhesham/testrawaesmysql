@@ -128,7 +128,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
     <Layout>
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl py-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <h1 className="text-3xl sm:text-4xl font-extrabold mb-8 text-gray-900 tracking-tight">
-        Manage Homemaids
+        ترتيب العاملات
       </h1>
       
       {/* Country selection dropdown */}
