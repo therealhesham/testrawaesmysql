@@ -275,7 +275,7 @@ export default function Table() {
                     {item.phone}
                   </td>
                   <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Nationalitycopy}
+                    {item?.office?.Country}
                   </td>
                   <td className="p-3 text-md text-gray-700 text-center">
                     {item.Passportnumber}
