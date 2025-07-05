@@ -58,7 +58,7 @@ const menuItems: MenuItem[] = [
     ],
   },  {
     id: 45,
-    label: "content management",
+    label: "ادارة المحتوى",
     icon: FaDailymotion,
   link: "/admin/manage",
   },
