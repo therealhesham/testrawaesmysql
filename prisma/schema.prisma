@@ -25,6 +25,7 @@ model homemaid {
   dateofbirth       String?    @db.VarChar(255)
   Nationality       Json?
   age               Int?
+  job               String?    @db.VarChar(255)
   flag              Json?
   phone             String?    @db.VarChar(17)
   bookingstatus     String?    @db.VarChar(255)
