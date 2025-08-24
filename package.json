@@ -64,7 +64,6 @@
     "react-spinners": "^0.13.8",
     "react-to-pdf": "^1.0.1",
     "react-to-print": "^2.15.1",
-    "react-toastify": "^10.0.5",
     "react-vertical-timeline-component": "^3.6.0",
     "react-world-flags": "^1.6.0",
     "socket.io": "^4.5.2",
