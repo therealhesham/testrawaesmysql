@@ -1,52 +1,45 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "./globalprisma";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { Name, age, Passportnumber, id, Nationality, page } = req.query;
-  console.log(req.query);
-  // Set the page size for pagination
+  const { Name, age, Passportnumber, id, Nationality, page, SponsorName, OrderId, date } = req.query;
+
   const pageSize = 10;
-  const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+  const pageNumber = parseInt(page as string, 10) || 1;
 
-  // Build the filter object dynamically based on query parameters
   const filters: any = {};
+  if (id) filters.HomemaidId = Number(id);
+  if (Name) filters.Name = { contains: String(Name).toLowerCase() };
+  if (age) filters.age = Number(age);
+  if (Passportnumber) filters.Passportnumber = { contains: String(Passportnumber).toLowerCase() };
+  if (Nationality) filters.Nationalitycopy = { contains: String(Nationality).toLowerCase() };
+  if (SponsorName) filters.ClientName = { contains: String(SponsorName).toLowerCase() };
+  if (OrderId) filters.id = Number(OrderId);
+  if (date) filters.dateofbirth = { equals: String(date) }; // Use the date string directly
 
-  if (id)
-    filters.id = {
-      equals: Number(id),
-    };
-  // {id:}}
-  if (Name) filters.Name = { contains: (Name as string).toLowerCase() };
-  if (age) filters.age = { equals: parseInt(age as string, 10) };
-  if (Passportnumber)
-    filters.Passportnumber = {
-      contains: (Passportnumber as string).toLowerCase(),
-    };
-  if (Nationality)
-    filters.Nationalitycopy = {
-      contains: (Nationality as string).toLowerCase(),
-    };
+  console.log("Filters:", filters);
 
   try {
-    // Fetch data with the filters and pagination
-    const homemaids = await prisma.homemaid.findMany({
+    const totalRecords = await prisma.homemaid.count({
       where: { NewOrder: { every: { HomemaidId: null } }, ...filters },
+    });
+    const totalPages = Math.ceil(totalRecords / pageSize);
 
-      skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-      take: pageSize, // Limit the results to the page size
+    const data = await prisma.homemaid.findMany({
+      where: { NewOrder: { every: { HomemaidId: null } }, ...filters },
+      include: { NewOrder: true, office: true },
+      skip: (pageNumber - 1) * pageSize,
+      take: pageSize,
     });
 
-    // Send the filtered and paginated data as the response
-    res.status(200).json(homemaids);
+    res.status(200).json({ data, totalPages });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
   } finally {
-    // Disconnect Prisma Client regardless of success or failure
     await prisma.$disconnect();
   }
 }

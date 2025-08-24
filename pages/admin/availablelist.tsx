@@ -1,338 +1,362 @@
-import { BookFilled } from "@ant-design/icons";
-import Layout from "example/containers/Layout";
-import { useRouter } from "next/router";
-import { useEffect, useState, useCallback, useRef } from "react";
-import jwt from "jsonwebtoken";
-import { Button } from "@mui/material";
+import Head from 'next/head';
+import { useState, useEffect } from 'react';
+import { CalendarIcon, ChevronDownIcon } from '@heroicons/react/outline';
+import { FilePdfFilled, FileTextOutlined } from '@ant-design/icons';
+import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 
-export default function Table() {
+interface Homemaid {
+  id: number;
+  Name: string;
+  phone: string | null;
+  Nationalitycopy: string;
+  maritalstatus: string;
+  Passportnumber: string;
+  PassportStart: string | null;
+  PassportEnd: string | null;
+  Experience: string;
+  ages: string;
+  birthdate?: string | null;
+}
+
+interface ApiResponse {
+  data: Homemaid[];
+  totalPages: number;
+}
+
+export default function Home() {
+  const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState({
-    Name: "",
-    age: "",
-    Passportnumber: "",
-    id: "",
+    Name: '',
+    Nationality: '',
+    date: '',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    Name: true,
+    phone: true,
+    Nationalitycopy: true,
+    maritalstatus: true,
+    Passportnumber: true,
+    PassportStart: true,
+    PassportEnd: true,
+    Experience: true,
+    availability: true,
+  });
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
 
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
-  }
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false); // Loading state
-  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
-
-  const pageRef = useRef(1); // Use a ref to keep track of the current page number
-  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
-
-  // Fetch data with pagination
-  const fetchData = async () => {
-    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
-    isFetchingRef.current = true;
+  const fetchHomemaids = async (page: number, filters: { Name: string; Nationality: string; date: string }) => {
     setLoading(true);
-
+    setError(null);
     try {
-      // Build the query string for filters
       const queryParams = new URLSearchParams({
-        Name: filters.Name,
-        age: filters.age,
-        id: filters.id,
-        Passportnumber: filters.Passportnumber,
-        // Nationalitycopy: filters.Nationality,
-        page: String(pageRef.current),
+        page: page.toString(),
+        ...(filters.Name && { Name: filters.Name }),
+        ...(filters.Nationality && { Nationality: filters.Nationality }),
+        ...(filters.date && { date: filters.date }),
       });
-
       const response = await fetch(`/api/availablelist?${queryParams}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        method: "get",
+        cache: 'no-store',
       });
-
-      const res = await response.json();
-      if (res && res.length > 0) {
-        setData((prevData) => [...prevData, ...res]); // Append new data
-        pageRef.current += 1; // Increment page using ref
-      } else {
-        setHasMore(false); // No more data to load
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
       }
+      const data: ApiResponse = await response.json();
+      setHomemaids(data.data || []);
+      setTotalPages(data.totalPages || 1);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching homemaids:', error);
+      setError('خطأ في جلب البيانات');
+      setHomemaids([]);
     } finally {
       setLoading(false);
-      isFetchingRef.current = false;
     }
   };
 
-  const makeRequest = async (url: string, body: object) => {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    return response.status === 200;
-  };
-
-  const restore = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/restoreorders", {
-      id,
-      homeMaidId,
-    });
-    if (success) router.push("/admin/neworders");
-  };
-
-  // Use a callback to call fetchData when the user reaches the bottom
-  const loadMoreRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (loading || !hasMore) return;
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            fetchData(); // Fetch next page of data
-          }
-        },
-        { threshold: 1.0 }
-      );
-
-      if (node) observer.observe(node);
-
-      return () => observer.disconnect();
-    },
-    [loading, hasMore]
-  );
-
-  // useEffect to fetch the first page of data on mount
   useEffect(() => {
-    fetchData(); // Fetch the first page of data
-  }, []); // Only run once on mount
+    fetchHomemaids(currentPage, filters);
+  }, [currentPage, filters]);
 
-  // useEffect to fetch data when filters change
-  // useEffect(() => {
-  //   // Reset page and data on filter change
-  //   pageRef.current = 1;
-  //   setData([]);
-  //   setHasMore(true);
-  //   fetchData();
-  // }, [filters]); // Only re-run when filters change
-
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    column: string
-  ) => {
-    const value = e.target.value;
-    setFilters((prev) => ({
-      ...prev,
-      [column]: value,
-    }));
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
   };
 
-  const router = useRouter();
+  const handleResetFilters = () => {
+    setFilters({ Name: '', Nationality: '', date: '' });
+    setCurrentPage(1);
+  };
+
+  const handleColumnToggle = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns((prev) => ({ ...prev, [column]: !prev[column] }));
+  };
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const getPaginationRange = () => {
+    const maxPagesToShow = 5;
+    const halfRange = Math.floor(maxPagesToShow / 2);
+    let start = Math.max(1, currentPage - halfRange);
+    let end = Math.min(totalPages, currentPage + halfRange);
+
+    if (end - start < maxPagesToShow - 1) {
+      if (start === 1) {
+        end = Math.min(totalPages, start + maxPagesToShow - 1);
+      } else if (end === totalPages) {
+        start = Math.max(1, end - maxPagesToShow + 1);
+      }
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
+
+  const columnLabels = {
+    id: '#',
+    Name: 'الاسم',
+    phone: 'رقم الجوال',
+    Nationalitycopy: 'الجنسية',
+    maritalstatus: 'الحالة الاجتماعية',
+    Passportnumber: 'رقم الجواز',
+    PassportStart: 'بداية الجواز',
+    PassportEnd: 'نهاية الجواز',
+    Experience: 'الخبرة',
+    availability: 'مدة توفرها',
+  };
 
   return (
     <Layout>
-      <div className="container mx-auto p-6">
-        <h1
-          className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
-        >
-          عاملات متاحة للحجز
-        </h1>
-
-        {/* Filter Section */}
-        <div className="flex justify-between mb-4">
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Name}
-              onChange={(e) => handleFilterChange(e, "Name")}
-              placeholder="بحث باسم العاملة"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Passportnumber}
-              onChange={(e) => handleFilterChange(e, "Passportnumber")}
-              placeholder="بحث برقم الجواز"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.id}
-              onChange={(e) => handleFilterChange(e, "id")}
-              placeholder="بحث برقم العاملة"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setFilters({
-                  age: "",
-                  id: "",
-                  Passportnumber: "",
-                  Name: "",
-                });
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
-            </button>
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>بحث</h1>
-            </button>
-          </div>
-        </div>
-
-        {/* Table */}
-        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
-          <thead>
-            <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-center text-sm font-medium">
-                رقم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                اسم العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                جوال العاملة
-              </th>
-              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-center text-sm font-medium">
-                رقم جواز السفر
-              </th>
-
-              <th className="p-3 text-center text-sm font-medium">
-                بداية الجواز
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                نهاية الجواز
-              </th>
-
-              <th className="p-3 text-center text-sm font-medium">
-                الحالة الاجتماعية
-              </th>
-
-              <th className="p-3 text-center text-sm font-medium">استعراض</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="p-3 text-center text-sm text-gray-500"
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>قائمة العاملات المتاحات</title>
+      </Head>
+      <main className={`p-8 md:p-10 bg-gray-100 min-h-screen font-tajawal text-right text-gray-800 ${Style["tajawal-regular"]}`}>
+        <h1 className="text-3xl font-normal text-black mb-6">قائمة العاملات المتاحات</h1>
+        <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6">
+          <div className="flex flex-col flex-wrap gap-5 mb-6">
+            <div className="flex flex-row justify-end gap-4 w-full md:w-auto" dir="ltr">
+              <button
+                className="bg-teal-800 text-white rounded-md px-3 py-2 text-sm"
+                onClick={handleResetFilters}
+              >
+                إعادة ضبط
+              </button>
+              <div className="relative">
+                <button
+                  className="flex items-center bg-gray-100 border h-16 border-gray-300 rounded-md px-2 py-2 min-w-[162px] justify-between text-gray-500 text-sm"
+                  onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
                 >
-                  No results found
-                </td>
-              </tr>
-            ) : (
-              data.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 text-center text-md text-gray-700">
-                    {item.id}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-600">
-                    {item.Name}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item.phone}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item.Nationalitycopy}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item.Passportnumber}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item?.PassportStart ? item?.PassportStart : null}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    {item?.PassportEnd ? item?.PassportEnd : null}
-                  </td>
-
-                  <td className="p-3 text-md text-center   text-gray-700">
-                    {item.maritalstatus}
-                  </td>
-                  <td className="p-3 text-md text-center text-gray-700">
-                    <button
-                      className={
-                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-                      }
-                      onClick={() => {
-                        const url = "/admin/cvdetails/" + item.id;
-                        window.open(url, "_blank"); // Open in new window
-                      }}
-                    >
-                      <h1 className={Style["almarai-bold"]}>عرض</h1>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* Infinite scroll trigger */}
-        {hasMore && (
-          <div
-            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
-            className="flex justify-center mt-6"
-          >
-            {loading && (
-              <div className="flex justify-center items-center">
-                <svg
-                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  <span>إخفاء/إظهار الأعمدة</span>
+                  <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                </button>
+                {isColumnDropdownOpen && (
+                  <div className="absolute z-10 bg-white border border-gray-300 rounded-md shadow-lg mt-1 w-[200px] p-4">
+                    {Object.keys(visibleColumns).map((column) => (
+                      <label key={column} className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[column as keyof typeof visibleColumns]}
+                          onChange={() => handleColumnToggle(column as keyof typeof visibleColumns)}
+                          className="w-4 h-4"
+                        />
+                        {columnLabels[column as keyof typeof columnLabels]}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center bg-gray-100 border border-gray-300 rounded-md px-2 py-2 min-w-[162px] justify-between text-gray-500 text-sm">
+                <input
+                  type="date"
+                  value={filters.date}
+                  onChange={(e) => handleFilterChange('date', e.target.value)}
+                  className="bg-transparent border-none text-gray-500 w-full text-right"
+                />
+                <CalendarIcon className="w-4 h-4 text-gray-500" />
+              </div>
+              <div className="flex items-center bg-gray-100 border border-gray-300 rounded-md px-2 py-2 min-w-[162px] justify-between text-gray-500 text-sm">
+                <select
+                  value={filters.Nationality}
+                  onChange={(e) => handleFilterChange('Nationality', e.target.value)}
+                  className="bg-transparent border-none text-gray-500 w-full text-right"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
-                  />
+                  <option value="">كل الجنسيات</option>
+                  <option value="Kenya - كينيا">كينيا</option>
+                  <option value="Uganda - أوغندا">أوغندا</option>
+                </select>
+                <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+              </div>
+              <div className="flex items-center bg-gray-100 border border-gray-300 rounded-md px-2 py-2 w-full md:w-[234px]">
+                <input
+                  type="text"
+                  placeholder="بحث"
+                  value={filters.Name}
+                  onChange={(e) => handleFilterChange('Name', e.target.value)}
+                  className="bg-transparent border-none text-gray-500 w-full text-right"
+                />
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                Loading...
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="flex gap-1 bg-teal-800 text-white rounded px-2 py-1">
+                <FileTextOutlined className="w-4 h-4 text-white" />
+                <span>Excel</span>
+              </button>
+              <button className="flex items-center gap-1 bg-teal-800 text-white rounded px-2 py-1">
+                <FilePdfFilled className="w-4 h-4 text-white" />
+                <span>PDF</span>
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            {loading && <div className="text-center text-gray-500 py-4">جاري التحميل...</div>}
+            {error && <div className="text-center text-red-500 py-4">{error}</div>}
+            {!loading && !error && homemaids.length === 0 && (
+              <div className="text-center text-gray-500 py-4">لا توجد بيانات متاحة</div>
+            )}
+            {!loading && !error && homemaids.length > 0 && (
+              <div
+                className="grid text-right"
+                style={{
+                  gridTemplateColumns: `repeat(${
+                    Object.values(visibleColumns).filter(Boolean).length
+                  }, minmax(100px, 1fr))`,
+                  minWidth: `${
+                    Object.values(visibleColumns).filter(Boolean).length * 100
+                  }px`,
+                }}
+              >
+                {visibleColumns.id && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">#</div>
+                )}
+                {visibleColumns.Name && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">الاسم</div>
+                )}
+                {visibleColumns.phone && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">رقم الجوال</div>
+                )}
+                {visibleColumns.Nationalitycopy && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">الجنسية</div>
+                )}
+                {visibleColumns.maritalstatus && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">الحالة الاجتماعية</div>
+                )}
+                {visibleColumns.Passportnumber && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">رقم الجواز</div>
+                )}
+                {visibleColumns.PassportStart && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">بداية الجواز</div>
+                )}
+                {visibleColumns.PassportEnd && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">نهاية الجواز</div>
+                )}
+                {visibleColumns.Experience && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">الخبرة</div>
+                )}
+                {visibleColumns.availability && (
+                  <div className="bg-teal-800 text-white text-sm font-normal p-4 text-center">مدة توفرها</div>
+                )}
+                {homemaids.map((homemaid, index) => (
+                  <div key={homemaid.id} className={`contents ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                    {visibleColumns.id && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">{homemaid.id}</div>
+                    )}
+                    {visibleColumns.Name && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">{homemaid.Name}</div>
+                    )}
+                    {visibleColumns.phone && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">{homemaid.phone || 'غير متوفر'}</div>
+                    )}
+                    {visibleColumns.Nationalitycopy && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">
+                        {homemaid.Nationalitycopy ? homemaid.Nationalitycopy.split(' - ')[1] || 'غير متوفر' : 'غير متوفر'}
+                      </div>
+                    )}
+                    {visibleColumns.maritalstatus && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">
+                        {homemaid.maritalstatus ? homemaid.maritalstatus.split(' - ')[1] || 'غير متوفر' : 'غير متوفر'}
+                      </div>
+                    )}
+                    {visibleColumns.Passportnumber && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">{homemaid.Passportnumber}</div>
+                    )}
+                    {visibleColumns.PassportStart && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">{homemaid.PassportStart || 'غير متوفر'}</div>
+                    )}
+                    {visibleColumns.PassportEnd && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">{homemaid.PassportEnd || 'غير متوفر'}</div>
+                    )}
+                    {visibleColumns.Experience && (
+                      <div className="p-4 border-b border-gray-300 text-sm  text-center">
+                        {homemaid.Experience ? homemaid.Experience.split(' | ')[1] || 'غير متوفر' : 'غير متوفر'}
+                      </div>
+                    )}
+                    {visibleColumns.availability && (
+                      <div className="p-4 border-b border-gray-300 text-xs  text-center">متاحة الآن</div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        )}
-      </div>
+          <div className="flex flex-col md:flex-row justify-between items-center pt-6 gap-4">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1 || loading}
+                className="border border-gray-300 bg-gray-100 text-gray-800 text-xs px-3 py-1 rounded min-w-[20px] text-center disabled:opacity-50"
+              >
+                الأول
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || loading}
+                className="border border-gray-300 bg-gray-100 text-gray-800 text-xs px-3 py-1 rounded min-w-[20px] text-center disabled:opacity-50"
+              >
+                السابق
+              </button>
+              {getPaginationRange().map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  disabled={loading}
+                  className={`border text-xs px-2 py-1 rounded min-w-[20px] text-center ${
+                    currentPage === page ? 'border-teal-800 bg-teal-800 text-gray-100' : 'border-gray-300 bg-gray-100 text-gray-800'
+                  } disabled:opacity-50`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages || loading}
+                className="border border-gray-300 bg-gray-100 text-gray-800 text-xs px-3 py-1 rounded min-w-[20px] text-center disabled:opacity-50"
+              >
+                التالي
+              </button>
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages || loading}
+                className="border border-gray-300 bg-gray-100 text-gray-800 text-xs px-3 py-1 rounded min-w-[20px] text-center disabled:opacity-50"
+              >
+                الأخير
+              </button>
+            </div>
+            <div className="text-base text-black">
+              عرض {(currentPage - 1) * 10 + 1}- {Math.min(currentPage * 10, homemaids.length + (currentPage - 1) * 10)} من {totalPages * 10} نتيجة
+            </div>
+          </div>
+        </div>
+      </main>
     </Layout>
   );
 }

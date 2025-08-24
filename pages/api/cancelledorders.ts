@@ -6,72 +6,96 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    if (req.method == "GET") {
+    if (req.method === "GET") {
       const {
         Passportnumber,
-        searchTerm, // This will be the single input from the frontend
+        searchTerm,
         age,
         clientphonenumber,
         Nationalitycopy,
         page,
         HomemaidId,
+        ReasonOfRejection,
       } = req.query;
 
       console.log(req.query);
-      // Set the page size for pagination
       const pageSize = 10;
-      const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+      const pageNumber = parseInt(page as string, 10) || 1;
 
       // Build the filter object dynamically based on query parameters
       const filters: any = {};
       if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
-      // Apply a filter for `clientphonenumber` if present
-      if (clientphonenumber)
-        filters.clientphonenumber = { contains: clientphonenumber };
-
-      // Apply a filter for `HomemaidId` if present
+      if (clientphonenumber) filters.clientphonenumber = { contains: clientphonenumber };
       if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
-
-      // Apply a filter for `age` if present
       if (age) filters.age = { equals: parseInt(age as string, 10) };
+      if (ReasonOfRejection) filters.ReasonOfRejection = { contains: ReasonOfRejection };
 
-      // Apply a filter for `Nationalitycopy` if present
+      // Filter by offices.Country when Nationalitycopy is provided
       if (Nationalitycopy) {
-        filters.Nationalitycopy = {
-          contains: (Nationalitycopy as string).toLowerCase(),
+        filters.HomeMaid = {
+          office: {
+            Country: {
+              contains: (Nationalitycopy as string).toLowerCase(),
+              mode: "insensitive", // Case-insensitive search
+            },
+          },
         };
       }
-      const homemaids = await prisma.neworder.findMany({
-        orderBy: { id: "desc" },
 
+      // Fetch total count of matching records
+      const totalCount = await prisma.neworder.count({
         where: {
           ...filters,
           bookingstatus: "عقد ملغي",
         },
-        skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-        take: pageSize, // Limit the results to the page size
       });
 
-      // Send the filtered and paginated data as the response
-      res.status(200).json(homemaids);
-    } else if (req.method == "POST") {
+      // Fetch paginated data with related fields
+      const homemaids = await prisma.neworder.findMany({
+        orderBy: { id: "desc" },
+        where: {
+          ...filters,
+          bookingstatus: "عقد ملغي",
+        },
+        include: {
+          HomeMaid: {
+            include: {
+              office: true, // Include offices to get Country
+            },
+          },
+        },
+        skip: (pageNumber - 1) * pageSize,
+        take: pageSize,
+      });
+
+      // Map the results to include Nationalitycopy from offices.Country
+      const formattedData = homemaids.map((order) => ({
+        ...order,
+        Nationalitycopy: order.HomeMaid?.office?.Country || order.Nationalitycopy || "غير متوفر",
+      }));
+
+      // Send the filtered and paginated data along with total count
+      res.status(200).json({
+        data: formattedData,
+        totalCount,
+        pageSize,
+        currentPage: pageNumber,
+      });
+    } else if (req.method === "POST") {
       const updatedOrder = await prisma.neworder.update({
         where: { id: Number(req.body.id) },
         data: {
-          bookingstatus: "عقد ملغي", // Update the booking status for the order
+          bookingstatus: "عقد ملغي",
           ReasonOfRejection: req.body.ReasonOfRejection,
           HomeMaid: { disconnect: true },
         },
       });
       res.status(200).json(updatedOrder);
     }
-
-    // Fetch data with the filters and pagination
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
   } finally {
-    // Disconnect Prisma Client regardless of success or failure
     await prisma.$disconnect();
   }
 }

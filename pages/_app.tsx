@@ -37,14 +37,15 @@ function MyApp({ Component, pageProps }: AppProps) {
   const queryClient = new QueryClient();
   useEffect(() => {}, []);
   // console.log(pageProps);
+  
+  const isLoginPage = typeof window !== "undefined" && window.location.pathname === "/login";
+
   return (
     <SidebarProvider>
       <SessionProvider session={pageProps.session}>
-        {/* <Windmill usePreferences={true}> */}
-        {/* <div className="bg-gray-50"> */}
+
         <Component {...pageProps} />
         {/* </Windmill> */}
-        {/* </div> */}
       </SessionProvider>
     </SidebarProvider>
   );

@@ -1,32 +1,41 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { Name, age, Passportnumber, id, Nationality, page } = req.query;
-  console.log(req.query);
+  const { Name, age, Passportnumber, id, Nationality, page, SponsorName, OrderId } = req.query;
+  console.log("Query Parameters:", req.query);
 
-  // Set the page size for pagination
   const pageSize = 10;
-  const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+  const pageNumber = parseInt(page as string, 10) || 1;
 
-  // Build the filter object dynamically based on query parameters
   const filters: any = {};
+  if (id) filters.HomemaidId = Number(id);
+  if (Name) filters.Name = { contains: String(Name).toLowerCase(), mode: "insensitive" };
+  if (age) filters.age = Number(age);
+  if (Passportnumber) filters.Passportnumber = { contains: String(Passportnumber).toLowerCase(), mode: "insensitive" };
+  if (Nationality) filters.Nationalitycopy = { contains: String(Nationality).toLowerCase(), mode: "insensitive" };
+  if (SponsorName) filters.ClientName = { contains: String(SponsorName).toLowerCase(), mode: "insensitive" };
+  if (OrderId) filters.id = Number(OrderId);
 
-  if (id) filters.HomemaidId = { equals: Number(id) };
-  if (Name) filters.Name = { contains: (Name as string).toLowerCase() };
-  if (age) filters.age = { equals: parseInt(age as string, 10) };
-  if (Passportnumber)
-    filters.Passportnumber = {
-      contains: (Passportnumber as string).toLowerCase(),
-    };
-  if (Nationality)
-    filters.Nationalitycopy = {
-      contains: (Nationality as string).toLowerCase(),
-    };
+  console.log("Filters:", filters);
 
   try {
+    const totalRecords = await prisma.neworder.count({
+      where: {
+        ...filters,
+        HomemaidId: { gt: 0 },
+        NOT: {
+          bookingstatus: {
+            in: ["عقد ملغي", "طلب مرفوض"],
+          },
+        },
+      },
+    });
+    const totalPages = Math.ceil(totalRecords / pageSize);
+
     const booked = await prisma.neworder.findMany({
       where: {
         ...filters,
@@ -36,19 +45,18 @@ export default async function handler(
             in: ["عقد ملغي", "طلب مرفوض"],
           },
         },
-      }, // ordersBy: "desc",
-
+      },
       orderBy: { id: "desc" },
-      include: { HomeMaid: {include:{office:true}} },
-      skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-      take: pageSize, // Limit the results to the page size
+      include: { HomeMaid: { include: { office: true } } },
+      skip: (pageNumber - 1) * pageSize,
+      take: pageSize,
     });
-    res.status(200).json(booked);
+
+    res.status(200).json({ data: booked, totalPages });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
   } finally {
-    // Disconnect Prisma Client regardless of success or failure
     await prisma.$disconnect();
   }
 }

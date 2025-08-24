@@ -1,905 +1,968 @@
-//@ts-nocheck
-//@ts-ignore
-
-import { useState, useEffect, useRef, useCallback } from "react";
-import axios from "axios";
-import Layout from "example/containers/Layout";
-import { useRouter } from "next/router";
-import jwt from "jsonwebtoken";
-import * as XLSX from "xlsx";
-import debounce from "lodash.debounce";
-import { Formik, Field, Form, ErrorMessage, FormikValues } from "formik";
-import * as Yup from "yup"; // Import Yup for validation
-import FormWithTimeline from "./addneworderbyadmin";
-import TimeLinedForm from "example/components/stepsform";
-import Modal from "components/modal";
-import RejectBooking from "./reject-booking";
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/outline';
+import axios from 'axios';
 import Style from "styles/Home.module.css";
+import Layout from 'example/containers/Layout';
+import { ArrowDown, Plus, Search } from 'lucide-react';
+import Head from 'next/head';
+import { useEffect, useState } from 'react';
+import Select from 'react-select';
+import { MoreHorizontal } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
-import { FaFileExcel } from "react-icons/fa";
-export default function Home() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMessage, setModalMessage] = useState("");
-  const [modalType, setModalType] = useState<"success" | "error">("success");
-  const [date, setDate] = useState("");
-  const showSuccessModal = () => {
-    setModalMessage("تم تسجيل البيانات بنجاح");
-    setModalType("success");
-    setIsModalOpen(true);
-  };
-  // console.log(Yup.reach("name"));
-  const showErrorModal = () => {
-    setModalMessage("خطا في تسجيل البيانات.");
-    setModalType("error");
-    setIsModalOpen(true);
-  };
-
-  const closeSuccessfulModal = () => {
-    setIsModalOpen(false);
-  };
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const loaderRef = useRef(null);
-  const [phone, setPhone] = useState("");
-  // const [address, setAddress] = useState("");
-  // const [city, setCity] = useState("");
-
-  const [pagesCount, setPagesCount] = useState(1);
-  const [searchParam, setSearchParam] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [step, setStep] = useState(1);
-  const [query, setQuery] = useState("");
-  const [name, setName] = useState("");
-  // const [email, setEmail] = useState("");
-  const [phonenumber, setPhoneNumber] = useState("");
-  const [filteredSuggestions, setFilteredSuggestions] = useState({
-    Name: "",
-    Passportnumber: "",
-    Picture: [{ url: "" }],
+export default function Dashboard() {
+  const [activePopup, setActivePopup] = useState(null);
+  const [view, setView] = useState('requests');
+  const [detailsRow, setDetailsRow] = useState(null);
+  const [newOrders, setNewOrders] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [homemaids, setHomemaids] = useState([]);
+  const [offices, setOffices] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize] = useState(10);
+  const [formData, setFormData] = useState({
+    clientID: '',
+    HomemaidId: '',
+    ClientName: '',
+    PhoneNumber: '',
+    Nationalitycopy: '',
+    Religion: '',
+    PaymentMethod: 'كاش',
+    Total: 0,
+    Installments: 0,
+    Paid: 0,
+    Remaining: 0,
+    age: 0,
+    ExperienceYears: 0,
+    notes: '',
+    searchTerm: '',
   });
-  const [picture, setPicture] = useState({});
-  const handlePrevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  const [ageFilter, setAgeFilter] = useState("");
+  const [nationalityFilter, setNationalityFilter] = useState("");
+
+  const openPopup = (popupId) => setActivePopup(popupId);
+  const closePopup = () => setActivePopup(null);
+
+  const confirmAccept = () => {
+    alert('تم قبول الطلب');
+    closePopup();
   };
 
-  const fetchdata = async (id) => {
-    const fetchData = await fetch("/api/findcvprisma/" + id, {
-      cache: "default",
-    });
-    const parser = await fetchData.json();
-    console.log(parser);
-    setFilteredSuggestions(parser);
+  const confirmReject = () => {
+    alert('تم رفض الطلب');
+    closePopup();
   };
-  const handleChange = (event) => {
-    const value = event.target.value;
-    setQuery(value);
-    if (value.length > 0) {
-      fetchdata(event.target.value);
-    } else {
-      setFilteredSuggestions({});
+
+  const toggleDetails = (index) => {
+    setDetailsRow(detailsRow === index ? null : index);
+  };
+
+  const calculateAge = (dateofbirth) => {
+    if (!dateofbirth) return "غير متوفر";
+    const birthDate = new Date(dateofbirth);
+    const currentDate = new Date();
+    let age = currentDate.getFullYear() - birthDate.getFullYear();
+    const monthDiff = currentDate.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && currentDate.getDate() < birthDate.getDate())) {
+      age--;
     }
-  };
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [ClientPhone, setClientPhone] = useState("");
-
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-
-  const validationSchemaStep1 = Yup.object({
-    name: Yup.string().required("Name is required"),
-    email: Yup.string()
-      .email("Invalid email address")
-      .required("Email is required"),
-    phone: Yup.string().required("Phone number is required"),
-  });
-
-  const validationSchemaStep2 = Yup.object({
-    city: Yup.string().required("City is required"),
-  });
-
-  const validationSchemaStep3 = Yup.object({
-    query: Yup.string(),
-  });
-
-  // Debounced search function
-  const debouncedSearch = debounce(async (query) => {
-    try {
-      if (query.length < 1) return reset();
-      const response = await axios.get(`/api/searchneworder/` + query);
-      setPagesCount(1);
-      setData(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error in search:", error);
-    }
-  }, 500);
-
-  const search = (query) => {
-    setSearchParam(query);
-    debouncedSearch(query);
+    return age;
   };
 
-  const fetchData = async (page) => {
-    // alert(page);
+
+const [exportedData,setExportedData]=useState([])
+
+  const newExportOrdersList = async (page = 1) => {
+    setIsLoading(true);
     try {
-      // if (1 > data.length > 0) return;
-      setLoading(true);
-      const response = await fetch(`/api/neworderlistprisma/` + page, {
-        method: "get",
+      const fetchNewOrders = await axios.get("/api/Export/neworders", {
+       
       });
-
-      const res = await response.json();
-      // setPagesCount(1);
-      // console.log(res);
-      // setData();
-      console.log(res.data);
-      // if(res.data.length <1 ) return setLoading
-      setData((prevData) => [...prevData, ...res.data]); // Append new data
-      if (res.data.length < 10) return setLoading(false);
+      console.log(fetchNewOrders.data.homemaids)
+      setExportedData(fetchNewOrders.data.homemaids);
+    
     } catch (error) {
-      console.error("Error in search:", error);
+      console.error("Error fetching new orders:", error.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const reset = () => {
-    setData([]);
-    setLoading(true);
-    setPage(1);
-  };
 
-  useEffect(() => {
-    fetchData(page);
-  }, [page]);
-  const confirm = async (HomemaidName,
-    id,
-    date,
-    SponsorName,
-    PassportNumber,
-  ) => {
-    const submitter = await fetch("/api/confirmrequest", {
-      method: "post",
-      headers: {
-        Accept: "application/json",
-
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id,
-        SponsorName,
-        PassportNumber,
-        HomemaidName,
-        // createdAt: date,
-      }),
-    });
-
-    // alert(submitter.status);
-    if (submitter.status == 200) {
-      // alert(submitter.status);
-      setDate(Date.now());
-      // alert("confirmed");
-
-      setIsModalRejectionOpen(false); // Close the modal after rejection
-      router.push("/admin/neworder/" + id);
+  const newOrdersList = async (page = 1) => {
+    setIsLoading(true);
+    try {
+      const fetchNewOrders = await axios.get("/api/newordersprismatest", {
+        params: {
+          searchTerm: formData.searchTerm || "",
+          age: ageFilter,
+          Country: nationalityFilter,
+          page,
+        },
+      });
+      setNewOrders(fetchNewOrders.data.homemaids);
+      setTotalCount(fetchNewOrders.data.totalCount);
+      setCurrentPage(fetchNewOrders.data.page);
+    } catch (error) {
+      console.error("Error fetching new orders:", error.response?.data || error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // useCallback
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && loading) {
-          setPage((prevPage) => prevPage + 1);
-        }
-      },
-      { threshold: 1.0 }
-    );
-
-    const currentLoaderRef = loaderRef.current;
-    if (currentLoaderRef) {
-      observer.observe(currentLoaderRef);
+  const fetchClients = async () => {
+    try {
+      const response = await axios.get("/api/clients");
+      setClients(response.data.data);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
     }
+  };
 
-    // Cleanup observer when component unmounts or loaderRef changes
-    return () => {
-      if (currentLoaderRef) {
-        observer.unobserve(currentLoaderRef);
+  const fetchHomemaids = async () => {
+    try {
+      const response = await axios.get("/api/homemaidprisma");
+      setHomemaids(response.data.data);
+    } catch (error) {
+      console.error('Error fetching homemaids:', error);
+    }
+  };
+
+  const fetchOffices = async () => {
+    try {
+      const response = await axios.get("/api/offices");
+      setOffices(response.data.countriesfinder);
+    } catch (error) {
+      console.error('Error fetching offices:', error);
+    }
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updatedFormData = { ...prev, [name]: value };
+      if (name === 'Total' || name === 'Paid') {
+        const total = parseFloat(updatedFormData.Total) || 0;
+        const paid = parseFloat(updatedFormData.Paid) || 0;
+        updatedFormData.Remaining = total - paid;
       }
-    };
-  }, [loading]);
-
-  const handleEscKey = useCallback((e) => {
-    if (e.key === "Escape") {
-      closeModal(); // Close the modal
-    }
-  }, []); // This function doesn't depend on any external state, so [] is safe.
-
-  useEffect(() => {
-    // Add event listener on mount
-    window.addEventListener("keydown", handleEscKey);
-
-    // Clean up event listener on unmount
-    return () => {
-      window.removeEventListener("keydown", handleEscKey);
-    };
-  }, [handleEscKey]); // We depend on the stable `handleEscKey` function to avoid unnecessary re-renders.
-
-  const router = useRouter();
-
-  const handleUpdate = (id) => {
-    router.push("./neworder/" + id);
+      return updatedFormData;
+    });
   };
 
-  const handleAddNewReservation = () => {
-    setModalOpen(true);
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, searchTerm: value }));
+    setCurrentPage(1);
   };
-  const initialvalues = {
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    query: "",
-  };
-  const [excelData, setExcelData] = useState([]);
-  const exportToExcel = async () => {
-    try {
-      const response = await fetch(`/api/neworderlistprisma/
-        `+ page, {
-        method: "get",
-      });
 
-      const res = await response.json();
-
-      const filteredData = res.map((row) => ({
-        "اسم العميل": row.ClientName,
-        الدين: row.Religion,
-        الخبرة: row.ExperienceYears,
-        "جوال العميل": row.clientphonenumber,
-        "حالة الحجز": row.bookingstatus,
-        "رقم العاملة": row.HomemaidId,
+  const handleClientSelect = (selectedOption) => {
+    if (selectedOption) {
+      const selectedClient = clients.find(client => client.id === selectedOption.value);
+      setFormData((prev) => ({
+        ...prev,
+        clientID: selectedOption.value,
+        ClientName: selectedClient?.fullname || '',
+        PhoneNumber: selectedClient?.phonenumber || '',
       }));
-
-      const ws = XLSX.utils.json_to_sheet(filteredData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "حجوزات جديدة");
-      XLSX.writeFile(wb, "حجوزات جديدة.xlsx");
-    } catch (error) {
-      console.error("Error in search:", error);
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        clientID: '',
+        ClientName: '',
+        PhoneNumber: '',
+      }));
     }
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setCurrentStep(1);
-  };
-  const [homemaidId, setHomeMaidId] = useState(0);
-  const [homemaidName, setHomeMaidName] = useState("");
-
-  const handleNextStep = () => {
-    setCurrentStep((prevStep) => prevStep + 1);
+  const handleAgeFilterChange = (selectedOption) => {
+    setAgeFilter(selectedOption ? selectedOption.value : "");
+    setCurrentPage(1);
   };
 
-  const handlePreviousStep = () => {
-    setCurrentStep((prevStep) => prevStep - 1);
+  const handleNationalityFilterChange = (selectedOption) => {
+    setNationalityFilter(selectedOption ? selectedOption.value : "");
+    setCurrentPage(1);
   };
 
-  // Validation Schema for Formik using Yup
-  const validationSchema = Yup.object({
-    clientName: Yup.string().required("Client Name is required"),
-    phoneNumber: Yup.string()
-      .required("Phone Number is required")
-      .matches(/^[0-9]{10}$/, "Phone Number must be 10 digits"),
-    religion: Yup.string().required("Religion is required"),
-  });
-  const [reason, setReason] = useState("");
-  const [isModalRejectionOpen, setIsModalRejectionOpen] = useState(false);
-  const [rejectionmodalNo, setrejectionmodalNo] = useState("");
-  const OpenRejectionModal = (id) => {
-    setrejectionmodalNo(id);
-    setIsModalRejectionOpen(true);
-  }; // Function to open the modal
-  const handleCancelRejectionModal = () => {
-    setrejectionmodalNo("");
-    setIsModalRejectionOpen(false); // Function to close the modal
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post("/api/createOrder", formData);
+      alert('تم إضافة الطلب بنجاح');
+      setView('requests');
+      newOrdersList();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert('حدث خطأ أثناء إضافة الطلب');
+    }
   };
-  const handleReject = async (id) => {
-    const submitter = await fetch("/api/rejectbookingprisma", {
-      method: "post",
-      headers: {
-        Accept: "application/json",
 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id,
-        ReasonOfRejection: reason,
-      }),
+  // دالة لتصدير البيانات كـ PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("Amiri"); // خط يدعم العربية
+    doc.setFontSize(12);
+    doc.text("الطلبات الجديدة", 200, 10, { align: 'right' });
+
+    const tableColumn = [
+      "رقم الطلب",
+      "اسم العميل",
+      "رقم العميل",
+      "هوية العميل",
+      "رقم العاملة",
+      "اسم العاملة",
+      "الجنسية",
+      "جواز السفر",
+      "العمر",
+    ];
+    const tableRows = exportedData.map(row => [
+      row.id,
+      row.client?.fullname || "غير متوفر",
+      row.client?.phonenumber || "غير متوفر",
+      row.client?.nationalId || "غير متوفر",
+      row.HomeMaid?.id || "غير متوفر",
+      row.HomeMaid?.Name || "غير متوفر",
+      row.HomeMaid?.office?.Country || "غير متوفر",
+      row.Passportnumber || "غير متوفر",
+      row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: { font: "Amiri", halign: 'right' },
+      headStyles: { fillColor: [0, 105, 92] }, // لون رأس الجدول (teal-900)
+      margin: { top: 20 },
     });
 
-    // alert(submitter.status);
-    if (submitter.status == 200) {
-      // alert(submitter.status);
-      setDate(Date.now());
-      setrejectionmodalNo("");
-      setData([]);
-      setPage(0);
-      setIsModalRejectionOpen(false); // Close the modal after rejection
+    doc.save("new_orders.pdf");
+  };
+
+  // دالة لتصدير البيانات كـ Excel
+  const exportToExcel = () => {
+    const worksheetData = exportedData.map(row => ({
+      "رقم الطلب": row.id,
+      "اسم العميل": row.client?.fullname || "غير متوفر",
+      "رقم العميل": row.client?.phonenumber || "غير متوفر",
+      "هوية العميل": row.client?.nationalId || "غير متوفر",
+      "رقم العاملة": row.HomeMaid?.id || "غير متوفر",
+      "اسم العاملة": row.HomeMaid?.Name || "غير متوفر",
+      "الجنسية": row.HomeMaid?.office?.Country || "غير متوفر",
+      "جواز السفر": row.Passportnumber || "غير متوفر",
+      "العمر": row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات الجديدة");
+    XLSX.writeFile(workbook, "new_orders.xlsx");
+  };
+
+  useEffect(() => {
+    fetchClients();
+    fetchHomemaids();
+    fetchOffices();
+    newExportOrdersList()
+  }, []);
+
+  useEffect(() => {
+    newOrdersList(currentPage);
+  }, [currentPage, ageFilter, nationalityFilter, formData.searchTerm]);
+
+  const clientOptions = clients.map(client => ({
+    value: client.id,
+    label: client.fullname,
+  }));
+
+  const ageOptions = [
+    { value: "", label: "الكل" },
+    { value: "20-30", label: "20-30 سنة" },
+    { value: "31-40", label: "31-40 سنة" },
+    { value: "41-50", label: "41-50 سنة" },
+    { value: "51-60", label: "51-60 سنة" },
+  ];
+
+  const nationalityOptions = offices.map(office => ({
+    value: office.Country,
+    label: office.Country,
+  }));
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startRecord = (currentPage - 1) * pageSize + 1;
+  const endRecord = Math.min(currentPage * pageSize, totalCount);
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
     }
   };
 
-  return (
-    <Layout>
-      <div className="container mx-auto p-4">
-        <div className="mb-4 flex justify-between items-center">
-          <input
-            type="text"
-            value={searchParam}
-            onChange={(e) => search(e.target.value)}
-            placeholder="بحث"
-            className="p-2 border border-gray-300 rounded-md"
-          />
-        </div>
+  const renderPagination = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
 
-        <div className="space-y-4">
-          <div className="overflow-x-auto shadow-lg rounded-lg border border-white-200">
-            <div className="flex items-center justify-between p-4">
-              <p
-                className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
-              >
-                حجوزات جديدة
-              </p>
-              {/* <div className="flex space-x-4">
-                <button
-                  onClick={exportToExcel}
-                  className="bg-yellow-400 text-white px-4 py-2 rounded-lg  flex items-center"
-                >
-                  <FaFileExcel />
-                  Export to Excel
-                </button>
-              </div> */}
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <a
+          key={i}
+          href="#"
+          onClick={() => handlePageChange(i)}
+          className={`px-2 py-1 border rounded text-sm ${
+            i === currentPage
+              ? 'border-teal-800 bg-teal-900 text-white'
+              : 'border-gray-300 bg-gray-50'
+          }`}
+        >
+          {i}
+        </a>
+      );
+    }
+
+    return (
+      <div className="flex justify-between items-center mt-6">
+        <span className="text-base">
+          عرض {startRecord}-{endRecord} من {totalCount} نتيجة
+        </span>
+        <nav className="flex gap-1">
+          <a
+            href="#"
+            onClick={() => handlePageChange(currentPage - 1)}
+            className={`px-2 py-1 border border-gray-300 rounded bg-gray-50 text-sm ${
+              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            السابق
+          </a>
+          {pages}
+          <a
+            href="#"
+            onClick={() => handlePageChange(currentPage + 1)}
+            className={`px-2 py-1 border border-gray-300 rounded bg-gray-50 text-sm ${
+              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            التالي
+          </a>
+        </nav>
+      </div>
+    );
+  };
+
+  const renderRequests = () => (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
+        <button
+          className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded"
+          onClick={() => setView('add-available')}
+        >
+          <Plus />
+          <span>اضافة طلب</span>
+        </button>
+      </div>
+      <div className="bg-white border border-gray-300 rounded p-6">
+        <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 h-8">
+            <div className="flex items-center border-none rounded bg-gray-50 p-2">
+              <input
+                type="text"
+                placeholder="بحث"
+                value={formData.searchTerm || ""}
+                onChange={handleSearchChange}
+                className="bg-transparent border-none w-48"
+              />
+              <Search />
             </div>
-
-            <table className="min-w-full text-sm text-left">
-              <thead className=" bg-yellow-400">
-                <tr
-                  // style={{ backgroundColor: "#FFDB58" }}
-                  className=" text-white bg-yellow-400"
-                >
-                  <th className="px-4 py-2">م</th>
-                  <th className="px-4 py-2">اسم العميل</th>
-                  <th className="px-4 py-2">جوال العميل</th>
-                  <th className="px-4 py-2">اسم الخادمة</th>
-
-                  <th className="px-4 py-2">رقم الخادمة</th>
-                  {/* <th className="px-4 py-2">ديانة العاملة</th> */}
-                  <th className="px-4 py-2">الجنسية</th>
-                  <th className="px-4 py-2">العمر</th>
-                  <th className="px-4 py-2">موافق</th>
-                  <th className="px-4 py-2">رفض</th>
-                  {/* <th className="px-4 py-2"></th> */}
+            <div className="flex items-center border-none rounded bg-none">
+              <Select
+                options={ageOptions}
+                onChange={handleAgeFilterChange}
+                placeholder="كل الأعمار"
+                className="w-40 text-right"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    backgroundColor: '#F9FAFB',
+                    borderColor: '#D1D5DB',
+                    textAlign: 'right',
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    textAlign: 'right',
+                  }),
+                }}
+              />
+            </div>
+            <div className="flex items-center border-none rounded">
+              <Select
+                options={nationalityOptions}
+                onChange={handleNationalityFilterChange}
+                placeholder="كل الجنسيات"
+                className="text-right w-full"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    backgroundColor: '#F9FAFB',
+                    borderColor: '#D1D5DB',
+                    textAlign: 'right',
+                  }),
+                  menu: (base) => ({
+                    ...base,
+                    textAlign: 'right',
+                  }),
+                }}
+              />
+            </div>
+            <button
+              className="bg-teal-900 text-white px-4 py-2 rounded"
+              onClick={() => {
+                setAgeFilter("");
+                setNationalityFilter("");
+                setFormData({ ...formData, searchTerm: "" });
+                setCurrentPage(1);
+              }}
+            >
+              إعادة ضبط
+            </button>
+          </div>
+        </div>
+        <div className="flex gap-4 justify-end mb-9">
+          <button
+            className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm"
+            onClick={exportToPDF}
+          >
+            <FilePdfOutlined />
+            <span>PDF</span>
+          </button>
+          <button
+            className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm"
+            onClick={exportToExcel}
+          >
+            <FileExcelOutlined />
+            <span>Excel</span>
+          </button>
+        </div>
+        <div className="overflow-x-auto" dir="ltr">
+          {isLoading ? (
+            <div className="text-center">جارٍ التحميل...</div>
+          ) : (
+            <table className="w-full text-right text-sm">
+              <thead className="bg-teal-900 text-white">
+                <tr>
+                  <th className="p-4 pr-6">الاجراءات</th>
+                  <th className="p-4">عرض</th>
+                  <th className="p-4">العمر</th>
+                  <th className="p-4">جواز السفر</th>
+                  <th className="p-4">الجنسية</th>
+                  <th className="p-4">اسم العاملة</th>
+                  <th className="p-4">رقم العاملة</th>
+                  <th className="p-4">هوية العميل</th>
+                  <th className="p-4">رقم العميل</th>
+                  <th className="p-4">اسم العميل</th>
+                  <th className="p-4 pl-6">رقم الطلب</th>
                 </tr>
               </thead>
-              <tbody className="bg-white">
-                {data.map((row) => (
-                  <tr key={row.id} className="border-b ">
-                    <td className="px-4 py-2 text-lg">{row.id}</td>
-                    <td className="px-4 py-2">{row.ClientName}</td>
-                    <td className="px-4 py-2">{row.clientphonenumber}</td>
-
-                    <td className="px-4 py-2">{row.HomeMaid.Name}</td>
-
-                    <td
-                      onClick={() =>
-                        router.push("/admin/cvdetails/" + row.HomemaidId)
-                      }
-                      className="px-3 py-2 cursor-pointer decoration-black"
-                    >
-                      {row.HomemaidId}
-                    </td>
-                    {/* <td className="px-4 py-2">{row.Religion}</td> */}
-                    <td className="px-4 py-2">{row.Nationalitycopy}</td>
-                    <td className="px-4 py-2">{row.age}</td>
-                    <td className="px-4 py-2">
-                      <button
-                        style={{ backgroundColor: "#4CAF50" }}
-                        onClick={() =>
-                          confirm(row.HomeMaid.Name,
-                            row.id,
-                            row.createdAt,
-                            row.ClientName,
-                            row.PassportNumber,
-                          )
-                        }
-                        className="px-6 py-2  text-white font-semibold rounded-lg shadow-md  focus:outline-none focus:ring-2 focus:ring-green-300 active:bg-green-700 transition-all duration-200"
-                      >
-                        موافقة
-                      </button>
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="container mx-auto p-4">
-                        {/* Trigger button to open modal */}
-                        <button
-                          style={{ backgroundColor: "#F44336" }}
-                          onClick={() => OpenRejectionModal(row.id)} // This is now correctly passed as a prop
-                          className="text-white px-4 py-2 rounded-lg"
-                        >
-                          رفض الطلب
+              <tbody>
+                {newOrders.map((row, index) => (
+                  <>
+                    <tr key={index} className="bg-gray-50">
+                      <td className="p-4 pr-6">
+                        <button className="p-1 cursor-pointer">
+                          <MoreHorizontal />
                         </button>
-
-                        {/* Modal Section */}
-                        {rejectionmodalNo == row.id && (
-                          <div className="fixed inset-0  bg-opacity-75 flex justify-center items-center z-50">
-                            <div className="bg-white rounded-lg shadow-lg p-6 space-y-6 w-96">
-                              <h1 className="text-2xl font-semibold text-gray-800">
-                                رفض طلب العميل
-                              </h1>
-
-                              {/* Booking Details Section */}
-                              <div className="border-b pb-4">
-                                <p className="text-gray-600">
-                                  رقم الحجز: <strong>{row.id}</strong>
-                                </p>
-                                <p className="text-gray-600">
-                                  اسم العميل: <strong>{row.ClientName}</strong>
-                                </p>
-                                <p className="text-gray-600">
-                                  تاريخ الحجز: <strong>{row.createdAt}</strong>
-                                </p>
-                                <p className="text-gray-600">
-                                  حالة الحجز:{" "}
-                                  <span className="text-red-500">
-                                    {row.bookingstatus}
-                                  </span>
-                                </p>
+                      </td>
+                      <td className="p-4 cursor-pointer">
+                        <ArrowDown onClick={() => toggleDetails(index)} />
+                      </td>
+                      <td className="p-4">{row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth)}</td>
+                      <td className="p-4">{row.Passportnumber}</td>
+                      <td className="p-4">{row.HomeMaid?.office?.Country}</td>
+                      <td className="p-4">{row.HomeMaid?.Name}</td>
+                      <td className="p-4">{row.HomeMaid?.id}</td>
+                      <td className="p-4">{row.client?.nationalId}</td>
+                      <td className="p-4">{row.client?.phonenumber}</td>
+                      <td className="p-4">{row.client?.fullname}</td>
+                      <td className="p-4 pl-6">{row.id}</td>
+                    </tr>
+                    {detailsRow === index && (
+                      <tr className="bg-white">
+                        <td colSpan="11" className="p-0">
+                          <div className="p-4">
+                            <div className="border border-gray-300 rounded">
+                              <div className="grid grid-cols-5 bg-gray-100 font-bold text-base p-3 border-b border-gray-300">
+                                <span>العملية</span>
+                                <span>التاريخ</span>
+                                <span>المستخدم</span>
+                                <span>الوصف</span>
+                                <span>السبب</span>
                               </div>
-
-                              {/* Reason for rejection (Text Area instead of select) */}
-                              <div>
-                                <label
-                                  htmlFor="reason"
-                                  className="block text-gray-700 font-medium mb-2"
-                                >
-                                  سبب الرفض
-                                </label>
-                                <textarea
-                                  id="reason"
-                                  name="reason"
-                                  value={reason}
-                                  onChange={(e) => setReason(e.target.value)}
-                                  placeholder="سبب الرفض..."
-                                  className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                  rows={4} // Adjust the number of rows as needed
-                                />
+                              <div className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
+                                <span>{row.HomeMaid?.logs[0]?.status || "غير متوفر"}</span>
+                                <span>{row.HomeMaid?.logs[0]?.createdAt || "غير متوفر"}</span>
+                                <span>{row.HomeMaid?.logs[0]?.user?.username || "غير متوفر"}</span>
+                                <span>{row.HomeMaid?.logs[0]?.Details || "غير متوفر"}</span>
+                                <span>{row.HomeMaid?.logs[0]?.reason || "غير متوفر"}</span>
                               </div>
-
-                              {/* Buttons */}
-                              <div className="flex justify-end gap-4">
-                                <button
-                                  onClick={handleCancelRejectionModal}
-                                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                >
-                                  اغلاق
-                                </button>
-                                <button
-                                  onClick={() => handleReject(row.id)}
-                                  disabled={!reason}
-                                  className={`px-4 py-2 rounded-lg text-white focus:outline-none focus:ring-2 ${
-                                    reason
-                                      ? "bg-red-500 hover:bg-red-600 focus:ring-red-500"
-                                      : "bg-gray-400 cursor-not-allowed"
-                                  }`}
-                                >
-                                  تأكيد
-                                </button>
-                              </div>
-
-                              {/* Close modal when clicked outside */}
-                              <div />
                             </div>
                           </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div ref={loaderRef} className="text-center">
-            {loading ? (
-              <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-gray-800 rounded-full"></div>
-            ) : (
-              <p className="text-gray-500">No more Data to load</p>
-            )}
-          </div>
+          )}
         </div>
+        {renderPagination()}
       </div>
-      {/* Modal with Step Form */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="flex w-full max-w-4xl bg-white shadow-lg rounded-lg">
-            {/* Left side: Timeline */}
-            <div className="w-1/3 border-r border-gray-200">
-              <div className="flex flex-col items-center py-8">
-                <div className={`step ${currentStep >= 1 ? "active" : ""}`}>
-                  <div className="step-number">1</div>
-                  <div className="step-title">Step 1</div>
-                </div>
-                <div className={`step ${currentStep >= 2 ? "active" : ""}`}>
-                  <div className="step-number">2</div>
-                  <div className="step-title">Step 2</div>
-                </div>
-                <div className={`step ${currentStep >= 3 ? "active" : ""}`}>
-                  <div className="step-number">3</div>
-                  <div className="step-title">Step 3</div>
-                </div>
-              </div>
-            </div>
+    </div>
+  );
 
-            {/* Right side: Form */}
-            <div className="w-2/3 p-8">
-              <Formik
-                initialValues={initialvalues}
-                validationSchema={
-                  currentStep === 1
-                    ? validationSchemaStep1
-                    : currentStep === 2
-                    ? validationSchemaStep2
-                    : currentStep === 3
-                    ? validationSchemaStep3
-                    : null
-                }
-                onSubmit={(values) => {
-                  setFullName(values.name);
-                  setEmail(values.email);
-                  setClientPhone(values.phone);
-                  // setAddress(values.address);
-                  setCity(values.city);
-                  setHomeMaidId(filteredSuggestions.id);
-
-                  setHomeMaidName(filteredSuggestions.Name);
-                  console.log(filteredSuggestions);
-                  if (currentStep === 4) {
-                    const submit = async () => {
-                      const fetchData = await fetch(
-                        "/api/submitneworderprisma/",
-                        {
-                          body: JSON.stringify({
-                            ...values,
-                            ClientName: values.name,
-                            NationalityCopy:
-                              filteredSuggestions.Nationalitycopy,
-
-                            HomemaidId: filteredSuggestions.id,
-                            Name: filteredSuggestions.Name,
-                            age: filteredSuggestions.age,
-                            clientphonenumber: values.phone,
-                            PhoneNumber: filteredSuggestions.phone,
-                            Passportnumber: filteredSuggestions.Passportnumber,
-                            maritalstatus: filteredSuggestions.maritalstatus,
-                            Nationality: filteredSuggestions.Nationalitycopy,
-                            Religion: filteredSuggestions.Religion,
-                            ExperienceYears:
-                              filteredSuggestions.ExperienceYears,
-                          }),
-                          method: "post",
-                          headers: {
-                            Accept: "application/json",
-                            "Content-Type": "application/json",
-                          },
-                        }
-                      );
-                      // alert(fetchData.status)
-                      if (fetchData.status == 200) {
-                        showSuccessModal();
-                        setModalOpen(false);
-                        // setIsModalOpen(false);
-                        reset();
-                      } else {
-                        showErrorModal();
-                      }
-                    };
-                    // Modal
-                    submit();
-                    // Handle form submission
-                    console.log(values);
-                    console.log("Form submitted with values: ", values);
-                  } else {
-                    handleNextStep();
-                  }
-                }}
-              >
-                {({ setFieldValue }) => (
-                  <Form>
-                    {/* Step 1: Personal Information */}
-                    {currentStep === 1 && (
-                      <div>
-                        <h2 className="text-2xl font-semibold mb-4">
-                          Personal Information
-                        </h2>
-                        <div className="mb-4">
-                          <label
-                            htmlFor="name"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Client Name
-                          </label>
-                          <Field
-                            id="name"
-                            name="name"
-                            type="text"
-                            // onChange={(e) => setName(e.target.value)}
-                            className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                            placeholder="Enter your name"
-                          />
-                          <ErrorMessage
-                            name="name"
-                            component="div"
-                            className="text-red-500 text-sm"
-                          />
-                        </div>
-                        <div className="mb-4">
-                          <label
-                            htmlFor="email"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Email
-                          </label>
-                          <Field
-                            id="email"
-                            name="email"
-                            type="email"
-                            className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                            placeholder="Enter your email"
-                          />
-                          <ErrorMessage
-                            name="email"
-                            component="div"
-                            className="text-red-500 text-sm"
-                          />
-                        </div>
-                        <div className="mb-4">
-                          <label
-                            htmlFor="phone"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Phone Number
-                          </label>
-                          <Field
-                            id="phone"
-                            name="phone"
-                            type="tel"
-                            className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                            placeholder="Client Phone Number"
-                          />
-                          <ErrorMessage
-                            name="phone"
-                            component="div"
-                            className="text-red-500 text-sm"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 2: Address Information */}
-                    {currentStep === 2 && (
-                      <div>
-                        <h2 className="text-2xl font-semibold mb-4">
-                          Address Information
-                        </h2>
-
-                        <div className="mb-4">
-                          <label
-                            htmlFor="city"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            City
-                          </label>
-                          <Field
-                            id="city"
-                            name="city"
-                            type="text"
-                            className="mt-1 p-2 w-full border border-gray-300 rounded-md"
-                            placeholder="Enter your city"
-                          />
-                          <ErrorMessage
-                            name="city"
-                            component="div"
-                            className="text-red-500 text-sm"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 3: Query Search */}
-                    {currentStep === 3 && (
-                      <div className="relative w-72 mx-auto">
-                        <Field
-                          id="query"
-                          name="query"
-                          type="text"
-                          value={query}
-                          onChange={(e) => {
-                            setFieldValue("query", e.target.value);
-                            handleChange(e);
-                          }}
-                          placeholder="Search "
-                          className="px-4 py-2 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        />
-                        <ErrorMessage
-                          name="query"
-                          component="div"
-                          className="text-red-500 text-sm"
-                        />
-                        <div>
-                          <div className="max-w-sm w-full bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 hover:shadow-xl transform transition-all duration-300 ease-in-out hover:scale-105">
-                            {/* Image Section */}
-                            {/* <img
-                                   src="https://via.placeholder.com/400x250"
-                                   alt="Info Card"
-                                   className="w-full h-48 object-cover"
-                                 /> */}
-
-                            {/* Card Content */}
-                            <div className="p-6">
-                              {/* Title */}
-                              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                                {filteredSuggestions.Name}
-                              </h2>
-
-                              {/* Description */}
-                              <h2 className="text-gray-600 text-sm mb-6">
-                                Passport Number :
-                                {filteredSuggestions.Passportnumber}
-                              </h2>
-
-                              {/* Action Button */}
-                              <button
-                                onClick={() => {
-                                  setFieldValue(
-                                    "query",
-                                    filteredSuggestions.Name
-                                  );
-                                  setQuery(filteredSuggestions.Name);
-                                }}
-                                className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
-                              >
-                                Confirm
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 4: Review & Submit */}
-                    {currentStep === 4 && (
-                      <div>
-                        <h2 className="text-2xl font-semibold mb-4">
-                          مراجعة الطلب
-                        </h2>
-                        {/* Client Name : {validationSchemaStep1.json().fields.name.}
-                             Client Phone : {validationSchemaStep1.json().fields.phone}
-                            
-                            اسم العميل
-                            Email : {validationSchemaStep1.json().fields.email} */}
-                        {/* {fullName}{" "} */}
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold ">
-                            Full Name &nbsp; &nbsp; :
-                          </p>
-                          <span>&nbsp;{fullName}</span>
-                        </div>
-
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold">Client Phone :</p>
-                          <span>&nbsp;{ClientPhone}</span>
-                        </div>
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold"> Email Adress :</p>
-                          <span>&nbsp; {email}</span>
-                        </div>
-
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold">
-                            Address &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;:
-                          </p>
-                          <span>&nbsp; {address}</span>
-                        </div>
-
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold">
-                            City &nbsp; &nbsp; &nbsp;
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
-                          </p>
-                          <span>&nbsp; {city}</span>
-                        </div>
-
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold">
-                            Name &nbsp; &nbsp; &nbsp;
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
-                          </p>
-                          <span>&nbsp; {filteredSuggestions.Name}</span>
-                        </div>
-
-                        <div className="flex flex-nowrap text-nowrap">
-                          <p className="font-bold">
-                            Passport Number &nbsp; &nbsp; &nbsp;
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :
-                          </p>
-                          <span>
-                            &nbsp; {filteredSuggestions.Passportnumber}
-                          </span>
-                        </div>
-
-                        {/* {ClientPhone} : جوال العميل */}
-                      </div>
-                    )}
-
-                    <div className="flex justify-between mt-8">
-                      <button
-                        type="button"
-                        onClick={handlePrevStep}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-md"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-orange-500  text-white rounded-md"
-                      >
-                        {currentStep === 4 ? "Submit" : "Next"}
-                      </button>
-                    </div>
-                  </Form>
-                )}
-              </Formik>
-            </div>
-            <Modal
-              isOpen={isModalOpen}
-              message={modalMessage}
-              type={modalType}
-              onClose={closeSuccessfulModal}
+  const renderAddAvailable = () => (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <h1 className="text-xl font-normal mb-12 text-right">طلب جديد حسب العاملات المتاحات</h1>
+      <form onSubmit={handleSubmit} className="bg-white border border-gray-300 p-10 rounded">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+          <div className="flex flex-col gap-2">
+            <label className="text-base">اسم العميل</label>
+            <Select
+              options={clientOptions}
+              onChange={handleClientSelect}
+              placeholder="اختر عميل"
+              className="text-right"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                }),
+                menu: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">رقم العميل</label>
+            <input
+              type="text"
+              name="PhoneNumber"
+              value={formData.PhoneNumber}
+              readOnly
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">مدينة العميل</label>
+            <input
+              type="text"
+              placeholder="مدينة العميل"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">اسم العاملة</label>
+            <select
+              name="HomemaidId"
+              value={formData.HomemaidId}
+              onChange={handleFormChange}
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            >
+              <option value="">اختر عاملة</option>
+              {homemaids.map((homemaid) => (
+                <option key={homemaid.id} value={homemaid.id}>
+                  {homemaid.Name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">رقم العاملة</label>
+            <input
+              type="text"
+              placeholder="رقم العاملة"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">جنسية العاملة</label>
+            <input
+              type="text"
+              name="Nationalitycopy"
+              value={formData.Nationalitycopy}
+              onChange={handleFormChange}
+              placeholder="جنسية العاملة"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">ديانة العاملة</label>
+            <input
+              type="text"
+              name="Religion"
+              value={formData.Religion}
+              onChange={handleFormChange}
+              placeholder="ديانة العاملة"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
             />
           </div>
         </div>
-      )}
+        <div className="mb-10">
+          <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
+          <div className="flex flex-wrap gap-6">
+            {[
+              { option: 'كاش', icon: <CashIcon className="w-6 h-6 text-teal-800" /> },
+              { option: 'دفعتين', icon: <CreditCardIcon className="w-6 h-6 text-teal-800" /> },
+              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className="w-6 h-6 text-teal-800" /> },
+            ].map(({ option, icon }, index) => (
+              <label key={index} className="flex items-center gap-3 p-3 border-2 border-gray-300 rounded bg-gray-50 cursor-pointer w-60">
+                <input
+                  type="radio"
+                  name="PaymentMethod"
+                  value={option}
+                  checked={formData.PaymentMethod === option}
+                  onChange={handleFormChange}
+                  className="hidden"
+                />
+                <span className="text-teal-800 text-xl">{option}</span>
+                {icon}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className="flex flex-col gap-2">
+            <label className="text-base">المبلغ كامل</label>
+            <input
+              type="number"
+              name="Total"
+              value={formData.Total}
+              onChange={handleFormChange}
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">المبلغ المدفوع</label>
+            <input
+              type="number"
+              name="Paid"
+              value={formData.Paid}
+              onChange={handleFormChange}
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">المبلغ المتبقي</label>
+            <input
+              type="text"
+              value={`${formData.Remaining.toFixed(2)} SR`}
+              readOnly
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+        </div>
+        <div className="flex gap-6 flex-col sm:flex-row">
+          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40">حفظ</button>
+          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40">الغاء</button>
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderAddSpecs = () => (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <h1 className="text-xl font-normal mb-12 text-right">طلب جديد حسب المواصفات</h1>
+      <form onSubmit={handleSubmit} className="bg-white border border-gray-300 p-10 rounded">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+          <div className="flex flex-col gap-2">
+            <label className="text-base">اسم العميل</label>
+            <Select
+              options={clientOptions}
+              onChange={handleClientSelect}
+              placeholder="اختر عميل"
+              className="text-right"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                }),
+                menu: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">رقم العميل</label>
+            <input
+              type="text"
+              name="PhoneNumber"
+              value={formData.PhoneNumber}
+              readOnly
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">مدينة العميل</label>
+            <input
+              type="text"
+              placeholder="مدينة العميل"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">العمر</label>
+            <input
+              type="number"
+              name="age"
+              value={formData.age}
+              onChange={handleFormChange}
+              placeholder="اختر العمر"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">سنوات الخبرة</label>
+            <input
+              type="number"
+              name="ExperienceYears"
+              value={formData.ExperienceYears}
+              onChange={handleFormChange}
+              placeholder="اختر سنوات الخبرة"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">جنسية العاملة المطلوبة</label>
+            <input
+              type="text"
+              name="Nationalitycopy"
+              value={formData.Nationalitycopy}
+              onChange={handleFormChange}
+              placeholder="اختر جنسية العاملة المطلوبة"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">الديانة</label>
+            <input
+              type="text"
+              name="Religion"
+              value={formData.Religion}
+              onChange={handleFormChange}
+              placeholder="اختر الديانة"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">ملاحظات إضافية</label>
+            <input
+              type="text"
+              name="notes"
+              value={formData.notes}
+              onChange={handleFormChange}
+              placeholder="ادخل أي ملاحظات أو بيانات أخرى ..."
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+        </div>
+        <div className="mb-10">
+          <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
+          <div className="flex self-center justify-center gap-6">
+            {[
+              { option: 'كاش', icon: <CashIcon className="w-6 h-6 text-teal-800" /> },
+              { option: 'دفعتين', icon: <CreditCardIcon className="w-6 h-6 text-teal-800" /> },
+              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className="w-6 h-6 text-teal-800" /> },
+            ].map(({ option, icon }, index) => (
+              <label key={index} className="flex items-center gap-3 p-3 border-2 border-gray-300 rounded bg-gray-50 cursor-pointer w-60">
+                <input
+                  type="radio"
+                  name="PaymentMethod"
+                  value={option}
+                  checked={formData.PaymentMethod === option}
+                  onChange={handleFormChange}
+                  className="hidden"
+                />
+                <span className="text-teal-800 text-xl">{option}</span>
+                {icon}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+          <div className="flex flex-col gap-2">
+            <label className="text-base">المبلغ كامل</label>
+            <input
+              type="number"
+              name="Total"
+              value={formData.Total}
+              onChange={handleFormChange}
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">المبلغ المدفوع</label>
+            <input
+              type="number"
+              name="Paid"
+              value={formData.Paid}
+              onChange={handleFormChange}
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-base">المبلغ المتبقي</label>
+            <input
+              type="text"
+              value={`${formData.Remaining.toFixed(2)} SR`}
+              readOnly
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 mb-8">
+          <label className="text-base">تحميل ملف العقد</label>
+          <div className="flex gap-3 items-center">
+            <input
+              type="file"
+              className="bg-gray-50 border border-gray-300 rounded p-3 flex-1"
+            />
+            <button className="bg-teal-900 text-white px-4 py-2 rounded">اختيار ملف</button>
+          </div>
+        </div>
+        <div className="flex gap-6 flex-col sm:flex-row">
+          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40">حفظ</button>
+          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40">الغاء</button>
+        </div>
+      </form>
+    </div>
+  );
+
+  return (
+    <Layout>
+      <Head>
+        <title>الطلبات الجديدة</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      </Head>
+      <div className={`text-gray-800 ${Style["tajawal-regular"]}`}>
+        {activePopup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[999] flex items-center justify-center">
+            {activePopup === 'popup-confirm-accept' && (
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+                <p>هل أنت متأكد من قبول الطلب؟</p>
+                <div className="flex justify-between mt-4">
+                  <button
+                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                    onClick={closePopup}
+                  >
+                    الغاء
+                  </button>
+                  <button
+                    className="bg-teal-900 text-white px-4 py-2 rounded"
+                    onClick={confirmAccept}
+                  >
+                    نعم
+                  </button>
+                </div>
+              </div>
+            )}
+            {activePopup === 'popup-confirm-reject' && (
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+                <p>هل أنت متأكد من رفض الطلب؟</p>
+                <div className="flex justify-between mt-4">
+                  <button
+                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                    onClick={closePopup}
+                  >
+                    الغاء
+                  </button>
+                  <button
+                    className="bg-teal-900 text-white px-4 py-2 rounded"
+                    onClick={confirmReject}
+                  >
+                    نعم
+                  </button>
+                </div>
+              </div>
+            )}
+            {activePopup === 'popup-check-client' && (
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+                <p className="text-base">تحقق من العميل</p>
+                <p>هل العميل موجود مسبقاً؟</p>
+                <Select
+                  options={clientOptions}
+                  onChange={handleClientSelect}
+                  placeholder="اختر عميل من القائمة"
+                  className="w-full mt-2 mb-4 text-right"
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      backgroundColor: '#F9FAFB',
+                      borderColor: '#D1D5DB',
+                      padding: '0.5rem',
+                      textAlign: 'right',
+                    }),
+                    menu: (base) => ({
+                      ...base,
+                      textAlign: 'right',
+                    }),
+                  }}
+                />
+                <button className="bg-teal-900 text-white px-4 py-2 rounded w-full">
+                  عميل جديد
+                </button>
+              </div>
+            )}
+            {activePopup === 'popup-product-check' && (
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+                <p>هل تريد اختيار من العاملات المنتجات أو حسب المواصفات؟</p>
+                <div className="flex justify-between mt-4">
+                  <button
+                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                    onClick={() => {
+                      closePopup();
+                      setView('add-specs');
+                    }}
+                  >
+                    حسب المواصفات
+                  </button>
+                  <button
+                    className="bg-teal-900 text-white px-4 py-2 rounded"
+                    onClick={() => {
+                      closePopup();
+                      setView('add-available');
+                    }}
+                  >
+                    قائمة العاملات المتاحة
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {view === 'requests' && renderRequests()}
+        {view === 'add-available' && renderAddAvailable()}
+        {view === 'add-specs' && renderAddSpecs()}
+      </div>
     </Layout>
   );
-}
-export async function getServerSideProps(context: NextPageContext) {
-  const { req, res } = context;
-  try {
-    const isAuthenticated = req.cookies.authToken ? true : false;
-    console.log(req.cookies.authToken);
-    // jwtDecode(req.cookies.)
-    if (!isAuthenticated) {
-      // Redirect the user to login page before rendering the component
-      return {
-        redirect: {
-          destination: "/admin/login", // Redirect URL
-          permanent: false, // Set to true if you want a permanent redirect
-        },
-      };
-    }
-    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
-    console.log(user);
-    // If authenticated, continue with rendering the page
-    return {
-      props: { user }, // Empty object to pass props if needed
-    };
-  } catch (error) {
-    console.log("error");
-    return {
-      redirect: {
-        destination: "/admin/login", // Redirect URL
-        permanent: false, // Set to true if you want a permanent redirect
-      },
-    };
-  }
 }

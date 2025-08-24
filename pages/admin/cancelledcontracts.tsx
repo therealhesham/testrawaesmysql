@@ -1,366 +1,252 @@
-import { BookFilled } from "@ant-design/icons";
-import Layout from "example/containers/Layout";
-import { useRouter } from "next/router";
-import { useEffect, useState, useCallback, useRef } from "react";
-import jwt from "jsonwebtoken";
-import { Button } from "@mui/material";
-import Style from "styles/Home.module.css";
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import Layout from 'example/containers/Layout';
+import Head from 'next/head';
+import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import Style from "styles/Home.module.css"
 
-export default function Table() {
-  const [filters, setFilters] = useState({
-    ClientName: "",
-    age: "",
-    clientphonenumber: "",
-    Passportnumber: "",
-    Nationality: "",
-    HomemaidId: "",
-  });
-
+const MainContent = () => {
+  const [activeTab, setActiveTab] = useState('طلبات الاستقدام');
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false); // Loading state
-  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
+  const [page, setPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [filters, setFilters] = useState({
+    Passportnumber: '',
+    clientphonenumber: '',
+    HomemaidId: '',
+    age: '',
+    Nationalitycopy: '',
+    ReasonOfRejection: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const pageRef = useRef(1); // Use a ref to keep track of the current page number
-  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
-
-  // Fetch data with pagination
   const fetchData = async () => {
-    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
-    isFetchingRef.current = true;
     setLoading(true);
-
     try {
       const queryParams = new URLSearchParams({
-        searchTerm: filters.ClientName,
-        age: filters.age,
-        clientphonenumber: filters.clientphonenumber,
-        HomemaidId: filters.HomemaidId,
-        Passportnumber: filters.Passportnumber,
-        Nationalitycopy: filters.Nationality,
-        page: String(pageRef.current),
-      });
+        page: page.toString(),
+        ...filters,
+      }).toString();
 
       const response = await fetch(`/api/cancelledorders?${queryParams}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        method: "get",
+        method: 'GET',
       });
 
-      const res = await response.json();
-      if (res && res.length > 0) {
-        setData((prevData) => [...prevData, ...res]); // Append new data
-        pageRef.current += 1; // Increment page using ref
-      } else {
-        setHasMore(false); // No more data to load
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
+
+      const result = await response.json();
+      setData(result.data);
+      setTotalResults(result.totalCount);
+      setPageSize(result.pageSize || 10);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
-      isFetchingRef.current = false;
     }
   };
 
-  const makeRequest = async (url: string, body: object) => {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+  useEffect(() => {
+    fetchData();
+  }, [page, filters, activeTab]);
 
-    return response.status === 200;
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1); // Reset to first page when filters change
   };
 
-  const restore = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/restoreorders", {
-      id,
-      homeMaidId,
+  const handleResetFilters = () => {
+    setFilters({
+      Passportnumber: '',
+      clientphonenumber: '',
+      HomemaidId: '',
+      age: '',
+      Nationalitycopy: '',
+      ReasonOfRejection: '',
     });
-    if (success) router.push("/admin/neworders");
+    setPage(1);
   };
 
-  // Use a callback to call fetchData when the user reaches the bottom
-  const loadMoreRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (loading || !hasMore) return;
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            fetchData(); // Fetch next page of data
-          }
-        },
-        { threshold: 1.0 }
-      );
-
-      if (node) observer.observe(node);
-
-      return () => observer.disconnect();
-    },
-    [loading, hasMore]
+  // Filter data based on active tab
+  const filteredData = data.filter((item) =>
+    activeTab === 'طلبات الاستقدام'
+      ? item.typeOfContract === 'recruitment'
+      : item.typeOfContract === 'rental'
   );
 
-  // useEffect to fetch the first page of data on mount
-  useEffect(() => {
-    fetchData(); // Fetch the first page of data
-  }, []); // Only run once on mount
-
-  // useEffect to fetch data when filters change
-  // useEffect(() => {
-  //   // Reset page and data on filter change
-  //   pageRef.current = 1;
-  //   setData([]);
-  //   setHasMore(true);
-  //   fetchData();
-  // }, [filters]); // Only re-run when filters change
-
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    column: string
-  ) => {
-    const value = e.target.value;
-    setFilters((prev) => ({
-      ...prev,
-      [column]: value,
-    }));
-  };
-
-  const router = useRouter();
-  const handleUpdate = (id) => {
-    router.push("./neworder/" + id);
-  };
-
   return (
-    <Layout>
-      <div className="container mx-auto p-6">
-        <h1
-          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
-        >
-          طلبات تم الغائها
-        </h1>
-
-        {/* Filter Section */}
-        <div className="flex justify-between mb-4">
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.ClientName}
-              onChange={(e) => handleFilterChange(e, "ClientName")}
-              placeholder="بحث باسم العميل / العاملة"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
+    <main className="p-9 flex-grow overflow-y-auto">
+      <h1 className="text-3xl font-normal text-black mb-6 text-right">الطلبات الملغية</h1>
+      <div className="bg-white border border-border rounded-lg shadow-md p-6">
+        <div className="flex flex-col gap-5 mb-5">
+          <div className="border-b border-border">
+            <div className="flex gap-10">
+              <a
+                href="#"
+                className={`pb-2 text-sm ${activeTab === 'طلبات الاستقدام' ? 'text-black font-bold border-b-2 border-primary' : 'text-gray-500'}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveTab('طلبات الاستقدام');
+                }}
+              >
+                طلبات الاستقدام<span className="mr-1 text-md">{data.filter((item) => item.typeOfContract === 'recruitment').length}</span>
+              </a>
+              <a
+                href="#"
+                className={`pb-2 text-sm ${activeTab === 'طلبات التاجير' ? 'text-black font-bold border-b-2 border-primary' : 'text-gray-500'}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveTab('طلبات التاجير');
+                }}
+              >
+                طلبات التاجير<span className="mr-1 text-md">{data.filter((item) => item.typeOfContract === 'rental').length}</span>
+              </a>
+            </div>
           </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Passportnumber}
-              onChange={(e) => handleFilterChange(e, "Passportnumber")}
-              placeholder="بحث برقم جواز السفر"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div>
-            <input
-              type="text"
-              value={filters.clientphonenumber}
-              onChange={(e) => handleFilterChange(e, "clientphonenumber")}
-              placeholder="بحث برقم الجوال"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.HomemaidId}
-              onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="بحث برقم العاملة"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300 min-w-[120px]"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setFilters({
-                  clientphonenumber: "",
-                  age: "",
-                  ClientName: "",
-                  HomemaidId: "",
-                  Nationality: "",
-                  Passportnumber: "",
-                });
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-regular"]}>اعادة ضبط</h1>
-            </button>
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-regular"]}>بحث</h1>
-            </button>
+          <div className="flex justify-between flex-col flex-wrap gap-4">
+            <div className="flex items-center gap-4 flex-wrap" dir='ltr'>
+              <button
+                className="bg-teal-900 text-white text-md px-3 py-2 rounded-md"
+                onClick={handleResetFilters}
+              >
+                اعادة ضبط
+              </button>
+              <div className="flex items-center justify-between bg-row-background border border-border rounded-md px-2.5 py-2 gap-10 text-md text-gray-500">
+                <input
+                  type="text"
+                  placeholder="الجنسية"
+                  value={filters.Nationalitycopy}
+                  onChange={(e) => handleFilterChange('Nationalitycopy', e.target.value)}
+                  className="border-none bg-transparent outline-none w-[180px] text-sm text-gray-500"
+                />
+                <Image src="/images/I2207_32547_2194_30622_354_4917.svg" alt="arrow" width={16} height={16} />
+              </div>
+              <div className="flex items-center justify-between bg-row-background border border-border rounded-md px-2.5 py-2 gap-10 text-md text-gray-500">
+                <input
+                  type="text"
+                  placeholder="سبب الالغاء"
+                  value={filters.ReasonOfRejection}
+                  onChange={(e) => handleFilterChange('ReasonOfRejection', e.target.value)}
+                  className="border-none bg-transparent outline-none w-[180px] text-sm text-gray-500"
+                />
+                <Image src="/images/I2207_32547_2194_30624.svg" alt="arrow" width={16} height={16} />
+              </div>
+              <div className="flex items-center bg-row-background border border-border rounded-md px-2.5 py-2">
+                <input
+                  type="text"
+                  placeholder="بحث"
+                  value={filters.clientphonenumber}
+                  onChange={(e) => handleFilterChange('clientphonenumber', e.target.value)}
+                  className="border-none bg-transparent outline-none w-[180px] text-sm text-gray-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button className="flex items-center gap-1 bg-teal-900 text-md text-white px-2.5 py-1 rounded">
+                <FileExcelOutlined />
+                Excel
+              </button>
+              <button className="flex items-center gap-1 bg-teal-900 text-md text-white px-2.5 py-1 rounded">
+                <FilePdfOutlined />
+                PDF
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Table */}
-        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
-          <thead>
-            <tr className="bg-yellow-400 text-white">
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                م
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                الاسم
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                جوال العميل
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                رقم جواز السفر
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                رقم العاملة
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                سبب الرفض
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                الجنسية
-              </th>
-              <th
-                className={
-                  "p-3 text-center   font-medium" + Style["almarai-regular"]
-                }
-              >
-                استعادة
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="p-3 text-center   text-gray-500">
-                  No results found
-                </td>
-              </tr>
-            ) : (
-              data.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 text-md text-gray-600 text-center">
-                    {item.id}
-                  </td>
-                  <td className="p-3 text-md text-gray-600 text-center">
-                    {item.ClientName}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.clientphonenumber}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Passportnumber}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.HomemaidIdCopy}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.ReasonOfRejection}
-                  </td>
-                  <td className="p-3 text-md text-gray-700 text-center">
-                    {item.Nationalitycopy}
-                  </td>
-                  <td className="p-3   text-gray-600 text-center">
-                    <button
-                      className={
-                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-                      }
-                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
-                    >
-                      <h1 className={Style["almarai-regular"]}>استعادة</h1>
-                    </button>
-                  </td>
+        {loading && <p className="text-center">جار التحميل...</p>}
+        {error && <p className="text-center text-red-500">{error}</p>}
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse whitespace-nowrap">
+              <thead className="bg-teal-900 text-white">
+                <tr>
+                  <th className="p-4 text-right font-normal text-sm">#</th>
+                  <th className="p-4 text-right font-normal text-sm">اسم العميل</th>
+                  <th className="p-4 text-right font-normal text-sm">جوال العميل</th>
+                  <th className="p-4 text-right font-normal text-sm">هوية العميل</th>
+                  <th className="p-4 text-right font-normal text-sm">رقم العاملة</th>
+                  <th className="p-4 text-right font-normal text-sm">اسم العاملة</th>
+                  <th className="p-4 text-right font-normal text-sm">الجنسية</th>
+                  <th className="p-4 text-right font-normal text-sm">رقم جواز السفر</th>
+                  <th className="p-4 text-right font-normal text-sm">سبب الالغاء</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* Infinite scroll trigger */}
-        {hasMore && (
-          <div
-            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
-            className="flex justify-center mt-6"
-          >
-            {loading && (
-              <div className="flex justify-center items-center">
-                <svg
-                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
-                  />
-                </svg>
-                Loading...
-              </div>
-            )}
+              </thead>
+              <tbody>
+                {filteredData.map((row, index) => (
+                  <tr key={index} className="bg-row-background border-b border-border last:border-b-0">
+                    <td className="p-4 text-sm text-black text-right">{row.id}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.ClientName || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.clientphonenumber || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.clientID || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.HomemaidId || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.Name || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.Nationalitycopy || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.Passportnumber || 'غير متوفر'}</td>
+                    <td className="p-4 text-sm text-black text-right">{row.ReasonOfRejection || 'غير متوفر'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+        <div className="flex justify-between items-center pt-6 flex-wrap gap-4">
+          <span className="text-base text-black">
+            عرض {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalResults)} من {totalResults} نتيجة
+          </span>
+          <nav className="flex items-center gap-1.5">
+            <a
+              href="#"
+              className={`px-2 py-0.5 border border-border rounded bg-row-background text-black text-md ${page === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                if (page > 1) setPage(page - 1);
+              }}
+            >
+              السابق
+            </a>
+            {Array.from({ length: Math.ceil(totalResults / pageSize) }, (_, i) => i + 1).map((pageNum) => (
+              <a
+                key={pageNum}
+                href="#"
+                className={`px-2 py-0.5 border rounded text-md ${pageNum === page ? 'border-primary bg-teal-900 text-white' : 'border-border bg-row-background text-black'}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setPage(pageNum);
+                }}
+              >
+                {pageNum}
+              </a>
+            ))}
+            <a
+              href="#"
+              className={`px-2 py-0.5 border border-border rounded bg-row-background text-black text-md ${page === Math.ceil(totalResults / pageSize) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                if (page < Math.ceil(totalResults / pageSize)) setPage(page + 1);
+              }}
+            >
+              التالي
+            </a>
+          </nav>
+        </div>
+      </div>
+    </main>
+  );
+};
+
+export default function Home() {
+  return (
+    <Layout>
+      <Head>
+        <meta name="description" content="Rawaes Recruitment Dashboard" />
+      </Head>
+      <div className={`flex min-h-screen max-w-[1440px] mx-auto font-tajawal bg-background text-black dir-rtl ${Style["tajawal-regular"]}`}>
+        <div className="flex flex-col flex-grow">
+          <MainContent />
+        </div>
       </div>
     </Layout>
   );

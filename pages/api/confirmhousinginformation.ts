@@ -2,8 +2,7 @@ import prisma from "./globalprisma";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
-    console.log(req.body);
-
+    // 🟢 إنشاء (Create) فقط
     const {
       homeMaidId,
       profileStatus,
@@ -13,14 +12,23 @@ export default async function handler(req, res) {
       houseentrydate,
       deliveryDate,
       StartingDate,
+      location,
       startWoringDate,
       DeparatureTime,
     } = req.body;
-    if(!req.body.reason)
+
+    if (!req.body.reason)
       return res.status(500).json({ error: "سبب التسكين مطلوب" });
-    if(!houseentrydate)
-{      return res.status(500).json({ error: "تاريخ التسكين مطلوب" });
-}    const object = {
+
+    if (!houseentrydate) {
+      return res.status(500).json({ error: "تاريخ التسكين مطلوب" });
+    }
+
+    if (!homeMaidId) {
+      return res.status(400).json({ error: "HomeMaidId is required" });
+    }
+
+    const object = {
       houseentrydate: houseentrydate
         ? new Date(houseentrydate).toISOString()
         : null,
@@ -34,6 +42,7 @@ export default async function handler(req, res) {
         : null,
       DeparatureFromSaudiTime: DeparatureTime,
     };
+
     function excludeEmptyFields(obj) {
       return Object.fromEntries(
         Object.entries(obj).filter(([key, value]) => {
@@ -47,74 +56,44 @@ export default async function handler(req, res) {
       );
     }
     const newObj = excludeEmptyFields(object);
-    if (!homeMaidId) {
-      return res.status(400).json({ error: "HomeMaidId is required" });
-    }
+
     try {
+      // 🔎 نتأكد إنه مش موجود
       const search = await prisma.housedworker.findFirst({
         where: { homeMaid_id: homeMaidId },
       });
 
-      if (!search) {
-        await prisma.housedworker.create({
-          data: {
-            checkIns: {
-              create: {
-                CheckDate: newObj.houseentrydate, // Ensure this is a valid date
-              },
+      if (search) {
+        return res.status(400).json({ error: "Housing record already exists, use PUT to update" });
+      }
+
+      await prisma.housedworker.create({
+        data: {
+          checkIns: {
+            create: {
+              CheckDate: newObj.houseentrydate, // Ensure this is a valid date
             },
-            employee: req.body.employee,
-            Reason: req.body.reason,
-            Details: req.body.details,
-            houseentrydate: newObj.houseentrydate,
-            deliveryDate: newObj.deliveryDate,
-            homeMaid_id: homeMaidId,
-            deparatureHousingDate: null,
           },
-        });
+          employee: req.body.employee,
+          Reason: req.body.reason,
+          Details: req.body.details,
+          houseentrydate: newObj.houseentrydate,
+          deliveryDate: newObj.deliveryDate,
+          homeMaid_id: homeMaidId,
+          deparatureHousingDate: null,
+        },
+      });
 
-try {
-  await prisma.logs.create({data:{
-
-
-    Status: `تم تسكين العاملة منزلية بتاريخ ${new Date().toLocaleDateString()}`,
-    userId: req.body.employee,
-    homemaidId: homeMaidId,
-  }})
-
-} catch (error) {
- console.log(error) 
-}
-
-      } else {
-        await prisma.housedworker.update({
-          where: { homeMaid_id: homeMaidId },
+      try {
+        await prisma.logs.create({
           data: {
-            employee: req.body.employee,
-            Reason: req.body.reason,
-            deparatureHousingDate: null,
-            Details: req.body.details,
-            houseentrydate: req.body.houseentrydate
-              ? new Date(req.body.houseentrydate).toISOString()
-              : search.houseentrydate,
-            deliveryDate: req.body.deliveryDate
-              ? new Date(req.body.deliveryDate)
-              : search.deliveryDate,
+            Status: `تم تسكين العاملة منزلية بتاريخ ${new Date().toLocaleDateString()}`,
+            userId: req.body.employee,
+            homemaidId: homeMaidId,
           },
         });
- try {
-  await prisma.logs.create({data:{
-
-
-    Status: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ ${new Date().toLocaleDateString()}`,
-    userId: req.body.employee,
-    homemaidId: homeMaidId,
-  }})
-
-} catch (error) {
- console.log(error) 
-}
- 
+      } catch (error) {
+        console.log(error);
       }
 
       try {
@@ -124,9 +103,9 @@ try {
           },
         });
 
-        const notification = await prisma.notifications.create({
+        await prisma.notifications.create({
           data: {
-            title: `تسكين عاملة  ${homeMaidIds?.Name}منزلية`,
+            title: `تسكين عاملة  ${homeMaidIds?.Name} منزلية`,
             message: `تم تسكين العاملة   بنجاح <br/>
               يمكنك فحص المعلومات في قسم التسكين ......  <a href="/admin/housedarrivals" target="_blank" className="text-blue-500">اضغط هنا</a>`,
             userId: req.body.employee,
@@ -137,14 +116,66 @@ try {
         console.log(e);
       }
 
+      return res.status(200).json({ message: "Housing created successfully" });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "Error creating housing" });
+    }
 
+  } else if (req.method === "PUT") {
+    // 🟡 تحديث (Update) فقط
+    const { homeMaidId, employee, reason, details, houseentrydate, deliveryDate ,location_id} = req.body;
 
-      return res.status(200).json({ message: "Housing updated successfully" });
+    if (!homeMaidId) {
+      return res.status(400).json({ error: "HomeMaidId is required" });
+    }
+
+    try {
+      const search = await prisma.housedworker.findFirst({
+        where: { homeMaid_id: homeMaidId },
+      });
+
+      if (!search) {
+        return res.status(404).json({ error: "Housing record not found" });
+      }
+
+      const updated = await prisma.housedworker.update({
+        where: { homeMaid_id: homeMaidId },
+        data: {
+          location_id,
+          employee,
+          Reason: reason,
+          deparatureHousingDate: null,
+          Details: details,
+          houseentrydate: houseentrydate
+            ? new Date(houseentrydate).toISOString()
+            : search.houseentrydate,
+          deliveryDate: deliveryDate
+            ? new Date(deliveryDate).toISOString()
+            : search.deliveryDate,
+        },
+      });
+
+      try {
+        await prisma.logs.create({
+          data: {
+            Status: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ ${new Date().toLocaleDateString()}`,
+            userId: employee,
+            homemaidId: homeMaidId,
+          },
+        });
+      } catch (error) {
+        console.log(error);
+      }
+
+      return res.status(200).json({ message: "Housing updated successfully", updated });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Error updating housing" });
     }
+
   } else if (req.method === "GET") {
+    // 🔵 قراءة (Read)
     const {
       Name,
       age,
@@ -170,11 +201,8 @@ try {
       },
     };
 
-    if (Nationality)
-      filters.Nationalitycopy = { contains: Nationality.toLowerCase() };
-
     // Build the sorting object dynamically based on sortKey and sortDirection
-    let orderBy = { id: "desc" as SortOrder }; // Default sorting by id in descending order
+    let orderBy = { id: "desc" }; // Default sorting by id in descending order
     if (sortKey) {
       switch (sortKey) {
         case "Name":
@@ -191,17 +219,12 @@ try {
             Order: { Nationalitycopy: sortDirection || "asc" },
           };
           break;
-        // case "ClientName":
-        //   orderBy = { Order: { ClientName: sortDirection || "asc" } };
-        //   break;
         default:
           orderBy = {};
       }
     }
 
     try {
-
-  // Fetch the total count of housed workers
       const totalCount = await prisma.housedworker.count({
         where: {
           ...filters,
@@ -214,21 +237,22 @@ try {
           ...filters,
           deparatureHousingDate: null,
         },
-        include: { Order:{include:{weeklyStatusId:true,logs:true}},},
+        include: { Order: { include: { weeklyStatusId: true, logs: true } } },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
-        orderBy: orderBy, // Apply sorting
+        orderBy: orderBy,
       });
-// housing[0].Order. weeklyStatusId[housing[0].Order.weeklyStatusId.length-1]?.status
+
       if (!housing) {
         return res.status(404).json({ error: "Housing not found" });
       }
-// housing[0].Order.
-      return res.status(200).json({ housing ,totalCount});
+
+      return res.status(200).json({ housing, totalCount });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Error fetching housing" });
     }
+
   } else {
     return res.status(405).json({ error: "Method not allowed" });
   }

@@ -33,7 +33,6 @@ export default async function handler(
           // },
           
           HomeMaid: { connect: { id: req.body.homeMaid } },
-          clientphonenumber: "sss", // Ensure this field is provided in the request body
         },
       });
 
@@ -63,7 +62,7 @@ export default async function handler(
           arrivals: { select: { deparatureDate: true, deparatureTime: true } },
         },
         where: { id: homemaids.Order?.id },
-        data: {
+        data: {isContractEnded: true,
           HomemaidIdCopy: req.body.homeMaid,
           arrivals: {
             update: {

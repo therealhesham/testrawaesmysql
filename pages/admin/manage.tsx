@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import prisma from "pages/api/globalprisma";
 import Layout from "example/containers/Layout";
+import Sidebar from "components/aside";
 
 interface Homemaid {
   id: number;
@@ -118,6 +119,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
       if (!response.ok) {
         throw new Error("Failed to update order");
       }
+      // alert("updated Correctly")
     } catch (error) {
       console.error("Error updating order:", error);
       setHomemaids(initialHomemaids);
@@ -126,6 +128,7 @@ export default function ManageHomemaids({ initialHomemaids }: ManageHomemaidsPro
 
   return (
     <Layout>
+      <Sidebar />
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl py-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <h1 className="text-3xl sm:text-4xl font-extrabold mb-8 text-gray-900 tracking-tight">
         ترتيب العاملات

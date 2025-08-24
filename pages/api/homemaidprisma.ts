@@ -1,52 +1,95 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { Name, age, Passportnumber, id, Nationality, page } = req.query;
-  console.log(req.query);
+  const { SponsorName, PassportNumber, OrderId, age, page, perPage } = req.query;
+
   // Set the page size for pagination
-  const pageSize = 10;
-  const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+  const pageSize = parseInt(perPage as string, 10) || 10;
+  const pageNumber = parseInt(page as string, 10) || 1;
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
 
-  if (id)
+  if (OrderId) {
     filters.id = {
-      equals: Number(id),
+      equals: Number(OrderId),
     };
-  // {id:}}
-  if (Name) filters.Name = { contains: (Name as string).toLowerCase() };
-  if (age) filters.age = { equals: parseInt(age as string, 10) };
-  if (Passportnumber)
+  }
+  if (SponsorName) {
+    filters.ClientName = {
+      contains: (SponsorName as string).toLowerCase(),
+      mode: "insensitive",
+    };
+  }
+  if (PassportNumber) {
     filters.Passportnumber = {
-      contains: (Passportnumber as string).toLowerCase(),
+      contains: (PassportNumber as string).toLowerCase(),
+      mode: "insensitive",
     };
-  if (Nationality)
-    filters.Nationalitycopy = {
-      contains: (Nationality as string).toLowerCase(),
+  }
+  if (age) {
+    filters.dateofbirth = {
+      equals: parseInt(age as string, 10),
     };
+  }
 
   try {
+    // Count total records for pagination
+    const totalRecords = await prisma.homemaid.count({
+      where: filters,
+    });
+    const totalPages = Math.ceil(totalRecords / pageSize);
+
     // Fetch data with the filters and pagination
-    const homemaids = await prisma.homemaid.findMany({include:{office:{select:{Country:true}}},
+    const homemaids = await prisma.homemaid.findMany({
+      include: {
+        office: {
+          select: {
+            office: true,
+            Country: true,
+          },
+        },
+      },
       where: filters,
       orderBy: { id: "desc" },
-      skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-      take: pageSize, // Limit the results to the page size
+      skip: (pageNumber - 1) * pageSize,
+      take: pageSize,
     });
 
-    // Send the filtered and paginated data as the response
-    res.status(200).json(homemaids);
+    // Map the data to match the frontend's expected field names
+    const formattedData = homemaids.map((homemaid) => ({
+      id: homemaid.id,
+      Name: homemaid.Name || "",
+      homemaidId: homemaid.id, // Added to match frontend navigation
+      phone: homemaid.phone || "",
+      maritalstatus: homemaid.maritalstatus || "",
+      dateofbirth: homemaid.dateofbirth || "",
+      Passportnumber: homemaid.Passportnumber || "",
+      PassportStart: homemaid.PassportStart || "",
+      PassportEnd: homemaid.PassportEnd || "",
+      office: homemaid.office
+        ? {
+            office: homemaid.office.office || "",
+            Country: homemaid.office.Country || "",
+          }
+        : { office: "", Country: "" },
+    }));
+
+    // Send the filtered, paginated, and formatted data as the response
+    res.status(200).json({
+      data: formattedData,
+      totalPages,
+    });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
   } finally {
-    // Disconnect Prisma Client regardless of success or failure
     await prisma.$disconnect();
   }
 }

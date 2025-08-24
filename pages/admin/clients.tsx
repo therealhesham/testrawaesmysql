@@ -1,346 +1,302 @@
-import jwt from "jsonwebtoken";
-import { useRouter } from "next/router";
-import { useEffect, useState, useCallback, useRef, useContext } from "react";
-import Layout from "example/containers/Layout";
-import { Button } from "@mui/material";
+import AddClientModal from 'components/AddClientModal';
 import Style from "styles/Home.module.css";
-import { User } from "utils/usercontext";
+import { useState, useEffect } from 'react';
+import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp } from 'lucide-react';
+// import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import { FileExcelOutlined } from '@ant-design/icons';
+import { DocumentTextIcon } from '@heroicons/react/outline';
+import Layout from 'example/containers/Layout';
+interface Order {
+  id: number;
+  bookingstatus: string | null;
+  createdat: string | null;
+  HomeMaid: { id: number; Name: string | null } | null;
+}
 
-export default function Table() {
+interface Client {
+  id: number;
+  fullname: string | null;
+  phonenumber: string | null;
+  nationalId: string | null;
+  city: string | null;
+  createdat: string | null;
+  orders: Order[];
+  _count: { orders: number };
+}
+
+const Customers = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalClients, setTotalClients] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedClientId, setExpandedClientId] = useState<number | null>(null); // Track expanded client
   const [filters, setFilters] = useState({
-    phonenumber: "",
-    fullname: "",
+    fullname: '',
+    phonenumber: '',
+    city: 'all',
+    date: '',
   });
+  const [loading, setLoading] = useState(false);
 
-  const [state, setState] = useState({
-    data: [],
-    loading: false,
-    hasMore: true,
-  });
-
-  const router = useRouter();
-  const pageRef = useRef(1); // Keep track of current page
-  const isFetchingRef = useRef(false); // Prevent duplicate fetches
-  const usercontext = useContext(User);
-
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for debouncing timeout
-
-  // Fetch data function with pagination
-  const fetchData = useCallback(async () => {
-    if (isFetchingRef.current || !state.hasMore) return;
-
-    isFetchingRef.current = true;
-    setState((prevState) => ({ ...prevState, loading: true }));
-
+  const fetchClients = async (page: number = 1) => {
+    setLoading(true);
     try {
-      const queryParams = new URLSearchParams({
-        fullname: filters.fullname,
-        phonenumber: filters.phonenumber,
+      const query = new URLSearchParams({
+        page: page.toString(),
+        ...(filters.fullname && { fullname: filters.fullname }),
+        ...(filters.phonenumber && { phonenumber: filters.phonenumber }),
+        ...(filters.city !== 'all' && { city: filters.city }),
+        ...(filters.date && { date: filters.date }),
+      }).toString();
 
-        page: String(pageRef.current),
-      });
-
-      const response = await fetch(`/api/clients?${queryParams}`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-
-      const res = await response.json();
-
-      if (res && res.length > 0) {
-        setState((prevState) => ({
-          ...prevState,
-          data: [...prevState.data, ...res],
-        }));
-        pageRef.current += 1;
-      } else {
-        setState((prevState) => ({ ...prevState, hasMore: false }));
-      }
+      const response = await fetch(`/api/clients?${query}`);
+      const { data, totalPages, totalClients } = await response.json();
+      setClients(data);
+      setTotalPages(totalPages);
+      setTotalClients(totalClients);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching clients:', error);
     } finally {
-      setState((prevState) => ({ ...prevState, loading: false }));
-      isFetchingRef.current = false;
+      setLoading(false);
     }
-  }, [filters, state.hasMore]);
+  };
 
   useEffect(() => {
-    fetchData(); // Fetch initial data on mount
-  }, [fetchData]);
+    fetchClients(currentPage);
+  }, [currentPage, filters]);
 
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    column: string
-  ) => {
-    const value = e.target.value;
-
-    // Clear any previous debounce timeout if it's still running
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Set the new filter value
-    setFilters((prev) => ({
-      ...prev,
-      [column]: value,
-    }));
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+    setCurrentPage(1); // Reset to first page on filter change
+    setExpandedClientId(null); // Collapse any expanded rows
   };
 
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
-  }
-  const makeRequest = async (url: string, body: object) => {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    return response.status === 200;
+  const handleResetFilters = () => {
+    setFilters({ fullname: '', phonenumber: '', city: 'all', date: '' });
+    setCurrentPage(1);
+    setExpandedClientId(null); // Collapse any expanded rows
   };
 
-  const restore = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/restoreorders", { id, homeMaidId });
-    if (success) router.push("/admin/neworders");
+  const toggleOrders = (clientId: number) => {
+    setExpandedClientId(expandedClientId === clientId ? null : clientId);
   };
-
-  const handleUpdate = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/confirmrequest", {
-      id,
-      homeMaidId,
-    });
-    if (success) router.push("/admin/neworders");
-  };
-
-  const loadMoreRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (state.loading || !state.hasMore) return;
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            fetchData();
-          }
-        },
-        { threshold: 1.0 }
-      );
-      if (node) observer.observe(node);
-
-      return () => observer.disconnect();
-    },
-    [fetchData, state.loading, state.hasMore]
-  );
 
   return (
     <Layout>
-      <div className="container mx-auto p-6">
-        <h1
-          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
-        >
-          قائمة العملاء
-        </h1>
-
-        {/* Filter Section */}
-        <div className="flex justify-between mb-4">
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.fullname}
-              onChange={(e) => handleFilterChange(e, "fullname")}
-              placeholder="بحث بالاسم"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.phonenumber}
-              onChange={(e) => handleFilterChange(e, "phonenumber")}
-              placeholder="بحث برقم الجوال"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          {/* <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.Nationality}
-              onChange={(e) => handleFilterChange(e, "email")}
-              placeholder="بحث برقم الجوال"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div> */}
-
-          {/* <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.HomemaidId}
-              onChange={(e) => handleFilterChange(e, "HomemaidId")}
-              placeholder="Filter by CV"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div> */}
-          <div className="flex-1 px-1">
+          <div className={`max-w-6xl mx-auto bg-primary-light min-h-screen ${Style["tajawal-regular"]}`}>
+      <div className="flex flex-col">
+        <main className="flex-grow p-6 sm:p-8 overflow-y-auto">
+          <section className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-normal text-text-dark">قائمة العملاء</h1>
             <button
-              // variant="contained"
-              // color="info"
-              className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
-              onClick={() => {
-                isFetchingRef.current = false;
-                setState({ data: [], hasMore: true, loading: false });
-                setFilters({
-                  fullname: "",
-                  phonenumber: "",
-                });
-                pageRef.current = 1;
-                fetchData();
-              }}
+              className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
+              onClick={() => setIsModalOpen(true)}
             >
-              اعادة ضبط
+              <span>إضافة عميل</span>
+              <Plus className="w-5 h-5" />
             </button>
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 hover:shadow-lg focus:outline-none transition-all duration-200 ease-in-out"
-              // variant="contained"
-              // color="info"
-              onClick={() => {
-                isFetchingRef.current = false;
-                setState({ data: [], hasMore: true, loading: false });
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              بحث
-            </button>
-          </div>
-        </div>
+          </section>
 
-        {/* Table */}
-        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
-          <thead>
-            <tr className="bg-yellow-500 text-white">
-              <th className="p-3 text-center text-sm font-medium">م</th>
-              <th className="p-3 text-center text-sm font-medium">الاسم</th>
-              <th className="p-3 text-center text-sm font-medium">
-                بريد العميل
-              </th>
-              <th className="p-3 text-center text-sm font-medium">الجوال</th>
-              <th className="p-3 text-center text-sm font-medium">
-                تاريخ اضافة العميل
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                عدد الطلبات
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.data.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="p-3 text-center text-sm text-gray-500"
-                >
-                  No results found
-                </td>
-              </tr>
-            ) : (
-              state.data.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3 text-sm text-pretty text-gray-600">
-                    {item.id}
-                  </td>
-                  <td className="p-3 text-sm text-center text-gray-600">
-                    {item.fullname}
-                  </td>
-                  <td className="p-3 text-sm text-center text-gray-600">
-                    {item.email}
-                  </td>
-                  <td className="p-3 text-sm text-center text-gray-600">
-                    {item.phonenumber}
-                  </td>
-                  <td className="p-3 text-sm text-center text-gray-600">
-                    {item?.createdat ? getDate(item.createdat) : nnull}
-                  </td>
-                  <td className="p-3 text-sm text-center text-gray-600">
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      onClick={() =>
-                        router.push("/admin/clientorders/" + item.id)
-                      }
-                    >
-                      {item._count.orders}
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* Infinite scroll trigger */}
-        {state.hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center mt-6">
-            {state.loading && (
-              <div className="flex justify-center items-center">
-                <svg
-                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
-                  />
-                </svg>
-                Loading...
+          <section className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <div className="relative w-full sm:w-60">
+                <input
+                  type="text"
+                  placeholder="بحث"
+                  value={filters.fullname}
+                  onChange={(e) => handleFilterChange('fullname', e.target.value)}
+                  className="w-full bg-background-light border border-border-color rounded-md py-2 pr-10 pl-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
               </div>
-            )}
-          </div>
-        )}
+              <div className="flex items-center bg-background-light border border-border-color rounded-md px-4 py-2 text-sm text-text-muted cursor-pointer">
+                <select
+                  value={filters.city}
+                  onChange={(e) => handleFilterChange('city', e.target.value)}
+                  className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
+                >
+                  <option value="all">كل المدن</option>
+                  <option value="الرياض">الرياض</option>
+                  <option value="جدة">جدة</option>
+                  {/* Add more cities as needed */}
+                </select>
+                <ChevronDown className="mr-2 w-4 h-4" />
+              </div>
+              <div className="flex items-center bg-background-light border border-border-color rounded-md px-4 py-2 text-sm text-text-muted cursor-pointer">
+                <input
+                  type="date"
+                  value={filters.date}
+                  onChange={(e) => handleFilterChange('date', e.target.value)}  
+                  className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
+                />
+                <Calendar className="mr-2 w-4 h-4" />
+              </div>
+              <div className="flex items-center bg-background-light border border-border-color rounded-md px-4 py-2 text-sm text-text-muted cursor-pointer">
+                <span>كل الاعمدة</span>
+                <Filter className="mr-2 w-4 h-4" />
+              </div>
+              <button
+                onClick={handleResetFilters}
+                className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
+              >
+                إعادة ضبط
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <button className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-teal-800/90">
+                <FileText className="w-4 h-4" />
+                <span>PDF</span>
+              </button>
+              <button className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-teal-800/90">
+                <FileExcelOutlined className="w-4 h-4" />
+                <span>Excel</span>
+              </button>
+            </div>
+          </section>
+
+          <section className="bg-text-light border border-border-color rounded-md overflow-hidden">
+            <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-teal-800 text-white text-sm font-medium p-4">
+              <div>الرقم</div>
+              <div>الاسم</div>
+              <div>رقم الجوال</div>
+              <div>الهوية</div>
+              <div>المدينة</div>
+              <div>عدد الطلبات</div>
+              <div>تاريخ آخر طلب</div>
+              <div>عرض الطلبات</div>
+              <div>المبلغ المتبقي</div>
+              <div>ملاحظات</div>
+              <div>عرض</div>
+            </div>
+            <div className="divide-y divide-border-color">
+              {loading ? (
+                <div className="p-4 text-center text-text-dark">جاري التحميل...</div>
+              ) : clients.length === 0 ? (
+                <div className="p-4 text-center text-text-dark">لا توجد بيانات</div>
+              ) : (
+                clients.map((client) => (
+                  <div key={client.id}>
+                    <div
+                      className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-background-light text-text-dark text-xs p-4"
+                    >
+                      <div>#{client.id}</div>
+                      <div>{client.fullname || '-'}</div>
+                      <div>{client.phonenumber || '-'}</div>
+                      <div>{client.nationalId || '-'}</div>
+                      <div>{client.city || '-'}</div>
+                      <div>{client._count.orders}</div>
+                      <div>
+                        {client.orders[0]?.createdat
+                          ? new Date(client.orders[0].createdat).toLocaleDateString('ar-SA')
+                          : '-'}
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => toggleOrders(client.id)}
+                          className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
+                        >
+                          {expandedClientId === client.id ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          )}
+                        </button>
+                      </div>
+                      <div>-</div>
+                      <div>
+                        <a href="#" className="flex items-center gap-1 text-primary-dark text-xs hover:underline">
+                          <DocumentTextIcon className="w-4 h-4" />
+                          <span>إضافة ملاحظة</span>
+                        </a>
+                      </div>
+                      <div>
+                        <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10">
+                          <Eye className="w-4 h-4 rotate-90" />
+                        </button>
+                      </div>
+                    </div>
+                    {expandedClientId === client.id && (
+                      <div className="bg-background-light p-4">
+                        <div className="border border-border-color rounded-md overflow-hidden">
+                          <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 bg-teal-800 text-white text-sm font-medium p-4">
+                            <div>رقم الطلب</div>
+                            <div>اسم العامل</div>
+                            <div>حالة الحجز</div>
+                            <div>تاريخ الإنشاء</div>
+                          </div>
+                          {client.orders.length === 0 ? (
+                            <div className="p-4 text-center text-text-dark">لا توجد طلبات</div>
+                          ) : (
+                            client.orders.map((order) => (
+                              <div
+                                key={order.id}
+                                className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 bg-background-light text-text-dark text-xs p-4"
+                              >
+                                <div>#{order.id}</div>
+                                <div>{order.HomeMaid?.Name || '-'}</div>
+                                <div>{order.bookingstatus || '-'}</div>
+                                <div>
+                                  {order.createdat
+                                    ? new Date(order.createdat).toLocaleDateString('ar-SA')
+                                    : '-'}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <footer className="flex flex-col sm:flex-row justify-between items-center p-5 mt-6">
+            <p className="text-base text-text-dark">
+              عرض {(currentPage - 1) * 10 + 1}-{Math.min(currentPage * 10, totalClients)} من {totalClients} نتيجة
+            </p>
+            <nav className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-2 py-1 border border-border-color rounded text-xs bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
+              >
+                السابق
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => {
+                    setCurrentPage(page);
+                    setExpandedClientId(null); // Collapse any expanded rows on page change
+                  }}
+                  className={`px-2 py-1 border rounded text-xs ${
+                    currentPage === page
+                      ? 'border-primary-dark bg-teal-800 text-white'
+                      : 'border-border-color bg-background-light hover:bg-teal-800 hover:text-white'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-2 py-1 border border-border-color rounded text-xs bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
+              >
+                التالي
+              </button>
+            </nav>
+          </footer>
+        </main>
       </div>
+      <AddClientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+    </div>
     </Layout>
+
   );
-}
+};
 
-export async function getServerSideProps(context: NextPageContext) {
-  const { req, res } = context;
-  try {
-    const isAuthenticated = req.cookies.authToken ? true : false;
-
-    if (!isAuthenticated) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-
-    jwt.verify(req.cookies.authToken, "rawaesecret");
-    return {
-      props: {},
-    };
-  } catch (error) {
-    console.error(error);
-    return {
-      redirect: {
-        destination: "/admin/login",
-        permanent: false,
-      },
-    };
-  }
-}
+export default Customers;

@@ -1,5 +1,8 @@
+
+
 import classNames from "classnames";
 import Link from "next/link";
+import Style from "../../../styles/Home.module.css";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
@@ -8,11 +11,13 @@ import {
   HomeIcon,
   LogoutIcon,
 } from "../../../components/icons";
-import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
-import { FacebookMessengerIcon } from "next-share";
-import { MessageOutlined } from "@ant-design/icons";
+import { AlertOutlined, BellFilled, BellOutlined, FileWordOutlined, MessageOutlined, NotificationFilled, NotificationOutlined } from "@ant-design/icons";
+import { DocumentAddIcon, DocumentIcon, DocumentTextIcon, TemplateIcon } from "@heroicons/react/outline";
+import { PeopleIcon } from "icons";
+import ReportsIcon from "components/icons/reports";
 
 interface MenuItem {
   id: number;
@@ -27,61 +32,90 @@ interface SubMenuItem {
   label: string;
   link: string;
 }
+function Bell() {
+  return( 
+     <svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 24 24"
+     fill="currentColor"
+     className="w-6 h-6">
+  <path d="M12 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 006 14h12a1 1 0 00.707-1.707L18 11.586V8a6 6 0 00-6-6z" />
+  <path d="M10 18a2 2 0 104 0h-4z" />
+</svg>
 
+  )
+}
 const menuItems: MenuItem[] = [
   { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
   {
     id: 2,
-    label: "الطلبات",
-    icon: FaFirstOrderAlt,
+    label: "ادارة الطلبات",
+    icon: DocumentTextIcon,
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
-      { id: 22, label: "طلبات منتهية", link: "/admin/endedorders" },
+      { id: 22, label: "الطلبات الحالية", link: "/admin/currentorderstest" },
     ],
   },
+  { id: 3, label: "قائمة العملاء", icon: PeopleIcon, link: "/admin/clients" },
   {
     id: 4,
-    label: "التسكين",
-    icon: FaHotel,
+    label: "ادارة العاملات",
+    icon: PeopleIcon,
     subItems: [
-      { id: 21, label: "قائمة التسكين", link: "/admin/housedarrivals" },
-      { id: 22, label: "الاعاشات", link: "/admin/checkedtable" },
+      { id: 41, label: "قائمة العاملات", link: "/admin/fulllist" },
+      { id: 42, label: "العاملات المتاحات", link: "/admin/availablelist" },
+      { id: 43, label: "العاملات المحجوزات", link: "/admin/bookedlist" },
+
     ],
   },
   {
-    id: 8,
-    label: "العاملات",
-    icon: FaPersonBooth,
+    id: 5,
+    label: "شئون الاقامة",
+    icon: FaBuilding,
     subItems: [
-      { id: 21, label: "قائمة العاملات", link: "/admin/fulllist" },
-      { id: 22, label: "اضافة عاملة", link: "/admin/newhomemaid" },
-    ],
-  },  {
-    id: 45,
-    label: "ادارة المحتوى",
-    icon: FaDailymotion,
-  link: "/admin/manage",
-  },
-  {
-    id: 12,
-    label: "المراسلات",
-    icon: MessageOutlined,
-    subItems: [
-      { id: 21, label: "قائمة المراسلات", link: "/admin/messages_list" },
-      { id: 22, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
+      { id: 51, label: "التسكين", link: "/admin/housedarrivals" },
+      { id: 52, label: "الاعاشات", link: "/admin/checkedtable" },
     ],
   },
   {
-    id: 3,
+    id: 2002,
+        label: "الوصول و المغادرة",
+    icon: FaBuilding,
+    subItems: [
+      { id: 512, label: "الوصول", link: "/admin/arrival-list" },
+      { id: 522, label: "المغادرة الداخلية", link: "/admin/deparatures" },
+      { id: 522, label: "المغادرة الخارجية", link: "/admin/deparaturesfromsaudi" },
+
+    ],
+  },
+  { id: 6, label: "الاشعارات", icon: Bell, link: "/admin/notifications" },
+  { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
+  { id: 8, label: "القوالب", icon: TemplateIcon, link: "/admin/templates" },
+  {
+    id: 9,
+    label: "ادارة المراسلات",
+    icon: FaEnvelope,
+    subItems: [
+      { id: 91, label: "قائمة المراسلات", link: "/admin/messages_list" },
+      { id: 92, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
+    ],
+  },
+ 
+ {
+    id: 10,
     label: "الإعدادات",
     icon: FaCog,
-    link: "/admin/settings",
+    subItems: [
+      { id: 91, label: "الملف الشخصي", link: "/admin/messages_list" },
+      { id: 92, label: "ادارة المحاسبين", link: "/admin/send_message_to_office" },
+      { id: 93, label: "سجل العمليات", link: "/admin/send_message_to_office" },
+      { id: 94, label: "إدارة المستخدمين", link: "/admin/authorizations" },
+
+    ],
   },
 ];
 
 const Sidebar = (props) => {
   const { toggleCollapse, setToggleCollapse } = useSidebar();
-  const [isCollapsible, setIsCollapsible] = useState(false);
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const router = useRouter();
   const [image, setImage] = useState();
@@ -99,7 +133,7 @@ const Sidebar = (props) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-[#1a4d4f] text-white h-screen flex flex-col shadow-xl transition-all duration-500 ease-in-out font-inter",
+    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter overflow-y-hidden",
     {
       "w-72": !toggleCollapse,
       "w-20": toggleCollapse,
@@ -116,7 +150,7 @@ const Sidebar = (props) => {
   const getNavItemClasses = useCallback(
     (menu: MenuItem) => {
       return classNames(
-        "flex items-center px-4 py-3 mx-3 my-1 rounded-xl hover:bg-teal-700/60 transition-all duration-300 ease-in-out cursor-pointer group",
+        "flex items-center px-4 py-1 mx-3 my-1 rounded-xl hover:bg-teal-700/60 transition-all duration-300 ease-in-out cursor-pointer group",
         {
           "bg-teal-600/70 shadow-md": activeMenu?.id === menu.id,
           "justify-center": toggleCollapse,
@@ -129,7 +163,7 @@ const Sidebar = (props) => {
   const getSubNavItemClasses = useCallback(
     (subItem: SubMenuItem) => {
       return classNames(
-        "flex items-center px-8 py-2 mx-3 my-1 rounded-lg hover:bg-teal-700/40 transition-all duration-300 ease-in-out text-sm font-semibold",
+        `flex ${Style["tajawal-regular"]} items-center px-8 py-2 mx-3 my-1 rounded-lg hover:bg-teal-700/40 transition-all duration-300 ease-in-out`,
         {
           "bg-teal-600/40": router.pathname === subItem.link,
         }
@@ -153,10 +187,6 @@ const Sidebar = (props) => {
     }
   };
 
-  const onMouseOver = useCallback(() => {
-    setIsCollapsible(!toggleCollapse);
-  }, [toggleCollapse]);
-
   const handleSidebarToggle = useCallback(() => {
     setToggleCollapse((prevState) => !prevState);
   }, [setToggleCollapse]);
@@ -178,143 +208,136 @@ const Sidebar = (props) => {
     }
   }, []);
 
-  return (
-    <div
-      className={wrapperClasses}
-      onMouseEnter={onMouseOver}
-      onMouseLeave={onMouseOver}
-      style={{ transition: "width 500ms cubic-bezier(0.4, 0, 0.2, 1) 0s" }}
-    >
-      <div className="flex flex-col relative">
-        {/* Header Section */}
-        <div className="flex items-center justify-center relative p-6 border-b border-teal-700/30">
-          {!toggleCollapse && (
-            <div className="flex flex-col items-center gap-3">
-              <img
-                src={image || "/images/favicon.ico"}
-                alt="Profile"
-                className="rounded-full w-20 h-20 object-cover ring-2 ring-teal-400/50 transition-all duration-300"
-              />
-              <span className="text-base font-semibold text-teal-100">
-                مرحباً {info}
-              </span>
-            </div>
-          )}
-          {toggleCollapse && (
-            <img
-              src={image || "/images/favicon.ico"}
-              alt="Profile"
-              className="rounded-full w-12 h-12 object-cover ring-2 ring-teal-400/50"
-            />
-          )}
-          <button
-            aria-label="Collapse Sidebar"
-            className={collapseIconClasses}
-            onClick={handleSidebarToggle}
-          >
-            <CollapsIcon className="w-6 h-6 text-teal-200" />
-          </button>
-        </div>
+ return (
+  <div className={wrapperClasses}>
+    <div className="flex flex-col relative min-h-full">
 
-        {/* Menu Items */}
-       <nav className="flex flex-col mt-8">
-  {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
-    const classes = getNavItemClasses(menu);
-    return (
-      <div key={menu.id}>
-        <div className={classes} onClick={() => subItems && toggleSubMenu(menu.id)}>
-          {menu.link ? (
-            <Link href={menu.link}>
-              <a className="flex items-center w-full h-full">
-                <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
-                {!toggleCollapse && (
-                  <span className="text-sm font-medium mr-4 ml-3">{menu.label}</span>
+      {/* Header Section */}
+      <div className="flex items-center justify-center relative p-6 border-b border-teal-700/30">
+        {!toggleCollapse ? (
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={"/images/favicon.ico"}
+              alt="Profile"
+              className="rounded-full w-20 h-20 object-cover ring-2 ring-teal-400/50 transition-all duration-300"
+            />
+            <span className="text-base font-semibold text-teal-100">
+              {/* مرحباً {info} */}
+            </span>
+          </div>
+        ) : (
+          <img
+            src={image || "/images/favicon.ico"}
+            alt="Profile"
+            className="rounded-full w-12 h-12 object-cover ring-2 ring-teal-400/50"
+          />
+        )}
+        
+      </div>
+
+      {/* Menu Items */}
+      <nav className="flex flex-col mt-8 flex-grow overflow-y-auto pb-28">
+        {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
+          const classes = getNavItemClasses(menu);
+          const isOpen = openMenu === menu.id;
+
+          return (
+            <div key={menu.id}>
+              <div
+                className={classes}
+                onClick={() => subItems && toggleSubMenu(menu.id)}
+              >
+                {menu.link ? (
+                  <Link href={menu.link}>
+                    <a className={`flex ${Style["tajawal-medium"]} items-center w-full h-full`}>
+                      <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+                      {!toggleCollapse && (
+                        <div className="flex items-center justify-between flex-1">
+                          <span className={`text-sm font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
+                            {menu.label}
+                          </span>
+                          {subItems && (
+                            <FaChevronDown
+                              className={classNames(
+                                "w-4 h-4 transition-transform duration-500 text-white mr-2",
+                                {
+                                  "rotate-180": isOpen,
+                                }
+                              )}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </a>
+                  </Link>
+                ) : (
+                  <div className="flex items-center w-full h-full">
+                    <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
+                    {!toggleCollapse && (
+                      <div className="flex items-center justify-between flex-1">
+                        <span className={`text-sm font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
+                          {menu.label}
+                        </span>
+                        {subItems && (
+                          <FaChevronDown
+                            className={classNames(
+                              "w-4 h-4 transition-transform duration-500 text-teal-200 mr-2",
+                              {
+                                "rotate-180": isOpen,
+                              }
+                            )}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </a>
-            </Link>
-          ) : (
-            <div className="flex items-center  w-full h-full">
-              <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
-              {!toggleCollapse && (
-                <div className="flex items-center flex-1">
-                  <span className="text-sm font-medium mr-4 ml-3">{menu.label}</span>
-                  {subItems && (
-                    <FaChevronDown
-                       className={classNames("w-4 h-4 transition-transform duration-300 hidden", {
-                        "rotate-180": openMenu === menu.id,
-                      })}
-                    />
-                  )}
+              </div>
+
+              {/* Submenu Items */}
+              {!toggleCollapse && subItems && isOpen && (
+                <div
+                  className="overflow-hidden transition-all duration-500 ease-in-out"
+                  style={{
+                    maxHeight: isOpen ? `${subItems.length * 48}px` : "0px",
+                  }}
+                >
+                  {subItems.map((subItem) => (
+                    <div
+                      key={subItem.id}
+                      className={getSubNavItemClasses(subItem)}
+                    >
+                      <Link href={subItem.link}>
+                        <a className="flex items-center w-full h-full">
+                          <span className={`text-sm font-semibold ${Style["tajawal-medium"]}`}>
+                            {subItem.label}
+                          </span>
+                        </a>
+                      </Link>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
+          );
+        })}
+      </nav>
 
-        {/* Submenu Items */}
-        {!toggleCollapse && subItems && openMenu === menu.id && (
-          <div
-            className="mt-2 overflow-hidden transition-all duration-300 ease-in-out"
-            style={{
-              maxHeight: openMenu === menu.id ? `${subItems.length * 48}px` : "0px",
-            }}
+      {/* زر تسجيل الخروج مثبت */}
+      <div className="absolute bottom-0 left-0 w-full p-6 border-t border-teal-800 bg-[#1a4d4f]">
+        {!toggleCollapse && (
+          <button
+            className={`flex justify-center w-full h-full border rounded-md border-gray text-white py-3 ${Style["tajawal-regular"]}`}
+            onClick={handleLogout}
           >
-            {subItems.map((subItem) => (
-              <div key={subItem.id} className={getSubNavItemClasses(subItem)}>
-                <Link href={subItem.link}>
-                  <a className="flex items-center w-full h-full">
-                    <span className="text-sm font-semibold">{subItem.label}</span>
-                  </a>
-                </Link>
-              </div>
-            ))}
-          </div>
+            تسجيل الخروج
+          </button>
         )}
       </div>
-    );
-  })}
-
-  {/* Admin Links */}
-  {role === "admin" && !toggleCollapse && (
-    <div className="mt-6">
-      <div className={getNavItemClasses({ id: 9, label: "المديرين", icon: ArticleIcon })}>
-        <Link href="/admin/addadmin">
-          <a className="flex items-center w-full cursor-pointer h-full">
-            <ArticleIcon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
-            <span className="text-sm font-medium mr-4 ml-3">المديرين</span>
-          </a>
-        </Link>
-      </div>
-      <div className={getNavItemClasses({ id: 10, label: "قائمة البريد", icon: FaEnvelope })}>
-        <Link href="/admin/addemail">
-          <a className="flex items-center w-full h-full">
-            <FaEnvelope className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
-            <span className="text-sm font-medium mr-4 ml-3">قائمة البريد</span>
-          </a>
-        </Link>
-      </div>
     </div>
-  )}
-</nav>
-      </div>
+  </div>
+);
 
-      {/* Logout Button */}
-      <div className="mt-auto p-6 border-t border-teal-700/30">
-        <div
-          className={getNavItemClasses({
-            id: 0,
-            label: "Logout",
-            icon: LogoutIcon,
-            link: "/",
-          })}
-          onClick={handleLogout}
-        >
-          <LogoutIcon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
-          {!toggleCollapse && <span className="text-sm font-medium mr-4 ml-3">Logout</span>}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 export default Sidebar;
