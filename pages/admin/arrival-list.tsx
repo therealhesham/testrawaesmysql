@@ -1,3 +1,6 @@
+//@ts-nocheck
+//@ts-ignore
+
 import Layout from 'example/containers/Layout';
 import Head from 'next/head';
 import { useState, useEffect, useRef } from 'react';

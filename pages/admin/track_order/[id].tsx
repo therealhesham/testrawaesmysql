@@ -6,8 +6,7 @@ import OrderStepper from 'components/OrderStepper';
 import { CheckCircleIcon } from '@heroicons/react/outline';
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
-import { toast } from 'react-toastify'; 
-import 'react-toastify/dist/ReactToastify.css';
+// import 'react-toastify/dist/ReactToastify.css';
 
 export default function TrackOrder() {
   const router = useRouter();
@@ -31,7 +30,7 @@ export default function TrackOrder() {
           console.error('Error fetching order:', error);
           setError(error.message);
           setLoading(false);
-          toast.error(error.message);
+          console.error(error.message);
         });
     }
   }, [id]);
@@ -48,13 +47,13 @@ export default function TrackOrder() {
 
       if (!res.ok) throw new Error('فشل في تحديث الحالة');
       const updatedData = await res.json();
-      toast.success(updatedData.message);
+      console.success(updatedData.message);
       // Refresh order data after update
       const refreshedData = await fetch(`/api/track_order/${id}`).then((res) => res.json());
       setOrderData(refreshedData);
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('حدث خطأ أثناء تحديث الحالة');
+      console.error('حدث خطأ أثناء تحديث الحالة');
     }
   };
 
@@ -69,11 +68,11 @@ export default function TrackOrder() {
       });
 
       if (!res.ok) throw new Error('فشل في إلغاء العقد');
-      toast.success('تم إلغاء العقد بنجاح');
+      console.success('تم إلغاء العقد بنجاح');
       router.push('/orders'); // Redirect to orders list
     } catch (error) {
       console.error('Error cancelling contract:', error);
-      toast.error('حدث خطأ أثناء إلغاء العقد');
+      console.error('حدث خطأ أثناء إلغاء العقد');
     }
   };
 
@@ -467,10 +466,10 @@ export default function TrackOrder() {
                               body: formData,
                             });
                             if (!res.ok) throw new Error('فشل في رفع الملف');
-                            toast.success('تم رفع الملف بنجاح');
+                            console.success('تم رفع الملف بنجاح');
                           } catch (error) {
                             console.error('Error uploading file:', error);
-                            toast.error('حدث خطأ أثناء رفع الملف');
+                            console.error('حدث خطأ أثناء رفع الملف');
                           }
                         }
                       }}
