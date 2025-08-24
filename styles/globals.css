@@ -2,8 +2,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@100..900&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
 /* @apply w-[80%] mx-auto; */
 html,
+:root {
+  --bg-color: #1a4d4f;
+  --text-color: #ffffff;
+  --border-color: #959595;
+  --font-primary: 'Tajawal', sans-serif;
+  --font-size-lg: 24px;
+  --font-size-md: 22px;
+}
+
 body {
   /* background-color: green; */
   padding: 0;
@@ -113,3 +123,48 @@ a {
   justify-content: space-evenly;
   grid-column-gap: 22px;
 }
+
+.tajawal-extralight {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 200;
+  font-style: normal;
+}
+
+.tajawal-light {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.tajawal-regular {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.tajawal-medium {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.tajawal-bold {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.tajawal-extrabold {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.tajawal-black {
+  font-family: "Tajawal", sans-serif;
+  font-weight: 900;
+  font-style: normal;
+}
+
+
+

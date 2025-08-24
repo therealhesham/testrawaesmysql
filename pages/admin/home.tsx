@@ -4,7 +4,6 @@
 import Layout from "example/containers/Layout";
 import Link from "next/link";
 import Head from "next/head";
-
 import {
   FaPlus,
   FaAviato,
@@ -22,17 +21,20 @@ import {
   FaPlaneDeparture,
   FaPlaneArrival,
   FaArrowUp,
-} from "react-icons/fa"; // Import icons from react-icons
+  FaArrowCircleLeft,
+} from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Style from "/styles/Home.module.css";
-
 import { useRouter } from "next/router";
-// import {  } from "@ant-design/icons";
 import jwt from "jsonwebtoken";
 import { HomeIcon } from "icons";
 import NotificationDropdown from "components/notifications";
 import Chat from "./chat";
+import { ArrowLeftOutlined, FieldTimeOutlined, RightCircleFilled } from "@ant-design/icons";
+import { ArrowCircleLeftIcon, ArrowLeftIcon } from "@heroicons/react/outline";
+import { PlusIcon } from "@heroicons/react/solid";
+
 // Helper function to calculate remaining days
 const calculateRemainingDays = (eventDate) => {
   const today = new Date();
@@ -42,39 +44,80 @@ const calculateRemainingDays = (eventDate) => {
   return remainingDays > 0 ? remainingDays : "Expired";
 };
 
+// Helper function to get current month and year in Arabic
+const getCurrentMonthYear = () => {
+  const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const today = new Date();
+  const month = months[today.getMonth()];
+  const year = today.getFullYear();
+  return `${month} ${year}`;
+};
+
 export default function Home({ user }) {
   const router = useRouter();
-  // useContext;
   const { data: session, status } = useSession();
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
+  const days = ['س', 'م', 'ت', 'و', 'ث', 'ج', 'س'];
+  const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  
+  const getDaysInMonth = (monthIndex, year) => {
+    return new Date(year, monthIndex + 1, 0).getDate();
+  };
+  
+  const getFirstDayOffset = (monthIndex, year) => {
+    const jsDay = new Date(year, monthIndex, 1).getDay();
+    return (jsDay + 6) % 7;
+  };
+  
+  const [monthName, yearStr] = currentMonth.split(' ');
+  const monthIndex = months.indexOf(monthName);
+  const year = parseInt(yearStr);
+  const daysInMonth = getDaysInMonth(monthIndex, year);
+  const firstDayOffset = getFirstDayOffset(monthIndex, year);
+  const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const [tasks, setTasks] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', description: '', taskDeadline: '' });
+
+  const getNextMonth = () => {
+    let month = monthIndex;
+    let currentYear = year;
+    if (month === 11) {
+      month = 0;
+      currentYear += 1;
+    } else {
+      month += 1;
+    }
+    setCurrentMonth(`${months[month]} ${currentYear}`);
+  };
+
+  const getPrevMonth = () => {
+    let month = monthIndex;
+    let currentYear = year;
+    if (month === 0) {
+      month = 11;
+      currentYear -= 1;
+    } else {
+      month -= 1;
+    }
+    setCurrentMonth(`${months[month]} ${currentYear}`);
+  };
 
   const monthColors = [
-    "bg-red-300", // January
-    "bg-pink-300", // February
-    "bg-pink-500", // March
-    "bg-purple-300", // April
-    "bg-indigo-300", // May
-    "bg-blue-300", // June
-    "bg-green-300", // July
-    "bg-yellow-300", // August
-    "bg-orange-300", // September
-    "bg-teal-300", // October
-    "bg-blue-500", // November
-    "bg-purple-500", // December
+    "bg-red-300", "bg-pink-300", "bg-pink-500", "bg-purple-300", "bg-teal-300",
+    "bg-blue-300", "bg-green-300", "bg-yellow-300", "bg-orange-300", "bg-teal-300",
+    "bg-blue-500", "bg-purple-500",
   ];
 
-  // Sample events with their full date (year, month, and day)
   const [events, setEvents] = useState([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
-  // Sample Event Data (including full date with year)
   const fetchEvents = async () => {
     const eventData = [
       { title: "Arrival: Person 1", date: "2025-01-01" },
       { title: "Arrival: Person 10", date: "2025-01-01" },
       { title: "Arrival: Person 11", date: "2025-01-01" },
       { title: "Arrival: Person 12", date: "2025-01-01" },
-
       { title: "Arrival: Person 2", date: "2025-02-10" },
       { title: "Arrival: Person 3", date: "2025-03-15" },
       { title: "Arrival: Person 4", date: "2025-12-25" },
@@ -82,28 +125,25 @@ export default function Home({ user }) {
     ];
     setEvents(eventData);
   };
+
   const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
     if (!router) return;
-    // setIsClient(true);
     fetchEvents();
   }, [router]);
-  // ;
-  const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
 
+  const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
   const [cancelledorders, setCancelledorders] = useState(0);
   const [deparaturesLength, setDeparaturesLength] = useState(0);
-
   const [newOrdersLength, setNewOrdersLength] = useState(0);
   const [homeMaidsLength, setHomeMaidsLength] = useState(0);
   const [arrivalsLength, setArrivalsLength] = useState(0);
   const [rejectedOrdersLength, setRejectedOrdersLength] = useState(0);
   const [finished, setFinished] = useState(0);
-  const [transferSponsorships, setTransferSponsorshipsLength] = useState(0);
-  // const []
   const [officesLength, setOfficesLengthLength] = useState(0);
+  const [transferSponsorshipsLength, setTransferSponsorshipsLength] = useState(0);
 
-  transferSponsorships;
   const fetchData = async () => {
     try {
       const response = await fetch(`/api/datalength`, {
@@ -114,9 +154,7 @@ export default function Home({ user }) {
         method: "get",
       });
       const res = await response.json();
-
-      if (response.status == 200) {
-        console.log(res);
+      if (response.status === 200) {
         setDeparaturesLength(res.deparatures);
         setArrivalsLength(res.arrivals);
         setCurrentOrdersLength(res.currentorders);
@@ -133,498 +171,838 @@ export default function Home({ user }) {
     }
   };
 
+  // Fetch tasks for the user
+  const fetchTasks = async () => {
+    try {
+      // alert(user.id)
+      const response = await fetch(`/api/tasks/${user.id}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (response.status === 200) {
+        console.log(data)
+        setTasks(data);
+      } else {
+        console.error("Error fetching tasks:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  };
+
+  // Handle task creation
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (newTask.title && newTask.description && newTask.taskDeadline) {
+      try {
+        const response = await fetch(`/api/tasks/${user.id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            description: newTask.description,
+            Title: newTask.title,
+            taskDeadline: newTask.taskDeadline,
+            isCompleted: false,
+          }),
+        });
+        const data = await response.json();
+        if (response.status === 201) {
+          setTasks([...tasks, data]);
+          setNewTask({ title: '', description: '', taskDeadline: '' });
+          setIsModalOpen(false);
+        } else {
+          alert(data.error);
+          console.error("Error creating task:", data.error);
+        }
+      } catch (error) {
+        alert(error);
+        console.error("Error creating task:", error);
+      }
+    }
+  };
+
+  // Handle input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewTask((prev) => ({ ...prev, [name]: value }));
+  };
+
   useEffect(() => {
     fetchData();
+    fetchTasks();
   }, []);
 
-  // Get the number of days in the current month
-  const getDaysInMonth = (month, year) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
+  const [orders, setOrders] = useState([]);
+  const [newOrders, setNewOrders] = useState([]);
+  const [currentOrders, setCurrentOrders] = useState([]);
+  const [endedOrders, setEndedOrders] = useState([]);
+  const [arrivals, setArrivals] = useState([]);
+  const [internalArrivals, setInternalArrivals] = useState([]);
+  const [internalDeparatures, setInternalDeparatures] = useState([]);
+  const [externalDeparatures, setExternalDeparatures] = useState([]);
+  const [fullList, setFullList] = useState([]);
+  const [bookedList, setBookedList] = useState([]);
+  const [availableList, setAvailableList] = useState([]);
+  const [housingSection, setHousingSection] = useState([]);
+  const [housed, setHoused] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [ordersSectionState, setOrdersSectionState] = useState("newOrders");
+  const [arrivalsSectionState, setArrivalsSectionState] = useState("internalArrivals");
+  const [housingSectionState, setHousingSectionState] = useState("housing");
+  const [workersSectionState, setWorkersSectionState] = useState("workers");
+  const [relationsSectionState, setRelationsSectionState] = useState("relations");
+  const [relationsSection, setRelationsSection] = useState([]);
+  const [relations, setRelations] = useState([]);
+  const [transferSponsorships, setTransferSponsorships] = useState([]);
+  const [workersSection, setWorkersSection] = useState([]);
+  const [offices, setOffices] = useState([]);
 
-  // Get the starting day of the week for the first day of the current month
-  const getFirstDayOfMonth = (month, year) => {
-    return new Date(year, month, 1).getDay();
-  };
-
-  // Generate the calendar grid
-  const generateCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
-    const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
-
-    let calendar = [];
-    let day = 1;
-
-    for (let i = 0; i < 6; i++) {
-      let week = [];
-      for (let j = 0; j < 7; j++) {
-        if (i === 0 && j < firstDay) {
-          week.push(null);
-        } else if (day > daysInMonth) {
-          break;
-        } else {
-          week.push(day);
-          day++;
-        }
-      }
-      calendar.push(week);
-    }
-
-    return calendar;
-  };
-
-  // Handle changing the month
-  const changeMonth = (direction) => {
-    if (direction === "next") {
-      if (currentMonth === 11) {
-        setCurrentMonth(0);
-        setCurrentYear(currentYear + 1);
-      } else {
-        setCurrentMonth(currentMonth + 1);
-      }
-    } else if (direction === "prev") {
-      if (currentMonth === 0) {
-        setCurrentMonth(11);
-        setCurrentYear(currentYear - 1);
-      } else {
-        setCurrentMonth(currentMonth - 1);
-      }
+  const fetchNewOrdersData = async () => {
+    try {
+      const response = await fetch(`/api/neworderlistprisma/1`, { method: "get" });
+      const res = await response.json();
+      setOrdersSectionState("newOrders");
+      setNewOrders(res.data.slice(0, 3));
+      setOrders(res.data);
+    } catch (error) {
+      console.error("Error in fetch:", error);
     }
   };
 
-  // Find events for a specific day of the month, using month and day comparison
-  const getEventsForDay = (day) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.date);
-      const eventMonth = eventDate.getMonth();
-      const eventDay = eventDate.getDate();
-
-      return eventMonth === currentMonth && eventDay === day;
-    });
-  };
-
-  // Determine the event color based on date (Past, Upcoming, Today)
-  const getEventColor = (eventDate) => {
-    const today = new Date();
-    const event = new Date(eventDate);
-
-    if (event.toDateString() === today.toDateString()) {
-      return "bg-green-300"; // Today's event
-    } else if (event > today) {
-      return "bg-blue-300"; // Upcoming event
-    } else {
-      return "bg-red-300"; // Past event
+  const fetchFullList = async () => {
+    try {
+      const response = await fetch(`/api/homemaidprisma?page=1`, { method: "get" });
+      const res = await response.json();
+      setWorkersSectionState("workers");
+      setWorkersSection(res.data.slice(0, 3));
+      setFullList(res.data.slice(0, 3));
+    } catch (error) {
+      console.log("error", error);
     }
   };
 
-  // Function to handle day click event
-  const handleDayClick = (day) => {
-    if (day) {
-      console.log(`Clicked on: ${day}/${currentMonth + 1}/${currentYear}`);
+  const fetchBookedList = async () => {
+    try {
+      const response = await fetch(`/api/bookedlist?page=1`, { method: "get" });
+      const res = await response.json();
+      setBookedList(res.slice(0, 3));
+    } catch (error) {
+      console.log("error", error);
     }
   };
 
-  // if (status === "loading") {
-  //   return <div>Loading...</div>;
-  // }
-  // "sss"
+  const fetchCurrentOrdersData = async () => {
+    try {
+      const response = await fetch(`/api/currentordersprisma`, { method: "get" });
+      const res = await response.json();
+      setCurrentOrders(res.slice(0, 3));
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchEndedOrdersData = async () => {
+    try {
+      const response = await fetch(`/api/endedorders/`, { method: "get" });
+      const res = await response.json();
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchArrivalsData = async () => {
+    try {
+      const response = await fetch(`/api/arrivals`, { method: "get" });
+      const res = await response.json();
+      setArrivals(res.data.slice(0, 3));
+      console.log(res.data);
+      setInternalArrivals(res.data.slice(0, 3));
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchInternalDeparaturesData = async () => {
+    try {
+      const response = await fetch(`/api/deparatures`, { method: "get" });
+      const res = await response.json();
+      setInternalDeparatures(res.data);
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchExternalDeparaturesData = async () => {
+    try {
+      const response = await fetch(`/api/deparaturefromsaudi`, { method: "get" });
+      const res = await response.json();
+      setExternalDeparatures(res);
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchHoused = async () => {
+    try {
+      const response = await fetch(`/api/confirmhousinginformation`, { method: "get" });
+      const res = await response.json();
+      setHousingSection(res.housing.slice(0, 3));
+      setHoused(res.housing.slice(0, 3));
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const response = await fetch(`/api/sessions`, { method: "get" });
+      const res = await response.json();
+      setSessions(res.session);
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchRelations = async () => {
+    try {
+      const response = await fetch(`/api/relations`, { method: "get" });
+      const res = await response.json();
+      setRelationsSection(res);
+      setRelations(res);
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchTransferSponsorships = async () => {
+    try {
+      const response = await fetch(`/api/transfersponsorships`, { method: "get" });
+      const res = await response.json();
+      setTransferSponsorships(res);
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  const fetchOffices = async () => {
+    try {
+      const response = await fetch(`/api/offices`, { method: "get" });
+      const res = await response.json();
+      setOffices(res);
+    } catch (error) {
+      console.error("Error in fetch:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchNewOrdersData();
+    fetchCurrentOrdersData();
+    fetchEndedOrdersData();
+    fetchArrivalsData();
+    fetchInternalDeparaturesData();
+    fetchExternalDeparaturesData();
+    fetchHoused();
+    fetchSessions();
+    fetchRelations();
+    fetchFullList();
+    fetchBookedList();
+    fetchTransferSponsorships();
+    fetchOffices();
+  }, []);
+
   const sectionRef = useRef(null);
   const scrollToSection = () => {
     sectionRef.current.scrollIntoView({ behavior: "smooth" });
   };
 
+  const getEventsForDay = (day) => {
+    return events.filter((event) => {
+      const eventDate = new Date(event.date);
+      const eventMonth = eventDate.getMonth();
+      const eventDay = eventDate.getDate();
+      return eventMonth === monthIndex && eventDay === day;
+    });
+  };
+
+  // Get tasks for a specific day
+  const getTasksForDay = (day) => {
+    return tasks.filter((task) => {
+      const taskDate = new Date(task.taskDeadline);
+      const taskMonth = taskDate.getMonth();
+      const taskDay = taskDate.getDate();
+      return taskMonth === monthIndex && taskDay === day;
+    });
+  };
+
+  const getEventColor = (eventDate) => {
+    const today = new Date();
+    const event = new Date(eventDate);
+    if (event.toDateString() === today.toDateString()) {
+      return "bg-green-300";
+    } else if (event > today) {
+      return "bg-blue-300";
+    } else {
+      return "bg-red-300";
+    }
+  };
+
+  const handleDayClick = (day) => {
+    if (day) {
+      const tasksForDay = getTasksForDay(day);
+      console.log(`Tasks for ${day}/${monthIndex + 1}/${year}:`, tasksForDay);
+      if (tasksForDay.length > 0) {
+        alert(`Tasks for ${day}/${monthIndex + 1}/${year}:\n${tasksForDay.map(t => t.Title).join('\n')}`);
+      } else {
+        alert(`No tasks for ${day}/${monthIndex + 1}/${year}`);
+      }
+    }
+  };
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 " ref={sectionRef}>
+      <div className="min-h-screen bg-gray-50" ref={sectionRef}>
         <Head>
           <title>الصفحة الرئيسية</title>
           <link rel="icon" href="/favicon.ico" />
         </Head>
-
-        {/* <div> */}
-        {/* <NotificationDropdown /> */}
-        {/* </div> */}
-        {/* Centered Heading */}
-        {/* <h1
-          className={`text-3xl font-bold mb-8 mt-8 bg-gray-50 text-center ${Style["almarai-bold"]}`}
-        >
-          قسم الاستقدام
-        </h1> */}
-        {user.role.toLowerCase() == "admin".toLowerCase() && (
-          <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-            <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-              الطلبـــات
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-4 mx-auto">
+          {/* Calendar Widget */}
+          <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-1">
+            <div className="flex justify-between items-center mb-4">
+              <button onClick={getPrevMonth} className="text-teal-600 hover:text-teal-800">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <h2 className="text-2xl font-semibold text-gray-800">{currentMonth}</h2>
+              <button onClick={getNextMonth} className="text-teal-600 hover:text-teal-800">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 p-8">
-              {/* Box 1 */}
-              <Link href="/admin/neworders">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaTasks className="mb-2 text-3xl" /> {/* Add icon */}
-                    الطلبات الجديدة
+            <div className="grid grid-cols-7 gap-1 text-center text-gray-600">
+              {days.map((day) => (
+                <div key={day} className="font-medium">{day}</div>
+              ))}
+              {Array.from({ length: firstDayOffset }).map((_, i) => (
+                <div key={`empty-start-${i}`} className="h-8"></div>
+              ))}
+              {dates.map((date) => {
+                const hasTasks = getTasksForDay(date).length > 0;
+                const tasksForDay = getTasksForDay(date);
+                const today = new Date();
+                const isToday =
+                  date === today.getDate() &&
+                  monthIndex === today.getMonth() &&
+                  year === today.getFullYear();
+                return (
+                  <div
+                    key={date}
+                    onClick={() => handleDayClick(date)}
+                    className={`group relative h-10 flex items-center justify-center rounded-full ${
+                      isToday
+                        ? 'bg-teal-800 text-white'
+                        : hasTasks
+                        ? 'bg-yellow-300 text-gray-800'
+                        : 'hover:bg-teal-100'
+                    } cursor-pointer`}
+                  >
+                    <span>{date}</span>
+                    {hasTasks && (
+                      <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-2 top-10 z-10 max-w-xs">
+                        <p className="font-semibold">المهام ({tasksForDay.length}):</p>
+                        <ul className="list-disc list-inside">
+                          {tasksForDay.map((task, index) => (
+                            <li key={index}>
+                              {task.Title} - {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
+                              <br />
+                              <span className="text-gray-300">{task.description}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  {newOrdersLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {newOrdersLength > 0 ? newOrdersLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-              {/* Box 3 */}
-              <Link href="/admin/currentorderstest">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaListAlt className="mb-2 text-3xl" /> {/* Add icon */}
-                    الطلبات الحالية
-                  </div>
-                  {/* Notification Badge */}
-                  {currentOrdersLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {currentOrdersLength > 0 ? currentOrdersLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-
-              <Link href="/admin/endedorders">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaUserTie className="mb-2 text-3xl" /> {/* Add icon */}
-                    الطلبات المنتهية
-                  </div>
-                  {/* Notification Badge */}
-                  {finished > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {finished > 0 ? finished : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-            الوصول و المغادرة
-          </div>
-          <div className="mt-10">
-            <div className="grid grid-cols-2 md:grid-cols-2 mt-6 lg:grid-cols-2 gap-6 p-8">
-              {/* Box 5 */}
-              {/* Box 6 */}
-
-              {/* Box 4 */}
-
-              <Link href="/admin/arrival-list">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlaneArrival className="mb-2 text-3xl" />{" "}
-                    {/* Flight icon */}
-                    قائمة الوصول
-                  </div>
-                  {/* Notification Badge */}
-                  {arrivalsLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {arrivalsLength > 0 ? arrivalsLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-
-              <Link href="/admin/deparatures">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlaneDeparture className="mb-2 text-3xl" />{" "}
-                    {/* Flight icon */}
-                    قائمة المغادرة
-                  </div>
-                  {/* Notification Badge */}
-                  {deparaturesLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {deparaturesLength > 0 ? deparaturesLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-
-              <Link href="/admin/deparaturesfromsaudi">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlaneDeparture className="mb-2 text-3xl" />{" "}
-                    {/* Flight icon */}
-                    قائمة المغادرة من المملكة
-                  </div>
-                  {/* Notification Badge */}
-                  {/* {deparaturesLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {deparaturesLength > 0 ? deparaturesLength : 0}
-                    </span>
-                  ) : null} */}
-                </a>
-              </Link>
-              {/* Box 5 */}
+                );
+              })}
             </div>
           </div>
-        </div>
-
-        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-            العاملات
-          </div>
-          <div className="mt-10">
-            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
-              {/* Box 5 */}
-              {/* Box 6 */}
-              {/* Box 4 */}
-              {/* Box 5 */}
-              <Link href="/admin/fulllist">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaList className="mb-2 text-3xl" /> {/* Add icon */}
-                    بيانات العاملات
-                  </div>
-                  {/* Notification Badge */}
-                  {homeMaidsLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {homeMaidsLength > 0 ? homeMaidsLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-              <Link href="/admin/newhomemaid">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaList className="mb-2 text-3xl" /> {/* Add icon */}
-                    اضافة عاملة
-                  </div>
-                  {/* Notification Badge */}
-                  {homeMaidsLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {homeMaidsLength > 0 ? homeMaidsLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-              <Link href="/admin/bookedlist">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaAddressBook className="mb-2 text-3xl" /> {/* Add icon */}
-                    قائمة العاملات المحجوزة
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
-
-              <Link href="/admin/availablelist">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaAlignJustify className="mb-2 text-3xl" />{" "}
-                    {/* Add icon */}
-                    قائمة العاملات المتاحة
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
-
-              <Link href="/admin/housedarrivals">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                    قائمة التسكين
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
-
-              <Link href="/admin/checkedtable">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                    قائمة الاعاشة
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
+          {/* Tasks Widget */}
+          <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-2">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={`${Style["tajawal-medium"]} text-2xl font-semibold text-gray-800`}>المهام اليومية</h2>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className={`bg-teal-800 text-white flex flex-row items-center px-4 py-2 rounded-lg ${Style["tajawal-medium"]}`}
+              >
+                <span className="flex flex-row items-center gap-2">
+                  <PlusIcon height={16} width={16} />
+                  إضافة مهمة
+                </span>
+              </button>
             </div>
-          </div>
-        </div>
-
-        <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-          <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-            قواعد البيانات
-          </div>
-          <div className="mt-10">
-            <div className="grid grid-cols-1 md:grid-cols-3 mt-6 lg:grid-cols-3 gap-6 p-8">
-              {/* Box 5 */}
-              {/* Box 6 */}
-              {/* Box 4 */}
-              {/* Box 5 */}
-
-              <Link href="/admin/transfersponsorship">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                    معاملات نقل الكفالة
-                  </div>
-                  {/* Notification Badge */}
-                  {transferSponsorships > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {transferSponsorships > 0 ? transferSponsorships : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-              <Link href="/admin/clients">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
-                    قائمة العملاء
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
-              <Link href="/admin/sessions">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaPlus className="mb-2 text-3xl" /> {/* Add icon */}
-                    الجلسات
-                  </div>
-                  {/* Notification Badge */}
-                </a>
-              </Link>
-              {/* Box 7 */}
-              <Link href="/admin/offices">
-                <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                  <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                    <FaHome className="mb-2 text-3xl" /> {/* Add icon */}
-                    المكاتب الخارجية
-                  </div>
-                  {/* Notification Badge */}
-                  {/* <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full"> */}
-                  {/* 2  */}
-
-                  {officesLength > 0 ? (
-                    <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                      {officesLength > 0 ? officesLength : 0}
-                    </span>
-                  ) : null}
-                </a>
-              </Link>
-            </div>
-          </div>
-          <div>
-            {/* Floating button */}
-            <button
-              onClick={scrollToSection}
-              style={{
-                position: "fixed",
-                bottom: "2%", // Position vertically in the center
-                left: "5%", // Position horizontally in the center (you can adjust this to move horizontally)
-                transform: "translate(-50%, -50%)", // Offset to truly center the button
-                backgroundColor: "transparent", // Make the background transparent
-                color: "blue", // Make the icon color blue (you can change this to any color)
-                border: "2px solid blue", // Add a border to make it more visible (adjust the thickness as needed)
-                borderRadius: "10px", // Make the button slightly rounded
-                padding: "10px 25px", // Make the button narrow
-                fontSize: "20px",
-                cursor: "pointer",
-                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Keep the shadow to make it appear floating
-                transition: "all 0.3s ease", // Smooth transition for hover effect
-              }}
-              onMouseEnter={(e) => {
-                // Change color when hovering
-                e.target.style.backgroundColor = "rgba(0, 0, 255, 0.1)"; // Light blue background on hover
-                e.target.style.boxShadow = "0 6px 12px rgba(0, 0, 0, 0.3)"; // Slightly darker shadow on hover
-              }}
-              onMouseLeave={(e) => {
-                // Reset the button style when not hovering
-                e.target.style.backgroundColor = "transparent";
-                e.target.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // Reset the shadow
-              }}
-            >
-              <FaArrowUp size={13} />
-            </button>
-          </div>
-        </div>
-        {(user.role.toLowerCase() == "admin".toLowerCase() ||
-          user.role.toLowerCase() == "viewer".toLowerCase()) && (
-          <div className="relative  p-6 m-6 border  rounded-xl shadow-md">
-            <div className="absolute top-[-14px] right-4 bg-gray-50 px-4 text-lg font-bold    rounded-lg">
-              الارشيف{" "}
-            </div>
-            <div className="mt-10">
-              <div className="grid grid-cols-2 md:grid-cols-2 mt-6 lg:grid-cols-2 gap-6 p-8">
-                {/* Box 5 */}
-                <Link href="/admin/rejectedlist">
-                  <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                    <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                      <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
-                      الطلبات المرفوضة
+            <ul className={`${Style["tajawal-medium"]} space-y-4`}>
+              {tasks.map((task, index) => (
+                <li key={index} className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                      <p className="text-sm text-gray-600">{task.description}</p>
+                      <p className="text-sm text-gray-500">
+                        الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
+                      </p>
                     </div>
-                    {/* Notification Badge */}
-                    {rejectedOrdersLength > 0 ? (
-                      <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                        {rejectedOrdersLength > 0 ? rejectedOrdersLength : 0}
-                      </span>
-                    ) : null}
+                    <span className="text-sm text-teal-600">{task.isCompleted ? 'مكتمل' : 'غير مكتمل'}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        {/* Admin Sections */}
+        {user.role.toLowerCase() === "admin".toLowerCase() && (
+          <section id="requests" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <header className="info-card-header flex justify-between items-center mb-6">
+              <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
+                <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">الطلبات</h3>
+                <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+                  <a
+                    onClick={() => {
+                      setOrdersSectionState("newOrders");
+                      setOrders(newOrders);
+                    }}
+                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "newOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  >
+                    الطلبات الجديدة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{newOrdersLength}</span>
                   </a>
-                </Link>
-
-                <Link href="/admin/cancelledcontracts">
-                  <a className="relative bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all">
-                    <div className="text-xl font-semibold flex flex-col justify-center items-center">
-                      <FaArchive className="mb-2 text-3xl" /> {/* Add icon */}
-                      الطلبات الملغية
-                    </div>
-                    {/* Notification Badge */}
-                    {cancelledorders > 0 ? (
-                      <span className="absolute top-2 right-2     bg-[#8D6C49] text-white text-xs font-bold px-2 py-1 rounded-full">
-                        {cancelledorders > 0 ? cancelledorders : 0}
-                      </span>
-                    ) : null}
+                  <a
+                    onClick={() => {
+                      setOrdersSectionState("currentOrders");
+                      setOrders(currentOrders);
+                    }}
+                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "currentOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  >
+                    طلبات تحت الإجراء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{currentOrdersLength}</span>
                   </a>
-                </Link>
-
-                {/* Box 5 */}
-
-                {/* Box 7 */}
+                  <a
+                    onClick={() => {
+                      setOrdersSectionState("endedOrders");
+                      setOrders(endedOrders);
+                    }}
+                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  >
+                    الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{finished}</span>
+                  </a>
+                  <a
+                    href="#"
+                    className="tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 hover:bg-teal-50"
+                  >
+                    الطلبات الملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{cancelledorders}</span>
+                  </a>
+                  <a
+                    href="#"
+                    className="tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 hover:bg-teal-50"
+                  >
+                    الطلبات المرفوضة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{rejectedOrdersLength}</span>
+                  </a>
+                </nav>
               </div>
+              <a
+                onClick={() => {
+                  ordersSectionState === "newOrders"
+                    ? router.push("/admin/neworders")
+                    : ordersSectionState === "currentOrders"
+                    ? router.push("/admin/currentorderstest")
+                    : ordersSectionState === "endedOrders"
+                    ? router.push("/admin/endedorders")
+                    : null;
+                }}
+                className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+              >
+                عرض الكل
+              </a>
+            </header>
+            <div className="info-card-body flex flex-col gap-4">
+              {orders.map((order) => (
+                <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+                  <div className="item-details flex flex-col gap-2">
+                    <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
+                    <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+                    <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+                      منذ {order.createdAt} <FieldTimeOutlined />
+                    </p>
+                  </div>
+                  <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+                    <ArrowLeftOutlined className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        <section id="arrivals" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <header className="info-card-header flex justify-between items-center mb-6">
+            <div className={`${Style["tajawal-medium"]} info-card-title-tabs flex flex-col gap-6`}>
+              <h3 className={`${Style["tajawal-medium"]} info-card-title text-2xl font-semibold text-gray-800 tracking-tight`}>الوصول و المغادرة</h3>
+              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+                <a
+                  onClick={() => {
+                    setArrivalsSectionState("internalArrivals");
+                    setArrivals(internalArrivals);
+                  }}
+                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalArrivals" ? "text-teal-700 bg-teal-50" : ""}`}
+                >
+                  الوصول <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{arrivalsLength}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setArrivalsSectionState("internalDeparatures");
+                    setArrivals(internalDeparatures);
+                  }}
+                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
+                >
+                  مغادرة داخلية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{deparaturesLength}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setArrivalsSectionState("externalDeparatures");
+                    setArrivals(externalDeparatures);
+                  }}
+                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
+                >
+                  مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externalDeparatures.length}</span>
+                </a>
+              </nav>
+            </div>
+            <a
+              onClick={() => {
+                arrivalsSectionState === "internalArrivals"
+                  ? router.push("/admin/arrival-list")
+                  : arrivalsSectionState === "internalDeparatures"
+                  ? router.push("/admin/deparatures")
+                  : arrivalsSectionState === "externalDeparatures"
+                  ? router.push("/admin/departuresfromsaudi")
+                  : null;
+              }}
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+            >
+              عرض الكل
+            </a>
+          </header>
+          <div className="info-card-body flex flex-col gap-4">
+            {arrivals.map((order) => (
+              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+                <div className="item-details flex flex-col gap-2">
+                  <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{order.id}</p>
+                  <p className="item-subtitle text-xs text-gray-600">من: {order.ArrivalCity}</p>
+                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+                    منذ {order.createdAt} <FieldTimeOutlined />
+                  </p>
+                </div>
+                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+                  <ArrowLeftOutlined className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section id="housing" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+          <header className="info-card-header flex justify-between items-center mb-6">
+            <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
+              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">شئون الاقامة</h3>
+              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+                <a
+                  onClick={() => {
+                    setHousingSectionState("housing");
+                    setHousingSection(housed);
+                  }}
+                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "housing" ? "text-teal-700 bg-teal-50" : ""}`}
+                >
+                  التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setHousingSectionState("checkedTable");
+                    setHousingSection(housed);
+                  }}
+                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "checkedTable" ? "text-teal-700 bg-teal-50" : ""}`}
+                >
+                  الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setHousingSectionState("sessions");
+                    setHousingSection(sessions);
+                  }}
+                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "sessions" ? "text-teal-700 bg-teal-50" : ""}`}
+                >
+                  الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{sessions.length}</span>
+                </a>
+              </nav>
+            </div>
+            <a
+              onClick={() => {
+                housingSectionState === "housing"
+                  ? router.push("/admin/housedarrivals")
+                  : housingSectionState === "checkedTable"
+                  ? router.push("/admin/checkedTable")
+                  : housingSectionState === "sessions"
+                  ? router.push("/admin/sessions")
+                  : null;
+              }}
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+            >
+              عرض الكل
+            </a>
+          </header>
+          <div className="info-card-body flex flex-col gap-4">
+            {housingSection.map((order) => (
+              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+                <div className="item-details flex flex-col gap-2">
+                  <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
+                  <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+                    <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt}
+                  </p>
+                </div>
+                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+                  <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section id="homemaids" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+          <header className="info-card-header flex justify-between items-center mb-6">
+            <div className="info-card-title-tabs flex flex-col gap-6">
+              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">العاملات</h3>
+              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+                <a
+                  onClick={() => {
+                    setWorkersSectionState("workers");
+                    setWorkersSection(fullList);
+                  }}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{fullList.length}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setWorkersSectionState("bookedlist");
+                    setWorkersSection(bookedList);
+                  }}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  العاملات المحجوزة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{bookedList.length}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setWorkersSectionState("availablelist");
+                    setWorkersSection(availableList);
+                  }}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  العاملات المتاحة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{availableList.length}</span>
+                </a>
+              </nav>
+            </div>
+            <a
+              onClick={() => {
+                workersSectionState === "workers"
+                  ? router.push("/admin/fullist")
+                  : workersSectionState === "bookedlist"
+                  ? router.push("/admin/bookedlist")
+                  : workersSectionState === "availablelist"
+                  ? router.push("/admin/availablelist")
+                  : null;
+              }}
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+            >
+              عرض الكل
+            </a>
+          </header>
+          <div className="info-card-body flex flex-col gap-4">
+            {workersSection.map((order) => (
+              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+                <div className="item-details flex flex-col gap-2">
+                  <p className="item-title text-sm font-semibold text-gray-900">عاملة رقم #{order.id}</p>
+                  <p className="item-subtitle text-xs text-gray-600">اسم العاملة: {order.Name}</p>
+                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+                    منذ {order.createdAt} <FieldTimeOutlined />
+                  </p>
+                </div>
+                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+                  <ArrowLeftOutlined className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section id="public-relations" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+          <header className="info-card-header flex justify-between items-center mb-6">
+            <div className="info-card-title-tabs flex flex-col gap-6">
+              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">إدارة العلاقات</h3>
+              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+                <a
+                  onClick={() => {
+                    setRelationsSectionState("relations");
+                    setRelationsSection(relations);
+                  }}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  قائمة العلاقات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{relations.length}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setRelationsSectionState("sponsorship-transfers");
+                    setRelationsSection(transferSponsorships);
+                  }}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{transferSponsorships.length}</span>
+                </a>
+                <a
+                  onClick={() => {
+                    setRelationsSectionState("foreign-offices");
+                    setRelationsSection(offices);
+                  }}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{offices.length}</span>
+                </a>
+              </nav>
+            </div>
+            <a
+              onClick={() => {
+                relationsSectionState === "relations"
+                  ? router.push("/admin/relations")
+                  : relationsSectionState === "sponsorship-transfers"
+                  ? router.push("/admin/sponsorship-transfers")
+                  : relationsSectionState === "foreign-offices"
+                  ? router.push("/admin/foreign-offices")
+                  : null;
+              }}
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+            >
+              عرض الكل
+            </a>
+          </header>
+          <div className="info-card-body flex flex-col gap-4">
+            {relationsSection.map((order) => (
+              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+                <div className="item-details flex flex-col gap-2">
+                  <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
+                  <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+                    <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt}
+                  </p>
+                </div>
+                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+                  <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+        {isModalOpen && (
+          <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${Style["tajawal-medium"]}`}>
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-800">إضافة مهمة جديدة</h3>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={handleAddTask}>
+                <div className={`${Style["tajawal-medium"]} mb-4`}>
+                  <label className="block text-sm font-medium text-gray-700">عنوان المهمة</label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={newTask.title}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">الوصف</label>
+                  <textarea
+                    name="description"
+                    value={newTask.description}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">الموعد النهائي</label>
+                  <input
+                    type="date"
+                    name="taskDeadline"
+                    value={newTask.taskDeadline}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                  >
+                    إضافة
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
-{/* <Chat/> */}
       </div>
     </Layout>
   );
 }
-export async function getServerSideProps(context: NextPageContext) {
+
+export async function getServerSideProps(context) {
   const { req, res } = context;
   try {
     const isAuthenticated = req.cookies.authToken ? true : false;
-    console.log(req.cookies.authToken);
-    // jwtDecode(req.cookies.)
     if (!isAuthenticated) {
-      // Redirect the user to login page before rendering the component
       return {
         redirect: {
-          destination: "/admin/login", // Redirect URL
-          permanent: false, // Set to true if you want a permanent redirect
+          destination: "/admin/login",
+          permanent: false,
         },
       };
     }
     const user = jwt.verify(req.cookies.authToken, "rawaesecret");
-    console.log(user);
-    // If authenticated, continue with rendering the page
     return {
-      props: { user }, // Empty object to pass props if needed
+      props: { user },
     };
   } catch (error) {
-    console.log("error");
     return {
       redirect: {
-        destination: "/admin/login", // Redirect URL
-        permanent: false, // Set to true if you want a permanent redirect
+        destination: "/admin/login",
+        permanent: false,
       },
     };
   }

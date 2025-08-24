@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+
 const prisma = new PrismaClient();
 
 export default async function handler(
@@ -7,7 +8,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const {
-    searchTerm, // This will be the single input from the frontend
+    searchTerm,
     age,
     externalOfficeStatus,
     InternalmusanedContract,
@@ -16,91 +17,159 @@ export default async function handler(
     Nationalitycopy,
     page,
     HomemaidId,
-
-    office,
+    Country,
   } = req.query;
-  console.log(req.query);
 
   // Set the page size for pagination
   const pageSize = 10;
-  const pageNumber = parseInt(page as string, 10) || 1; // Handle the page query as a number
+  const pageNumber = parseInt(page as string, 10) || 1;
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
-  // ;
+
   if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
-  if (office) filters.HomeMaid = { officeName: office };
-  // Apply a filter for `clientphonenumber` if present
-  if (clientphonenumber)
-    filters.clientphonenumber = { contains: clientphonenumber };
-  // externalOfficeStatus;
 
   if (InternalmusanedContract) {
     filters.arrivals = {
       some: {
-        InternalmusanedContract: {
-          contains: InternalmusanedContract,
-        },
+        InternalmusanedContract: { contains: InternalmusanedContract },
       },
     };
   }
-
   if (externalOfficeStatus) {
     filters.arrivals = {
       some: {
-        externalOfficeStatus: {
-          contains: externalOfficeStatus,
-        },
+        externalOfficeStatus: { contains: externalOfficeStatus },
       },
     };
   }
 
-  // Apply a filter for `age` if present
+  // Age filter: Calculate age from dateofbirth
+  if (age) {
+    const [minAge, maxAge] = (age as string).split("-").map(Number);
+    const currentYear = new Date().getFullYear();
+    const minBirthYear = currentYear - maxAge;
+    const maxBirthYear = currentYear - minAge;
 
-  try {
-    // Fetch data with the filters and pagination
-    const homemaids = await prisma.neworder.findMany({
-      orderBy: { id: "desc" },
-      include: {
-        HomeMaid: { select: { officeName: true } },
+    filters.HomeMaid = {
+      ...filters.HomeMaid,
+      dateofbirth: {
+        gte: `${maxBirthYear}-01-01`, // Greater than or equal to max birth year
+        lte: `${minBirthYear}-12-31`, // Less than or equal to min birth year
       },
-      where: {
-        bookingstatus: "حجز جديد",
-        ...filters,
-        // Apply the searchTerm to multiple fields (e.g., ClientName, Passportnumber)
-        AND: [
+    };
+  }
+
+  // Nationality filter: Search in neworder.Nationalitycopy, homemaid.Nationalitycopy, and offices.Country
+  if (Country) {
+    filters.AND = [
+      ...(filters.AND || []),
+      {
+        OR: [
           {
-            OR: [
-              {
-                ClientName: {
-                  contains: searchTerm
-                    ? (searchTerm as string).toLowerCase()
-                    : "",
-                },
+            HomeMaid: {
+              office: {
+                Country: { contains: Country as string },
               },
-              {
-                Name: {
-                  contains: searchTerm
-                    ? (searchTerm as string).toLowerCase()
-                    : "",
-                },
-              },
-            ],
+            },
           },
         ],
       },
-      skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
-      take: pageSize, // Limit the results to the page size
-    });
-    // console.log(homemaids[0].HomeMaid?.officeName)
-    // console.log(homemaids[0].arrivals[0].InternalmusanedContract);
-    // Send the filtered and paginated data as the response
-    res.status(200).json(homemaids);
+    ];
+  }
+
+  try {
+    // Fetch data with the filters and pagination
+    const [homemaids, totalCount] = await Promise.all([
+      prisma.neworder.findMany({
+        orderBy: { id: "desc" },
+        include: {
+          client: true,
+          HomeMaid: {
+            select: {
+              dateofbirth: true,
+              Name: true,
+              Passportnumber: true,
+              id: true,
+              officeName: true,
+              Nationalitycopy: true,
+              office: {
+                select: {
+                  Country: true,
+                },
+              },
+              logs: { include: { user: true } },
+            },
+          },
+        },
+        where: {
+          bookingstatus: "حجز جديد",
+          ...filters,
+          AND: [
+            ...(filters.AND || []),
+            {
+              OR: [
+                {
+                  ClientName: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  Name: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  HomeMaid: {
+                    Name: {
+                      contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        skip: (pageNumber - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.neworder.count({
+        where: {
+          bookingstatus: "حجز جديد",
+          ...filters,
+          AND: [
+            ...(filters.AND || []),
+            {
+              OR: [
+                {
+                  ClientName: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  Name: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  HomeMaid: {
+                    Name: {
+                      contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    res.status(200).json({ homemaids, totalCount, page: pageNumber, pageSize });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
   } finally {
-    // Disconnect Prisma Client regardless of success or failure
     await prisma.$disconnect();
   }
 }

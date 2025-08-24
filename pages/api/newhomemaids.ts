@@ -1,0 +1,82 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import prisma from './globalprisma';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'POST') {
+    try {
+  
+const {
+  name,
+  nationality,
+  religion,
+  passport,
+  maritalStatus,
+  experienceField,
+  experienceYears,
+  age,
+  mobile,
+  educationLevel,
+  arabicLevel,
+  englishLevel,
+  salary,
+  officeName,
+  passportStart,
+  passportEnd,
+  skills = {},
+  Picture,
+  FullPicture,
+} = req.body;
+
+const {
+  washing = '',
+  ironing = '',
+  cleaning = '',
+  cooking = '',
+  sewing = '',
+  childcare = '',
+  elderlycare = '',
+} = skills;
+console.log(req.body)
+
+const newHomemaid = await prisma.homemaid.create({
+  data: {
+    Name: name || '',
+    Nationalitycopy: nationality || '',
+    Religion: religion || '',
+    Passportnumber: passport || '',
+    maritalstatus: maritalStatus || '',
+    Experience: experienceField || '',
+    ExperienceYears: experienceYears || '',
+    dateofbirth: !isNaN(parseInt(age)) ? new Date(new Date().getFullYear() - parseInt(age)).toISOString() : null,
+    phone: mobile || '',
+    clientphonenumber: mobile || '',
+    Education: educationLevel || '',
+    ArabicLanguageLeveL: arabicLevel || '',
+    EnglishLanguageLevel: englishLevel || '',
+    LaundryLeveL: washing,
+    IroningLevel: ironing,
+    CleaningLeveL: cleaning,
+    CookingLeveL: cooking,
+    SewingLeveL: sewing,
+    BabySitterLevel: childcare,
+    // ElderlyCareLevel: elderlycare,
+    // OldPeopleCare:elderlycare,
+    Salary: req.body.salary ,
+    officeName: officeName || '',
+    Picture: Picture || null,
+    FullPicture: FullPicture || null,
+    PassportStart: passportStart ? new Date(passportStart).toISOString() : null,
+    PassportEnd: passportEnd ? new Date(passportEnd).toISOString() : null,
+  },
+});
+
+console.log(newHomemaid)
+      res.status(200).json(newHomemaid);
+    } catch (error: any) {
+      console.error('Error creating homemaid:', error);
+      res.status(500).json({ error: 'Error creating homemaid CV' });
+    }
+  } else {
+    res.status(405).json({ error: 'Method not allowed' });
+  }
+}

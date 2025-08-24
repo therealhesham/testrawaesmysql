@@ -13,6 +13,7 @@ export default async function handler(
       // Fetch all transfers from the Transfer table
       const transfers = await prisma.transfer.findMany();
 
+      
       // Return the fetched transfers as the response
       return res.status(200).json(transfers);
     } catch (error) {

@@ -1,72 +1,99 @@
 import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-// Initialize Prisma client
 const prisma = new PrismaClient();
 
-// Handler function for the API route
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  try {
-    // Build the filter object dynamically based on query parameters
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === "POST") {
+    try {
+      const { fullname, phonenumber, nationalId, city, clientSource } = req.body;
 
-    const {
-      Passportnumber,
-      searchTerm, // This will be the single input from the frontend
-      fullname,
-      email,
-      phonenumber,
-    } = req.query;
+      // Basic validation
+      if (!fullname || !phonenumber || !nationalId) {
+        return res.status(400).json({ message: "الاسم، رقم الهاتف، والهوية مطلوبة" });
+      }
 
-    const filters: any = {};
-    // Apply a filter for `clientphonenumber` if present
-    if (fullname) filters.fullname = { contains: fullname };
+      const client = await prisma.client.create({
+        data: {
+          fullname,
+          phonenumber,
+          nationalId,
+          city,
+          // createdAt: new Date(),
+        },
+      });
 
-    // Apply a filter for `HomemaidId` if present
-    if (email) filters.email = { contains: email };
+      res.status(201).json({ message: "تم إضافة العميل بنجاح", client });
+    } catch (error) {
+      console.error("Error creating client:", error);
+      res.status(500).json({ message: "خطأ في الخادم الداخلي" });
+    } finally {
+      await prisma.$disconnect();
+    }
+  } else if (req.method === "GET") {
+    try {
+      const { fullname, phonenumber, city, date, clientId } = req.query;
+      const filters: any = {};
 
-    // Apply a filter for `age` if present
-    if (phonenumber) filters.phonenumber = { contains: phonenumber };
+      if (clientId) {
+        // جلب عميل واحد بناءً على clientId
+        filters.id = parseInt(clientId as string);
+      } else {
+        // تطبيق الفلاتر الأخرى لجلب قائمة العملاء
+        if (fullname) filters.fullname = { contains: fullname as string };
+        if (phonenumber) filters.phonenumber = { contains: phonenumber as string };
+        if (city && city !== "all") filters.city = city as string;
+        if (date && !isNaN(new Date(date as string).getTime())) {
+          const start = new Date(date as string);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(date as string);
+          end.setHours(23, 59, 59, 999);
+          filters.createdAt = { gte: start, lte: end };
+        }
+      }
 
-    console.log(req.query);
-    // Parse pagination parameters from the query
-    const page = parseInt(req.query.page as string) || 1; // Default to page 1 if not provided
-    const pageSize = 10; // Number of records per page
-    const skip = (page - 1) * pageSize; // Calculate the number of records to skip
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = 10;
+      const skip = (page - 1) * pageSize;
 
-    // Fetch clients with the count of their orders
-    const clients = await prisma.client.findMany({
-      orderBy: { id: "desc" },
-      where: { ...filters },
-      select: {
-        id: true, // Select the client id or any other necessary client data
-        fullname: true,
-        email: true,
+      const totalClients = await prisma.client.count({
+        where: { ...filters },
+      });
 
-        createdat: true,
-        phonenumber: true,
-        // name: true, // Select the client name
-        _count: {
-          select: {
-            orders: true, // Count the number of orders for each client
+      const clients = await prisma.client.findMany({
+        orderBy: { id: "desc" },
+        where: { ...filters },
+        select: {
+          id: true,
+          fullname: true,
+          phonenumber: true,
+          nationalId: true,
+          city: true,
+          email: true,
+          createdAt: true,
+          _count: {
+            select: { orders: true },
+          },
+          orders: {
+            orderBy: { id: "desc" },
+            include: { HomeMaid: true },
           },
         },
-      },
-      skip: skip, // Skip records based on the page
-      take: pageSize, // Limit the number of records per page
-    });
+        ...(clientId ? {} : { skip, take: pageSize }), // إذا كان clientId موجود، لا نطبق التصفح
+      });
 
-    console.log(clients);
-    // Return the fetched data with order counts as JSON
-    res.status(200).json(clients);
-  } catch (error) {
-    // Handle any errors that occur during the fetch
-    console.error("Error fetching clients data:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  } finally {
-    // Disconnect Prisma client
-    await prisma.$disconnect();
+      res.status(200).json({
+        data: clients,
+        totalPages: clientId ? 1 : Math.ceil(totalClients / pageSize),
+      });
+    } catch (error) {
+      console.error("Error fetching clients data:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    } finally {
+      await prisma.$disconnect();
+    }
+  } else {
+    res.setHeader("Allow", ["GET", "POST"]);
+    res.status(405).json({ message: `Method ${req.method} Not Allowed` });
   }
 }

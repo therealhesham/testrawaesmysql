@@ -10,10 +10,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Recipient and message are required' });
     }
 
-    // Simulate sending message (replace with real logic, e.g., email or database)
     console.log(`Message to ${recipient}: ${message}`);
-const sentData = await prisma.officemssages.create({data:{officeName:recipient,message,isRead:false,type:"inbox",sender}})
-    // Respond with success
+const sentData = await prisma.officemssages.create({data:{officeName:recipient,message:message?.body,isRead:false,type:"sent",sender}})
+console.log(sentData)
+// Respond with success
     return res.status(200).json({ success: true,data:sentData});
   } else {
     // Handle non-POST requests

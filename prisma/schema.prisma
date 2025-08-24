@@ -51,8 +51,85 @@ model homemaid {
   Housed            housing[]
   inHouse           housedworker[]
   Session           Session[]
+  createdAt         DateTime?   @default(now())
+  updatedAt         DateTime?  @updatedAt
   logs              logs[]
   displayOrder      Int        @default(0) // Added field for display order
+  transferSponsorShips transferSponsorShips?
+  isExternal          Boolean? @default(false)
+}
+model reports{
+
+  id              Int       @id @default(autoincrement())
+  title           String?   @db.VarChar(255)
+  rating          String?   @db.VarChar(255)//options
+  clientId       Int
+  client        Client?   @relation(fields: [clientId], references: [id])
+  Discription    String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique @db.VarChar(191) // e.g., "مدير عام", "موظف"
+  permissions Json?     // Stores permissions as JSON
+  users       User[]    // Users assigned to this role
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  phonenumber   String?   @unique @db.VarChar(15)
+  admin         Boolean?  @default(false)
+  pictureurl    String?   @default("")
+  username      String    @unique @db.VarChar(191)
+  password      String    @db.VarChar(191)
+  roleId        Int?      // Foreign key to Role model
+  idnumber      Int?      @unique
+  role          Role?     @relation(fields: [roleId], references: [id])
+    notifications notifications[]
+  tasks         tasks[]
+  logs          logs[]
+  emaillist    emaillist[]
+  cashLogs      cashLogs[]
+
+  createdAt     DateTime? @default(now())
+  updatedAt     DateTime? @updatedAt
+}
+
+
+
+// model User {
+//   id            Int       @id @default(autoincrement())
+//   phonenumber   String?   @unique @db.VarChar(15)
+//   admin         Boolean?  @default(false)
+//   pictureurl    String?   @default("")
+//   username      String    @unique @db.VarChar(191)
+//   password      String    @db.VarChar(191)
+//   role          String?   @default("قسم الاستقدام")
+//   idnumber      Int?      @unique
+
+//   notifications notifications[]
+// tasks tasks[]
+//   logs logs[]
+// emaillist emaillist[]
+//   cashLogs cashLogs[]
+// }
+
+
+model tasks{
+id              Int       @id @default(autoincrement())
+userId            Int
+user                 User @relation(fields: [userId], references: [id])  
+description       String
+taskDeadline DateTime
+ createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isCompleted      Boolean?  @default(false)
+Title               String?
+
 }
 model weeklyStatus{
   id              Int       @id @default(autoincrement())
@@ -81,8 +158,8 @@ message        String?   @db.VarChar(255)
   user            User?     @relation(fields: [userId], references: [username]) 
 
 }
-model officemssages{//الموديل ده خاص بالرسايل اللي هيكتبها روائس وهيستعرضها المكتب
-
+model officemssages{
+ //الموديل ده خاص بالرسايل اللي هيكتبها روائس وهيستعرضها المكتب
   id              Int       @id @default(autoincrement())
 title        String?   @db.VarChar(55)
 sender        String?@db.VarChar(255)
@@ -124,30 +201,17 @@ model Client {
   phonenumber    String?    @unique @db.VarChar(15)
   password       String?
   HomeMaidRecod  Int?
-  createdat      DateTime?  @default(now())
+  createdAt      DateTime?  @default(now())
   nationalId      String? @db.VarChar(30)
   city             String? @db.VarChar(100)
   address         String? @db.VarChar(100)     
   HomeMaid       homemaid?  @relation(fields: [HomeMaidRecod], references: [id])
   orders         neworder[]
   arrivals       arrivallist[]
-}
+  reports        reports[]  // Added opposite relation field
+  NewSponsorTransfers transferSponsorShips? @relation("NewSponsor")
+  OldSponsorTransfers transferSponsorShips? @relation("OldSponsor")
 
-model User {
-  id            Int       @id @default(autoincrement())
-  phonenumber   String?   @unique @db.VarChar(15)
-  admin         Boolean?  @default(false)
-  pictureurl    String?   @default("")
-  username      String    @unique @db.VarChar(191)
-  password      String    @db.VarChar(191)
-  role          String?   @default("قسم الاستقدام")
-  idnumber      Int?      @unique
-
-  notifications notifications[]
-
-  logs logs[]
-emaillist emaillist[]
-  cashLogs cashLogs[]
 }
 
 
@@ -170,22 +234,28 @@ model logs{
   Status        String?   @db.VarChar(255)
   createdAt     DateTime? @default(now())
   updatedAt     DateTime? @updatedAt
+  Details    String?
+  reason      String?
+  
   userId        String?
   homemaidId  Int?
   user          User?     @relation(fields: [userId], references: [username])
   homemaid      homemaid? @relation(fields: [homemaidId], references: [id])
 }
 model Session {
-  id            Int       @id @default(autoincrement())
-  reason      String    @db.VarChar(191)
-  date          DateTime?   
-  result          String?
-  idnumber      Int      
-  createdAt          DateTime? @default(now())
-  updatedAt          DateTime? @updatedAt
-time            String?
-  user            homemaid?     @relation(fields: [idnumber], references: [id]) 
+  id         Int       @id @default(autoincrement())
+  reason     String    @db.VarChar(191)
+  date       DateTime?   
+  result     String?
+  idnumber   Int      
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+  time       String?
+  user       homemaid? @relation(fields: [idnumber], references: [id]) 
+
+  @@unique([idnumber, date]) 
 }
+
 
 model Rating {
   id            Int       @id @default(autoincrement())
@@ -200,30 +270,6 @@ reason      String? @db.VarChar(255)
 
 
 
-model FemalWorker {
-  id                  Int       @id @default(autoincrement())
-  clientname          String    @db.VarChar(191)
-  insurance           String    @db.VarChar(191)
-  musanedContract     String    @db.VarChar(191)
-  visanumber          String    @db.VarChar(191)
-  idnumber            String    @db.VarChar(191)
-  mobilenumber       String    @db.VarChar(15)
-  passportnumber      String    @db.VarChar(191)
-  workername          String    @db.VarChar(191)
-  age                 Int
-  experience          String    @db.VarChar(191)
-  contractstatus      String    @db.VarChar(191)
-  city                String    @db.VarChar(191)
-  orderDate           DateTime
-  canceled            Boolean   @default(false)
-  ended               Boolean   @default(false)
-  externaloffice      String    @db.VarChar(191)
-  nationality         String    @db.VarChar(191)
-  externalmusanedcontract String @db.VarChar(191)
-  visaordernumber     String    @db.VarChar(191)
-  notes               String    @db.VarChar(191)
-}
-
 model neworder {
   id                 Int       @id @default(autoincrement())
   ClientName         String?   @db.VarChar(255)
@@ -237,6 +283,7 @@ transactios transactions[]
   isHidden        Boolean? @default(false)
 ratings       Rating[]
   ReasonOfRejection  String?   @db.VarChar(255)
+  typeOfContract String?
   housed              housing[]
   income              income[]
   Nationalitycopy    String?   @db.VarChar(255)
@@ -244,7 +291,7 @@ ratings       Rating[]
   Religion           String?   @db.VarChar(255)
   Passportnumber     String?   @db.VarChar(255)
   nationalId          String?  @db.VarChar(30) 
-  clientphonenumber  String   @db.VarChar(15) 
+  clientphonenumber  String?   @db.VarChar(15) 
   Picture            Json?
   ExperienceYears    String?   @db.VarChar(255)
   maritalstatus      String?   @db.VarChar(255)
@@ -258,49 +305,44 @@ ratings       Rating[]
   createdAt          DateTime? @default(now())
   updatedAt          DateTime? @updatedAt
   updatedBy          String?
-
+PaymentMethod    String?
+Installments Int?
+Total   Int?
+Payments Payment[]
   client             Client?   @relation(fields: [clientID], references: [id])
   HomeMaid           homemaid? @relation(fields: [HomemaidId], references: [id])
-  OrderStatus        OrderStatus[]
+  // OrderStatus        OrderStatus[]
   arrivals        arrivallist[]
+  isContractEnded Boolean? @default(false)
 
 }
 
-model OrderStatus {
-  id        Int       @id @default(autoincrement())
-  orderId   Int
-  status    String    @db.VarChar(255)
-  createdAt DateTime  @default(now())
+
+model Payment{
+id Int @id @default(autoincrement())
+Paid      Decimal
+order     neworder? @relation(fields: [orderId], references: [id])
+orderId   Int?      @unique
+}
+model inHouseLocation {
+id Int @id @default(autoincrement())
+  location String @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+quantity Int @default(0) //عدد الاماكن المتاحة
+  housedWorkers housedworker[] 
+}
+
+// model OrderStatus {
+//   id        Int       @id @default(autoincrement())
+//   orderId   Int
+//   status    String    @db.VarChar(255)
+//   createdAt DateTime  @default(now())
   
-  Order     neworder? @relation(fields: [orderId], references: [id])
+//   // Order     neworder? @relation(fields: [orderId], references: [id])
 
-  @@unique([orderId, status])
-}
-
-model MaleWorker {
-  id                  Int       @id @default(autoincrement())
-  clientname          String    @db.VarChar(191)
-  insurance           String    @db.VarChar(191)
-  musanedContract     String    @db.VarChar(191)
-  visanumber          String    @db.VarChar(191)
-  idnumber            String    @db.VarChar(191)
-  mobilenumber        String    @db.VarChar(15)
-  passportnumber      String    @db.VarChar(191)
-  workername          String    @db.VarChar(191)
-  canceled            Boolean   @default(false)
-  ended               Boolean   @default(false)
-  age                 Int
-  job                 String    @db.VarChar(191)
-  experience          String    @db.VarChar(191)
-  contractstatus      String    @db.VarChar(191)
-  city                String    @db.VarChar(191)
-  orderDate           DateTime
-  externaloffice      String    @db.VarChar(191)
-  nationality         String    @db.VarChar(191)
-  externalmusanedcontract String @db.VarChar(191)
-  visaordernumber     String    @db.VarChar(191)
-  notes               String    @db.VarChar(191)
-}
+//   @@unique([orderId, status])
+// }
 
 
 model emaillist{
@@ -312,7 +354,11 @@ department            String?   @db.VarChar(191)
   userId                   Int?
   User                     User?     @relation(fields: [userId], references: [id])
 }
+
+
 model arrivallist {
+  createdAt DateTime?
+  updatedAt DateTime?
   id                        Int       @id @default(autoincrement())
   SponsorName               String?   @db.VarChar(191)
   office                    String?   @db.VarChar(191)
@@ -330,8 +376,8 @@ finaldestination          String?
 visaNumber                String?   @db.VarChar(191)
 deparatureDate            DateTime?
 deparatureTime            String?
-startWoringDate       DateTime?
-
+startWorkingDate       DateTime?
+endWorkingDate          DateTime?
 ExternalStatusByoffice    String?
 finalDestinationDate      DateTime?
 DeliveryFile           String?      @db.VarChar(191)
@@ -369,6 +415,34 @@ finalDestinationTime          String? @db.VarChar(30)
   
 }
 
+
+model transferSponsorShips{
+
+  id                    Int       @id @default(autoincrement())
+  HomeMaidId        Int @unique
+HomeMaid        homemaid @relation(references: [id],fields: [HomeMaidId])
+NewClientId        Int @unique
+NewClient        Client @relation("NewSponsor", references: [id],fields: [NewClientId])
+
+OldClientId        Int @unique
+OldClient        Client @relation("OldSponsor", references: [id],fields: [OldClientId])
+Cost              Decimal?  
+Paid              Decimal?
+ExperimentStart   DateTime?
+ExperimentEnd   DateTime?
+
+ExperimentRate String?
+Notes         String?
+
+NationalID     String?
+TransferingDate   String?
+
+file        String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+}
 model Transfer {
   id                    Int       @id @default(autoincrement())
   client                String?   @db.VarChar(191)
@@ -396,7 +470,7 @@ model Transfer {
 }
 
 
-model housing{
+model housing{// مش بنستخدمه في قاعدة البيانات
   id                    Int       @id @default(autoincrement())
 isHoused              Boolean? @default(false)
 
@@ -421,12 +495,12 @@ transaction_date   DateTime? @default(now())
 
 
 model housedworker {
+  id             Int       @id @default(autoincrement())
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  id             Int       @id @default(autoincrement())
   homeMaid_id       Int       @unique
   Reason         String?   @db.VarChar(100)
   employee       String?   @db.VarChar(100)
@@ -436,10 +510,10 @@ deparatureHousingDate  DateTime?
   transaction_type String?
   deliveryDate   DateTime?
   status    String?   @db.VarChar(100)
-  // العلاقة مع CheckIn
   checkIns       CheckIn[] // يحتوي على جميع سجلات CheckIn المرتبطة بهذا العامل
-  
-  // العلاقة مع neworder
+  location_id     Int?
+    location          inHouseLocation?  @relation(fields: [location_id], references: [id])
+
   Order          homemaid  @relation(fields: [homeMaid_id], references: [id])
 }
 
@@ -462,7 +536,6 @@ CheckDate   DateTime?
   updatedAt       DateTime  @updatedAt
 cost              String?
 DailyCost         Decimal?
-  // العلاقة مع housedworker
   HousedWorker    housedworker? @relation(fields: [housedWorkerId], references: [id])
 }
 

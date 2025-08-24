@@ -29,29 +29,17 @@ export default async function handler(
         ...filters,
         DeparatureFromSaudiDate: { not: null },
       },
-      select: {
-        Order: { select: { Name: true } },
+           select: {
+        Order: { select: { Name: true ,HomemaidId: true,HomeMaid:true} },
         OrderId: true,
+        
         SponsorName: true,
         PassportNumber: true,
-        KingdomentryDate: true,
         deparatureDate: true,
         deparatureTime: true,
-        ArrivalCity: true,
-        medicalCheckFile: true,
-        ticketFile: true,
         SponsorPhoneNumber: true,
-        SponsorIdnumber: true,
-        InternalmusanedContract: true,
-        finaldestination: true,
-        finalDestinationDate: true,
-        HomemaIdnumber: true,
         HomemaidName: true,
-        Notes: true,
         id: true,
-        DeparatureFromSaudiDate: true,
-        DeparatureFromSaudiCity: true,
-        DeparatureFromSaudiTime: true,
       },
       skip: (pageNumber - 1) * pageSize, // Pagination logic (skip previous pages)
       take: pageSize, // Limit the results to the page size,
@@ -59,7 +47,7 @@ export default async function handler(
     });
     // console.log("homemiad", );
     // Send the filtered and paginated data as the response
-    res.status(200).json(homemaids);
+    res.status(200).json({data:homemaids});
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });

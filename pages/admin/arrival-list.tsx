@@ -1,351 +1,624 @@
-import { BookFilled } from "@ant-design/icons";
-import Layout from "example/containers/Layout";
-import { useRouter } from "next/router";
-import { useEffect, useState, useCallback, useRef } from "react";
-import jwt from "jsonwebtoken";
-import { Button } from "@mui/material";
-import Style from "styles/Home.module.css";
+import Layout from 'example/containers/Layout';
+import Head from 'next/head';
+import { useState, useEffect, useRef } from 'react';
+import { SearchIcon } from '@heroicons/react/outline';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import Style from 'styles/Home.module.css';
 
-export default function Table() {
-  const [filters, setFilters] = useState({
-    SponsorName: "",
-    age: "",
-    PassportNumber: "",
-    OrderId: "",
-  });
+interface TableRow {
+  workerId: string;
+  orderId: string;
+  workerName: string;
+  clientName: string;
+  nationality: string;
+  passport: string;
+  from: string;
+  to: string;
+  status: string;
+  arrivalDate: string;
+}
 
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
+interface ApiResponse {
+  data: {
+    Order: {
+      HomeMaid: {
+        Name: string;
+        Passportnumber: string;
+        id: number;
+        office: {
+          Country: string;
+        };
+        age: number | null;
+      };
+      ClientName: string | null;
+      id: number;
+    };
+    OrderId: number;
+    HomemaidName: string;
+    KingdomentryDate: string;
+    ArrivalCity: string;
+    id: number;
+  }[];
+  totalPages: number;
+}
+
+const transformData = (data: any[]): TableRow[] => {
+  return data.map((item) => ({
+    workerId: String(item.Order.HomeMaid.id),
+    orderId: String(item.OrderId),
+    workerName: item.HomemaidName || item.Order.HomeMaid.Name,
+    clientName: item.Order.ClientName || 'غير متوفر',
+    nationality: item.Order.HomeMaid.office.Country,
+    passport: item.Order.HomeMaid.Passportnumber,
+    from: 'غير محدد',
+    to: item.ArrivalCity || 'غير محدد',
+    status: item.KingdomentryDate ? 'وصلت' : 'تحديث الوصول',
+    arrivalDate: item.KingdomentryDate
+      ? new Date(item.KingdomentryDate).toLocaleString('ar-EG', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+        }).replace(',', '<br>')
+      : 'غير محدد',
+  }));
+};
+
+const fetchData = async (
+  page = 1,
+  filters: {
+    search: string;
+    age: string;
+    ArrivalCity: string;
+    KingdomentryDate: string;
+  },
+  setData: (data: TableRow[]) => void,
+  setTotalPages: (pages: number) => void,
+  setLoading: (loading: boolean) => void,
+  isFetchingRef: React.MutableRefObject<boolean>
+) => {
+  if (isFetchingRef.current) return;
+  isFetchingRef.current = true;
+  setLoading(true);
+
+  try {
+    const queryParams = new URLSearchParams({
+      search: filters.search,
+      age: filters.age,
+      ArrivalCity: filters.ArrivalCity,
+      KingdomentryDate: filters.KingdomentryDate,
+      page: String(page),
+      perPage: '10',
+    });
+
+    const response = await fetch(`/api/arrivals?${queryParams}`, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      method: 'GET',
+    });
+
+    if (!response.ok) throw new Error('فشل جلب البيانات');
+    const { data: res, totalPages: pages }: ApiResponse = await response.json();
+    if (res && res.length > 0) {
+      const transformedData = transformData(res);
+      setData(transformedData);
+      setTotalPages(pages || 1);
+    } else {
+      setData([]);
+      setTotalPages(1);
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    setData([]);
+    setTotalPages(1);
+  } finally {
+    setLoading(false);
+    isFetchingRef.current = false;
   }
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false); // Loading state
-  const [hasMore, setHasMore] = useState(true); // To check if there is more data to load
+};
 
-  const pageRef = useRef(1); // Use a ref to keep track of the current page number
-  const isFetchingRef = useRef(false); // Ref to track whether data is being fetched
+const fetchCities = async (setCities: (cities: string[]) => void) => {
+  try {
+    const response = await fetch('/api/arrivals?perPage=1000', {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('فشل جلب المدن');
+    const { data }: ApiResponse = await response.json();
+    const cities = Array.from(new Set(data.map((item) => item.ArrivalCity).filter((city): city is string => !!city)));
+    setCities(['كل المدن', ...cities]);
+  } catch (error) {
+    console.error('Error fetching cities:', error);
+    setCities(['كل المدن']);
+  }
+};
 
-  // Fetch data with pagination
-  const fetchData = async () => {
-    if (isFetchingRef.current || !hasMore) return; // Prevent duplicate fetches if already loading
-    isFetchingRef.current = true;
-    setLoading(true);
+const ColumnSelector = ({
+  visibleColumns,
+  setVisibleColumns,
+}: {
+  visibleColumns: string[];
+  setVisibleColumns: (columns: string[]) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const columns = [
+    { key: 'workerId', label: 'رقم العاملة' },
+    { key: 'orderId', label: 'رقم الطلب' },
+    { key: 'workerName', label: 'اسم العاملة' },
+    { key: 'clientName', label: 'اسم العميل' },
+    { key: 'nationality', label: 'الجنسية' },
+    { key: 'passport', label: 'رقم الجواز' },
+    { key: 'from', label: 'من' },
+    { key: 'to', label: 'إلى' },
+    { key: 'status', label: 'حالة الوصول' },
+    { key: 'arrivalDate', label: 'تاريخ الوصول' },
+  ];
 
-    try {
-      // Build the query string for filters
-      const queryParams = new URLSearchParams({
-        SponsorName: filters.SponsorName,
-        age: filters.age,
-        OrderId: filters.OrderId,
-        PassportNumber: filters.PassportNumber,
-        // Nationalitycopy: filters.Nationality,
-        page: String(pageRef.current),
-      });
-
-      const response = await fetch(`/api/arrivals?${queryParams}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        method: "get",
-      });
-
-      const res = await response.json();
-      if (res && res.length > 0) {
-        setData((prevData) => [...prevData, ...res]); // Append new data
-        pageRef.current += 1; // Increment page using ref
-      } else {
-        setHasMore(false); // No more data to load
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
+  const toggleColumn = (columnKey: string) => {
+    if (visibleColumns.includes(columnKey)) {
+      setVisibleColumns(visibleColumns.filter((col) => col !== columnKey));
+    } else {
+      setVisibleColumns([...visibleColumns, columnKey]);
     }
   };
 
-  const makeRequest = async (url: string, body: object) => {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    return response.status === 200;
-  };
-
-  const restore = async (id: string, homeMaidId: string) => {
-    const success = await makeRequest("/api/restoreorders", {
-      id,
-      homeMaidId,
-    });
-    if (success) router.push("/admin/neworders");
-  };
-
-  // Use a callback to call fetchData when the user reaches the bottom
-  const loadMoreRef = useCallback(
-    (node: HTMLDivElement) => {
-      if (loading || !hasMore) return;
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            fetchData(); // Fetch next page of data
-          }
-        },
-        { threshold: 1.0 }
-      );
-
-      if (node) observer.observe(node);
-
-      return () => observer.disconnect();
-    },
-    [loading, hasMore]
+  return (
+    <div className="relative">
+      <button
+        className="bg-gray-400 px-3 py-2 h-16 items-center align-baseline text-white rounded-md"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        اختر الأعمدة
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+          {columns.map((column) => (
+            <label key={column.key} className="flex items-center gap-2 px-4 py-2 text-sm">
+              <input
+                type="checkbox"
+                checked={visibleColumns.includes(column.key)}
+                onChange={() => toggleColumn(column.key)}
+                className="form-checkbox h-4 w-4 text-teal-900"
+              />
+              {column.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
   );
+};
 
-  // useEffect to fetch the first page of data on mount
+const Controls = ({
+  setFilters,
+  visibleColumns,
+  setVisibleColumns,
+  data,
+}: {
+  setFilters: (filters: any) => void;
+  visibleColumns: string[];
+  setVisibleColumns: (columns: string[]) => void;
+  data: TableRow[];
+}) => {
+  const [cities, setCities] = useState<string[]>(['كل المدن']);
+  const [selectedCity, setSelectedCity] = useState('كل المدن');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [exportedData, setExportedData] = useState<TableRow[]>([]);
+
   useEffect(() => {
-    fetchData(); // Fetch the first page of data
-  }, []); // Only run once on mount
+    fetchCities(setCities);
+  }, []);
 
-  // useEffect to fetch data when filters change
-  // useEffect(() => {
-  //   // Reset page and data on filter change
-  //   pageRef.current = 1;
-  //   setData([]);
-  //   setHasMore(true);
-  //   fetchData();
-  // }, [filters]); // Only re-run when filters change
+  useEffect(() => {
+    const arrivals = async () => {
+      try {
+        const response = await fetch('/api/Export/arrivals');
+        if (!response.ok) throw new Error('فشل جلب بيانات التصدير');
+        const jsonify = await response.json();
+        const transformedData = transformData(jsonify.data);
+        setExportedData(transformedData);
+      } catch (error) {
+        console.error('Error fetching arrivals:', error);
+        setExportedData([]);
+      }
+    };
+    arrivals();
+  }, []);
 
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    column: string
-  ) => {
-    const value = e.target.value;
-    setFilters((prev) => ({
+  const handleCityChange = (city: string) => {
+    setSelectedCity(city);
+    setFilters((prev: any) => ({
       ...prev,
-      [column]: value,
+      ArrivalCity: city === 'كل المدن' ? '' : city,
     }));
   };
 
-  const router = useRouter();
-  const handleUpdate = (id) => {
-    router.push("./neworder/" + id);
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+    setFilters((prev: any) => ({
+      ...prev,
+      KingdomentryDate: date ? date.toISOString().split('T')[0] : '',
+    }));
+  };
+
+  const exportToExcel = () => {
+    const columnMap: { [key: string]: string } = {
+      workerId: 'رقم العاملة',
+      orderId: 'رقم الطلب',
+      workerName: 'اسم العاملة',
+      clientName: 'اسم العميل',
+      nationality: 'الجنسية',
+      passport: 'رقم الجواز',
+      from: 'من',
+      to: 'إلى',
+      status: 'حالة الوصول',
+      arrivalDate: 'تاريخ الوصول',
+    };
+
+    const filteredData = exportedData.map((row) =>
+      visibleColumns.reduce((obj, col) => {
+        obj[columnMap[col]] = row[col as keyof TableRow];
+        return obj;
+      }, {} as Record<string, string>)
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Arrivals');
+    XLSX.writeFile(workbook, 'arrivals.xlsx');
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const columnMap: { [key: string]: string } = {
+      workerId: 'رقم العاملة',
+      orderId: 'رقم الطلب',
+      workerName: 'اسم العاملة',
+      clientName: 'اسم العميل',
+      nationality: 'الجنسية',
+      passport: 'رقم الجواز',
+      from: 'من',
+      to: 'إلى',
+      status: 'حالة الوصول',
+      arrivalDate: 'تاريخ الوصول',
+    };
+
+    doc.addFont('/fonts/Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri');
+    doc.setFontSize(16);
+    doc.text('قائمة الوصول', 200, 10, { align: 'center' });
+
+    const tableColumns = visibleColumns.map((col) => columnMap[col]);
+    const tableRows = exportedData.map((row) =>
+      visibleColumns.map((col) => row[col as keyof TableRow] || '')
+    );
+
+    (doc as any).autoTable({
+      head: [tableColumns],
+      body: tableRows,
+      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
+      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      margin: { top: 30 },
+      didDrawPage: () => {
+        doc.setFontSize(10);
+        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
+      },
+    });
+
+    doc.save('arrivals.pdf');
   };
 
   return (
-    <Layout>
-      <div className="container mx-auto p-6">
-        <h1
-          className={`text-left font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
-        >
-          قائمة الـوصول
-        </h1>
-
-        {/* Filter Section */}
-        <div className="flex justify-between mb-4">
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.SponsorName}
-              onChange={(e) => handleFilterChange(e, "SponsorName")}
-              placeholder="بحث باسم الكفيل"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.PassportNumber}
-              onChange={(e) => handleFilterChange(e, "PassportNumber")}
-              placeholder="بحث برقم الجواز"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div className="flex-1 px-2">
-            <input
-              type="text"
-              value={filters.OrderId}
-              onChange={(e) => handleFilterChange(e, "OrderId")}
-              placeholder="بحث برقم الطلب"
-              className="p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setFilters({
-                  age: "",
-                  OrderId: "",
-                  PassportNumber: "",
-                  SponsorName: "",
-                });
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>اعادة ضبط</h1>
-            </button>
-          </div>
-          <div className="flex-1 px-1">
-            <button
-              className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
-              }
-              onClick={() => {
-                isFetchingRef.current = false;
-                setHasMore(true);
-                setData([]);
-                pageRef.current = 1;
-                fetchData();
-              }}
-            >
-              <h1 className={Style["almarai-bold"]}>بحث</h1>
-            </button>
-          </div>
+    <div className="flex flex-col justify-between mb-6 gap-4">
+      <div className="flex flex-wrap justify-start gap-4">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500">
+          <SearchIcon className="w-4 h-4" />
+          <input
+            type="text"
+            placeholder="بحث"
+            onChange={(e) =>
+              setFilters((prev: any) => ({ ...prev, search: e.target.value }))
+            }
+            className="bg-transparent border-none"
+          />
         </div>
-
-        {/* Table */}
-        <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
-          <thead>
-            <tr className="bg-yellow-400 text-white">
-              <th className="p-3 text-center text-sm font-medium">رقم الطلب</th>
-              <th className="p-3 text-center text-sm font-medium">
-                اسم الكفيل
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                جوال العميل
-              </th>
-
-              <th className="p-3 text-center text-sm font-medium">
-                اسم العاملة
-              </th>
-
-              <th className="p-3 text-center text-sm font-medium">
-                رقم جواز السفر
-              </th>
-
-              <th className="p-3 text-center text-sm font-medium">من</th>
-              <th className="p-3 text-center text-sm font-medium">الى</th>
-              {/* <th className="p-3 text-center text-sm font-medium">الطلب</th> */}
-              <th className="p-3 text-center text-sm font-medium">
-                تاريخ الوصول
-              </th>
-              <th className="p-3 text-center text-sm font-medium">
-                وقت الـوصول
-              </th>
-              {/* 
-              <th className="p-3 text-center text-sm font-medium">الجنسية</th>
-              <th className="p-3 text-center text-sm font-medium">استعادة</th> */}
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="p-3 text-center text-sm text-gray-500"
-                >
-                  No results found
-                </td>
-              </tr>
-            ) : (
-              data.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td
-                    onClick={() =>
-                      router.push("/admin/neworder/" + item.OrderId)
-                    }
-                    className="p-3 text-md text-center  cursor-pointer text-purple-700 hover:bg-gray-400"
-                  >
-                    {item.OrderId}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-600">
-                    {item.SponsorName}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item.SponsorPhoneNumber}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item.Order?.Name}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item.PassportNumber}
-                  </td>
-
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item?.ArrivalCity}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item?.finaldestination}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item?.KingdomentryDate
-                      ? getDate(item?.KingdomentryDate)
-                      : null}
-                  </td>
-                  <td className="p-3 text-md text-center  text-gray-700">
-                    {item.KingdomentryTime}
-                  </td>
-                  {/* <td className="p-3 text-md text-center  text-gray-700">
-                    {item.Nationalitycopy}
-                  </td> */}
-                  {/* <td className="p-3 text-sm text-gray-600">
-                    <Button
-                      variant="contained"
-                      color="warning"
-                      onClick={() => restore(item.id, item.HomemaidIdCopy)}
-                    >
-                      استعادة
-                    </Button>
-                  </td> */}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* Infinite scroll trigger */}
-        {hasMore && (
-          <div
-            ref={loadMoreRef} // Use IntersectionObserver to trigger load more
-            className="flex justify-center mt-6"
+        <div className="relative flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-xs">
+          <select
+            value={selectedCity}
+            onChange={(e) => handleCityChange(e.target.value)}
+            className="bg-transparent border-none appearance-none w-full pr-8"
           >
-            {loading && (
-              <div className="flex justify-center items-center">
-                <svg
-                  className="animate-spin h-5 w-5 mr-3 text-purple-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 4V1m0 22v-3m8-6h3m-22 0H4m16.243-7.757l2.121-2.121m-16.97 0L5.757 5.757M12 9v3m0 0v3m0-3h3m-3 0H9"
-                  />
-                </svg>
-                Loading...
-              </div>
+            {cities.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-xs">
+          <DatePicker
+            selected={selectedDate}
+            onChange={handleDateChange}
+            dateFormat="yyyy-MM-dd"
+            placeholderText="اختر تاريخ"
+            className="bg-transparent border-none text-right"
+          />
+        </div>
+        <ColumnSelector visibleColumns={visibleColumns} setVisibleColumns={setVisibleColumns} />
+        <button
+          className="bg-teal-900 text-white px-3 py-2 rounded-md"
+          onClick={() => {
+            setFilters({
+              search: '',
+              age: '',
+              ArrivalCity: '',
+              KingdomentryDate: '',
+            });
+            setSelectedCity('كل المدن');
+            setSelectedDate(null);
+          }}
+        >
+          إعادة ضبط
+        </button>
+      </div>
+      <div className="flex gap-3 justify-end">
+        <button
+          className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded-md disabled:opacity-50"
+          onClick={exportToExcel}
+          disabled={exportedData.length === 0}
+        >
+          <FileExcelOutlined className="w-4 h-4" />
+          <span>Excel</span>
+        </button>
+        <button
+          className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded-md disabled:opacity-50"
+          onClick={exportToPDF}
+          disabled={exportedData.length === 0}
+        >
+          <FilePdfOutlined className="w-4 h-4" />
+          <span>PDF</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: string[] }) => {
+  const columns = [
+    { key: 'workerId', label: 'رقم العاملة' },
+    { key: 'orderId', label: 'رقم الطلب' },
+    { key: 'workerName', label: 'اسم العاملة' },
+    { key: 'clientName', label: 'اسم العميل' },
+    { key: 'nationality', label: 'الجنسية' },
+    { key: 'passport', label: 'رقم الجواز' },
+    { key: 'from', label: 'من' },
+    { key: 'to', label: 'إلى' },
+    { key: 'status', label: 'حالة الوصول' },
+    { key: 'arrivalDate', label: 'تاريخ الوصول' },
+  ];
+
+  return (
+    <div className="border border-gray-300 rounded-md overflow-x-auto bg-white">
+      <table className="w-full border-collapse min-w-[1000px]">
+        <thead className="bg-teal-900 text-white text-sm">
+          <tr>
+            {columns
+              .filter((col) => visibleColumns.includes(col.key))
+              .map((col) => (
+                <th key={col.key} className="p-4 text-right first:pr-6 last:pl-6 last:text-center">
+                  {col.label}
+                </th>
+              ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, index) => (
+            <tr key={index} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
+              {visibleColumns.includes('workerId') && (
+                <td className="p-4 text-right pr-6">{row.workerId}</td>
+              )}
+              {visibleColumns.includes('orderId') && (
+                <td className="p-4 text-right">{row.orderId}</td>
+              )}
+              {visibleColumns.includes('workerName') && (
+                <td className="p-4 text-right">{row.workerName}</td>
+              )}
+              {visibleColumns.includes('clientName') && (
+                <td className="p-4 text-right">{row.clientName}</td>
+              )}
+              {visibleColumns.includes('nationality') && (
+                <td className="p-4 text-right">{row.nationality}</td>
+              )}
+              {visibleColumns.includes('passport') && (
+                <td className="p-4 text-right">{row.passport}</td>
+              )}
+              {visibleColumns.includes('from') && (
+                <td className="p-4 text-right">{row.from}</td>
+              )}
+              {visibleColumns.includes('to') && (
+                <td className="p-4 text-right">{row.to}</td>
+              )}
+              {visibleColumns.includes('status') && (
+                <td className="p-4 text-right">
+                  {row.status === 'وصلت' ? (
+                    <span className="text-black">{row.status}</span>
+                  ) : (
+                    <a href="#" className="text-teal-900">
+                      تحديث الوصول
+                    </a>
+                  )}
+                </td>
+              )}
+              {visibleColumns.includes('arrivalDate') && (
+                <td className="p-4 text-center" dangerouslySetInnerHTML={{ __html: row.arrivalDate }} />
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const Pagination = ({
+  currentPage,
+  totalPages,
+  setPage,
+}: {
+  currentPage: number;
+  totalPages: number;
+  setPage: (page: number) => void;
+}) => (
+  <div className="flex flex-col md:flex-row justify-between items-center mt-6 px-5">
+    <p className="text-base text-black">
+      عرض {(currentPage - 1) * 10 + 1} - {Math.min(currentPage * 10, totalPages * 10)} من{' '}
+      {totalPages * 10} نتيجة
+    </p>
+    <nav className="flex items-center gap-1">
+      <a
+        href="#"
+        className={`px-3 py-1 text-xs rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
+          currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+        onClick={(e) => {
+          e.preventDefault();
+          if (currentPage > 1) setPage(currentPage - 1);
+        }}
+      >
+        السابق
+      </a>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        <a
+          key={page}
+          href="#"
+          className={`px-2 py-1 text-xs rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
+            page === currentPage ? 'bg-teal-900 text-gray-50 border-teal-900' : ''
+          }`}
+          onClick={(e) => {
+            e.preventDefault();
+            setPage(page);
+          }}
+        >
+          {page}
+        </a>
+      ))}
+      <a
+        href="#"
+        className={`px-3 py-1 text-xs rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
+          currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+        onClick={(e) => {
+          e.preventDefault();
+          if (currentPage < totalPages) setPage(currentPage + 1);
+        }}
+      >
+        التالي
+      </a>
+    </nav>
+  </div>
+);
+
+const Modal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+      <div className="bg-gray-100 rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+        <h2 className="text-lg font-semibold text-gray-800 mb-5">هل ترغب بتأكيد وصول العاملة؟</h2>
+        <label className="block text-right text-sm font-medium text-gray-800 mb-2">
+          إضافة ملاحظات إن وجدت
+        </label>
+        <textarea
+          className="w-full min-h-[70px] p-3 border border-gray-300 rounded-lg bg-gray-50 text-right focus:outline-none focus:border-gray-300 focus:ring-2 focus:ring-teal-900/20 mb-6"
+          placeholder="إضافة ملاحظة"
+        ></textarea>
+        <div className="flex justify-center gap-6">
+          <button
+            className="border border-gray-800 text-gray-800 rounded-md px-6 py-2 text-base hover:bg-teal-900 hover:text-white"
+            onClick={onClose}
+          >
+            إلغاء
+          </button>
+          <button className="bg-teal-900 text-white rounded-md px-6 py-2 text-base hover:bg-teal-900">
+            نعم
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [data, setData] = useState<TableRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filters, setFilters] = useState({
+    search: '',
+    age: '',
+    ArrivalCity: '',
+    KingdomentryDate: '',
+  });
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([
+    'workerId',
+    'orderId',
+    'workerName',
+    'clientName',
+    'nationality',
+    'passport',
+    'from',
+    'to',
+    'status',
+    'arrivalDate',
+  ]);
+  const isFetchingRef = useRef(false);
+
+  useEffect(() => {
+    fetchData(currentPage, filters, setData, setTotalPages, setLoading, isFetchingRef);
+  }, [currentPage, filters]);
+
+  return (
+    <Layout>
+      <div className="font-tajawal bg-gray-100 text-gray-800 min-h-screen" dir="rtl">
+        <Head>
+          <title>قائمة الوصول</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+          />
+          <script src="https://cdn.tailwindcss.com"></script>
+        </Head>
+        <div className={`max-w-7xl mx-auto ${Style['tajawal-regular']}`}>
+          <main className="p-6 md:p-8">
+            <h1 className="text-3xl font-normal text-black mb-6 text-right">قائمة الوصول</h1>
+            <Controls
+              setFilters={setFilters}
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+              data={data}
+            />
+            {loading ? (
+              <div className="text-center">جاري التحميل...</div>
+            ) : data.length === 0 ? (
+              <div className="text-center">لا توجد بيانات متاحة</div>
+            ) : (
+              <>
+                <Table data={data} visibleColumns={visibleColumns} />
+                <Pagination currentPage={currentPage} totalPages={totalPages} setPage={setCurrentPage} />
+              </>
             )}
-          </div>
-        )}
+          </main>
+          <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+        </div>
       </div>
     </Layout>
   );

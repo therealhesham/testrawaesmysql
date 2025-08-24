@@ -1,167 +1,258 @@
-import { Doughnut, Bar } from "react-chartjs-2"; // Import Bar chart
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-} from "chart.js"; // Register the necessary elements for Bar chart
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
-import Layout from "example/containers/Layout";
-
-// Register necessary components for Chart.js
-ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement
-);
+import { useEffect, useRef, useState } from 'react';
+import Chart from 'chart.js/auto';
+import Image from 'next/image';
+import Layout from 'example/containers/Layout';
+import Style from 'styles/Home.module.css';
 
 export default function Home() {
-  // Example data for the Donut chart
-  const dataDonut = {
-    labels: ["حجوزات جديدة", "حجوزات حالية", "حجوزات مرفوضة"],
-    datasets: [
-      {
-        data: [65, 25, 10],
-        backgroundColor: ["#4CAF50", "#FF9800", "#F44336"],
-        hoverBackgroundColor: ["#45A049", "#FF8C1A", "#D32F2F"],
-        borderWidth: 1,
-      },
-    ],
+  const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
+  const [cancelledorders, setCancelledorders] = useState(0);
+  const [deparaturesLength, setDeparaturesLength] = useState(0);
+  const [newOrdersLength, setNewOrdersLength] = useState(0);
+  const [homeMaidsLength, setHomeMaidsLength] = useState(0);
+  const [arrivalsLength, setArrivalsLength] = useState(0);
+  const [rejectedOrdersLength, setRejectedOrdersLength] = useState(0);
+  const [finished, setFinished] = useState(0);
+  const [officesLength, setOfficesLengthLength] = useState(0);
+  const [transferSponsorshipsLength, setTransferSponsorshipsLength] = useState(0);
+  const [workersStats, setWorkersStats] = useState<{ [key: string]: number }>({});
+
+  const ordersLineRef = useRef(null);
+  const ordersDoughnutRef = useRef(null);
+  const cityBarRef = useRef(null);
+  const workersBarRef = useRef(null);
+  const clientsDoughnutRef = useRef(null);
+  const housingDonutRef = useRef(null);
+  const foodLineRef = useRef(null);
+  const nationalityBarRef = useRef(null);
+
+  const doughnutInstance = useRef(null);
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch(`/api/datalength`);
+      const res = await response.json();
+      if (response.status === 200) {
+        setDeparaturesLength(res.deparatures);
+        setArrivalsLength(res.arrivals);
+        setCurrentOrdersLength(res.currentorders);
+        setRejectedOrdersLength(res.rejectedOrders);
+        setHomeMaidsLength(res.workers);
+        setTransferSponsorshipsLength(res.transferSponsorships);
+        setNewOrdersLength(res.neworderCount);
+        setFinished(res.finished);
+        setCancelledorders(res.cancelledorders);
+        setOfficesLengthLength(res.offices);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
   };
 
-  // Example data for the Bar chart
-  const dataBar = {
-    labels: ["January", "February", "March", "April", "May"],
-    datasets: [
-      {
-        label: "Sales",
-        data: [1000, 1200, 900, 1300, 1100],
-        backgroundColor: "rgba(54, 162, 235, 0.5)",
-        borderColor: "rgba(54, 162, 235, 1)",
-        borderWidth: 1,
-      },
-    ],
+  // Fetch العاملات حسب الدولة
+  const fetchWorkersStats = async () => {
+    try {
+      const res = await fetch('/api/datalength');
+      const data = await res.json();
+      if (res.ok) {
+        setWorkersStats(data.newOrderByLocation || {});
+      }
+    } catch (error) {
+      console.error('Error fetching workers stats:', error);
+    }
   };
 
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: "top",
-      },
-    },
+  const getLast7Days = () => {
+    const days = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      days.push(date.toLocaleDateString('ar-EG', { weekday: 'short', day: 'numeric' }));
+    }
+    return days;
   };
 
-  // Data for the table that could be exported to Excel
-  const reportData = [
-    { name: "John Doe", sales: 1500, region: "North" },
-    { name: "Jane Smith", sales: 2300, region: "South" },
-    { name: "Sam Wilson", sales: 1900, region: "East" },
-  ];
+  useEffect(() => {
+    fetchData();
+    fetchWorkersStats();
 
-  // Excel export function
-  const exportToExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(reportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Report");
-    XLSX.writeFile(wb, "report.xlsx");
-  };
-
-  // PDF export function
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Report", 14, 20);
-
-    // Adding a table in PDF
-    doc.autoTable({
-      head: [["Name", "Sales", "Region"]],
-      body: reportData.map((item) => [item.name, item.sales, item.region]),
-      startY: 30,
+    new Chart(ordersLineRef.current, {
+      type: 'line',
+      data: {
+        labels: getLast7Days(),
+        datasets: [{
+          label: 'عدد الطلبات',
+          data: [12, 19, 3, 5, 2, 8, 7],
+          borderColor: '#A9D9D3',
+          fill: false
+        }]
+      }
     });
 
-    // Save the PDF
-    doc.save("report.pdf");
-  };
+    doughnutInstance.current = new Chart(ordersDoughnutRef.current, {
+      type: 'doughnut',
+      data: {
+        labels: ['جديد', 'قيد المعالجة', 'مكتمل', 'ملغي', 'مرفوض'],
+        datasets: [{
+          data: [0, 0, 0, 0, 0],
+          backgroundColor: ['#4F1A2F', '#1A4D4F', '#E0E0E0', '#F1D7E5', '#A3BFF6'],
+        }]
+      }
+    });
+
+    new Chart(cityBarRef.current, {
+      type: 'bar',
+      data: {
+        labels: ['الرياض', 'جدة', 'مكة', 'الدمام', 'القصيم'],
+        datasets: [{
+          label: 'عدد الطلبات',
+          data: [30, 20, 25, 15, 10],
+          backgroundColor: '#1A4D4F'
+        }]
+      }
+    });
+
+    new Chart(clientsDoughnutRef.current, {
+      type: 'doughnut',
+      data: {
+        labels: ['نشط', 'غير نشط'],
+        datasets: [{
+          data: [32, 68],
+          backgroundColor: ['#1A4D4F', '#E0E0E0']
+        }]
+      }
+    });
+
+    new Chart(housingDonutRef.current, {
+      type: 'doughnut',
+      data: {
+        labels: ['جيد', 'متوسط', 'ضعيف'],
+        datasets: [{
+          data: [60, 25, 15],
+          backgroundColor: ['#4a8da4', '#c43b64', '#ccc']
+        }]
+      }
+    });
+
+    new Chart(foodLineRef.current, {
+      type: 'line',
+      data: {
+        labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو'],
+        datasets: [{
+          label: 'رضا التغذية',
+          data: [20, 25, 15, 30, 40],
+          borderColor: '#c43b64',
+          fill: false
+        }]
+      }
+    });
+
+    new Chart(nationalityBarRef.current, {
+      type: 'bar',
+      data: {
+        labels: ['الفلبين', 'اندونيسيا', 'سيرلانكا', 'اثيوبيا'],
+        datasets: [{
+          label: 'عدد الموظفين',
+          data: [12, 17, 10, 5],
+          backgroundColor: '#4a8da4'
+        }]
+      }
+    });
+
+  }, []);
+
+  // رسم العاملات بعد جلب البيانات من API
+  useEffect(() => {
+    if (Object.keys(workersStats).length > 0 && workersBarRef.current) {
+      new Chart(workersBarRef.current, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(workersStats),
+          datasets: [{
+            label: 'عدد العاملات',
+            data: Object.values(workersStats),
+            backgroundColor: '#1A4D4F'
+          }]
+        }
+      });
+    }
+  }, [workersStats]);
+
+  useEffect(() => {
+    if (doughnutInstance.current) {
+      doughnutInstance.current.data.datasets[0].data = [
+        newOrdersLength,
+        currentOrdersLength,
+        finished,
+        cancelledorders,
+        rejectedOrdersLength
+      ];
+      doughnutInstance.current.update();
+    }
+  }, [newOrdersLength, currentOrdersLength, finished, cancelledorders, rejectedOrdersLength]);
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-100 p-8">
-        <div className="container mx-auto bg-white p-6 rounded-lg shadow-lg">
-          <h1 className="text-3xl font-bold text-center mb-8">
-            Reports Dashboard
-          </h1>
+      <main className={`p-10 max-w-6xl mx-auto ${Style["tajawal-medium  "]}`}>
+        <h1 className="text-3xl text-center font-bold mb-10 text-gray-800">التقارير</h1>
 
-          {/* Statistics Overview */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div className="bg-green-500 text-white p-6 rounded-lg shadow-lg flex justify-center items-center">
-              <div>
-                <h2 className="text-xl font-semibold">اجمالي الدفعات</h2>
-                <p className="text-3xl font-bold">45,300</p>
-              </div>
+        <div className="flex flex-col gap-8">
+          {/* احصائيات الطلبات */}
+          <section className="bg-white p-6 rounded-xl shadow">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xl font-semibold text-gray-700">احصائيات الطلبات</h3>
             </div>
-            <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg flex justify-center items-center">
-              <div>
-                <h2 className="text-xl font-semibold">حجوزات مكتملة</h2>
-                <p className="text-3xl font-bold">320</p>
-              </div>
+            <div className="flex flex-wrap gap-5">
+              <div className="flex-1 min-w-[300px]"><canvas ref={ordersLineRef} /></div>
+              <div className="flex-1 min-w-[300px]"><canvas ref={ordersDoughnutRef} /></div>
             </div>
-            <div className="bg-orange-500 text-white p-6 rounded-lg shadow-lg flex justify-center items-center">
-              <div>
-                <h2 className="text-xl font-semibold">حجوزات مرفوضة</h2>
-                <p className="text-3xl font-bold">120</p>
-              </div>
+          </section>
+
+          {/* المدن */}
+          <section className="bg-white p-6 rounded-xl shadow">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xl font-semibold text-gray-700">احصائيات المدن \ المصادر</h3>
             </div>
+            <div className="flex flex-wrap gap-5">
+              <div className="flex-1 min-w-[300px]">
+                <Image src="/map.png" width={400} height={300} alt="خريطة السعودية" />
+              </div>
+              <div className="flex-1 min-w-[300px]"><canvas ref={cityBarRef} /></div>
+            </div>
+          </section>
+
+          {/* العاملات والعملاء */}
+          <div className="flex flex-wrap gap-5">
+            <section className="flex-1 bg-white p-6 rounded-xl shadow min-w-[300px]">
+              <h3 className="text-xl font-semibold mb-3 text-gray-700">احصائيات العاملات</h3>
+              <canvas ref={workersBarRef} />
+            </section>
+            <section className="flex-1 bg-white p-6 rounded-xl shadow min-w-[300px]">
+              <h3 className="text-xl font-semibold mb-3 text-gray-700">احصائيات العملاء</h3>
+              <canvas ref={clientsDoughnutRef} />
+            </section>
           </div>
 
-          {/* Charts side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Donut Chart */}
-            <div className="bg-gray-50 p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold text-center mb-4">
-                Task Completion Status
-              </h2>
-              <div className="flex justify-center">
-                <Doughnut data={dataDonut} options={options} />
-              </div>
-            </div>
+          {/* السكن */}
+          <section className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-xl font-semibold mb-3 text-gray-700">احصاءات السكن</h3>
+            <canvas ref={housingDonutRef} />
+          </section>
 
-            {/* Bar Chart */}
-            <div className="bg-gray-50 p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold text-center mb-4">
-                Monthly Sales
-              </h2>
-              <div className="flex justify-center">
-                <Bar data={dataBar} options={options} />
-              </div>
-            </div>
-          </div>
+          {/* التغذية */}
+          <section className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-xl font-semibold mb-3 text-gray-700">احصائيات التغذية الصحية</h3>
+            <canvas ref={foodLineRef} />
+          </section>
 
-          {/* Download Buttons */}
-          <div className="flex justify-center gap-6">
-            <button
-              onClick={exportToPDF}
-              className="bg-red-500 text-white px-6 py-3 rounded-md shadow-md hover:bg-red-600"
-            >
-              Download PDF
-            </button>
-            <button
-              onClick={exportToExcel}
-              className="bg-blue-500 text-white px-6 py-3 rounded-md shadow-md hover:bg-blue-600"
-            >
-              Download Excel
-            </button>
-          </div>
+          {/* الجنسية */}
+          <section className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-xl font-semibold mb-3 text-gray-700">الموظفين حسب الجنسية</h3>
+            <canvas ref={nationalityBarRef} />
+          </section>
         </div>
-      </div>
+      </main>
     </Layout>
   );
 }
