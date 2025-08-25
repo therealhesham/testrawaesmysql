@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
 import { Search, ChevronDown } from 'lucide-react';
 import Layout from 'example/containers/Layout';
-import Style from "styles/Home.module.css"
+import Style from "styles/Home.module.css";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [contractType, setContractType] = useState('recruitment'); // Track contract type
+  const [contractType, setContractType] = useState('recruitment');
   const pageSize = 10;
 
   async function fetchData(page = 1) {
@@ -30,7 +33,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [contractType]); // Re-fetch when contractType changes
+  }, [contractType]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -38,7 +41,95 @@ export default function Dashboard() {
     }
   };
 
-  // Generate pagination buttons dynamically
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add Arabic font support (Note: You need to include Amiri font in your project)
+    doc.setFont("Amiri", "normal");
+    
+    // Set title
+    doc.setFontSize(16);
+    doc.text(contractType === 'recruitment' ? 'طلبات الاستقدام' : 'طلبات التأجير', 105, 15, { align: 'center' });
+    
+    // Define table columns
+    const columns = [
+      '#', 'اسم العميل', 'جوال العميل', 'هوية العميل', 
+      'رقم العاملة', 'اسم العاملة', 'الجنسية', 
+      'رقم جواز السفر', 'المتبقي من الضمان', 
+      'مدة المعاملة', 'التقييم'
+    ];
+    
+    // Prepare table data
+    const tableData = data.map(booking => [
+      `#${booking.id}`,
+      booking.ClientName || 'غير متوفر',
+      booking.clientphonenumber || 'غير متوفر',
+      booking.clientID || 'غير متوفر',
+      booking.HomemaidId || 'غير متوفر',
+      booking.Name || 'غير متوفر',
+      booking.Nationality || 'غير متوفر',
+      booking.Passportnumber || 'غير متوفر',
+      booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
+      'غير متوفر',
+      booking.isContractEnded ? 'لا' : 'نعم'
+    ]);
+
+    // Add table to PDF
+    doc.autoTable({
+      head: [columns],
+      body: tableData,
+      startY: 25,
+      styles: {
+        font: Style["tajawal-bold"],
+        halign: 'right',
+        fontSize: 10,
+      },
+      headStyles: {
+        fillColor: [0, 105, 92], // Teal color
+        textColor: [255, 255, 255],
+      },
+      margin: { right: 10, left: 10 },
+      theme: 'grid',
+    });
+
+    // Save the PDF
+    doc.save(`orders_${contractType}.pdf`);
+  };
+
+  const exportToExcel = () => {
+    // Prepare data for Excel
+    const worksheetData = data.map(booking => ({
+      '#': booking.id,
+      'اسم العميل': booking.ClientName || 'غير متوفر',
+      'جوال العميل': booking.clientphonenumber || 'غير متوفر',
+      'هوية العميل': booking.clientID || 'غير متوفر',
+      'رقم العاملة': booking.HomemaidId || 'غير متوفر',
+      'اسم العاملة': booking.Name || 'غير متوفر',
+      'الجنسية': booking.Nationality || 'غير متوفر',
+      'رقم جواز السفر': booking.Passportnumber || 'غير متوفر',
+      'المتبقي من الضمان': booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
+      'مدة المعاملة': 'غير متوفر',
+      'التقييم': booking.isContractEnded ? 'لا' : 'نعم'
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    
+    // Set column widths
+    worksheet['!cols'] = [
+      { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+      { wch: 20 }, { wch: 15 }, { wch: 10 }
+    ];
+
+    // Create workbook and add worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, contractType === 'recruitment' ? 'طلبات الاستقدام' : 'طلبات التأجير');
+
+    // Export to Excel
+    XLSX.writeFile(workbook, `orders_${contractType}.xlsx`);
+  };
+
   const renderPagination = () => {
     const pages = [];
     const maxButtons = 5;
@@ -109,11 +200,17 @@ export default function Dashboard() {
                   </a>
                 </div>
                 <div className="flex gap-2">
-                  <button className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal">
+                  <button 
+                    onClick={exportToPDF}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                  >
                     <DocumentDownloadIcon className="w-4 h-4" />
                     PDF
                   </button>
-                  <button className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal">
+                  <button 
+                    onClick={exportToExcel}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                  >
                     <TableIcon className="w-4 h-4" />
                     Excel
                   </button>
