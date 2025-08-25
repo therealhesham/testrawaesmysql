@@ -158,7 +158,8 @@ export default function Home({ user }) {
         setDeparaturesLength(res.deparatures);
         setArrivalsLength(res.arrivals);
         setCurrentOrdersLength(res.currentorders);
-        setRejectedOrdersLength(res.rejectedOrders);
+        console.log(res.currentorders)
+                setRejectedOrdersLength(res.rejectedOrders);
         setHomeMaidsLength(res.workers);
         setTransferSponsorshipsLength(res.transferSponsorships);
         setNewOrdersLength(res.neworderCount);
@@ -301,7 +302,7 @@ export default function Home({ user }) {
     try {
       const response = await fetch(`/api/currentordersprisma`, { method: "get" });
       const res = await response.json();
-      setCurrentOrders(res.slice(0, 3));
+      setCurrentOrders(res.homemaids.slice(0, 3));
     } catch (error) {
       console.error("Error in fetch:", error);
     }
@@ -311,6 +312,7 @@ export default function Home({ user }) {
     try {
       const response = await fetch(`/api/endedorders/`, { method: "get" });
       const res = await response.json();
+      setEndedOrders(res.homemaids.slice(0,3))
     } catch (error) {
       console.error("Error in fetch:", error);
     }
