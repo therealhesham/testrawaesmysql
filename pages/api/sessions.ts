@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       data: {
         idnumber,
         reason,
-        date,
+        date: new Date(date).toISOString(),
         time: time ? time : "00:00",
       },
     });

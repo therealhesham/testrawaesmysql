@@ -6,7 +6,7 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [] }) {
         {data.map((item, index) => (
           <div key={index} className="flex flex-col gap-2">
             <label className="text-base text-right">{item.label}</label>
-            <div className="bg-gray-200 border border-gray-300 rounded-md p-2 text-base text-right">{item.value}</div>
+            <div className=" border border-gray-300 rounded-md p-2 text-base text-right">{item.value}</div>
           </div>
         ))}
       </div>

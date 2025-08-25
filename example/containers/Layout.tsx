@@ -106,8 +106,8 @@ useEffect(() => {
   return (
     <div dir="rtl" className="flex h-screen w-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
-      <div className="flex flex-col flex-1 w-full">
-        <nav className="bg-white shadow-lg" dir="rtl">
+      <div className="flex flex-col flex-1 w-full h-full ">
+        <nav className="bg-white shadow-lg py-2" dir="rtl ">
           <div className="max-w-7xl mx-auto px-4 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
@@ -125,7 +125,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="flex items-center cursor-pointer space-x-4 ml-4 align-baseline">
+              <div className="flex items-center cursor-pointer space-x-4 ml-4 align-baseline  ">
                 {/* أيقونة الجرس مع القائمة المنسدلة */}
                 <div className="relative">
                   <div onClick={toggleNotificationDropdown}>
