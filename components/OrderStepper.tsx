@@ -1,24 +1,56 @@
 import { OfficeBuildingIcon } from '@heroicons/react/outline';
-import { Briefcase, Link, CheckCircle, DollarSign, Flag,Plane, MapPin, Package } from 'lucide-react';
+import { Briefcase, Link, CheckCircle, DollarSign, Flag, Plane, MapPin, Package } from 'lucide-react';
 import { FaPassport, FaStethoscope } from 'react-icons/fa';
-// import { OfficeBuildingIcon } from '@heroicons/react/24/outline';
-// FaPassport
-// FaStethoscope
-// OfficeBuildingIcon
-export default function OrderStepper() {
-  const steps = [
-    { label: 'تم التعاقد مع ادارة المكاتب', status: 'completed', icon: <OfficeBuildingIcon className="w-5 h-5" /> }, // Heroicon for office management
-    { label: 'الربط مع المكتب الخارجي', status: 'completed', icon: <Link className="w-5 h-5" /> }, // Lucide icon for connection
-    { label: 'موافقة المكتب الخارجي', status: 'completed', icon: <CheckCircle className="w-5 h-5" /> }, // Lucide icon for approval
-    { label: 'موافقة وزراة العمل الاجنبية', status: 'completed', icon: <Briefcase className="w-5 h-5" /> }, // Lucide icon for ministry/work
-    { label: 'الفحص الطبي', status: 'completed', icon: <FaStethoscope className="w-5 h-5" /> }, // Lucide icon for medical check
-    { label: 'دفع الوكالة', status: 'active', icon: <DollarSign className="w-5 h-5" /> }, // Lucide icon for payment
-    { label: 'موافقة السفارة', status: '', icon: <Flag className="w-5 h-5" /> }, // Lucide icon for embassy
-    { label: 'اصدار التاشيرة', status: '', icon: <FaPassport className="w-5 h-5" /> }, // Lucide icon for visa
-    { label: 'تصريح السفر', status: '', icon: <Plane className="w-5 h-5" /> }, // Lucide icon for travel permit
-    { label: 'الوجهات', status: '', icon: <MapPin className="w-5 h-5" /> }, // Lucide icon for destinations
-    { label: 'الاستلام', status: '', icon: <Package className="w-5 h-5" /> }, // Lucide icon for receipt/delivery
-  ];
+
+interface OrderStepperProps {
+  status: string;
+}
+
+const steps = [
+  { label: 'تم التعاقد مع إدارة المكاتب', icon: <OfficeBuildingIcon className="w-5 h-5" /> },
+  { label: 'الربط مع المكتب الخارجي', icon: <Link className="w-5 h-5" /> },
+  { label: 'موافقة المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'موافقة وزارة العمل الأجنبية', icon: <Briefcase className="w-5 h-5" /> },
+  { label: 'الفحص الطبي', icon: <FaStethoscope className="w-5 h-5" /> },
+  { label: 'دفع الوكالة', icon: <DollarSign className="w-5 h-5" /> },
+  { label: 'موافقة السفارة', icon: <Flag className="w-5 h-5" /> },
+  { label: 'إصدار التأشيرة', icon: <FaPassport className="w-5 h-5" /> },
+  { label: 'تصريح السفر', icon: <Plane className="w-5 h-5" /> },
+  { label: 'الوجهات', icon: <MapPin className="w-5 h-5" /> },
+  { label: 'الاستلام', icon: <Package className="w-5 h-5" /> },
+];
+
+const statusToStepMap: { [key: string]: number } = {
+  pending_external_office: 0,
+  external_office_approved: 1,
+  medical_check_passed: 2,
+  pending_medical_check: 2,
+  foreign_labor_approved: 3,
+  pending_foreign_labor: 3,
+  agency_paid: 4,
+  pending_agency_payment: 4,
+  embassy_approved: 5,
+  pending_embassy: 5,
+  visa_issued: 6,
+  pending_visa: 6,
+  travel_permit_issued: 7,
+  pending_travel_permit: 7,
+  received: 8,
+  pending_receipt: 8,
+  cancelled: -1,
+};
+
+export default function OrderStepper({ status }: OrderStepperProps) {
+  const activeStep = statusToStepMap[status] ?? 0;
+
+  if (status === 'cancelled') {
+    return (
+      <section className="p-5 mb-6">
+        <h2 className="text-3xl font-normal text-center mb-10">تتبع الطلب</h2>
+        <div className="text-red-600 text-center p-4">تم إلغاء الطلب</div>
+      </section>
+    );
+  }
 
   return (
     <section className="p-5 mb-6">
@@ -29,8 +61,10 @@ export default function OrderStepper() {
             <div className="flex flex-col items-center w-24 text-center">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center border ${
-                  step.status === 'completed' || step.status === 'active'
+                  index < activeStep
                     ? 'bg-teal-800 border-teal-800 text-white'
+                    : index === activeStep
+                    ? 'bg-teal-600 border-teal-600 text-white'
                     : 'border-teal-800 text-teal-800'
                 } text-sm`}
               >
@@ -41,7 +75,7 @@ export default function OrderStepper() {
             {index < steps.length - 1 && (
               <div
                 className={`flex-1 h-0.5 my-3.5 mx-2.5 ${
-                  step.status === 'completed' ? 'bg-teal-800' : 'bg-gray-500'
+                  index < activeStep ? 'bg-teal-800' : 'bg-gray-500'
                 }`}
               ></div>
             )}

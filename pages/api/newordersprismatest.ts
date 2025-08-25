@@ -103,7 +103,7 @@ export default async function handler(
           },
         },
         where: {
-          bookingstatus: "حجز جديد",
+          bookingstatus: "new_order",
           ...filters,
           AND: [
             ...(filters.AND || []),
