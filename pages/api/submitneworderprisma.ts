@@ -36,6 +36,7 @@ export default async function handler(
     });
 
     if (existingOrder) {
+      console.log(existingOrder)
       return res.status(400).json({
         message: "العاملة محجوزة بالفعل",
       });
@@ -45,9 +46,9 @@ export default async function handler(
     const result = await prisma.neworder.create({
       data: {
         HomemaidIdCopy: HomemaidId,
-        ExperienceYears,
+        ExperienceYears:ExperienceYears+"",
         Nationality,
-        bookingstatus: "اكمال الطلب",
+        bookingstatus: "new_order",
         Passportnumber,
         // externalOfficeStatus,
         Name,
@@ -87,16 +88,21 @@ export default async function handler(
     res.status(200).json(result);
   } catch (error) {
     console.error("Error in creating new order:", error);
+      console.error("Validation error:", error);
 
     // Custom error handling based on error type
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       // Handle specific Prisma known errors, such as unique constraint violations or foreign key issues
       if (error.code === "P2002") {
+      console.error("Validation error:", error);
+
         return res.status(400).json({
           message: "البيانات التي تحاول ادخالها قد تكون مسجلة بالفعل",
           details: error.meta,
         });
       } else if (error.code === "P2003") {
+      console.error("Validation error:", error);
+
         return res.status(400).json({
           message:
             "Foreign key constraint violation. Please check related data.",
@@ -111,6 +117,7 @@ export default async function handler(
 
     // Prisma validation errors (data type issues, etc.)
     if (error instanceof Prisma.PrismaClientValidationError) {
+      console.error("Validation error:", error);
       return res.status(400).json({
         message: "عدم تطابق للبيانات",
         details: error.message,
@@ -119,6 +126,7 @@ export default async function handler(
 
     // Handle other unexpected errors
     res.status(500).json({
+
       message: "An unexpected error occurred.",
       details: error.message,
     });
