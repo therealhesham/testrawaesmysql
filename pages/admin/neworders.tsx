@@ -3,7 +3,7 @@ import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/o
 import axios from 'axios';
 import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
-import { ArrowDown, Plus, Search } from 'lucide-react';
+import { ArrowDown, Plus, Search, X } from 'lucide-react';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Select from 'react-select';
@@ -11,6 +11,7 @@ import { MoreHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { useRouter } from 'next/router';
 
 export default function Dashboard() {
   const [activePopup, setActivePopup] = useState(null);
@@ -43,18 +44,58 @@ export default function Dashboard() {
   });
   const [ageFilter, setAgeFilter] = useState("");
   const [nationalityFilter, setNationalityFilter] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const openPopup = (popupId) => setActivePopup(popupId);
   const closePopup = () => setActivePopup(null);
+  const closeModal = () => {
+    setShowSuccessModal(false);
+    setShowErrorModal(false);
+    setModalMessage("");
+  };
 
   const confirmAccept = () => {
-    alert('تم قبول الطلب');
+    setModalMessage('تم قبول الطلب');
+    setShowSuccessModal(true);
     closePopup();
   };
 
   const confirmReject = () => {
-    alert('تم رفض الطلب');
+    setModalMessage('تم رفض الطلب');
+    setShowSuccessModal(true);
     closePopup();
+  };
+
+  const homemaidOptions = homemaids.map(homemaid => ({
+    value: homemaid.id,
+    label: homemaid.Name,
+  }));
+
+const router = useRouter();
+  function handleOrderClick(id: any): void {
+  router.push(`/admin/track_order/${id}`);
+}
+
+
+  const handleHomemaidSelect = (selectedOption) => {
+    if (selectedOption) {
+      const selectedHomemaid = homemaids.find(homemaid => homemaid.id === selectedOption.value);
+      setFormData((prev) => ({
+        ...prev,
+        HomemaidId: selectedOption.value,
+        Nationalitycopy: selectedHomemaid?.office?.Country || '',
+        Religion: selectedHomemaid?.religion || '',
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        HomemaidId: '',
+        Nationalitycopy: '',
+        Religion: '',
+      }));
+    }
   };
 
   const toggleDetails = (index) => {
@@ -73,25 +114,19 @@ export default function Dashboard() {
     return age;
   };
 
-
-const [exportedData,setExportedData]=useState([])
+  const [exportedData, setExportedData] = useState([]);
 
   const newExportOrdersList = async (page = 1) => {
     setIsLoading(true);
     try {
-      const fetchNewOrders = await axios.get("/api/Export/neworders", {
-       
-      });
-      console.log(fetchNewOrders.data.homemaids)
+      const fetchNewOrders = await axios.get("/api/Export/neworders", {});
       setExportedData(fetchNewOrders.data.homemaids);
-    
     } catch (error) {
       console.error("Error fetching new orders:", error.response?.data || error.message);
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const newOrdersList = async (page = 1) => {
     setIsLoading(true);
@@ -125,7 +160,7 @@ const [exportedData,setExportedData]=useState([])
 
   const fetchHomemaids = async () => {
     try {
-      const response = await axios.get("/api/homemaidprisma");
+      const response = await axios.get("/api/autocomplete/homemaids");
       setHomemaids(response.data.data);
     } catch (error) {
       console.error('Error fetching homemaids:', error);
@@ -192,20 +227,21 @@ const [exportedData,setExportedData]=useState([])
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("/api/createOrder", formData);
-      alert('تم إضافة الطلب بنجاح');
+      const response = await axios.post("/api/submitneworderprisma", formData);
+      setModalMessage('تم إضافة الطلب بنجاح');
+      setShowSuccessModal(true);
       setView('requests');
       newOrdersList();
     } catch (error) {
       console.error('Error creating order:', error);
-      alert('حدث خطأ أثناء إضافة الطلب');
+      setModalMessage('حدث خطأ أثناء إضافة الطلب');
+      setShowErrorModal(true);
     }
   };
 
-  // دالة لتصدير البيانات كـ PDF
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.setFont("Amiri"); // خط يدعم العربية
+    doc.setFont("Amiri");
     doc.setFontSize(12);
     doc.text("الطلبات الجديدة", 200, 10, { align: 'right' });
 
@@ -236,14 +272,13 @@ const [exportedData,setExportedData]=useState([])
       head: [tableColumn],
       body: tableRows,
       styles: { font: "Amiri", halign: 'right' },
-      headStyles: { fillColor: [0, 105, 92] }, // لون رأس الجدول (teal-900)
+      headStyles: { fillColor: [0, 105, 92] },
       margin: { top: 20 },
     });
 
     doc.save("new_orders.pdf");
   };
 
-  // دالة لتصدير البيانات كـ Excel
   const exportToExcel = () => {
     const worksheetData = exportedData.map(row => ({
       "رقم الطلب": row.id,
@@ -267,7 +302,7 @@ const [exportedData,setExportedData]=useState([])
     fetchClients();
     fetchHomemaids();
     fetchOffices();
-    newExportOrdersList()
+    newExportOrdersList();
   }, []);
 
   useEffect(() => {
@@ -364,8 +399,8 @@ const [exportedData,setExportedData]=useState([])
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
-          className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded"
-          onClick={() => setView('add-available')}
+          className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+          onClick={() => openPopup('popup-product-check')}
         >
           <Plus />
           <span>اضافة طلب</span>
@@ -425,7 +460,7 @@ const [exportedData,setExportedData]=useState([])
               />
             </div>
             <button
-              className="bg-teal-900 text-white px-4 py-2 rounded"
+              className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
               onClick={() => {
                 setAgeFilter("");
                 setNationalityFilter("");
@@ -439,14 +474,14 @@ const [exportedData,setExportedData]=useState([])
         </div>
         <div className="flex gap-4 justify-end mb-9">
           <button
-            className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm"
+            className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
             onClick={exportToPDF}
           >
             <FilePdfOutlined />
             <span>PDF</span>
           </button>
           <button
-            className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm"
+            className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
             onClick={exportToExcel}
           >
             <FileExcelOutlined />
@@ -493,7 +528,7 @@ const [exportedData,setExportedData]=useState([])
                       <td className="p-4">{row.client?.nationalId}</td>
                       <td className="p-4">{row.client?.phonenumber}</td>
                       <td className="p-4">{row.client?.fullname}</td>
-                      <td className="p-4 pl-6">{row.id}</td>
+                      <td className="p-4 pl-6 cursor-pointer" onClick={() => handleOrderClick(row.id)}>{row.id}</td>
                     </tr>
                     {detailsRow === index && (
                       <tr className="bg-white">
@@ -532,7 +567,15 @@ const [exportedData,setExportedData]=useState([])
 
   const renderAddAvailable = () => (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-xl font-normal mb-12 text-right">طلب جديد حسب العاملات المتاحات</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-normal text-right">طلب جديد حسب العاملات المتاحات</h1>
+        <button
+          className="p-2 text-gray-600 hover:text-gray-800"
+          onClick={() => setView('requests')}
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="bg-white border border-gray-300 p-10 rounded">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
           <div className="flex flex-col gap-2">
@@ -577,25 +620,32 @@ const [exportedData,setExportedData]=useState([])
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">اسم العاملة</label>
-            <select
-              name="HomemaidId"
-              value={formData.HomemaidId}
-              onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
-            >
-              <option value="">اختر عاملة</option>
-              {homemaids.map((homemaid) => (
-                <option key={homemaid.id} value={homemaid.id}>
-                  {homemaid.Name}
-                </option>
-              ))}
-            </select>
+            <Select
+              options={homemaidOptions}
+              onChange={handleHomemaidSelect}
+              placeholder="اختر عاملة"
+              className="text-right"
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                }),
+                menu: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
+              }}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">رقم العاملة</label>
             <input
               type="text"
-              placeholder="رقم العاملة"
+              value={formData.HomemaidId || ''}
+              readOnly
               className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
             />
           </div>
@@ -605,8 +655,7 @@ const [exportedData,setExportedData]=useState([])
               type="text"
               name="Nationalitycopy"
               value={formData.Nationalitycopy}
-              onChange={handleFormChange}
-              placeholder="جنسية العاملة"
+              readOnly
               className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
             />
           </div>
@@ -616,8 +665,7 @@ const [exportedData,setExportedData]=useState([])
               type="text"
               name="Religion"
               value={formData.Religion}
-              onChange={handleFormChange}
-              placeholder="ديانة العاملة"
+              readOnly
               className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
             />
           </div>
@@ -677,8 +725,8 @@ const [exportedData,setExportedData]=useState([])
           </div>
         </div>
         <div className="flex gap-6 flex-col sm:flex-row">
-          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40">حفظ</button>
-          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40">الغاء</button>
+          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
+          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">الغاء</button>
         </div>
       </form>
     </div>
@@ -686,7 +734,15 @@ const [exportedData,setExportedData]=useState([])
 
   const renderAddSpecs = () => (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-xl font-normal mb-12 text-right">طلب جديد حسب المواصفات</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-normal text-right">طلب جديد حسب المواصفات</h1>
+        <button
+          className="p-2 text-gray-600 hover:text-gray-800"
+          onClick={() => setView('requests')}
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="bg-white border border-gray-300 p-10 rounded">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
           <div className="flex flex-col gap-2">
@@ -846,12 +902,12 @@ const [exportedData,setExportedData]=useState([])
               type="file"
               className="bg-gray-50 border border-gray-300 rounded p-3 flex-1"
             />
-            <button className="bg-teal-900 text-white px-4 py-2 rounded">اختيار ملف</button>
+            <button className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200">اختيار ملف</button>
           </div>
         </div>
         <div className="flex gap-6 flex-col sm:flex-row">
-          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40">حفظ</button>
-          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40">الغاء</button>
+          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
+          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">الغاء</button>
         </div>
       </form>
     </div>
@@ -867,17 +923,23 @@ const [exportedData,setExportedData]=useState([])
         {activePopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[999] flex items-center justify-center">
             {activePopup === 'popup-confirm-accept' && (
-              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  onClick={closePopup}
+                >
+                  <X className="w-5 h-5" />
+                </button>
                 <p>هل أنت متأكد من قبول الطلب؟</p>
                 <div className="flex justify-between mt-4">
                   <button
-                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-200"
                     onClick={closePopup}
                   >
                     الغاء
                   </button>
                   <button
-                    className="bg-teal-900 text-white px-4 py-2 rounded"
+                    className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
                     onClick={confirmAccept}
                   >
                     نعم
@@ -886,17 +948,23 @@ const [exportedData,setExportedData]=useState([])
               </div>
             )}
             {activePopup === 'popup-confirm-reject' && (
-              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  onClick={closePopup}
+                >
+                  <X className="w-5 h-5" />
+                </button>
                 <p>هل أنت متأكد من رفض الطلب؟</p>
                 <div className="flex justify-between mt-4">
                   <button
-                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-200"
                     onClick={closePopup}
                   >
                     الغاء
                   </button>
                   <button
-                    className="bg-teal-900 text-white px-4 py-2 rounded"
+                    className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
                     onClick={confirmReject}
                   >
                     نعم
@@ -905,7 +973,13 @@ const [exportedData,setExportedData]=useState([])
               </div>
             )}
             {activePopup === 'popup-check-client' && (
-              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  onClick={closePopup}
+                >
+                  <X className="w-5 h-5" />
+                </button>
                 <p className="text-base">تحقق من العميل</p>
                 <p>هل العميل موجود مسبقاً؟</p>
                 <Select
@@ -927,17 +1001,24 @@ const [exportedData,setExportedData]=useState([])
                     }),
                   }}
                 />
-                <button className="bg-teal-900 text-white px-4 py-2 rounded w-full">
+                <button className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200">
                   عميل جديد
                 </button>
               </div>
             )}
             {activePopup === 'popup-product-check' && (
-              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
-                <p>هل تريد اختيار من العاملات المنتجات أو حسب المواصفات؟</p>
-                <div className="flex justify-between mt-4">
+              <div className="bg-white p-8 rounded-xl shadow-2xl w-96 text-center transform transition-all duration-300 ease-in-out relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  onClick={closePopup}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <h2 className="text-xl font-semibold mb-4 text-teal-900">اختيار نوع الطلب</h2>
+                <p className="text-gray-600 mb-6">هل تريد اختيار من العاملات المتاحات أو حسب المواصفات؟</p>
+                <div className="flex justify-center gap-4">
                   <button
-                    className="bg-gray-300 text-gray-800 px-4 py-2 rounded"
+                    className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-6 py-3 rounded-lg hover:bg-gray-200 transition duration-200 text-base font-medium"
                     onClick={() => {
                       closePopup();
                       setView('add-specs');
@@ -946,7 +1027,7 @@ const [exportedData,setExportedData]=useState([])
                     حسب المواصفات
                   </button>
                   <button
-                    className="bg-teal-900 text-white px-4 py-2 rounded"
+                    className="bg-teal-900 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition duration-200 text-base font-medium"
                     onClick={() => {
                       closePopup();
                       setView('add-available');
@@ -959,6 +1040,25 @@ const [exportedData,setExportedData]=useState([])
             )}
           </div>
         )}
+        {(showSuccessModal || showErrorModal) && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+              <button
+                className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                onClick={closeModal}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <p className={showSuccessModal ? "text-teal-900" : "text-red-600"}>{modalMessage}</p>
+              <button
+                className="bg-teal-900 text-white px-4 py-2 rounded mt-4 hover:bg-teal-800 transition duration-200"
+                onClick={closeModal}
+              >
+                موافق
+              </button>
+            </div>
+          </div>
+        )}
         {view === 'requests' && renderRequests()}
         {view === 'add-available' && renderAddAvailable()}
         {view === 'add-specs' && renderAddSpecs()}
@@ -966,3 +1066,4 @@ const [exportedData,setExportedData]=useState([])
     </Layout>
   );
 }
+
