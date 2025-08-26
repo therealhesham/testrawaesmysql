@@ -143,7 +143,30 @@ export default function Home({ user }) {
   const [finished, setFinished] = useState(0);
   const [officesLength, setOfficesLengthLength] = useState(0);
   const [transferSponsorshipsLength, setTransferSponsorshipsLength] = useState(0);
+const [cancelledOrderslist,setCancelledorderslist]=useState(0)
 
+const  fetchInitialCancelled = async()=>{
+ try {
+      // alert(user.id)
+      const response = await fetch(`/api/homeinitialdata/cancelledorders`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      if (response.status === 200) {
+        // console.log(data)
+        setCancelledorderslist(data.data);
+      } else {
+        console.error("Error fetching tasks:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+
+}
   const fetchData = async () => {
     try {
       const response = await fetch(`/api/datalength`, {
@@ -158,7 +181,6 @@ export default function Home({ user }) {
         setDeparaturesLength(res.deparatures);
         setArrivalsLength(res.arrivals);
         setCurrentOrdersLength(res.currentorders);
-        console.log(res.currentorders)
                 setRejectedOrdersLength(res.rejectedOrders);
         setHomeMaidsLength(res.workers);
         setTransferSponsorshipsLength(res.transferSponsorships);
@@ -237,6 +259,7 @@ export default function Home({ user }) {
   useEffect(() => {
     fetchData();
     fetchTasks();
+    fetchInitialCancelled()
   }, []);
 
   const [orders, setOrders] = useState([]);
@@ -292,7 +315,8 @@ export default function Home({ user }) {
     try {
       const response = await fetch(`/api/bookedlist?page=1`, { method: "get" });
       const res = await response.json();
-      setBookedList(res.slice(0, 3));
+      console.log(res)
+      setBookedList(res.data.slice(0, 3));
     } catch (error) {
       console.log("error", error);
     }
@@ -360,12 +384,14 @@ export default function Home({ user }) {
       console.error("Error in fetch:", error);
     }
   };
-
+const [sessionsLength,setSessionsLength]=useState(0)
   const fetchSessions = async () => {
+    
     try {
       const response = await fetch(`/api/sessions`, { method: "get" });
       const res = await response.json();
-      setSessions(res.session);
+      setSessionsLength(res.totalResults)
+      setSessions(res.session.slice(0, 3));
     } catch (error) {
       console.error("Error in fetch:", error);
     }
@@ -598,22 +624,27 @@ export default function Home({ user }) {
                       setOrdersSectionState("endedOrders");
                       setOrders(endedOrders);
                     }}
-                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""} hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200`}
                   >
                     الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{finished}</span>
                   </a>
                   <a
                     href="#"
-                    className="tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 hover:bg-teal-50"
+                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""} hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200`}
+                    onClick={() => {
+                      setOrdersSectionState("cancelledOrdrs");
+                      setOrders(cancelledOrderslist);
+                    }}
+
                   >
                     الطلبات الملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{cancelledorders}</span>
                   </a>
-                  <a
+                  {/* <a
                     href="#"
                     className="tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 hover:bg-teal-50"
                   >
                     الطلبات المرفوضة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{rejectedOrdersLength}</span>
-                  </a>
+                  </a> */}
                 </nav>
               </div>
               <a
@@ -624,6 +655,8 @@ export default function Home({ user }) {
                     ? router.push("/admin/currentorderstest")
                     : ordersSectionState === "endedOrders"
                     ? router.push("/admin/endedorders")
+                    : ordersSectionState === "cancelledOrders"
+                    ? router.push("/admin/cancelledorders")
                     : null;
                 }}
                 className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
@@ -745,7 +778,7 @@ export default function Home({ user }) {
                   }}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "sessions" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{sessions.length}</span>
+                  الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{sessionsLength}</span>
                 </a>
               </nav>
             </div>
@@ -754,7 +787,7 @@ export default function Home({ user }) {
                 housingSectionState === "housing"
                   ? router.push("/admin/housedarrivals")
                   : housingSectionState === "checkedTable"
-                  ? router.push("/admin/checkedTable")
+                  ? router.push("/admin/checkedtable")
                   : housingSectionState === "sessions"
                   ? router.push("/admin/sessions")
                   : null;

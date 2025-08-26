@@ -139,15 +139,7 @@ function Main({ children }: IMain) {
         </ul>
       </div> */}
           </div>
-          <div className="flex justify-between rounded-md bg-gray-200 px-4 py-3 text-gray-600">
-            <span>
-              &copy; Rawaes Qemam <span id="year"></span>
-            </span>
-            <a
-              href="#"
-              className="font-medium transition hover:text-cyan-600"
-            ></a>
-          </div>
+         
         </div>
       </footer>
     </main>

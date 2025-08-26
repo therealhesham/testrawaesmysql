@@ -3,6 +3,9 @@ import Layout from 'example/containers/Layout';
 import { X, Calendar, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Style from "styles/Home.module.css";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const Modal = ({ isOpen, onClose, type, session, onSave }) => {
   if (!isOpen) return null;
@@ -10,7 +13,7 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
   const [formData, setFormData] = useState({
     reason: session?.reason || '',
     idnumber: session?.idnumber || '',
-    date: session?.date ? new Date(session.date).toLocaleDateString('en-GB') : '',
+    date: session?.date ? new Date(session.date).toISOString().split('T')[0] : '',
     time: session?.time || '',
     result: session?.result || '',
   });
@@ -21,22 +24,23 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
   };
 
   const handleSave = async () => {
-    if (type === 'add') {
-      try {
-        const response = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
-        if (response.ok) {
-          onSave(); // Trigger data refresh
-          onClose();
-        } else {
-          console.error('Failed to save session');
-        }
-      } catch (error) {
-        console.error('Error saving session:', error);
+    try {
+      const response = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          idnumber: parseInt(formData.idnumber),
+        }),
+      });
+      if (response.ok) {
+        onSave();
+        onClose();
+      } else {
+        console.error('Failed to save session');
       }
+    } catch (error) {
+      console.error('Error saving session:', error);
     }
   };
 
@@ -47,7 +51,7 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
           <X className="w-6 h-6" />
         </button>
         <h2 className="text-2xl font-normal text-black text-right">
-          {type === 'add' ? 'إضافة محضر' : 'عرض المحضر'}
+          {type === 'add' ? 'إضافة محضر' : 'عرض/تعديل المحضر'}
         </h2>
         <div className="flex flex-col gap-4">
           <div className="flex flex-row gap-8 max-md:flex-col">
@@ -63,7 +67,6 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
                 name="reason"
                 value={formData.reason}
                 onChange={handleInputChange}
-                disabled={type === 'view'}
                 className="bg-gray-100 border border-gray-200 rounded-md p-3 text-sm"
               />
             </div>
@@ -76,7 +79,6 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
                 type="time"
                 value={formData.time}
                 onChange={handleInputChange}
-                disabled={type === 'view'}
                 className="bg-gray-100 border border-gray-200 rounded-md p-3 text-sm"
               />
             </div>
@@ -85,9 +87,8 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
               <input
                 name="date"
                 type="date"
-                value={formData.date} // Convert DD/MM/YYYY to YYYY-MM-DD
-                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
-                disabled={type === 'view'}
+                value={formData.date}
+                onChange={handleInputChange}
                 className="bg-gray-100 border border-gray-200 rounded-md p-3 text-sm"
               />
             </div>
@@ -97,9 +98,8 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
               <label className="text-sm text-gray-800">المحضر</label>
               <textarea
                 name="result"
-                value={formData.result || (type === 'add' ? 'ادخال المحضر هنا' : 'غير متوفر')}
+                value={formData.result }
                 onChange={handleInputChange}
-                disabled={type === 'view'}
                 className={`bg-gray-100 border border-gray-200 rounded-md p-3 min-h-[60px] text-sm ${type === 'add' ? 'text-gray-500' : ''}`}
               />
             </div>
@@ -109,11 +109,9 @@ const Modal = ({ isOpen, onClose, type, session, onSave }) => {
           <button onClick={onClose} className="w-[116px] h-[33px] max-md:w-full border border-teal-800 text-gray-800 rounded text-base font-inter">
             إلغاء
           </button>
-          {type === 'add' && (
-            <button onClick={handleSave} className="w-[116px] h-[33px] max-md:w-full bg-teal-800 border border-teal-800 text-gray-100 rounded text-base font-inter">
-              حفظ
-            </button>
-          )}
+          <button onClick={handleSave} className="w-[116px] h-[33px] max-md:w-full bg-teal-800 border border-teal-800 text-gray-100 rounded text-base font-inter">
+            حفظ
+          </button>
         </div>
       </div>
     </div>
@@ -128,6 +126,7 @@ export default function Home() {
   const [totalResults, setTotalResults] = useState(0);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const pageSize = 10;
 
   const fetchSessions = async () => {
     try {
@@ -135,8 +134,8 @@ export default function Home() {
       const response = await fetch(`/api/sessions?${query}`);
       const data = await response.json();
       if (response.ok) {
-        setSessions(data.session || []);
-        setTotalResults(data.session?.length || 0); // Adjust based on actual total count from backend
+        setSessions(data.sessions || []);
+        setTotalResults(data.totalResults || 0);
       } else {
         console.error(data.error);
       }
@@ -149,6 +148,10 @@ export default function Home() {
     fetchSessions();
   }, [page, search, dateFilter]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, dateFilter]);
+
   const openModal = (type, session) => {
     setModalType(type);
     setSelectedSession(session);
@@ -160,7 +163,7 @@ export default function Home() {
   };
 
   const handleSave = () => {
-    fetchSessions(); // Refresh data after saving
+    fetchSessions();
   };
 
   const formatDate = (dateString) => {
@@ -168,11 +171,45 @@ export default function Home() {
   };
 
   const formatTime = (timeString) => {
+    if (!timeString) return 'غير متوفر';
     const [hours, minutes] = timeString.split(':');
     const date = new Date();
     date.setHours(parseInt(hours), parseInt(minutes));
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
   };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.autoTable({
+      head: [['#', 'سبب الجلسة', 'اسم العاملة', 'تاريخ الجلسة', 'وقت الجلسة', 'المحضر']],
+      body: sessions.map(row => [
+        row.id,
+        row.reason || 'غير متوفر',
+        row.user?.Name || 'غير متوفر',
+        formatDate(row.date),
+        formatTime(row.time),
+        row.result || 'لا يوجد'
+      ]),
+    });
+    doc.save('sessions.pdf');
+  };
+
+  const exportToExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(sessions.map(row => ({
+      '#': row.id,
+      'سبب الجلسة': row.reason || 'غير متوفر',
+      'اسم العاملة': row.user?.Name || 'غير متوفر',
+      'تاريخ الجلسة': formatDate(row.date),
+      'وقت الجلسة': formatTime(row.time),
+      'المحضر': row.result || 'لا يوجد'
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sessions');
+    XLSX.writeFile(wb, 'sessions.xlsx');
+  };
+
+  const hasPreviousPage = page > 1;
+  const hasNextPage = page * pageSize < totalResults;
 
   return (
     <Layout>
@@ -210,11 +247,11 @@ export default function Home() {
               </button>
             </div>
             <div className="flex gap-2">
-              <button className="flex items-center gap-1 bg-teal-800 text-white border-none rounded px-2 py-1 text-[10px]">
+              <button onClick={exportToPDF} className="flex items-center gap-1 bg-teal-800 text-white border-none rounded px-2 py-1 text-[10px]">
                 <DocumentText className="w-5 h-5" />
                 <span>PDF</span>
               </button>
-              <button className="flex items-center gap-1 bg-teal-800 text-white border-none rounded px-2 py-1 text-[10px]">
+              <button onClick={exportToExcel} className="flex items-center gap-1 bg-teal-800 text-white border-none rounded px-2 py-1 text-[10px]">
                 <DocumentDownload className="w-5 h-5" />
                 <span>Excel</span>
               </button>
@@ -243,7 +280,7 @@ export default function Home() {
                       <div className="td" data-label="اسم العاملة">{row.user?.Name || 'غير متوفر'}</div>
                       <div className="td" data-label="تاريخ الجلسة">{formatDate(row.date)}</div>
                       <div className="td" data-label="وقت الجلسة">{formatTime(row.time)}</div>
-                      <div className="td" data-label="المحضر">{row.result || 'لا يوجد'}</div>
+                      <div className="td" data-label="المحضر">{row.result?.slice(0,5)+"...." || 'لا يوجد'}</div>
                       <div
                         className="td cursor-pointer text-teal-800 underline"
                         data-label="الإجراءات"
@@ -260,12 +297,15 @@ export default function Home() {
             </div>
           </div>
           <footer className="flex justify-between items-center pt-5 text-base flex-wrap gap-4">
-            <div>عرض {(page - 1) * 10 + 1}- {Math.min(page * 10, totalResults)} من {totalResults} نتيجة</div>
+            <div>عرض {(page - 1) * pageSize + 1}- {Math.min(page * pageSize, totalResults)} من {totalResults} نتيجة</div>
             <nav className="flex items-center gap-1">
               <a
                 href="#"
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                className="px-2 py-1 border border-gray-200 rounded text-xs bg-gray-100 hover:bg-gray-200"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (hasPreviousPage) setPage((prev) => prev - 1);
+                }}
+                className={`px-2 py-1 border border-gray-200 rounded text-xs bg-gray-100 hover:bg-gray-200 ${!hasPreviousPage ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 السابق
               </a>
@@ -277,8 +317,11 @@ export default function Home() {
               </a>
               <a
                 href="#"
-                onClick={() => setPage((prev) => prev + 1)}
-                className="px-2 py-1 border border-gray-200 rounded text-xs bg-gray-100 hover:bg-gray-200"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (hasNextPage) setPage((prev) => prev + 1);
+                }}
+                className={`px-2 py-1 border border-gray-200 rounded text-xs bg-gray-100 hover:bg-gray-200 ${!hasNextPage ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 التالي
               </a>

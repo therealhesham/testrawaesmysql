@@ -3,37 +3,48 @@ import jwt from "jsonwebtoken";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
-    console.log(req.body);
-
-    const { reason, idnumber, date, time } = req.body;
-    const object = {};
-    function excludeEmptyFields(obj) {
-      return Object.fromEntries(
-        Object.entries(obj).filter(([key, value]) => {
-          return (
-            value !== null &&
-            value !== undefined &&
-            value !== "" &&
-            !(Array.isArray(value) && value.length === 0)
-          );
-        })
-      );
-    }
-
-    const newSession = await prisma.session.create({
-      include: { user: true },
-      data: {
-        idnumber,
-        reason,
-        date: new Date(date).toISOString(),
-        time: time ? time : "00:00",
-      },
-    });
+    const { reason, idnumber, date, time, result } = req.body;
 
     try {
+      // Check if a session exists with the same idnumber and date
+      const existingSession = await prisma.session.findFirst({
+        where: {
+          idnumber: parseInt(idnumber),
+          date: new Date(date).toISOString(),
+        },
+      });
+
+      let newSession;
+      if (existingSession) {
+        // Update existing session if it has a result
+        newSession = await prisma.session.update({
+          where: { id: existingSession.id },
+          data: {
+            reason,
+            date: new Date(date).toISOString(),
+            time: time || "00:00",
+            result,
+            updatedAt: new Date(),
+          },
+          include: { user: true },
+        });
+      } else {
+        // Create a new session if none exists or no result
+        newSession = await prisma.session.create({
+          data: {
+            idnumber: parseInt(idnumber),
+            reason,
+            date: new Date(date).toISOString(),
+            time: time || "00:00",
+            result,
+          },
+          include: { user: true },
+        });
+      }
+
+      // Create a notification
       const token = req.cookies?.authToken;
       let userId: string | null = null;
-
       if (token) {
         const decoded: any = jwt.verify(token, "rawaesecret");
         userId = decoded?.username;
@@ -41,58 +52,52 @@ export default async function handler(req, res) {
 
       const notification = await prisma.notifications.create({
         data: {
-          title: `تم تحديد موعد جلسة`,
-          message: `تم تحديد موعد جلسة جديدة رقم ${newSession.id} للعاملة ${newSession.user?.Name} `,
+          title: `تم ${existingSession?.result ? "تحديث" : "تحديد موعد"} جلسة`,
+          message: `تم ${existingSession?.result ? "تحديث" : "تحديد موعد"} جلسة ${newSession.id} للعاملة ${newSession.user?.Name || "غير معروف"}`,
           userId: userId || "لا يوجد بيان",
           isRead: false,
         },
       });
+
+      return res.status(201).json({ newSession });
     } catch (error) {
-      console.error(error);
+      console.error("Error processing session:", error);
+      return res.status(500).json({ error: "Error processing session" });
     }
-
-    return res.status(201).json({ newSession });
   } else if (req.method === "GET") {
-    const {
-      Name,
-      age,
-      Passportnumber,
-      id,
-      page,
-      sortKey,
-      reason,
-      sortDirection,
-    } = req.query;
-
+    const { reason, page, sortKey, sortDirection, date } = req.query;
     const pageSize = 10;
     const pageNumber = parseInt(page, 10) || 1;
 
-    // Build the filter object dynamically based on query parameters
-    const filters = {
-      reason: { contains: reason || "" }, // Case-insensitive search
-      // Uncomment and add more filters if needed
-      // Passportnumber: { contains: Passportnumber || "" },
-      // ...(id && { id: { equals: Number(id) } }),
+    const filters: any = {
+      OR: [
+        { reason: { contains: reason || ""} },
+        { user: { Name: { contains: reason || ""} } },
+      ],
     };
 
+    if (date) {
+      filters.date = { equals: new Date(date).toISOString() };
+    }
+
     try {
-      const session = await prisma.session.findMany({
+      const sessions = await prisma.session.findMany({
         include: { user: true },
         where: filters,
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
-        orderBy: sortKey
-          ? { [sortKey]: sortDirection || "asc" }
-          : { id: "asc" }, // Default sorting by id
+        orderBy: sortKey ? { [sortKey]: sortDirection || "asc" } : { id: "asc" },
       });
 
-      if (!session || session.length === 0) {
+      const totalResults = await prisma.session.count({ where: filters });
+
+      if (!sessions || sessions.length === 0) {
         return res.status(404).json({ error: "No sessions found" });
       }
 
-      return res.status(200).json({ session });
+      return res.status(200).json({ sessions, totalResults });
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching sessions:", error);
       return res.status(500).json({ error: "Error fetching sessions" });
     }
   } else {
