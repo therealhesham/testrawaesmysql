@@ -136,6 +136,8 @@ export default function Home({ user }) {
   const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
   const [cancelledorders, setCancelledorders] = useState(0);
   const [deparaturesLength, setDeparaturesLength] = useState(0);
+  const [externaldeparaturesLength, seteExternalDeparaturesLength] = useState(0);
+
   const [newOrdersLength, setNewOrdersLength] = useState(0);
   const [homeMaidsLength, setHomeMaidsLength] = useState(0);
   const [arrivalsLength, setArrivalsLength] = useState(0);
@@ -366,9 +368,11 @@ const  fetchInitialCancelled = async()=>{
 
   const fetchExternalDeparaturesData = async () => {
     try {
-      const response = await fetch(`/api/deparaturefromsaudi`, { method: "get" });
+      const response = await fetch(`/api/homeinitialdata/deparaturefromsaudi`, { method: "get" });
       const res = await response.json();
-      setExternalDeparatures(res);
+      setExternalDeparatures(res.data);
+      seteExternalDeparaturesLength(res.deparaturesCount)
+    
     } catch (error) {
       console.error("Error in fetch:", error);
     }
@@ -712,7 +716,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
                   }}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externalDeparatures.length}</span>
+                  مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externaldeparaturesLength}</span>
                 </a>
               </nav>
             </div>
@@ -723,7 +727,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
                   : arrivalsSectionState === "internalDeparatures"
                   ? router.push("/admin/deparatures")
                   : arrivalsSectionState === "externalDeparatures"
-                  ? router.push("/admin/departuresfromsaudi")
+                  ? router.push("/admin/deparaturesfromsaudi")
                   : null;
               }}
               className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
