@@ -1,16 +1,10 @@
+// pages/api/track_order/[id].ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getServerSession } from 'next-auth/next';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // const session = await getServerSession(req, res, authOptions);
-    // console.log(session)
-    // if (!session || !session.user) {
-    //   return res.status(401).json({ error: 'Unauthorized' });
-    // }
-
   const { id } = req.query;
 
   if (req.method === 'GET') {
@@ -49,6 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               finalDestinationDate: true,
               finalDestinationTime: true,
               additionalfiles: true,
+              InternalmusanedContract: true,
+              externalmusanedContract: true,
+              office: true,
             },
           },
         },
@@ -134,104 +131,188 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PATCH') {
-  try {
-    const { field, value } = req.body;
-    const validFields = [
-      'externalOfficeApproval',
-      'medicalCheck',
-      'foreignLaborApproval',
-      'agencyPayment',
-      'saudiEmbassyApproval',
-      'visaIssuance',
-      'travelPermit',
-      'receipt',
-      'bookingStatus', // إضافة bookingStatus إلى الحقول المسموح بها
-    ];
+    try {
+      const { field, value, section, updatedData } = req.body;
 
-    if (!validFields.includes(field)) {
-      return res.status(400).json({ error: 'Invalid field' });
-    }
-
-    const order = await prisma.neworder.findUnique({
-      where: { id: Number(id) },
-      include: { arrivals: true },
-    });
-
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    const updateData: any = {};
-    const arrivalUpdate: any = {};
-
-    switch (field) {
-      case 'externalOfficeApproval':
-        arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
-        updateData.bookingstatus = value ? 'external_office_approved' : 'pending_external_office';
-        break;
-      case 'medicalCheck':
-        arrivalUpdate.medicalCheckFile = value ? 'passed' : null;
-        updateData.bookingstatus = value ? 'medical_check_passed' : 'pending_medical_check';
-        break;
-      case 'foreignLaborApproval':
-        arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
-        updateData.bookingstatus = value ? 'foreign_labor_approved' : 'pending_foreign_labor';
-        break;
-      case 'agencyPayment':
-        arrivalUpdate.approvalPayment = value ? 'paid' : null;
-        updateData.bookingstatus = value ? 'agency_paid' : 'pending_agency_payment';
-        break;
-      case 'saudiEmbassyApproval':
-        arrivalUpdate.EmbassySealing = value ? new Date() : null;
-        updateData.bookingstatus = value ? 'embassy_approved' : 'pending_embassy';
-        break;
-      case 'visaIssuance':
-        arrivalUpdate.visaNumber = value ? `VISA-${id}-${Date.now()}` : null;
-        updateData.bookingstatus = value ? 'visa_issued' : 'pending_visa';
-        break;
-      case 'travelPermit':
-        arrivalUpdate.DeliveryDate = value ? new Date() : null;
-        updateData.bookingstatus = value ? 'travel_permit_issued' : 'pending_travel_permit';
-        break;
-      case 'receipt':
-        arrivalUpdate.externalOfficeStatus = value ? 'delivered' : 'pending';
-        updateData.bookingstatus = value ? 'received' : 'pending_receipt';
-        break;
-      case 'bookingStatus':
-        if (value === 'cancelled') {
-          updateData.bookingstatus = 'cancelled';
-          arrivalUpdate.externalOfficeStatus = 'cancelled'; // تحديث حالة الـ arrivals إذا لزم الأمر
-        } else {
-          return res.status(400).json({ error: 'Invalid bookingStatus value' });
-        }
-        break;
-    }
-
-    await prisma.$transaction([
-      prisma.neworder.update({
+      const order = await prisma.neworder.findUnique({
         where: { id: Number(id) },
-        data: updateData,
-      }),
-      prisma.arrivallist.updateMany({
-        where: { OrderId: Number(id) },
-        data: arrivalUpdate,
-      }),
-      // يمكنك إلغاء تعليق السطر التالي إذا كنت تريد تسجيل الإلغاء في السجلات
-      // prisma.logs.create({
-      //   data: {
-      //     Status: `Updated ${field} to ${value}`,
-      //     homemaidId: order.HomemaidId || undefined,
-      //     createdAt: new Date(),
-      //   },
-      // }),
-    ]);
+        include: { arrivals: true },
+      });
 
-    return res.status(200).json({ message: 'Status updated successfully' });
-  } catch (error) {
-    console.error('Error updating order status:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      // Handle existing status updates
+      if (field) {
+        const validFields = [
+          'externalOfficeApproval',
+          'medicalCheck',
+          'foreignLaborApproval',
+          'agencyPayment',
+          'saudiEmbassyApproval',
+          'visaIssuance',
+          'travelPermit',
+          'receipt',
+          'bookingStatus',
+        ];
+
+        if (!validFields.includes(field)) {
+          return res.status(400).json({ error: 'Invalid field' });
+        }
+
+        const updateData: any = {};
+        const arrivalUpdate: any = {};
+
+        switch (field) {
+          case 'externalOfficeApproval':
+            arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
+            updateData.bookingstatus = value ? 'external_office_approved' : 'pending_external_office';
+            break;
+          case 'medicalCheck':
+            arrivalUpdate.medicalCheckFile = value ? 'passed' : null;
+            updateData.bookingstatus = value ? 'medical_check_passed' : 'pending_medical_check';
+            break;
+          case 'foreignLaborApproval':
+            arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
+            updateData.bookingstatus = value ? 'foreign_labor_approved' : 'pending_foreign_labor';
+            break;
+          case 'agencyPayment':
+            arrivalUpdate.approvalPayment = value ? 'paid' : null;
+            updateData.bookingstatus = value ? 'agency_paid' : 'pending_agency_payment';
+            break;
+          case 'saudiEmbassyApproval':
+            arrivalUpdate.EmbassySealing = value ? new Date() : null;
+            updateData.bookingstatus = value ? 'embassy_approved' : 'pending_embassy';
+            break;
+          case 'visaIssuance':
+            arrivalUpdate.visaNumber = value ? `VISA-${id}-${Date.now()}` : null;
+            updateData.bookingstatus = value ? 'visa_issued' : 'pending_visa';
+            break;
+          case 'travelPermit':
+            arrivalUpdate.DeliveryDate = value ? new Date() : null;
+            updateData.bookingstatus = value ? 'travel_permit_issued' : 'pending_travel_permit';
+            break;
+          case 'receipt':
+            arrivalUpdate.externalOfficeStatus = value ? 'delivered' : 'pending';
+            updateData.bookingstatus = value ? 'received' : 'pending_receipt';
+            break;
+          case 'bookingStatus':
+            if (value === 'cancelled') {
+              updateData.bookingstatus = 'cancelled';
+              arrivalUpdate.externalOfficeStatus = 'cancelled';
+            } else {
+              return res.status(400).json({ error: 'Invalid bookingStatus value' });
+            }
+            break;
+        }
+
+        await prisma.$transaction([
+          prisma.neworder.update({
+            where: { id: Number(id) },
+            data: updateData,
+          }),
+          prisma.arrivallist.updateMany({
+            where: { OrderId: Number(id) },
+            data: arrivalUpdate,
+          }),
+        ]);
+
+        return res.status(200).json({ message: 'Status updated successfully' });
+      }
+
+      // Handle editable section updates
+      if (section && updatedData) {
+        const updateData: any = {};
+        const arrivalUpdate: any = {};
+
+        // Validate date and time formats
+        if (updatedData['تاريخ ووقت المغادرة_date'] && !/^\d{4}-\d{2}-\d{2}$/.test(updatedData['تاريخ ووقت المغادرة_date'])) {
+          return res.status(400).json({ error: 'Invalid departure date format' });
+        }
+        if (updatedData['تاريخ ووقت المغادرة_time'] && !/^\d{2}:\d{2}:\d{2}$/.test(updatedData['تاريخ ووقت المغادرة_time'])) {
+          return res.status(400).json({ error: 'Invalid departure time format' });
+        }
+        if (updatedData['تاريخ ووقت الوصول_date'] && !/^\d{4}-\d{2}-\d{2}$/.test(updatedData['تاريخ ووقت الوصول_date'])) {
+          return res.status(400).json({ error: 'Invalid arrival date format' });
+        }
+        if (updatedData['تاريخ ووقت الوصول_time'] && !/^\d{2}:\d{2}:\d{2}$/.test(updatedData['تاريخ ووقت الوصول_time'])) {
+          return res.status(400).json({ error: 'Invalid arrival time format' });
+        }
+
+        switch (section) {
+          case 'officeLinkInfo':
+            if (updatedData['هوية العميل']) {
+              updateData.nationalId = updatedData['هوية العميل'];
+            }
+            if (updatedData['رقم التأشيرة']) {
+              arrivalUpdate.visaNumber = updatedData['رقم التأشيرة'];
+            }
+            if (updatedData['رقم عقد إدارة المكاتب']) {
+              arrivalUpdate.InternalmusanedContract = updatedData['رقم عقد إدارة المكاتب'];
+            }
+            if (updatedData['تاريخ مساند']) {
+              arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ مساند']);
+            }
+            break;
+          case 'externalOfficeInfo':
+            if (updatedData['اسم المكتب الخارجي']) {
+              await prisma.homemaid.update({
+                where: { id: order.HomemaidId || 0 },
+                data: { officeName: updatedData['اسم المكتب الخارجي'] },
+              });
+            }
+            if (updatedData['دولة المكتب الخارجي']) {
+              arrivalUpdate.office = updatedData['دولة المكتب الخارجي'];
+            }
+            if (updatedData['رقم عقد مساند التوثيق']) {
+              arrivalUpdate.externalmusanedContract = updatedData['رقم عقد مساند التوثيق'];
+            }
+            break;
+          case 'destinations':
+            if (updatedData['مدينة المغادرة']) {
+              arrivalUpdate.DeparatureFromSaudiCity = updatedData['مدينة المغادرة'];
+            }
+            if (updatedData['مدينة الوصول']) {
+              arrivalUpdate.ArrivalOutSaudiCity = updatedData['مدينة الوصول'];
+            }
+            if (updatedData['تاريخ ووقت المغادرة_date'] || updatedData['تاريخ ووقت المغادرة_time']) {
+              arrivalUpdate.DeparatureFromSaudiDate = updatedData['تاريخ ووقت المغادرة_date']
+                ? new Date(updatedData['تاريخ ووقت المغادرة_date'])
+                : null;
+              arrivalUpdate.DeparatureFromSaudiTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
+            }
+            if (updatedData['تاريخ ووقت الوصول_date'] || updatedData['تاريخ ووقت الوصول_time']) {
+              arrivalUpdate.finalDestinationDate = updatedData['تاريخ ووقت الوصول_date']
+                ? new Date(updatedData['تاريخ ووقت الوصول_date'])
+                : null;
+              arrivalUpdate.finalDestinationTime = updatedData['تاريخ ووقت الوصول_time'] || null;
+            }
+            break;
+          default:
+            return res.status(400).json({ error: 'Invalid section' });
+        }
+
+        await prisma.$transaction([
+          prisma.neworder.update({
+            where: { id: Number(id) },
+            data: updateData,
+          }),
+          prisma.arrivallist.updateMany({
+            where: { OrderId: Number(id) },
+            data: arrivalUpdate,
+          }),
+        ]);
+
+        return res.status(200).json({ message: 'Section updated successfully' });
+      }
+
+      return res.status(400).json({ error: 'Invalid request' });
+    } catch (error) {
+      console.error('Error updating order:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
   }
-}
 
   return res.status(405).json({ error: 'Method not allowed' });
 }

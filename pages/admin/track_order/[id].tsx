@@ -1,3 +1,4 @@
+// pages/orders/[id].tsx
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
@@ -6,14 +7,14 @@ import OrderStepper from 'components/OrderStepper';
 import { CheckCircleIcon } from '@heroicons/react/outline';
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
-// 
-import Style from "styles/Home.module.css";
+import Style from 'styles/Home.module.css';
+
 export default function TrackOrder() {
   const router = useRouter();
   const { id } = router.query;
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false); // حالة تحميل أثناء التحديث
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,7 +35,6 @@ export default function TrackOrder() {
       console.error('Error fetching order:', error);
       setError(error.message);
       setLoading(false);
-      console.log(error.message);
     }
   };
 
@@ -50,12 +50,33 @@ export default function TrackOrder() {
       });
 
       if (!res.ok) throw new Error('فشل في تحديث الحالة');
-      const updatedData = await res.json();
-      console.log(updatedData.message);
-      await fetchOrderData(); // إعادة جلب البيانات بعد التحديث
+      await fetchOrderData();
+      console.log('تم تحديث الحالة بنجاح');
     } catch (error: any) {
       console.error('Error updating status:', error);
       console.log('حدث خطأ أثناء تحديث الحالة');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
+    if (!confirm('هل أنت متأكد من حفظ التعديلات؟')) return;
+
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/track_order/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section, updatedData }),
+      });
+
+      if (!res.ok) throw new Error('فشل في حفظ التعديلات');
+      await fetchOrderData();
+      console.log('تم حفظ التعديلات بنجاح');
+    } catch (error: any) {
+      console.error('Error saving edits:', error);
+      console.log('حدث خطأ أثناء حفظ التعديلات');
     } finally {
       setUpdating(false);
     }
@@ -74,7 +95,7 @@ export default function TrackOrder() {
 
       if (!res.ok) throw new Error('فشل في إلغاء العقد');
       console.log('تم إلغاء العقد بنجاح');
-      router.push('/admin/neworders'); // Redirect to orders list
+      router.push('/admin/neworders');
     } catch (error: any) {
       console.error('Error cancelling contract:', error);
       console.log('حدث خطأ أثناء إلغاء العقد');
@@ -110,7 +131,7 @@ export default function TrackOrder() {
 
   return (
     <Layout>
-      <div className={`min-h-screen ${Style["tajawal-regular"]}`} dir="rtl">
+      <div className={`min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
         <Head>
           <title>تتبع الطلب</title>
         </Head>
@@ -172,6 +193,8 @@ export default function TrackOrder() {
               { label: 'تاريخ مساند', value: orderData.officeLinkInfo.musanedDate },
             ]}
             gridCols={3}
+            editable={true}
+            onSave={(updatedData) => handleSaveEdits('officeLinkInfo', updatedData)}
           />
           <InfoCard
             title="2- المكتب الخارجي"
@@ -181,10 +204,8 @@ export default function TrackOrder() {
               { label: 'رقم عقد مساند التوثيق', value: orderData.externalOfficeInfo.externalMusanedContract },
             ]}
             gridCols={3}
-            actions={[
-              { label: 'حفظ', type: 'primary', onClick: () => console.log('حفظ البيانات') },
-              { label: 'تعديل', type: 'secondary', onClick: () => console.log('تعديل البيانات') },
-            ]}
+            editable={true}
+            onSave={(updatedData) => handleSaveEdits('externalOfficeInfo', updatedData)}
           />
           <InfoCard
             title="3- موافقة المكتب الخارجي"
@@ -406,15 +427,6 @@ export default function TrackOrder() {
               },
             ]}
           />
-
-    {/* <section className="bg-gray-100 border border-gray-200 rounded-md p-6 mb-6">
-      <h3 className="text-2xl font-normal text-center mb-6">{title}</h3>
-      <div className={`grid grid-cols-${gridCols} gap-4`}>
-       
-    </section>
- */}
-
-
           <InfoCard
             title="10- الوجهات"
             data={[
@@ -440,10 +452,8 @@ export default function TrackOrder() {
               },
             ]}
             gridCols={2}
-            actions={[
-              { label: 'حفظ', type: 'primary', onClick: () => console.log('حفظ الوجهات') },
-              { label: 'تعديل', type: 'secondary', onClick: () => console.log('تعديل الوجهات') },
-            ]}
+            editable={true}
+            onSave={(updatedData) => handleSaveEdits('destinations', updatedData)}
           />
           <InfoCard
             title="11- الاستلام"
@@ -454,7 +464,7 @@ export default function TrackOrder() {
                   <div className="flex gap-5 justify-center">
                     <button
                       className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.receipt.received
+                        orderData.receipt?.received
                           ? 'bg-teal-800 text-white'
                           : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
                       } disabled:opacity-50`}
@@ -465,7 +475,7 @@ export default function TrackOrder() {
                     </button>
                     <button
                       className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.receipt.received
+                        !orderData.receipt?.received
                           ? 'bg-teal-800 text-white'
                           : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
                       } disabled:opacity-50`}
@@ -506,7 +516,7 @@ export default function TrackOrder() {
                             });
                             if (!res.ok) throw new Error('فشل في رفع الملف');
                             console.log('تم رفع الملف بنجاح');
-                            await fetchOrderData(); // إعادة جلب البيانات بعد رفع الملف
+                            await fetchOrderData();
                           } catch (error: any) {
                             console.error('Error uploading file:', error);
                             console.log('حدث خطأ أثناء رفع الملف');
@@ -519,7 +529,6 @@ export default function TrackOrder() {
                     <label
                       htmlFor="file-upload"
                       className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 disabled:opacity-50"
-                      disabled={updating}
                     >
                       اختيار ملف
                     </label>

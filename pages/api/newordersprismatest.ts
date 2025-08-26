@@ -135,7 +135,7 @@ export default async function handler(
       }),
       prisma.neworder.count({
         where: {
-          bookingstatus: "حجز جديد",
+          bookingstatus: "new_order",
           ...filters,
           AND: [
             ...(filters.AND || []),
