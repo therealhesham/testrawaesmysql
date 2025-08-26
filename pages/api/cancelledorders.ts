@@ -46,7 +46,7 @@ export default async function handler(
       const totalCount = await prisma.neworder.count({
         where: {
           ...filters,
-          bookingstatus: "عقد ملغي",
+          bookingstatus: "cancelled",
         },
       });
 
@@ -55,7 +55,7 @@ export default async function handler(
         orderBy: { id: "desc" },
         where: {
           ...filters,
-          bookingstatus: "عقد ملغي",
+          bookingstatus: "cancelled",
         },
         include: {
           HomeMaid: {
@@ -85,7 +85,7 @@ export default async function handler(
       const updatedOrder = await prisma.neworder.update({
         where: { id: Number(req.body.id) },
         data: {
-          bookingstatus: "عقد ملغي",
+          bookingstatus: "cancelled",
           ReasonOfRejection: req.body.ReasonOfRejection,
           HomeMaid: { disconnect: true },
         },
