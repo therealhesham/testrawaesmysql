@@ -2,9 +2,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
 import jwt from "jsonwebtoken";
 
-// import {getPrismaClient} from "../../utils/prisma";
-// prisma
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -47,7 +44,7 @@ export default async function handler(
       id,
       ArrivalCity,
       ticketFile,
-      deparatureDate,
+      DeparatureFromSaudiDate,
       externalmusanadcontractfile,
       receivingFile,
       externalOfficeFile,
@@ -64,7 +61,9 @@ export default async function handler(
       profileStatus,
       Orderid,
       EmbassySealing,
-      BookinDate,internalReason,
+      DeparatureFromSaudiCity,
+      
+      // BookinDate,internalReason,
       bookingstatus,
       DeliveryFile,
       DeliveryDate,
@@ -96,9 +95,9 @@ export default async function handler(
     const validGuaranteeDurationEnd = GuaranteeDurationEnd
       ? new Date(GuaranteeDurationEnd).toISOString()
       : null;
-    const validBookinDate = BookinDate
-      ? new Date(BookinDate).toISOString()
-      : null;
+    // const validBookinDate = BookinDate
+    //   ? new Date(BookinDate).toISOString()
+    //   : null;
 
     const validKingdomEntryDate = KingdomentryDate
       ? new Date(KingdomentryDate).toISOString()
@@ -106,8 +105,8 @@ export default async function handler(
     const validDeliveryDate = DeliveryDate
       ? new Date(DeliveryDate).toISOString()
       : null;
-    const validDeparatureDate = deparatureDate
-      ? new Date(deparatureDate).toISOString()
+    const validDeparatureFromSaudiDate = DeparatureFromSaudiDate
+      ? new Date(DeparatureFromSaudiDate).toISOString()
       : null;
     const validfinalDestinationDate = finalDestinationDate
       ? new Date(finalDestinationDate).toISOString()
@@ -118,11 +117,12 @@ export default async function handler(
       deparatureTime,
       finalDestinationTime,
       finalDestinationDate: validfinalDestinationDate,
-      deparatureDate: validDeparatureDate,
+      DeparatureFromSaudiDate: validDeparatureFromSaudiDate,
       KingdomentryDate: validKingdomEntryDate,
       HomemaIdnumber,
       DeliveryDate: validDeliveryDate,
-      notes:Notes,
+      notes: Notes,
+      DeparatureFromSaudiCity,
       ticketFile,
       externalOfficeStatus,
       externalmusanadcontractfile,
@@ -134,7 +134,6 @@ export default async function handler(
       ExternalOFficeApproval: VALIDExternalOFficeApproval,
       AgencyDate: validAgencyDate,
       EmbassySealing: validEmbassySealing,
-      BookinDate: validBookinDate,
       GuaranteeDurationEnd: validGuaranteeDurationEnd,
     };
 

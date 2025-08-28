@@ -59,6 +59,23 @@ useEffect(() => {
   return () => document.removeEventListener("mousedown", handleClickOutside);
 }, []);
   
+
+function isJwtExpired(token) {
+  try {
+    const [, payload] = token.split(".");
+    const decoded = JSON.parse(atob(payload));
+    
+    if (!decoded.exp) return false; // no exp claim, assume not expired
+
+    const now = Math.floor(Date.now() / 1000); // current time in seconds
+    return decoded.exp < now;
+  } catch (e) {
+    console.error("Invalid JWT:", e);
+    return true; // treat invalid token as expired
+  }
+}
+
+
   const handleLogout = async () => {
     try {
       const response = await fetch("/api/logout", {
@@ -78,6 +95,9 @@ useEffect(() => {
   const [image, setImage] = React.useState<string | null>(null);
   useEffect(() => {
     if (!localStorage.getItem("token")) router.push("/admin/login");
+    const decoder = localStorage.getItem("token");
+    const decoded = jwtDecode(decoder);
+    if (isJwtExpired(decoder)) return router.push("/admin/login");
     try {
       const token = localStorage.getItem("token");
       const info = jwtDecode(token);

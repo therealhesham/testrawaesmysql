@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
 import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
-import { CheckCircleIcon } from '@heroicons/react/outline';
-import { Calendar } from 'lucide-react';
+import { CheckCircleIcon } from '@heroicons/react/solid';
+import { Calendar, Check } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 
@@ -235,7 +235,7 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تجاوزت العاملة الفحص الطبي؟',
-                value: orderData.medicalCheck.passed ? (
+                value: orderData.medicalCheck.passed  ? (
                   <CheckCircleIcon className="w-8 h-8 text-teal-800" aria-label="تم الاجتياز" />
                 ) : (
                   <button
