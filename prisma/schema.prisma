@@ -356,8 +356,8 @@ department            String?   @db.VarChar(191)
 
 
 model arrivallist {
-  createdAt DateTime?
-  updatedAt DateTime?
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
   id                        Int       @id @default(autoincrement())
   SponsorName               String?   @db.VarChar(191)
   office                    String?   @db.VarChar(191)
@@ -371,7 +371,9 @@ nationalidNumber            String?@db.VarChar(25)
   OrderId                   Int?       
   Order                     neworder?  @relation(fields: [OrderId], references: [id])
 DeliveryDate              DateTime?
-finaldestination          String?
+finaldestination          String?//في نموذج المغادرة الداخلية // دي مدينة الوصول
+internalReason            String?
+externalReason            String?
 visaNumber                String?   @db.VarChar(191)
 deparatureDate            DateTime?
 deparatureTime            String?
@@ -390,7 +392,7 @@ finalDestinationTime          String? @db.VarChar(30)
   HomemaIdnumber            Int?
   HomemaidName              String?   @db.VarChar(191)
   Notes                     String?   @db.VarChar(191)
-  ArrivalCity               String?   @db.VarChar(191)
+  ArrivalCity               String?   @db.VarChar(191)//في نموذج المغادرة الداخلية // دي مدينة المغادرة
   MusanadDuration           String?   @db.VarChar(191)
   DateOfApplication         DateTime?
   DayDate                   DateTime? @default(now())
@@ -400,7 +402,7 @@ finalDestinationTime          String? @db.VarChar(30)
  ArrivalOutSaudiCity      String?  @db.VarChar(100)
  DeparatureFromSaudiDate      DateTime? 
  DeparatureFromSaudiTime      String?  @db.VarChar(100)
-
+guaranteeStatus               String?  @db.VarChar(100)
   AgencyDate                DateTime?
   EmbassySealing            DateTime?
   externalOfficeFile        String?   @db.VarChar(191)

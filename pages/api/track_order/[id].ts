@@ -122,7 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           files: order.arrivals[0]?.additionalfiles || null,
         },
       };
-
+console.log(order.arrivals[0]?.medicalCheckFile)
       return res.status(200).json(orderData);
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -143,6 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Order not found' });
       }
 
+      console.log(req.body);
       // Handle existing status updates
       if (field) {
         const validFields = [
@@ -206,7 +207,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
             break;
         }
-
+console.log(arrivalUpdate.medicalCheckFile);
         await prisma.$transaction([
           prisma.neworder.update({
             where: { id: Number(id) },
