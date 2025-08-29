@@ -30,6 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           arrivals: {
             select: {
               DateOfApplication: true,
+
+travelPermit:true,
               externalOfficeStatus: true,
               medicalCheckFile: true,
               approvalPayment: true,
@@ -38,6 +40,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               DeliveryDate: true,
               DeparatureFromSaudiCity: true,
               ArrivalOutSaudiCity: true,
+
+foreignLaborApproval:true,
+foreignLaborApprovalDate:true,
               DeparatureFromSaudiDate: true,
               DeparatureFromSaudiTime: true,
               finalDestinationDate: true,
@@ -103,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           issued: !!order.arrivals[0]?.visaNumber,
         },
         travelPermit: {
-          issued: !!order.arrivals[0]?.DeliveryDate,
+          issued: !!order.arrivals[0]?.travelPermit,
         },
         destinations: {
           departureCity: order.arrivals[0]?.DeparatureFromSaudiCity || 'N/A',
@@ -116,13 +121,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             : 'N/A',
         },
         receipt: {
-          received: order.arrivals[0]?.externalOfficeStatus === 'delivered',
+          received: order.arrivals[0]?.DeliveryDate === order.arrivals[0]?.DeliveryDate,
         },
         documentUpload: {
           files: order.arrivals[0]?.additionalfiles || null,
         },
       };
-console.log(order.arrivals[0]?.medicalCheckFile)
+
       return res.status(200).json(orderData);
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -143,7 +148,6 @@ console.log(order.arrivals[0]?.medicalCheckFile)
         return res.status(404).json({ error: 'Order not found' });
       }
 
-      console.log(req.body);
       // Handle existing status updates
       if (field) {
         const validFields = [
@@ -175,7 +179,8 @@ console.log(order.arrivals[0]?.medicalCheckFile)
             updateData.bookingstatus = value ? 'medical_check_passed' : 'pending_medical_check';
             break;
           case 'foreignLaborApproval':
-            arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
+            arrivalUpdate.foreignLaborApproval = value ? true : "";
+            arrivalUpdate.foreignLaborApprovalDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'foreign_labor_approved' : 'pending_foreign_labor';
             break;
           case 'agencyPayment':
@@ -191,11 +196,11 @@ console.log(order.arrivals[0]?.medicalCheckFile)
             updateData.bookingstatus = value ? 'visa_issued' : 'pending_visa';
             break;
           case 'travelPermit':
-            arrivalUpdate.DeliveryDate = value ? new Date() : null;
+            arrivalUpdate.travelPermit = value ? "issued" : null;
             updateData.bookingstatus = value ? 'travel_permit_issued' : 'pending_travel_permit';
             break;
           case 'receipt':
-            arrivalUpdate.externalOfficeStatus = value ? 'delivered' : 'pending';
+            arrivalUpdate.DeliveryDate = value ?  arrivalUpdate.DeliveryDate : '';
             updateData.bookingstatus = value ? 'received' : 'pending_receipt';
             break;
           case 'bookingStatus':
@@ -207,7 +212,7 @@ console.log(order.arrivals[0]?.medicalCheckFile)
             }
             break;
         }
-console.log(arrivalUpdate.medicalCheckFile);
+
         await prisma.$transaction([
           prisma.neworder.update({
             where: { id: Number(id) },
@@ -270,7 +275,36 @@ console.log(arrivalUpdate.medicalCheckFile);
               arrivalUpdate.externalmusanedContract = updatedData['رقم عقد مساند التوثيق'];
             }
             break;
-          case 'destinations':
+ case 'officeLinkInfo':
+  if (updatedData['هوية العميل']) {
+    updateData.nationalId = updatedData['هوية العميل'];
+  }
+  if (updatedData['رقم التأشيرة']) {
+    arrivalUpdate.visaNumber = updatedData['رقم التأشيرة'];
+  }
+  if (updatedData['رقم عقد إدارة المكاتب']) {
+    arrivalUpdate.InternalmusanedContract = updatedData['رقم عقد إدارة المكاتب'];
+  }
+  if (updatedData['تاريخ مساند']) {
+    arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ مساند']);
+  }
+  break;
+case 'externalOfficeInfo':
+  if (updatedData['اسم المكتب الخارجي']) {
+    await prisma.homemaid.update({
+      where: { id: order.HomemaidId || 0 },
+      data: { officeName: updatedData['اسم المكتب الخارجي'] },
+    });
+  }
+  if (updatedData['دولة المكتب الخارجي']) {
+    arrivalUpdate.office = updatedData['دولة المكتب الخارجي'];
+  }
+  if (updatedData['رقم عقد مساند التوثيق']) {
+    arrivalUpdate.externalmusanedContract = updatedData['رقم عقد مساند التوثيق'];
+  }
+  break;
+ 
+            case 'destinations':
             if (updatedData['مدينة المغادرة']) {
               arrivalUpdate.DeparatureFromSaudiCity = updatedData['مدينة المغادرة'];
             }
@@ -278,8 +312,11 @@ console.log(arrivalUpdate.medicalCheckFile);
               arrivalUpdate.ArrivalOutSaudiCity = updatedData['مدينة الوصول'];
             }
             if (updatedData['تاريخ ووقت المغادرة_date'] || updatedData['تاريخ ووقت المغادرة_time']) {
+
+              console.log('Departure Date:', updatedData['تاريخ ووقت المغادرة_date']);
               arrivalUpdate.DeparatureFromSaudiDate = updatedData['تاريخ ووقت المغادرة_date']
-                ? new Date(updatedData['تاريخ ووقت المغادرة_date'])
+              
+              ? new Date(updatedData['تاريخ ووقت المغادرة_date'])
                 : null;
               arrivalUpdate.DeparatureFromSaudiTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
             }

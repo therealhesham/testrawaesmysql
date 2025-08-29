@@ -4,7 +4,9 @@ import { FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt 
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css"
+
 const AddWorkerForm = () => {
+  const [offices, setOffices] = useState<Array<{ office: string }>>([]);
   // Form state management
   const [formData, setFormData] = useState({
     name: '',
@@ -33,42 +35,135 @@ const AddWorkerForm = () => {
       elderlycare: '',
     },
   });
-
-  // File input refs
+  const [errors, setErrors] = useState({}); // State for validation errors
   const fileInputRefs = {
     travelTicket: useRef<HTMLInputElement>(null),
     passportFile: useRef<HTMLInputElement>(null),
   };
 
-  // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+    // Clear error for this field when user starts typing
+    setErrors((prev) => ({ ...prev, [id]: '' }));
   };
 
-  // Handle skill changes
   const handleSkillChange = (skill: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       skills: { ...prev.skills, [skill]: value },
     }));
+    setErrors((prev) => ({ ...prev, [`skill-${skill}`]: '' }));
   };
 
-  // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       console.log(`File selected for ${fileId}:`, files[0].name);
+      setErrors((prev) => ({ ...prev, [fileId]: '' }));
     }
   };
 
-  // Trigger file input click
   const handleButtonClick = (fileId: string) => {
     fileInputRefs[fileId as keyof typeof fileInputRefs].current?.click();
   };
 
-  // Fetch offices
-  const [offices, setOffices] = useState<{ office: string }[]>([]);
+  // Validation function
+  const validateForm = () => {
+    const newErrors = {};
+    const today = new Date();
+    
+    // Required fields
+    const requiredFields = [
+      { id: 'name', label: 'الاسم' },
+      { id: 'religion', label: 'الديانة' },
+      { id: 'nationality', label: 'الجنسية' },
+      { id: 'maritalStatus', label: 'الحالة الاجتماعية' },
+      { id: 'age', label: 'العمر' },
+      { id: 'passport', label: 'رقم جواز السفر' },
+      { id: 'mobile', label: 'رقم الجوال' },
+      { id: 'passportStart', label: 'بداية الجواز' },
+      { id: 'passportEnd', label: 'نهاية الجواز' },
+      { id: 'educationLevel', label: 'مستوى التعليم' },
+      { id: 'officeName', label: 'اسم المكتب' },
+      { id: 'salary', label: 'الراتب' },
+    ];
+
+    requiredFields.forEach((field) => {
+      if (!formData[field.id]) {
+        newErrors[field.id] = `${field.label} مطلوب`;
+      }
+    });
+
+    // Name validation (letters and spaces only, min 2 characters)
+    if (formData.name && !/^[a-zA-Z\s\u0600-\u06FF]{2,}$/.test(formData.name)) {
+      newErrors.name = 'الاسم يجب أن يحتوي على حروف فقط وأكثر من حرفين';
+    }
+
+    // Mobile validation (numbers only, 7-15 digits)
+    if (formData.mobile && !/^\d{7,15}$/.test(formData.mobile)) {
+      newErrors.mobile = 'رقم الجوال يجب أن يحتوي على 7-15 رقمًا';
+    }
+
+    // Passport number validation (alphanumeric, 6-20 characters)
+    if (formData.passport && !/^[a-zA-Z0-9]{6,20}$/.test(formData.passport)) {
+      newErrors.passport = 'رقم جواز السفر يجب أن يكون بين 6-20 حرفًا ورقمًا';
+    }
+
+    // Date validations
+    if (formData.age) {
+      const ageDate = new Date(formData.age);
+      const age = today.getFullYear() - ageDate.getFullYear();
+      if (age < 18 || age > 100) {
+        newErrors.age = 'العمر يجب أن يكون بين 18 و100 سنة';
+      }
+    }
+
+    if (formData.passportStart && formData.passportEnd) {
+      const startDate = new Date(formData.passportStart);
+      const endDate = new Date(formData.passportEnd);
+      if (startDate >= endDate) {
+        newErrors.passportEnd = 'تاريخ نهاية الجواز يجب أن يكون بعد تاريخ البداية';
+      }
+      if (endDate < today) {
+        newErrors.passportEnd = 'جواز السفر منتهي الصلاحية';
+      }
+    }
+
+    // Salary validation (positive number)
+    if (formData.salary && (isNaN(Number(formData.salary)) || Number(formData.salary) <= 0)) {
+      newErrors.salary = 'الراتب يجب أن يكون رقمًا إيجابيًا';
+    }
+
+    // Experience years validation (non-negative number)
+    if (formData.experienceYears && (isNaN(Number(formData.experienceYears)) || Number(formData.experienceYears) < 0)) {
+      newErrors.experienceYears = 'سنوات الخبرة يجب أن تكون رقمًا غير سالب';
+    }
+
+    // Skills validation (at least one skill should be selected)
+    const skillsSelected = Object.values(formData.skills).some((value) => value !== '');
+    if (!skillsSelected) {
+      newErrors.skills = 'يجب اختيار مستوى لمهارة واحدة على الأقل';
+    }
+
+    // File validation (check file types)
+    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (fileInputRefs.travelTicket.current?.files?.[0]) {
+      if (!allowedFileTypes.includes(fileInputRefs.travelTicket.current.files[0].type)) {
+        newErrors.travelTicket = 'تذكرة السفر يجب أن تكون PDF أو صورة (JPEG/PNG)';
+      }
+    }
+    if (fileInputRefs.passportFile.current?.files?.[0]) {
+      if (!allowedFileTypes.includes(fileInputRefs.passportFile.current.files[0].type)) {
+        newErrors.passportFile = 'جواز السفر يجب أن يكون PDF أو صورة (JPEG/PNG)';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  
   const fetchOffices = async () => {
     try {
       const response = await fetch('/api/office_list');
@@ -79,15 +174,16 @@ const AddWorkerForm = () => {
     }
   };
 
-  // Handle form submission
   const handleSubmit = async () => {
+    if (!validateForm()) {
+      alert('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
+      return;
+    }
+
     try {
       const formDataToSend = new FormData();
-
-      // Append text fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'skills') {
-          // Append skills as individual fields
           Object.entries(formData.skills).forEach(([skillKey, skillValue]) => {
             formDataToSend.append(`skills[${skillKey}]`, skillValue);
           });
@@ -96,14 +192,12 @@ const AddWorkerForm = () => {
         }
       });
 
-      // Append files
       if (fileInputRefs.travelTicket.current?.files?.[0]) {
         formDataToSend.append('travelTicket', fileInputRefs.travelTicket.current.files[0]);
       }
       if (fileInputRefs.passportFile.current?.files?.[0]) {
         formDataToSend.append('passportFile', fileInputRefs.passportFile.current.files[0]);
       }
-
 
       const response = await fetch('/api/newhomemaids', {
         method: 'POST',
@@ -116,8 +210,6 @@ const AddWorkerForm = () => {
 
       const result = await response.json();
       console.log('API response:', result);
-
-      // Reset form after successful submission
       setFormData({
         name: '',
         religion: '',
@@ -145,11 +237,9 @@ const AddWorkerForm = () => {
           elderlycare: '',
         },
       });
-
-      // Reset file inputs
       if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
       if (fileInputRefs.passportFile.current) fileInputRefs.passportFile.current.value = '';
-
+      setErrors({});
       alert('تم إضافة العاملة بنجاح!');
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -172,7 +262,6 @@ const AddWorkerForm = () => {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-normal text-black">إضافة عاملة</h1>
           </div>
-          {/* Stepper */}
           <section className="mb-12">
             <div className="flex flex-col sm:flex-row justify-between items-center">
               {[
@@ -201,7 +290,6 @@ const AddWorkerForm = () => {
           </section>
           <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6">
             <form className="space-y-6" dir="rtl" onSubmit={(e) => e.preventDefault()}>
-              {/* Personal Information */}
               <fieldset>
                 <legend className="text-2xl font-normal text-center text-black mb-6">المعلومات الشخصية</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -213,8 +301,9 @@ const AddWorkerForm = () => {
                       value={formData.name}
                       onChange={handleChange}
                       placeholder="أدخل الاسم"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="religion" className="text-gray-500 text-sm mb-1">الديانة</label>
@@ -222,13 +311,14 @@ const AddWorkerForm = () => {
                       id="religion"
                       value={formData.religion}
                       onChange={handleChange}
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.religion ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر الديانة</option>
                       <option value="muslim">مسلمة</option>
                       <option value="christian">مسيحية</option>
                       <option value="other">أخرى</option>
                     </select>
+                    {errors.religion && <p className="text-red-500 text-xs mt-1">{errors.religion}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="nationality" className="text-gray-500 text-sm mb-1">الجنسية</label>
@@ -238,8 +328,9 @@ const AddWorkerForm = () => {
                       value={formData.nationality}
                       onChange={handleChange}
                       placeholder="أدخل الجنسية"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.nationality ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.nationality && <p className="text-red-500 text-xs mt-1">{errors.nationality}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="maritalStatus" className="text-gray-500 text-sm mb-1">الحالة الاجتماعية</label>
@@ -247,24 +338,26 @@ const AddWorkerForm = () => {
                       id="maritalStatus"
                       value={formData.maritalStatus}
                       onChange={handleChange}
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.maritalStatus ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر الحالة</option>
                       <option value="single">عزباء</option>
                       <option value="married">متزوجة</option>
                       <option value="divorced">مطلقة</option>
                     </select>
+                    {errors.maritalStatus && <p className="text-red-500 text-xs mt-1">{errors.maritalStatus}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="age" className="text-gray-500 text-sm mb-1">العمر</label>
                     <input
-                      type="number"
+                      type="date"
                       id="age"
                       value={formData.age}
                       onChange={handleChange}
                       placeholder="أدخل العمر"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.age ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.age && <p className="text-red-500 text-xs mt-1">{errors.age}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="passport" className="text-gray-500 text-sm mb-1">رقم جواز السفر</label>
@@ -274,8 +367,9 @@ const AddWorkerForm = () => {
                       value={formData.passport}
                       onChange={handleChange}
                       placeholder="أدخل رقم الجواز"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.passport ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.passport && <p className="text-red-500 text-xs mt-1">{errors.passport}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="mobile" className="text-gray-500 text-sm mb-1">رقم الجوال</label>
@@ -285,8 +379,9 @@ const AddWorkerForm = () => {
                       value={formData.mobile}
                       onChange={handleChange}
                       placeholder="أدخل رقم الجوال"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.mobile ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="passportStart" className="text-gray-500 text-sm mb-1">بداية الجواز</label>
@@ -296,10 +391,11 @@ const AddWorkerForm = () => {
                         id="passportStart"
                         value={formData.passportStart}
                         onChange={handleChange}
-                        className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right w-full"
+                        className={`border ${errors.passportStart ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right w-full`}
                       />
                       <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                     </div>
+                    {errors.passportStart && <p className="text-red-500 text-xs mt-1">{errors.passportStart}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="passportEnd" className="text-gray-500 text-sm mb-1">نهاية الجواز</label>
@@ -309,14 +405,14 @@ const AddWorkerForm = () => {
                         id="passportEnd"
                         value={formData.passportEnd}
                         onChange={handleChange}
-                        className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right w-full"
+                        className={`border ${errors.passportEnd ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right w-full`}
                       />
                       <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                     </div>
+                    {errors.passportEnd && <p className="text-red-500 text-xs mt-1">{errors.passportEnd}</p>}
                   </div>
                 </div>
               </fieldset>
-              {/* Education */}
               <fieldset>
                 <legend className="text-2xl font-normal text-center text-black mb-6">التعليم</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -326,13 +422,14 @@ const AddWorkerForm = () => {
                       id="educationLevel"
                       value={formData.educationLevel}
                       onChange={handleChange}
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.educationLevel ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر مستوى التعليم</option>
                       <option value="secondary">ثانوي</option>
                       <option value="university">جامعي</option>
                       <option value="diploma">دبلوم</option>
                     </select>
+                    {errors.educationLevel && <p className="text-red-500 text-xs mt-1">{errors.educationLevel}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="arabicLevel" className="text-gray-500 text-sm mb-1">اللغة العربية</label>
@@ -340,13 +437,14 @@ const AddWorkerForm = () => {
                       id="arabicLevel"
                       value={formData.arabicLevel}
                       onChange={handleChange}
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.arabicLevel ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر المستوى</option>
                       <option value="beginner">مبتدئ</option>
                       <option value="intermediate">متوسط</option>
                       <option value="advanced">ممتاز</option>
                     </select>
+                    {errors.arabicLevel && <p className="text-red-500 text-xs mt-1">{errors.arabicLevel}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="englishLevel" className="text-gray-500 text-sm mb-1">اللغة الإنجليزية</label>
@@ -354,17 +452,17 @@ const AddWorkerForm = () => {
                       id="englishLevel"
                       value={formData.englishLevel}
                       onChange={handleChange}
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.englishLevel ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر المستوى</option>
                       <option value="beginner">مبتدئ</option>
                       <option value="intermediate">متوسط</option>
                       <option value="advanced">ممتاز</option>
                     </select>
+                    {errors.englishLevel && <p className="text-red-500 text-xs mt-1">{errors.englishLevel}</p>}
                   </div>
                 </div>
               </fieldset>
-              {/* Experience */}
               <fieldset>
                 <legend className="text-2xl font-normal text-center text-black mb-6">الخبرة</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -376,8 +474,9 @@ const AddWorkerForm = () => {
                       value={formData.experienceField}
                       onChange={handleChange}
                       placeholder="أدخل نوع الخبرة"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.experienceField ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.experienceField && <p className="text-red-500 text-xs mt-1">{errors.experienceField}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="experienceYears" className="text-gray-500 text-sm mb-1">سنوات الخبرة</label>
@@ -387,12 +486,12 @@ const AddWorkerForm = () => {
                       value={formData.experienceYears}
                       onChange={handleChange}
                       placeholder="أدخل عدد السنوات"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.experienceYears ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.experienceYears && <p className="text-red-500 text-xs mt-1">{errors.experienceYears}</p>}
                   </div>
                 </div>
               </fieldset>
-              {/* Skills */}
               <fieldset>
                 <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -411,7 +510,7 @@ const AddWorkerForm = () => {
                         id={`skill-${skill.id}`}
                         value={formData.skills[skill.id as keyof typeof formData.skills]}
                         onChange={(e) => handleSkillChange(skill.id, e.target.value)}
-                        className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                        className={`border ${errors[`skill-${skill.id}`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                       >
                         <option value="" disabled>اختر المستوى</option>
                         <option value="trained_no_experience">مدربة بدون خبرة</option>
@@ -419,11 +518,12 @@ const AddWorkerForm = () => {
                         <option value="very_good">جيد جدا</option>
                         <option value="excellent">ممتاز</option>
                       </select>
+                      {errors[`skill-${skill.id}`] && <p className="text-red-500 text-xs mt-1">{errors[`skill-${skill.id}`]}</p>}
                     </div>
                   ))}
+                  {errors.skills && <p className="text-red-500 text-xs mt-1 col-span-full">{errors.skills}</p>}
                 </div>
               </fieldset>
-              {/* Salary and Office */}
               <fieldset>
                 <legend className="text-2xl font-normal text-center text-black mb-6">الراتب والمكتب</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -433,7 +533,7 @@ const AddWorkerForm = () => {
                       id="officeName"
                       value={formData.officeName}
                       onChange={handleChange}
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.officeName ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر المكتب</option>
                       {offices.map((e, index) => (
@@ -442,6 +542,7 @@ const AddWorkerForm = () => {
                         </option>
                       ))}
                     </select>
+                    {errors.officeName && <p className="text-red-500 text-xs mt-1">{errors.officeName}</p>}
                   </div>
                   <div className="flex flex-col">
                     <label htmlFor="salary" className="text-gray-500 text-sm mb-1">الراتب</label>
@@ -451,12 +552,12 @@ const AddWorkerForm = () => {
                       value={formData.salary}
                       onChange={handleChange}
                       placeholder="أدخل الراتب"
-                      className="border border-gray-300 rounded-md p-2 text-sm bg-gray-50 text-right"
+                      className={`border ${errors.salary ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
                     />
+                    {errors.salary && <p className="text-red-500 text-xs mt-1">{errors.salary}</p>}
                   </div>
                 </div>
               </fieldset>
-              {/* Files */}
               <fieldset>
                 <legend className="text-2xl font-normal text-center text-black mb-6">الملفات</legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -483,11 +584,11 @@ const AddWorkerForm = () => {
                           اختيار ملف
                         </button>
                       </div>
+                      {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
                     </div>
                   ))}
                 </div>
               </fieldset>
-              {/* Submit Buttons */}
               <div className="flex justify-end gap-4">
                 <button
                   type="button"
@@ -522,6 +623,7 @@ const AddWorkerForm = () => {
                     });
                     if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
                     if (fileInputRefs.passportFile.current) fileInputRefs.passportFile.current.value = '';
+                    setErrors({});
                   }}
                 >
                   إعادة ضبط

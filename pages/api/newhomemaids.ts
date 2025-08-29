@@ -47,7 +47,7 @@ const newHomemaid = await prisma.homemaid.create({
     maritalstatus: maritalStatus || '',
     Experience: experienceField || '',
     ExperienceYears: experienceYears || '',
-    dateofbirth: !isNaN(parseInt(age)) ? new Date(new Date().getFullYear() - parseInt(age)).toISOString() : null,
+    dateofbirth: new Date(new Date().getFullYear() - parseInt(age)).toLocaleDateString() ,
     phone: mobile || '',
     clientphonenumber: mobile || '',
     Education: educationLevel || '',
