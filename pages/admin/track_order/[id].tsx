@@ -5,7 +5,7 @@ import InfoCard from 'components/InfoCard';
 import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
 import { CheckCircleIcon } from '@heroicons/react/solid';
-import { Calendar, Check } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 
@@ -30,10 +30,11 @@ export default function TrackOrder() {
       if (!res.ok) throw new Error('فشل في جلب بيانات الطلب');
       const data = await res.json();
       setOrderData(data);
-      setLoading(false);
+      setError(null);
     } catch (error: any) {
       console.error('Error fetching order:', error);
       setError(error.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -49,12 +50,15 @@ export default function TrackOrder() {
         body: JSON.stringify({ field, value }),
       });
 
-      if (!res.ok) throw new Error('فشل في تحديث الحالة');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في تحديث الحالة');
+      }
       await fetchOrderData();
       console.log('تم تحديث الحالة بنجاح');
     } catch (error: any) {
       console.error('Error updating status:', error);
-      console.log('حدث خطأ أثناء تحديث الحالة');
+      setError('حدث خطأ أثناء تحديث الحالة');
     } finally {
       setUpdating(false);
     }
@@ -71,12 +75,15 @@ export default function TrackOrder() {
         body: JSON.stringify({ section, updatedData }),
       });
 
-      if (!res.ok) throw new Error('فشل في حفظ التعديلات');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في حفظ التعديلات');
+      }
       await fetchOrderData();
       console.log('تم حفظ التعديلات بنجاح');
     } catch (error: any) {
       console.error('Error saving edits:', error);
-      console.log('حدث خطأ أثناء حفظ التعديلات');
+      setError('حدث خطأ أثناء حفظ التعديلات');
     } finally {
       setUpdating(false);
     }
@@ -93,12 +100,15 @@ export default function TrackOrder() {
         body: JSON.stringify({ field: 'bookingStatus', value: 'cancelled' }),
       });
 
-      if (!res.ok) throw new Error('فشل في إلغاء العقد');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في إلغاء العقد');
+      }
       console.log('تم إلغاء العقد بنجاح');
       router.push('/admin/neworders');
     } catch (error: any) {
       console.error('Error cancelling contract:', error);
-      console.log('حدث خطأ أثناء إلغاء العقد');
+      setError('حدث خطأ أثناء إلغاء العقد');
     } finally {
       setUpdating(false);
     }
@@ -136,6 +146,7 @@ export default function TrackOrder() {
           <title>تتبع الطلب</title>
         </Head>
         <main className="max-w-7xl mx-auto px-5 py-8">
+          {error && <div className="text-red-600 text-sm mb-4 text-right">{error}</div>}
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
             <div className="flex gap-4">
@@ -212,21 +223,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تمت موافقة المكتب الخارجي؟',
-                value: (
-                  <div className="flex justify-center items-center gap-5">
-                    {orderData.externalOfficeApproval.approved ? (
-                      <CheckCircleIcon className="w-8 h-8 text-teal-800" aria-label="تم الموافقة" />
-                    ) : (
-                      <button
-                        className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
-                        onClick={() => handleStatusUpdate('externalOfficeApproval', true)}
-                        disabled={updating}
-                      >
-                        تأكيد الموافقة
-                      </button>
-                    )}
-                  </div>
+                value: orderData.externalOfficeApproval.approved ? (
+                  <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('externalOfficeApproval', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الموافقة
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('externalOfficeApproval', false),
+                disabled: updating || !orderData.externalOfficeApproval.approved,
               },
             ]}
           />
@@ -235,8 +250,8 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تجاوزت العاملة الفحص الطبي؟',
-                value: orderData.medicalCheck.passed  ? (
-                  <CheckCircleIcon className="w-8 h-8 text-teal-800" aria-label="تم الاجتياز" />
+                value: orderData.medicalCheck.passed ? (
+                  <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الاجتياز" />
                 ) : (
                   <button
                     className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
@@ -251,9 +266,9 @@ export default function TrackOrder() {
             actions={[
               {
                 label: 'تراجع',
-                type: 'primary',
+                type: 'secondary',
                 onClick: () => handleStatusUpdate('medicalCheck', false),
-                disabled: updating,
+                disabled: updating || !orderData.medicalCheck.passed,
               },
             ]}
           />
@@ -262,32 +277,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تمت موافقة وزارة العمل الأجنبية؟',
-                value: (
-                  <div className="flex gap-5 justify-center">
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.foreignLaborApproval.approved
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('foreignLaborApproval', true)}
-                      disabled={updating}
-                    >
-                      نعم
-                    </button>
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.foreignLaborApproval.approved
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('foreignLaborApproval', false)}
-                      disabled={updating}
-                    >
-                      لا
-                    </button>
-                  </div>
+                value: orderData.foreignLaborApproval.approved ? (
+                  <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الموافقة" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('foreignLaborApproval', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الموافقة
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('foreignLaborApproval', false),
+                disabled: updating || !orderData.foreignLaborApproval.approved,
               },
             ]}
           />
@@ -296,32 +304,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تم دفع الوكالة؟',
-                value: (
-                  <div className="flex gap-5 justify-center">
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.agencyPayment.paid
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('agencyPayment', true)}
-                      disabled={updating}
-                    >
-                      نعم
-                    </button>
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.agencyPayment.paid
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('agencyPayment', false)}
-                      disabled={updating}
-                    >
-                      لا
-                    </button>
-                  </div>
+                value: orderData.agencyPayment.paid ? (
+                  <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الدفع" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('agencyPayment', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الدفع
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('agencyPayment', false),
+                disabled: updating || !orderData.agencyPayment.paid,
               },
             ]}
           />
@@ -330,32 +331,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تمت موافقة السفارة السعودية؟',
-                value: (
-                  <div className="flex gap-5 justify-center">
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.saudiEmbassyApproval.approved
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('saudiEmbassyApproval', true)}
-                      disabled={updating}
-                    >
-                      نعم
-                    </button>
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.saudiEmbassyApproval.approved
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('saudiEmbassyApproval', false)}
-                      disabled={updating}
-                    >
-                      لا
-                    </button>
-                  </div>
+                value: orderData.saudiEmbassyApproval.approved ? (
+                  <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('saudiEmbassyApproval', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الموافقة
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('saudiEmbassyApproval', false),
+                disabled: updating || !orderData.saudiEmbassyApproval.approved,
               },
             ]}
           />
@@ -364,32 +358,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تم إصدار التأشيرة؟',
-                value: (
-                  <div className="flex gap-5 items-center justify-center">
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.visaIssuance.issued
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('visaIssuance', true)}
-                      disabled={updating}
-                    >
-                      نعم
-                    </button>
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.visaIssuance.issued
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('visaIssuance', false)}
-                      disabled={updating}
-                    >
-                      لا
-                    </button>
-                  </div>
+                value: orderData.visaIssuance.issued ? (
+                  <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الإصدار" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('visaIssuance', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الإصدار
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('visaIssuance', false),
+                disabled: updating || !orderData.visaIssuance.issued,
               },
             ]}
           />
@@ -398,32 +385,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تم إصدار تصريح السفر؟',
-                value: (
-                  <div className="flex gap-5 justify-center">
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.travelPermit.issued
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('travelPermit', true)}
-                      disabled={updating}
-                    >
-                      نعم
-                    </button>
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.travelPermit.issued
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('travelPermit', false)}
-                      disabled={updating}
-                    >
-                      لا
-                    </button>
-                  </div>
+                value: orderData.travelPermit.issued ? (
+                  <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الإصدار" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('travelPermit', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الإصدار
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('travelPermit', false),
+                disabled: updating || !orderData.travelPermit.issued,
               },
             ]}
           />
@@ -432,7 +412,7 @@ export default function TrackOrder() {
             data={[
               { label: 'مدينة المغادرة', value: orderData.destinations.departureCity },
               { label: 'مدينة الوصول', value: orderData.destinations.arrivalCity },
-              {
+              { 
                 label: 'تاريخ ووقت المغادرة',
                 value: (
                   <div className="flex items-center justify-end gap-2">
@@ -450,6 +430,72 @@ export default function TrackOrder() {
                   </div>
                 ),
               },
+              {
+                label: 'ملف التذكرة',
+                value: (
+                  <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
+                    <span className="text-gray-500 text-sm pr-2">
+                      {orderData.documentUpload.files ? 'ملف مرفق' : 'إرفاق ملف التذكرة'}
+                    </span>
+              <input
+  type="file"
+  id="file-upload-destinations"
+  className="hidden"
+  accept="application/pdf"
+  onChange={async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUpdating(true);
+      try {
+        // جلب presigned URL
+        const res = await fetch(`/api/upload-presigned-url/${id}`);
+        if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+        const { url, filePath } = await res.json();
+
+        // رفع الملف مباشرة إلى DigitalOcean Spaces
+        const uploadRes = await fetch(url, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': 'application/pdf',
+              'x-amz-acl': 'public-read',
+          },
+        });
+
+        if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+        // تحديث الطلب في قاعدة البيانات (حفظ المسار)
+        await fetch(`/api/track_order/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'destinations',
+            updatedData: { ticketFile: filePath },
+          }),
+        });
+
+        console.log('تم رفع الملف وحفظه بنجاح');
+        await fetchOrderData();
+      } catch (error: any) {
+        console.error('Error uploading file:', error);
+        setError('حدث خطأ أثناء رفع الملف');
+      } finally {
+        setUpdating(false);
+      }
+    }
+  }}
+/>
+
+                    <label
+                      htmlFor="file-upload-destinations"
+                      className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 disabled:opacity-50"
+                      disabled={updating}
+                    >
+                      اختيار ملف
+                    </label>
+                  </div>
+                ),
+              },
             ]}
             gridCols={2}
             editable={true}
@@ -460,32 +506,25 @@ export default function TrackOrder() {
             data={[
               {
                 label: 'هل تم الاستلام؟',
-                value: (
-                  <div className="flex gap-5 justify-center">
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        orderData.receipt?.received
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('receipt', true)}
-                      disabled={updating}
-                    >
-                      نعم
-                    </button>
-                    <button
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        !orderData.receipt?.received
-                          ? 'bg-teal-800 text-white'
-                          : 'border border-teal-800 text-teal-800 hover:bg-teal-800 hover:text-white'
-                      } disabled:opacity-50`}
-                      onClick={() => handleStatusUpdate('receipt', false)}
-                      disabled={updating}
-                    >
-                      لا
-                    </button>
-                  </div>
+                value: orderData.receipt.received ? (
+                  <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الاستلام" />
+                ) : (
+                  <button
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    onClick={() => handleStatusUpdate('receipt', true)}
+                    disabled={updating}
+                  >
+                    تأكيد الاستلام
+                  </button>
                 ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('receipt', false),
+                disabled: updating || !orderData.receipt.received,
               },
             ]}
           />
@@ -495,7 +534,7 @@ export default function TrackOrder() {
               {
                 label: 'ملفات أخرى',
                 value: (
-                  <div className="file-upload-display border border-gray-300 rounded-md p-1 flex justify-between items-center">
+                  <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                     <span className="text-gray-500 text-sm pr-2">
                       {orderData.documentUpload.files ? 'ملفات مرفقة' : 'إرفاق ملف التذكرة'}
                     </span>
@@ -506,20 +545,26 @@ export default function TrackOrder() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const formData = new FormData();
-                          formData.append('file', file);
                           setUpdating(true);
                           try {
-                            const res = await fetch(`/api/upload/${id}`, {
-                              method: 'POST',
-                              body: formData,
+                            const res = await fetch(`/api/upload-presigned-url/${id}`);
+                            if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                            const { url, filePath } = await res.json();
+
+                            const uploadRes = await fetch(url, {
+                              method: 'PUT',
+                              body: file,
+                              headers: {
+                                'Content-Type': 'application/pdf',
+                              },
                             });
-                            if (!res.ok) throw new Error('فشل في رفع الملف');
+
+                            if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
                             console.log('تم رفع الملف بنجاح');
                             await fetchOrderData();
                           } catch (error: any) {
                             console.error('Error uploading file:', error);
-                            console.log('حدث خطأ أثناء رفع الملف');
+                            setError('حدث خطأ أثناء رفع الملف');
                           } finally {
                             setUpdating(false);
                           }

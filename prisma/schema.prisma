@@ -376,6 +376,8 @@ internalReason            String?
 externalReason            String?
 visaNumber                String?   @db.VarChar(191)
 deparatureDate            DateTime?
+foreignLaborApproval        Boolean? @default(false)
+foreignLaborApprovalDate    DateTime?
 deparatureTime            String?
 startWorkingDate       DateTime?
 endWorkingDate          DateTime?
@@ -408,6 +410,7 @@ guaranteeStatus               String?  @db.VarChar(100)
   externalOfficeFile        String?   @db.VarChar(191)
   BookinDate                DateTime?
   GuaranteeDurationEnd      DateTime?
+  travelPermit              String?
   medicalCheckFile          String?   @db.VarChar(191)
   ticketFile                String?   @db.VarChar(191)
   receivingFile             String?   @db.VarChar(191)
