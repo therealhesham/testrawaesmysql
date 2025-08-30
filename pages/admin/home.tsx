@@ -923,7 +923,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
                 relationsSectionState === "relations"
                   ? router.push("/admin/relations")
                   : relationsSectionState === "sponsorship-transfers"
-                  ? router.push("/admin/sponsorship-transfers")
+                  ? router.push("/admin/transfersponsorship")
                   : relationsSectionState === "foreign-offices"
                   ? router.push("/admin/foreign-offices")
                   : null;

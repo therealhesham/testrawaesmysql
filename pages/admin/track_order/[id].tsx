@@ -38,7 +38,6 @@ export default function TrackOrder() {
       setLoading(false);
     }
   };
-
   const handleStatusUpdate = async (field: string, value: boolean) => {
     if (!confirm(`هل أنت متأكد من تحديث حالة ${field}؟`)) return;
 
@@ -435,7 +434,17 @@ export default function TrackOrder() {
                 value: (
                   <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                     <span className="text-gray-500 text-sm pr-2">
-                      {orderData.documentUpload.files ? 'ملف مرفق' : 'إرفاق ملف التذكرة'}
+                      {orderData.ticketUpload.files ? '' : 'إرفاق ملف التذكرة'} 
+                      {orderData.ticketUpload.files && (
+                        <a
+                          href={orderData.ticketUpload.files}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-800 hover:underline"
+                        >
+                          فتح الملف
+                        </a>
+                      )}
                     </span>
               <input
   type="file"

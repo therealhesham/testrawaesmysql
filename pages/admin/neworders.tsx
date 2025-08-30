@@ -185,6 +185,7 @@ const router = useRouter();
         const paid = parseFloat(updatedFormData.Paid) || 0;
         updatedFormData.Remaining = total - paid;
       }
+      console.log(formData.PaymentMethod)
       return updatedFormData;
     });
   };
@@ -672,11 +673,11 @@ const router = useRouter();
         </div>
         <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
-          <div className="flex flex-wrap gap-6">
-            {[
-              { option: 'كاش', icon: <CashIcon className="w-6 h-6 text-teal-800" /> },
-              { option: 'دفعتين', icon: <CreditCardIcon className="w-6 h-6 text-teal-800" /> },
-              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className="w-6 h-6 text-teal-800" /> },
+          <div className="flex flex-wrap gap-6 justify-center">
+            {[// عايز الاوبشن يتلون لما اختاره
+              { option: 'كاش', icon: formData.PaymentMethod == "كاش" ? <CashIcon className="w-6 h-6 text-teal-800" /> : <CashIcon className="w-6 h-6 text-gray-400" /> },
+              { option: 'دفعتين', icon: formData.PaymentMethod == "دفعتين" ? <CreditCardIcon className="w-6 h-6 text-teal-800" /> : <CreditCardIcon className="w-6 h-6 text-gray-400" /> },
+              { option: 'ثلاثة دفعات', icon: formData.PaymentMethod == "ثلاثة دفعات" ? <CurrencyDollarIcon className="w-6 h-6 text-teal-800" /> : <CurrencyDollarIcon className="w-6 h-6 text-gray-400" /> },
             ].map(({ option, icon }, index) => (
               <label key={index} className="flex items-center gap-3 p-3 border-2 border-gray-300 rounded bg-gray-50 cursor-pointer w-60">
                 <input
