@@ -443,7 +443,7 @@ NationalID     String?
 TransferingDate   String?
 
 file        String?
-
+transferStage   String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

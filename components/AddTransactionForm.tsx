@@ -11,6 +11,13 @@ interface Client {
   city: string;
 }
 
+interface HomeMaid {
+  id: number;
+  Name: string;
+  Nationalitycopy: string;
+  Passportnumber: string;
+}
+
 interface AddTransactionFormProps {
   transactionId: number | null;
   onBack: () => void;
@@ -46,19 +53,53 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
     TransferOperationNumber: '',
     TransferingDate: '',
     file: '',
+    stage: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [oldClientSuggestions, setOldClientSuggestions] = useState<Client[]>([]);
   const [newClientSuggestions, setNewClientSuggestions] = useState<Client[]>([]);
+  const [homemaidOptions, setHomemaidOptions] = useState<HomeMaid[]>([]);
   const [showOldClientDropdown, setShowOldClientDropdown] = useState(false);
   const [showNewClientDropdown, setShowNewClientDropdown] = useState(false);
 
   useEffect(() => {
+    fetchHomemaids();
     if (transactionId) {
       fetchTransaction();
     }
   }, [transactionId]);
+
+  const fetchHomemaids = async () => {
+    try {
+      const response = await axios.get(`/api/getallhomemaids`);
+      const homemaids = response.data;
+      setHomemaidOptions(homemaids.data || []);
+    } catch (error) {
+      setError('فشل تحميل قائمة العاملات');
+    }
+  };
+
+  const selectHomemaid = (homemaidId: string) => {
+    const selectedHomemaid = homemaidOptions?.find((homemaid) => homemaid.id.toString() === homemaidId);
+    if (selectedHomemaid) {
+      setFormData((prev) => ({
+        ...prev,
+        HomeMaidId: selectedHomemaid.id.toString(),
+        HomeMaidName: selectedHomemaid.Name || '',
+        Nationality: selectedHomemaid.Nationalitycopy || '',
+        PassportNumber: selectedHomemaid.Passportnumber || '',
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        HomeMaidId: '',
+        HomeMaidName: '',
+        Nationality: '',
+        PassportNumber: '',
+      }));
+    }
+  };
 
   const fetchTransaction = async () => {
     try {
@@ -80,9 +121,10 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
         NewClientPhone: data.NewClient?.phonenumber || '',
         NewClientId: data.NewClientId?.toString() || '',
         NewClientCity: data.NewClient?.city || '',
-        ContractDate: data.TransferingDate ? new Date(data.TransferingDate).toISOString().split('T')[0] : '',
+        ContractDate: data.TransferingDate ? new Date(data.ContractDate).toISOString().split('T')[0] : '',
         WorkDuration: data.WorkDuration || '',
         Cost: data.Cost?.toString() || '',
+        stage: data.transferStage || '',//
         Paid: data.Paid?.toString() || '',
         Remaining: ((data.Cost || 0) - (data.Paid || 0)).toString() || '',
         ExperimentDuration: data.ExperimentDuration || '',
@@ -119,11 +161,12 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
   }, 300);
 
   const selectClient = (client: Client, type: 'old' | 'new') => {
+    const prefix = type === 'old' ? 'Old' : 'New';
     const clientData = {
-      [`${type}ClientName`]: client.fullname || '',
-      [`${type}ClientPhone`]: client.phonenumber || '',
-      [`${type}ClientId`]: client.id.toString() || '',
-      [`${type}ClientCity`]: client.city || '',
+      [`${prefix}ClientName`]: client.fullname || '',
+      [`${prefix}ClientPhone`]: client.phonenumber || '',
+      [`${prefix}ClientId`]: client.id.toString() || '',
+      [`${prefix}ClientCity`]: client.city || '',
     };
     setFormData((prev) => ({ ...prev, ...clientData }));
     type === 'old' ? setShowOldClientDropdown(false) : setShowNewClientDropdown(false);
@@ -158,18 +201,64 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    console.log(name,value)
     setFormData((prev) => ({ ...prev, [name]: value }));
-
     if (['OldClientName', 'OldClientPhone', 'OldClientId', 'OldClientCity'].includes(name)) {
       searchClients(value, 'old');
     } else if (['NewClientName', 'NewClientPhone', 'NewClientId', 'NewClientCity'].includes(name)) {
       searchClients(value, 'new');
+    } else if (name === 'HomeMaidId') {
+      selectHomemaid(value);
     }
   };
 
+  // Function to determine the current stage based on form data
+  const determineStage = (formData: typeof formData) => {
+    const stages = [
+      'انشاء الطلب',
+      'انشاء العقد',
+      'فترة التجربة',
+      'تقييم التجربة',
+      'نقل الخدمات',
+    ];
+
+    // Check fields for each stage to determine the furthest completed stage
+    if (
+      formData.NationalID &&
+      formData.TransferOperationNumber &&
+      formData.TransferingDate
+    ) {
+      return stages[4]; // نقل الخدمات
+    } else if (formData.ExperimentRate && formData.Notes) {
+      return stages[3]; // تقييم التجربة
+    } else if (
+      formData.ExperimentDuration &&
+      formData.ExperimentStart &&
+      formData.ExperimentEnd
+    ) {
+      return stages[2]; // فترة التجربة
+    } else if (
+      formData.ContractDate &&
+      formData.WorkDuration &&
+      formData.Cost &&
+      formData.Paid
+    ) {
+      return stages[1]; // انشاء العقد
+    } else if (
+      formData.HomeMaidId &&
+      formData.OldClientId &&
+      formData.NewClientId
+    ) {
+      return stages[0]; // انشاء الطلب
+    }
+    return stages[0]; // Default to first stage if no fields are filled
+  };
+
+  // Modified handleSubmit to dynamically set the stage
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      const currentStage = determineStage(formData); // Determine the current stage
       const data = {
         HomeMaidId: formData.HomeMaidId ? parseInt(formData.HomeMaidId) : undefined,
         OldClientId: formData.OldClientId ? parseInt(formData.OldClientId) : undefined,
@@ -183,8 +272,8 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
         NationalID: formData.NationalID || undefined,
         TransferingDate: formData.TransferingDate || undefined,
         file: formData.file || undefined,
+        stage: currentStage, // Set the stage dynamically
       };
-
       if (transactionId) {
         await axios.put(`/api/transferSponsorShips?id=${transactionId}`, data);
       } else {
@@ -220,26 +309,24 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
           الغاء العقد
         </button>
       </div>
-
       {/* Stepper */}
       <div className="flex justify-between items-center flex-wrap gap-2 mb-8">
         {steps.map((step, index) => (
           <div key={index} className="flex flex-col items-center gap-3 relative">
-            <div className="w-8 h-8 rounded-full bg-teal-900 flex items-center justify-center">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                formData.stage === step.label ? 'bg-teal-600' : 'bg-teal-900'
+              }`}
+            >
               <Check color="white" />
             </div>
             <p className="text-xs text-black m-0">{step.label}</p>
-            {index < steps.length - 1 && (
-              <div className="flex-grow h-px bg-gray-500 -translate-y-4 mx-2 w-10 md:w-20"></div>
-            )}
           </div>
         ))}
       </div>
-
       {/* Error and Loading States */}
       {error && <p className="text-red-500 text-center mb-6">{error}</p>}
       {loading && <p className="text-center mb-6">جاري التحميل...</p>}
-
       {/* Form Sections */}
       <div className="flex flex-col gap-6">
         {/* انشاء الطلب */}
@@ -249,26 +336,45 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
             <h3 className="text-xl font-normal text-black text-right m-0">معلومات العاملة</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
-                { label: 'رقم العاملة', name: 'HomeMaidId', type: 'number' },
-                { label: 'اسم العاملة', name: 'HomeMaidName', type: 'text' },
-                { label: 'الجنسية', name: 'Nationality', type: 'text' },
-                { label: 'رقم جواز السفر', name: 'PassportNumber', type: 'text' },
+                { label: 'اختر العاملة', name: 'HomeMaidId', type: 'select' },
+                { label: 'اسم العاملة', name: 'HomeMaidName', type: 'text', disabled: true },
+                { label: 'الجنسية', name: 'Nationality', type: 'text', disabled: true },
+                { label: 'رقم جواز السفر', name: 'PassportNumber', type: 'text', disabled: true },
                 { label: 'رقم الاقامة', name: 'ResidencyNumber', type: 'text' },
                 { label: 'تاريخ دخول المملكة', name: 'EntryDate', type: 'date' },
-              ].map(({ label, name, type }) => (
-                <div key={name} className="flex flex-col gap-2">
+              ].map(({ label, name, type, disabled }) => (
+                <div key={name} className="flex flex-col gap-2 relative">
                   <label className="text-base text-gray-800 text-right">{label}</label>
-                  <div className={`bg-gray-50 border border-gray-300 rounded-md p-2 text-base text-gray-500 ${type === 'date' ? 'flex justify-between items-center' : ''}`}>
-                    <input
-                      type={type}
-                      name={name}
-                      value={formData[name as keyof typeof formData]}
-                      onChange={handleInputChange}
-                      placeholder={`ادخل ${label}`}
-                      className="bg-transparent outline-none border-none w-full text-right"
-                    />
-                    {type === 'date' && <img src="/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1836_20381.svg" alt="calendar icon" className="w-5 h-5" />}
-                  </div>
+                  {type === 'select' ? (
+                    <div className="bg-gray-50 border border-gray-300 rounded-md p-2 text-base text-gray-500 text-right">
+                      <select
+                        name={name}
+                        value={formData[name as keyof typeof formData]}
+                        onChange={handleInputChange}
+                        className="bg-transparent outline-none border-none w-full text-right"
+                      >
+                        <option value="">اختر {label}</option>
+                        {homemaidOptions?.map((homemaid) => (
+                          <option key={homemaid.id} value={homemaid.id.toString()}>
+                            {homemaid.Name} (ID: {homemaid.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className={`bg-gray-50 border border-gray-300 rounded-md p-2 text-base text-gray-500 ${type === 'date' ? 'flex justify-between items-center' : ''}`}>
+                      <input
+                        type={type}
+                        name={name}
+                        value={formData[name as keyof typeof formData]}
+                        onChange={handleInputChange}
+                        placeholder={`ادخل ${label}`}
+                        className="bg-transparent outline-none border-none w-full text-right"
+                        disabled={disabled}
+                      />
+                      {type === 'date' && <img src="/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1836_20381.svg" alt="calendar icon" className="w-5 h-5" />}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -300,7 +406,8 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
                         <div
                           key={client.id}
                           className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => selectClient(client, 'old')}>
+                          onClick={() => selectClient(client, 'old')}
+                        >
                           {client.fullname} ({client.phonenumber})
                         </div>
                       ))}
@@ -373,7 +480,6 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
             </button>
           </div>
         </section>
-
         {/* انشاء العقد */}
         <section className="bg-gray-100 border border-gray-200 rounded-md p-8 flex flex-col gap-10">
           <h2 className="text-2xl font-normal text-black text-center m-0">انشاء العقد</h2>
@@ -421,7 +527,6 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
             </button>
           </div>
         </section>
-
         {/* فترة التجربة */}
         <section className="bg-gray-100 border border-gray-200 rounded-md p-8 flex flex-col gap-10">
           <h2 className="text-2xl font-normal text-black text-center m-0">فترة التجربة</h2>
@@ -463,7 +568,6 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
             </button>
           </div>
         </section>
-
         {/* تقييم التجربة */}
         <section className="bg-gray-100 border border-gray-200 rounded-md p-8 flex flex-col gap-10">
           <h2 className="text-2xl font-normal text-black text-center m-0">تقييم التجربة</h2>
@@ -519,7 +623,6 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
             </button>
           </div>
         </section>
-
         {/* نقل الخدمات */}
         <section className="bg-gray-100 border border-gray-200 rounded-md p-8 flex flex-col gap-10">
           <h2 className="text-2xl font-normal text-black text-center m-0">نقل الخدمات</h2>
@@ -572,4 +675,4 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
       </div>
     </div>
   );
-            }
+}
