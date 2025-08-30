@@ -7,7 +7,6 @@ import Style from "styles/Home.module.css"
 
 const AddWorkerForm = () => {
   const [offices, setOffices] = useState<Array<{ office: string }>>([]);
-  // Form state management
   const [formData, setFormData] = useState({
     name: '',
     religion: '',
@@ -34,17 +33,22 @@ const AddWorkerForm = () => {
       childcare: '',
       elderlycare: '',
     },
+    travelTicket: '',
+    passportcopy: '',
   });
-  const [errors, setErrors] = useState({}); // State for validation errors
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [fileUploaded, setFileUploaded] = useState<{ [key: string]: boolean }>({
+    travelTicket: false,
+    passportcopy: false,
+  });
   const fileInputRefs = {
     travelTicket: useRef<HTMLInputElement>(null),
-    passportFile: useRef<HTMLInputElement>(null),
+    passportcopy: useRef<HTMLInputElement>(null),
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-    // Clear error for this field when user starts typing
     setErrors((prev) => ({ ...prev, [id]: '' }));
   };
 
@@ -56,24 +60,66 @@ const AddWorkerForm = () => {
     setErrors((prev) => ({ ...prev, [`skill-${skill}`]: '' }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      console.log(`File selected for ${fileId}:`, files[0].name);
+    if (!files || files.length === 0) {
+      setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      return;
+    }
+
+    const file = files[0];
+    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!allowedFileTypes.includes(file.type)) {
+      setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+      if (!res.ok) {
+        throw new Error('فشل في الحصول على رابط الرفع');
+      }
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('فشل في رفع الملف');
+      }
+
+      setFormData((prev) => ({ ...prev, [fileId]: filePath }));
       setErrors((prev) => ({ ...prev, [fileId]: '' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
     }
   };
 
   const handleButtonClick = (fileId: string) => {
-    fileInputRefs[fileId as keyof typeof fileInputRefs].current?.click();
+    const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
+    if (ref && ref.current) {
+      ref.current.click();
+    } else {
+      console.error(`Reference for ${fileId} is not defined or has no current value`);
+      setErrors((prev) => ({ ...prev, [fileId]: 'خطأ في تحديد حقل الملف' }));
+    }
   };
 
-  // Validation function
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: { [key: string]: string } = {};
     const today = new Date();
     
-    // Required fields
     const requiredFields = [
       { id: 'name', label: 'الاسم' },
       { id: 'religion', label: 'الديانة' },
@@ -95,22 +141,18 @@ const AddWorkerForm = () => {
       }
     });
 
-    // Name validation (letters and spaces only, min 2 characters)
     if (formData.name && !/^[a-zA-Z\s\u0600-\u06FF]{2,}$/.test(formData.name)) {
       newErrors.name = 'الاسم يجب أن يحتوي على حروف فقط وأكثر من حرفين';
     }
 
-    // Mobile validation (numbers only, 7-15 digits)
     if (formData.mobile && !/^\d{7,15}$/.test(formData.mobile)) {
       newErrors.mobile = 'رقم الجوال يجب أن يحتوي على 7-15 رقمًا';
     }
 
-    // Passport number validation (alphanumeric, 6-20 characters)
     if (formData.passport && !/^[a-zA-Z0-9]{6,20}$/.test(formData.passport)) {
       newErrors.passport = 'رقم جواز السفر يجب أن يكون بين 6-20 حرفًا ورقمًا';
     }
 
-    // Date validations
     if (formData.age) {
       const ageDate = new Date(formData.age);
       const age = today.getFullYear() - ageDate.getFullYear();
@@ -130,32 +172,28 @@ const AddWorkerForm = () => {
       }
     }
 
-    // Salary validation (positive number)
     if (formData.salary && (isNaN(Number(formData.salary)) || Number(formData.salary) <= 0)) {
       newErrors.salary = 'الراتب يجب أن يكون رقمًا إيجابيًا';
     }
 
-    // Experience years validation (non-negative number)
     if (formData.experienceYears && (isNaN(Number(formData.experienceYears)) || Number(formData.experienceYears) < 0)) {
       newErrors.experienceYears = 'سنوات الخبرة يجب أن تكون رقمًا غير سالب';
     }
 
-    // Skills validation (at least one skill should be selected)
     const skillsSelected = Object.values(formData.skills).some((value) => value !== '');
     if (!skillsSelected) {
       newErrors.skills = 'يجب اختيار مستوى لمهارة واحدة على الأقل';
     }
 
-    // File validation (check file types)
     const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (fileInputRefs.travelTicket.current?.files?.[0]) {
       if (!allowedFileTypes.includes(fileInputRefs.travelTicket.current.files[0].type)) {
         newErrors.travelTicket = 'تذكرة السفر يجب أن تكون PDF أو صورة (JPEG/PNG)';
       }
     }
-    if (fileInputRefs.passportFile.current?.files?.[0]) {
-      if (!allowedFileTypes.includes(fileInputRefs.passportFile.current.files[0].type)) {
-        newErrors.passportFile = 'جواز السفر يجب أن يكون PDF أو صورة (JPEG/PNG)';
+    if (fileInputRefs.passportcopy.current?.files?.[0]) {
+      if (!allowedFileTypes.includes(fileInputRefs.passportcopy.current.files[0].type)) {
+        newErrors.passportcopy = 'جواز السفر يجب أن يكون PDF أو صورة (JPEG/PNG)';
       }
     }
 
@@ -163,7 +201,6 @@ const AddWorkerForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  
   const fetchOffices = async () => {
     try {
       const response = await fetch('/api/office_list');
@@ -195,8 +232,8 @@ const AddWorkerForm = () => {
       if (fileInputRefs.travelTicket.current?.files?.[0]) {
         formDataToSend.append('travelTicket', fileInputRefs.travelTicket.current.files[0]);
       }
-      if (fileInputRefs.passportFile.current?.files?.[0]) {
-        formDataToSend.append('passportFile', fileInputRefs.passportFile.current.files[0]);
+      if (fileInputRefs.passportcopy.current?.files?.[0]) {
+        formDataToSend.append('passportcopy', fileInputRefs.passportcopy.current.files[0]);
       }
 
       const response = await fetch('/api/newhomemaids', {
@@ -236,9 +273,15 @@ const AddWorkerForm = () => {
           childcare: '',
           elderlycare: '',
         },
+        travelTicket: '',
+        passportcopy: '',
+      });
+      setFileUploaded({
+        travelTicket: false,
+        passportcopy: false,
       });
       if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
-      if (fileInputRefs.passportFile.current) fileInputRefs.passportFile.current.value = '';
+      if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
       setErrors({});
       alert('تم إضافة العاملة بنجاح!');
     } catch (error) {
@@ -563,7 +606,7 @@ const AddWorkerForm = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {[
                     { id: 'travelTicket', label: 'تذكرة السفر' },
-                    { id: 'passportFile', label: 'جواز السفر' },
+                    { id: 'passportcopy', label: 'جواز السفر' },
                   ].map((file) => (
                     <div key={file.id} className="flex flex-col">
                       <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">{file.label}</label>
@@ -575,7 +618,18 @@ const AddWorkerForm = () => {
                           className="hidden"
                           onChange={(e) => handleFileChange(e, file.id)}
                         />
-                        <span className="text-gray-500 flex-1 text-right">ارفاق ملف</span>
+                        {fileUploaded[file.id] ? (
+                          <a
+                            href={formData[file.id as keyof typeof formData]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-right text-teal-800 underline hover:text-teal-600"
+                          >
+                            ملف مرفق
+                          </a>
+                        ) : (
+                          <span className="flex-1 text-right text-gray-500">ارفاق ملف</span>
+                        )}
                         <button
                           type="button"
                           className="bg-teal-800 text-white px-4 py-2 rounded-md"
@@ -620,9 +674,15 @@ const AddWorkerForm = () => {
                         childcare: '',
                         elderlycare: '',
                       },
+                      travelTicket: '',
+                      passportcopy: '',
+                    });
+                    setFileUploaded({
+                      travelTicket: false,
+                      passportcopy: false,
                     });
                     if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
-                    if (fileInputRefs.passportFile.current) fileInputRefs.passportFile.current.value = '';
+                    if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
                     setErrors({});
                   }}
                 >

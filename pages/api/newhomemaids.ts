@@ -13,6 +13,7 @@ const {
   maritalStatus,
   experienceField,
   experienceYears,
+ passportcopy,
   age,
   mobile,
   educationLevel,
@@ -41,6 +42,7 @@ console.log(req.body)
 const newHomemaid = await prisma.homemaid.create({
   data: {
     Name: name || '',
+    Passportphoto: passportcopy || '',  
     Nationalitycopy: nationality || '',
     Religion: religion || '',
     Passportnumber: passport || '',
