@@ -30,7 +30,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(200).json(transfer);
         }
 
-        // استرجاع كل المعاملات
         const transfers = await prisma.transferSponsorShips.findMany({
           include: {
             HomeMaid: { select: { Name: true, Passportnumber: true, Nationalitycopy: true } },
@@ -59,6 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ExperimentRate,
           Notes,
           NationalID,
+transferStage,
           TransferingDate,
           file,
         } = req.body;
@@ -79,6 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : null,
             ExperimentRate,
             Notes,
+            transferStage,
             NationalID,
             TransferingDate,
             file,
@@ -113,12 +114,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           NationalID,
           TransferingDate,
           file,
+          transferStage
         } = req.body;
 
         if (!id) {
           return res.status(400).json({ error: 'معرف المعاملة مطلوب' });
         }
-
+console.log(req.body)
         const transfer = await prisma.transferSponsorShips.update({
           where: { id: Number(id) },
           data: {
@@ -131,6 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : undefined,
             ExperimentRate,
             Notes,
+            transferStage,
             NationalID,
             TransferingDate,
             file,

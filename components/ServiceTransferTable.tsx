@@ -8,6 +8,7 @@ interface Transfer {
   HomeMaid: { Name: string; Passportnumber: string; Nationalitycopy: string };
   NewClient: { fullname: string };
   OldClient: { fullname: string };
+  transferStage?:string,
   ExperimentRate?: string;
   TransferingDate?: string;
 }
@@ -24,7 +25,14 @@ export default function ServiceTransferTable({
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [stageFilter, setStageFilter] = useState<string>('');
+const [data,setData]=useState([])
+  const exportedData = async ()=>{
+const data = await fetch('/api/Export/transfersponserships');
+const res = await data.json();
+setData(res.homemaids)
 
+}
+useEffect(()=>{exportedData()},[])
   useEffect(() => {
     fetchTransfers();
   }, [statusFilter, stageFilter]);
@@ -158,7 +166,7 @@ export default function ServiceTransferTable({
                 <div>{row.OldClient.fullname}</div>
                 <div>{row.NewClient.fullname}</div>
                 <div>{row.ExperimentRate || 'غير محدد'}</div>
-                <div>{row.TransferingDate || 'غير محدد'}</div>
+                <div>{row.transferStage}</div>
                 <div>غير محدد</div>
                 <div>
                   <button

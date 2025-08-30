@@ -19,7 +19,7 @@ export default function Home() {
       <Head>
         <title>معاملات نقل الخدمات</title>
       </Head>
-      <div className={`min-h-screen bg-gray-100 ${Style["tajawal-medium"]}`} dir="rtl">
+      <div className={`min-h-screen  ${Style["tajawal-medium"]}`} dir="rtl">
         <div className="max-w-7xl mx-auto p-6">
           {showForm ? (
             <AddTransactionForm
