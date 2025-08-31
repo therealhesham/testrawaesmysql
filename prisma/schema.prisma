@@ -435,10 +435,10 @@ Cost              Decimal?
 Paid              Decimal?
 ExperimentStart   DateTime?
 ExperimentEnd   DateTime?
-
+ContractDate DateTime?
 ExperimentRate String?
 Notes         String?
-
+WorkDuration String?
 NationalID     String?
 TransferingDate   String?
 
@@ -448,31 +448,31 @@ transferStage   String?
   updatedAt       DateTime  @updatedAt
 
 }
-model Transfer {
-  id                    Int       @id @default(autoincrement())
-  client                String?   @db.VarChar(191)
-  mobilenumber          String?   @db.VarChar(15)
-  nationalidnumber      String?   @db.VarChar(191)
-  passportnumber        String?   @db.VarChar(191)
-  homemaid              String?   @db.VarChar(191)
-  nationality           String?   @db.VarChar(191)
-  kingdomentrydate      String?   @db.VarChar(191)
-  daydate               DateTime?
-  workduration          Int?
-  newclientname         String?   @db.VarChar(191)
-  newclientmobilenumber String?   @db.VarChar(15)
-  newclientnationalidnumber String? @db.VarChar(191)
-  newclientcity         String?   @db.VarChar(191)
-  experimentstartDate       String?   @db.VarChar(191)
-  experimentendDate         String?   @db.VarChar(191)
-  dealcost              String?   @db.VarChar(191)
-  paid                  String?   @db.VarChar(191)
-  restofpaid            String?   @db.VarChar(191)
-  experimentresult      String?   @db.VarChar(191)
-  accomaditionnumber    String?   @db.VarChar(191)
-  marketeername         String?   @db.VarChar(191)
-  notes                 String?   @db.VarChar(191)
-}
+// model Transfer {
+//   id                    Int       @id @default(autoincrement())
+//   client                String?   @db.VarChar(191)
+//   mobilenumber          String?   @db.VarChar(15)
+//   nationalidnumber      String?   @db.VarChar(191)
+//   passportnumber        String?   @db.VarChar(191)
+//   homemaid              String?   @db.VarChar(191)
+//   nationality           String?   @db.VarChar(191)
+//   kingdomentrydate      String?   @db.VarChar(191)
+//   daydate               DateTime?
+//   workduration          Int?
+//   newclientname         String?   @db.VarChar(191)
+//   newclientmobilenumber String?   @db.VarChar(15)
+//   newclientnationalidnumber String? @db.VarChar(191)
+//   newclientcity         String?   @db.VarChar(191)
+//   experimentstartDate       String?   @db.VarChar(191)
+//   experimentendDate         String?   @db.VarChar(191)
+//   dealcost              String?   @db.VarChar(191)
+//   paid                  String?   @db.VarChar(191)
+//   restofpaid            String?   @db.VarChar(191)
+//   experimentresult      String?   @db.VarChar(191)
+//   accomaditionnumber    String?   @db.VarChar(191)
+//   marketeername         String?   @db.VarChar(191)
+//   notes                 String?   @db.VarChar(191)
+// }
 
 
 model housing{// مش بنستخدمه في قاعدة البيانات
