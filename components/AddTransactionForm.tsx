@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { Book, Check } from 'lucide-react';
 import axios from 'axios';
 import debounce from 'lodash/debounce';
+import { CalendarIcon } from '@heroicons/react/outline';
 
 interface Client {
   id: number;
@@ -121,7 +122,7 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
         NewClientPhone: data.NewClient?.phonenumber || '',
         NewClientId: data.NewClientId?.toString() || '',
         NewClientCity: data.NewClient?.city || '',
-        ContractDate: data.TransferingDate ? new Date(data.ContractDate).toISOString().split('T')[0] : '',
+        ContractDate: data.ContractDate ? new Date(data.ContractDate).toISOString().split('T')[0] : '',
         WorkDuration: data.WorkDuration || '',
         Cost: data.Cost?.toString() || '',
         stage: data.transferStage || '',//
@@ -239,7 +240,7 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
       return stages[2]; // فترة التجربة
     } else if (
       formData.ContractDate &&
-      formData.WorkDuration &&
+      // formData.WorkDuration &&
       formData.Cost &&
       formData.Paid
     ) {
@@ -260,20 +261,21 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
       setLoading(true);
       const currentStage = determineStage(formData); // Determine the current stage
       const data = {
-        HomeMaidId: formData.HomeMaidId ? parseInt(formData.HomeMaidId) : undefined,
-        OldClientId: formData.OldClientId ? parseInt(formData.OldClientId) : undefined,
-        NewClientId: formData.NewClientId ? parseInt(formData.NewClientId) : undefined,
-        Cost: formData.Cost ? parseFloat(formData.Cost) : undefined,
-        Paid: formData.Paid ? parseFloat(formData.Paid) : undefined,
-        ExperimentStart: formData.ExperimentStart || undefined,
-        ExperimentEnd: formData.ExperimentEnd || undefined,
-        ExperimentRate: formData.ExperimentRate || undefined,
-        Notes: formData.Notes || undefined,
-        NationalID: formData.NationalID || undefined,
-        TransferingDate: formData.TransferingDate || undefined,
-        file: formData.file || undefined,
-        stage: currentStage, // Set the stage dynamically
-      };
+  HomeMaidId: formData.HomeMaidId ? parseInt(formData.HomeMaidId) : undefined,
+  OldClientId: formData.OldClientId ? parseInt(formData.OldClientId) : undefined,
+  NewClientId: formData.NewClientId ? parseInt(formData.NewClientId) : undefined,
+  Cost: formData.Cost ? parseFloat(formData.Cost) : undefined,
+  Paid: formData.Paid ? parseFloat(formData.Paid) : undefined,
+  ExperimentStart: formData.ExperimentStart || undefined,
+  ExperimentEnd: formData.ExperimentEnd || undefined,
+  ExperimentRate: formData.ExperimentRate || undefined,
+  Notes: formData.Notes || undefined,
+  NationalID: formData.NationalID || undefined,
+  TransferingDate: formData.TransferingDate || undefined,
+  file: formData.file || undefined,
+  transferStage: currentStage,
+  ContractDate: formData.ContractDate || undefined, // إضافة ContractDate
+};
       if (transactionId) {
         await axios.put(`/api/transferSponsorShips?id=${transactionId}`, data);
       } else {
@@ -296,7 +298,7 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-8 bg-gray-100 min-h-screen font-['Tajawal'] text-gray-800" dir="rtl">
+    <div className="max-w-7xl mx-auto p-8  min-h-screen font-['Tajawal'] text-gray-800" dir="rtl">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-normal text-black">
@@ -372,7 +374,10 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
                         className="bg-transparent outline-none border-none w-full text-right"
                         disabled={disabled}
                       />
-                      {type === 'date' && <img src="/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1836_20381.svg" alt="calendar icon" className="w-5 h-5" />}
+                      {type === 'date' && 
+
+<CalendarIcon className="w-5 h-5 text-gray-400" />  
+}
                     </div>
                   )}
                 </div>
@@ -505,7 +510,8 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
                       className="bg-transparent outline-none border-none w-full text-right"
                       disabled={disabled}
                     />
-                    {type === 'date' && <img src="/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1840_22989.svg" alt="calendar icon" className="w-5 h-5" />}
+                    {type === 'date' &&
+                     <CalendarIcon className="w-5 h-5 text-gray-400" />}
                   </div>
                 </div>
               ))}
@@ -547,7 +553,8 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
                     placeholder={`ادخل ${label}`}
                     className="bg-transparent outline-none border-none w-full text-right"
                   />
-                  {type === 'date' && <img src={type === 'date' && name === 'ExperimentStart' ? '/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1836_20575.svg' : '/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1836_20565.svg'} alt="calendar icon" className="w-5 h-5" />}
+                  {type === 'date' && 
+                  <CalendarIcon className="w-5 h-5 text-gray-400" />}
                 </div>
               </div>
             ))}
@@ -650,7 +657,8 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
                       placeholder={`ادخل ${label}`}
                       className="bg-transparent outline-none border-none w-full text-right"
                     />
-                    {type === 'date' && <img src="/page/e203ec96-19a6-4894-aea2-c39c45a6f9b2/images/I1836_21630_1836_21353.svg" alt="calendar icon" className="w-5 h-5" />}
+                    {type === 'date' &&
+                     <CalendarIcon className="w-5 h-5 text-gray-400" />}
                   </div>
                 )}
               </div>

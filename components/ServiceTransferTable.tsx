@@ -71,7 +71,7 @@ useEffect(()=>{exportedData()},[])
         <h1 className="text-3xl font-normal text-black">معاملات نقل الخدمات</h1>
         <button
           onClick={onAddTransaction}
-          className="flex items-center gap-1 bg-teal-900 text-white text-xs px-3 py-1.5 rounded-md hover:bg-teal-800"
+          className="flex items-center gap-1 bg-teal-900 text-white text-md px-3 py-1.5 rounded-md hover:bg-teal-800"
         >
           <Plus className="w-4 h-4" />
           <span>اضافة معاملة</span>
@@ -80,23 +80,13 @@ useEffect(()=>{exportedData()},[])
 
       {/* Filters & Export */}
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex gap-2">
-          <button className="flex items-center gap-1 bg-teal-900 text-white text-xs px-2.5 py-1 rounded-md">
-            <FileExcelOutlined className="w-4 h-4" />
-            <span>Excel</span>
-          </button>
-          <button className="flex items-center gap-1 bg-teal-900 text-white text-xs px-2.5 py-1 rounded-md">
-            <FileText className="w-4 h-4" />
-            <span>PDF</span>
-          </button>
-        </div>
-
+        
         <div className="flex flex-wrap gap-2">
-          <form className="flex items-center bg-gray-50 border border-gray-300 rounded-md px-2.5 py-2">
+          <form className="flex items-center bg-gray-50 border border-gray-300 rounded-md ">
             <input
               type="search"
               placeholder="بحث"
-              className="bg-transparent outline-none text-sm text-gray-500"
+              className="bg-transparent border-none text-md text-gray-500"
               onChange={(e) => {/* إضافة منطق البحث لاحقًا */}}
             />
             <Search className="w-4 h-4" />
@@ -105,7 +95,7 @@ useEffect(()=>{exportedData()},[])
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-gray-50 border border-gray-300 rounded-md px-2 py-2 text-xs text-gray-500"
+            className="bg-gray-50 border border-gray-300 rounded-md text-md text-gray-500"
           >
             <option value="">حالة الطلب</option>
             <option value="جيد">جيد</option>
@@ -116,7 +106,7 @@ useEffect(()=>{exportedData()},[])
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
-            className="bg-gray-50 border border-gray-300 rounded-md px-2 py-2 text-xs text-gray-500"
+            className="bg-gray-50 border border-gray-300 rounded-md text-md text-gray-500"
           >
             <option value="">المرحلة الحالية</option>
             <option value="2025-08-17">انشاء الطلب</option>
@@ -128,11 +118,22 @@ useEffect(()=>{exportedData()},[])
 
           <button
             onClick={handleResetFilters}
-            className="bg-teal-900 text-white text-xs px-3 py-1.5 rounded-md"
+            className="bg-teal-900 text-white text-md px-3 py-1.5 rounded-md"
           >
             اعادة ضبط
           </button>
         </div>
+        <div className="flex gap-2">
+          <button className="flex items-center gap-1 bg-teal-900 text-white text-md px-2.5 py-1 rounded-md">
+            <FileExcelOutlined className="w-4 h-4" />
+            <span>Excel</span>
+          </button>
+          <button className="flex items-center gap-1 bg-teal-900 text-white text-md px-2.5 py-1 rounded-md">
+            <FileText className="w-4 h-4" />
+            <span>PDF</span>
+          </button>
+        </div>
+
       </div>
 
       {/* Table */}
@@ -142,7 +143,7 @@ useEffect(()=>{exportedData()},[])
         <p className="text-red-500">{error}</p>
       ) : (
         <div className="bg-gray-50 border border-gray-300 rounded-md overflow-hidden">
-          <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_70px] bg-teal-900 text-white text-sm font-medium h-12 items-center px-5">
+          <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_70px] bg-teal-900 text-white text-md font-medium h-12 items-center px-5">
             <div>#</div>
             <div>اسم العاملة</div>
             <div>رقم الجواز</div>
@@ -158,11 +159,11 @@ useEffect(()=>{exportedData()},[])
             {transfers.map((row) => (
               <div
                 key={row.id}
-                className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_70px] h-12 items-center px-5 border-b border-gray-300 text-xs text-gray-800 last:border-b-0"
+                className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_70px] h-12 items-center px-5 border-b border-gray-300 text-md text-gray-800 last:border-b-0"
               >
                 <div>{row.id}</div>
-                <div className="text-[11px]">{row.HomeMaid.Name}</div>
-                <div className="text-[11px]">{row.HomeMaid.Passportnumber}</div>
+                <div >{row.HomeMaid.Name}</div>
+                <div >{row.HomeMaid.Passportnumber}</div>
                 <div>{row.OldClient.fullname}</div>
                 <div>{row.NewClient.fullname}</div>
                 <div>{row.ExperimentRate || 'غير محدد'}</div>
@@ -187,8 +188,8 @@ useEffect(()=>{exportedData()},[])
         <p className="text-base text-black">عرض {transfers.length} نتيجة</p>
         <nav className="flex gap-1">
           {/* إضافة منطق الـ pagination لاحقًا */}
-          <a href="#" className="flex items-center justify-center min-w-[18px] h-[18px] px-2 border border-teal-900 rounded-sm text-xs text-white bg-teal-900">1</a>
-          <a href="#" className="flex items-center justify-center min-w-[18px] h-[18px] px-2 border border-gray-300 rounded-sm text-xs text-gray-800 bg-gray-50">السابق</a>
+          <a href="#" className="flex items-center justify-center min-w-[18px] h-[18px] px-2 border border-teal-900 rounded-sm text-md text-white bg-teal-900">1</a>
+          <a href="#" className="flex items-center justify-center min-w-[18px] h-[18px] px-2 border border-gray-300 rounded-sm text-md text-gray-800 bg-gray-50">السابق</a>
         </nav>
       </div>
     </div>
