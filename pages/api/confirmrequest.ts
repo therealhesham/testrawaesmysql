@@ -17,7 +17,7 @@ export default async function handler(
     }
     const waiter = await prisma.neworder.update({
       where: { id },
-      data: { bookingstatus: "اكمال الطلب" },
+      data: { bookingstatus: "pending_external_office" },
     });
     await prisma.arrivallist.create({
       data: {
@@ -56,5 +56,7 @@ export default async function handler(
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
+  } finally {
+    await prisma.$disconnect();
   }
 }

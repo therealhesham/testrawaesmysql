@@ -67,7 +67,7 @@ console.log(filters)
           ...filters,
           NOT: {
             bookingstatus: {
-              in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"],
+              in: ["new_order", "new_orders", "delivered", "cancelled","rejected"],
             },
           },
         },
@@ -80,7 +80,7 @@ console.log(filters)
           ...filters,
           NOT: {
             bookingstatus: {
-              in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"],
+              in: ["new_order", "new_orders", "delivered", "cancelled","rejected"],
             },
           },
         },
@@ -91,7 +91,7 @@ console.log(filters)
           typeOfContract: "recruitment",
           NOT: {
             bookingstatus: {
-              in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"],
+              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
             },
           },
         },
@@ -102,7 +102,7 @@ console.log(filters)
           typeOfContract: "rental",
           NOT: {
             bookingstatus: {
-              in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"],
+              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
             },
           },
         },
