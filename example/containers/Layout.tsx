@@ -158,6 +158,12 @@ function isJwtExpired(token) {
                       <ul className="py-2">
                         {notifications.map((n) => (
                           <li
+                            onClick={() => {
+                  router.push(`/admin/notifications`); // هنا يمكنك تعديل الرابط حسب الحاجة
+                                  // هنا يمكنك 
+                                  // إضافة منطق لفتح الإشعار أو التعامل معه
+                                  console.log("Notification clicked:", n);
+                                }}
                             key={n.id}
                             className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                           >
@@ -170,12 +176,7 @@ function isJwtExpired(token) {
                               </div>
                               <button
                                 className="text-teal-600 hover:text-teal-800"
-                                onClick={() => {
-                  router.push(`/admin/notifications`); // هنا يمكنك تعديل الرابط حسب الحاجة
-                                  // هنا يمكنك 
-                                  // إضافة منطق لفتح الإشعار أو التعامل معه
-                                  console.log("Notification clicked:", n);
-                                }}
+                                
                               >
                                 <ArrowRightIcon className="w-4 h-4" />
                               </button>

@@ -47,6 +47,16 @@ export default function Dashboard() {
   const [modalMessage, setModalMessage] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+const [menuPosition, setMenuPosition] = useState(null);
+
+const handleOpenMenu = (e, rowIndex) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  setMenuPosition({
+    x: rect.right - 160, // عرض المنيو
+    y: rect.bottom + 5,  // مسافة صغيرة تحت الزر
+    row: rowIndex,
+  });
+};
 
   const openPopup = (popupId) => setActivePopup(popupId);
   const closePopup = () => setActivePopup(null);
@@ -396,7 +406,7 @@ const router = useRouter();
   };
 
   const renderRequests = () => (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
@@ -513,11 +523,50 @@ const router = useRouter();
                 {newOrders.map((row, index) => (
                   <>
                     <tr key={index} className="bg-gray-50">
-                      <td className="p-4 pr-6">
-                        <button className="p-1 cursor-pointer">
-                          <MoreHorizontal />
-                        </button>
-                      </td>
+                     <td className="p-4 pr-6">
+  <button
+    className="p-1 cursor-pointer"
+    onClick={(e) => handleOpenMenu(e, index)}
+  >
+    <MoreHorizontal />
+  </button>
+
+{menuPosition && menuPosition.row === index && (
+  <div
+    className="fixed w-40 bg-teal-100 border border-gray-200 rounded shadow-lg z-50"
+    style={{ top: menuPosition.y, left: menuPosition.x }}
+  >
+    <button
+      className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+      onClick={() => {
+        openPopup("popup-confirm-accept");
+        setMenuPosition(null);
+      }}
+    >
+      قبول الطلب
+    </button>
+    <button
+      className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+      onClick={() => {
+        openPopup("popup-confirm-reject");
+        setMenuPosition(null);
+      }}
+    >
+      رفض الطلب
+    </button>
+    <button
+      className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+      onClick={() => {
+        alert("تعديل الطلب");
+        setMenuPosition(null);
+      }}
+    >
+      تعديل
+    </button>
+  </div>
+)}
+</td>
+
                       <td className="p-4 cursor-pointer">
                         <ArrowDown onClick={() => toggleDetails(index)} />
                       </td>
