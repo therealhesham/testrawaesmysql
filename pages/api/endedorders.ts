@@ -46,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { id: "desc" },
         where: {
           ...filters,
-          bookingstatus: { in: ["الاستلام"] },
+          bookingstatus: { in: ["delivered"] },
         },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const totalCount = await prisma.neworder.count({
         where: {
           ...filters,
-          bookingstatus: { in: ["الاستلام"] },
+          bookingstatus: { in: ["delivered"] },
         },
       });
 
@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else if (req.method === "POST") {
       const updatedOrder = await prisma.neworder.update({
         where: { id: Number(req.body.id) },
-        data: { bookingstatus: "الاستلام" },
+        data: { bookingstatus: "delivered" },
       });
       return res.status(200).json(updatedOrder);
     }

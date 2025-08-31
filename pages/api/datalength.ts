@@ -8,7 +8,7 @@ export default async function handler(
 ) {
   try {
     const neworderCount = await prisma.neworder.count({
-      where: { bookingstatus: "حجز جديد" },
+      where: { bookingstatus: "new_order" },
     });
 
     const arrivalsCount = await prisma.arrivallist.count();
@@ -47,7 +47,7 @@ export default async function handler(
       where: {
         NOT: {
           bookingstatus: {
-            in: ["حجز جديد", "الاستلام", "عقد ملغي", "طلب مرفوض"],
+            in: ["new_order", "delivered", "cancelled", "rejected"],
           },
         },
       },
@@ -61,23 +61,23 @@ export default async function handler(
 
     const rejectedOrders = await prisma.neworder.count({
       where: {
-        bookingstatus: "طلب مرفوض",
+        bookingstatus: "rejected",
       },
     });
 
     const cancelledorders = await prisma.neworder.count({
       where: {
-        bookingstatus: "عقد ملغي",
+        bookingstatus: "cancelled",
       },
     });
 
     const finished = await prisma.neworder.count({
       where: {
-        bookingstatus: "الاستلام",
+        bookingstatus: "delivered",
       },
     });
 
-    const transferSponsorships = await prisma.transfer.count();
+    const transferSponsorShipsSponsorships = await prisma.transferSponsorShips.count();
     const offices = await prisma.offices.count();
 
     const arrivals = await prisma.arrivallist.count({
@@ -92,7 +92,7 @@ console.log(arrivals)
       deparatures,
       currentorders,
       lastSeven,
-      transferSponsorships,
+      transferSponsorShipsSponsorships,
       offices,
       arrivalsCount,
       neworderCount,
