@@ -136,13 +136,6 @@ function isJwtExpired(token) {
                   className="h-20 w-30 object-contain"
                   alt="لوجو روائس"
                 />
-                <div className="flex-shrink-0">
-                  {/* <Link href="/admin/home">
-                    <span className="text-2xl font-bold text-yellow-600">
-                      روائس للإستقدام
-                    </span>
-                  </Link> */}
-                </div>
               </div>
 
               <div className="flex items-center cursor-pointer space-x-4 ml-4 align-baseline  ">

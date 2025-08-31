@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [activePopup, setActivePopup] = useState(null);
   const [view, setView] = useState('requests');
   const [detailsRow, setDetailsRow] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [newOrders, setNewOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [homemaids, setHomemaids] = useState([]);
@@ -66,9 +67,12 @@ const handleOpenMenu = (e, rowIndex) => {
     setModalMessage("");
   };
 
-  const confirmAccept = () => {
-    setModalMessage('تم قبول الطلب');
-    setShowSuccessModal(true);
+  const confirmAccept = async (id) => {
+    const confirmRequest = await axios.post('/api/confirmrequest', { id});
+    if(confirmRequest.status === 200) {
+      setModalMessage('تم قبول الطلب');
+      setShowSuccessModal(true);
+    }
     closePopup();
   };
 
@@ -530,15 +534,18 @@ const router = useRouter();
   >
     <MoreHorizontal />
   </button>
-
 {menuPosition && menuPosition.row === index && (
   <div
     className="fixed w-40 bg-teal-100 border border-gray-200 rounded shadow-lg z-50"
-    style={{ top: menuPosition.y, left: menuPosition.x }}
+    style={{ 
+      top: typeof menuPosition.y === 'number' ? menuPosition.y : 0, 
+      left: typeof menuPosition.x === 'number' ? menuPosition.x : 0 
+    }}
   >
     <button
       className="block w-full text-right px-4 py-2 hover:bg-gray-100"
       onClick={() => {
+        setSelectedOrderId(row?.id);
         openPopup("popup-confirm-accept");
         setMenuPosition(null);
       }}
@@ -990,7 +997,7 @@ const router = useRouter();
                   </button>
                   <button
                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-                    onClick={confirmAccept}
+                    onClick={()=>confirmAccept(selectedOrderId)}
                   >
                     نعم
                   </button>
