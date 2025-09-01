@@ -55,7 +55,7 @@ const getCurrentMonthYear = () => {
 
 export default function Home({ user }) {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  // const { data: session, status } = useSession();
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
   const days = ['س', 'م', 'ت', 'و', 'ث', 'ج', 'س'];
   const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -1025,6 +1025,7 @@ export async function getServerSideProps(context) {
   try {
     const isAuthenticated = req.cookies.authToken ? true : false;
     if (!isAuthenticated) {
+      console.log("User is not authenticated");
       return {
         redirect: {
           destination: "/admin/login",
@@ -1037,7 +1038,9 @@ export async function getServerSideProps(context) {
       props: { user },
     };
   } catch (error) {
+    console.log("Error verifying token:", error);
     return {
+      
       redirect: {
         destination: "/admin/login",
         permanent: false,

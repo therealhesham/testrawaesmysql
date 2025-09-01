@@ -42,11 +42,9 @@ function MyApp({ Component, pageProps }: AppProps) {
 
   return (
     <SidebarProvider>
-      <SessionProvider session={pageProps.session}>
 
         <Component {...pageProps} />
         {/* </Windmill> */}
-      </SessionProvider>
     </SidebarProvider>
   );
 }

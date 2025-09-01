@@ -39,7 +39,7 @@ export default function NotificationDropdown() {
           headers: { "Content-Type": "application/json" },
         });
         const data = await response.json();
-        if (data.error) return router.push("/login");
+        if (data.error) return router.push("/admin/login");
         setNotifications(data);
       } catch (error) {
         console.error("Error fetching notifications:", error);
