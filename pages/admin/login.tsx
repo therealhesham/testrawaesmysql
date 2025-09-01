@@ -126,24 +126,6 @@ export default function Login() {
           )}
         </Formik>
 
-        <div className="mt-6 text-center">
-          <a
-            href="/forgot-password"
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Forgot Password?
-          </a>
-        </div>
-
-        <div className="mt-4 text-center">
-          <span className="text-sm text-gray-600">Don't have an account?</span>
-          <a
-            href="/admin/signup"
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Sign Up
-          </a>
-        </div>
       </div>
     </div>
   );

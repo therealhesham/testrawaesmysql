@@ -200,10 +200,13 @@ const Sidebar = (props) => {
     try {
       const token = localStorage.getItem("token");
       const info = jwtDecode(token);
+      console.log("Decoded JWT:", info);
+      // if (isJwtExpired(token)) return router.push("/admin/login");
       setImage(info.picture);
       setInfo(info.username);
-      setRole(info.role.toLowerCase());
+      setRole(info.role);
     } catch (error) {
+      console.error("Error decoding token:", error);  
       router.push("/admin/login");
     }
   }, []);

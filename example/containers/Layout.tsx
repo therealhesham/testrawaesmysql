@@ -94,11 +94,13 @@ function isJwtExpired(token) {
 
   const [image, setImage] = React.useState<string | null>(null);
   useEffect(() => {
+    try {
+
     if (!localStorage.getItem("token")) router.push("/admin/login");
     const decoder = localStorage.getItem("token");
     const decoded = jwtDecode(decoder);
+    console.log("Decoded JWT:", isJwtExpired(decoder));
     if (isJwtExpired(decoder)) return router.push("/admin/login");
-    try {
       const token = localStorage.getItem("token");
       const info = jwtDecode(token);
       setImage(info.picture);
