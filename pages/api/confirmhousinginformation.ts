@@ -1,3 +1,4 @@
+import { jwtDecode } from "jwt-decode";
 import prisma from "./globalprisma";
 
 export default async function handler(req, res) {
@@ -175,6 +176,19 @@ export default async function handler(req, res) {
     }
 
   } else if (req.method === "GET") {
+       const cookieHeader = req.headers.cookie;
+          let cookies: { [key: string]: string } = {};
+          if (cookieHeader) {
+            cookieHeader.split(";").forEach(cookie => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+          }
+        const token =   jwtDecode(cookies.authToken)
+        console.log(token);
+        const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
+        if(!findUser?.role?.permissions["شؤون الاقامة"]["عرض"] )return;
+    
     // 🔵 قراءة (Read)
     const {
       Name,

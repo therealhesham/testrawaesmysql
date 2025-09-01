@@ -395,7 +395,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
       const response = await fetch(`/api/sessions`, { method: "get" });
       const res = await response.json();
       setSessionsLength(res.totalResults)
-      setSessions(res.session.slice(0, 3));
+      setSessions(res.sessions.slice(0, 3));
     } catch (error) {
       console.error("Error in fetch:", error);
     }
@@ -598,8 +598,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
             </ul>
           </div>
         </div>
-        {/* Admin Sections */}
-        {user.role.toLowerCase() === "admin".toLowerCase() && (
+      
           <section id="requests" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <header className="info-card-header flex justify-between items-center mb-6">
               <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
@@ -685,7 +684,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
               ))}
             </div>
           </section>
-        )}
+      
         <section id="arrivals" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <header className="info-card-header flex justify-between items-center mb-6">
             <div className={`${Style["tajawal-medium"]} info-card-title-tabs flex flex-col gap-6`}>
