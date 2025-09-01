@@ -32,7 +32,7 @@ export default async function handler(req, res) {
             phonenumber,
             idnumber,
             password,
-            roleId,
+            roleId: roleId ? parseInt(roleId) : null  ,
             updatedAt: new Date(),
           },
         });

@@ -121,7 +121,7 @@ export default function TrackOrder() {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-100 font-tajawal" dir="rtl">
+        <div className="min-h-screen  font-tajawal" dir="rtl">
           جاري التحميل...
         </div>
       </Layout>
@@ -131,7 +131,7 @@ export default function TrackOrder() {
   if (error || !orderData) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-100 font-tajawal" dir="rtl">
+        <div className="min-h-screen  font-tajawal" dir="rtl">
           {error || 'الطلب غير موجود'}
         </div>
       </Layout>

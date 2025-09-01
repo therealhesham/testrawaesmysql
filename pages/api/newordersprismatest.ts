@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import { jwtDecode } from "jwt-decode";
 
 const prisma = new PrismaClient();
 
@@ -13,12 +14,23 @@ export default async function handler(
     externalOfficeStatus,
     InternalmusanedContract,
     Passportnumber,
-    clientphonenumber,
-    Nationalitycopy,
     page,
-    HomemaidId,
     Country,
   } = req.query;
+// extract cookies
+  const cookieHeader = req.headers.cookie;
+  // If cookies exist, parse them
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach(cookie => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+const token =   jwtDecode(cookies.authToken)
+console.log(token);
+const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
+if(!findUser?.role?.permissions["إدارة الطلبات"]["عرض"] )return;
 
   // Set the page size for pagination
   const pageSize = 10;

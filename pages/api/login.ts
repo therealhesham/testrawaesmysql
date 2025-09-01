@@ -34,7 +34,7 @@ export default async function handler(
 
     // Create JWT token
     const token = jwt.sign(
-      { username: user.username, role: "admin", picture: user.pictureurl,id: user.id },
+      { username: user.username, role: user.roleId, password: user.password, picture: user.pictureurl, id: user.id },
       "rawaesecret",
       { expiresIn: "6h" } // Token expires in 6 hours
     );

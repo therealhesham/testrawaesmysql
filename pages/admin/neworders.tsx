@@ -475,7 +475,7 @@ const router = useRouter();
               />
             </div>
             <button
-              className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+              className="bg-teal-900 text-white px-2 rounded hover:bg-teal-800 transition duration-200"
               onClick={() => {
                 setAgeFilter("");
                 setNationalityFilter("");
