@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
+import { jwtDecode } from 'jwt-decode';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -37,7 +38,19 @@ const {
   childcare = '',
   elderlycare = '',
 } = skills;
-console.log(req.body)
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach(cookie => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+const token =   jwtDecode(cookies.authToken)
+console.log(token);
+const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
+if(!findUser?.role?.permissions["إدارة الطلبات"]["إضافة"] )return;
+
 
 const newHomemaid = await prisma.homemaid.create({
   data: {

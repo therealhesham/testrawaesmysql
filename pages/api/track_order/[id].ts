@@ -1,6 +1,7 @@
 // pages/api/track_order/[id].ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -138,6 +139,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PATCH') {
+      const cookieHeader = req.headers.cookie;
+      let cookies: { [key: string]: string } = {};
+      if (cookieHeader) {
+        cookieHeader.split(";").forEach(cookie => {
+          const [key, value] = cookie.trim().split("=");
+          cookies[key] = decodeURIComponent(value);
+        });
+      }
+    const token =   jwtDecode(cookies.authToken)
+    console.log(token);
+    const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
+    if(!findUser?.role?.permissions["إدارة الطلبات"]["تعديل"] )return;
+
     try {
       const { field, value, section, updatedData } = req.body;
       console.log('Request Body:', { field, value, section, updatedData });
