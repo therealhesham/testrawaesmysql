@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
 import { Search, ChevronDown, X } from 'lucide-react'; // Added X for close button
 import Layout from 'example/containers/Layout';
@@ -7,8 +8,8 @@ import axios from 'axios';
 import PreRentalModal from 'components/PreRentalModal';
 // import AddRentalRequest from './add_rental_request';
 // import AddRentalRequestModal from './AddRentalRequestModal'; // Import the component for the modal content
-// AddRentalRequest
 export default function Dashboard() {
+  const router = useRouter();
   const [data, setData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -137,6 +138,10 @@ export default function Dashboard() {
     return pages;
   };
 
+  const handleOrderClick = (id: any) => {
+    router.push(`/admin/track_order/${id}`);
+  };
+
   return (
     <Layout>
       <section id="dashboard" className={`flex flex-row mx-auto min-h-screen ${Style["tajawal-regular"]}`}>
@@ -154,7 +159,7 @@ export default function Dashboard() {
                       e.preventDefault();
                       setContractType('recruitment');
                     }}
-                    className={`text-sm text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
                       contractType === 'recruitment' ? 'border-b-2 border-black' : ''
                     }`}
                   >
@@ -166,7 +171,7 @@ export default function Dashboard() {
                       e.preventDefault();
                       setContractType('rental');
                     }}
-                    className={`text-sm text-gray-500 pb-4 relative flex items-center gap-1 ${
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 ${
                       contractType === 'rental' ? 'border-b-2 border-black' : ''
                     }`}
                   >
@@ -200,7 +205,7 @@ export default function Dashboard() {
                       placeholder="بحث"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="border-none bg-transparent outline-none text-right font-tajawal text-sm text-gray-500"
+                      className="border-none bg-transparent outline-none text-right font-tajawal text-md text-gray-500"
                     />
                     <Search className="w-4 h-4 text-gray-500" />
                   </div>
@@ -208,7 +213,7 @@ export default function Dashboard() {
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-sm text-gray-500 cursor-pointer appearance-none"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer appearance-none"
                     >
                       <option value="">حالة الطلب</option>
                       {statuses.map((s) => (
@@ -222,7 +227,7 @@ export default function Dashboard() {
                     <select
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-sm text-gray-500 cursor-pointer appearance-none"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer appearance-none"
                     >
                       <option value="">كل الجنسيات</option>
                       {nationalities.map((nat) => (
@@ -236,7 +241,7 @@ export default function Dashboard() {
                     <select
                       value={office}
                       onChange={(e) => setOffice(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-sm text-gray-500 cursor-pointer appearance-none"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer appearance-none"
                     >
                       <option value="">كل المكاتب</option>
                       {offices.map((off: any) => (
@@ -249,7 +254,7 @@ export default function Dashboard() {
                 </div>
                 <button
                   onClick={handleResetFilters}
-                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-sm font-tajawal cursor-pointer"
+                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-md font-tajawal cursor-pointer"
                 >
                   إعادة ضبط
                 </button>
@@ -268,7 +273,7 @@ export default function Dashboard() {
                   <tbody>
                     {data.map((booking) => (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-xs text-gray-800 text-right">#{booking.id}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right" onClick={() => handleOrderClick(booking.id)}>#{booking.id}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.phone || 'غير متوفر'}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">{booking?.client?.nationalId || 'غير متوفر'}</td>

@@ -503,13 +503,17 @@ const router = useRouter();
                     <tr key={index} className="bg-gray-50">
    
 
-                      <td className="p-4 cursor-pointer" onClick={() => confirmAccept(row.id)}>
-                       <div> <FaRecycle  />
-                          <span>نعم</span>
-                      </div></td>
-                      <td className="gap-0 p-4">{row.Passportnumber}</td>
-                      <td className="p-4">{row.HomeMaid?.office?.Country}</td>
-                      <td className="p-4">{row.HomeMaid?.Name}</td>
+                      <td className="p-4 cursor-pointer text-center" onClick={() => confirmAccept(row.id)}>
+                       <div> 
+                          <span>
+                            <FaRecycle className='align-middle' />
+                            </span>
+                            نعم
+                      </div>
+                      </td>
+                      <td className="gap-0 p-4 text-center">{row.Passportnumber}</td>
+                      <td className="p-4 text-center">{row.HomeMaid?.office?.Country}</td>
+                      <td className="p-4 text-center">{row.HomeMaid?.Name}</td>
                       <td className="p-4">{row.HomeMaid?.id}</td>
                       <td className="p-4">{row.client?.nationalId}</td>
                       <td className="p-4">{row.client?.phonenumber}</td>
@@ -879,8 +883,7 @@ const router = useRouter();
   return (
     <Layout>
       <Head>
-        <title>الطلبات الجديدة</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>الطلبات المرفوضة</title>
       </Head>
       <div className={`text-gray-800 ${Style["tajawal-regular"]}`}>
         {activePopup && (

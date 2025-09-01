@@ -7,17 +7,17 @@ interface OrderStepperProps {
 }
 
 const steps = [
-  { label: 'تم التعاقد مع إدارة المكاتب', icon: <OfficeBuildingIcon className="w-5 h-5" /> },
-  { label: 'الربط مع المكتب الخارجي', icon: <Link className="w-5 h-5" /> },
+  { label: 'تم التعاقد مع إدارة المكاتب', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'الربط مع المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
   { label: 'موافقة المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'موافقة وزارة العمل الأجنبية', icon: <Briefcase className="w-5 h-5" /> },
-  { label: 'الفحص الطبي', icon: <FaStethoscope className="w-5 h-5" /> },
-  { label: 'دفع الوكالة', icon: <DollarSign className="w-5 h-5" /> },
-  { label: 'موافقة السفارة', icon: <Flag className="w-5 h-5" /> },
-  { label: 'إصدار التأشيرة', icon: <FaPassport className="w-5 h-5" /> },
-  { label: 'تصريح السفر', icon: <Plane className="w-5 h-5" /> },
-  { label: 'الوجهات', icon: <MapPin className="w-5 h-5" /> },
-  { label: 'الاستلام', icon: <Package className="w-5 h-5" /> },
+  { label: 'موافقة وزارة العمل الأجنبية', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'الفحص الطبي', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'دفع الوكالة', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'موافقة السفارة', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'إصدار التأشيرة', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'تصريح السفر', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'الوجهات', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'الاستلام', icon: <CheckCircle className="w-5 h-5" /> },
 ];
 
 const statusToStepMap: { [key: string]: number } = {
@@ -55,7 +55,7 @@ export default function OrderStepper({ status }: OrderStepperProps) {
   return (
     <section className="p-5 mb-6">
       <h2 className="text-3xl font-normal text-center mb-10">تتبع الطلب</h2>
-      <div className="flex flex-wrap justify-center gap-5">
+      <div className="flex no-wrap justify-center gap-5">
         {steps.map((step, index) => (
           <div key={index} className="flex items-start">
             <div className="flex flex-col items-center w-24 text-center">
