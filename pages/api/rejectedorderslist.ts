@@ -1,21 +1,24 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import prisma from "./globalprisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   const {
-    Passportnumber,
     searchTerm,
     age,
+    externalOfficeStatus,
+    InternalmusanedContract,
+    Passportnumber,
     clientphonenumber,
     Nationalitycopy,
     page,
     HomemaidId,
+    Country,
   } = req.query;
-
-  console.log(req.query);
 
   // Set the page size for pagination
   const pageSize = 10;
@@ -23,47 +26,146 @@ export default async function handler(
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
+
   if (Passportnumber) filters.Passportnumber = { contains: Passportnumber };
-  if (clientphonenumber) filters.clientphonenumber = { contains: clientphonenumber };
-  if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
-  if (age) filters.age = { equals: parseInt(age as string, 10) };
-  if (Nationalitycopy) {
-    filters.Nationalitycopy = { contains: (Nationalitycopy as string).toLowerCase() };
+
+  if (InternalmusanedContract) {
+    filters.arrivals = {
+      some: {
+        InternalmusanedContract: { contains: InternalmusanedContract },
+      },
+    };
+  }
+  if (externalOfficeStatus) {
+    filters.arrivals = {
+      some: {
+        externalOfficeStatus: { contains: externalOfficeStatus },
+      },
+    };
   }
 
-  // Initialize the where clause with bookingstatus
-  const whereClause: any = {
-    bookingstatus: {
-      in: ["طلب مرفوض"],
-    },
-  };
+  // Age filter: Calculate age from dateofbirth
+  if (age) {
+    const [minAge, maxAge] = (age as string).split("-").map(Number);
+    const currentYear = new Date().getFullYear();
+    const minBirthYear = currentYear - maxAge;
+    const maxBirthYear = currentYear - minAge;
 
-  // Add searchTerm condition only if it exists and is not empty
-  if (searchTerm && (searchTerm as string).trim() !== "") {
-    whereClause.AND = [
+    filters.HomeMaid = {
+      ...filters.HomeMaid,
+      dateofbirth: {
+        gte: `${maxBirthYear}-01-01`, // Greater than or equal to max birth year
+        lte: `${minBirthYear}-12-31`, // Less than or equal to min birth year
+      },
+    };
+  }
+
+  // Nationality filter: Search in neworder.Nationalitycopy, homemaid.Nationalitycopy, and offices.Country
+  if (Country) {
+    filters.AND = [
+      ...(filters.AND || []),
       {
         OR: [
-          { ClientName: { contains: (searchTerm as string).toLowerCase() } },
-          { Name: { contains: (searchTerm as string).toLowerCase() } },
+          {
+            HomeMaid: {
+              office: {
+                Country: { contains: Country as string },
+              },
+            },
+          },
         ],
       },
     ];
   }
 
-  // Merge filters into whereClause
-  Object.assign(whereClause, filters);
-
   try {
     // Fetch data with the filters and pagination
-    const homemaids = await prisma.neworder.findMany({
-      orderBy: { id: "desc" },
-      where: whereClause,
-      skip: (pageNumber - 1) * pageSize,
-      take: pageSize,
-    });
+    const [homemaids, totalCount] = await Promise.all([
+      prisma.neworder.findMany({
+        orderBy: { id: "desc" },
+        include: {
+          client: true,
+          HomeMaid: {
+            select: {
+              dateofbirth: true,
+              Name: true,
+              Passportnumber: true,
+              id: true,
+              officeName: true,
+              Nationalitycopy: true,
+              office: {
+                select: {
+                  Country: true,
+                },
+              },
+              logs: { include: { user: true } },
+            },
+          },
+        },
+        where: {
+          bookingstatus: "rejected",
+          ...filters,
+          AND: [
+            ...(filters.AND || []),
+            {
+              OR: [
+                {
+                  ClientName: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  Name: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  HomeMaid: {
+                    Name: {
+                      contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        skip: (pageNumber - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.neworder.count({
+        where: {
+          bookingstatus: "rejected",
+          ...filters,
+          AND: [
+            ...(filters.AND || []),
+            {
+              OR: [
+                {
+                  ClientName: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  Name: {
+                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                  },
+                },
+                {
+                  HomeMaid: {
+                    Name: {
+                      contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
 
-    // Send the filtered and paginated data as the response
-    res.status(200).json(homemaids);
+    res.status(200).json({ homemaids, totalCount, page: pageNumber, pageSize });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
