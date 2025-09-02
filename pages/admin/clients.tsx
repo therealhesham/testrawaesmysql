@@ -178,7 +178,7 @@ const Customers = () => {
                   />
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
                 </div>
-                <div className="flex items-center bg-background-light border border-border-color rounded-md px-4 py-2 text-sm text-text-muted cursor-pointer">
+                <div className="flex items-center bg-background-light border border-border-color rounded-md  text-sm text-text-muted cursor-pointer">
                   <select
                     value={filters.city}
                     onChange={(e) => handleFilterChange('city', e.target.value)}
@@ -188,9 +188,8 @@ const Customers = () => {
                     <option value="الرياض">الرياض</option>
                     <option value="جدة">جدة</option>
                   </select>
-                  <ChevronDown className="mr-2 w-4 h-4" />
                 </div>
-                <div className="flex items-center bg-background-light border border-border-color rounded-md px-4 py-2 text-sm text-text-muted cursor-pointer">
+                <div className="flex items-center bg-background-light border border-border-color rounded-md  text-sm text-text-muted cursor-pointer">
                   <input
                     type="date"
                     value={filters.date}
@@ -199,7 +198,7 @@ const Customers = () => {
                   />
                   <Calendar className="mr-2 w-4 h-4" />
                 </div>
-                <div className="flex items-center bg-background-light border border-border-color rounded-md px-4 py-2 text-sm text-text-muted cursor-pointer">
+                <div className="flex items-center bg-background-light border border-border-color rounded-md  text-sm text-text-muted cursor-pointer">
                   <span>كل الاعمدة</span>
                   <Filter className="mr-2 w-4 h-4" />
                 </div>
