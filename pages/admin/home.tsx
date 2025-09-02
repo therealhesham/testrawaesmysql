@@ -403,10 +403,10 @@ const [sessionsLength,setSessionsLength]=useState(0)
 
   const fetchRelations = async () => {
     try {
-      const response = await fetch(`/api/relations`, { method: "get" });
+      const response = await fetch(`/api/clients?page=1`, { method: "get" });
       const res = await response.json();
-      setRelationsSection(res);
-      setRelations(res);
+      setRelationsSection(res.data.slice(0,3));
+      setRelations(res.data);
     } catch (error) {
       console.error("Error in fetch:", error);
     }
@@ -895,7 +895,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
                   }}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  قائمة العلاقات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{relations.length}</span>
+                  قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{relations.length}</span>
                 </a>
                 <a
                   onClick={() => {
@@ -920,11 +920,11 @@ const [sessionsLength,setSessionsLength]=useState(0)
             <a
               onClick={() => {
                 relationsSectionState === "relations"
-                  ? router.push("/admin/relations")
+                  ? router.push("/admin/clients")
                   : relationsSectionState === "sponsorship-transfers"
                   ? router.push("/admin/transfersponsorship")
                   : relationsSectionState === "foreign-offices"
-                  ? router.push("/admin/foreign-offices")
+                  ? router.push("/admin/offices")
                   : null;
               }}
               className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
@@ -933,7 +933,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
             </a>
           </header>
           <div className="info-card-body flex flex-col gap-4">
-            {relationsSection.map((order) => (
+            {relationsSection?.map((order) => (
               <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
                 <div className="item-details flex flex-col gap-2">
                   <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
