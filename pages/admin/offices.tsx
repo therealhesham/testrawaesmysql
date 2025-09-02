@@ -5,7 +5,10 @@ import { useRouter } from "next/router";
 import FailedModal from "office/components/failedbutton";
 import SuccessModal from "office/components/successcoponent";
 import { useEffect, useState } from "react";
+import Style from "styles/Home.module.css";
 import Flag from "react-world-flags";
+import { Plus, X } from "lucide-react";
+
 export default function ExternalOffices() {
   const router = useRouter();
   // Define initial offices with people data
@@ -81,27 +84,22 @@ export default function ExternalOffices() {
   ];
 
   // Define available countries for filtering
-  const countries = [
-    "All",
-    "Philippines - الفلبين",
-    "Kenya - كينيا",
-    "Pakistan - باكستان",
-    "France",
-    // Add more countries as needed
-  ];
-
-  const [offices, setOffices] = useState(initialOffices); // Office state
-  const [selectedCountry, setSelectedCountry] = useState("All"); // Filter by country state
-  const [selectedOffice, setSelectedOffice] = useState(null); // Track selected office
+ 
+  const [offices, setOffices] = useState(initialOffices);
+  const [selectedCountry, setSelectedCountry] = useState("All");
+  const [selectedOffice, setSelectedOffice] = useState(null);
   const [newOffice, setNewOffice] = useState({
     Officename: "",
     Location: "",
     phonenumber: 0,
     booked: 0,
     people: [],
-  }); // New office form data
-
-  const [isAddOfficeVisible, setIsAddOfficeVisible] = useState(false); // State for toggling visibility of the "Add Office" section
+  });
+  const [isAddOfficeModalOpen, setIsAddOfficeModalOpen] = useState(false);
+  const [fetchedOffices, setFetchedOffices] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFailedModalOpen, setIsFailedModalOpen] = useState(false);
+  const [date, setDate] = useState(Date.now());
 
   // Filter offices by selected country
   const filteredOffices =
@@ -113,7 +111,7 @@ export default function ExternalOffices() {
   const handleOfficeClick = (officeId) => {
     setSelectedOffice((prevOffice) =>
       prevOffice === officeId ? null : officeId
-    ); // Toggle visibility of office details
+    );
   };
 
   // Handle form input change
@@ -152,9 +150,9 @@ export default function ExternalOffices() {
       booked: 0,
       people: [],
     });
-    setIsAddOfficeVisible(false); // Hide the form after adding the office
+    setIsAddOfficeModalOpen(false);
   };
-  const [date, setDate] = useState(Date.now());
+
   async function createoffice() {
     const newoffice = await fetch("/api/addofficeprisma", {
       method: "post",
@@ -169,16 +167,18 @@ export default function ExternalOffices() {
     setDate(Date.now());
     handleOpenModal();
   }
-  const [fetchedOffices, setFetchedOffices] = useState([]);
+const [countries,setCountries]=useState([])
   const getter = async () => {
     const waiter = await fetch("/api/externalofficesprisma");
     const waiterjson = await waiter.json();
-    setFetchedOffices(waiterjson);
+    setFetchedOffices(waiterjson.offices);
+    setCountries(waiterjson.countries)
   };
 
   useEffect(() => {
     getter();
   }, [date]);
+
   // Add new person input row
   const addPerson = () => {
     setNewOffice((prev) => ({
@@ -186,7 +186,6 @@ export default function ExternalOffices() {
       people: [...prev.people, { name: "", position: "", email: "" }],
     }));
   };
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -195,7 +194,6 @@ export default function ExternalOffices() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
-  const [isFailedModalOpen, setIsFailedModalOpen] = useState(false);
 
   const handleOpenFailedModal = () => {
     setIsFailedModalOpen(true);
@@ -204,9 +202,10 @@ export default function ExternalOffices() {
   const handleCloseFailedModal = () => {
     setIsFailedModalOpen(false);
   };
+
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-100 p-6">
+      <div className={`min-h-screen p-6 ${Style["tajawal-regular"]}`}>
         <h1 className="text-3xl font-bold text-center mb-6">
           المكاتب الخارجية
         </h1>
@@ -221,156 +220,130 @@ export default function ExternalOffices() {
           onClose={handleCloseModal}
           message="تم اضافة مكتب "
         />
-        {/* Toggle "Add Office" form visibility */}
+
+        {/* Toggle "Add Office" modal */}
         <div className="mb-6">
           <button
-            onClick={() => setIsAddOfficeVisible(!isAddOfficeVisible)}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg"
+            onClick={() => setIsAddOfficeModalOpen(true)}
+            className="px-4 py-2 flex flex-row items-center gap-2 bg-teal-900 text-white rounded-lg"
           >
-            {isAddOfficeVisible ? "Cancel" : "Add Office"}
+            <Plus />
+            إضافة مكتب
           </button>
         </div>
 
-        {/* Add Office Form (conditionally rendered) */}
-        {isAddOfficeVisible && (
-          <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-semibold mb-4">Add a New Office</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                name="name"
-                value={newOffice.name}
-                onChange={handleInputChange}
-                placeholder="Office Name"
-                className="p-2 border border-gray-300 rounded-lg"
-              />
-              <select
-                name="country"
-                value={newOffice.country}
-                onChange={handleInputChange}
-                className="p-2 border border-gray-300 rounded-lg"
+        {/* Add Office Modal */}
+        {isAddOfficeModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg relative">
+              <button
+                onClick={() => setIsAddOfficeModalOpen(false)}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
               >
-                <option value="">Select Country</option>
-                {countriesWithFlags.map((country) => (
-                  <option key={country.name} value={country.name}>
-                    {country.name} ||
-                    {/* <Image /> */}
-                    <img src={country.flag} />
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                name="phonenumber"
-                value={newOffice.phonenumber}
-                onChange={handleInputChange}
-                placeholder="Phonenumber"
-                className="p-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold mb-2">
-                People Working Here
-              </h3>
-              {newOffice.people.map((person, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2"
+                <X size={24} />
+              </button>
+              <h2 className="text-2xl font-semibold mb-4">اضافة مكتب</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <input
+                  type="text"
+                  name="name"
+                  
+                  value={newOffice.name}
+                  onChange={handleInputChange}
+                  placeholder="ادخل اسم المكتب"
+                  className="p-2 border border-gray-300 rounded-lg"
+                />
+                <select
+                  name="country"
+                  value={newOffice.country}
+                  onChange={handleInputChange}
+                  className="p-2 border border-gray-300 rounded-lg"
                 >
-                  <input
-                    type="text"
-                    name="name"
-                    value={person.name}
-                    onChange={(e) => handlePeopleChange(e, index)}
-                    placeholder="Name"
-                    className="p-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    name="position"
-                    value={person.position}
-                    onChange={(e) => handlePeopleChange(e, index)}
-                    placeholder="Position"
-                    className="p-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    value={person.email}
-                    onChange={(e) => handlePeopleChange(e, index)}
-                    placeholder="Email"
-                    className="p-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    name="phoneNumber"
-                    value={person.email}
-                    onChange={(e) => handlePeopleChange(e, index)}
-                    placeholder="phonenumber"
-                    className="p-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-              ))}
+                  <option value="">اختر دولة المكتب</option>
+                  {countries.map((country) => (
+                    country && (
+                      <option key={country.id} value={country.Country}>
+                        {country.Country}
+                      </option>
+                    )
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <input
+                  type="text"
+                  name="phonenumber"
+                  value={newOffice.phonenumber}
+                  onChange={handleInputChange}
+                  placeholder="Phonenumber"
+                  className="p-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-2">
+                  {/* People Working Here */}
+                </h3>
+                {newOffice.people.map((person, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-2"
+                  >
+                    <input
+                      type="text"
+                      name="name"
+                      value={person.name}
+                      onChange={(e) => handlePeopleChange(e, index)}
+                      placeholder="Name"
+                      className="p-2 border border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      name="position"
+                      value={person.position}
+                      onChange={(e) => handlePeopleChange(e, index)}
+                      placeholder="Position"
+                      className="p-2 border border-gray-300 rounded-lg"
+                    />
+                    <input
+                      type="email"
+                      name="email"
+                      value={person.email}
+                      onChange={(e) => handlePeopleChange(e, index)}
+                      placeholder="Email"
+                      className="p-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                ))}
+                {/* <button
+                  onClick={addPerson}
+                  className="mt-2 px-4 py-2 bg-gray-200 rounded-lg"
+                >
+                  Add Person
+                </button> */}
+              </div>
+              <button
+                onClick={createoffice}
+                className="mt-4 py-2 px-4 bg-teal-900 text-white rounded-lg"
+              >
+                حفظ
+              </button>
             </div>
-            <button
-              onClick={createoffice}
-              className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg"
-            >
-              Add Office
-            </button>
           </div>
         )}
 
-        {/* Country Filter */}
-        {/* <div className="mb-6 text-center">
-          <label htmlFor="country" className="mr-2 text-lg">
-            Filter by Country:
-          </label>
-          <select
-            id="country"
-            className="p-2 border border-gray-300 rounded-lg"
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-          >
-            {countries.map((country) => (
-              <option key={country} value={country}>
-                {country}
-              </option>
-            ))}
-          </select>
-        </div> */}
-
         {/* Offices List */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {fetchedOffices.map((office) => (
+          {fetchedOffices?.map((office) => (
             <div
               onClick={() => {
                 router.push("/admin/homemaidoffices?office=" + office.office);
               }}
               key={office.id}
-              className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-all cursor-pointer"
+              className="p-6 rounded-lg shadow-md hover:shadow-xl bg-white flex flex-wrap items-center gap-3 flex-col min-h-[230px] min-w-[230px] transition-all cursor-pointer"
             >
               <h2 className="text-xl font-semibold">{office.office}</h2>
-              <p className="text-gray-600"> {office.Country}</p>
-              <p className="text-gray-600"> {office?.phoneNumber}</p>
-
-              {/* Available and Booked Numbers */}
-              {/* <div className="flex justify-between mt-4">
-                <div className="flex items-center">
-                  <span className="bg-green-500 text-white text-sm font-semibold rounded-full w-8 h-8 flex items-center justify-center">
-                    {office.available}
-                  </span>
-                  <span className="ml-2 text-gray-600">Available</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="bg-red-500 text-white text-sm font-semibold rounded-full w-8 h-8 flex items-center justify-center">
-                    {office.booked}
-                  </span>
-                  <span className="ml-2 text-gray-600">Booked</span>
-                </div>
-              </div> */}
+              <p className="text-gray-600">{office.Country}</p>
+              <p className="text-gray-600">{office?._count?.HomeMaid}</p>
             </div>
           ))}
         </div>
@@ -385,13 +358,13 @@ export default function ExternalOffices() {
             <table className="min-w-full table-auto bg-white shadow-md rounded-lg overflow-hidden">
               <thead className="bg-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  <th className="px-6 py-3 text-left text-md font-medium text-gray-500">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  <th className="px-6 py-3 text-left text-md font-medium text-gray-500">
                     Position
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                  <th className="px-6 py-3 text-left text-md font-medium text-gray-500">
                     Email
                   </th>
                 </tr>
@@ -401,13 +374,13 @@ export default function ExternalOffices() {
                   .find((office) => office.id === selectedOffice)
                   .people.map((person, index) => (
                     <tr key={index} className="border-t">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                      <td className="px-6 py-4 text-md font-medium text-gray-700">
                         {person.name}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-md text-gray-500">
                         {person.position}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-md text-gray-500">
                         {person.email}
                       </td>
                     </tr>
@@ -447,7 +420,6 @@ const countriesWithFlags = [
     name: "Pakistan",
     code: "pk",
   },
-  ,
   {
     flag: "https://twemoji.maxcdn.com/2/svg/1f1f0-1f1ea.svg",
     name: "Kenya",

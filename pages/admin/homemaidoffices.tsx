@@ -146,7 +146,7 @@ export default function Table() {
 
   return (
     <Layout>
-      <div className="container mx-auto p-6">
+      <div className={`container mx-auto p-6 ${Style["tajawal-regular"]}`}>
         <div className="grid grid-cols-2">
           {/* <h1
           >
@@ -154,7 +154,7 @@ export default function Table() {
           </h1> */}
 
           <h1
-            className={`text-center font-medium text-2xl mb-4 ${Style["almarai-bold"]}`}
+            className={`text-center font-medium text-2xl mb-4 `}
           >
             {" "}
             {router.query.office}
@@ -194,7 +194,7 @@ export default function Table() {
           <div className="flex-1 px-1">
             <button
               className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                "text-[#EFF7F9]  bg-teal-900  text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
               onClick={() => {
                 isFetchingRef.current = false;
@@ -216,7 +216,7 @@ export default function Table() {
           <div className="flex-1 px-1">
             <button
               className={
-                "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                "text-[#EFF7F9]  bg-teal-900  text-lg py-2 px-4 rounded-md transition-all duration-300"
               }
               onClick={() => {
                 isFetchingRef.current = false;
@@ -234,7 +234,7 @@ export default function Table() {
         {/* Table */}
         <table className="min-w-full table-auto border-collapse bg-white shadow-md rounded-md">
           <thead>
-            <tr className="bg-yellow-400 text-white">
+            <tr className="bg-teal-900 text-white">
               <th className="p-3 text-center text-sm font-medium">
                 رقم العاملة
               </th>
@@ -310,7 +310,7 @@ export default function Table() {
                   <td className="p-3 text-md text-gray-700 text-center">
                     <button
                       className={
-                        "text-[#EFF7F9]  bg-[#3D4C73]  text-lg py-2 px-4 rounded-md transition-all duration-300"
+                        "text-[#EFF7F9]  bg-teal-900  text-lg py-2 px-4 rounded-md transition-all duration-300"
                       }
                       onClick={() => {
                         const url = "/admin/cvdetails/" + item.id;
