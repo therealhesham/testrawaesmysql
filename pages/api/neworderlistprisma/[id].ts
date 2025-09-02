@@ -17,7 +17,7 @@ export default async function handler(
     const totalItems = await prisma.neworder.count({
       where: {
         // isHidden: false,
-        bookingstatus: "حجز جديد",
+        bookingstatus: "new_order",
       },
     });
     const totalPages = Math.ceil(totalItems / pageSize);
@@ -25,7 +25,7 @@ export default async function handler(
     const find = await prisma.neworder.findMany({
       where: {
         // isHidden: false,
-        bookingstatus: "حجز جديد",
+        bookingstatus: "new_order",
       },
       select: {
         HomeMaid: {
@@ -53,7 +53,7 @@ export default async function handler(
       },
       orderBy: { id: "desc" },
       skip: (page - 1) * pageSize, // Adjusted to use page - 1
-      take: pageSize,
+      take: 3,
     });
 
     res.status(200).json({ data: find, totalPages });
