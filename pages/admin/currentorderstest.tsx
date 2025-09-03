@@ -6,6 +6,8 @@ import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import axios from 'axios';
 import PreRentalModal from 'components/PreRentalModal';
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
 // import AddRentalRequest from './add_rental_request';
 // import AddRentalRequestModal from './AddRentalRequestModal'; // Import the component for the modal content
 export default function Dashboard() {
@@ -352,3 +354,51 @@ export default function Dashboard() {
     </Layout>
   );
 }
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    console.log("sss")
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};

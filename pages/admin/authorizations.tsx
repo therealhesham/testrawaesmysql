@@ -7,6 +7,7 @@ import Style from "styles/Home.module.css"
 import { FileExcelFilled, FilePdfFilled } from '@ant-design/icons';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
+import Layout from 'example/containers/Layout';
 const UserManagement = () => {
   // State for modals and visibility
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -101,6 +102,7 @@ const UserManagement = () => {
   const handleExportPDF = () => console.log('Export to PDF');
 
   return (
+    <Layout>
     <div className={`min-h-screen bg-gray-100 font-tajawal p-8 dir-rtl ${Style["tajawal-regular"]}`}>
       <Head>
         <title>إدارة المستخدمين</title>
@@ -453,6 +455,7 @@ const UserManagement = () => {
         </div>
       )}
     </div>
+    </Layout>
   );
 };
 

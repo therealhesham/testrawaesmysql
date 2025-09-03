@@ -5,6 +5,8 @@ import DepartureList from '../../components/DepartureList';
 import DepartureModal from 'components/DepartureExternalModal';
 import Layout from 'example/containers/Layout';
 import DepartureExternalList from 'components/DeparatureExternalList';
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -49,3 +51,52 @@ export default function Home() {
     </Layout>
   );
 }
+
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    console.log("sss")
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};
