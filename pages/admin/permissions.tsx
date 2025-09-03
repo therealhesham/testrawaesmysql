@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Edit, CheckCircle } from 'lucide-react';
 import Style from "styles/Home.module.css"
 import { FileExcelFilled, FilePdfFilled } from '@ant-design/icons';
+import Layout from 'example/containers/Layout';
 
 const PermissionsManagement = () => {
   // State for modals
@@ -87,6 +88,7 @@ const PermissionsManagement = () => {
   const handleExportPDF = () => console.log('Export to PDF');
 
   return (
+    <Layout>
     <div className={`min-h-screen bg-gray-100 font-tajawal p-8 dir-rtl ${Style["tajawal-regular"]}`}>
       <Head>
         <title>إدارة الصلاحيات</title>
@@ -287,7 +289,58 @@ const PermissionsManagement = () => {
         </div>
       )}
     </div>
+    </Layout>
   );
 };
 
 export default PermissionsManagement;
+
+
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    console.log("sss")
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة المستخدمين"]?.["تعديل"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};

@@ -4,6 +4,8 @@ import Style from "styles/Home.module.css"
 import DepartureList from '../../components/DepartureList';
 import DepartureModal from 'components/DeparatureModal';
 import Layout from 'example/containers/Layout';
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
