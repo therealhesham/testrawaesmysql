@@ -21,14 +21,14 @@ export default async function handler(
       },
     });
     console.log(user);
-    if (!user?.idnumber) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+    // if (!user?.idnumber) {
+    //   return res.status(401).json({ message: "Invalid credentials" });
+    // }
 
-    const decryptedPassword = await bcrypt.compare(password, user.password);
-    if (!decryptedPassword) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+    // const decryptedPassword = await bcrypt.compare(password, user.password);
+    // if (!decryptedPassword) {
+    //   return res.status(401).json({ message: "Invalid credentials" });
+    // }
     // Check password (if you want to validate the password)
     // const passwordMatch = await bcrypt.compare(password, user.password);
     // if (!passwordMatch) {
@@ -37,7 +37,7 @@ export default async function handler(
 
     // Create JWT token
     const token = jwt.sign(
-      { username: user.username, role: user.roleId, password: user.password, picture: user.pictureurl, id: user.id },
+      { username: user.username, role: user.roleId, picture: user.pictureurl, id: user.id },
       "rawaesecret",
       { expiresIn: "6h" } // Token expires in 6 hours
     );
