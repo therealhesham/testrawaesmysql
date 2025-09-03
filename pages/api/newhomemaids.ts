@@ -47,9 +47,9 @@ const {
     });
   }
 const token =   jwtDecode(cookies.authToken)
-console.log(token);
 const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
-if(!findUser?.role?.permissions["إدارة الطلبات"]["إضافة"] )return;
+console.log(token);
+if(!findUser?.role?.permissions["إدارة العاملات"]["إضافة"] )return;
 
 
 const newHomemaid = await prisma.homemaid.create({

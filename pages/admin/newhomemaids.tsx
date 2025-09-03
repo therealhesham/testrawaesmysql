@@ -4,6 +4,8 @@ import { FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt 
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css"
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
 
 const AddWorkerForm = () => {
   const [offices, setOffices] = useState<Array<{ office: string }>>([]);
@@ -706,3 +708,51 @@ const AddWorkerForm = () => {
 
 export default AddWorkerForm;
 
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    console.log("sss")
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/auth/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+console.log(findUser.role?.permissions?.["إدارة العاملات"])
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة العاملات"]?.["إضافة"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};

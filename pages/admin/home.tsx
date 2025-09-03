@@ -807,11 +807,16 @@ const [sessionsLength,setSessionsLength]=useState(0)
                   <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
                   <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
                   <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                    <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt}
+                  <ArrowLeftOutlined className="w-4 h-4" />
+               
+                    {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt} */}
                   </p>
                 </div>
+               
                 <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                  <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" />
+                  <ArrowLeftOutlined className="w-4 h-4" />
+               
+                  {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" /> */}
                 </button>
               </div>
             ))}
@@ -939,11 +944,15 @@ const [sessionsLength,setSessionsLength]=useState(0)
                   <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
                   <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
                   <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                    <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt}
+                  <ArrowLeftOutlined className="w-4 h-4" />
+                    
+                    {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt} */}
                   </p>
                 </div>
                 <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                  <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" />
+                  <ArrowLeftOutlined className="w-4 h-4" />
+               
+                  {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" /> */}
                 </button>
               </div>
             ))}
