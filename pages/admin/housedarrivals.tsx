@@ -85,7 +85,6 @@ const ActionDropdown: React.FC<{
       </button>
       {isOpen && (
         <div className="absolute left-0 mt-2 w-40 bg-white border border-border rounded-md shadow-lg z-10">
-
           <button
             onClick={() => {
               onEdit(id, name);
@@ -93,7 +92,7 @@ const ActionDropdown: React.FC<{
             }}
             className="flex gap-1 flex-row w-full text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
           >
-            <FaAddressBook/>
+            <FaAddressBook />
             تعديل
           </button>
           <button
@@ -101,9 +100,9 @@ const ActionDropdown: React.FC<{
               onDeparture(id, name);
               setIsOpen(false);
             }}
-            className=" w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
           >
-            <Pencil width={12} height={12}/>
+            <Pencil width={12} height={12} />
             مغادرة
           </button>
           <button
@@ -111,9 +110,9 @@ const ActionDropdown: React.FC<{
               onAddSession();
               setIsOpen(false);
             }}
-            className=" w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
           >
-            <FaUserFriends/>
+            <FaUserFriends />
             اضافة جلسة
           </button>
         </div>
@@ -129,6 +128,7 @@ export default function Home() {
     workerDeparture: false,
     newHousing: false,
     columnVisibility: false,
+    notification: false,
   });
   const [housedWorkers, setHousedWorkers] = useState<HousedWorker[]>([]);
   const [locations, setLocations] = useState<InHouseLocation[]>([]);
@@ -143,6 +143,8 @@ export default function Home() {
     reason: '',
     id: '',
   });
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
 
   const [columnVisibility, setColumnVisibility] = useState({
     id: true,
@@ -182,6 +184,8 @@ export default function Home() {
     Reason: '',
     Details: '',
     employee: '',
+    Date: '',
+    deliveryDate: '',
   });
 
   const [departureForm, setDepartureForm] = useState<DepartureForm>({
@@ -200,8 +204,17 @@ export default function Home() {
 
   const closeModal = (modalName: string) => {
     setModals((prev) => ({ ...prev, [modalName]: false }));
-    setSelectedWorkerId(null); // Reset selected worker when closing modal
-    setSelectedWorkerName('');
+    if (modalName !== 'notification') {
+      setSelectedWorkerId(null);
+      setSelectedWorkerName('');
+    }
+  };
+
+  // Show notification modal
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotificationMessage(message);
+    setNotificationType(type);
+    openModal('notification');
   };
 
   // Toggle column visibility
@@ -218,7 +231,7 @@ export default function Home() {
       const response = await axios.get('/api/inhouselocation');
       setLocations(response.data);
     } catch (error) {
-      alert('خطأ في جلب بيانات المواقع');
+      showNotification('خطأ في جلب بيانات المواقع', 'error');
     }
   };
 
@@ -228,7 +241,7 @@ export default function Home() {
       const response = await axios.get('/api/homemaids');
       setHomemaids(response.data);
     } catch (error) {
-      alert('خطأ في جلب بيانات العاملات');
+      showNotification('خطأ في جلب بيانات العاملات', 'error');
     }
   };
 
@@ -246,31 +259,29 @@ export default function Home() {
       setHousedWorkers(response.data.housing);
       setTotalCount(response.data.totalCount);
     } catch (error) {
-      alert('خطأ في جلب بيانات التسكين');
+      showNotification('خطأ في جلب بيانات التسكين', 'error');
     }
   };
 
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
-      
-      await axios.put(`/api/confirmhousinginformation`, {...data,homeMaidId:workerId});
-      alert('تم تحديث بيانات العاملة بنجاح');
+      await axios.put(`/api/confirmhousinginformation`, { ...data, homeMaidId: workerId });
+      showNotification('تم تحديث بيانات العاملة بنجاح');
       fetchHousedWorkers();
     } catch (error) {
-      alert('حدث خطأ أثناء تحديث البيانات');
+      showNotification('حدث خطأ أثناء تحديث البيانات', 'error');
     }
   };
 
   // Record departure
   const recordDeparture = async (workerId: number, data: DepartureForm) => {
     try {
-     
       await axios.put(`/api/housedworker${workerId}/departure`, data);
-      alert('تم تسجيل مغادرة العاملة بنجاح');
+      showNotification('تم تسجيل مغادرة العاملة بنجاح');
       fetchHousedWorkers();
     } catch (error) {
-      alert('حدث خطأ أثناء تسجيل المغادرة');
+      showNotification('حدث خطأ أثناء تسجيل المغادرة', 'error');
     }
   };
 
@@ -285,6 +296,8 @@ export default function Home() {
         Reason: worker.Reason || '',
         Details: worker.Details || '',
         employee: worker.employee || '',
+        Date: worker.houseentrydate || '',
+        deliveryDate: worker.deparatureHousingDate || '',
       });
       openModal('editWorker');
     }
@@ -310,7 +323,7 @@ export default function Home() {
         ...formData,
         homeMaidId: Number(formData.homeMaidId),
       });
-      alert(response.data.message);
+      showNotification(response.data.message);
       closeModal('newHousing');
       setFormData({
         homeMaidId: '',
@@ -329,7 +342,7 @@ export default function Home() {
       });
       fetchHousedWorkers();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'خطأ في تسكين العاملة');
+      showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة', 'error');
     }
   };
 
@@ -416,12 +429,11 @@ export default function Home() {
               <div className="flex justify-between items-center border-b border-border pb-3">
                 <nav className="flex gap-10">
                   <a
-                    href="#"
                     className="text-sm text-textDark font-bold relative pb-3 after:content-[''] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-textDark"
                   >
                     عاملات تم تسكينهم <span className="text-[8px] align-super">{totalCount}</span>
                   </a>
-                  <a href="#" className="text-sm text-textMuted pb-3">
+                  <a  className="text-sm text-textMuted pb-3">
                     قائمة عاملات غادرن التسكين <span className="text-[8px] align-super">0</span>
                   </a>
                 </nav>
@@ -654,11 +666,11 @@ export default function Home() {
                           location: (e.target as any)['residence-name'].value,
                           quantity: Number((e.target as any)['residence-capacity'].value),
                         });
-                        alert('تم إضافة السكن بنجاح');
+                        showNotification('تم إضافة السكن بنجاح');
                         closeModal('addResidence');
                         fetchLocations();
                       } catch (error) {
-                        alert('خطأ في إضافة السكن');
+                        showNotification('خطأ في إضافة السكن', 'error');
                       }
                     }}
                   >
@@ -978,11 +990,12 @@ export default function Home() {
                 >
                   <div className="flex justify-between items-center mb-5">
                     <h2 className="text-xl font-bold text-textDark">تعديل بيانات التسكين</h2>
-                    <button onClick={() => closeModal('editWorker')} className=" text-2xl">
+                    <button onClick={() => closeModal('editWorker')} className="text-textMuted text-2xl">
                       &times;
                     </button>
                   </div>
-                  <form className='grid grid-cols-2 gap-4'
+                  <form
+                    className="grid grid-cols-2 gap-4"
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (selectedWorkerId) {
@@ -999,15 +1012,9 @@ export default function Home() {
                         disabled
                         className="w-full p-2 rounded-md text-right text-sm text-textDark bg-gray-200"
                       />
-                   
                     </div>
-
-
-
-
-<div className="mb-4">
-
-                        <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
+                    <div className="mb-4">
+                      <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
                         value={selectedWorkerId}
@@ -1015,11 +1022,7 @@ export default function Home() {
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-200"
                       />
                     </div>
-
-
-
-
-                                        <div className="mb-4">
+                    <div className="mb-4">
                       <label className="block text-sm mb-2 text-textDark">السكن</label>
                       <select
                         value={editWorkerForm.location_id}
@@ -1039,10 +1042,7 @@ export default function Home() {
                         ))}
                       </select>
                     </div>
-
-
-
- <div className="mb-4">
+                    <div className="mb-4">
                       <label className="block text-sm mb-2 text-textDark">تاريخ التسكين</label>
                       <input
                         type="date"
@@ -1056,12 +1056,10 @@ export default function Home() {
                         className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
                       />
                     </div>
-                    
-
- <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">تاريخ التسكين</label>
+                    <div className="mb-4">
+                      <label className="block text-sm mb-2 text-textDark">تاريخ التسليم</label>
                       <input
-                        type="text"
+                        type="date"
                         value={editWorkerForm.deliveryDate}
                         onChange={(e) =>
                           setEditWorkerForm({
@@ -1072,7 +1070,6 @@ export default function Home() {
                         className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
                       />
                     </div>
-
                     <div className="mb-4">
                       <label className="block text-sm mb-2 text-textDark">سبب التسكين</label>
                       <input
@@ -1088,7 +1085,7 @@ export default function Home() {
                       />
                     </div>
                     <div className="mb-4 col-span-2">
-                      <label className="block text-sm mb-2  text-textDark">التفاصيل</label>
+                      <label className="block text-sm mb-2 text-textDark">التفاصيل</label>
                       <textarea
                         value={editWorkerForm.Details}
                         onChange={(e) =>
@@ -1101,20 +1098,6 @@ export default function Home() {
                         rows={4}
                       />
                     </div>
-                    {/* <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">الموظف المسؤول</label>
-                      <input
-                        type="text"
-                        value={editWorkerForm.employee}
-                        onChange={(e) =>
-                          setEditWorkerForm({
-                            ...editWorkerForm,
-                            employee: e.target.value,
-                          })
-                        }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
-                      />
-                    </div> */}
                     <div className="flex justify-end gap-4">
                       <button
                         type="button"
@@ -1134,7 +1117,7 @@ export default function Home() {
             {/* Worker Departure Modal */}
             {modals.workerDeparture && (
               <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 "
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
                 onClick={() => closeModal('workerDeparture')}
               >
                 <div
@@ -1147,7 +1130,8 @@ export default function Home() {
                       &times;
                     </button>
                   </div>
-                  <form className='grid grid-cols-2 gap-5'
+                  <form
+                    className="grid grid-cols-2 gap-5"
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (selectedWorkerId) {
@@ -1165,9 +1149,7 @@ export default function Home() {
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
                       />
                     </div>
-
-
-                                        <div className="mb-4">
+                    <div className="mb-4">
                       <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
@@ -1176,19 +1158,17 @@ export default function Home() {
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
                       />
                     </div>
-
-                    
-                                        <div className="mb-4">
+                    <div className="mb-4">
                       <label className="block text-sm mb-2 text-textDark">سبب المغادرة</label>
                       <input
                         type="text"
-                            onChange={(e) =>
+                        value={departureForm.deparatureReason}
+                        onChange={(e) =>
                           setDepartureForm({
                             ...departureForm,
                             deparatureReason: e.target.value,
                           })
                         }
-                        value={departureForm.deparatureReason}
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
                       />
                     </div>
@@ -1206,7 +1186,6 @@ export default function Home() {
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
                       />
                     </div>
-  
                     <div className="flex justify-end gap-4">
                       <button
                         type="button"
@@ -1220,6 +1199,30 @@ export default function Home() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            )}
+            {/* Notification Modal */}
+            {modals.notification && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('notification')}
+              >
+                <div
+                  className="bg-gray-200 rounded-lg p-6 w-full max-w-sm text-center shadow-card"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className={`text-base mb-5 ${notificationType === 'error' ? 'text-red-600' : 'text-teal-800'}`}>
+                    {notificationMessage}
+                  </p>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => closeModal('notification')}
+                      className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm hover:bg-teal-700"
+                    >
+                      موافق
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
