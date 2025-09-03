@@ -17,6 +17,9 @@ const UserManagement = () => {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState('success'); // 'success' or 'error'
 
   // State for data
   const [users, setUsers] = useState([]);
@@ -33,6 +36,13 @@ const UserManagement = () => {
   // Ref for the table
   const tableRef = useRef(null);
 
+  // Function to show notification modal
+  const showNotification = (message, type = 'success') => {
+    setNotificationMessage(message);
+    setNotificationType(type);
+    setIsNotificationModalOpen(true);
+  };
+
   // Fetch users
   const fetchUsers = async () => {
     try {
@@ -43,6 +53,7 @@ const UserManagement = () => {
       setTotalPages(Math.ceil(response.headers['x-total-count'] / 8) || 1);
     } catch (error) {
       console.error('Error fetching users:', error);
+      showNotification('حدث خطأ أثناء جلب المستخدمين. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -53,6 +64,7 @@ const UserManagement = () => {
       setRoles(response.data);
     } catch (error) {
       console.error('Error fetching roles:', error);
+      showNotification('حدث خطأ أثناء جلب الأدوار. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -69,8 +81,10 @@ const UserManagement = () => {
       setIsAddUserModalOpen(false);
       setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', roleId: '' });
       fetchUsers();
+      showNotification('تمت إضافة المستخدم بنجاح.');
     } catch (error) {
       console.error('Error adding user:', error);
+      showNotification('حدث خطأ أثناء إضافة المستخدم. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -81,8 +95,10 @@ const UserManagement = () => {
       setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', roleId: '' });
       setSelectedUser(null);
       fetchUsers();
+      showNotification('تم تعديل المستخدم بنجاح.');
     } catch (error) {
       console.error('Error editing user:', error);
+      showNotification('حدث خطأ أثناء تعديل المستخدم. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -92,8 +108,10 @@ const UserManagement = () => {
       setIsDeleteUserModalOpen(false);
       setSelectedUser(null);
       fetchUsers();
+      showNotification('تم حذف المستخدم بنجاح.');
     } catch (error) {
       console.error('Error deleting user:', error);
+      showNotification('حدث خطأ أثناء حذف المستخدم. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -106,40 +124,59 @@ const UserManagement = () => {
 
   // Export to Excel
   const handleExportExcel = () => {
-    const exportData = users.map((user) => ({
-      ID: user.id,
-      الاسم: user.username,
-      'رقم الهوية': user.idnumber,
-      'رقم الجوال': user.phonenumber,
-      'المسمى الوظيفي': user.role?.name || 'غير محدد',
-      'تاريخ الإنشاء': new Date(user.createdAt).toLocaleDateString('ar-SA'),
-    }));
+    try {
+      const exportData = users.map((user) => ({
+        ID: user.id,
+        الاسم: user.username,
+        'رقم الهوية': user.idnumber,
+        'رقم الجوال': user.phonenumber,
+        'المسمى الوظيفي': user.role?.name || 'غير محدد',
+        'تاريخ الإنشاء': new Date(user.createdAt).toLocaleDateString('ar-SA'),
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
-    XLSX.writeFile(workbook, 'Users.xlsx');
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+      XLSX.writeFile(workbook, 'Users.xlsx');
+      showNotification('تم تصدير الملف بصيغة Excel بنجاح.');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      showNotification('حدث خطأ أثناء تصدير Excel. يرجى المحاولة مرة أخرى.', 'error');
+    }
   };
 
   // Export to PDF
   const handleExportPDF = async () => {
     const table = tableRef.current;
-    if (!table) return;
+    if (!table) {
+      console.error('Table reference is null or undefined');
+      showNotification('فشل في تصدير PDF: لا يمكن العثور على الجدول', 'error');
+      return;
+    }
 
     try {
-      const canvas = await html2canvas(table, { scale: 2 });
+      table.scrollIntoView({ behavior: 'smooth' });
+      const canvas = await html2canvas(table, {
+        scale: 2,
+        useCORS: true,
+        logging: true,
+      });
+
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 190; // A4 width in mm minus margins
-      const pageHeight = 295; // A4 height in mm
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const imgWidth = 190;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pageHeight = 295;
       let heightLeft = imgHeight;
       let position = 10;
 
       pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
+      while (heightLeft > pageHeight) {
         position = heightLeft - imgHeight + 10;
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
@@ -147,8 +184,10 @@ const UserManagement = () => {
       }
 
       pdf.save('Users.pdf');
+      showNotification('تم تصدير الملف بصيغة PDF بنجاح.');
     } catch (error) {
       console.error('Error exporting to PDF:', error);
+      showNotification('حدث خطأ أثناء تصدير PDF. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -158,7 +197,6 @@ const UserManagement = () => {
         <Head>
           <title>إدارة المستخدمين</title>
         </Head>
-        {/* User Management Section */}
         <section className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-normal text-black">إدارة المستخدمين</h1>
@@ -262,7 +300,7 @@ const UserManagement = () => {
                             username: user.username,
                             phonenumber: user.phonenumber,
                             idnumber: user.idnumber,
-                            password: user.password,
+                            password: '',
                             roleId: user.roleId || '',
                           });
                           setIsEditUserModalOpen(true);
@@ -449,9 +487,10 @@ const UserManagement = () => {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">كلمة المرور</label>
+                  <label className="text-sm mb-2">كلمة المرور (اختياري)</label>
                   <input
                     type="password"
+                    placeholder="أدخل كلمة مرور جديدة (اختياري)"
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     className="p-2 border border-gray-300 rounded text-right"
@@ -505,6 +544,24 @@ const UserManagement = () => {
             </div>
           </div>
         )}
+        {/* Notification Modal */}
+        {isNotificationModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-gray-200 rounded-lg p-6 w-full max-w-sm text-center">
+              <p className={`text-base mb-5 ${notificationType === 'error' ? 'text-red-600' : 'text-teal-800'}`}>
+                {notificationMessage}
+              </p>
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setIsNotificationModalOpen(false)}
+                  className="bg-teal-800 text-white px-5 py-2 rounded text-sm hover:bg-teal-700"
+                >
+                  موافق
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
@@ -514,7 +571,6 @@ export default UserManagement;
 
 // export async function getServerSideProps({ req }) {
 //   try {
-//     // 🔹 Extract cookies
 //     const cookieHeader = req.headers.cookie;
 //     let cookies: { [key: string]: string } = {};
 //     if (cookieHeader) {
@@ -524,17 +580,13 @@ export default UserManagement;
 //       });
 //     }
 
-//     // 🔹 Check for authToken
 //     if (!cookies.authToken) {
 //       return {
 //         redirect: { destination: '/admin/login', permanent: false },
 //       };
 //     }
 
-//     // 🔹 Decode JWT
 //     const token = jwtDecode(cookies.authToken);
-
-//     // 🔹 Fetch user & role with Prisma
 //     const findUser = await prisma.user.findUnique({
 //       where: { id: token.id },
 //       include: { role: true },
