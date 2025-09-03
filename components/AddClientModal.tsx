@@ -153,9 +153,9 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     <option value="جدة">جدة</option>
                     {/* Add more cities as needed */}
                   </select>
-                  <ChevronDown
+                  {/* <ChevronDown
                     className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  />
+                  /> */}
                 </div>
               </div>
               <div className="space-y-2">
@@ -173,9 +173,9 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     <option value="إعلان">إعلان</option>
                     {/* Add more sources as needed */}
                   </select>
-                  <ChevronDown
+                  {/* <ChevronDown
                     className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  />
+                  /> */}
                 </div>
               </div>
               <div className="space-y-2">
@@ -260,9 +260,9 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     <option value="هندي">هندي</option>
                     {/* Add more nationalities as needed */}
                   </select>
-                  <ChevronDown
+                  {/* <ChevronDown
                     className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  />
+                  /> */}
                 </div>
               </div>
               <div className="space-y-2">
@@ -307,9 +307,9 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     <option value="سائق">سائق</option>
                     {/* Add more professions as needed */}
                   </select>
-                  <ChevronDown
+                  {/* <ChevronDown
                     className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  />
+                  /> */}
                 </div>
               </div>
               <div className="space-y-2 sm:col-span-2">

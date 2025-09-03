@@ -1,9 +1,8 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
 import cookie from "cookie";
-
+import bcrypt from "bcrypt"
 const prisma = new PrismaClient();
 // Secret key for JWT token signing
 const JWT_SECRET = "your-secret-key";
@@ -15,10 +14,10 @@ export default async function handler(
   try {
     const { id, password } = req.body;
     // Find user by username
+    
     const user = await prisma.user.findUnique({
       where: {
         idnumber: Number(id),
-        // password: password
       },
     });
     console.log(user);
@@ -26,6 +25,10 @@ export default async function handler(
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    const decryptedPassword = await bcrypt.compare(password, user.password);
+    if (!decryptedPassword) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
     // Check password (if you want to validate the password)
     // const passwordMatch = await bcrypt.compare(password, user.password);
     // if (!passwordMatch) {

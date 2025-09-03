@@ -212,7 +212,7 @@ model Client {
   reports        reports[]  // Added opposite relation field
   NewSponsorTransfers transferSponsorShips? @relation("NewSponsor")
   OldSponsorTransfers transferSponsorShips? @relation("OldSponsor")
-
+notes String? @db.VarChar(255)
 }
 
 

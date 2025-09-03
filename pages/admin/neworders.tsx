@@ -12,6 +12,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useRouter } from 'next/router';
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
 
 export default function Dashboard() {
   const [activePopup, setActivePopup] = useState(null);
@@ -237,6 +239,22 @@ const router = useRouter();
   const handleNationalityFilterChange = (selectedOption) => {
     setNationalityFilter(selectedOption ? selectedOption.value : "");
     setCurrentPage(1);
+  };
+
+
+const handleSubmitSpecs = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post("/api/submitneworderbyspecs", formData);
+      setModalMessage('تم إضافة الطلب بنجاح');
+      setShowSuccessModal(true);
+      setView('requests');
+      newOrdersList();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setModalMessage('حدث خطأ أثناء إضافة الطلب');
+      setShowErrorModal(true);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -800,7 +818,7 @@ const router = useRouter();
           <X className="w-6 h-6" />
         </button>
       </div>
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-300 p-10 rounded">
+      <form onSubmit={handleSubmitSpecs} className="bg-white border border-gray-300 p-10 rounded">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
           <div className="flex flex-col gap-2">
             <label className="text-base">اسم العميل</label>
@@ -1124,3 +1142,51 @@ const router = useRouter();
   );
 }
 
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    console.log("sss")
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};
