@@ -6,6 +6,8 @@ import Style from 'styles/Home.module.css';
 import { Plus, Search, FileText, RotateCcw, Settings, MoreVertical, MoreHorizontal, Pencil } from 'lucide-react';
 import { DocumentTextIcon, PencilAltIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends } from 'react-icons/fa';
+import prisma from 'pages/api/globalprisma';
+import { jwtDecode } from 'jwt-decode';
 
 // Interfaces
 interface HousedWorker {
@@ -1232,3 +1234,50 @@ export default function Home() {
     </Layout>
   );
 }
+
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["شؤون الاقامة"]?.["عرض"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};
