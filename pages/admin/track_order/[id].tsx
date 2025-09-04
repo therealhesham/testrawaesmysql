@@ -912,3 +912,48 @@ export default function TrackOrder() {
     </Layout>
   );
 }
+
+export async function getServerSideProps ({ req }) {
+  try {
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة الطلبات"]?.["إضافة"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};
