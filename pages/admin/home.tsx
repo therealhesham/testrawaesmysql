@@ -313,6 +313,21 @@ const  fetchInitialCancelled = async()=>{
     }
   };
 
+
+const [foreignOffices,setForeignOffices]= useState([]);
+const [officesCount,setOfficesCount]=useState(0)
+  const fetchForeignOffices = async () => {
+    try {
+      const response = await fetch(`/api/homeinitialdata/externaloffices`, { method: "get" });
+      const res = await response.json();
+      // setRelationsSectionState("foreign");
+      setWorkersSection(res.data);
+      setOfficesCount(res.dataCount)
+      setForeignOffices(res.data);
+    } catch (error) {
+      console.log("error", error);
+    }
+  };
   const fetchBookedList = async () => {
     try {
       const response = await fetch(`/api/bookedlist?page=1`, { method: "get" });
@@ -401,12 +416,14 @@ const [sessionsLength,setSessionsLength]=useState(0)
     }
   };
 
+  const [clientsCount,setClientsCount]=useState(0)
   const fetchRelations = async () => {
     try {
-      const response = await fetch(`/api/clients?page=1`, { method: "get" });
+      const response = await fetch(`/api/homeinitialdata/clients`, { method: "get" });
       const res = await response.json();
       setRelationsSection(res.data.slice(0,3));
-      setRelations(res.data);
+      setClientsCount(res.dataCount)
+      setRelations(res.data.slice(0,3));
     } catch (error) {
       console.error("Error in fetch:", error);
     }
@@ -422,15 +439,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
     }
   };
 
-  const fetchOffices = async () => {
-    try {
-      const response = await fetch(`/api/offices`, { method: "get" });
-      const res = await response.json();
-      setOffices(res);
-    } catch (error) {
-      console.error("Error in fetch:", error);
-    }
-  };
+ 
 
   useEffect(() => {
     fetchNewOrdersData();
@@ -445,7 +454,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
     fetchFullList();
     fetchBookedList();
     fetchTransferSponsorships();
-    fetchOffices();
+    fetchForeignOffices()
   }, []);
 
   const sectionRef = useRef(null);
@@ -900,7 +909,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
                   }}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{relations.length}</span>
+                  قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientsCount}</span>
                 </a>
                 <a
                   onClick={() => {
@@ -914,11 +923,12 @@ const [sessionsLength,setSessionsLength]=useState(0)
                 <a
                   onClick={() => {
                     setRelationsSectionState("foreign-offices");
-                    setRelationsSection(offices);
+                    setRelationsSection(foreignOffices);
                   }}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
-                >
-                  المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{offices.length}</span>
+ 
+ >
+                  المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{officesCount}</span>
                 </a>
               </nav>
             </div>

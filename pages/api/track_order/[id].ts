@@ -22,6 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           HomeMaid: {
             select: {
+              office:{select:{Country:true}},id:true,
               Name: true,
               Passportnumber: true,
               Nationalitycopy: true,
@@ -126,6 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ticketUpload: {
           files: order.arrivals[0]?.ticketFile || null,
         },
+        nationality: order.HomeMaid?.office?.Country || 'N/A',
         documentUpload: {
           files: order.arrivals[0]?.additionalfiles || null,
         },
@@ -139,18 +141,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PATCH') {
-      const cookieHeader = req.headers.cookie;
-      let cookies: { [key: string]: string } = {};
-      if (cookieHeader) {
-        cookieHeader.split(";").forEach(cookie => {
-          const [key, value] = cookie.trim().split("=");
-          cookies[key] = decodeURIComponent(value);
-        });
-      }
-    const token =   jwtDecode(cookies.authToken)
-    console.log(token);
-    const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
-    if(!findUser?.role?.permissions["إدارة الطلبات"]["تعديل"] )return;
+    //   const cookieHeader = req.headers.cookie;
+    //   let cookies: { [key: string]: string } = {};
+    //   if (cookieHeader) {
+    //     cookieHeader.split(";").forEach(cookie => {
+    //       const [key, value] = cookie.trim().split("=");
+    //       cookies[key] = decodeURIComponent(value);
+    //     });
+    //   }
+    // const token =   jwtDecode(cookies.authToken)
+    // console.log(token);
+    // const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
+    // if(!findUser?.role?.permissions["إدارة الطلبات"]["تعديل"] )return;
 
     try {
       const { field, value, section, updatedData } = req.body;
@@ -187,6 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const arrivalUpdate: any = {};
 
         switch (field) {
+
           case 'externalOfficeApproval':
             arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
             updateData.bookingstatus = value ? 'external_office_approved' : 'pending_external_office';
@@ -252,7 +255,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const updateData: any = {};
         const arrivalUpdate: any = {};
 
-        // Validate date and time formats
+        // Validate date and time formats]
         if (updatedData['تاريخ ووقت المغادرة_date'] && !/^\d{4}-\d{2}-\d{2}$/.test(updatedData['تاريخ ووقت المغادرة_date'])) {
           return res.status(400).json({ error: 'Invalid departure date format' });
         }
@@ -267,8 +270,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         switch (section) {
+          case 'homemaidInfo':
+  if (!order.HomemaidId) {
+    return res.status(400).json({ error: 'No Homemaid associated with this order' });
+  }
+const find = await prisma.neworder.findUnique({where:{id:Number(id),HomemaidId:Number(updatedData['id'])}})// عايز يدور في الneworder يشوف الفعاملة دي محجوززة ولا لا
+if (find?.HomemaidId){
+          return res.status(400).json({ error: 'homemaid is Booked' });
+
+}
+await prisma.neworder.update({
+      include: { HomeMaid: true },
+      where: { id: Number(id) },
+      data: {
+HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
+      },
+    });
+  break;
+
           case 'officeLinkInfo':
             if (updatedData['هوية العميل']) {
+
+
+
+
               updateData.nationalId = updatedData['هوية العميل'];
             }
             if (updatedData['رقم التأشيرة']) {

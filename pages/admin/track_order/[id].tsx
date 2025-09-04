@@ -1,4 +1,3 @@
-// pages/orders/[id].tsx
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
@@ -8,6 +7,8 @@ import { CheckCircleIcon } from '@heroicons/react/solid';
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
+import jwtDecode from 'jwt-decode';
+import Select from 'react-select'; // Added for autocomplete
 
 export default function TrackOrder() {
   const router = useRouter();
@@ -16,11 +17,35 @@ export default function TrackOrder() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showChangeHomemaidModal, setShowChangeHomemaidModal] = useState(false);
+  const [newHomemaidData, setNewHomemaidData] = useState({
+    id: '',
+    name: '',
+    passportNumber: '',
+    nationality: '',
+    externalOffice: '',
+  });
+  const [homemaids, setHomemaids] = useState([]); // State for homemaid options
+  const [selectedHomemaid, setSelectedHomemaid] = useState(null); // State for selected homemaid
+
+  // --- Modal States ---
+  const [showConfirmModal, setShowConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [showAlertModal, setShowAlertModal] = useState({
+    isOpen: false,
+    message: '',
+  });
 
   useEffect(() => {
     if (id) {
       fetchOrderData();
     }
+    fetchHomemaids(); // Fetch homemaids for autocomplete
   }, [id]);
 
   const fetchOrderData = async () => {
@@ -38,90 +63,201 @@ export default function TrackOrder() {
       setLoading(false);
     }
   };
-  const handleStatusUpdate = async (field: string, value: boolean) => {
-    if (!confirm(`هل أنت متأكد من تحديث حالة ${field}؟`)) return;
 
-    setUpdating(true);
+  const fetchHomemaids = async () => {
     try {
-      const res = await fetch(`/api/track_order/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field, value }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'فشل في تحديث الحالة');
-      }
-      await fetchOrderData();
-      console.log('تم تحديث الحالة بنجاح');
+      const res = await fetch('/api/autocomplete/homemaids');
+      if (!res.ok) throw new Error('فشل في جلب بيانات العاملات');
+      const data = await res.json();
+      setHomemaids(data.data); // Store homemaids for autocomplete
     } catch (error: any) {
-      console.error('Error updating status:', error);
-      setError('حدث خطأ أثناء تحديث الحالة');
-    } finally {
-      setUpdating(false);
+      console.error('Error fetching homemaids:', error);
+      setError('حدث خطأ أثناء جلب بيانات العاملات');
     }
+  };
+
+  const handleStatusUpdate = async (field: string, value: boolean) => {
+    setShowConfirmModal({
+      isOpen: true,
+      title: 'تحديث الحالة',
+      message: `هل أنت متأكد من تحديث حالة ${field}؟`,
+      onConfirm: async () => {
+        setUpdating(true);
+        try {
+          const res = await fetch(`/api/track_order/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field, value }),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'فشل في تحديث الحالة');
+          }
+          await fetchOrderData();
+        } catch (error: any) {
+          console.error('Error updating status:', error);
+          setError('حدث خطأ أثناء تحديث الحالة');
+        } finally {
+          setUpdating(false);
+        }
+      },
+    });
   };
 
   const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
-    if (!confirm('هل أنت متأكد من حفظ التعديلات؟')) return;
+    setShowConfirmModal({
+      isOpen: true,
+      title: 'حفظ التعديلات',
+      message: 'هل أنت متأكد من حفظ التعديلات؟',
+      onConfirm: async () => {
+        setUpdating(true);
+        try {
+          const res = await fetch(`/api/track_order/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ section, updatedData }),
+          });
 
-    setUpdating(true);
-    try {
-      const res = await fetch(`/api/track_order/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section, updatedData }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'فشل في حفظ التعديلات');
-      }
-      await fetchOrderData();
-      console.log('تم حفظ التعديلات بنجاح');
-    } catch (error: any) {
-      console.error('Error saving edits:', error);
-      setError('حدث خطأ أثناء حفظ التعديلات');
-    } finally {
-      setUpdating(false);
-    }
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'فشل في حفظ التعديلات');
+          }
+          await fetchOrderData();
+        } catch (error: any) {
+          console.error('Error saving edits:', error);
+          setError('حدث خطأ أثناء حفظ التعديلات');
+        } finally {
+          setUpdating(false);
+        }
+      },
+    });
   };
 
   const handleCancelContract = async () => {
-    if (!confirm('هل أنت متأكد من إلغاء العقد؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+    setShowConfirmModal({
+      isOpen: true,
+      title: 'إلغاء العقد',
+      message: 'هل أنت متأكد من إلغاء العقد؟ هذا الإجراء لا يمكن التراجع عنه.',
+      onConfirm: async () => {
+        setUpdating(true);
+        try {
+          const res = await fetch(`/api/track_order/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field: 'bookingStatus', value: 'cancelled' }),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'فشل في إلغاء العقد');
+          }
+          router.push('/admin/neworders');
+        } catch (error: any) {
+          console.error('Error cancelling contract:', error);
+          setError('حدث خطأ أثناء إلغاء العقد');
+        } finally {
+          setUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleChangeHomemaid = () => {
+    setShowConfirmModal({
+      isOpen: true,
+      title: 'تغيير العاملة',
+      message: 'هل أنت متأكد من تغيير العاملة؟',
+      onConfirm: () => {
+        if (orderData?.homemaidInfo) {
+          setNewHomemaidData({
+            id: orderData.homemaidInfo.id || '',
+            name: orderData.homemaidInfo.name || '',
+            passportNumber: orderData.homemaidInfo.passportNumber || '',
+            nationality: orderData.homemaidInfo.nationality || '',
+            externalOffice: orderData.homemaidInfo.externalOffice || '',
+          });
+          const currentHomemaid = homemaids.find((h) => h.Name === orderData.homemaidInfo.name);
+          setSelectedHomemaid(currentHomemaid ? { value: currentHomemaid.id, label: currentHomemaid.Name } : null);
+        }
+        setShowChangeHomemaidModal(true);
+      },
+    });
+  };
+
+  const handleHomemaidSelect = (selectedOption) => {
+    setSelectedHomemaid(selectedOption);
+    if (selectedOption) {
+      const selectedHomemaid = homemaids.find((h) => h.id === selectedOption.value);
+      if (selectedHomemaid) {
+        setNewHomemaidData({
+          id: selectedHomemaid.id,
+          name: selectedHomemaid.Name || '',
+          passportNumber: selectedHomemaid.Passportnumber || '',
+          nationality: selectedHomemaid.office.Country || '',
+          externalOffice: selectedHomemaid.office?.office || '',
+        });
+      }
+    } else {
+      setNewHomemaidData({
+        name: '',
+        id: '',
+        passportNumber: '',
+        nationality: '',
+        externalOffice: '',
+      });
+    }
+  };
+
+  const handleSaveHomemaidChange = async () => {
+    if (!newHomemaidData.name.trim()) {
+      setShowAlertModal({
+        isOpen: true,
+        message: 'يرجى إدخال اسم العاملة',
+      });
+      return;
+    }
 
     setUpdating(true);
     try {
       const res = await fetch(`/api/track_order/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ field: 'bookingStatus', value: 'cancelled' }),
+        body: JSON.stringify({
+          section: 'homemaidInfo',
+          updatedData: newHomemaidData,
+        }),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'فشل في إلغاء العقد');
+        throw new Error(errorData.error || 'فشل في تغيير العاملة');
       }
-      console.log('تم إلغاء العقد بنجاح');
-      router.push('/admin/neworders');
+
+      await fetchOrderData();
+      setShowChangeHomemaidModal(false);
+      setShowAlertModal({
+        isOpen: true,
+        message: 'تم تغيير العاملة بنجاح',
+      });
     } catch (error: any) {
-      console.error('Error cancelling contract:', error);
-      setError('حدث خطأ أثناء إلغاء العقد');
+      console.error('Error changing homemaid:', error);
+      setError('حدث خطأ أثناء تغيير العاملة');
     } finally {
       setUpdating(false);
     }
   };
 
-  const handleChangeHomemaid = async () => {
-    if (!confirm('هل أنت متأكد من تغيير العاملة؟')) return;
-    router.push(`/orders/${id}/change-homemaid`);
-  };
+  // Format homemaids for react-select
+  const homemaidOptions = homemaids.map((homemaid) => ({
+    value: homemaid.id,
+    label: homemaid.Name,
+  }));
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen  font-tajawal" dir="rtl">
+        <div className="min-h-screen font-tajawal" dir="rtl">
           جاري التحميل...
         </div>
       </Layout>
@@ -131,12 +267,72 @@ export default function TrackOrder() {
   if (error || !orderData) {
     return (
       <Layout>
-        <div className="min-h-screen  font-tajawal" dir="rtl">
+        <div className="min-h-screen font-tajawal" dir="rtl">
           {error || 'الطلب غير موجود'}
         </div>
       </Layout>
     );
   }
+
+  // --- Confirm Modal Component ---
+  const ConfirmModal = () => {
+    if (!showConfirmModal.isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">{showConfirmModal.title}</h3>
+          <p className="text-gray-700 mb-6 text-right">{showConfirmModal.message}</p>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              onClick={() => setShowConfirmModal({ ...showConfirmModal, isOpen: false })}
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+              onClick={() => {
+                showConfirmModal.onConfirm();
+                setShowConfirmModal({ ...showConfirmModal, isOpen: false });
+              }}
+            >
+              تأكيد
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --- Alert Modal Component ---
+  const AlertModal = () => {
+    if (!showAlertModal.isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CheckCircleIcon className="w-12 h-12 text-green-600 mx-auto mb-4" />
+          <p className="text-gray-800 mb-6 text-right">{showAlertModal.message}</p>
+          <button
+            type="button"
+            className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+            onClick={() => setShowAlertModal({ ...showAlertModal, isOpen: false })}
+          >
+            موافق
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Layout>
@@ -146,6 +342,7 @@ export default function TrackOrder() {
         </Head>
         <main className="max-w-7xl mx-auto px-5 py-8">
           {error && <div className="text-red-600 text-sm mb-4 text-right">{error}</div>}
+
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
             <div className="flex gap-4">
@@ -165,7 +362,9 @@ export default function TrackOrder() {
               </button>
             </div>
           </div>
+
           <OrderStepper status={orderData.bookingStatus} />
+
           <InfoCard
             title="معلومات العميل"
             data={[
@@ -176,16 +375,18 @@ export default function TrackOrder() {
             ]}
             gridCols={3}
           />
+
           <InfoCard
             title="معلومات العاملة"
             data={[
               { label: 'اسم العاملة', value: orderData.homemaidInfo.name },
               { label: 'رقم جواز السفر', value: orderData.homemaidInfo.passportNumber },
-              { label: 'الجنسية', value: orderData.homemaidInfo.nationality },
+              { label: 'الجنسية', value: orderData.nationality || 'غير محدد' },
               { label: 'المكتب الخارجي', value: orderData.homemaidInfo.externalOffice },
             ]}
             gridCols={3}
           />
+
           <InfoCard
             title="التقديم"
             data={[
@@ -194,6 +395,7 @@ export default function TrackOrder() {
             ]}
             gridCols={2}
           />
+
           <InfoCard
             title="1- الربط مع إدارة المكاتب"
             data={[
@@ -206,6 +408,7 @@ export default function TrackOrder() {
             editable={true}
             onSave={(updatedData) => handleSaveEdits('officeLinkInfo', updatedData)}
           />
+
           <InfoCard
             title="2- المكتب الخارجي"
             data={[
@@ -217,6 +420,7 @@ export default function TrackOrder() {
             editable={true}
             onSave={(updatedData) => handleSaveEdits('externalOfficeInfo', updatedData)}
           />
+
           <InfoCard
             title="3- موافقة المكتب الخارجي"
             data={[
@@ -244,6 +448,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="4- الفحص الطبي"
             data={[
@@ -271,6 +476,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="5- موافقة وزارة العمل الأجنبية"
             data={[
@@ -298,6 +504,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="6- دفع الوكالة"
             data={[
@@ -325,6 +532,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="7- موافقة السفارة السعودية"
             data={[
@@ -352,6 +560,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="8- إصدار التأشيرة"
             data={[
@@ -379,6 +588,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="9- تصريح السفر"
             data={[
@@ -406,12 +616,13 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="10- الوجهات"
             data={[
               { label: 'مدينة المغادرة', value: orderData.destinations.departureCity },
               { label: 'مدينة الوصول', value: orderData.destinations.arrivalCity },
-              { 
+              {
                 label: 'تاريخ ووقت المغادرة',
                 value: (
                   <div className="flex items-center justify-end gap-2">
@@ -434,7 +645,7 @@ export default function TrackOrder() {
                 value: (
                   <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                     <span className="text-gray-500 text-sm pr-2">
-                      {orderData.ticketUpload.files ? '' : 'إرفاق ملف التذكرة'} 
+                      {orderData.ticketUpload.files ? '' : 'إرفاق ملف التذكرة'}
                       {orderData.ticketUpload.files && (
                         <a
                           href={orderData.ticketUpload.files}
@@ -446,55 +657,50 @@ export default function TrackOrder() {
                         </a>
                       )}
                     </span>
-              <input
-  type="file"
-  id="file-upload-destinations"
-  className="hidden"
-  accept="application/pdf"
-  onChange={async (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUpdating(true);
-      try {
-        // جلب presigned URL
-        const res = await fetch(`/api/upload-presigned-url/${id}`);
-        if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
-        const { url, filePath } = await res.json();
+                    <input
+                      type="file"
+                      id="file-upload-destinations"
+                      className="hidden"
+                      accept="application/pdf"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setUpdating(true);
+                          try {
+                            const res = await fetch(`/api/upload-presigned-url/${id}`);
+                            if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                            const { url, filePath } = await res.json();
 
-        // رفع الملف مباشرة إلى DigitalOcean Spaces
-        const uploadRes = await fetch(url, {
-          method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': 'application/pdf',
-              'x-amz-acl': 'public-read',
-          },
-        });
+                            const uploadRes = await fetch(url, {
+                              method: 'PUT',
+                              body: file,
+                              headers: {
+                                'Content-Type': 'application/pdf',
+                                'x-amz-acl': 'public-read',
+                              },
+                            });
 
-        if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+                            if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
 
-        // تحديث الطلب في قاعدة البيانات (حفظ المسار)
-        await fetch(`/api/track_order/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            section: 'destinations',
-            updatedData: { ticketFile: filePath },
-          }),
-        });
+                            await fetch(`/api/track_order/${id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                section: 'destinations',
+                                updatedData: { ticketFile: filePath },
+                              }),
+                            });
 
-        console.log('تم رفع الملف وحفظه بنجاح');
-        await fetchOrderData();
-      } catch (error: any) {
-        console.error('Error uploading file:', error);
-        setError('حدث خطأ أثناء رفع الملف');
-      } finally {
-        setUpdating(false);
-      }
-    }
-  }}
-/>
-
+                            await fetchOrderData();
+                          } catch (error: any) {
+                            console.error('Error uploading file:', error);
+                            setError('حدث خطأ أثناء رفع الملف');
+                          } finally {
+                            setUpdating(false);
+                          }
+                        }
+                      }}
+                    />
                     <label
                       htmlFor="file-upload-destinations"
                       className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 disabled:opacity-50"
@@ -510,6 +716,7 @@ export default function TrackOrder() {
             editable={true}
             onSave={(updatedData) => handleSaveEdits('destinations', updatedData)}
           />
+
           <InfoCard
             title="11- الاستلام"
             data={[
@@ -537,6 +744,7 @@ export default function TrackOrder() {
               },
             ]}
           />
+
           <InfoCard
             title="12- رفع المستندات"
             data={[
@@ -596,57 +804,111 @@ export default function TrackOrder() {
             ]}
           />
         </main>
+
+        {/* Modals */}
+        <ConfirmModal />
+        <AlertModal />
+
+        {/* Modal: Change Homemaid */}
+        {showChangeHomemaidModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            onClick={() => setShowChangeHomemaidModal(false)}
+          >
+            <div
+              className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 text-right">تغيير العاملة</h2>
+                <p className="text-gray-700 text-right mb-6">
+                  يرجى اختيار العاملة الجديدة.
+                </p>
+
+                <div className="space-y-4 text-right">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">اسم العاملة</label>
+                    <Select
+                      options={homemaidOptions}
+                      value={selectedHomemaid}
+                      onChange={handleHomemaidSelect}
+                      placeholder="اختر العاملة"
+                      isClearable
+                      className="text-right"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          border: '1px solid #D1D5DB',
+                          borderRadius: '0.375rem',
+                          padding: '0.5rem',
+                          textAlign: 'right',
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          textAlign: 'right',
+                        }),
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">رقم جواز السفر</label>
+                    <input
+                      type="text"
+                      value={newHomemaidData.passportNumber}
+                      onChange={(e) =>
+                        setNewHomemaidData({ ...newHomemaidData, passportNumber: e.target.value })
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الجنسية</label>
+                    <input
+                      type="text"
+                      value={newHomemaidData.nationality}
+                      onChange={(e) =>
+                        setNewHomemaidData({ ...newHomemaidData, nationality: e.target.value })
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">المكتب الخارجي</label>
+                    <input
+                      type="text"
+                      value={newHomemaidData.externalOffice}
+                      onChange={(e) =>
+                        setNewHomemaidData({ ...newHomemaidData, externalOffice: e.target.value })
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 p-6 pt-0">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-teal-800 text-teal-800 rounded-md hover:bg-teal-50 disabled:opacity-50"
+                  onClick={() => setShowChangeHomemaidModal(false)}
+                  disabled={updating}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 disabled:opacity-50"
+                  onClick={handleSaveHomemaidChange}
+                  disabled={updating}
+                >
+                  {updating ? 'جاري الحفظ...' : 'حفظ التغيير'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
 }
-
-
-
-
-export async function getServerSideProps ({ req }) {
-  try {
-    console.log("sss")
-    // 🔹 Extract cookies
-    const cookieHeader = req.headers.cookie;
-    let cookies: { [key: string]: string } = {};
-    if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        cookies[key] = decodeURIComponent(value);
-      });
-    }
-
-    // 🔹 Check for authToken
-    if (!cookies.authToken) {
-      return {
-        redirect: { destination: "/admin/login", permanent: false },
-      };
-    }
-
-    // 🔹 Decode JWT
-    const token = jwtDecode(cookies.authToken);
-
-    // 🔹 Fetch user & role with Prisma
-    const findUser = await prisma.user.findUnique({
-      where: { id: token.id },
-      include: { role: true },
-    });
-console.log(findUser.role?.permissions?.["إدارة الطلبات"])
-    if (
-      !findUser ||
-      !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]
-    ) {
-      return {
-        redirect: { destination: "/admin/home", permanent: false }, // or show 403
-      };
-    }
-
-    return { props: {} };
-  } catch (err) {
-    console.error("Authorization error:", err);
-    return {
-      redirect: { destination: "/admin/home", permanent: false },
-    };
-  }
-};

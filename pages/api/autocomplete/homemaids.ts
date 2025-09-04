@@ -26,7 +26,7 @@ export default async function handler(
 
   try {
     // Fetch data with the filters and pagination
-    const homemaids = await prisma.homemaid.findMany({select:{Name:true,id:true,dateofbirth:true,office:{select:{Country:true}}}
+    const homemaids = await prisma.homemaid.findMany({select:{Name:true,id:true,dateofbirth:true,Passportnumber:true,office:{select:{office:true,Country:true}}}
       
       });
 
