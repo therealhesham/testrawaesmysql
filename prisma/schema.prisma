@@ -95,6 +95,7 @@ model User {
   logs          logs[]
   emaillist    emaillist[]
   cashLogs      cashLogs[]
+  SystemLogs    systemUserLogs[]
 
   createdAt     DateTime? @default(now())
   updatedAt     DateTime? @updatedAt
@@ -229,6 +230,17 @@ model cashLogs{
   cashRecord      Cash? @relation(fields: [cashID], references: [id])
 }
 
+model systemUserLogs{
+  id            Int       @id @default(autoincrement()) 
+
+action String
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+userId Int
+  user          User?     @relation(fields: [userId], references: [id])
+
+  
+}
 model logs{
 
   id            Int       @id @default(autoincrement()) 

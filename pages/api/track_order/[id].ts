@@ -1,8 +1,8 @@
-// pages/api/track_order/[id].ts
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { jwtDecode } from 'jwt-decode';
-
+import eventBus from 'lib/eventBus';
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -132,7 +132,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           files: order.arrivals[0]?.additionalfiles || null,
         },
       };
+const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+    console.log(cookies.authToken)
+    const token = jwtDecode(cookies.authToken);
 
+    eventBus.emit("ACTION", {
+      type: "عرض صفحة تتبع طلب " + order.id,
+      userId:Number(token.id)
+    });
       return res.status(200).json(orderData);
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -359,10 +373,8 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             data: arrivalUpdate,
           }),
         ]);
-
-        console.log('Updated Order:', updatedOrder);
-        console.log('Updated Arrivals:', updatedArrivals);
-
+    
+// console.log("event")
         return res.status(200).json({ message: 'Section updated successfully' });
       }
 

@@ -7,8 +7,9 @@ import { CheckCircleIcon } from '@heroicons/react/solid';
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select'; // Added for autocomplete
+import prisma from 'pages/api/globalprisma';
 
 export default function TrackOrder() {
   const router = useRouter();
@@ -932,7 +933,6 @@ export async function getServerSideProps ({ req }) {
       };
     }
 
-    // 🔹 Decode JWT
     const token = jwtDecode(cookies.authToken);
 
     // 🔹 Fetch user & role with Prisma
