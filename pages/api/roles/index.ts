@@ -11,6 +11,7 @@ export default async function handler(req, res) {
         const roles = await prisma.role.findMany();
         res.status(200).json(roles);
       } catch (error) {
+        console.log(error)
         res.status(500).json({ error: 'Failed to fetch roles' });
       }
       break;
@@ -27,6 +28,7 @@ export default async function handler(req, res) {
         });
         res.status(201).json(role);
       } catch (error) {
+        console.log(error)
         res.status(500).json({ error: 'Failed to create role' });
       }
       break;
