@@ -12,7 +12,10 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import Style from 'styles/Home.module.css';
-
+import { useRouter } from 'next/router';
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
+import { X } from 'lucide-react';
 interface TableRow {
   workerId: string;
   orderId: string;
@@ -558,8 +561,32 @@ const Modal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
   );
 };
 
-export default function Home() {
+const PermissionModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-[1000]">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+        <button
+          className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+          onClick={onClose}
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <p className="text-red-600">غير مصرح لك بعرض هذه الصفحة</p>
+        <button
+          className="bg-teal-900 text-white px-4 py-2 rounded mt-4 hover:bg-teal-800 transition duration-200"
+          onClick={onClose}
+        >
+          موافق
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default function Home({ hasPermission }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(!hasPermission);
   const [data, setData] = useState<TableRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -583,14 +610,22 @@ export default function Home() {
     'arrivalDate',
   ]);
   const isFetchingRef = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchData(currentPage, filters, setData, setTotalPages, setLoading, isFetchingRef);
-  }, [currentPage, filters]);
+    if (hasPermission) {
+      fetchData(currentPage, filters, setData, setTotalPages, setLoading, isFetchingRef);
+    }
+  }, [currentPage, filters, hasPermission]);
+
+  const closePermissionModal = () => {
+    setShowPermissionModal(false);
+    router.push('/admin/home');
+  };
 
   return (
     <Layout>
-      <div className="font-tajawal bg-gray-100 text-gray-800 min-h-screen" dir="rtl">
+      <div className={`font-tajawal bg-gray-100 text-gray-800 min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
         <Head>
           <title>قائمة الوصول</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -600,36 +635,45 @@ export default function Home() {
           />
           <script src="https://cdn.tailwindcss.com"></script>
         </Head>
-        <div className={`max-w-7xl mx-auto ${Style['tajawal-regular']}`}>
+        <div className="max-w-7xl mx-auto">
           <main className="p-6 md:p-8">
-            <h1 className="text-3xl font-normal text-black mb-6 text-right">قائمة الوصول</h1>
-            <Controls
-              setFilters={setFilters}
-              visibleColumns={visibleColumns}
-              setVisibleColumns={setVisibleColumns}
-              data={data}
-            />
-            {loading ? (
-              <div className="text-center">جاري التحميل...</div>
-            ) : data.length === 0 ? (
-              <div className="text-center">لا توجد بيانات متاحة</div>
-            ) : (
+            {hasPermission ? (
               <>
-                <Table data={data} visibleColumns={visibleColumns} />
-                <Pagination currentPage={currentPage} totalPages={totalPages} setPage={setCurrentPage} />
+                <h1 className="text-3xl font-normal text-black mb-6 text-right">قائمة الوصول</h1>
+                <Controls
+                  setFilters={setFilters}
+                  visibleColumns={visibleColumns}
+                  setVisibleColumns={setVisibleColumns}
+                  data={data}
+                />
+                {loading ? (
+                  <div className="text-center">جاري التحميل...</div>
+                ) : data.length === 0 ? (
+                  <div className="text-center">لا توجد بيانات متاحة</div>
+                ) : (
+                  <>
+                    <Table data={data} visibleColumns={visibleColumns} />
+                    <Pagination currentPage={currentPage} totalPages={totalPages} setPage={setCurrentPage} />
+                  </>
+                )}
               </>
+            ) : (
+              <div>
+                <h1 className="text-3xl font-normal text-black mb-6 text-right">الصفحة الرئيسية</h1>
+                <p className="text-gray-600 mt-4">مرحبًا بك في لوحة التحكم. يرجى اختيار إجراء من القائمة.</p>
+              </div>
             )}
           </main>
           <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+          <PermissionModal isOpen={showPermissionModal} onClose={closePermissionModal} />
         </div>
       </div>
     </Layout>
   );
 }
 
-export async function getServerSideProps ({ req }) {
+export async function getServerSideProps({ req }) {
   try {
-    // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -639,35 +683,31 @@ export async function getServerSideProps ({ req }) {
       });
     }
 
-    // 🔹 Check for authToken
     if (!cookies.authToken) {
       return {
         redirect: { destination: "/admin/login", permanent: false },
       };
     }
 
-    // 🔹 Decode JWT
     const token = jwtDecode(cookies.authToken);
-
-    // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
-    if (
-      !findUser ||
-      !findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"]
-    ) {
-      return {
-        redirect: { destination: "/admin/home", permanent: false }, // or show 403
-      };
-    }
 
-    return { props: {} };
+    const hasPermission = findUser && findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"];
+
+    return {
+      props: {
+        hasPermission: !!hasPermission,
+      },
+    };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
-      redirect: { destination: "/admin/home", permanent: false },
+      props: {
+        hasPermission: false,
+      },
     };
   }
-};
+}

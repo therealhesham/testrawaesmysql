@@ -1,14 +1,36 @@
 import Head from 'next/head';
-import { useState } from 'react';
-import Style from "styles/Home.module.css"
+import { useState, useEffect } from 'react';
+import Style from "styles/Home.module.css";
 import DepartureList from '../../components/DepartureList';
 import DepartureModal from 'components/DeparatureModal';
 import Layout from 'example/containers/Layout';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
-export default function Home() {
+import { useRouter } from 'next/router';
+
+// Unauthorized Modal Component
+const UnauthorizedModal = ({ onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+        <h2 className="text-xl font-bold mb-4">غير مصرح</h2>
+        <p className="mb-4">ليس لديك الصلاحية للوصول إلى هذه الصفحة.</p>
+        <button
+          onClick={onClose}
+          className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-600"
+        >
+          العودة إلى الصفحة الرئيسية
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default function Home({ isUnauthorized = false }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [showUnauthorizedModal, setShowUnauthorizedModal] = useState(isUnauthorized);
+  const router = useRouter();
 
   const openModal = () => {
     setIsModalOpen(true);
@@ -27,16 +49,27 @@ export default function Home() {
     setCurrentStep(1);
   };
 
+  const handleUnauthorizedClose = () => {
+    setShowUnauthorizedModal(false);
+    router.push('/admin/home'); // Redirect to home after closing the modal
+  };
+
+  // Automatically show unauthorized modal if isUnauthorized is true
+  useEffect(() => {
+    if (isUnauthorized) {
+      setShowUnauthorizedModal(true);
+    }
+  }, [isUnauthorized]);
+
   return (
-    
     <Layout>
       <Head>
         <title>المغادرة الداخلية</title>
-        <meta name="description" content=" إدارة المغادرة الداخلية" />
+        <meta name="description" content="إدارة المغادرة الداخلية" />
       </Head>
       <div className={`max-w-7xl mx-auto bg-gray-100 min-h-screen ${Style["tajawal-regular"]}`}>
         <main className="p-6 md:p-10">
-          <DepartureList onOpenModal={openModal} />
+          {!isUnauthorized && <DepartureList onOpenModal={openModal} />}
           {isModalOpen && (
             <DepartureModal
               currentStep={currentStep}
@@ -45,20 +78,18 @@ export default function Home() {
               onClose={closeModal}
             />
           )}
+          {showUnauthorizedModal && <UnauthorizedModal onClose={handleUnauthorizedClose} />}
         </main>
       </div>
     </Layout>
   );
 }
 
-
-
-export async function getServerSideProps ({ req }) {
+export async function getServerSideProps({ req }) {
   try {
-    console.log("sss")
     // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
-    let cookies: { [key: string]: string } = {};
+    let cookies = {};
     if (cookieHeader) {
       cookieHeader.split(";").forEach((cookie) => {
         const [key, value] = cookie.trim().split("=");
@@ -69,7 +100,7 @@ export async function getServerSideProps ({ req }) {
     // 🔹 Check for authToken
     if (!cookies.authToken) {
       return {
-        redirect: { destination: "/admin/login", permanent: false },
+        props: { isUnauthorized: true }, // Show modal instead of redirect
       };
     }
 
@@ -81,13 +112,13 @@ export async function getServerSideProps ({ req }) {
       where: { id: token.id },
       include: { role: true },
     });
-console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+
     if (
       !findUser ||
       !findUser.role?.permissions?.["إدارة الوصول والمغادرة"]?.["عرض"]
     ) {
       return {
-        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+        props: { isUnauthorized: true }, // Show modal for unauthorized access
       };
     }
 
@@ -95,7 +126,7 @@ console.log(findUser.role?.permissions?.["إدارة الطلبات"])
   } catch (err) {
     console.error("Authorization error:", err);
     return {
-      redirect: { destination: "/admin/home", permanent: false },
+      props: { isUnauthorized: true }, // Handle errors by showing unauthorized modal
     };
   }
-};
+}

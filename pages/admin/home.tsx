@@ -868,7 +868,7 @@ const [sessionsLength,setSessionsLength]=useState(0)
             <a
               onClick={() => {
                 workersSectionState === "workers"
-                  ? router.push("/admin/fullist")
+                  ? router.push("/admin/fulllist")
                   : workersSectionState === "bookedlist"
                   ? router.push("/admin/bookedlist")
                   : workersSectionState === "availablelist"

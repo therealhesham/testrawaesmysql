@@ -15,7 +15,7 @@ import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 
-export default function Dashboard() {
+export default function Dashboard({ hasPermission }) {
   const [activePopup, setActivePopup] = useState(null);
   const [view, setView] = useState('requests');
   const [detailsRow, setDetailsRow] = useState(null);
@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [modalMessage, setModalMessage] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(!hasPermission);
   const [menuPosition, setMenuPosition] = useState(null);
 
   const router = useRouter();
@@ -68,10 +69,16 @@ export default function Dashboard() {
     setActivePopup(null);
     setMenuPosition(null);
   };
+
   const closeModal = () => {
     setShowSuccessModal(false);
     setShowErrorModal(false);
     setModalMessage("");
+  };
+
+  const closePermissionModal = () => {
+    setShowPermissionModal(false);
+    router.push('/admin/home');
   };
 
   const confirmAccept = async (id) => {
@@ -291,7 +298,6 @@ export default function Dashboard() {
   const exportToPDF = async () => {
     const doc = new jsPDF();
 
-    // Fetch Amiri font dynamically
     try {
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
@@ -500,7 +506,7 @@ export default function Dashboard() {
   };
 
   const renderRequests = () => (
-    <div className="p-6 min-h-screen" dir="rtl">
+    <div className="p-6 min-h-screen" >
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
@@ -611,11 +617,11 @@ export default function Dashboard() {
             <span>Excel</span>
           </button>
         </div>
-        <div className="overflow-x-auto" dir="rtl">
+        <div className="overflow-x-auto">
           {isLoading ? (
             <div className="text-center">جارٍ التحميل...</div>
           ) : (
-            <table className="w-full text-right text-sm">
+            <table className="w-full text-right text-sm" dir='ltr' >
               <thead className="bg-teal-900 text-white">
                 <tr>
                   <th className="p-4 pr-6">الإجراءات</th>
@@ -733,7 +739,7 @@ export default function Dashboard() {
   );
 
   const renderAddAvailable = () => (
-    <div className="p-6 bg-gray-100 min-h-screen" dir="rtl">
+    <div className="p-6 bg-gray-100 min-h-screen" >
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-normal text-right">طلب جديد حسب العاملات المتاحات</h1>
         <button
@@ -923,7 +929,7 @@ export default function Dashboard() {
   );
 
   const renderAddSpecs = () => (
-    <div className="p-6 bg-gray-100 min-h-screen" dir="rtl">
+    <div className="p-6 bg-gray-100 min-h-screen" >
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-normal text-right">طلب جديد حسب المواصفات</h1>
         <button
@@ -1124,7 +1130,7 @@ export default function Dashboard() {
         <title>الطلبات الجديدة</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <div className={`text-gray-800 ${Style["tajawal-regular"]}`} dir="rtl">
+      <div className={`text-gray-800 ${Style["tajawal-regular"]}`} >
         {activePopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[999] flex items-center justify-center">
             {activePopup === 'popup-confirm-accept' && (
@@ -1253,28 +1259,55 @@ export default function Dashboard() {
             )}
           </div>
         )}
-        {(showSuccessModal || showErrorModal) && (
+        {(showSuccessModal || showErrorModal || showPermissionModal) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
-              <button
-                className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
-                onClick={closeModal}
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <p className={showSuccessModal ? "text-teal-900" : "text-red-600"}>{modalMessage}</p>
-              <button
-                className="bg-teal-900 text-white px-4 py-2 rounded mt-4 hover:bg-teal-800 transition duration-200"
-                onClick={closeModal}
-              >
-                موافق
-              </button>
-            </div>
+            {showPermissionModal ? (
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  onClick={closePermissionModal}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <p className="text-red-600">غير مصرح لك بعرض هذه الصفحة</p>
+                <button
+                  className="bg-teal-900 text-white px-4 py-2 rounded mt-4 hover:bg-teal-800 transition duration-200"
+                  onClick={closePermissionModal}
+                >
+                  موافق
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+                <button
+                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  onClick={closeModal}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <p className={showSuccessModal ? "text-teal-900" : "text-red-600"}>{modalMessage}</p>
+                <button
+                  className="bg-teal-900 text-white px-4 py-2 rounded mt-4 hover:bg-teal-800 transition duration-200"
+                  onClick={closeModal}
+                >
+                  موافق
+                </button>
+              </div>
+            )}
           </div>
         )}
-        {view === 'requests' && renderRequests()}
-        {view === 'add-available' && renderAddAvailable()}
-        {view === 'add-specs' && renderAddSpecs()}
+        {hasPermission ? (
+          <>
+            {view === 'requests' && renderRequests()}
+            {view === 'add-available' && renderAddAvailable()}
+            {view === 'add-specs' && renderAddSpecs()}
+          </>
+        ) : (
+          <div className="p-6 min-h-screen" >
+            <h1 className="text-3xl font-normal"></h1>
+            <p className="text-gray-600 mt-4">غير مصرح.</p>
+          </div>
+        )}
       </div>
     </Layout>
   );
@@ -1283,7 +1316,7 @@ export default function Dashboard() {
 export async function getServerSideProps({ req }) {
   try {
     const cookieHeader = req.headers.cookie;
-    let cookies: { [key: string]: string } = {};
+    let cookies = {};
     if (cookieHeader) {
       cookieHeader.split(";").forEach((cookie) => {
         const [key, value] = cookie.trim().split("=");
@@ -1303,17 +1336,19 @@ export async function getServerSideProps({ req }) {
       include: { role: true },
     });
 
-    if (!findUser || !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]) {
-      return {
-        redirect: { destination: "/admin/home", permanent: false },
-      };
-    }
+    const hasPermission = findUser && findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"];
 
-    return { props: {} };
+    return {
+      props: {
+        hasPermission: !!hasPermission,
+      },
+    };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
-      redirect: { destination: "/admin/home", permanent: false },
+      props: {
+        hasPermission: false,
+      },
     };
   }
 }
