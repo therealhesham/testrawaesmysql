@@ -8,6 +8,8 @@ import Layout from 'example/containers/Layout';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable'; // Import jspdf-autotable
 import * as XLSX from 'xlsx';
+import prisma from 'lib/prisma';
+import { jwtDecode } from 'jwt-decode';
 
 // // Import Amiri font (you need to add the font file to your project)
 // import AmiriFont from './Amiri-Regular.ttf'; // Adjust the path to where the font file is stored
@@ -369,3 +371,50 @@ const Customers = () => {
 };
 
 export default Customers;
+
+
+
+export async function getServerSideProps ({ req }) {
+  try {
+    // 🔹 Extract cookies
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    // 🔹 Check for authToken
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    // 🔹 Decode JWT
+    const token = jwtDecode(cookies.authToken);
+
+    // 🔹 Fetch user & role with Prisma
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+    if (
+      !findUser ||
+      !findUser.role?.permissions?.["إدارة العملاء"]?.["عرض"]
+    ) {
+      return {
+        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+      };
+    }
+
+    return { props: {} };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      redirect: { destination: "/admin/home", permanent: false },
+    };
+  }
+};
