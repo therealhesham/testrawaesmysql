@@ -1,5 +1,9 @@
+import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 const prisma = new PrismaClient();
 
@@ -108,6 +112,25 @@ console.log(filters)
         },
       });
 
+
+
+const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+    console.log(cookies.authToken)
+    const token = jwtDecode(cookies.authToken);
+
+    eventBus.emit('ACTION', {
+        type: ' عرض صفحة طلبات تحت الاجراء ',
+        userId: Number(token.id),
+      });
+
+
       return res.status(200).json({
         homemaids,
         recruitment,
@@ -117,7 +140,7 @@ console.log(filters)
     } else if (req.method === "POST") {
       const updatedOrder = await prisma.neworder.update({
         where: { id: Number(req.body.id) },
-        data: { bookingstatus: "الاستلام" },
+        data: { bookingstatus: "delivered" },
       });
       return res.status(200).json(updatedOrder);
     }
