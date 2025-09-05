@@ -33,11 +33,13 @@ export default function SystemLogs() {
           page,
         },
       });
-      setLogs(response.data.logs);
-      setTotalCount(response.data.totalCount); // Adjust based on API response if pagination is implemented
+      const logsData = Array.isArray(response.data) ? response.data : response.data.logs || [];
+      setLogs(logsData);
+      setTotalCount(Array.isArray(response.data) ? response.data.length : response.data.totalCount || logsData.length);
       setCurrentPage(page);
     } catch (error) {
       console.error('Error fetching logs:', error.response?.data || error.message);
+      setLogs([]);
     } finally {
       setIsLoading(false);
     }
@@ -47,34 +49,70 @@ export default function SystemLogs() {
   const fetchExportLogs = async () => {
     try {
       const response = await axios.get('/api/systemlogs', {});
-      setExportedData(response.data);
+      const logsData = Array.isArray(response.data) ? response.data : response.data.logs || [];
+      setExportedData(logsData);
     } catch (error) {
       console.error('Error fetching logs for export:', error.response?.data || error.message);
+      setExportedData([]);
     }
   };
 
   // Export to PDF
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     const doc = new jsPDF();
-    doc.setFont('Amiri');
+
+    // Fetch the Amiri font dynamically
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      // Add the font to jsPDF
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      return; // Optionally show an error to the user
+    }
+
+    // Set language and direction
+    doc.setLanguage('ar');
     doc.setFontSize(12);
     doc.text('سجل النظام', 200, 10, { align: 'right' });
 
     const tableColumn = ['رقم السجل', 'الإجراء', 'تاريخ الإنشاء', 'تاريخ التحديث', 'اسم المستخدم'];
-    const tableRows = exportedData.map(row => [
-      row.id,
-      row.action || 'غير متوفر',
-      row.createdAt ? new Date(row.createdAt).toLocaleString() : 'غير متوفر',
-      row.updatedAt ? new Date(row.updatedAt).toLocaleString() : 'غير متوفر',
-      row.user?.username || 'غير متوفر',
-    ]);
+    const tableRows = Array.isArray(exportedData)
+      ? exportedData.map(row => [
+          row.id || 'غير متوفر',
+          row.action || 'غير متوفر',
+          row.createdAt ? new Date(row.createdAt).toLocaleString() : 'غير متوفر',
+          row.updatedAt ? new Date(row.updatedAt).toLocaleString() : 'غير متوفر',
+          row.user?.username || 'غير متوفر',
+        ])
+      : [];
 
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      styles: { font: 'Amiri', halign: 'right' },
-      headStyles: { fillColor: [0, 105, 92] },
-      margin: { top: 20 },
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [0, 105, 92],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 20, right: 10, left: 10 },
+      didParseCell: (data) => {
+        data.cell.styles.halign = 'right';
+      },
     });
 
     doc.save('system_logs.pdf');
@@ -82,18 +120,23 @@ export default function SystemLogs() {
 
   // Export to Excel
   const exportToExcel = () => {
-    const worksheetData = exportedData.map(row => ({
-      'رقم السجل': row.id,
-      'الإجراء': row.action || 'غير متوفر',
-      'تاريخ الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleString() : 'غير متوفر',
-      'تاريخ التحديث': row.updatedAt ? new Date(row.updatedAt).toLocaleString() : 'غير متوفر',
-      'اسم المستخدم': row.user?.username || 'غير متوفر',
-    }));
+    const worksheetData = Array.isArray(exportedData)
+      ? exportedData.map(row => ({
+          'رقم السجل': row.id || 'غير متوفر',
+          'الإجراء': row.action || 'غير متوفر',
+          'تاريخ الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleString() : 'غير متوفر',
+          'تاريخ التحديث': row.updatedAt ? new Date(row.updatedAt).toLocaleString() : 'غير متوفر',
+          'اسم المستخدم': row.user?.username || 'غير متوفر',
+        }))
+      : [];
 
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData, {
+      header: ['رقم السجل', 'الإجراء', 'تاريخ الإنشاء', 'تاريخ التحديث', 'اسم المستخدم'],
+      rtl: true,
+    });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل النظام');
-    XLSX.writeFile(workbook, 'system_logs.xlsx');
+    XLSX.writeFile(workbook, 'system_logs.xlsx', { compression: true });
   };
 
   // Fetch logs on mount and when filters or page change
@@ -102,12 +145,10 @@ export default function SystemLogs() {
     fetchExportLogs();
   }, [currentPage, searchTerm, actionFilter]);
 
-  // Action filter options (you can expand this based on possible actions)
+  // Action filter options
   const actionOptions = [
     { value: '', label: 'كل الإجراءات' },
-    // Add more actions as needed, e.g.:
-    // { value: 'LOGIN', label: 'تسجيل الدخول' },
-    // { value: 'ORDER_CREATE', label: 'إنشاء طلب' },
+    // Add more actions as needed
   ];
 
   // Handle search input change
@@ -196,7 +237,7 @@ export default function SystemLogs() {
         <title>سجل النظام</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <div className={`text-gray-800 ${Style['tajawal-regular']}`}>
+      <div className={`text-gray-800 ${Style['tajawal-regular']}`} dir="rtl">
         <div className="p-6 min-h-screen">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-normal">سجل النظام</h1>
@@ -210,7 +251,7 @@ export default function SystemLogs() {
                     placeholder="بحث"
                     value={searchTerm}
                     onChange={handleSearchChange}
-                    className="bg-transparent border-none w-48"
+                    className="bg-transparent border-none w-48 text-right"
                   />
                   <Search />
                 </div>
@@ -262,14 +303,14 @@ export default function SystemLogs() {
                 </button>
               </div>
             </div>
-            <div className="overflow-x-auto" dir="ltr">
+            <div className="overflow-x-auto" dir="rtl">
               {isLoading ? (
                 <div className="text-center">جارٍ التحميل...</div>
               ) : (
                 <table className="w-full text-right text-sm">
                   <thead className="bg-teal-900 text-white">
                     <tr>
-                      <th className="p-4 pl-6">رقم السجل</th>
+                      <th className="p-4">رقم السجل</th>
                       <th className="p-4">الإجراء</th>
                       <th className="p-4">تاريخ الإنشاء</th>
                       <th className="p-4">تاريخ التحديث</th>
@@ -279,7 +320,7 @@ export default function SystemLogs() {
                   <tbody>
                     {logs.map((log, index) => (
                       <tr key={index} className="bg-gray-50">
-                        <td className="p-4 pl-6">{log.id}</td>
+                        <td className="p-4">{log.id || 'غير متوفر'}</td>
                         <td className="p-4">{log.action || 'غير متوفر'}</td>
                         <td className="p-4">
                           {log.createdAt
@@ -308,7 +349,6 @@ export default function SystemLogs() {
 
 // export async function getServerSideProps({ req }) {
 //   try {
-//     // Extract cookies
 //     const cookieHeader = req.headers.cookie;
 //     let cookies = {};
 //     if (cookieHeader) {
@@ -318,23 +358,18 @@ export default function SystemLogs() {
 //       });
 //     }
 
-//     // Check for authToken
 //     if (!cookies.authToken) {
 //       return {
 //         redirect: { destination: '/admin/login', permanent: false },
 //       };
 //     }
 
-//     // Decode JWT
 //     const token = jwtDecode(cookies.authToken);
-
-//     // Fetch user & role with Prisma
 //     const findUser = await prisma.user.findUnique({
 //       where: { id: token.id },
 //       include: { role: true },
 //     });
 
-//     // Check permissions (assuming similar permission structure)
 //     if (
 //       !findUser ||
 //       !findUser.role?.permissions?.['إدارة السجلات']?.['عرض']

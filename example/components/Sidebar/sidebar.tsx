@@ -107,7 +107,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 91, label: "الملف الشخصي", link: "/admin/messages_list" },
       { id: 92, label: "ادارة المحاسبين", link: "/admin/send_message_to_office" },
-      { id: 93, label: "سجل العمليات", link: "/admin/send_message_to_office" },
+      { id: 93, label: "سجل العمليات", link: "/admin/systemlogs" },
       { id: 94, label: "إدارة المستخدمين", link: "/admin/authorizations" },
 
     ],

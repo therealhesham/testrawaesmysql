@@ -10,7 +10,7 @@ import Select from 'react-select';
 import { MoreHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
@@ -50,19 +50,24 @@ export default function Dashboard() {
   const [modalMessage, setModalMessage] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-const [menuPosition, setMenuPosition] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
 
-const handleOpenMenu = (e, rowIndex) => {
-  const rect = e.currentTarget.getBoundingClientRect();
-  setMenuPosition({
-    x: rect.right - 160, // عرض المنيو
-    y: rect.bottom + 5,  // مسافة صغيرة تحت الزر
-    row: rowIndex,
-  });
-};
+  const router = useRouter();
+
+  const handleOpenMenu = (e, rowIndex) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPosition({
+      x: rect.right - 160,
+      y: rect.bottom + 5,
+      row: rowIndex,
+    });
+  };
 
   const openPopup = (popupId) => setActivePopup(popupId);
-  const closePopup = () => setActivePopup(null);
+  const closePopup = () => {
+    setActivePopup(null);
+    setMenuPosition(null);
+  };
   const closeModal = () => {
     setShowSuccessModal(false);
     setShowErrorModal(false);
@@ -70,28 +75,33 @@ const handleOpenMenu = (e, rowIndex) => {
   };
 
   const confirmAccept = async (id) => {
-    const confirmRequest = await axios.post('/api/confirmrequest', { id});
-    if(confirmRequest.status === 200) {
-      setModalMessage('تم قبول الطلب');
-      
-      setShowSuccessModal(true);
+    try {
+      const confirmRequest = await axios.post('/api/confirmrequest', { id });
+      if (confirmRequest.status === 200) {
+        setModalMessage('تم قبول الطلب');
+        setShowSuccessModal(true);
+        newOrdersList();
+      }
+    } catch (error) {
+      setModalMessage('حدث خطأ أثناء قبول الطلب');
+      setShowErrorModal(true);
     }
     closePopup();
   };
 
-  const confirmReject =async (id) => {
-
-const rejectrequest = await axios.post('/api/confirmrequest', { id});
-
-
-    if(rejectrequest.status === 200) {
-       setModalMessage('تم رفض الطلب');
-    setShowSuccessModal(true);
-    closePopup();
-    router.push("/admin/rejectedorders")
+  const confirmReject = async (id) => {
+    try {
+      const rejectRequest = await axios.post('/api/rejectbookingprisma', { id });
+      if (rejectRequest.status === 200) {
+        setModalMessage('تم رفض الطلب');
+        setShowSuccessModal(true);
+        router.push("/admin/rejectedorders");
+      }
+    } catch (error) {
+      setModalMessage('حدث خطأ أثناء رفض الطلب');
+      setShowErrorModal(true);
     }
     closePopup();
- 
   };
 
   const homemaidOptions = homemaids.map(homemaid => ({
@@ -99,11 +109,9 @@ const rejectrequest = await axios.post('/api/confirmrequest', { id});
     label: homemaid.Name,
   }));
 
-const router = useRouter();
-  function handleOrderClick(id: any): void {
-  router.push(`/admin/track_order/${id}`);
-}
-
+  const handleOrderClick = (id) => {
+    router.push(`/admin/track_order/${id}`);
+  };
 
   const handleHomemaidSelect = (selectedOption) => {
     if (selectedOption) {
@@ -142,11 +150,11 @@ const router = useRouter();
 
   const [exportedData, setExportedData] = useState([]);
 
-  const newExportOrdersList = async (page = 1) => {
+  const newExportOrdersList = async () => {
     setIsLoading(true);
     try {
-      const fetchNewOrders = await axios.get("/api/Export/neworders", {});
-      setExportedData(fetchNewOrders.data.homemaids);
+      const fetchNewOrders = await axios.get("/api/Export/neworders");
+      setExportedData(Array.isArray(fetchNewOrders.data.homemaids) ? fetchNewOrders.data.homemaids : []);
     } catch (error) {
       console.error("Error fetching new orders:", error.response?.data || error.message);
     } finally {
@@ -165,11 +173,13 @@ const router = useRouter();
           page,
         },
       });
-      setNewOrders(fetchNewOrders.data.homemaids);
-      setTotalCount(fetchNewOrders.data.totalCount);
-      setCurrentPage(fetchNewOrders.data.page);
+      setNewOrders(Array.isArray(fetchNewOrders.data.homemaids) ? fetchNewOrders.data.homemaids : []);
+      setTotalCount(fetchNewOrders.data.totalCount || 0);
+      setCurrentPage(fetchNewOrders.data.page || 1);
     } catch (error) {
       console.error("Error fetching new orders:", error.response?.data || error.message);
+      setNewOrders([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
@@ -178,7 +188,7 @@ const router = useRouter();
   const fetchClients = async () => {
     try {
       const response = await axios.get("/api/clients");
-      setClients(response.data.data);
+      setClients(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       console.error('Error fetching clients:', error);
     }
@@ -187,7 +197,7 @@ const router = useRouter();
   const fetchHomemaids = async () => {
     try {
       const response = await axios.get("/api/autocomplete/homemaids");
-      setHomemaids(response.data.data);
+      setHomemaids(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       console.error('Error fetching homemaids:', error);
     }
@@ -196,7 +206,7 @@ const router = useRouter();
   const fetchOffices = async () => {
     try {
       const response = await axios.get("/api/offices");
-      setOffices(response.data.countriesfinder);
+      setOffices(Array.isArray(response.data.countriesfinder) ? response.data.countriesfinder : []);
     } catch (error) {
       console.error('Error fetching offices:', error);
     }
@@ -211,7 +221,6 @@ const router = useRouter();
         const paid = parseFloat(updatedFormData.Paid) || 0;
         updatedFormData.Remaining = total - paid;
       }
-      console.log(formData.PaymentMethod)
       return updatedFormData;
     });
   };
@@ -251,8 +260,7 @@ const router = useRouter();
     setCurrentPage(1);
   };
 
-
-const handleSubmitSpecs = async (e) => {
+  const handleSubmitSpecs = async (e) => {
     e.preventDefault();
     try {
       const response = await axios.post("/api/submitneworderbyspecs", formData);
@@ -261,7 +269,7 @@ const handleSubmitSpecs = async (e) => {
       setView('requests');
       newOrdersList();
     } catch (error) {
-      setModalMessage('حدث خطأ أثناء إضافة الطلب');
+      setModalMessage(error.response?.data?.message || 'حدث خطأ أثناء إضافة الطلب');
       setShowErrorModal(true);
     }
   };
@@ -275,69 +283,124 @@ const handleSubmitSpecs = async (e) => {
       setView('requests');
       newOrdersList();
     } catch (error) {
-      console.error('Error creating order:', error.response.data.message);
-      setModalMessage( error.response.data.message);
+      setModalMessage(error.response?.data?.message || 'حدث خطأ أثناء إضافة الطلب');
       setShowErrorModal(true);
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     const doc = new jsPDF();
-    doc.setFont("Amiri");
+
+    // Fetch Amiri font dynamically
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      setModalMessage('خطأ في تحميل الخط العربي');
+      setShowErrorModal(true);
+      return;
+    }
+
+    doc.setLanguage('ar');
     doc.setFontSize(12);
-    doc.text("الطلبات الجديدة", 200, 10, { align: 'right' });
+    doc.text('الطلبات الجديدة', 200, 10, { align: 'right' });
 
     const tableColumn = [
-      "رقم الطلب",
-      "اسم العميل",
-      "رقم العميل",
-      "هوية العميل",
-      "رقم العاملة",
-      "اسم العاملة",
-      "الجنسية",
-      "جواز السفر",
-      "العمر",
+      'رقم الطلب',
+      'اسم العميل',
+      'رقم العميل',
+      'هوية العميل',
+      'رقم العاملة',
+      'اسم العاملة',
+      'الجنسية',
+      'جواز السفر',
+      'العمر',
     ];
     const tableRows = exportedData.map(row => [
-      row.id,
-      row.client?.fullname || "غير متوفر",
-      row.client?.phonenumber || "غير متوفر",
-      row.client?.nationalId || "غير متوفر",
-      row.HomeMaid?.id || "غير متوفر",
-      row.HomeMaid?.Name || "غير متوفر",
-      row.HomeMaid?.office?.Country || "غير متوفر",
-      row.Passportnumber || "غير متوفر",
+      row.id || 'غير متوفر',
+      row.client?.fullname || 'غير متوفر',
+      row.client?.phonenumber || 'غير متوفر',
+      row.client?.nationalId || 'غير متوفر',
+      row.HomeMaid?.id || 'غير متوفر',
+      row.HomeMaid?.Name || 'غير متوفر',
+      row.HomeMaid?.office?.Country || 'غير متوفر',
+      row.Passportnumber || 'غير متوفر',
       row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
     ]);
 
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      styles: { font: "Amiri", halign: 'right' },
-      headStyles: { fillColor: [0, 105, 92] },
-      margin: { top: 20 },
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [0, 105, 92],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 20, right: 10, left: 10 },
+      didParseCell: (data) => {
+        data.cell.styles.halign = 'right';
+      },
     });
 
-    doc.save("new_orders.pdf");
+    doc.save('new_orders.pdf');
   };
 
-  const exportToExcel = () => {
-    const worksheetData = exportedData.map(row => ({
-      "رقم الطلب": row.id,
-      "اسم العميل": row.client?.fullname || "غير متوفر",
-      "رقم العميل": row.client?.phonenumber || "غير متوفر",
-      "هوية العميل": row.client?.nationalId || "غير متوفر",
-      "رقم العاملة": row.HomeMaid?.id || "غير متوفر",
-      "اسم العاملة": row.HomeMaid?.Name || "غير متوفر",
-      "الجنسية": row.HomeMaid?.office?.Country || "غير متوفر",
-      "جواز السفر": row.Passportnumber || "غير متوفر",
-      "العمر": row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
-    }));
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('الطلبات الجديدة', { properties: { defaultColWidth: 20 } });
 
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات الجديدة");
-    XLSX.writeFile(workbook, "new_orders.xlsx");
+    worksheet.columns = [
+      { header: 'رقم الطلب', key: 'id', width: 15 },
+      { header: 'اسم العميل', key: 'clientName', width: 20 },
+      { header: 'رقم العميل', key: 'clientPhone', width: 15 },
+      { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
+      { header: 'رقم العاملة', key: 'maidId', width: 15 },
+      { header: 'اسم العاملة', key: 'maidName', width: 20 },
+      { header: 'الجنسية', key: 'nationality', width: 15 },
+      { header: 'جواز السفر', key: 'passport', width: 15 },
+      { header: 'العمر', key: 'age', width: 10 },
+    ];
+
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+    exportedData.forEach(row => {
+      worksheet.addRow({
+        id: row.id || 'غير متوفر',
+        clientName: row.client?.fullname || 'غير متوفر',
+        clientPhone: row.client?.phonenumber || 'غير متوفر',
+        clientNationalId: row.client?.nationalId || 'غير متوفر',
+        maidId: row.HomeMaid?.id || 'غير متوفر',
+        maidName: row.HomeMaid?.Name || 'غير متوفر',
+        nationality: row.HomeMaid?.office?.Country || 'غير متوفر',
+        passport: row.Passportnumber || 'غير متوفر',
+        age: row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
+      }).alignment = { horizontal: 'right' };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'new_orders.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -397,7 +460,7 @@ const handleSubmitSpecs = async (e) => {
           onClick={() => handlePageChange(i)}
           className={`px-2 py-1 border rounded text-sm ${
             i === currentPage
-              ? 'border-teal-800 bg-teal-900 text-white'
+              ? 'border-teal-900 bg-teal-900 text-white'
               : 'border-gray-300 bg-gray-50'
           }`}
         >
@@ -437,7 +500,7 @@ const handleSubmitSpecs = async (e) => {
   };
 
   const renderRequests = () => (
-    <div className="p-6 min-h-screen">
+    <div className="p-6 min-h-screen" dir="rtl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
@@ -445,7 +508,7 @@ const handleSubmitSpecs = async (e) => {
           onClick={() => openPopup('popup-product-check')}
         >
           <Plus />
-          <span>اضافة طلب</span>
+          <span>إضافة طلب</span>
         </button>
       </div>
       <div className="bg-white border border-gray-300 rounded p-6">
@@ -457,7 +520,7 @@ const handleSubmitSpecs = async (e) => {
                 placeholder="بحث"
                 value={formData.searchTerm || ""}
                 onChange={handleSearchChange}
-                className="bg-transparent border-none w-48"
+                className="bg-transparent border-none w-48 text-right"
               />
               <Search />
             </div>
@@ -473,8 +536,17 @@ const handleSubmitSpecs = async (e) => {
                     backgroundColor: '#F9FAFB',
                     borderColor: '#D1D5DB',
                     textAlign: 'right',
+                    paddingRight: '0.5rem',
                   }),
                   menu: (base) => ({
+                    ...base,
+                    textAlign: 'right',
+                  }),
+                  singleValue: (base) => ({
+                    ...base,
+                    textAlign: 'right',
+                  }),
+                  placeholder: (base) => ({
                     ...base,
                     textAlign: 'right',
                   }),
@@ -486,15 +558,24 @@ const handleSubmitSpecs = async (e) => {
                 options={nationalityOptions}
                 onChange={handleNationalityFilterChange}
                 placeholder="كل الجنسيات"
-                className="text-right w-full"
+                className="w-40 text-right"
                 styles={{
                   control: (base) => ({
                     ...base,
                     backgroundColor: '#F9FAFB',
                     borderColor: '#D1D5DB',
                     textAlign: 'right',
+                    paddingRight: '0.5rem',
                   }),
                   menu: (base) => ({
+                    ...base,
+                    textAlign: 'right',
+                  }),
+                  singleValue: (base) => ({
+                    ...base,
+                    textAlign: 'right',
+                  }),
+                  placeholder: (base) => ({
                     ...base,
                     textAlign: 'right',
                   }),
@@ -530,14 +611,14 @@ const handleSubmitSpecs = async (e) => {
             <span>Excel</span>
           </button>
         </div>
-        <div className="overflow-x-auto" dir="ltr">
+        <div className="overflow-x-auto" dir="rtl">
           {isLoading ? (
             <div className="text-center">جارٍ التحميل...</div>
           ) : (
             <table className="w-full text-right text-sm">
               <thead className="bg-teal-900 text-white">
                 <tr>
-                  <th className="p-4 pr-6">الاجراءات</th>
+                  <th className="p-4 pr-6">الإجراءات</th>
                   <th className="p-4">عرض</th>
                   <th className="p-4">العمر</th>
                   <th className="p-4">جواز السفر</th>
@@ -554,67 +635,67 @@ const handleSubmitSpecs = async (e) => {
                 {newOrders.map((row, index) => (
                   <>
                     <tr key={index} className="bg-gray-50">
-                     <td className="p-4 pr-6">
-  <button
-    className="p-1 cursor-pointer"
-    onClick={(e) => handleOpenMenu(e, index)}
-  >
-    <MoreHorizontal />
-  </button>
-{menuPosition && menuPosition.row === index && (
-  <div
-    className="fixed w-40 bg-teal-100 border border-gray-200 rounded shadow-lg z-50"
-    style={{ 
-      top: typeof menuPosition.y === 'number' ? menuPosition.y : 0, 
-      left: typeof menuPosition.x === 'number' ? menuPosition.x : 0 
-    }}
-  >
-    <button
-      className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-      onClick={() => {
-        setSelectedOrderId(row?.id);
-        openPopup("popup-confirm-accept");
-        setMenuPosition(null);
-      }}
-    >
-      قبول الطلب
-    </button>
-    <button
-      className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-      onClick={() => {
-        setSelectedOrderId(row?.id);
-
-        openPopup("popup-confirm-reject");
-        setMenuPosition(null);
-      }}
-    >
-      رفض الطلب
-    </button>
-    <button
-      className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-      onClick={() => {
-        alert("تعديل الطلب");
-        setMenuPosition(null);
-      }}
-    >
-      تعديل
-    </button>
-  </div>
-)}
-</td>
-
+                      <td className="p-4 pr-6">
+                        <button
+                          className="p-1 cursor-pointer"
+                          onClick={(e) => handleOpenMenu(e, index)}
+                        >
+                          <MoreHorizontal />
+                        </button>
+                        {menuPosition && menuPosition.row === index && (
+                          <div
+                            className="fixed w-40 bg-teal-100 border border-gray-200 rounded shadow-lg z-50"
+                            style={{
+                              top: typeof menuPosition.y === 'number' ? menuPosition.y : 0,
+                              left: typeof menuPosition.x === 'number' ? menuPosition.x : 0,
+                            }}
+                          >
+                            <button
+                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+                              onClick={() => {
+                                setSelectedOrderId(row?.id);
+                                openPopup("popup-confirm-accept");
+                                setMenuPosition(null);
+                              }}
+                            >
+                              قبول الطلب
+                            </button>
+                            <button
+                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+                              onClick={() => {
+                                setSelectedOrderId(row?.id);
+                                openPopup("popup-confirm-reject");
+                                setMenuPosition(null);
+                              }}
+                            >
+                              رفض الطلب
+                            </button>
+                            <button
+                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+                              onClick={() => {
+                                alert("تعديل الطلب");
+                                setMenuPosition(null);
+                              }}
+                            >
+                              تعديل
+                            </button>
+                          </div>
+                        )}
+                      </td>
                       <td className="p-4 cursor-pointer">
                         <ArrowDown onClick={() => toggleDetails(index)} />
                       </td>
                       <td className="p-4">{row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth)}</td>
-                      <td className="p-4">{row.Passportnumber}</td>
-                      <td className="p-4">{row.HomeMaid?.office?.Country}</td>
-                      <td className="p-4">{row.HomeMaid?.Name}</td>
-                      <td className="p-4">{row.HomeMaid?.id}</td>
-                      <td className="p-4">{row.client?.nationalId}</td>
-                      <td className="p-4">{row.client?.phonenumber}</td>
-                      <td className="p-4">{row.client?.fullname}</td>
-                      <td className="p-4 pl-6 cursor-pointer" onClick={() => handleOrderClick(row.id)}>{row.id}</td>
+                      <td className="p-4">{row.Passportnumber || 'غير متوفر'}</td>
+                      <td className="p-4">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                      <td className="p-4">{row.HomeMaid?.Name || 'غير متوفر'}</td>
+                      <td className="p-4">{row.HomeMaid?.id || 'غير متوفر'}</td>
+                      <td className="p-4">{row.client?.nationalId || 'غير متوفر'}</td>
+                      <td className="p-4">{row.client?.phonenumber || 'غير متوفر'}</td>
+                      <td className="p-4">{row.client?.fullname || 'غير متوفر'}</td>
+                      <td className="p-4 pl-6 cursor-pointer" onClick={() => handleOrderClick(row.id)}>
+                        #{row.id}
+                      </td>
                     </tr>
                     {detailsRow === index && (
                       <tr className="bg-white">
@@ -630,7 +711,7 @@ const handleSubmitSpecs = async (e) => {
                               </div>
                               <div className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
                                 <span>{row.HomeMaid?.logs[0]?.status || "غير متوفر"}</span>
-                                <span>{row.HomeMaid?.logs[0]?.createdAt || "غير متوفر"}</span>
+                                <span>{row.HomeMaid?.logs[0]?.createdAt ? new Date(row.HomeMaid.logs[0].createdAt).toLocaleString('ar-SA') : "غير متوفر"}</span>
                                 <span>{row.HomeMaid?.logs[0]?.user?.username || "غير متوفر"}</span>
                                 <span>{row.HomeMaid?.logs[0]?.Details || "غير متوفر"}</span>
                                 <span>{row.HomeMaid?.logs[0]?.reason || "غير متوفر"}</span>
@@ -652,7 +733,7 @@ const handleSubmitSpecs = async (e) => {
   );
 
   const renderAddAvailable = () => (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 bg-gray-100 min-h-screen" dir="rtl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-normal text-right">طلب جديد حسب العاملات المتاحات</h1>
         <button
@@ -683,6 +764,14 @@ const handleSubmitSpecs = async (e) => {
                   ...base,
                   textAlign: 'right',
                 }),
+                singleValue: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
+                placeholder: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
               }}
             />
           </div>
@@ -693,7 +782,7 @@ const handleSubmitSpecs = async (e) => {
               name="PhoneNumber"
               value={formData.PhoneNumber}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -701,7 +790,7 @@ const handleSubmitSpecs = async (e) => {
             <input
               type="text"
               placeholder="مدينة العميل"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -723,6 +812,14 @@ const handleSubmitSpecs = async (e) => {
                   ...base,
                   textAlign: 'right',
                 }),
+                singleValue: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
+                placeholder: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
               }}
             />
           </div>
@@ -732,7 +829,7 @@ const handleSubmitSpecs = async (e) => {
               type="text"
               value={formData.HomemaidId || ''}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -742,7 +839,7 @@ const handleSubmitSpecs = async (e) => {
               name="Nationalitycopy"
               value={formData.Nationalitycopy}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -752,19 +849,24 @@ const handleSubmitSpecs = async (e) => {
               name="Religion"
               value={formData.Religion}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
         </div>
         <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
           <div className="flex flex-wrap gap-6 justify-center">
-            {[// عايز الاوبشن يتلون لما اختاره
-              { option: 'كاش', icon: formData.PaymentMethod == "كاش" ? <CashIcon className="w-6 h-6 text-teal-800" /> : <CashIcon className="w-6 h-6 text-gray-400" /> },
-              { option: 'دفعتين', icon: formData.PaymentMethod == "دفعتين" ? <CreditCardIcon className="w-6 h-6 text-teal-800" /> : <CreditCardIcon className="w-6 h-6 text-gray-400" /> },
-              { option: 'ثلاثة دفعات', icon: formData.PaymentMethod == "ثلاثة دفعات" ? <CurrencyDollarIcon className="w-6 h-6 text-teal-800" /> : <CurrencyDollarIcon className="w-6 h-6 text-gray-400" /> },
+            {[
+              { option: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'كاش' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+              { option: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'دفعتين' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'ثلاثة دفعات' ? 'text-teal-800' : 'text-gray-400'}`} /> },
             ].map(({ option, icon }, index) => (
-              <label key={index} className="flex items-center gap-3 p-3 border-2 border-gray-300 rounded bg-gray-50 cursor-pointer w-60">
+              <label
+                key={index}
+                className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
+                  formData.PaymentMethod === option ? 'border-teal-900 bg-teal-100' : 'border-gray-300 bg-gray-50'
+                }`}
+              >
                 <input
                   type="radio"
                   name="PaymentMethod"
@@ -773,7 +875,9 @@ const handleSubmitSpecs = async (e) => {
                   onChange={handleFormChange}
                   className="hidden"
                 />
-                <span className="text-teal-800 text-xl">{option}</span>
+                <span className={`text-xl ${formData.PaymentMethod === option ? 'text-teal-900' : 'text-teal-800'}`}>
+                  {option}
+                </span>
                 {icon}
               </label>
             ))}
@@ -787,7 +891,7 @@ const handleSubmitSpecs = async (e) => {
               name="Total"
               value={formData.Total}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -797,7 +901,7 @@ const handleSubmitSpecs = async (e) => {
               name="Paid"
               value={formData.Paid}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -806,20 +910,20 @@ const handleSubmitSpecs = async (e) => {
               type="text"
               value={`${formData.Remaining.toFixed(2)} SR`}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
         </div>
         <div className="flex gap-6 flex-col sm:flex-row">
           <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
-          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">الغاء</button>
+          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
         </div>
       </form>
     </div>
   );
 
   const renderAddSpecs = () => (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 bg-gray-100 min-h-screen" dir="rtl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-normal text-right">طلب جديد حسب المواصفات</h1>
         <button
@@ -850,6 +954,14 @@ const handleSubmitSpecs = async (e) => {
                   ...base,
                   textAlign: 'right',
                 }),
+                singleValue: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
+                placeholder: (base) => ({
+                  ...base,
+                  textAlign: 'right',
+                }),
               }}
             />
           </div>
@@ -860,7 +972,7 @@ const handleSubmitSpecs = async (e) => {
               name="PhoneNumber"
               value={formData.PhoneNumber}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -868,7 +980,7 @@ const handleSubmitSpecs = async (e) => {
             <input
               type="text"
               placeholder="مدينة العميل"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -879,7 +991,7 @@ const handleSubmitSpecs = async (e) => {
               value={formData.age}
               onChange={handleFormChange}
               placeholder="اختر العمر"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -890,7 +1002,7 @@ const handleSubmitSpecs = async (e) => {
               value={formData.ExperienceYears}
               onChange={handleFormChange}
               placeholder="اختر سنوات الخبرة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -901,7 +1013,7 @@ const handleSubmitSpecs = async (e) => {
               value={formData.Nationalitycopy}
               onChange={handleFormChange}
               placeholder="اختر جنسية العاملة المطلوبة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -912,7 +1024,7 @@ const handleSubmitSpecs = async (e) => {
               value={formData.Religion}
               onChange={handleFormChange}
               placeholder="اختر الديانة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -923,19 +1035,24 @@ const handleSubmitSpecs = async (e) => {
               value={formData.notes}
               onChange={handleFormChange}
               placeholder="ادخل أي ملاحظات أو بيانات أخرى ..."
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
         </div>
         <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
-          <div className="flex self-center justify-center gap-6">
+          <div className="flex flex-wrap gap-6 justify-center">
             {[
-              { option: 'كاش', icon: <CashIcon className="w-6 h-6 text-teal-800" /> },
-              { option: 'دفعتين', icon: <CreditCardIcon className="w-6 h-6 text-teal-800" /> },
-              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className="w-6 h-6 text-teal-800" /> },
+              { option: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'كاش' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+              { option: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'دفعتين' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'ثلاثة دفعات' ? 'text-teal-800' : 'text-gray-400'}`} /> },
             ].map(({ option, icon }, index) => (
-              <label key={index} className="flex items-center gap-3 p-3 border-2 border-gray-300 rounded bg-gray-50 cursor-pointer w-60">
+              <label
+                key={index}
+                className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
+                  formData.PaymentMethod === option ? 'border-teal-900 bg-teal-100' : 'border-gray-300 bg-gray-50'
+                }`}
+              >
                 <input
                   type="radio"
                   name="PaymentMethod"
@@ -944,7 +1061,9 @@ const handleSubmitSpecs = async (e) => {
                   onChange={handleFormChange}
                   className="hidden"
                 />
-                <span className="text-teal-800 text-xl">{option}</span>
+                <span className={`text-xl ${formData.PaymentMethod === option ? 'text-teal-900' : 'text-teal-800'}`}>
+                  {option}
+                </span>
                 {icon}
               </label>
             ))}
@@ -958,7 +1077,7 @@ const handleSubmitSpecs = async (e) => {
               name="Total"
               value={formData.Total}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -968,7 +1087,7 @@ const handleSubmitSpecs = async (e) => {
               name="Paid"
               value={formData.Paid}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -977,7 +1096,7 @@ const handleSubmitSpecs = async (e) => {
               type="text"
               value={`${formData.Remaining.toFixed(2)} SR`}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500"
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
         </div>
@@ -986,14 +1105,14 @@ const handleSubmitSpecs = async (e) => {
           <div className="flex gap-3 items-center">
             <input
               type="file"
-              className="bg-gray-50 border border-gray-300 rounded p-3 flex-1"
+              className="bg-gray-50 border border-gray-300 rounded p-3 flex-1 text-right"
             />
             <button className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200">اختيار ملف</button>
           </div>
         </div>
         <div className="flex gap-6 flex-col sm:flex-row">
           <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
-          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">الغاء</button>
+          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
         </div>
       </form>
     </div>
@@ -1005,7 +1124,7 @@ const handleSubmitSpecs = async (e) => {
         <title>الطلبات الجديدة</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <div className={`text-gray-800 ${Style["tajawal-regular"]}`}>
+      <div className={`text-gray-800 ${Style["tajawal-regular"]}`} dir="rtl">
         {activePopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[999] flex items-center justify-center">
             {activePopup === 'popup-confirm-accept' && (
@@ -1022,11 +1141,11 @@ const handleSubmitSpecs = async (e) => {
                     className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-200"
                     onClick={closePopup}
                   >
-                    الغاء
+                    إلغاء
                   </button>
                   <button
                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-                    onClick={()=>confirmAccept(selectedOrderId)}
+                    onClick={() => confirmAccept(selectedOrderId)}
                   >
                     نعم
                   </button>
@@ -1047,11 +1166,11 @@ const handleSubmitSpecs = async (e) => {
                     className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-200"
                     onClick={closePopup}
                   >
-                    الغاء
+                    إلغاء
                   </button>
                   <button
                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-                    onClick={()=>confirmReject(selectedOrderId)}
+                    onClick={() => confirmReject(selectedOrderId)}
                   >
                     نعم
                   </button>
@@ -1082,6 +1201,14 @@ const handleSubmitSpecs = async (e) => {
                       textAlign: 'right',
                     }),
                     menu: (base) => ({
+                      ...base,
+                      textAlign: 'right',
+                    }),
+                    singleValue: (base) => ({
+                      ...base,
+                      textAlign: 'right',
+                    }),
+                    placeholder: (base) => ({
                       ...base,
                       textAlign: 'right',
                     }),
@@ -1153,12 +1280,8 @@ const handleSubmitSpecs = async (e) => {
   );
 }
 
-
-
-export async function getServerSideProps ({ req }) {
+export async function getServerSideProps({ req }) {
   try {
-    console.log("sss")
-    // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -1168,28 +1291,21 @@ export async function getServerSideProps ({ req }) {
       });
     }
 
-    // 🔹 Check for authToken
     if (!cookies.authToken) {
       return {
         redirect: { destination: "/admin/login", permanent: false },
       };
     }
 
-    // 🔹 Decode JWT
     const token = jwtDecode(cookies.authToken);
-
-    // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
-console.log(findUser.role?.permissions?.["إدارة الطلبات"])
-    if (
-      !findUser ||
-      !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]
-    ) {
+
+    if (!findUser || !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]) {
       return {
-        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+        redirect: { destination: "/admin/home", permanent: false },
       };
     }
 
@@ -1200,4 +1316,4 @@ console.log(findUser.role?.permissions?.["إدارة الطلبات"])
       redirect: { destination: "/admin/home", permanent: false },
     };
   }
-};
+}
