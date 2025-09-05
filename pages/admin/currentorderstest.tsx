@@ -12,7 +12,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 
-export default function Dashboard() {
+export default function Dashboard({ hasPermission, redirectTo }) {
   const router = useRouter();
   const [data, setData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,25 +29,29 @@ export default function Dashboard() {
   const [nationalities, setNationalities] = useState([]);
   const [statuses] = useState(['تحت الإجراء', 'قيد التنفيذ']);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(!hasPermission);
 
   const pageSize = 10;
 
   // Fetch offices and nationalities
   useEffect(() => {
-    const fetchOffices = async () => {
-      try {
-        const response = await axios.get("/api/offices");
-        setOffices(response.data.officesFinder || []);
-        setNationalities(response.data.countriesfinder || []);
-      } catch (error) {
-        console.error('Error fetching offices:', error);
-      }
-    };
-    fetchOffices();
-  }, []);
+    if (hasPermission) {
+      const fetchOffices = async () => {
+        try {
+          const response = await axios.get("/api/offices");
+          setOffices(response.data.officesFinder || []);
+          setNationalities(response.data.countriesfinder || []);
+        } catch (error) {
+          console.error('Error fetching offices:', error);
+        }
+      };
+      fetchOffices();
+    }
+  }, [hasPermission]);
 
   // Fetch data with filters
   async function fetchData(page = 1) {
+    if (!hasPermission) return;
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
@@ -76,14 +80,15 @@ export default function Dashboard() {
 
   // Fetch data when filters or contract type change
   useEffect(() => {
-    fetchData();
-  }, [contractType, searchTerm, nationality, office, status]);
+    if (hasPermission) {
+      fetchData();
+    }
+  }, [contractType, searchTerm, nationality, office, status, hasPermission]);
 
   // Export to PDF
   const exportToPDF = async () => {
     const doc = new jsPDF();
 
-    // Fetch Amiri font dynamically
     try {
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
@@ -225,6 +230,11 @@ export default function Dashboard() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handlePermissionModalClose = () => {
+    setIsPermissionModalOpen(false);
+    router.push(redirectTo || "/admin/home");
   };
 
   const renderPagination = () => {
@@ -491,6 +501,27 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {isPermissionModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md relative" dir="rtl">
+            <button
+              onClick={handlePermissionModalClose}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-xl font-bold mb-4 text-right">غير مصرح</h2>
+            <p className="text-right mb-4">ليس لديك الصلاحيات اللازمة للوصول إلى هذه الصفحة.</p>
+            <button
+              onClick={handlePermissionModalClose}
+              className="bg-teal-900 text-white rounded px-4 py-2 w-full font-tajawal"
+            >
+              الذهاب إلى صفحة تسجيل الدخول
+            </button>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
@@ -508,7 +539,7 @@ export async function getServerSideProps({ req }) {
 
     if (!cookies.authToken) {
       return {
-        redirect: { destination: "/admin/login", permanent: false },
+        props: { hasPermission: false, redirectTo: "/admin/login" },
       };
     }
 
@@ -520,15 +551,15 @@ export async function getServerSideProps({ req }) {
 
     if (!findUser || !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]) {
       return {
-        redirect: { destination: "/admin/home", permanent: false },
+        props: { hasPermission: false, redirectTo: "/admin/home" },
       };
     }
 
-    return { props: {} };
+    return { props: { hasPermission: true } };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
-      redirect: { destination: "/admin/home", permanent: false },
+      props: { hasPermission: false, redirectTo: "/admin/home" },
     };
   }
 }
