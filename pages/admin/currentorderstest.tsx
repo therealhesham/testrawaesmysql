@@ -201,13 +201,13 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between items-center mb-6 flex-col sm:flex-row gap-4">
                 <div className="flex gap-4">
-                  <div className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-4">
+                  <div className="flex items-center bg-gray-50 border border-gray-300 rounded  gap-4">
                     <input
                       type="text"
                       placeholder="بحث"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="border-none bg-transparent outline-none text-right font-tajawal text-md text-gray-500"
+                      className="border-none bg-transparent  text-md text-gray-500"
                     />
                     <Search className="w-4 h-4 text-gray-500" />
                   </div>
@@ -215,9 +215,9 @@ export default function Dashboard() {
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer appearance-none"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded  gap-10 text-md text-gray-500 cursor-pointer appearance-none"
                     >
-                      <option value="">حالة الطلب</option>
+                      <option value="">حالة الطلب   </option>
                       {statuses.map((s) => (
                         <option key={s} value={s}>
                           {s}
@@ -229,7 +229,7 @@ export default function Dashboard() {
                     <select
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer appearance-none"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded  gap-10 text-md text-gray-500 cursor-pointer appearance-none"
                     >
                       <option value="">كل الجنسيات</option>
                       {nationalities.map((nat) => (
@@ -243,7 +243,7 @@ export default function Dashboard() {
                     <select
                       value={office}
                       onChange={(e) => setOffice(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer appearance-none"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none"
                     >
                       <option value="">كل المكاتب</option>
                       {offices.map((off: any) => (

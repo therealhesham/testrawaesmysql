@@ -1,5 +1,10 @@
+import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
+
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+import { jwtDecode } from "jwt-decode";
+import eventBus from "lib/eventBus";
 
 export default async function handler(
   req: NextApiRequest,
@@ -74,6 +79,25 @@ export default async function handler(
         Nationalitycopy: order.HomeMaid?.office?.Country || order.Nationalitycopy || "غير متوفر",
       }));
 
+
+      
+      const cookieHeader = req.headers.cookie;
+          let cookies: { [key: string]: string } = {};
+          if (cookieHeader) {
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+          }
+          console.log(cookies.authToken)
+          const token = jwtDecode(cookies.authToken);
+      
+          eventBus.emit('ACTION', {
+              type: ' عرض صفحة طلبات تحت الاجراء ',
+              userId: Number(token.id),
+            });
+      
+      
       // Send the filtered and paginated data along with total count
       res.status(200).json({
         data: formattedData,

@@ -98,7 +98,7 @@ export default function TrackOrder() {
           await fetchOrderData();
         } catch (error: any) {
           console.error('Error updating status:', error);
-          setError('حدث خطأ أثناء تحديث الحالة');
+          setError(error);
         } finally {
           setUpdating(false);
         }

@@ -1,6 +1,11 @@
+import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
+
+
 import { Prisma } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 export default async function handler(
   req: NextApiRequest,
@@ -82,6 +87,22 @@ export default async function handler(
         Order: { connect: { id: result?.id } },
       },
     });
+
+const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+    console.log(cookies.authToken)
+    const token = jwtDecode(cookies.authToken);
+
+    eventBus.emit('ACTION', {
+        type: 'تسجيل طلب جديد رقم  ' + result.id,
+        userId: Number(token.id),
+      });
 
     // console.log(result);
     // Send response after the transaction is successful

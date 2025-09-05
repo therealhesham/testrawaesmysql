@@ -1,3 +1,5 @@
+import '../../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
+
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
@@ -143,10 +145,11 @@ const cookieHeader = req.headers.cookie;
     console.log(cookies.authToken)
     const token = jwtDecode(cookies.authToken);
 
-    eventBus.emit("ACTION", {
-      type: "عرض صفحة تتبع طلب " + order.id,
-      userId:Number(token.id)
-    });
+    eventBus.emit('ACTION', {
+        type: 'عرض صفحة تتبع طلب ' + order.id,
+        userId: Number(token.id),
+      });
+      console.log('Emitted ACTION event for order:', order.id);
       return res.status(200).json(orderData);
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -373,7 +376,21 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             data: arrivalUpdate,
           }),
         ]);
-    
+ const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+    console.log(cookies.authToken)
+    const token = jwtDecode(cookies.authToken);
+
+    eventBus.emit('ACTION', {
+        type: 'تعديل طلب ' + updatedOrder.id,
+        userId: Number(token.id),
+      });   
 // console.log("event")
         return res.status(200).json({ message: 'Section updated successfully' });
       }

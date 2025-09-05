@@ -1,10 +1,9 @@
-// lib/loggers.ts
-import eventBus from "./eventBus";
-import prisma from "./prisma";
+import eventBus from './eventBus';
+import prisma from './prisma';
 
-// نتأكد إننا ما نضيفش listener أكتر من مرة
-if (!(eventBus as any)._loggersInitialized) {
-  eventBus.on("ACTION", async (data: any) => {
+// التأكد إن الـ listener يتسجل مرة واحدة بس
+if (!(eventBus as any).__loggersInitialized) {
+  eventBus.on('ACTION', async (data: any) => {
     try {
       await prisma.systemUserLogs.create({
         data: {
@@ -12,10 +11,12 @@ if (!(eventBus as any)._loggersInitialized) {
           userId: data.userId,
         },
       });
-      console.log("✅ Log saved:", data);
+      console.log('✅ Log saved:', data);
     } catch (err) {
-      console.error("❌ Log error:", err);
+      console.error('❌ Log error:', err);
     }
   });
 
+  // إضافة flag عشان نتجنب تسجيل الـ listener أكتر من مرة
+  (eventBus as any).__loggersInitialized = true;
 }

@@ -73,6 +73,7 @@ const handleOpenMenu = (e, rowIndex) => {
     const confirmRequest = await axios.post('/api/confirmrequest', { id});
     if(confirmRequest.status === 200) {
       setModalMessage('تم قبول الطلب');
+      
       setShowSuccessModal(true);
     }
     closePopup();
@@ -251,7 +252,6 @@ const handleSubmitSpecs = async (e) => {
       setView('requests');
       newOrdersList();
     } catch (error) {
-      console.error('Error creating order:', error);
       setModalMessage('حدث خطأ أثناء إضافة الطلب');
       setShowErrorModal(true);
     }
@@ -266,8 +266,8 @@ const handleSubmitSpecs = async (e) => {
       setView('requests');
       newOrdersList();
     } catch (error) {
-      console.error('Error creating order:', error);
-      setModalMessage('حدث خطأ أثناء إضافة الطلب');
+      console.error('Error creating order:', error.response.data.message);
+      setModalMessage( error.response.data.message);
       setShowErrorModal(true);
     }
   };
