@@ -9,12 +9,8 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const prisma = new PrismaClient();
-    console.log(req.query);
-    console.log(req.query.pid);
-    const count = await prisma.neworder.count();
     const find = await prisma.neworder.findMany({
-      where: { bookingstatus: "rejected" },
+      where: { id:req.body.id },
     });
     // sendSuggestion()
     //@ts-ignore
@@ -23,6 +19,8 @@ export default async function handler(
     //@ts-ignore
     res.status(200).json({ data: find });
   } catch (error) {
+    res.status(400).json({ error:"خطأ في الحذف"});
+
     console.log(error);
   } finally {
     await prisma.$disconnect();
