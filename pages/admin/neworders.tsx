@@ -79,10 +79,19 @@ const handleOpenMenu = (e, rowIndex) => {
     closePopup();
   };
 
-  const confirmReject = () => {
-    setModalMessage('تم رفض الطلب');
+  const confirmReject =async (id) => {
+
+const rejectrequest = await axios.post('/api/confirmrequest', { id});
+
+
+    if(rejectrequest.status === 200) {
+       setModalMessage('تم رفض الطلب');
     setShowSuccessModal(true);
     closePopup();
+    router.push("/admin/rejectedorders")
+    }
+    closePopup();
+ 
   };
 
   const homemaidOptions = homemaids.map(homemaid => ({
@@ -573,6 +582,8 @@ const handleSubmitSpecs = async (e) => {
     <button
       className="block w-full text-right px-4 py-2 hover:bg-gray-100"
       onClick={() => {
+        setSelectedOrderId(row?.id);
+
         openPopup("popup-confirm-reject");
         setMenuPosition(null);
       }}
@@ -1040,7 +1051,7 @@ const handleSubmitSpecs = async (e) => {
                   </button>
                   <button
                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-                    onClick={confirmReject}
+                    onClick={()=>confirmReject(selectedOrderId)}
                   >
                     نعم
                   </button>
