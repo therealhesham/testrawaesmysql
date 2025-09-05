@@ -1,4 +1,5 @@
-// Next.js API route support: https://nextjs.org/docs/api-routes/introduction
+import '../../lib/loggers';
+
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
@@ -17,6 +18,9 @@ export default async function handler(
     console.log(find);
     // console.log(arr)
     //@ts-ignore
+
+
+    
     res.status(200).json({ data: find });
   } catch (error) {
     res.status(400).json({ error:"خطأ في الحذف"});
