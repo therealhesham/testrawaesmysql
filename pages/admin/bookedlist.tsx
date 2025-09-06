@@ -6,6 +6,8 @@ import { FaSearch, FaRedo, FaFileExcel, FaFilePdf } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import Modal from "react-modal";
+import { jwtDecode } from "jwt-decode";
+import prisma from "lib/prisma";
 
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
@@ -901,4 +903,45 @@ export default function Table() {
       </div>
     </Layout>
   );
+}
+
+
+export async function getServerSideProps({ req }) {
+  try {
+    const cookieHeader = req.headers.cookie;
+    let cookies = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    const token = jwtDecode(cookies.authToken);
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+
+    const hasPermission = findUser && findUser.role?.permissions?.["إدارة العاملات"]?.["عرض"];
+
+    return {
+      props: {
+        hasPermission: !!hasPermission,
+      },
+    };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      props: {
+        hasPermission: false,
+      },
+    };
+  }
 }

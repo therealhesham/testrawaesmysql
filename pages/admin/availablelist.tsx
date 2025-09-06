@@ -4,6 +4,8 @@ import { CalendarIcon, ChevronDownIcon } from '@heroicons/react/outline';
 import { FilePdfFilled, FileTextOutlined } from '@ant-design/icons';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'lib/prisma';
 
 interface Homemaid {
   id: number;
@@ -359,4 +361,45 @@ export default function Home() {
       </main>
     </Layout>
   );
+}
+
+
+export async function getServerSideProps({ req }) {
+  try {
+    const cookieHeader = req.headers.cookie;
+    let cookies = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    const token = jwtDecode(cookies.authToken);
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+
+    const hasPermission = findUser && findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"];
+
+    return {
+      props: {
+        hasPermission: !!hasPermission,
+      },
+    };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      props: {
+        hasPermission: false,
+      },
+    };
+  }
 }

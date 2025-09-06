@@ -29,7 +29,7 @@ export default async function handler(
         HomemaidId: { gt: 0 },
         NOT: {
           bookingstatus: {
-            in: ["عقد ملغي", "طلب مرفوض"],
+            in: ["delivered", "rejected"],
           },
         },
       },
@@ -42,7 +42,7 @@ export default async function handler(
         HomemaidId: { gt: 0 },
         NOT: {
           bookingstatus: {
-            in: ["عقد ملغي", "طلب مرفوض"],
+            in: ["delivered", "rejected"],
           },
         },
       },

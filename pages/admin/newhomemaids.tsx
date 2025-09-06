@@ -356,7 +356,7 @@ const AddWorkerForm = () => {
                       id="religion"
                       value={formData.religion}
                       onChange={handleChange}
-                      className={`border ${errors.religion ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.religion ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر الديانة</option>
                       <option value="muslim">مسلمة</option>
@@ -373,7 +373,7 @@ const AddWorkerForm = () => {
                       value={formData.nationality}
                       onChange={handleChange}
                       placeholder="أدخل الجنسية"
-                      className={`border ${errors.nationality ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.nationality ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     />
                     {errors.nationality && <p className="text-red-500 text-xs mt-1">{errors.nationality}</p>}
                   </div>
@@ -383,7 +383,7 @@ const AddWorkerForm = () => {
                       id="maritalStatus"
                       value={formData.maritalStatus}
                       onChange={handleChange}
-                      className={`border ${errors.maritalStatus ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.maritalStatus ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر الحالة</option>
                       <option value="single">عزباء</option>
@@ -400,7 +400,7 @@ const AddWorkerForm = () => {
                       value={formData.age}
                       onChange={handleChange}
                       placeholder="أدخل العمر"
-                      className={`border ${errors.age ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.age ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     />
                     {errors.age && <p className="text-red-500 text-xs mt-1">{errors.age}</p>}
                   </div>
@@ -412,7 +412,7 @@ const AddWorkerForm = () => {
                       value={formData.passport}
                       onChange={handleChange}
                       placeholder="أدخل رقم الجواز"
-                      className={`border ${errors.passport ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.passport ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     />
                     {errors.passport && <p className="text-red-500 text-xs mt-1">{errors.passport}</p>}
                   </div>
@@ -424,7 +424,7 @@ const AddWorkerForm = () => {
                       value={formData.mobile}
                       onChange={handleChange}
                       placeholder="أدخل رقم الجوال"
-                      className={`border ${errors.mobile ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.mobile ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     />
                     {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
                   </div>
@@ -436,7 +436,7 @@ const AddWorkerForm = () => {
                         id="passportStart"
                         value={formData.passportStart}
                         onChange={handleChange}
-                        className={`border ${errors.passportStart ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right w-full`}
+                        className={`border ${errors.passportStart ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right w-full`}
                       />
                       <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                     </div>
@@ -450,7 +450,7 @@ const AddWorkerForm = () => {
                         id="passportEnd"
                         value={formData.passportEnd}
                         onChange={handleChange}
-                        className={`border ${errors.passportEnd ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right w-full`}
+                        className={`border ${errors.passportEnd ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right w-full`}
                       />
                       <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
                     </div>
@@ -467,7 +467,7 @@ const AddWorkerForm = () => {
                       id="educationLevel"
                       value={formData.educationLevel}
                       onChange={handleChange}
-                      className={`border ${errors.educationLevel ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.educationLevel ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر مستوى التعليم</option>
                       <option value="secondary">ثانوي</option>
@@ -482,7 +482,7 @@ const AddWorkerForm = () => {
                       id="arabicLevel"
                       value={formData.arabicLevel}
                       onChange={handleChange}
-                      className={`border ${errors.arabicLevel ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.arabicLevel ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر المستوى</option>
                       <option value="beginner">مبتدئ</option>
@@ -497,7 +497,7 @@ const AddWorkerForm = () => {
                       id="englishLevel"
                       value={formData.englishLevel}
                       onChange={handleChange}
-                      className={`border ${errors.englishLevel ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.englishLevel ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر المستوى</option>
                       <option value="beginner">مبتدئ</option>
@@ -519,7 +519,7 @@ const AddWorkerForm = () => {
                       value={formData.experienceField}
                       onChange={handleChange}
                       placeholder="أدخل نوع الخبرة"
-                      className={`border ${errors.experienceField ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.experienceField ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     />
                     {errors.experienceField && <p className="text-red-500 text-xs mt-1">{errors.experienceField}</p>}
                   </div>
@@ -531,7 +531,7 @@ const AddWorkerForm = () => {
                       value={formData.experienceYears}
                       onChange={handleChange}
                       placeholder="أدخل عدد السنوات"
-                      className={`border ${errors.experienceYears ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.experienceYears ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     />
                     {errors.experienceYears && <p className="text-red-500 text-xs mt-1">{errors.experienceYears}</p>}
                   </div>
@@ -555,7 +555,7 @@ const AddWorkerForm = () => {
                         id={`skill-${skill.id}`}
                         value={formData.skills[skill.id as keyof typeof formData.skills]}
                         onChange={(e) => handleSkillChange(skill.id, e.target.value)}
-                        className={`border ${errors[`skill-${skill.id}`] ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                        className={`border ${errors[`skill-${skill.id}`] ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                       >
                         <option value="" disabled>اختر المستوى</option>
                         <option value="trained_no_experience">مدربة بدون خبرة</option>
@@ -578,7 +578,7 @@ const AddWorkerForm = () => {
                       id="officeName"
                       value={formData.officeName}
                       onChange={handleChange}
-                      className={`border ${errors.officeName ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`}
+                      className={`border ${errors.officeName ? 'border-red-500' : 'border-gray-300'} rounded-md  text-sm bg-gray-50 text-right`}
                     >
                       <option value="" disabled>اختر المكتب</option>
                       {offices.map((e, index) => (
