@@ -114,7 +114,7 @@ const MainContent = () => {
               >
                 اعادة ضبط
               </button>
-              <div className="flex items-center justify-between bg-row-background border border-border rounded-md px-2.5 py-2 gap-10 text-md text-gray-500">
+              <div className="flex items-center justify-between bg-row-background border border-border rounded-md   gap-10 text-md text-gray-500">
                 <input
                   type="text"
                   placeholder="الجنسية"
@@ -124,7 +124,7 @@ const MainContent = () => {
                 />
                 <Image src="/images/I2207_32547_2194_30622_354_4917.svg" alt="arrow" width={16} height={16} />
               </div>
-              <div className="flex items-center justify-between bg-row-background border border-border rounded-md px-2.5 py-2 gap-10 text-md text-gray-500">
+              <div className="flex items-center justify-between bg-row-background border border-border rounded-md  gap-10 text-md text-gray-500">
                 <input
                   type="text"
                   placeholder="سبب الالغاء"
@@ -134,7 +134,7 @@ const MainContent = () => {
                 />
                 <Image src="/images/I2207_32547_2194_30624.svg" alt="arrow" width={16} height={16} />
               </div>
-              <div className="flex items-center bg-row-background border border-border rounded-md px-2.5 py-2">
+              <div className="flex items-center bg-row-background border border-border rounded-md ">
                 <input
                   type="text"
                   placeholder="بحث"

@@ -24,16 +24,11 @@ import {
   FaArrowCircleLeft,
 } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
-import Style from "/styles/Home.module.css";
 import { useRouter } from "next/router";
 import jwt from "jsonwebtoken";
-import { HomeIcon } from "icons";
-import NotificationDropdown from "components/notifications";
-import Chat from "./chat";
-import { ArrowLeftOutlined, FieldTimeOutlined, RightCircleFilled } from "@ant-design/icons";
-import { ArrowCircleLeftIcon, ArrowLeftIcon } from "@heroicons/react/outline";
-import { PlusIcon } from "@heroicons/react/solid";
+import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
+import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
+import Style from "/styles/Home.module.css";
 
 // Helper function to calculate remaining days
 const calculateRemainingDays = (eventDate) => {
@@ -53,22 +48,341 @@ const getCurrentMonthYear = () => {
   return `${month} ${year}`;
 };
 
+// مكونات الطلبات
+const NewOrdersTab = ({ orders, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {orders.slice(0, 3).map((order) => (
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            منذ {order.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const CurrentOrdersTab = ({ orders, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {orders.slice(0, 3).map((order) => (
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">طلب تحت الإجراء #{order.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">الحالة: {order.status ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ البدء: {order.startDate ?? order.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const EndedOrdersTab = ({ orders, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {orders.slice(0, 3).map((order) => (
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">طلب مكتمل #{order.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ الانتهاء: {order.endDate ?? order.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const CancelledOrdersTab = ({ orders, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {orders.slice(0, 3).map((order) => (
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order.cancelReason ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ الإلغاء: {order.cancelDate ?? order.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
+
+// مكونات الوصول والمغادرة
+const InternalArrivalsTab = ({ arrivals, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {arrivals.slice(0, 3).map((arrival) => (
+      <div key={arrival.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{arrival.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">من: {arrival.ArrivalCity}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ الوصول: {getDate(arrival.createdAt)} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const InternalDeparturesTab = ({ departures, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {departures.slice(0, 3).map((departure) => (
+      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">مغادرة داخلية #{departure.id}</p>
+         
+          <p className="item-subtitle text-xs text-gray-600">العاملة: {departure.Order.HomeMaid.Name ?? "غير محدد"}</p>
+         
+          <p className="item-subtitle text-xs text-gray-600">إلى: {departure.finaldestination ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ المغادرة: {departure.createdAt?getDate(departure.createdAt):null} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const ExternalDeparturesTab = ({ departures, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {departures.slice(0, 3).map((departure) => (
+      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">مغادرة خارجية #{departure.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">إلى: {departure.ArrivalOutSaudiCity ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ المغادرة: {departure.DeparatureFromSaudiDate?getDate(departure.DeparatureFromSaudiDate):null} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+// مكونات شؤون الإقامة
+const HousingTab = ({ housing, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {housing.slice(0, 3).map((item) => (
+      <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">تسكين #{item.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: {item.Order.Name}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ التسكين: {getDate(item.houseentrydate)} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const CheckedTableTab = ({ housing, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {housing.slice(0, 3).map((item) => (
+      <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">إعاشة #{item.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ: {item.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const SessionsTab = ({ sessions, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {sessions.slice(0, 3).map((session) => (
+      <div key={session.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">جلسة #{session.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">النوع: {session.reason ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ الجلسة: {session.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+// مكونات العاملات
+const WorkersTab = ({ workers, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {workers.slice(0, 3).map((worker) => (
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ التسجيل: {worker.createdAt?getDate(worker.createdAt):""} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const BookedListTab = ({ booked, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {booked.slice(0, 3).map((worker) => (
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{worker.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: {worker.ClientName ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ الحجز: {worker.bookedDate ?? worker.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const AvailableListTab = ({ available, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {available.slice(0, 3).map((worker) => (
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ التسجيل: {worker.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+// مكونات إدارة العلاقات
+const RelationsTab = ({ relations, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {relations.slice(0, 3).map((relation) => (
+      <div key={relation.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">عميل #{relation.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">الاسم: {relation.ClientName}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ التسجيل: {relation.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const SponsorshipTransfersTab = ({ transfers, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {transfers.slice(0, 3).map((transfer) => (
+      <div key={transfer.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">نقل كفالة #{transfer.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">العامل: {transfer.WorkerName ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ الطلب: {transfer.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
+const ForeignOfficesTab = ({ offices, count }) => (
+  <div className="info-card-body flex flex-col gap-4">
+    {offices.slice(0, 3).map((office) => (
+      <div key={office.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+        <div className="item-details flex flex-col gap-2">
+          <p className="item-title text-sm font-semibold text-gray-900">مكتب خارجي #{office.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">الاسم: {office.OfficeName ?? "غير محدد"}</p>
+          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+            تاريخ التسجيل: {office.createdAt} <FieldTimeOutlined />
+          </p>
+        </div>
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+          <ArrowLeftOutlined className="w-4 h-4" />
+        </button>
+      </div>
+    ))}
+  </div>
+);
+
 export default function Home({ user }) {
   const router = useRouter();
-  // const { data: session, status } = useSession();
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
   const days = ['س', 'م', 'ت', 'و', 'ث', 'ج', 'س'];
   const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-  
+
   const getDaysInMonth = (monthIndex, year) => {
     return new Date(year, monthIndex + 1, 0).getDate();
   };
-  
+
   const getFirstDayOffset = (monthIndex, year) => {
     const jsDay = new Date(year, monthIndex, 1).getDay();
     return (jsDay + 6) % 7;
   };
-  
+
   const [monthName, yearStr] = currentMonth.split(' ');
   const monthIndex = months.indexOf(monthName);
   const year = parseInt(yearStr);
@@ -103,15 +417,7 @@ export default function Home({ user }) {
     setCurrentMonth(`${months[month]} ${currentYear}`);
   };
 
-  const monthColors = [
-    "bg-red-300", "bg-pink-300", "bg-pink-500", "bg-purple-300", "bg-teal-300",
-    "bg-blue-300", "bg-green-300", "bg-yellow-300", "bg-orange-300", "bg-teal-300",
-    "bg-blue-500", "bg-purple-500",
-  ];
-
   const [events, setEvents] = useState([]);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
   const fetchEvents = async () => {
     const eventData = [
       { title: "Arrival: Person 1", date: "2025-01-01" },
@@ -126,18 +432,10 @@ export default function Home({ user }) {
     setEvents(eventData);
   };
 
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    if (!router) return;
-    fetchEvents();
-  }, [router]);
-
   const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
   const [cancelledorders, setCancelledorders] = useState(0);
   const [deparaturesLength, setDeparaturesLength] = useState(0);
   const [externaldeparaturesLength, seteExternalDeparaturesLength] = useState(0);
-
   const [newOrdersLength, setNewOrdersLength] = useState(0);
   const [homeMaidsLength, setHomeMaidsLength] = useState(0);
   const [arrivalsLength, setArrivalsLength] = useState(0);
@@ -145,45 +443,21 @@ export default function Home({ user }) {
   const [finished, setFinished] = useState(0);
   const [officesLength, setOfficesLengthLength] = useState(0);
   const [transferSponsorshipsLength, setTransferSponsorshipsLength] = useState(0);
-const [cancelledOrderslist,setCancelledorderslist]=useState(0)
+  const [sessionsLength, setSessionsLength] = useState(0);
+  const [clientsCount, setClientsCount] = useState(0);
+  const [officesCount, setOfficesCount] = useState(0);
 
-const  fetchInitialCancelled = async()=>{
- try {
-      // alert(user.id)
-      const response = await fetch(`/api/homeinitialdata/cancelledorders`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json();
-      if (response.status === 200) {
-        // console.log(data)
-        setCancelledorderslist(data.data);
-      } else {
-        console.error("Error fetching tasks:", data.error);
-      }
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-    }
-
-}
   const fetchData = async () => {
     try {
       const response = await fetch(`/api/datalength`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         method: "get",
       });
       const res = await response.json();
       if (response.status === 200) {
         setDeparaturesLength(res.deparatures);
         setArrivalsLength(res.arrivals);
-        setCurrentOrdersLength(res.currentorders);
-                setRejectedOrdersLength(res.rejectedOrders);
+        setRejectedOrdersLength(res.rejectedOrders);
         setHomeMaidsLength(res.workers);
         setTransferSponsorshipsLength(res.transferSponsorships);
         setNewOrdersLength(res.neworderCount);
@@ -196,20 +470,14 @@ const  fetchInitialCancelled = async()=>{
     }
   };
 
-  // Fetch tasks for the user
   const fetchTasks = async () => {
     try {
-      // alert(user.id)
       const response = await fetch(`/api/tasks/${user.id}`, {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
       });
       const data = await response.json();
       if (response.status === 200) {
-        console.log(data)
         setTasks(data);
       } else {
         console.error("Error fetching tasks:", data.error);
@@ -219,16 +487,13 @@ const  fetchInitialCancelled = async()=>{
     }
   };
 
-  // Handle task creation
   const handleAddTask = async (e) => {
     e.preventDefault();
     if (newTask.title && newTask.description && newTask.taskDeadline) {
       try {
         const response = await fetch(`/api/tasks/${user.id}`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             description: newTask.description,
             Title: newTask.title,
@@ -252,22 +517,15 @@ const  fetchInitialCancelled = async()=>{
     }
   };
 
-  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewTask((prev) => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => {
-    fetchData();
-    fetchTasks();
-    fetchInitialCancelled()
-  }, []);
-
-  const [orders, setOrders] = useState([]);
   const [newOrders, setNewOrders] = useState([]);
   const [currentOrders, setCurrentOrders] = useState([]);
   const [endedOrders, setEndedOrders] = useState([]);
+  const [cancelledOrders, setCancelledOrders] = useState([]);
   const [arrivals, setArrivals] = useState([]);
   const [internalArrivals, setInternalArrivals] = useState([]);
   const [internalDeparatures, setInternalDeparatures] = useState([]);
@@ -278,74 +536,34 @@ const  fetchInitialCancelled = async()=>{
   const [housingSection, setHousingSection] = useState([]);
   const [housed, setHoused] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [relations, setRelations] = useState([]);
+  const [transferSponsorships, setTransferSponsorships] = useState([]);
+  const [foreignOffices, setForeignOffices] = useState([]);
   const [ordersSectionState, setOrdersSectionState] = useState("newOrders");
   const [arrivalsSectionState, setArrivalsSectionState] = useState("internalArrivals");
   const [housingSectionState, setHousingSectionState] = useState("housing");
   const [workersSectionState, setWorkersSectionState] = useState("workers");
   const [relationsSectionState, setRelationsSectionState] = useState("relations");
-  const [relationsSection, setRelationsSection] = useState([]);
-  const [relations, setRelations] = useState([]);
-  const [transferSponsorships, setTransferSponsorships] = useState([]);
-  const [workersSection, setWorkersSection] = useState([]);
-  const [offices, setOffices] = useState([]);
 
   const fetchNewOrdersData = async () => {
     try {
       const response = await fetch(`/api/neworderlistprisma/1`, { method: "get" });
       const res = await response.json();
-      setOrdersSectionState("newOrders");
-      setNewOrders(res.data.slice(0, 3));
-      setOrders(res.data);
+      setNewOrders(res.data);
+      setNewOrdersLength(res.data.length);
     } catch (error) {
-      console.error("Error in fetch:", error);
-    }
-  };
-
-  const fetchFullList = async () => {
-    try {
-      const response = await fetch(`/api/homemaidprisma?page=1`, { method: "get" });
-      const res = await response.json();
-      setWorkersSectionState("workers");
-      setWorkersSection(res.data.slice(0, 3));
-      setFullList(res.data.slice(0, 3));
-    } catch (error) {
-      console.log("error", error);
-    }
-  };
-
-
-const [foreignOffices,setForeignOffices]= useState([]);
-const [officesCount,setOfficesCount]=useState(0)
-  const fetchForeignOffices = async () => {
-    try {
-      const response = await fetch(`/api/homeinitialdata/externaloffices`, { method: "get" });
-      const res = await response.json();
-      // setRelationsSectionState("foreign");
-      setWorkersSection(res.data);
-      setOfficesCount(res.dataCount)
-      setForeignOffices(res.data);
-    } catch (error) {
-      console.log("error", error);
-    }
-  };
-  const fetchBookedList = async () => {
-    try {
-      const response = await fetch(`/api/bookedlist?page=1`, { method: "get" });
-      const res = await response.json();
-      console.log(res)
-      setBookedList(res.data.slice(0, 3));
-    } catch (error) {
-      console.log("error", error);
+      console.error("Error fetching new orders:", error);
     }
   };
 
   const fetchCurrentOrdersData = async () => {
     try {
-      const response = await fetch(`/api/currentordersprisma`, { method: "get" });
+      const response = await fetch(`/api/homeinitialdata/currentordersprisma`, { method: "get" });
       const res = await response.json();
-      setCurrentOrders(res.homemaids.slice(0, 3));
+      setCurrentOrders(res.data);
+      setCurrentOrdersLength(res.totalCount);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching current orders:", error);
     }
   };
 
@@ -353,9 +571,21 @@ const [officesCount,setOfficesCount]=useState(0)
     try {
       const response = await fetch(`/api/endedorders/`, { method: "get" });
       const res = await response.json();
-      setEndedOrders(res.homemaids.slice(0,3))
+      setEndedOrders(res.homemaids);
+      setFinished(res.homemaids.length);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching ended orders:", error);
+    }
+  };
+
+  const fetchCancelledOrdersData = async () => {
+    try {
+      const response = await fetch(`/api/homeinitialdata/cancelledorders`, { method: "get" });
+      const res = await response.json();
+      setCancelledOrders(res.data);
+      setCancelledorders(res.data.length);
+    } catch (error) {
+      console.error("Error fetching cancelled orders:", error);
     }
   };
 
@@ -363,21 +593,30 @@ const [officesCount,setOfficesCount]=useState(0)
     try {
       const response = await fetch(`/api/arrivals`, { method: "get" });
       const res = await response.json();
-      setArrivals(res.data.slice(0, 3));
-      console.log(res.data);
-      setInternalArrivals(res.data.slice(0, 3));
+      setArrivals(res.data);
+      setInternalArrivals(res.data);
+      setArrivalsLength(res.data.length);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching arrivals:", error);
     }
   };
+
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
 
   const fetchInternalDeparaturesData = async () => {
     try {
       const response = await fetch(`/api/deparatures`, { method: "get" });
       const res = await response.json();
       setInternalDeparatures(res.data);
+      setDeparaturesLength(res.data.length);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching internal departures:", error);
     }
   };
 
@@ -386,10 +625,9 @@ const [officesCount,setOfficesCount]=useState(0)
       const response = await fetch(`/api/homeinitialdata/deparaturefromsaudi`, { method: "get" });
       const res = await response.json();
       setExternalDeparatures(res.data);
-      seteExternalDeparaturesLength(res.deparaturesCount)
-    
+      seteExternalDeparaturesLength(res.data.length);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching external departures:", error);
     }
   };
 
@@ -397,35 +635,32 @@ const [officesCount,setOfficesCount]=useState(0)
     try {
       const response = await fetch(`/api/confirmhousinginformation`, { method: "get" });
       const res = await response.json();
-      setHousingSection(res.housing.slice(0, 3));
-      setHoused(res.housing.slice(0, 3));
+      setHousingSection(res.housing);
+      setHoused(res.housing);
     } catch (error) {
-      console.error("Error in fetch:", error);
-    }
-  };
-const [sessionsLength,setSessionsLength]=useState(0)
-  const fetchSessions = async () => {
-    
-    try {
-      const response = await fetch(`/api/sessions`, { method: "get" });
-      const res = await response.json();
-      setSessionsLength(res.totalResults)
-      setSessions(res.sessions.slice(0, 3));
-    } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching housed data:", error);
     }
   };
 
-  const [clientsCount,setClientsCount]=useState(0)
+  const fetchSessions = async () => {
+    try {
+      const response = await fetch(`/api/sessions`, { method: "get" });
+      const res = await response.json();
+      setSessions(res.sessions);
+      setSessionsLength(res.totalResults);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    }
+  };
+
   const fetchRelations = async () => {
     try {
       const response = await fetch(`/api/homeinitialdata/clients`, { method: "get" });
       const res = await response.json();
-      setRelationsSection(res.data.slice(0,3));
-      setClientsCount(res.dataCount)
-      setRelations(res.data.slice(0,3));
+      setRelations(res.data);
+      setClientsCount(res.dataCount);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching relations:", error);
     }
   };
 
@@ -434,27 +669,73 @@ const [sessionsLength,setSessionsLength]=useState(0)
       const response = await fetch(`/api/transfersponsorships`, { method: "get" });
       const res = await response.json();
       setTransferSponsorships(res);
+      setTransferSponsorshipsLength(res.length);
     } catch (error) {
-      console.error("Error in fetch:", error);
+      console.error("Error fetching transfer sponsorships:", error);
     }
   };
 
- 
+  const fetchFullList = async () => {
+    try {
+      const response = await fetch(`/api/homemaidprisma?page=1`, { method: "get" });
+      const res = await response.json();
+      setFullList(res.data);
+      setHomeMaidsLength(res.totalRecords  );
+    } catch (error) {
+      console.error("Error fetching full list:", error);
+    }
+  };
+
+  const fetchBookedList = async () => {
+    try {
+      const response = await fetch(`/api/bookedlist?page=1`, { method: "get" });
+      const res = await response.json();
+      setBookedList(res.data);
+    } catch (error) {
+      console.error("Error fetching booked list:", error);
+    }
+  };
+
+  const fetchAvailableList = async () => {
+    try {
+      const response = await fetch(`/api/availablelist?page=1`, { method: "get" });
+      const res = await response.json();
+      setAvailableList(res.data);
+    } catch (error) {
+      console.error("Error fetching available list:", error);
+    }
+  };
+
+  const fetchForeignOffices = async () => {
+    try {
+      const response = await fetch(`/api/homeinitialdata/externaloffices`, { method: "get" });
+      const res = await response.json();
+      setForeignOffices(res.data);
+      setOfficesCount(res.dataCount);
+    } catch (error) {
+      console.error("Error fetching foreign offices:", error);
+    }
+  };
 
   useEffect(() => {
+    fetchData();
+    fetchTasks();
+    fetchEvents();
     fetchNewOrdersData();
     fetchCurrentOrdersData();
     fetchEndedOrdersData();
+    fetchCancelledOrdersData();
     fetchArrivalsData();
     fetchInternalDeparaturesData();
     fetchExternalDeparaturesData();
     fetchHoused();
     fetchSessions();
     fetchRelations();
+    fetchTransferSponsorships();
     fetchFullList();
     fetchBookedList();
-    fetchTransferSponsorships();
-    fetchForeignOffices()
+    fetchAvailableList();
+    fetchForeignOffices();
   }, []);
 
   const sectionRef = useRef(null);
@@ -471,7 +752,6 @@ const [sessionsLength,setSessionsLength]=useState(0)
     });
   };
 
-  // Get tasks for a specific day
   const getTasksForDay = (day) => {
     return tasks.filter((task) => {
       const taskDate = new Date(task.taskDeadline);
@@ -496,7 +776,6 @@ const [sessionsLength,setSessionsLength]=useState(0)
   const handleDayClick = (day) => {
     if (day) {
       const tasksForDay = getTasksForDay(day);
-      console.log(`Tasks for ${day}/${monthIndex + 1}/${year}:`, tasksForDay);
       if (tasksForDay.length > 0) {
         alert(`Tasks for ${day}/${monthIndex + 1}/${year}:\n${tasksForDay.map(t => t.Title).join('\n')}`);
       } else {
@@ -607,121 +886,82 @@ const [sessionsLength,setSessionsLength]=useState(0)
             </ul>
           </div>
         </div>
-      
-          <section id="requests" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
-            <header className="info-card-header flex justify-between items-center mb-6">
-              <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
-                <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">الطلبات</h3>
-                <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
-                  <a
-                    onClick={() => {
-                      setOrdersSectionState("newOrders");
-                      setOrders(newOrders);
-                    }}
-                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "newOrders" ? "bg-teal-50 text-teal-700" : ""}`}
-                  >
-                    الطلبات الجديدة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{newOrdersLength}</span>
-                  </a>
-                  <a
-                    onClick={() => {
-                      setOrdersSectionState("currentOrders");
-                      setOrders(currentOrders);
-                    }}
-                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "currentOrders" ? "bg-teal-50 text-teal-700" : ""}`}
-                  >
-                    طلبات تحت الإجراء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{currentOrdersLength}</span>
-                  </a>
-                  <a
-                    onClick={() => {
-                      setOrdersSectionState("endedOrders");
-                      setOrders(endedOrders);
-                    }}
-                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""} hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200`}
-                  >
-                    الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{finished}</span>
-                  </a>
-                  <a
-                    href="#"
-                    className={`tab-item text-sm cursor-pointer font-medium text-gray-600 ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""} hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200`}
-                    onClick={() => {
-                      setOrdersSectionState("cancelledOrdrs");
-                      setOrders(cancelledOrderslist);
-                    }}
 
-                  >
-                    الطلبات الملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{cancelledorders}</span>
-                  </a>
-                  {/* <a
-                    href="#"
-                    className="tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 hover:bg-teal-50"
-                  >
-                    الطلبات المرفوضة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{rejectedOrdersLength}</span>
-                  </a> */}
-                </nav>
-              </div>
-              <a
-                onClick={() => {
-                  ordersSectionState === "newOrders"
-                    ? router.push("/admin/neworders")
-                    : ordersSectionState === "currentOrders"
-                    ? router.push("/admin/currentorderstest")
-                    : ordersSectionState === "endedOrders"
-                    ? router.push("/admin/endedorders")
-                    : ordersSectionState === "cancelledOrders"
-                    ? router.push("/admin/cancelledorders")
-                    : null;
-                }}
-                className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
-              >
-                عرض الكل
-              </a>
-            </header>
-            <div className="info-card-body flex flex-col gap-4">
-              {orders.map((order) => (
-                <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-                  <div className="item-details flex flex-col gap-2">
-                    <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
-                    <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
-                    <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                      منذ {order.createdAt} <FieldTimeOutlined />
-                    </p>
-                  </div>
-                  <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                    <ArrowLeftOutlined className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+        {/* Requests Section */}
+        <section id="requests" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <header className="info-card-header flex justify-between items-center mb-6">
+            <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
+              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">الطلبات</h3>
+              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+                <a
+                  onClick={() => setOrdersSectionState("newOrders")}
+                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "newOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  الطلبات الجديدة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{newOrdersLength}</span>
+                </a>
+                <a
+                  onClick={() => setOrdersSectionState("currentOrders")}
+                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "currentOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  طلبات تحت الإجراء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{currentOrdersLength}</span>
+                </a>
+                <a
+                  onClick={() => setOrdersSectionState("endedOrders")}
+                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{finished}</span>
+                </a>
+                <a
+                  onClick={() => setOrdersSectionState("cancelledOrders")}
+                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  الطلبات الملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{cancelledorders}</span>
+                </a>
+              </nav>
             </div>
-          </section>
-      
+            <a
+              onClick={() => {
+                ordersSectionState === "newOrders"
+                  ? router.push("/admin/neworders")
+                  : ordersSectionState === "currentOrders"
+                  ? router.push("/admin/currentorderstest")
+                  : ordersSectionState === "endedOrders"
+                  ? router.push("/admin/endedorders")
+                  : ordersSectionState === "cancelledOrders"
+                  ? router.push("/admin/cancelledorders")
+                  : null;
+              }}
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+            >
+              عرض الكل
+            </a>
+          </header>
+          {ordersSectionState === "newOrders" && <NewOrdersTab orders={newOrders} count={newOrdersLength} />}
+          {ordersSectionState === "currentOrders" && <CurrentOrdersTab orders={currentOrders} count={currentOrdersLength} />}
+          {ordersSectionState === "endedOrders" && <EndedOrdersTab orders={endedOrders} count={finished} />}
+          {ordersSectionState === "cancelledOrders" && <CancelledOrdersTab orders={cancelledOrders} count={cancelledorders} />}
+        </section>
+
+        {/* Arrivals and Departures Section */}
         <section id="arrivals" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <header className="info-card-header flex justify-between items-center mb-6">
             <div className={`${Style["tajawal-medium"]} info-card-title-tabs flex flex-col gap-6`}>
               <h3 className={`${Style["tajawal-medium"]} info-card-title text-2xl font-semibold text-gray-800 tracking-tight`}>الوصول و المغادرة</h3>
               <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
                 <a
-                  onClick={() => {
-                    setArrivalsSectionState("internalArrivals");
-                    setArrivals(internalArrivals);
-                  }}
+                  onClick={() => setArrivalsSectionState("internalArrivals")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalArrivals" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   الوصول <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{arrivalsLength}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setArrivalsSectionState("internalDeparatures");
-                    setArrivals(internalDeparatures);
-                  }}
+                  onClick={() => setArrivalsSectionState("internalDeparatures")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   مغادرة داخلية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{deparaturesLength}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setArrivalsSectionState("externalDeparatures");
-                    setArrivals(externalDeparatures);
-                  }}
+                  onClick={() => setArrivalsSectionState("externalDeparatures")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externaldeparaturesLength}</span>
@@ -743,51 +983,31 @@ const [sessionsLength,setSessionsLength]=useState(0)
               عرض الكل
             </a>
           </header>
-          <div className="info-card-body flex flex-col gap-4">
-            {arrivals.map((order) => (
-              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-                <div className="item-details flex flex-col gap-2">
-                  <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{order.id}</p>
-                  <p className="item-subtitle text-xs text-gray-600">من: {order.ArrivalCity}</p>
-                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                    منذ {order.createdAt} <FieldTimeOutlined />
-                  </p>
-                </div>
-                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                  <ArrowLeftOutlined className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+          {arrivalsSectionState === "internalArrivals" && <InternalArrivalsTab arrivals={internalArrivals} count={arrivalsLength} />}
+          {arrivalsSectionState === "internalDeparatures" && <InternalDeparturesTab departures={internalDeparatures} count={deparaturesLength} />}
+          {arrivalsSectionState === "externalDeparatures" && <ExternalDeparturesTab departures={externalDeparatures} count={externaldeparaturesLength} />}
         </section>
+
+        {/* Housing Section */}
         <section id="housing" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
           <header className="info-card-header flex justify-between items-center mb-6">
             <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
               <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">شئون الاقامة</h3>
               <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
                 <a
-                  onClick={() => {
-                    setHousingSectionState("housing");
-                    setHousingSection(housed);
-                  }}
+                  onClick={() => setHousingSectionState("housing")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "housing" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setHousingSectionState("checkedTable");
-                    setHousingSection(housed);
-                  }}
+                  onClick={() => setHousingSectionState("checkedTable")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "checkedTable" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setHousingSectionState("sessions");
-                    setHousingSection(sessions);
-                  }}
+                  onClick={() => setHousingSectionState("sessions")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "sessions" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{sessionsLength}</span>
@@ -809,56 +1029,31 @@ const [sessionsLength,setSessionsLength]=useState(0)
               عرض الكل
             </a>
           </header>
-          <div className="info-card-body flex flex-col gap-4">
-            {housingSection.map((order) => (
-              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-                <div className="item-details flex flex-col gap-2">
-                  <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
-                  <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
-                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                  <ArrowLeftOutlined className="w-4 h-4" />
-               
-                    {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt} */}
-                  </p>
-                </div>
-               
-                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                  <ArrowLeftOutlined className="w-4 h-4" />
-               
-                  {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" /> */}
-                </button>
-              </div>
-            ))}
-          </div>
+          {housingSectionState === "housing" && <HousingTab housing={housed} count={housed.length} />}
+          {housingSectionState === "checkedTable" && <CheckedTableTab housing={housed} count={housed.length} />}
+          {housingSectionState === "sessions" && <SessionsTab sessions={sessions} count={sessionsLength} />}
         </section>
+
+        {/* Workers Section */}
         <section id="homemaids" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
           <header className="info-card-header flex justify-between items-center mb-6">
             <div className="info-card-title-tabs flex flex-col gap-6">
               <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">العاملات</h3>
               <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
                 <a
-                  onClick={() => {
-                    setWorkersSectionState("workers");
-                    setWorkersSection(fullList);
-                  }}
+                  onClick={() => setWorkersSectionState("workers")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{fullList.length}</span>
+                  العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{homeMaidsLength}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setWorkersSectionState("bookedlist");
-                    setWorkersSection(bookedList);
-                  }}
+                  onClick={() => setWorkersSectionState("bookedlist")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات المحجوزة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{bookedList.length}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setWorkersSectionState("availablelist");
-                    setWorkersSection(availableList);
-                  }}
+                  onClick={() => setWorkersSectionState("availablelist")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات المتاحة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{availableList.length}</span>
@@ -880,54 +1075,33 @@ const [sessionsLength,setSessionsLength]=useState(0)
               عرض الكل
             </a>
           </header>
-          <div className="info-card-body flex flex-col gap-4">
-            {workersSection.map((order) => (
-              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-                <div className="item-details flex flex-col gap-2">
-                  <p className="item-title text-sm font-semibold text-gray-900">عاملة رقم #{order.id}</p>
-                  <p className="item-subtitle text-xs text-gray-600">اسم العاملة: {order.Name}</p>
-                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                    منذ {order.createdAt} <FieldTimeOutlined />
-                  </p>
-                </div>
-                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                  <ArrowLeftOutlined className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+          {workersSectionState === "workers" && <WorkersTab workers={fullList} count={homeMaidsLength} />}
+          {workersSectionState === "bookedlist" && <BookedListTab booked={bookedList} count={bookedList.length} />}
+          {workersSectionState === "availablelist" && <AvailableListTab available={availableList} count={availableList.length} />}
         </section>
+
+        {/* Public Relations Section */}
         <section id="public-relations" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
           <header className="info-card-header flex justify-between items-center mb-6">
             <div className="info-card-title-tabs flex flex-col gap-6">
               <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">إدارة العلاقات</h3>
               <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
                 <a
-                  onClick={() => {
-                    setRelationsSectionState("relations");
-                    setRelationsSection(relations);
-                  }}
+                  onClick={() => setRelationsSectionState("relations")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientsCount}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setRelationsSectionState("sponsorship-transfers");
-                    setRelationsSection(transferSponsorships);
-                  }}
+                  onClick={() => setRelationsSectionState("sponsorship-transfers")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{transferSponsorships.length}</span>
+                  معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{transferSponsorshipsLength}</span>
                 </a>
                 <a
-                  onClick={() => {
-                    setRelationsSectionState("foreign-offices");
-                    setRelationsSection(foreignOffices);
-                  }}
+                  onClick={() => setRelationsSectionState("foreign-offices")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
- 
- >
+                >
                   المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{officesCount}</span>
                 </a>
               </nav>
@@ -947,27 +1121,12 @@ const [sessionsLength,setSessionsLength]=useState(0)
               عرض الكل
             </a>
           </header>
-          <div className="info-card-body flex flex-col gap-4">
-            {relationsSection?.map((order) => (
-              <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-                <div className="item-details flex flex-col gap-2">
-                  <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
-                  <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
-                  <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-                  <ArrowLeftOutlined className="w-4 h-4" />
-                    
-                    {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2881.svg" alt="time-icon" className="w-4 h-4" /> منذ {order.createdAt} */}
-                  </p>
-                </div>
-                <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-                  <ArrowLeftOutlined className="w-4 h-4" />
-               
-                  {/* <img src="/page/7477a300-42ff-4b3d-bf67-3c23ca8d5be7/images/I122_1559_61_2873.svg" alt="arrow-icon" className="w-4 h-4 transform rotate-180" /> */}
-                </button>
-              </div>
-            ))}
-          </div>
+          {relationsSectionState === "relations" && <RelationsTab relations={relations} count={clientsCount} />}
+          {relationsSectionState === "sponsorship-transfers" && <SponsorshipTransfersTab transfers={transferSponsorships} count={transferSponsorshipsLength} />}
+          {relationsSectionState === "foreign-offices" && <ForeignOfficesTab offices={foreignOffices} count={officesCount} />}
         </section>
+
+        {/* Task Modal */}
         {isModalOpen && (
           <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${Style["tajawal-medium"]}`}>
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -1040,11 +1199,10 @@ const [sessionsLength,setSessionsLength]=useState(0)
 }
 
 export async function getServerSideProps(context) {
-  const { req, res } = context;
+  const { req } = context;
   try {
     const isAuthenticated = req.cookies.authToken ? true : false;
     if (!isAuthenticated) {
-      console.log("User is not authenticated");
       return {
         redirect: {
           destination: "/admin/login",
@@ -1059,7 +1217,6 @@ export async function getServerSideProps(context) {
   } catch (error) {
     console.log("Error verifying token:", error);
     return {
-      
       redirect: {
         destination: "/admin/login",
         permanent: false,

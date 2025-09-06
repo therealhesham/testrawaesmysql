@@ -18,8 +18,10 @@ export default async function handler(
            select: {
         Order: { select: { Name: true ,HomemaidId: true,HomeMaid:true} },
         OrderId: true,
-        
+ArrivalOutSaudiCity:true,        
         SponsorName: true,
+        // createdAt:true,
+        DeparatureFromSaudiDate:true,
         PassportNumber: true,
         deparatureDate: true,
         deparatureTime: true,
