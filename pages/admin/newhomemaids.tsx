@@ -240,7 +240,7 @@ const AddWorkerForm = () => {
 
       const response = await fetch('/api/newhomemaids', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData),headers:{"Content-Type":"application/json"}
       });
 
       if (!response.ok) {
