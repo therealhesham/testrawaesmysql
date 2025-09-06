@@ -84,7 +84,7 @@ export default async function handler(
     // Send the filtered, paginated, and formatted data as the response
     res.status(200).json({
       data: formattedData,
-      totalPages,
+      totalPages,totalRecords
     });
   } catch (error) {
     console.error("Error fetching data:", error);

@@ -88,6 +88,8 @@ export default async function handler(
         SponsorPhoneNumber: true,
         SponsorIdnumber: true,
         InternalmusanedContract: true,
+        createdAt:true,
+        updatedAt:true,
         finaldestination: true,
         finalDestinationDate: true,
         HomemaIdnumber: true,
@@ -109,6 +111,7 @@ export default async function handler(
          });  
    
     res.status(200).json({
+
       data: homemaids,
       totalPages,
     });

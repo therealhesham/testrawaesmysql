@@ -81,6 +81,8 @@ export default async function handler(
           deparatureDate: true,
           deparatureTime: true,
           SponsorPhoneNumber: true,
+          createdAt:true,
+          updatedAt:true,
           HomemaidName: true,
           id: true,
         ArrivalCity: true,
