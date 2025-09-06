@@ -39,7 +39,7 @@ export default function Login() {
         <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
             <svg
-              className="animate-spin h-8 w-8 text-blue-500"
+              className="animate-spin h-8 w-8 text-teal-900"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
             >
@@ -58,7 +58,7 @@ export default function Login() {
                 d="M4 12a8 8 0 1 1 8 8 8 8 0 0 1-8-8z"
               ></path>
             </svg>
-            <span className="ml-4 text-lg font-semibold text-blue-500">
+            <span className="ml-4 text-lg font-semibold text-teal-900">
               Logging in...
             </span>
           </div>
@@ -93,7 +93,7 @@ export default function Login() {
                   type="text"
                   id="id"
                   name="id"
-                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-900"
                   placeholder="Enter your id"
                 />
               </div>
@@ -108,7 +108,7 @@ export default function Login() {
                   type="password"
                   id="password"
                   name="password"
-                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-900"
                   placeholder="Enter your password"
                 />
               </div>
@@ -118,7 +118,7 @@ export default function Login() {
               {/* Display error */}
               <button
                 type="submit"
-                className="w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full py-3 bg-teal-900 text-white font-semibold rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-teal-900"
               >
                 Login
               </button>

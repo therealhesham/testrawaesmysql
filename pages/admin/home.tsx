@@ -346,9 +346,9 @@ const ForeignOfficesTab = ({ offices, count }) => (
       <div key={office.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مكتب خارجي #{office.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">الاسم: {office.OfficeName ?? "غير محدد"}</p>
+          <p className="item-subtitle text-xs text-gray-600">الاسم: {office.office ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسجيل: {office.createdAt} <FieldTimeOutlined />
+            {/* تاريخ التسجيل: {office.createdAt} <FieldTimeOutlined /> */}
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
