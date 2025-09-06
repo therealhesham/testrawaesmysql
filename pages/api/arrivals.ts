@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 const prisma = new PrismaClient();
 
@@ -8,6 +10,16 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const { search, age, ArrivalCity, KingdomentryDate, page } = req.query;
+ const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+    console.log(cookies.authToken)
+    const token = jwtDecode(cookies.authToken);
 
   // Set the page size for pagination
   const pageSize = 10;
@@ -88,7 +100,14 @@ export default async function handler(
       orderBy: { id: "desc" },
     });
 
-    // Send the filtered and paginated data along with totalPages
+
+
+
+       eventBus.emit('ACTION', {
+           type: "عرض قائمة الوصول صفحة رقم" + page,
+           userId: Number(token.id),
+         });  
+   
     res.status(200).json({
       data: homemaids,
       totalPages,
