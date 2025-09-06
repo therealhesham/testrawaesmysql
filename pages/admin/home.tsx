@@ -1,6 +1,5 @@
 //@ts-ignore
 //@ts-nocheck
-"use client";
 import Layout from "example/containers/Layout";
 import Link from "next/link";
 import Head from "next/head";
@@ -23,14 +22,14 @@ import {
   FaArrowUp,
   FaArrowCircleLeft,
 } from "react-icons/fa";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/router";
 import jwt from "jsonwebtoken";
 import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
 
-// Helper function to calculate remaining days
+// --- Helper Functions (Moved outside component for reusability on server) ---
 const calculateRemainingDays = (eventDate) => {
   const today = new Date();
   const event = new Date(eventDate);
@@ -39,7 +38,6 @@ const calculateRemainingDays = (eventDate) => {
   return remainingDays > 0 ? remainingDays : "Expired";
 };
 
-// Helper function to get current month and year in Arabic
 const getCurrentMonthYear = () => {
   const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
   const today = new Date();
@@ -48,7 +46,14 @@ const getCurrentMonthYear = () => {
   return `${month} ${year}`;
 };
 
-// مكونات الطلبات
+function getDate(date) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const form = currentDate.toISOString().split("T")[0];
+  return form;
+}
+
+// --- Tab Components (Remain unchanged) ---
 const NewOrdersTab = ({ orders, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
@@ -125,15 +130,6 @@ const CancelledOrdersTab = ({ orders, count }) => (
   </div>
 );
 
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
-  }
-
-// مكونات الوصول والمغادرة
 const InternalArrivalsTab = ({ arrivals, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {arrivals.slice(0, 3).map((arrival) => (
@@ -159,12 +155,10 @@ const InternalDeparturesTab = ({ departures, count }) => (
       <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مغادرة داخلية #{departure.id}</p>
-         
           <p className="item-subtitle text-xs text-gray-600">العاملة: {departure.Order.HomeMaid.Name ?? "غير محدد"}</p>
-         
           <p className="item-subtitle text-xs text-gray-600">إلى: {departure.finaldestination ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ المغادرة: {departure.createdAt?getDate(departure.createdAt):null} <FieldTimeOutlined />
+            تاريخ المغادرة: {departure.createdAt ? getDate(departure.createdAt) : null} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -183,7 +177,7 @@ const ExternalDeparturesTab = ({ departures, count }) => (
           <p className="item-title text-sm font-semibold text-gray-900">مغادرة خارجية #{departure.id}</p>
           <p className="item-subtitle text-xs text-gray-600">إلى: {departure.ArrivalOutSaudiCity ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ المغادرة: {departure.DeparatureFromSaudiDate?getDate(departure.DeparatureFromSaudiDate):null} <FieldTimeOutlined />
+            تاريخ المغادرة: {departure.DeparatureFromSaudiDate ? getDate(departure.DeparatureFromSaudiDate) : null} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -194,7 +188,6 @@ const ExternalDeparturesTab = ({ departures, count }) => (
   </div>
 );
 
-// مكونات شؤون الإقامة
 const HousingTab = ({ housing, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {housing.slice(0, 3).map((item) => (
@@ -252,7 +245,6 @@ const SessionsTab = ({ sessions, count }) => (
   </div>
 );
 
-// مكونات العاملات
 const WorkersTab = ({ workers, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {workers.slice(0, 3).map((worker) => (
@@ -261,7 +253,7 @@ const WorkersTab = ({ workers, count }) => (
           <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسجيل: {worker.createdAt?getDate(worker.createdAt):""} <FieldTimeOutlined />
+            تاريخ التسجيل: {worker.createdAt ? getDate(worker.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -310,7 +302,6 @@ const AvailableListTab = ({ available, count }) => (
   </div>
 );
 
-// مكونات إدارة العلاقات
 const RelationsTab = ({ relations, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {relations.slice(0, 3).map((relation) => (
@@ -368,28 +359,60 @@ const ForeignOfficesTab = ({ offices, count }) => (
   </div>
 );
 
-export default function Home({ user }) {
+// --- Main Home Component ---
+export default function Home({
+  user,
+  // Data fetched on server
+  newOrders,
+  currentOrders,
+  endedOrders,
+  cancelledOrders,
+  internalArrivals,
+  internalDeparatures,
+  externalDeparatures,
+  fullList,
+  bookedList,
+  availableList,
+  housed,
+  sessions,
+  relations,
+  transferSponsorships,
+  foreignOffices,
+  tasks,
+  events,
+  // Counts fetched on server
+  newOrdersLength,
+  currentOrdersLength,
+  finished,
+  cancelledorders,
+  arrivalsLength,
+  deparaturesLength,
+  externaldeparaturesLength,
+  homeMaidsLength,
+  officesCount,
+  transferSponsorshipsLength,
+  sessionsLength,
+  clientsCount,
+}) {
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
   const days = ['س', 'م', 'ت', 'و', 'ث', 'ج', 'س'];
   const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-
   const getDaysInMonth = (monthIndex, year) => {
     return new Date(year, monthIndex + 1, 0).getDate();
   };
-
   const getFirstDayOffset = (monthIndex, year) => {
     const jsDay = new Date(year, monthIndex, 1).getDay();
     return (jsDay + 6) % 7;
   };
-
   const [monthName, yearStr] = currentMonth.split(' ');
   const monthIndex = months.indexOf(monthName);
   const year = parseInt(yearStr);
   const daysInMonth = getDaysInMonth(monthIndex, year);
   const firstDayOffset = getFirstDayOffset(monthIndex, year);
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const [tasks, setTasks] = useState([]);
+
+  // State for tasks modal (client-side only)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', taskDeadline: '' });
 
@@ -417,332 +440,19 @@ export default function Home({ user }) {
     setCurrentMonth(`${months[month]} ${currentYear}`);
   };
 
-  const [events, setEvents] = useState([]);
-  const fetchEvents = async () => {
-    const eventData = [
-      { title: "Arrival: Person 1", date: "2025-01-01" },
-      { title: "Arrival: Person 10", date: "2025-01-01" },
-      { title: "Arrival: Person 11", date: "2025-01-01" },
-      { title: "Arrival: Person 12", date: "2025-01-01" },
-      { title: "Arrival: Person 2", date: "2025-02-10" },
-      { title: "Arrival: Person 3", date: "2025-03-15" },
-      { title: "Arrival: Person 4", date: "2025-12-25" },
-      { title: "Arrival: Person 5", date: "2025-11-30" },
-    ];
-    setEvents(eventData);
-  };
-
-  const [currentOrdersLength, setCurrentOrdersLength] = useState(0);
-  const [cancelledorders, setCancelledorders] = useState(0);
-  const [deparaturesLength, setDeparaturesLength] = useState(0);
-  const [externaldeparaturesLength, seteExternalDeparaturesLength] = useState(0);
-  const [newOrdersLength, setNewOrdersLength] = useState(0);
-  const [homeMaidsLength, setHomeMaidsLength] = useState(0);
-  const [arrivalsLength, setArrivalsLength] = useState(0);
-  const [rejectedOrdersLength, setRejectedOrdersLength] = useState(0);
-  const [finished, setFinished] = useState(0);
-  const [officesLength, setOfficesLengthLength] = useState(0);
-  const [transferSponsorshipsLength, setTransferSponsorshipsLength] = useState(0);
-  const [sessionsLength, setSessionsLength] = useState(0);
-  const [clientsCount, setClientsCount] = useState(0);
-  const [officesCount, setOfficesCount] = useState(0);
-
-  const fetchData = async () => {
-    try {
-      const response = await fetch(`/api/datalength`, {
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        method: "get",
-      });
-      const res = await response.json();
-      if (response.status === 200) {
-        setDeparaturesLength(res.deparatures);
-        setArrivalsLength(res.arrivals);
-        setRejectedOrdersLength(res.rejectedOrders);
-        setHomeMaidsLength(res.workers);
-        setTransferSponsorshipsLength(res.transferSponsorships);
-        setNewOrdersLength(res.neworderCount);
-        setFinished(res.finished);
-        setCancelledorders(res.cancelledorders);
-        setOfficesLengthLength(res.offices);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  };
-
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch(`/api/tasks/${user.id}`, {
-        method: "GET",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-      });
-      const data = await response.json();
-      if (response.status === 200) {
-        setTasks(data);
-      } else {
-        console.error("Error fetching tasks:", data.error);
-      }
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-    }
-  };
-
-  const handleAddTask = async (e) => {
-    e.preventDefault();
-    if (newTask.title && newTask.description && newTask.taskDeadline) {
-      try {
-        const response = await fetch(`/api/tasks/${user.id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            description: newTask.description,
-            Title: newTask.title,
-            taskDeadline: newTask.taskDeadline,
-            isCompleted: false,
-          }),
-        });
-        const data = await response.json();
-        if (response.status === 201) {
-          setTasks([...tasks, data]);
-          setNewTask({ title: '', description: '', taskDeadline: '' });
-          setIsModalOpen(false);
-        } else {
-          alert(data.error);
-          console.error("Error creating task:", data.error);
-        }
-      } catch (error) {
-        alert(error);
-        console.error("Error creating task:", error);
-      }
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewTask((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const [newOrders, setNewOrders] = useState([]);
-  const [currentOrders, setCurrentOrders] = useState([]);
-  const [endedOrders, setEndedOrders] = useState([]);
-  const [cancelledOrders, setCancelledOrders] = useState([]);
-  const [arrivals, setArrivals] = useState([]);
-  const [internalArrivals, setInternalArrivals] = useState([]);
-  const [internalDeparatures, setInternalDeparatures] = useState([]);
-  const [externalDeparatures, setExternalDeparatures] = useState([]);
-  const [fullList, setFullList] = useState([]);
-  const [bookedList, setBookedList] = useState([]);
-  const [availableList, setAvailableList] = useState([]);
-  const [housingSection, setHousingSection] = useState([]);
-  const [housed, setHoused] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [relations, setRelations] = useState([]);
-  const [transferSponsorships, setTransferSponsorships] = useState([]);
-  const [foreignOffices, setForeignOffices] = useState([]);
+  // Client-side state for tab navigation
   const [ordersSectionState, setOrdersSectionState] = useState("newOrders");
   const [arrivalsSectionState, setArrivalsSectionState] = useState("internalArrivals");
   const [housingSectionState, setHousingSectionState] = useState("housing");
   const [workersSectionState, setWorkersSectionState] = useState("workers");
   const [relationsSectionState, setRelationsSectionState] = useState("relations");
 
-  const fetchNewOrdersData = async () => {
-    try {
-      const response = await fetch(`/api/neworderlistprisma/1`, { method: "get" });
-      const res = await response.json();
-      setNewOrders(res.data);
-      setNewOrdersLength(res.data.length);
-    } catch (error) {
-      console.error("Error fetching new orders:", error);
-    }
-  };
-
-  const fetchCurrentOrdersData = async () => {
-    try {
-      const response = await fetch(`/api/homeinitialdata/currentordersprisma`, { method: "get" });
-      const res = await response.json();
-      setCurrentOrders(res.data);
-      setCurrentOrdersLength(res.totalCount);
-    } catch (error) {
-      console.error("Error fetching current orders:", error);
-    }
-  };
-
-  const fetchEndedOrdersData = async () => {
-    try {
-      const response = await fetch(`/api/endedorders/`, { method: "get" });
-      const res = await response.json();
-      setEndedOrders(res.homemaids);
-      setFinished(res.homemaids.length);
-    } catch (error) {
-      console.error("Error fetching ended orders:", error);
-    }
-  };
-
-  const fetchCancelledOrdersData = async () => {
-    try {
-      const response = await fetch(`/api/homeinitialdata/cancelledorders`, { method: "get" });
-      const res = await response.json();
-      setCancelledOrders(res.data);
-      setCancelledorders(res.data.length);
-    } catch (error) {
-      console.error("Error fetching cancelled orders:", error);
-    }
-  };
-
-  const fetchArrivalsData = async () => {
-    try {
-      const response = await fetch(`/api/arrivals`, { method: "get" });
-      const res = await response.json();
-      setArrivals(res.data);
-      setInternalArrivals(res.data);
-      setArrivalsLength(res.data.length);
-    } catch (error) {
-      console.error("Error fetching arrivals:", error);
-    }
-  };
-
-  function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
-  }
-
-  const fetchInternalDeparaturesData = async () => {
-    try {
-      const response = await fetch(`/api/deparatures`, { method: "get" });
-      const res = await response.json();
-      setInternalDeparatures(res.data);
-      setDeparaturesLength(res.data.length);
-    } catch (error) {
-      console.error("Error fetching internal departures:", error);
-    }
-  };
-
-  const fetchExternalDeparaturesData = async () => {
-    try {
-      const response = await fetch(`/api/homeinitialdata/deparaturefromsaudi`, { method: "get" });
-      const res = await response.json();
-      setExternalDeparatures(res.data);
-      seteExternalDeparaturesLength(res.data.length);
-    } catch (error) {
-      console.error("Error fetching external departures:", error);
-    }
-  };
-
-  const fetchHoused = async () => {
-    try {
-      const response = await fetch(`/api/confirmhousinginformation`, { method: "get" });
-      const res = await response.json();
-      setHousingSection(res.housing);
-      setHoused(res.housing);
-    } catch (error) {
-      console.error("Error fetching housed data:", error);
-    }
-  };
-
-  const fetchSessions = async () => {
-    try {
-      const response = await fetch(`/api/sessions`, { method: "get" });
-      const res = await response.json();
-      setSessions(res.sessions);
-      setSessionsLength(res.totalResults);
-    } catch (error) {
-      console.error("Error fetching sessions:", error);
-    }
-  };
-
-  const fetchRelations = async () => {
-    try {
-      const response = await fetch(`/api/homeinitialdata/clients`, { method: "get" });
-      const res = await response.json();
-      setRelations(res.data);
-      setClientsCount(res.dataCount);
-    } catch (error) {
-      console.error("Error fetching relations:", error);
-    }
-  };
-
-  const fetchTransferSponsorships = async () => {
-    try {
-      const response = await fetch(`/api/transfersponsorships`, { method: "get" });
-      const res = await response.json();
-      setTransferSponsorships(res);
-      setTransferSponsorshipsLength(res.length);
-    } catch (error) {
-      console.error("Error fetching transfer sponsorships:", error);
-    }
-  };
-
-  const fetchFullList = async () => {
-    try {
-      const response = await fetch(`/api/homemaidprisma?page=1`, { method: "get" });
-      const res = await response.json();
-      setFullList(res.data);
-      setHomeMaidsLength(res.totalRecords  );
-    } catch (error) {
-      console.error("Error fetching full list:", error);
-    }
-  };
-
-  const fetchBookedList = async () => {
-    try {
-      const response = await fetch(`/api/bookedlist?page=1`, { method: "get" });
-      const res = await response.json();
-      setBookedList(res.data);
-    } catch (error) {
-      console.error("Error fetching booked list:", error);
-    }
-  };
-
-  const fetchAvailableList = async () => {
-    try {
-      const response = await fetch(`/api/availablelist?page=1`, { method: "get" });
-      const res = await response.json();
-      setAvailableList(res.data);
-    } catch (error) {
-      console.error("Error fetching available list:", error);
-    }
-  };
-
-  const fetchForeignOffices = async () => {
-    try {
-      const response = await fetch(`/api/homeinitialdata/externaloffices`, { method: "get" });
-      const res = await response.json();
-      setForeignOffices(res.data);
-      setOfficesCount(res.dataCount);
-    } catch (error) {
-      console.error("Error fetching foreign offices:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    fetchTasks();
-    fetchEvents();
-    fetchNewOrdersData();
-    fetchCurrentOrdersData();
-    fetchEndedOrdersData();
-    fetchCancelledOrdersData();
-    fetchArrivalsData();
-    fetchInternalDeparaturesData();
-    fetchExternalDeparaturesData();
-    fetchHoused();
-    fetchSessions();
-    fetchRelations();
-    fetchTransferSponsorships();
-    fetchFullList();
-    fetchBookedList();
-    fetchAvailableList();
-    fetchForeignOffices();
-  }, []);
-
   const sectionRef = useRef(null);
   const scrollToSection = () => {
     sectionRef.current.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Calendar and Task functions (client-side interactions)
   const getEventsForDay = (day) => {
     return events.filter((event) => {
       const eventDate = new Date(event.date);
@@ -777,11 +487,49 @@ export default function Home({ user }) {
     if (day) {
       const tasksForDay = getTasksForDay(day);
       if (tasksForDay.length > 0) {
-        alert(`Tasks for ${day}/${monthIndex + 1}/${year}:\n${tasksForDay.map(t => t.Title).join('\n')}`);
+        alert(`Tasks for ${day}/${monthIndex + 1}/${year}:
+${tasksForDay.map(t => t.Title).join('')}`);
       } else {
         alert(`No tasks for ${day}/${monthIndex + 1}/${year}`);
       }
     }
+  };
+
+  // Function to handle adding a new task (client-side API call)
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (newTask.title && newTask.description && newTask.taskDeadline) {
+      try {
+        const response = await fetch(`/api/tasks/${user.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description: newTask.description,
+            Title: newTask.title,
+            taskDeadline: newTask.taskDeadline,
+            isCompleted: false,
+          }),
+        });
+        const data = await response.json();
+        if (response.status === 201) {
+          // Optimistically update the UI
+          setTasks(prevTasks => [...prevTasks, data]);
+          setNewTask({ title: '', description: '', taskDeadline: '' });
+          setIsModalOpen(false);
+        } else {
+          alert(data.error);
+          console.error("Error creating task:", data.error);
+        }
+      } catch (error) {
+        alert(error);
+        console.error("Error creating task:", error);
+      }
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewTask((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -1198,8 +946,10 @@ export default function Home({ user }) {
   );
 }
 
+// --- Server-Side Data Fetching ---
 export async function getServerSideProps(context) {
   const { req } = context;
+
   try {
     const isAuthenticated = req.cookies.authToken ? true : false;
     if (!isAuthenticated) {
@@ -1210,12 +960,136 @@ export async function getServerSideProps(context) {
         },
       };
     }
+
     const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+
+    // Helper function to fetch data from API
+    const fetchDataFromApi = async (url) => {
+      try {
+        const response = await fetch(url, {
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+        });
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`Error fetching from ${url}:`, error);
+        return null; // or return a default value/structure
+      }
+    };
+
+    // 1. Fetch initial counts
+    let counts = {
+      deparatures: 0,
+      arrivals: 0,
+      rejectedOrders: 0,
+      workers: 0,
+      transferSponsorships: 0,
+      neworderCount: 0,
+      finished: 0,
+      cancelledorders: 0,
+      offices: 0,
+    };
+    try {
+      const countsResponse = await fetchDataFromApi(`/api/datalength`);
+      if (countsResponse) {
+        counts = countsResponse;
+      }
+    } catch (error) {
+      console.error("Error fetching initial counts:", error);
+    }
+
+    // 2. Fetch all detailed data
+    const [
+      newOrdersRes,
+      currentOrdersRes,
+      endedOrdersRes,
+      cancelledOrdersRes,
+      arrivalsRes,
+      internalDeparaturesRes,
+      externalDeparaturesRes,
+      housedRes,
+      sessionsRes,
+      relationsRes,
+      transferSponsorshipsRes,
+      fullListRes,
+      bookedListRes,
+      availableListRes,
+      foreignOfficesRes,
+      tasksRes,
+    ] = await Promise.all([
+      fetchDataFromApi(`http://localhost:3000/api/neworderlistprisma/1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`http://localhost:3000/api/endedorders/`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`http://localhost:3000/api/arrivals`),
+      fetchDataFromApi(`http://localhost:3000/api/deparatures`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`http://localhost:3000/api/confirmhousinginformation`),
+      fetchDataFromApi(`http://localhost:3000/api/sessions`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/clients`),
+      fetchDataFromApi(`http://localhost:3000/api/transfersponsorships`),
+      fetchDataFromApi(`http://localhost:3000/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/bookedlist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/availablelist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`http://localhost:3000/api/tasks/${user.id}`), // Fetch tasks for the user
+    ]);
+
+    // Mock events data (as in original)
+    const events = [
+      { title: "Arrival: Person 1", date: "2025-01-01" },
+      { title: "Arrival: Person 10", date: "2025-01-01" },
+      { title: "Arrival: Person 11", date: "2025-01-01" },
+      { title: "Arrival: Person 12", date: "2025-01-01" },
+      { title: "Arrival: Person 2", date: "2025-02-10" },
+      { title: "Arrival: Person 3", date: "2025-03-15" },
+      { title: "Arrival: Person 4", date: "2025-12-25" },
+      { title: "Arrival: Person 5", date: "2025-11-30" },
+    ];
+
+    // Process and structure the data for props
+    const propsData = {
+      user,
+      // Data
+      newOrders: newOrdersRes?.data || [],
+      currentOrders: currentOrdersRes?.data || [],
+      endedOrders: endedOrdersRes?.homemaids || [],
+      cancelledOrders: cancelledOrdersRes?.data || [],
+      internalArrivals: arrivalsRes?.data || [],
+      internalDeparatures: internalDeparaturesRes?.data || [],
+      externalDeparatures: externalDeparaturesRes?.data || [],
+      housed: housedRes?.housing || [],
+      sessions: sessionsRes?.sessions || [],
+      relations: relationsRes?.data || [],
+      transferSponsorships: transferSponsorshipsRes || [],
+      fullList: fullListRes?.data || [],
+      bookedList: bookedListRes?.data || [],
+      availableList: availableListRes?.data || [],
+      foreignOffices: foreignOfficesRes?.data || [],
+      tasks: tasksRes || [], // Assuming the API returns an array of tasks
+      events,
+      // Counts (using fetched data or falling back to initial counts)
+      newOrdersLength: newOrdersRes?.data?.length || counts.neworderCount,
+      currentOrdersLength: currentOrdersRes?.totalCount || 0,
+      finished: endedOrdersRes?.homemaids?.length || counts.finished,
+      cancelledorders: cancelledOrdersRes?.data?.length || counts.cancelledorders,
+      arrivalsLength: arrivalsRes?.data?.length || counts.arrivals,
+      deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
+      externaldeparaturesLength: externalDeparaturesRes?.data?.length || 0,
+      homeMaidsLength: fullListRes?.totalRecords || counts.workers,
+      officesCount: foreignOfficesRes?.dataCount || 0,
+      transferSponsorshipsLength: transferSponsorshipsRes?.length || counts.transferSponsorships,
+      sessionsLength: sessionsRes?.totalResults || 0,
+      clientsCount: relationsRes?.dataCount || 0,
+    };
+
     return {
-      props: { user },
+      props: propsData,
     };
   } catch (error) {
-    console.log("Error verifying token:", error);
+    console.log("Error in getServerSideProps:", error);
     return {
       redirect: {
         destination: "/admin/login",
