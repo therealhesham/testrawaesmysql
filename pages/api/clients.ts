@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import { jwtDecode } from "jwt-decode";
+import eventBus from "lib/eventBus";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const prisma = new PrismaClient();
@@ -32,6 +34,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === "GET") {
     try {
+      const cookieHeader = req.headers.cookie;
+          let cookies: { [key: string]: string } = {};
+          if (cookieHeader) {
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+          }
+          console.log(cookies.authToken)
+          const token = jwtDecode(cookies.authToken);
+      
       const { fullname, phonenumber, city, date, clientId } = req.query;
       const filters: any = {};
 
@@ -81,7 +94,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         ...(clientId ? {} : { skip, take: pageSize }), // إذا كان clientId موجود، لا نطبق التصفح
       });
-
+  eventBus.emit('ACTION', {
+           type: "عرض قائمة العملاء صفحة رقم"+ page,
+           userId: Number(token.id),
+         });  
+   
       res.status(200).json({
         data: clients,
         totalPages: clientId ? 1 : Math.ceil(totalClients / pageSize),
