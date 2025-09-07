@@ -175,6 +175,17 @@ message        String?   @db.VarChar(255)
 
 
 }
+
+model Template {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  content   String   @db.Text
+  type      String   @db.VarChar(100) 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
 model offices {
   id                    Int       @id @default(autoincrement())
   office            String?    @db.VarChar(191) @unique
