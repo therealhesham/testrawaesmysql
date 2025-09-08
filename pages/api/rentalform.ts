@@ -12,7 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const formData = req.body;
-console.log(req.body)
     // Validate required fields
     const requiredFields = ['customerName', 'phoneNumber', 'workerId', 'contractDuration', 'contractStartDate', 'contractEndDate', 'paymentMethod', 'totalAmount', 'paidAmount'];
     for (const field of requiredFields) {
@@ -59,8 +58,8 @@ console.log(req.body)
         PhoneNumber: formData.phoneNumber,
         clientID: client.id,
         HomemaidId: parseInt(formData.workerId) || null,
-        typeOfContract: formData.contractDuration,
-        bookingstatus: 'pending', // Default status, adjust as needed
+        typeOfContract: "rental",
+        bookingstatus: 'new_order', // Default status, adjust as needed
         createdAt: new Date(),
         updatedAt: new Date(),
         PaymentMethod: formData.paymentMethod,

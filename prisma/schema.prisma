@@ -36,8 +36,8 @@ model homemaid {
   NewOrder          neworder[]
   Client            Client[]
   experienceType    String?    @db.VarChar(100)
-  PassportStart     String?    @db.VarChar(100)
-  PassportEnd       String?    @db.VarChar(100)
+ PassportStart DateTime?
+  PassportEnd       DateTime?
   OldPeopleCare     Boolean?
   ArabicLanguageLeveL String?  @db.VarChar(100)
   EnglishLanguageLevel String? @db.VarChar(100)
@@ -300,6 +300,8 @@ model neworder {
   clientID            Int?
   HomemaidId         Int?
   HomemaidIdCopy     Int?
+      orderDocument   String?   @db.VarChar(255)
+    contract String?   @db.VarChar(255)
   bookingstatus      String?   @db.VarChar(255)
   profileStatus      String?   @db.VarChar(255)
 transactios transactions[]

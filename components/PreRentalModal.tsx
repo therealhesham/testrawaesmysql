@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, ChevronDown, CheckCircle } from 'lucide-react';
 import debounce from 'lodash/debounce';
 import { useRouter } from 'next/router';
-
+import Style from "../styles/Home.module.css"
 interface Client {
   id: number;
   fullname: string;
@@ -72,8 +72,8 @@ const[is,setId]=useState("")
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-opacity-50 flex justify-center items-center z-50 py-25">
-      <div className="bg-gray-100 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+    <div className={`fixed inset-0 bg-opacity-50 flex justify-center items-center z-50 ${Style["tajawal-medium"]} `}>
+           <div className="bg-gray-100 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
         <X
           className="absolute top-4 left-4 text-2xl cursor-pointer text-primary-dark"
           onClick={onClose}
@@ -114,7 +114,7 @@ const[is,setId]=useState("")
           )}
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 justify-center">
           <button
             onClick={() => {
               const selectedClient = clients.find((client) => client.fullname === searchTerm);
@@ -124,7 +124,7 @@ const[is,setId]=useState("")
               }
             }}
             disabled={!searchTerm || filteredClients.length === 0 || noResults}
-            className="bg-teal-800 text-white px-4 py-2 rounded-md disabled:bg-gray-400"
+            className="bg-teal-900 text-white px-4 py-2 rounded-md disabled:bg-teal-700"
           >
             متابعة
           </button>

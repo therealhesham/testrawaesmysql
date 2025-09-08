@@ -47,7 +47,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     travelTicket: false,
     passportcopy: false,
   });
-  const [showModal, setShowModal] = useState(!!error); // فتح المودال إذا كان هناك خطأ
+  const [showModal, setShowModal] = useState(!!error);
 
   const fileInputRefs = {
     travelTicket: useRef<HTMLInputElement>(null),
@@ -68,6 +68,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     setErrors((prev) => ({ ...prev, [`skill-${skill}`]: '' }));
   };
 
+  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
@@ -77,7 +79,6 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     }
 
     const file = files[0];
-    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowedFileTypes.includes(file.type)) {
       setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
       setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
@@ -107,6 +108,11 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       setFormData((prev) => ({ ...prev, [fileId]: filePath }));
       setErrors((prev) => ({ ...prev, [fileId]: '' }));
       setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
+
+      const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
+      if (ref && ref.current) {
+        ref.current.value = '';
+      }
     } catch (error: any) {
       console.error('Error uploading file:', error);
       setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
@@ -191,18 +197,6 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     const skillsSelected = Object.values(formData.skills).some((value) => value !== '');
     if (!skillsSelected) {
       newErrors.skills = 'يجب اختيار مستوى لمهارة واحدة على الأقل';
-    }
-
-    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (fileInputRefs.travelTicket.current?.files?.[0]) {
-      if (!allowedFileTypes.includes(fileInputRefs.travelTicket.current.files[0].type)) {
-        newErrors.travelTicket = 'تذكرة السفر يجب أن تكون PDF أو صورة (JPEG/PNG)';
-      }
-    }
-    if (fileInputRefs.passportcopy.current?.files?.[0]) {
-      if (!allowedFileTypes.includes(fileInputRefs.passportcopy.current.files[0].type)) {
-        newErrors.passportcopy = 'جواز السفر يجب أن يكون PDF أو صورة (JPEG/PNG)';
-      }
     }
 
     setErrors(newErrors);
@@ -618,29 +612,32 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                     ].map((file) => (
                       <div key={file.id} className="flex flex-col">
                         <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">{file.label}</label>
-                        <div className="flex items-center border border-gray-300 rounded-md p-2">
+                        <div className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center">
+                          <span className="text-gray-500 text-sm pr-2">
+                            {fileUploaded[file.id] ? (
+                              <a
+                                href={formData[file.id as keyof typeof formData]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-teal-800 hover:underline"
+                              >
+                                فتح الملف
+                              </a>
+                            ) : (
+                              'إرفاق ملف'
+                            )}
+                          </span>
                           <input
                             type="file"
                             id={file.id}
                             ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
                             className="hidden"
+                            accept="application/pdf,image/jpeg,image/png"
                             onChange={(e) => handleFileChange(e, file.id)}
                           />
-                          {fileUploaded[file.id] ? (
-                            <a
-                              href={formData[file.id as keyof typeof formData]}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 text-right text-teal-800 underline hover:text-teal-600"
-                            >
-                              ملف مرفق
-                            </a>
-                          ) : (
-                            <span className="flex-1 text-right text-gray-500">ارفاق ملف</span>
-                          )}
                           <button
                             type="button"
-                            className="bg-teal-800 text-white px-4 py-2 rounded-md"
+                            className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs hover:bg-teal-900 disabled:opacity-50"
                             onClick={() => handleButtonClick(file.id)}
                           >
                             اختيار ملف
@@ -715,8 +712,6 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
 
 export async function getServerSideProps({ req }) {
   try {
-    console.log('sss');
-    // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -726,17 +721,14 @@ export async function getServerSideProps({ req }) {
       });
     }
 
-    // 🔹 Check for authToken
     if (!cookies.authToken) {
       return {
         props: { error: 'لا يوجد رمز مصادقة. يرجى تسجيل الدخول.' },
       };
     }
 
-    // 🔹 Decode JWT
     const token = jwtDecode(cookies.authToken);
 
-    // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },

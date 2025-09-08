@@ -28,6 +28,8 @@ export default async function handler(
     Passportnumber,
     maritalstatus,
     email,
+    orderDocument,
+    contract,
     Nationality,
     Religion,
     city,
