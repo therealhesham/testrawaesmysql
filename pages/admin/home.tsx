@@ -308,7 +308,7 @@ const RelationsTab = ({ relations, count }) => (
       <div key={relation.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عميل #{relation.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">الاسم: {relation.ClientName}</p>
+          <p className="item-subtitle text-xs text-gray-600">الاسم: {relation.fullname}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ التسجيل: {relation.createdAt} <FieldTimeOutlined />
           </p>
@@ -1019,22 +1019,22 @@ export async function getServerSideProps(context) {
       foreignOfficesRes,
       tasksRes,
     ] = await Promise.all([
-      fetchDataFromApi(`http://localhost:3005/api/neworderlistprisma/1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`http://localhost:3005/api/endedorders/`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`http://localhost:3005/api/arrivals`),
-      fetchDataFromApi(`http://localhost:3005/api/deparatures`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`http://localhost:3005/api/confirmhousinginformation`),
-      fetchDataFromApi(`http://localhost:3005/api/sessions`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/clients`),
-      fetchDataFromApi(`http://localhost:3005/api/transfersponsorships`),
-      fetchDataFromApi(`http://localhost:3005/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
+      fetchDataFromApi(`http://localhost:3000/api/neworderlistprisma/1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`http://localhost:3000/api/endedorders/`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`http://localhost:3000/api/arrivals`),
+      fetchDataFromApi(`http://localhost:3000/api/deparatures`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`http://localhost:3000/api/confirmhousinginformation`),
+      fetchDataFromApi(`http://localhost:3000/api/sessions`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/clients`),
+      fetchDataFromApi(`http://localhost:3000/api/transfersponsorships`),
+      fetchDataFromApi(`http://localhost:3000/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/bookedlist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/availablelist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`http://localhost:3000/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)

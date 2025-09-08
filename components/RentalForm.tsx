@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/router";
-import { CashIcon } from "@heroicons/react/outline";
-import { ArrowDown, Calendar, CreditCard, Wallet, CheckCircle, X } from "lucide-react";
-import Style from "styles/Home.module.css";
-import debounce from "lodash.debounce";
-import axios from "axios";
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
+import { CashIcon } from '@heroicons/react/outline';
+import { ArrowDown, Calendar, CreditCard, Wallet, CheckCircle, X } from 'lucide-react';
+import Style from 'styles/Home.module.css';
+import debounce from 'lodash.debounce';
+import axios from 'axios';
 
 interface FormData {
   customerName: string;
@@ -15,7 +15,7 @@ interface FormData {
   contractDuration: string;
   contractStartDate: string;
   contractEndDate: string;
-  contractFile: File | null;
+  contractFile: string | null; // Changed to string to store filePath
   paymentMethod: string;
   totalAmount: string;
   paidAmount: string;
@@ -30,27 +30,28 @@ interface Homemaid {
 export default function RentalForm() {
   const router = useRouter();
   const { clientId, newClient } = router.query;
-  const [formData, setFormData] = useState({
-    customerName: "",
-    phoneNumber: "",
-    nationalId: "",
-    customerCity: "",
-    workerId: "",
-    contractDuration: "",
-    contractStartDate: "",
-    contractEndDate: "",
-    // contractFile: null,
-    paymentMethod: "two-installments",
-    totalAmount: "",
-    paidAmount: "",
-    remainingAmount: "",
+  const [formData, setFormData] = useState<FormData>({
+    customerName: '',
+    phoneNumber: '',
+    nationalId: '',
+    customerCity: '',
+    workerId: '',
+    contractDuration: '',
+    contractStartDate: '',
+    contractEndDate: '',
+    contractFile: null,
+    paymentMethod: 'two-installments',
+    totalAmount: '',
+    paidAmount: '',
+    remainingAmount: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [file, setFile] = useState<File | null>(null); // Store the selected file
 
   // Fetch client data if clientId exists
   useEffect(() => {
@@ -70,11 +71,11 @@ export default function RentalForm() {
               customerCity: client.city,
             }));
           } else {
-            setError("لم يتم العثور على العميل");
+            setError('لم يتم العثور على العميل');
           }
         } catch (err) {
-          console.error("Error fetching client:", err);
-          setError("خطأ في جلب بيانات العميل");
+          console.error('Error fetching client:', err);
+          setError('خطأ في جلب بيانات العميل');
         } finally {
           setIsLoading(false);
         }
@@ -105,14 +106,13 @@ export default function RentalForm() {
           setShowSuggestions(false);
         }
       } catch (err) {
-        console.error("Error fetching homemaids:", err);
-        setError("خطأ في جلب بيانات العاملات");
+        console.error('Error fetching homemaids:', err);
+        setError('خطأ في جلب بيانات العاملات');
       }
     }, 300),
     []
   );
 
-  // Trigger fetchHomemaids when searchQuery changes
   useEffect(() => {
     fetchHomemaids(searchQuery);
   }, [searchQuery, fetchHomemaids]);
@@ -120,14 +120,14 @@ export default function RentalForm() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => {
-      const newData = { ...prev, [id.replace("-", "")]: value };
-      if (id === "totalAmount" || id === "paidAmount") {
+      const newData = { ...prev, [id.replace('-', '')]: value };
+      if (id === 'totalAmount' || id === 'paidAmount') {
         const total = parseFloat(newData.totalAmount) || 0;
         const paid = parseFloat(newData.paidAmount) || 0;
         newData.remainingAmount = (total - paid).toFixed(2);
       }
-      if (id === "contractEndDate" && newData.contractStartDate && value < newData.contractStartDate) {
-        setError("تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية");
+      if (id === 'contractEndDate' && newData.contractStartDate && value < newData.contractStartDate) {
+        setError('تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية');
         return prev;
       }
       return newData;
@@ -135,8 +135,8 @@ export default function RentalForm() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setFormData((prev) => ({ ...prev, contractFile: file }));
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
   };
 
   const handleHomemaidSelect = (homemaid: Homemaid) => {
@@ -148,7 +148,7 @@ export default function RentalForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.workerId) {
-      setError("يرجى اختيار عاملة");
+      setError('يرجى اختيار عاملة');
       return;
     }
     setIsLoading(true);
@@ -157,48 +157,69 @@ export default function RentalForm() {
 
     try {
       let finalClientId = clientId;
-      if (newClient === "true") {
+      let contractFileUrl: string | null = null;
+
+      // Create new client if newClient is true
+      if (newClient === 'true') {
         const clientData = {
           fullname: formData.customerName,
           phonenumber: formData.phoneNumber,
           nationalId: formData.nationalId,
           city: formData.customerCity,
         };
-        const clientResponse = await fetch("/api/clients", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const clientResponse = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(clientData),
         });
         if (!clientResponse.ok) {
           const errorData = await clientResponse.json();
-          throw new Error(errorData.message || "خطأ في إنشاء العميل");
+          throw new Error(errorData.message || 'خطأ في إنشاء العميل');
         }
         const clientResult = await clientResponse.json();
         finalClientId = clientResult.client.id;
       }
 
-      // const formDataToSend = new FormData();
-      // Object.entries(formData).forEach(([key, value]) => {
-      //   if (value !== null) formDataToSend.append(key, value);
-      // });
-      // formDataToSend.append("clientId", finalClientId as string);
+      // Upload file to DigitalOcean Spaces if a file is selected
+      if (file) {
+        const response = await fetch(`/api/upload-presigned-url/${finalClientId || Date.now()}`, {
+          method: 'GET',
+        });
+        if (!response.ok) {
+          throw new Error('Failed to get presigned URL');
+        }
+        const { url, filePath } = await response.json();
+        contractFileUrl = filePath;
 
-      const response = await fetch("/api/rentalform", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(formData),
-});
+        // Upload the file to the presigned URL
+        await axios.put(url, file, {
+          headers: {
+            'Content-Type': 'application/pdf',
+          },
+        });
+      }
 
-if (response.ok) {
-        setSuccess("تم إنشاء طلب التأجير بنجاح!");
-        setTimeout(() => router.push("/admin/neworders"), 2000);
+      // Submit form data with the file URL
+      const response = await fetch('/api/rentalform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          clientId: finalClientId,
+          contractFile: contractFileUrl,
+        }),
+      });
+
+      if (response.ok) {
+        setSuccess('تم إنشاء طلب التأجير بنجاح!');
+        setTimeout(() => router.push('/admin/neworders'), 2000);
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || "خطأ في إنشاء الطلب");
+        throw new Error(errorData.message || 'خطأ في إنشاء الطلب');
       }
     } catch (error: any) {
-      console.error("Error submitting form:", error);
-      setError(error.message || "خطأ في الخادم الداخلي");
+      console.error('Error submitting form:', error);
+      setError(error.message || 'خطأ في الخادم الداخلي');
     } finally {
       setIsLoading(false);
     }
@@ -207,7 +228,7 @@ if (response.ok) {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h2 className="text-2xl font-semibold text-right mb-6">
-        {newClient ? "طلب تأجير جديد" : "طلب تأجير"}
+        {newClient ? 'طلب تأجير جديد' : 'طلب تأجير'}
       </h2>
 
       {isLoading && <div className="text-center text-gray-500">جاري التحميل...</div>}
@@ -224,7 +245,7 @@ if (response.ok) {
         </div>
       )}
 
-      <form className={`${Style["tajawal-regular"]} flex flex-col gap-12`} onSubmit={handleSubmit}>
+      <form className={`${Style['tajawal-regular']} flex flex-col gap-12`} onSubmit={handleSubmit}>
         <div className="grid grid-cols-3 gap-8">
           <div className="flex flex-col gap-2">
             <label htmlFor="customerName" className="text-base text-right">اسم العميل</label>
@@ -342,6 +363,7 @@ if (response.ok) {
                 type="file"
                 id="contractFile"
                 onChange={handleFileChange}
+                accept="application/pdf"
                 className="hidden"
               />
               <label
@@ -350,6 +372,7 @@ if (response.ok) {
               >
                 اختيار ملف
               </label>
+              {file && <span className="mr-2 text-sm">{file.name}</span>}
             </div>
           </div>
         </div>
@@ -363,16 +386,16 @@ if (response.ok) {
                   id="paymentMethodCash"
                   name="paymentMethod"
                   value="cash"
-                  checked={formData.paymentMethod === "cash"}
+                  checked={formData.paymentMethod === 'cash'}
                   onChange={handleInputChange}
                   className="hidden"
                 />
                 <label
                   htmlFor="paymentMethodCash"
                   className={`flex items-center justify-center gap-2 text-lg cursor-pointer ${
-                    formData.paymentMethod === "cash" ? "text-teal-800 font-bold" : "text-gray-600"
+                    formData.paymentMethod === 'cash' ? 'text-teal-800 font-bold' : 'text-gray-600'
                   }`}
-                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: "cash" }))}
+                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'cash' }))}
                 >
                   <CashIcon className="w-6 h-6" />
                   <span>كاش</span>
@@ -384,16 +407,16 @@ if (response.ok) {
                   id="paymentMethodTwo"
                   name="paymentMethod"
                   value="two-installments"
-                  checked={formData.paymentMethod === "two-installments"}
+                  checked={formData.paymentMethod === 'two-installments'}
                   onChange={handleInputChange}
                   className="hidden"
                 />
                 <label
                   htmlFor="paymentMethodTwo"
                   className={`flex items-center justify-center gap-2 text-lg cursor-pointer ${
-                    formData.paymentMethod === "two-installments" ? "text-teal-800 font-bold" : "text-gray-600"
+                    formData.paymentMethod === 'two-installments' ? 'text-teal-800 font-bold' : 'text-gray-600'
                   }`}
-                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: "two-installments" }))}
+                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'two-installments' }))}
                 >
                   <CreditCard className="w-6 h-6" />
                   <span>دفعتين</span>
@@ -405,16 +428,16 @@ if (response.ok) {
                   id="paymentMethodThree"
                   name="paymentMethod"
                   value="three-installments"
-                  checked={formData.paymentMethod === "three-installments"}
+                  checked={formData.paymentMethod === 'three-installments'}
                   onChange={handleInputChange}
                   className="hidden"
                 />
                 <label
                   htmlFor="paymentMethodThree"
                   className={`flex items-center justify-center gap-2 text-lg cursor-pointer ${
-                    formData.paymentMethod === "three-installments" ? "text-teal-800 font-bold" : "text-gray-600"
+                    formData.paymentMethod === 'three-installments' ? 'text-teal-800 font-bold' : 'text-gray-600'
                   }`}
-                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: "three-installments" }))}
+                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'three-installments' }))}
                 >
                   <Wallet className="w-6 h-6" />
                   <span>ثلاثة دفعات</span>
@@ -469,14 +492,14 @@ if (response.ok) {
             type="submit"
             disabled={isLoading}
             className={`bg-teal-800 text-white px-4 py-2 rounded-md text-sm ${
-              isLoading ? "opacity-50 cursor-not-allowed" : ""
+              isLoading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
-            {isLoading ? "جاري الحفظ..." : "حفظ"}
+            {isLoading ? 'جاري الحفظ...' : 'حفظ'}
           </button>
           <button
             type="button"
-            onClick={() => router.push("/admin/requests")}
+            onClick={() => router.push('/admin/requests')}
             className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-sm"
           >
             إلغاء

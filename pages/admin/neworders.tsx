@@ -5,7 +5,7 @@ import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
 import { ArrowDown, Plus, Search, X } from 'lucide-react';
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Select from 'react-select';
 import { MoreHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -44,6 +44,8 @@ export default function Dashboard({ hasPermission }) {
     ExperienceYears: 0,
     notes: '',
     searchTerm: '',
+    orderDocument: '', // إضافة حقل لسند الأمر
+    contract: '', // إضافة حقل للعقد
   });
   const [ageFilter, setAgeFilter] = useState("");
   const [nationalityFilter, setNationalityFilter] = useState("");
@@ -52,8 +54,80 @@ export default function Dashboard({ hasPermission }) {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(!hasPermission);
   const [menuPosition, setMenuPosition] = useState(null);
+  const [fileUploaded, setFileUploaded] = useState({
+    orderDocument: false,
+    contract: false,
+  });
+  const [errors, setErrors] = useState({});
+
+  const fileInputRefs = {
+    orderDocument: useRef(null),
+    contract: useRef(null),
+  };
 
   const router = useRouter();
+
+  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+  const handleFileChange = async (e, fileId) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      return;
+    }
+
+    const file = files[0];
+    if (!allowedFileTypes.includes(file.type)) {
+      setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+      if (!res.ok) {
+        throw new Error('فشل في الحصول على رابط الرفع');
+      }
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('فشل في رفع الملف');
+      }
+
+      setFormData((prev) => ({ ...prev, [fileId]: filePath }));
+      setErrors((prev) => ({ ...prev, [fileId]: '' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
+
+      const ref = fileInputRefs[fileId];
+      if (ref && ref.current) {
+        ref.current.value = '';
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
+      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+    }
+  };
+
+  const handleButtonClick = (fileId) => {
+    const ref = fileInputRefs[fileId];
+    if (ref && ref.current) {
+      ref.current.click();
+    } else {
+      console.error(`Reference for ${fileId} is not defined or has no current value`);
+      setErrors((prev) => ({ ...prev, [fileId]: 'خطأ في تحديد حقل الملف' }));
+    }
+  };
 
   const handleOpenMenu = (e, rowIndex) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -194,7 +268,7 @@ export default function Dashboard({ hasPermission }) {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get("/api/clients");
+      const response = await axios.get("/api/autocomplete/clients");
       setClients(Array.isArray(response.data.data) ? response.data.data : []);
     } catch (error) {
       console.error('Error fetching clients:', error);
@@ -267,14 +341,47 @@ export default function Dashboard({ hasPermission }) {
     setCurrentPage(1);
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+    const requiredFields = [
+      { id: 'clientID', label: 'اسم العميل' },
+      { id: 'Total', label: 'المبلغ كامل' },
+      { id: 'Paid', label: 'المبلغ المدفوع' },
+    ];
+
+    requiredFields.forEach((field) => {
+      if (!formData[field.id]) {
+        newErrors[field.id] = `${field.label} مطلوب`;
+      }
+    });
+
+    if (formData.Total && (isNaN(Number(formData.Total)) || Number(formData.Total) <= 0)) {
+      newErrors.Total = 'المبلغ كامل يجب أن يكون رقمًا إيجابيًا';
+    }
+
+    if (formData.Paid && (isNaN(Number(formData.Paid)) || Number(formData.Paid) < 0)) {
+      newErrors.Paid = 'المبلغ المدفوع يجب أن يكون رقمًا غير سالب';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmitSpecs = async (e) => {
     e.preventDefault();
+    if (!validateForm()) {
+      setModalMessage('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
+      setShowErrorModal(true);
+      return;
+    }
     try {
       const response = await axios.post("/api/submitneworderbyspecs", formData);
       setModalMessage('تم إضافة الطلب بنجاح');
       setShowSuccessModal(true);
       setView('requests');
       newOrdersList();
+      setFileUploaded({ orderDocument: false, contract: false });
+      setErrors({});
     } catch (error) {
       setModalMessage(error.response?.data?.message || 'حدث خطأ أثناء إضافة الطلب');
       setShowErrorModal(true);
@@ -283,12 +390,19 @@ export default function Dashboard({ hasPermission }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) {
+      setModalMessage('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
+      setShowErrorModal(true);
+      return;
+    }
     try {
       const response = await axios.post("/api/submitneworderprisma", formData);
       setModalMessage('تم إضافة الطلب بنجاح');
       setShowSuccessModal(true);
       setView('requests');
       newOrdersList();
+      setFileUploaded({ orderDocument: false, contract: false });
+      setErrors({});
     } catch (error) {
       setModalMessage(error.response?.data?.message || 'حدث خطأ أثناء إضافة الطلب');
       setShowErrorModal(true);
@@ -297,14 +411,12 @@ export default function Dashboard({ hasPermission }) {
 
   const exportToPDF = async () => {
     const doc = new jsPDF();
-
     try {
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
       const fontBytes = new Uint8Array(fontBuffer);
       const fontBase64 = Buffer.from(fontBytes).toString('base64');
-
       doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       doc.setFont('Amiri', 'normal');
@@ -314,11 +426,9 @@ export default function Dashboard({ hasPermission }) {
       setShowErrorModal(true);
       return;
     }
-
     doc.setLanguage('ar');
     doc.setFontSize(12);
     doc.text('الطلبات الجديدة', 200, 10, { align: 'right' });
-
     const tableColumn = [
       'رقم الطلب',
       'اسم العميل',
@@ -341,7 +451,6 @@ export default function Dashboard({ hasPermission }) {
       row.Passportnumber || 'غير متوفر',
       row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
     ]);
-
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
@@ -362,14 +471,12 @@ export default function Dashboard({ hasPermission }) {
         data.cell.styles.halign = 'right';
       },
     });
-
     doc.save('new_orders.pdf');
   };
 
   const exportToExcel = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('الطلبات الجديدة', { properties: { defaultColWidth: 20 } });
-
     worksheet.columns = [
       { header: 'رقم الطلب', key: 'id', width: 15 },
       { header: 'اسم العميل', key: 'clientName', width: 20 },
@@ -381,10 +488,8 @@ export default function Dashboard({ hasPermission }) {
       { header: 'جواز السفر', key: 'passport', width: 15 },
       { header: 'العمر', key: 'age', width: 10 },
     ];
-
     worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
     worksheet.getRow(1).alignment = { horizontal: 'right' };
-
     exportedData.forEach(row => {
       worksheet.addRow({
         id: row.id || 'غير متوفر',
@@ -398,7 +503,6 @@ export default function Dashboard({ hasPermission }) {
         age: row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
       }).alignment = { horizontal: 'right' };
     });
-
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
@@ -453,11 +557,9 @@ export default function Dashboard({ hasPermission }) {
     const maxPagesToShow = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
     let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
     if (endPage - startPage + 1 < maxPagesToShow) {
       startPage = Math.max(1, endPage - maxPagesToShow + 1);
     }
-
     for (let i = startPage; i <= endPage; i++) {
       pages.push(
         <a
@@ -474,7 +576,6 @@ export default function Dashboard({ hasPermission }) {
         </a>
       );
     }
-
     return (
       <div className="flex justify-between items-center mt-6">
         <span className="text-base">
@@ -506,7 +607,7 @@ export default function Dashboard({ hasPermission }) {
   };
 
   const renderRequests = () => (
-    <div className="p-6 min-h-screen" >
+    <div className="p-6 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
@@ -621,7 +722,7 @@ export default function Dashboard({ hasPermission }) {
           {isLoading ? (
             <div className="text-center">جارٍ التحميل...</div>
           ) : (
-            <table className="w-full text-right text-sm" dir='ltr' >
+            <table className="w-full text-right text-sm" dir='ltr'>
               <thead className="bg-teal-900 text-white">
                 <tr>
                   <th className="p-4 pr-6">الإجراءات</th>
@@ -739,7 +840,7 @@ export default function Dashboard({ hasPermission }) {
   );
 
   const renderAddAvailable = () => (
-    <div className="p-6 bg-gray-100 min-h-screen" >
+    <div className="p-6 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-normal text-right">طلب جديد حسب العاملات المتاحات</h1>
         <button
@@ -780,6 +881,7 @@ export default function Dashboard({ hasPermission }) {
                 }),
               }}
             />
+            {errors.clientID && <p className="text-red-500 text-xs mt-1">{errors.clientID}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">رقم العميل</label>
@@ -897,8 +999,9 @@ export default function Dashboard({ hasPermission }) {
               name="Total"
               value={formData.Total}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={`bg-gray-50 border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
             />
+            {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ المدفوع</label>
@@ -907,8 +1010,9 @@ export default function Dashboard({ hasPermission }) {
               name="Paid"
               value={formData.Paid}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={`bg-gray-50 border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
             />
+            {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ المتبقي</label>
@@ -920,6 +1024,48 @@ export default function Dashboard({ hasPermission }) {
             />
           </div>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+          {[
+            { id: 'orderDocument', label: 'ملف سند الأمر' },
+            { id: 'contract', label: 'ملف العقد' },
+          ].map((file) => (
+            <div key={file.id} className="flex flex-col gap-2">
+              <label htmlFor={file.id} className="text-base">{file.label}</label>
+              <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
+                <span className="text-gray-500 text-sm pr-2">
+                  {fileUploaded[file.id] ? (
+                    <a
+                      href={formData[file.id]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-800 hover:underline"
+                    >
+                      فتح الملف
+                    </a>
+                  ) : (
+                    'إرفاق ملف'
+                  )}
+                </span>
+                <input
+                  type="file"
+                  id={file.id}
+                  ref={fileInputRefs[file.id]}
+                  className="hidden"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => handleFileChange(e, file.id)}
+                />
+                <button
+                  type="button"
+                  className="bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+                  onClick={() => handleButtonClick(file.id)}
+                >
+                  اختيار ملف
+                </button>
+              </div>
+              {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
+            </div>
+          ))}
+        </div>
         <div className="flex gap-6 flex-col sm:flex-row">
           <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
           <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
@@ -929,7 +1075,7 @@ export default function Dashboard({ hasPermission }) {
   );
 
   const renderAddSpecs = () => (
-    <div className="p-6 bg-gray-100 min-h-screen" >
+    <div className="p-6 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-normal text-right">طلب جديد حسب المواصفات</h1>
         <button
@@ -970,6 +1116,7 @@ export default function Dashboard({ hasPermission }) {
                 }),
               }}
             />
+            {errors.clientID && <p className="text-red-500 text-xs mt-1">{errors.clientID}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">رقم العميل</label>
@@ -1083,8 +1230,9 @@ export default function Dashboard({ hasPermission }) {
               name="Total"
               value={formData.Total}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={`bg-gray-50 border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
             />
+            {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ المدفوع</label>
@@ -1093,8 +1241,9 @@ export default function Dashboard({ hasPermission }) {
               name="Paid"
               value={formData.Paid}
               onChange={handleFormChange}
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={`bg-gray-50 border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
             />
+            {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ المتبقي</label>
@@ -1106,15 +1255,47 @@ export default function Dashboard({ hasPermission }) {
             />
           </div>
         </div>
-        <div className="flex flex-col gap-2 mb-8">
-          <label className="text-base">تحميل ملف العقد</label>
-          <div className="flex gap-3 items-center">
-            <input
-              type="file"
-              className="bg-gray-50 border border-gray-300 rounded p-3 flex-1 text-right"
-            />
-            <button className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200">اختيار ملف</button>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {[
+            { id: 'orderDocument', label: 'ملف سند الأمر' },
+            { id: 'contract', label: 'ملف العقد' },
+          ].map((file) => (
+            <div key={file.id} className="flex flex-col gap-2">
+              <label htmlFor={file.id} className="text-base">{file.label}</label>
+              <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
+                <span className="text-gray-500 text-sm pr-2">
+                  {fileUploaded[file.id] ? (
+                    <a
+                      href={formData[file.id]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-800 hover:underline"
+                    >
+                      فتح الملف
+                    </a>
+                  ) : (
+                    'إرفاق ملف'
+                  )}
+                </span>
+                <input
+                  type="file"
+                  id={file.id}
+                  ref={fileInputRefs[file.id]}
+                  className="hidden"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => handleFileChange(e, file.id)}
+                />
+                <button
+                  type="button"
+                  className="bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+                  onClick={() => handleButtonClick(file.id)}
+                >
+                  اختيار ملف
+                </button>
+              </div>
+              {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
+            </div>
+          ))}
         </div>
         <div className="flex gap-6 flex-col sm:flex-row">
           <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
@@ -1130,7 +1311,7 @@ export default function Dashboard({ hasPermission }) {
         <title>الطلبات الجديدة</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <div className={`text-gray-800 ${Style["tajawal-regular"]}`} >
+      <div className={`text-gray-800 ${Style["tajawal-regular"]}`}>
         {activePopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[999] flex items-center justify-center">
             {activePopup === 'popup-confirm-accept' && (
@@ -1303,7 +1484,7 @@ export default function Dashboard({ hasPermission }) {
             {view === 'add-specs' && renderAddSpecs()}
           </>
         ) : (
-          <div className="p-6 min-h-screen" >
+          <div className="p-6 min-h-screen">
             <h1 className="text-3xl font-normal"></h1>
             <p className="text-gray-600 mt-4">غير مصرح.</p>
           </div>

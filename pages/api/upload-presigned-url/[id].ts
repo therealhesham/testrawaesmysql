@@ -1,3 +1,5 @@
+// api/upload-predesigned-url/[id].ts
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import AWS from 'aws-sdk';
 
