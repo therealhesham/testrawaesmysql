@@ -17,6 +17,13 @@ export default function Table() {
     PassportNumber: "",
     OrderId: "",
   });
+  function getDate(date) {
+    const currentDate = new Date(date); // Original date
+    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
+    const form = currentDate.toISOString().split("T")[0];
+    console.log(currentDate);
+    return form;
+  }
 
   const [visibleColumns, setVisibleColumns] = useState({
     OrderId: true,
@@ -540,10 +547,10 @@ export default function Table() {
                         {item.Passportnumber}
                       </td>
                       <td className="px-4  py-2 text-center text-gray-600">
-                        {item.PassportStart}
+                        {item.PassportStart?getDate(item.PassportStart):""}
                       </td>
                                             <td className="px-4  py-2 text-center text-gray-600">
-                        {item.PassportEnd}
+                        {item.PassportEnd?getDate(item.PassportEnd):""}
                       </td>
      <td className="px-4 py-2 text-center text-gray-600">
                         {item?.office?.office}

@@ -3,8 +3,8 @@ import Head from 'next/head';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Style from 'styles/Home.module.css';
-import { Plus, Search, FileText, RotateCcw, Settings, MoreVertical, MoreHorizontal, Pencil } from 'lucide-react';
-import { DocumentTextIcon, PencilAltIcon } from '@heroicons/react/outline';
+import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal } from 'lucide-react';
+import { DocumentTextIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends } from 'react-icons/fa';
 import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
@@ -104,7 +104,7 @@ const ActionDropdown: React.FC<{
             }}
             className="w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
           >
-            <Pencil width={12} height={12} />
+            <FaAddressBook />
             مغادرة
           </button>
           <button
@@ -133,12 +133,15 @@ export default function Home() {
     notification: false,
   });
   const [housedWorkers, setHousedWorkers] = useState<HousedWorker[]>([]);
+  const [departedWorkers, setDepartedWorkers] = useState<HousedWorker[]>([]);
   const [locations, setLocations] = useState<InHouseLocation[]>([]);
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [departedTotalCount, setDepartedTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [activeTab, setActiveTab] = useState<'housed' | 'departed'>('housed');
   const [filters, setFilters] = useState({
     Name: '',
     Passportnumber: '',
@@ -161,6 +164,7 @@ export default function Home() {
     duration: true,
     employee: true,
     actions: true,
+    deparatureReason: true,
   });
 
   const pageSize = 10;
@@ -240,8 +244,8 @@ export default function Home() {
   // Fetch homemaids
   const fetchHomemaids = async () => {
     try {
-      const response = await axios.get('/api/homemaids');
-      setHomemaids(response.data);
+      const response = await axios.get('/api/autocomplete/homemaids');
+      setHomemaids(response.data.data);
     } catch (error) {
       showNotification('خطأ في جلب بيانات العاملات', 'error');
     }
@@ -265,12 +269,31 @@ export default function Home() {
     }
   };
 
+  // Fetch departed workers
+  const fetchDepartedWorkers = async () => {
+    try {
+      const response = await axios.get('/api/departedhousedarrivals', {
+        params: {
+          ...filters,
+          page,
+          sortKey,
+          sortDirection,
+        },
+      });
+      setDepartedWorkers(response.data.housing);
+      setDepartedTotalCount(response.data.housing.length);
+    } catch (error) {
+      showNotification('خطأ في جلب بيانات العاملات اللي غادرن', 'error');
+    }
+  };
+
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
       await axios.put(`/api/confirmhousinginformation`, { ...data, homeMaidId: workerId });
       showNotification('تم تحديث بيانات العاملة بنجاح');
       fetchHousedWorkers();
+      fetchDepartedWorkers();
     } catch (error) {
       showNotification('حدث خطأ أثناء تحديث البيانات', 'error');
     }
@@ -282,6 +305,7 @@ export default function Home() {
       await axios.put(`/api/housedworker${workerId}/departure`, data);
       showNotification('تم تسجيل مغادرة العاملة بنجاح');
       fetchHousedWorkers();
+      fetchDepartedWorkers();
     } catch (error) {
       showNotification('حدث خطأ أثناء تسجيل المغادرة', 'error');
     }
@@ -289,9 +313,9 @@ export default function Home() {
 
   // Handle edit worker modal opening
   const handleEditWorker = (id: number, name: string) => {
-    const worker = housedWorkers.find((w) => w.id === id);
+    const worker = (activeTab === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
     if (worker) {
-      setSelectedWorkerId(worker.Order.id);
+      setSelectedWorkerId(worker.Order?.id || worker.homeMaid_id);
       setSelectedWorkerName(name);
       setEditWorkerForm({
         location_id: worker.location_id,
@@ -351,6 +375,7 @@ export default function Home() {
   // Handle filter input changes
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setPage(1); // Reset to first page on filter change
   };
 
   // Handle sorting
@@ -366,6 +391,7 @@ export default function Home() {
 
   // Calculate duration
   const calculateDuration = (startDate: string) => {
+    if (!startDate) return 'غير محدد';
     const start = new Date(startDate);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - start.getTime());
@@ -378,6 +404,7 @@ export default function Home() {
     fetchLocations();
     fetchHomemaids();
     fetchHousedWorkers();
+    fetchDepartedWorkers();
   }, [page, sortKey, sortDirection, filters]);
 
   return (
@@ -431,12 +458,24 @@ export default function Home() {
               <div className="flex justify-between items-center border-b border-border pb-3">
                 <nav className="flex gap-10">
                   <a
-                    className="text-sm text-textDark font-bold relative pb-3 after:content-[''] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-textDark"
+                    className={`text-sm pb-3 cursor-pointer ${
+                      activeTab === 'housed'
+                        ? 'text-textDark font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-textDark'
+                        : 'text-textMuted'
+                    }`}
+                    onClick={() => setActiveTab('housed')}
                   >
                     عاملات تم تسكينهم <span className="text-[8px] align-super">{totalCount}</span>
                   </a>
-                  <a  className="text-sm text-textMuted pb-3">
-                    قائمة عاملات غادرن التسكين <span className="text-[8px] align-super">0</span>
+                  <a
+                    className={`text-sm pb-3 cursor-pointer ${
+                      activeTab === 'departed'
+                        ? 'text-textDark font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-textDark'
+                        : 'text-textMuted'
+                    }`}
+                    onClick={() => setActiveTab('departed')}
+                  >
+                    قائمة عاملات غادرن التسكين <span className="text-[8px] align-super">{departedTotalCount}</span>
                   </a>
                 </nav>
                 <div>
@@ -524,6 +563,7 @@ export default function Home() {
                       columnVisibility.deliveryDate && '1.5fr',
                       columnVisibility.duration && '1fr',
                       columnVisibility.employee && '1fr',
+                      columnVisibility.deparatureReason && '1.5fr',
                       columnVisibility.actions && '1fr',
                     ]
                       .filter(Boolean)
@@ -543,77 +583,82 @@ export default function Home() {
                   {columnVisibility.deliveryDate && <span>تاريخ التسليم</span>}
                   {columnVisibility.duration && <span>مدة السكن</span>}
                   {columnVisibility.employee && <span>الموظف</span>}
+                  {columnVisibility.deparatureReason && <span>سبب المغادرة</span>}
                   {columnVisibility.actions && <span>اجراءات</span>}
                 </div>
                 <div className="flex flex-col">
-                  {housedWorkers.map((worker) => (
-                    <div
-                      key={worker.id}
-                      className="bg-cardBg border-b border-border py-3 px-4 grid items-center text-right gap-2 text-sm last:border-b-0"
-                      style={{
-                        gridTemplateColumns: [
-                          columnVisibility.id && '1fr',
-                          columnVisibility.Name && '1fr',
-                          columnVisibility.phone && '1.5fr',
-                          columnVisibility.Nationalitycopy && '1fr',
-                          columnVisibility.Passportnumber && '1.5fr',
-                          columnVisibility.location && '1.5fr',
-                          columnVisibility.Reason && '1.5fr',
-                          columnVisibility.houseentrydate && '1.5fr',
-                          columnVisibility.deliveryDate && '1.5fr',
-                          columnVisibility.duration && '1fr',
-                          columnVisibility.employee && '1fr',
-                          columnVisibility.actions && '1fr',
-                        ]
-                          .filter(Boolean)
-                          .join(' '),
-                      }}
-                    >
-                      {columnVisibility.id && <span>{worker.id}</span>}
-                      {columnVisibility.Name && (
-                        <span className="text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</span>
-                      )}
-                      {columnVisibility.phone && <span>{worker.Order?.phone || ''}</span>}
-                      {columnVisibility.Nationalitycopy && <span>{worker.Order?.Nationalitycopy || ''}</span>}
-                      {columnVisibility.Passportnumber && <span>{worker.Order?.Passportnumber || ''}</span>}
-                      {columnVisibility.location && (
-                        <span>{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</span>
-                      )}
-                      {columnVisibility.Reason && <span>{worker.Reason}</span>}
-                      {columnVisibility.houseentrydate && (
-                        <span>{new Date(worker.houseentrydate).toLocaleDateString()}</span>
-                      )}
-                      {columnVisibility.deliveryDate && (
-                        <span>
-                          {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
-                        </span>
-                      )}
-                      {columnVisibility.duration && (
-                        <span
-                          className={calculateDuration(worker.houseentrydate) > 10 ? 'text-danger' : 'text-black'}
-                        >
-                          {calculateDuration(worker.houseentrydate)}
-                        </span>
-                      )}
-                      {columnVisibility.employee && <span>{worker.employee}</span>}
-                      {columnVisibility.actions && (
-                        <div className="flex justify-center">
-                          <ActionDropdown
-                            id={worker.id}
-                            name={worker.Order?.Name || ''}
-                            onEdit={handleEditWorker}
-                            onDeparture={handleWorkerDeparture}
-                            onAddSession={() => openModal('newHousing')}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {(activeTab === 'housed' ? housedWorkers : departedWorkers)
+                    .filter((worker) => worker.Order?.Name && worker.Order?.Passportnumber)
+                    .map((worker) => (
+                      <div
+                        key={worker.id}
+                        className="bg-cardBg border-b border-border py-3 px-4 grid items-center text-right gap-2 text-sm last:border-b-0"
+                        style={{
+                          gridTemplateColumns: [
+                            columnVisibility.id && '1fr',
+                            columnVisibility.Name && '1fr',
+                            columnVisibility.phone && '1.5fr',
+                            columnVisibility.Nationalitycopy && '1fr',
+                            columnVisibility.Passportnumber && '1.5fr',
+                            columnVisibility.location && '1.5fr',
+                            columnVisibility.Reason && '1.5fr',
+                            columnVisibility.houseentrydate && '1.5fr',
+                            columnVisibility.deliveryDate && '1.5fr',
+                            columnVisibility.duration && '1fr',
+                            columnVisibility.employee && '1fr',
+                            columnVisibility.deparatureReason && '1.5fr',
+                            columnVisibility.actions && '1fr',
+                          ]
+                            .filter(Boolean)
+                            .join(' '),
+                        }}
+                      >
+                        {columnVisibility.id && <span>{worker.id}</span>}
+                        {columnVisibility.Name && (
+                          <span className="text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</span>
+                        )}
+                        {columnVisibility.phone && <span>{worker.Order?.phone || ''}</span>}
+                        {columnVisibility.Nationalitycopy && <span>{worker.Order?.Nationalitycopy || ''}</span>}
+                        {columnVisibility.Passportnumber && <span>{worker.Order?.Passportnumber || ''}</span>}
+                        {columnVisibility.location && (
+                          <span>{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</span>
+                        )}
+                        {columnVisibility.Reason && <span>{worker.Reason}</span>}
+                        {columnVisibility.houseentrydate && (
+                          <span>{worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد'}</span>
+                        )}
+                        {columnVisibility.deliveryDate && (
+                          <span>
+                            {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
+                          </span>
+                        )}
+                        {columnVisibility.duration && (
+                          <span
+                            className={worker.houseentrydate && calculateDuration(worker.houseentrydate) > 10 ? 'text-danger' : 'text-black'}
+                          >
+                            {calculateDuration(worker.houseentrydate)}
+                          </span>
+                        )}
+                        {columnVisibility.employee && <span>{worker.employee}</span>}
+                        {columnVisibility.deparatureReason && <span>{worker.deparatureReason || 'غير محدد'}</span>}
+                        {columnVisibility.actions && (
+                          <div className="flex justify-center">
+                            <ActionDropdown
+                              id={worker.id}
+                              name={worker.Order?.Name || ''}
+                              onEdit={handleEditWorker}
+                              onDeparture={handleWorkerDeparture}
+                              onAddSession={() => openModal('newHousing')}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
                 </div>
               </div>
               <footer className="flex justify-between items-center pt-4">
                 <span className="text-base">
-                  عرض {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} من {totalCount} نتيجة
+                  عرض {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, activeTab === 'housed' ? totalCount : departedTotalCount)} من {activeTab === 'housed' ? totalCount : departedTotalCount} نتيجة
                 </span>
                 <nav className="flex items-center gap-2">
                   <button
@@ -623,7 +668,7 @@ export default function Home() {
                   >
                     السابق
                   </button>
-                  {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1).map((p) => (
+                  {Array.from({ length: Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize) }, (_, i) => i + 1).map((p) => (
                     <button
                       key={p}
                       onClick={() => handlePageChange(p)}
@@ -636,7 +681,7 @@ export default function Home() {
                   ))}
                   <button
                     onClick={() => handlePageChange(page + 1)}
-                    disabled={page === Math.ceil(totalCount / pageSize)}
+                    disabled={page === Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize)}
                     className="border border-border bg-cardBg text-textDark py-1 px-2 rounded-sm text-sm disabled:opacity-50"
                   >
                     التالي
@@ -756,6 +801,7 @@ export default function Home() {
                                 deliveryDate: 'تاريخ التسليم',
                                 duration: 'مدة السكن',
                                 employee: 'الموظف',
+                                deparatureReason: 'سبب المغادرة',
                                 actions: 'اجراءات',
                               }[column]
                             }
@@ -858,7 +904,7 @@ export default function Home() {
                         placeholder="ادخل سبب التسكين"
                         value={formData.reason}
                         onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full border border-border rounded-md text-right text-sm text-textDark"
                       />
                     </div>
                     <div className="mb-4">
@@ -1235,11 +1281,9 @@ export default function Home() {
   );
 }
 
-
-
-export async function getServerSideProps ({ req }) {
+export async function getServerSideProps({ req }) {
   try {
-    // 🔹 Extract cookies
+    // Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
@@ -1249,17 +1293,17 @@ export async function getServerSideProps ({ req }) {
       });
     }
 
-    // 🔹 Check for authToken
+    // Check for authToken
     if (!cookies.authToken) {
       return {
         redirect: { destination: "/admin/login", permanent: false },
       };
     }
 
-    // 🔹 Decode JWT
+    // Decode JWT
     const token = jwtDecode(cookies.authToken);
 
-    // 🔹 Fetch user & role with Prisma
+    // Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
@@ -1269,7 +1313,7 @@ export async function getServerSideProps ({ req }) {
       !findUser.role?.permissions?.["شؤون الاقامة"]?.["عرض"]
     ) {
       return {
-        redirect: { destination: "/admin/home", permanent: false }, // or show 403
+        redirect: { destination: "/admin/home", permanent: false },
       };
     }
 
