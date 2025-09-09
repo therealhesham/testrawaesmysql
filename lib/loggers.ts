@@ -1,7 +1,6 @@
 import eventBus from './eventBus';
 import prisma from './prisma';
 
-// التأكد إن الـ listener يتسجل مرة واحدة بس
 if (!(eventBus as any).__loggersInitialized) {
   eventBus.on('ACTION', async (data: any) => {
     try {
@@ -11,6 +10,10 @@ if (!(eventBus as any).__loggersInitialized) {
           userId: data.userId,
         },
       });
+
+
+
+
       console.log('✅ Log saved:', data);
     } catch (err) {
       console.error('❌ Log error:', err);

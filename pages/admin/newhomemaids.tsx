@@ -170,7 +170,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     if (formData.age) {
       const ageDate = new Date(formData.age);
       const age = today.getFullYear() - ageDate.getFullYear();
-      if (age < 18 || age > 100) {
+      if (age < 1 || age > 100) {
         newErrors.age = 'العمر يجب أن يكون بين 18 و100 سنة';
       }
     }
