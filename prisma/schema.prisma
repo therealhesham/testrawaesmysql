@@ -299,6 +299,7 @@ model neworder {
   PhoneNumber        String?   @db.VarChar(15)
   clientID            Int?
   HomemaidId         Int?
+  isAvailable  Boolean @default(true)
   HomemaidIdCopy     Int?
       orderDocument   String?   @db.VarChar(255)
     contract String?   @db.VarChar(255)
@@ -591,4 +592,29 @@ amount     Decimal?
 transaction_type    String? 
 transaction_date   DateTime? @default(now())
   
+}
+
+
+
+model AutomaticEmployee {
+  id                Int       @id @default(autoincrement())
+  name              String?
+  age               String?
+  religion          String?
+  maritalStatus     String?
+  birthDate         String?
+  nationality       String?
+  officeName        String?
+  passportNumber    String?
+  passportStartDate String?
+  passportEndDate  String?
+  contractDuration  String?
+  weight            String?
+  height            String?
+  salary            String?
+  babySitting       Boolean?
+  cleaning          Boolean?
+  cooking           Boolean?
+  laundry           Boolean?
+  stitching         Boolean?
 }

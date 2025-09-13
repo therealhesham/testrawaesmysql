@@ -50,7 +50,7 @@ const token =   jwtDecode(cookies.authToken)
 const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
 console.log(token);
 if(!findUser?.role?.permissions["إدارة العاملات"]["إضافة"] )return;
-
+console.log(req.body)
 
 const newHomemaid = await prisma.homemaid.create({
   data: {

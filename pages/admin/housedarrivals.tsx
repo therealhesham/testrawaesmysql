@@ -123,7 +123,7 @@ const ActionDropdown: React.FC<{
   );
 };
 
-export default function Home() {
+export default function Home({ user }) {
   const [modals, setModals] = useState({
     addResidence: false,
     editWorker: false,
@@ -181,7 +181,7 @@ export default function Home() {
     location: '',
     DeparatureTime: '',
     reason: '',
-    employee: '',
+    employee: user,
     details: '',
   });
 
@@ -287,6 +287,32 @@ export default function Home() {
     }
   };
 
+  // Fetch housed workers for exporting
+  const fetchHousedforExporting = async () => {
+    try {
+      const response = await axios.get('/api/Export/housedarrivals', {
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      showNotification('خطأ في جلب بيانات التسكين للتصدير', 'error');
+      throw error;
+    }
+  };
+
+  // Fetch departed workers for exporting
+  const fetchDepartedHousedforExporting = async () => {
+    try {
+      const response = await axios.get('/api/Export/departedhoused', {
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      showNotification('خطأ في جلب بيانات العاملات اللي غادرن للتصدير', 'error');
+      throw error;
+    }
+  };
+
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
@@ -302,7 +328,7 @@ export default function Home() {
   // Record departure
   const recordDeparture = async (workerId: number, data: DepartureForm) => {
     try {
-      await axios.put(`/api/housedworker${workerId}/departure`, data);
+      await axios.put(`/api/housingdeparature`,{...data,homeMaid:workerId});
       showNotification('تم تسجيل مغادرة العاملة بنجاح');
       fetchHousedWorkers();
       fetchDepartedWorkers();
@@ -311,11 +337,45 @@ export default function Home() {
     }
   };
 
+  // Handle export
+  const handleExport = async (type: 'housed' | 'departed', format: 'xlsx' | 'pdf') => {
+    try {
+      let data;
+      if (type === 'housed') {
+        data = await fetchHousedforExporting();
+      } else {
+        data = await fetchDepartedHousedforExporting();
+      }
+
+      // Create a URL for the file blob and trigger download
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `${type}_${format}_${new Date().toISOString()}.${format}`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showNotification(
+        `تم تصدير الملف بصيغة ${format === 'xlsx' ? 'Excel' : 'PDF'} بنجاح`
+      );
+    } catch (error) {
+      showNotification(
+        `خطأ في تصدير الملف بصيغة ${format === 'xlsx' ? 'Excel' : 'PDF'}`,
+        'error'
+      );
+    }
+  };
+
   // Handle edit worker modal opening
   const handleEditWorker = (id: number, name: string) => {
     const worker = (activeTab === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
     if (worker) {
-      setSelectedWorkerId(worker.Order?.id || worker.homeMaid_id);
+      setSelectedWorkerId( worker.homeMaid_id);
       setSelectedWorkerName(name);
       setEditWorkerForm({
         location_id: worker.location_id,
@@ -389,6 +449,12 @@ export default function Home() {
     setPage(newPage);
   };
 
+  // Handle tab change with page reset
+  const handleTabChange = (tab: 'housed' | 'departed') => {
+    setActiveTab(tab);
+    setPage(1); // Reset to first page when switching tabs
+  };
+
   // Calculate duration
   const calculateDuration = (startDate: string) => {
     if (!startDate) return 'غير محدد';
@@ -405,7 +471,7 @@ export default function Home() {
     fetchHomemaids();
     fetchHousedWorkers();
     fetchDepartedWorkers();
-  }, [page, sortKey, sortDirection, filters]);
+  }, [page, sortKey, sortDirection, filters, activeTab]);
 
   return (
     <Layout>
@@ -457,26 +523,26 @@ export default function Home() {
             <section className="border border-border rounded-lg shadow-card p-6 flex flex-col gap-5">
               <div className="flex justify-between items-center border-b border-border pb-3">
                 <nav className="flex gap-10">
-                  <a
+                  <button
                     className={`text-sm pb-3 cursor-pointer ${
                       activeTab === 'housed'
-                        ? 'text-textDark font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-textDark'
+                        ? 'text-teal-800 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-teal-800'
                         : 'text-textMuted'
                     }`}
-                    onClick={() => setActiveTab('housed')}
+                    onClick={() => handleTabChange('housed')}
                   >
                     عاملات تم تسكينهم <span className="text-[8px] align-super">{totalCount}</span>
-                  </a>
-                  <a
+                  </button>
+                  <button
                     className={`text-sm pb-3 cursor-pointer ${
                       activeTab === 'departed'
-                        ? 'text-textDark font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-textDark'
+                        ? 'text-teal-800 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-teal-800'
                         : 'text-textMuted'
                     }`}
-                    onClick={() => setActiveTab('departed')}
+                    onClick={() => handleTabChange('departed')}
                   >
                     قائمة عاملات غادرن التسكين <span className="text-[8px] align-super">{departedTotalCount}</span>
-                  </a>
+                  </button>
                 </nav>
                 <div>
                   <button
@@ -508,7 +574,7 @@ export default function Home() {
                       placeholder="رقم الجواز"
                       value={filters.Passportnumber}
                       onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right w-24 text-sm border-none"
+                      className="bg-transparent outline-none text-right text-sm border-none"
                     />
                     <Search className="w-5 h-5 text-gray-500" />
                   </div>
@@ -519,7 +585,7 @@ export default function Home() {
                       placeholder="سبب التسكين"
                       value={filters.reason}
                       onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right w-24 text-sm border-none"
+                      className="bg-transparent outline-none text-right text-sm border-none"
                     />
                     <Search className="w-5 h-5 text-gray-500" />
                   </div>
@@ -539,12 +605,18 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="flex gap-2">
-                  <a href="#" className="flex items-center gap-1 bg-teal-800 text-white text-xs py-1 px-3 rounded-sm">
+                  <button
+                    onClick={() => handleExport(activeTab, 'xlsx')}
+                    className="flex items-center gap-1 bg-teal-800 text-white text-xs py-1 px-3 rounded-sm"
+                  >
                     Excel <DocumentTextIcon className="w-5 h-5" />
-                  </a>
-                  <a href="#" className="flex items-center gap-1 bg-teal-800 text-white text-xs py-1 px-3 rounded-sm">
+                  </button>
+                  <button
+                    onClick={() => handleExport(activeTab, 'pdf')}
+                    className="flex items-center gap-1 bg-teal-800 text-white text-xs py-1 px-3 rounded-sm"
+                  >
                     PDF <FileText className="w-5 h-5" />
-                  </a>
+                  </button>
                 </div>
               </div>
               <div className="flex flex-col">
@@ -729,7 +801,7 @@ export default function Home() {
                         type="text"
                         id="residence-name"
                         placeholder="ادخل اسم السكن"
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full   text-right text-sm text-textDark"
                       />
                     </div>
                     <div className="mb-4">
@@ -740,7 +812,7 @@ export default function Home() {
                         type="number"
                         id="residence-capacity"
                         placeholder="ادخل السعة"
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full  border border-border rounded-md text-right text-sm text-textDark"
                       />
                     </div>
                     <div className="flex justify-end gap-4">
@@ -854,7 +926,7 @@ export default function Home() {
                         id="session-worker"
                         value={formData.homeMaidId}
                         onChange={(e) => setFormData({ ...formData, homeMaidId: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full border border-border rounded-md text-right text-sm text-textDark"
                       >
                         <option value="">اختر العاملة</option>
                         {homemaids.map((maid) => (
@@ -872,7 +944,7 @@ export default function Home() {
                         id="session-residence"
                         value={formData.location}
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full  border border-border rounded-md text-right text-sm text-textDark"
                       >
                         <option value="">اختر السكن</option>
                         {locations.map((loc) => (
@@ -1010,11 +1082,11 @@ export default function Home() {
                         <option value="قيد الانتظار">قيد الانتظار</option>
                       </select>
                     </div>
-                    <div className="flex justify-end gap-4">
+                    <div className="flex justify-center gap-4">
                       <button
                         type="button"
                         onClick={() => closeModal('newHousing')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-sm"
+                        className="bg-gray-300 text-white py-2 px-4 rounded-md text-sm"
                       >
                         الغاء
                       </button>
@@ -1302,7 +1374,7 @@ export async function getServerSideProps({ req }) {
 
     // Decode JWT
     const token = jwtDecode(cookies.authToken);
-
+    console.log(token);
     // Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
@@ -1317,7 +1389,7 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    return { props: {} };
+    return { props: { user: token.username } };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
