@@ -3,9 +3,8 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import Head from 'next/head';
 import Layout from 'example/containers/Layout';
-import AddAvailableForm from './AddAvailableForm';
-import AddSpecsForm from './AddSpecsForm';
-
+import AddSpecsForm from 'components/AddSpecsForm';
+import AddAvailableForm from 'components/AddAvailableForm';
 interface Client {
   id: string;
   fullname: string;
