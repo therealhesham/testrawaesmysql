@@ -271,10 +271,10 @@ const Customers = ({ hasPermission }: Props) => {
                         <div key={client.id}>
                           <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-background-light text-text-dark text-xs p-4">
                             <div>#{client.id}</div>
-                            <div>{client.fullname || '-'}</div>
-                            <div>{client.phonenumber || '-'}</div>
-                            <div>{client.nationalId || '-'}</div>
-                            <div>{client.city || '-'}</div>
+                            <div>{client.fullname }</div>
+                            <div>{client.phonenumber }</div>
+                            <div>{client.nationalId }</div>
+                            <div>{client.city }</div>
                             <div>{client._count.orders}</div>
                             <div>
                               {client.orders[0]?.createdat

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 
 const API_URL = 'https://aidoc.rawaes.com/process-document';
@@ -18,6 +18,23 @@ export default function DocumentUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+  // ✅ جلب حالة المعالج عند التحميل
+  useEffect(() => {
+    const fetchProcessorStatus = async () => {
+      try {
+        const res = await fetch('https://aidoc.rawaes.com/processor-control/status');
+        if (!res.ok) throw new Error('فشل التحقق من حالة المعالج');
+        const data = await res.json();
+        setProcessorStatus(data.status === 'ENABLED' ? 'enabled' : 'disabled');
+      } catch (error) {
+        console.error('خطأ في جلب حالة المعالج:', error);
+        setProcessorStatus('unknown');
+      }
+    };
+
+    fetchProcessorStatus();
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -108,45 +125,20 @@ export default function DocumentUpload() {
       }
 
       const result = await res.json();
+      console.log('Extracted entities:', result.entities); // ✅ للتحقق من الأسماء
       setExtractedData(result);
-      console.log(result);
 
       try {
-        const homemaidData = {
-          name: result.entities.name,
-          nationality: result.entities.nationality,
-          religion: result.entities.religion,
-          passport: result.entities.passport,
-          maritalStatus: result.entities.maritalStatus,
-          experienceField: result.entities.experienceField,
-          experienceYears: result.entities.experienceYears,
-          passportcopy: result.entities.passportcopy,
-          age: result.entities.age,
-          mobile: result.entities.mobile,
-          educationLevel: result.entities.educationLevel,
-          arabicLevel: result.entities.arabicLevel,
-          englishLevel: result.entities.englishLevel,
-          salary: result.entities.salary,
-          officeName: result.entities.officeName,
-          passportStart: result.entities.passportStart,
-          passportEnd: result.entities.passportEnd,
-          skills: {
-            washing: result.entities.washing || '',
-            ironing: result.entities.ironing || '',
-            cleaning: result.entities.cleaning || '',
-            cooking: result.entities.cooking || '',
-            sewing: result.entities.sewing || '',
-            childcare: result.entities.childcare || '',
-            elderlycare: result.entities.elderlycare || ''
-          },
-          Picture: result.entities.Picture || null,
-          FullPicture: result.entities.FullPicture || null
-        };
-        await fetch("/api/automaticnewhomemaids", {
+        const uploadRes = await fetch("/api/automaticnewhomemaids", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(result.entities)
+          body: JSON.stringify(result.entities),
         });
+
+        if (!uploadRes.ok) {
+          const errorText = await uploadRes.text();
+          throw new Error(`فشل إرسال البيانات: ${errorText}`);
+        }
 
         setFile(null);
         setFileUploaded(false);
@@ -155,7 +147,9 @@ export default function DocumentUpload() {
         alert('تم رفع الملف واستخراج البيانات وإرسالها بنجاح!');
       } catch (apiError: any) {
         console.error('Error sending data to homemaids API:', apiError);
-        setError('تم استخراج البيانات ولكن حدث خطأ أثناء إرسالها إلى واجهة newhomemaids');
+        setError(
+          `تم استخراج البيانات، لكن فشل إرسالها إلى نظام Homemaid: ${apiError.message}`
+        );
       }
     } catch (error: any) {
       console.error('Error:', error);
@@ -195,7 +189,7 @@ export default function DocumentUpload() {
       </Head>
       <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 max-w-2xl w-full">
         <h1 className="text-3xl font-normal text-black text-center mb-6">رفع المستندات</h1>
-        
+
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <h2 className="text-lg font-medium text-blue-800 mb-3">التحكم في معالج Document AI</h2>
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">

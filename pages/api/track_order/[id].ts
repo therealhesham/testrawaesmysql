@@ -27,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               office:{select:{Country:true}},id:true,
               Name: true,
               Passportnumber: true,
+              Religion:true,
               Nationalitycopy: true,
               officeName: true,
             },
@@ -73,6 +74,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         homemaidInfo: {
           name: order.HomeMaid?.Name || 'N/A',
+          religion:order.HomeMaid?.Religion || 'N/A',
+
           passportNumber: order.HomeMaid?.Passportnumber || 'N/A',
           nationality: order.HomeMaid?.Nationalitycopy || 'N/A',
           externalOffice: order.HomeMaid?.officeName || 'N/A',

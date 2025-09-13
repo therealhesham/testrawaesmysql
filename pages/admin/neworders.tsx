@@ -1,11 +1,10 @@
 import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
-import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/outline';
 import axios from 'axios';
 import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
 import { ArrowDown, Plus, Search, X } from 'lucide-react';
 import Head from 'next/head';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Select from 'react-select';
 import { MoreHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -17,9 +16,6 @@ import prisma from 'pages/api/globalprisma';
 
 export default function Dashboard({ hasPermission }) {
   const [activePopup, setActivePopup] = useState(null);
-  const [view, setView] = useState('requests');
-  const [detailsRow, setDetailsRow] = useState(null);
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [newOrders, setNewOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [homemaids, setHomemaids] = useState([]);
@@ -29,23 +25,7 @@ export default function Dashboard({ hasPermission }) {
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(10);
   const [formData, setFormData] = useState({
-    clientID: '',
-    HomemaidId: '',
-    ClientName: '',
-    PhoneNumber: '',
-    Nationalitycopy: '',
-    Religion: '',
-    PaymentMethod: 'cash',
-    Total: 0,
-    Installments: 0,
-    Paid: 0,
-    Remaining: 0,
-    age: 0,
-    ExperienceYears: 0,
-    notes: '',
     searchTerm: '',
-    orderDocument: '', // إضافة حقل لسند الأمر
-    contract: '', // إضافة حقل للعقد
   });
   const [ageFilter, setAgeFilter] = useState("");
   const [nationalityFilter, setNationalityFilter] = useState("");
@@ -54,80 +34,11 @@ export default function Dashboard({ hasPermission }) {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(!hasPermission);
   const [menuPosition, setMenuPosition] = useState(null);
-  const [fileUploaded, setFileUploaded] = useState({
-    orderDocument: false,
-    contract: false,
-  });
-  const [errors, setErrors] = useState({});
-
-  const fileInputRefs = {
-    orderDocument: useRef(null),
-    contract: useRef(null),
-  };
+  const [detailsRow, setDetailsRow] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [exportedData, setExportedData] = useState([]);
 
   const router = useRouter();
-
-  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-
-  const handleFileChange = async (e, fileId) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) {
-      setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-      return;
-    }
-
-    const file = files[0];
-    if (!allowedFileTypes.includes(file.type)) {
-      setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
-      if (!res.ok) {
-        throw new Error('فشل في الحصول على رابط الرفع');
-      }
-      const { url, filePath } = await res.json();
-
-      const uploadRes = await fetch(url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-          'x-amz-acl': 'public-read',
-        },
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('فشل في رفع الملف');
-      }
-
-      setFormData((prev) => ({ ...prev, [fileId]: filePath }));
-      setErrors((prev) => ({ ...prev, [fileId]: '' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
-
-      const ref = fileInputRefs[fileId];
-      if (ref && ref.current) {
-        ref.current.value = '';
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-    }
-  };
-
-  const handleButtonClick = (fileId) => {
-    const ref = fileInputRefs[fileId];
-    if (ref && ref.current) {
-      ref.current.click();
-    } else {
-      console.error(`Reference for ${fileId} is not defined or has no current value`);
-      setErrors((prev) => ({ ...prev, [fileId]: 'خطأ في تحديد حقل الملف' }));
-    }
-  };
 
   const handleOpenMenu = (e, rowIndex) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -185,32 +96,8 @@ export default function Dashboard({ hasPermission }) {
     closePopup();
   };
 
-  const homemaidOptions = homemaids.map(homemaid => ({
-    value: homemaid.id,
-    label: homemaid.Name,
-  }));
-
   const handleOrderClick = (id) => {
     router.push(`/admin/track_order/${id}`);
-  };
-
-  const handleHomemaidSelect = (selectedOption) => {
-    if (selectedOption) {
-      const selectedHomemaid = homemaids.find(homemaid => homemaid.id === selectedOption.value);
-      setFormData((prev) => ({
-        ...prev,
-        HomemaidId: selectedOption.value,
-        Nationalitycopy: selectedHomemaid?.office?.Country || '',
-        Religion: selectedHomemaid?.religion || '',
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        HomemaidId: '',
-        Nationalitycopy: '',
-        Religion: '',
-      }));
-    }
   };
 
   const toggleDetails = (index) => {
@@ -228,8 +115,6 @@ export default function Dashboard({ hasPermission }) {
     }
     return age;
   };
-
-  const [exportedData, setExportedData] = useState([]);
 
   const newExportOrdersList = async () => {
     setIsLoading(true);
@@ -293,42 +178,10 @@ export default function Dashboard({ hasPermission }) {
     }
   };
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => {
-      const updatedFormData = { ...prev, [name]: value };
-      if (name === 'Total' || name === 'Paid') {
-        const total = parseFloat(updatedFormData.Total) || 0;
-        const paid = parseFloat(updatedFormData.Paid) || 0;
-        updatedFormData.Remaining = total - paid;
-      }
-      return updatedFormData;
-    });
-  };
-
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setFormData((prev) => ({ ...prev, searchTerm: value }));
     setCurrentPage(1);
-  };
-
-  const handleClientSelect = (selectedOption) => {
-    if (selectedOption) {
-      const selectedClient = clients.find(client => client.id === selectedOption.value);
-      setFormData((prev) => ({
-        ...prev,
-        clientID: selectedOption.value,
-        ClientName: selectedClient?.fullname || '',
-        PhoneNumber: selectedClient?.phonenumber || '',
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        clientID: '',
-        ClientName: '',
-        PhoneNumber: '',
-      }));
-    }
   };
 
   const handleAgeFilterChange = (selectedOption) => {
@@ -339,74 +192,6 @@ export default function Dashboard({ hasPermission }) {
   const handleNationalityFilterChange = (selectedOption) => {
     setNationalityFilter(selectedOption ? selectedOption.value : "");
     setCurrentPage(1);
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    const requiredFields = [
-      { id: 'clientID', label: 'اسم العميل' },
-      { id: 'Total', label: 'المبلغ كامل' },
-      { id: 'Paid', label: 'المبلغ المدفوع' },
-    ];
-
-    requiredFields.forEach((field) => {
-      if (!formData[field.id]) {
-        newErrors[field.id] = `${field.label} مطلوب`;
-      }
-    });
-
-    if (formData.Total && (isNaN(Number(formData.Total)) || Number(formData.Total) <= 0)) {
-      newErrors.Total = 'المبلغ كامل يجب أن يكون رقمًا إيجابيًا';
-    }
-
-    if (formData.Paid && (isNaN(Number(formData.Paid)) || Number(formData.Paid) < 0)) {
-      newErrors.Paid = 'المبلغ المدفوع يجب أن يكون رقمًا غير سالب';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmitSpecs = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      setModalMessage('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
-      setShowErrorModal(true);
-      return;
-    }
-    try {
-      const response = await axios.post("/api/submitneworderbyspecs", formData);
-      setModalMessage('تم إضافة الطلب بنجاح');
-      setShowSuccessModal(true);
-      setView('requests');
-      newOrdersList();
-      setFileUploaded({ orderDocument: false, contract: false });
-      setErrors({});
-    } catch (error) {
-      setModalMessage(error.response?.data?.message || 'حدث خطأ أثناء إضافة الطلب');
-      setShowErrorModal(true);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      setModalMessage('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
-      setShowErrorModal(true);
-      return;
-    }
-    try {
-      const response = await axios.post("/api/submitneworderprisma", formData);
-      setModalMessage('تم إضافة الطلب بنجاح');
-      setShowSuccessModal(true);
-      setView('requests');
-      newOrdersList();
-      setFileUploaded({ orderDocument: false, contract: false });
-      setErrors({});
-    } catch (error) {
-      setModalMessage(error.response?.data?.message || 'حدث خطأ أثناء إضافة الطلب');
-      setShowErrorModal(true);
-    }
   };
 
   const exportToPDF = async () => {
@@ -777,17 +562,16 @@ export default function Dashboard({ hasPermission }) {
                             >
                               رفض الطلب
                             </button>
-<button
-  className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-  onClick={() => {
-    // Assuming `row` has a field `isAvailable`
-    const editPage = row.isAvailable ? 'add-available' : 'add-specs';
-    router.push(`/admin/${editPage}/${row.id}`);
-    setMenuPosition(null);
-  }}
->
-  تعديل
-</button>
+                            <button
+                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+                              onClick={() => {
+                                const editPage = row.isAvailable ? 'add-available' : 'add-specs';
+                                router.push(`/admin/order-form?type=${editPage}&orderId=${row.id}`);
+                                setMenuPosition(null);
+                              }}
+                            >
+                              تعديل
+                            </button>
                           </div>
                         )}
                       </td>
@@ -838,472 +622,6 @@ export default function Dashboard({ hasPermission }) {
         </div>
         {renderPagination()}
       </div>
-    </div>
-  );
-
-  const renderAddAvailable = () => (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-normal text-right">طلب جديد حسب العاملات المتاحات</h1>
-        <button
-          className="p-2 text-gray-600 hover:text-gray-800"
-          onClick={() => setView('requests')}
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-300 p-10 rounded">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
-          <div className="flex flex-col gap-2">
-            <label className="text-base">اسم العميل</label>
-            <Select
-              options={clientOptions}
-              onChange={handleClientSelect}
-              placeholder="اختر عميل"
-              className="text-right"
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  backgroundColor: '#F9FAFB',
-                  borderColor: '#D1D5DB',
-                  padding: '0.5rem',
-                  textAlign: 'right',
-                }),
-                menu: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-                singleValue: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-                placeholder: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-              }}
-            />
-            {errors.clientID && <p className="text-red-500 text-xs mt-1">{errors.clientID}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">رقم العميل</label>
-            <input
-              type="text"
-              name="PhoneNumber"
-              value={formData.PhoneNumber}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">مدينة العميل</label>
-            <input
-              type="text"
-              placeholder="مدينة العميل"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">اسم العاملة</label>
-            <Select
-              options={homemaidOptions}
-              onChange={handleHomemaidSelect}
-              placeholder="اختر عاملة"
-              className="text-right"
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  backgroundColor: '#F9FAFB',
-                  borderColor: '#D1D5DB',
-                  padding: '0.5rem',
-                  textAlign: 'right',
-                }),
-                menu: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-                singleValue: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-                placeholder: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-              }}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">رقم العاملة</label>
-            <input
-              type="text"
-              value={formData.HomemaidId || ''}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">جنسية العاملة</label>
-            <input
-              type="text"
-              name="Nationalitycopy"
-              value={formData.Nationalitycopy}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">ديانة العاملة</label>
-            <input
-              type="text"
-              name="Religion"
-              value={formData.Religion}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-        </div>
-        <div className="mb-10">
-          <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
-          <div className="flex flex-wrap gap-6 justify-center">
-            {[
-              { englishValue: 'cash', arabicLabel: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'cash' ? 'text-white' : 'text-gray-400'}`} /> },
-              { englishValue: 'two_payments', arabicLabel: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'two_payments' ? 'text-white' : 'text-gray-400'}`} /> },
-              { englishValue: 'three_payments', arabicLabel: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'three_payments' ? 'text-white' : 'text-gray-400'}`} /> },
-            ].map(({ englishValue, arabicLabel, icon }, index) => (
-              <label
-                key={index}
-                className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
-                  formData.PaymentMethod === englishValue ? 'border-teal-900 bg-teal-800' : 'border-gray-300 bg-gray-50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="PaymentMethod"
-                  value={englishValue}
-                  checked={formData.PaymentMethod === englishValue}
-                  onChange={handleFormChange}
-                  className="hidden"
-                />
-                <span className={`text-xl ${formData.PaymentMethod === englishValue ? ' text-white'  : 'text-teal-800'}`}>
-                  {arabicLabel}
-                </span>
-                {icon}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ كامل</label>
-            <input
-              type="number"
-              name="Total"
-              value={formData.Total}
-              onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
-            />
-            {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ المدفوع</label>
-            <input
-              type="number"
-              name="Paid"
-              value={formData.Paid}
-              onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
-            />
-            {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ المتبقي</label>
-            <input
-              type="text"
-              value={`${formData.Remaining.toFixed(2)} SR`}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          {[
-            { id: 'orderDocument', label: 'ملف سند الأمر' },
-            { id: 'contract', label: 'ملف العقد' },
-          ].map((file) => (
-            <div key={file.id} className="flex flex-col gap-2">
-              <label htmlFor={file.id} className="text-base">{file.label}</label>
-              <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
-                <span className="text-gray-500 text-sm pr-2">
-                  {fileUploaded[file.id] ? (
-                    <a
-                      href={formData[file.id]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-teal-800 hover:underline"
-                    >
-                      فتح الملف
-                    </a>
-                  ) : (
-                    'إرفاق ملف'
-                  )}
-                </span>
-                <input
-                  type="file"
-                  id={file.id}
-                  ref={fileInputRefs[file.id]}
-                  className="hidden"
-                  accept="application/pdf,image/jpeg,image/png"
-                  onChange={(e) => handleFileChange(e, file.id)}
-                />
-                <button
-                  type="button"
-                  className="bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
-                  onClick={() => handleButtonClick(file.id)}
-                >
-                  اختيار ملف
-                </button>
-              </div>
-              {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-6 flex-col sm:flex-row">
-          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
-          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
-        </div>
-      </form>
-    </div>
-  );
-
-  const renderAddSpecs = () => (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-normal text-right">طلب جديد حسب المواصفات</h1>
-        <button
-          className="p-2 text-gray-600 hover:text-gray-800"
-          onClick={() => setView('requests')}
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-      <form onSubmit={handleSubmitSpecs} className="bg-white border border-gray-300 p-10 rounded">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
-          <div className="flex flex-col gap-2">
-            <label className="text-base">اسم العميل</label>
-            <Select
-              options={clientOptions}
-              onChange={handleClientSelect}
-              placeholder="اختر عميل"
-              className="text-right"
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  backgroundColor: '#F9FAFB',
-                  borderColor: '#D1D5DB',
-                  padding: '0.5rem',
-                  textAlign: 'right',
-                }),
-                menu: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-                singleValue: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-                placeholder: (base) => ({
-                  ...base,
-                  textAlign: 'right',
-                }),
-              }}
-            />
-            {errors.clientID && <p className="text-red-500 text-xs mt-1">{errors.clientID}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">رقم العميل</label>
-            <input
-              type="text"
-              name="PhoneNumber"
-              value={formData.PhoneNumber}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">مدينة العميل</label>
-            <input
-              type="text"
-              placeholder="مدينة العميل"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">العمر</label>
-            <input
-              type="number"
-              name="age"
-              value={formData.age}
-              onChange={handleFormChange}
-              placeholder="اختر العمر"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">سنوات الخبرة</label>
-            <input
-              type="number"
-              name="ExperienceYears"
-              value={formData.ExperienceYears}
-              onChange={handleFormChange}
-              placeholder="اختر سنوات الخبرة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">جنسية العاملة المطلوبة</label>
-            <input
-              type="text"
-              name="Nationalitycopy"
-              value={formData.Nationalitycopy}
-              onChange={handleFormChange}
-              placeholder="اختر جنسية العاملة المطلوبة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">الديانة</label>
-            <input
-              type="text"
-              name="Religion"
-              value={formData.Religion}
-              onChange={handleFormChange}
-              placeholder="اختر الديانة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">ملاحظات إضافية</label>
-            <input
-              type="text"
-              name="notes"
-              value={formData.notes}
-              onChange={handleFormChange}
-              placeholder="ادخل أي ملاحظات أو بيانات أخرى ..."
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-        </div>
-        <div className="mb-10">
-          <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
-          <div className="flex flex-wrap gap-6 justify-center">
-            {[
-              { englishValue: 'cash', arabicLabel: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'cash' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-              { englishValue: 'two_payments', arabicLabel: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'two_payments' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-              { englishValue: 'three_payments', arabicLabel: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'three_payments' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-            ].map(({ englishValue, arabicLabel, icon }, index) => (
-              <label
-                key={index}
-                className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
-                  formData.PaymentMethod === englishValue ? 'border-teal-900 bg-teal-100' : 'border-gray-300 bg-gray-50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="PaymentMethod"
-                  value={englishValue}
-                  checked={formData.PaymentMethod === englishValue}
-                  onChange={handleFormChange}
-                  className="hidden"
-                />
-                <span className={`text-xl ${formData.PaymentMethod === englishValue ? 'text-teal-900' : 'text-teal-800'}`}>
-                  {arabicLabel}
-                </span>
-                {icon}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ كامل</label>
-            <input
-              type="number"
-              name="Total"
-              value={formData.Total}
-              onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
-            />
-            {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ المدفوع</label>
-            <input
-              type="number"
-              name="Paid"
-              value={formData.Paid}
-              onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
-            />
-            {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base">المبلغ المتبقي</label>
-            <input
-              type="text"
-              value={`${formData.Remaining.toFixed(2)} SR`}
-              readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {[
-            { id: 'orderDocument', label: 'ملف سند الأمر' },
-            { id: 'contract', label: 'ملف العقد' },
-          ].map((file) => (
-            <div key={file.id} className="flex flex-col gap-2">
-              <label htmlFor={file.id} className="text-base">{file.label}</label>
-              <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
-                <span className="text-gray-500 text-sm pr-2">
-                  {fileUploaded[file.id] ? (
-                    <a
-                      href={formData[file.id]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-teal-800 hover:underline"
-                    >
-                      فتح الملف
-                    </a>
-                  ) : (
-                    'إرفاق ملف'
-                  )}
-                </span>
-                <input
-                  type="file"
-                  id={file.id}
-                  ref={fileInputRefs[file.id]}
-                  className="hidden"
-                  accept="application/pdf,image/jpeg,image/png"
-                  onChange={(e) => handleFileChange(e, file.id)}
-                />
-                <button
-                  type="button"
-                  className="bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
-                  onClick={() => handleButtonClick(file.id)}
-                >
-                  اختيار ملف
-                </button>
-              </div>
-              {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-6 flex-col sm:flex-row">
-          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
-          <button type="button" onClick={() => setView('requests')} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
-        </div>
-      </form>
     </div>
   );
 
@@ -1378,7 +696,7 @@ export default function Dashboard({ hasPermission }) {
                 <p>هل العميل موجود مسبقاً؟</p>
                 <Select
                   options={clientOptions}
-                  onChange={handleClientSelect}
+                  onChange={() => {}}
                   placeholder="اختر عميل من القائمة"
                   className="w-full mt-2 mb-4 text-right"
                   styles={{
@@ -1423,7 +741,7 @@ export default function Dashboard({ hasPermission }) {
                     className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-6 py-3 rounded-lg hover:bg-gray-200 transition duration-200 text-base font-medium"
                     onClick={() => {
                       closePopup();
-                      setView('add-specs');
+                      router.push('/admin/order-form?type=add-specs');
                     }}
                   >
                     حسب المواصفات
@@ -1432,7 +750,7 @@ export default function Dashboard({ hasPermission }) {
                     className="bg-teal-900 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition duration-200 text-base font-medium"
                     onClick={() => {
                       closePopup();
-                      setView('add-available');
+                      router.push('/admin/order-form?type=add-available');
                     }}
                   >
                     قائمة العاملات المتاحة
@@ -1479,13 +797,7 @@ export default function Dashboard({ hasPermission }) {
             )}
           </div>
         )}
-        {hasPermission ? (
-          <>
-            {view === 'requests' && renderRequests()}
-            {view === 'add-available' && renderAddAvailable()}
-            {view === 'add-specs' && renderAddSpecs()}
-          </>
-        ) : (
+        {hasPermission ? renderRequests() : (
           <div className="p-6 min-h-screen">
             <h1 className="text-3xl font-normal"></h1>
             <p className="text-gray-600 mt-4">غير مصرح.</p>
