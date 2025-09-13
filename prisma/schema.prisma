@@ -299,7 +299,7 @@ model neworder {
   PhoneNumber        String?   @db.VarChar(15)
   clientID            Int?
   HomemaidId         Int?
-  isAvailable  Boolean @default(true)
+  isAvailable  Boolean? @default(true)
   HomemaidIdCopy     Int?
       orderDocument   String?   @db.VarChar(255)
     contract String?   @db.VarChar(255)
