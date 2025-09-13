@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import Head from 'next/head';
 
-const API_URL = 'http://f0g8c44w48484s8ko0wwoswk.31.97.55.12.sslip.io/process-document';
-const PROCESSOR_CONTROL_URL = 'http://f0g8c44w48484s8ko0wwoswk.31.97.55.12.sslip.io/processor-control';
+const API_URL = 'https://aidoc.rawaes.com//process-document';
+const PROCESSOR_CONTROL_URL = 'https://aidoc.rawaes.com//processor-control';
 
 export default function DocumentUpload() {
   const [file, setFile] = useState<File | null>(null);
