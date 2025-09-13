@@ -1,5 +1,5 @@
 import { jwtDecode } from "jwt-decode";
-import prisma from "./globalprisma";
+import prisma from "lib/prisma";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
@@ -75,7 +75,6 @@ export default async function handler(req, res) {
               CheckDate: newObj.houseentrydate, // Ensure this is a valid date
             },
           },
-          location_id:Number(req.body.location),
           employee: req.body.employee,
           Reason: req.body.reason,
           Details: req.body.details,
@@ -124,7 +123,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Error creating housing" });
     }
 
-  } else if (req.method === "PUT") {
+  } 
+  else if (req.method === "PUT") {
     // 🟡 تحديث (Update) فقط
     const { homeMaidId, employee, reason, details, houseentrydate, deliveryDate ,location_id} = req.body;
 
@@ -177,92 +177,19 @@ export default async function handler(req, res) {
     }
 
   } else if (req.method === "GET") {
-       const cookieHeader = req.headers.cookie;
-          let cookies: { [key: string]: string } = {};
-          if (cookieHeader) {
-            cookieHeader.split(";").forEach(cookie => {
-              const [key, value] = cookie.trim().split("=");
-              cookies[key] = decodeURIComponent(value);
-            });
-          }
-        const token =   jwtDecode(cookies.authToken)
-        console.log(token);
-        const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
-        if(!findUser?.role?.permissions["شؤون الاقامة"]["عرض"] )return;
-    
-    // 🔵 قراءة (Read)
-    const {
-      Name,
-      age,
-      reason,
-      Passportnumber,
-      id,
-      Nationality,
-      page,
-      sortKey,
-      sortDirection,
-    } = req.query;
-
-    const pageSize = 10;
-    const pageNumber = parseInt(page, 10) || 1;
-
-    // Build the filter object dynamically based on query parameters
-    const filters = {
-      Reason: { contains: reason || "" },
-      Order: {
-        Name: { contains: Name || "" },
-        Passportnumber: { contains: Passportnumber || "" },
-        ...(id && { id: { equals: Number(id) } }),
-      },
-    };
-
-    // Build the sorting object dynamically based on sortKey and sortDirection
-    let orderBy = { id: "desc" }; // Default sorting by id in descending order
-    if (sortKey) {
-      switch (sortKey) {
-        case "Name":
-          orderBy = { Order: { Name: sortDirection || "asc" } };
-          break;
-        case "phone":
-          orderBy = { Order: { phone: sortDirection || "asc" } };
-          break;
-        case "Details":
-          orderBy = { Details: sortDirection || "asc" };
-          break;
-        case "Nationalitycopy":
-          orderBy = {
-            Order: { Nationalitycopy: sortDirection || "asc" },
-          };
-          break;
-        default:
-          orderBy = {};
-      }
-    }
-
+       
     try {
-      const totalCount = await prisma.housedworker.count({
-        where: {
-          ...filters,
-          deparatureHousingDate: null,
-        },
-      });
-
       const housing = await prisma.housedworker.findMany({
         where: {
-          ...filters,
-          deparatureHousingDate: null,
+          
+
+deparatureHousingDate:{not:null}
         },
-        include: { Order: { include: { weeklyStatusId: true, logs: true } } },
-        skip: (pageNumber - 1) * pageSize,
-        take: pageSize,
-        orderBy: orderBy,
+
       });
 
-      if (!housing) {
-        return res.status(404).json({ error: "Housing not found" });
-      }
 
-      return res.status(200).json({ housing, totalCount });
+      return res.status(200).json({ housing });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Error fetching housing" });

@@ -35,7 +35,7 @@ export default function Dashboard({ hasPermission }) {
     PhoneNumber: '',
     Nationalitycopy: '',
     Religion: '',
-    PaymentMethod: 'كاش',
+    PaymentMethod: 'cash',
     Total: 0,
     Installments: 0,
     Paid: 0,
@@ -751,7 +751,7 @@ export default function Dashboard({ hasPermission }) {
                         </button>
                         {menuPosition && menuPosition.row === index && (
                           <div
-                            className="fixed w-40 bg-teal-100 border border-gray-200 rounded shadow-lg z-50"
+                            className="fixed w-40 bg-gray-100 border border-gray-200 rounded shadow-lg z-50"
                             style={{
                               top: typeof menuPosition.y === 'number' ? menuPosition.y : 0,
                               left: typeof menuPosition.x === 'number' ? menuPosition.x : 0,
@@ -777,15 +777,17 @@ export default function Dashboard({ hasPermission }) {
                             >
                               رفض الطلب
                             </button>
-                            <button
-                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-                              onClick={() => {
-                                alert("تعديل الطلب");
-                                setMenuPosition(null);
-                              }}
-                            >
-                              تعديل
-                            </button>
+<button
+  className="block w-full text-right px-4 py-2 hover:bg-gray-100"
+  onClick={() => {
+    // Assuming `row` has a field `isAvailable`
+    const editPage = row.isAvailable ? 'add-available' : 'add-specs';
+    router.push(`/admin/${editPage}/${row.id}`);
+    setMenuPosition(null);
+  }}
+>
+  تعديل
+</button>
                           </div>
                         )}
                       </td>
@@ -965,26 +967,26 @@ export default function Dashboard({ hasPermission }) {
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
           <div className="flex flex-wrap gap-6 justify-center">
             {[
-              { option: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'كاش' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-              { option: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'دفعتين' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'ثلاثة دفعات' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-            ].map(({ option, icon }, index) => (
+              { englishValue: 'cash', arabicLabel: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'cash' ? 'text-white' : 'text-gray-400'}`} /> },
+              { englishValue: 'two_payments', arabicLabel: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'two_payments' ? 'text-white' : 'text-gray-400'}`} /> },
+              { englishValue: 'three_payments', arabicLabel: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'three_payments' ? 'text-white' : 'text-gray-400'}`} /> },
+            ].map(({ englishValue, arabicLabel, icon }, index) => (
               <label
                 key={index}
                 className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
-                  formData.PaymentMethod === option ? 'border-teal-900 bg-teal-100' : 'border-gray-300 bg-gray-50'
+                  formData.PaymentMethod === englishValue ? 'border-teal-900 bg-teal-800' : 'border-gray-300 bg-gray-50'
                 }`}
               >
                 <input
                   type="radio"
                   name="PaymentMethod"
-                  value={option}
-                  checked={formData.PaymentMethod === option}
+                  value={englishValue}
+                  checked={formData.PaymentMethod === englishValue}
                   onChange={handleFormChange}
                   className="hidden"
                 />
-                <span className={`text-xl ${formData.PaymentMethod === option ? 'text-teal-900' : 'text-teal-800'}`}>
-                  {option}
+                <span className={`text-xl ${formData.PaymentMethod === englishValue ? ' text-white'  : 'text-teal-800'}`}>
+                  {arabicLabel}
                 </span>
                 {icon}
               </label>
@@ -1196,26 +1198,26 @@ export default function Dashboard({ hasPermission }) {
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
           <div className="flex flex-wrap gap-6 justify-center">
             {[
-              { option: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'كاش' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-              { option: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'دفعتين' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'ثلاثة دفعات' ? 'text-teal-800' : 'text-gray-400'}`} /> },
-            ].map(({ option, icon }, index) => (
+              { englishValue: 'cash', arabicLabel: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'cash' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+              { englishValue: 'two_payments', arabicLabel: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'two_payments' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+              { englishValue: 'three_payments', arabicLabel: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'three_payments' ? 'text-teal-800' : 'text-gray-400'}`} /> },
+            ].map(({ englishValue, arabicLabel, icon }, index) => (
               <label
                 key={index}
                 className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
-                  formData.PaymentMethod === option ? 'border-teal-900 bg-teal-100' : 'border-gray-300 bg-gray-50'
+                  formData.PaymentMethod === englishValue ? 'border-teal-900 bg-teal-100' : 'border-gray-300 bg-gray-50'
                 }`}
               >
                 <input
                   type="radio"
                   name="PaymentMethod"
-                  value={option}
-                  checked={formData.PaymentMethod === option}
+                  value={englishValue}
+                  checked={formData.PaymentMethod === englishValue}
                   onChange={handleFormChange}
                   className="hidden"
                 />
-                <span className={`text-xl ${formData.PaymentMethod === option ? 'text-teal-900' : 'text-teal-800'}`}>
-                  {option}
+                <span className={`text-xl ${formData.PaymentMethod === englishValue ? 'text-teal-900' : 'text-teal-800'}`}>
+                  {arabicLabel}
                 </span>
                 {icon}
               </label>
