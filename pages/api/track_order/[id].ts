@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
-
+console.log(id)
   if (req.method === 'GET') {
     try {
       const order = await prisma.neworder.findUnique({
