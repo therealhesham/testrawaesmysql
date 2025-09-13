@@ -5,13 +5,13 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { jwtDecode } from 'jwt-decode';
 import eventBus from 'lib/eventBus';
-const prisma = new PrismaClient();
-
+import prisma from 'lib/prisma';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
 console.log(id)
   if (req.method === 'GET') {
     try {
+      
       const order = await prisma.neworder.findUnique({
         where: { id: Number(id) },
         include: {
@@ -60,7 +60,7 @@ console.log(id)
         },
       });
 
-      if (!order || !order.arrivals || order.arrivals.length === 0) {
+      if (!order ) {
         return res.status(404).json({ error: 'Order or arrival data not found' });
       }
 
