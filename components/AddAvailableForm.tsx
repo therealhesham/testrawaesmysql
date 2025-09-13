@@ -89,7 +89,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
         try {
           const response = await axios.get(`/api/track_order/${orderId}`);
           const order: ApiOrderData = response.data;
-          
+          console.log(order)
           // Match client ID by name
           const matchedClient = clients.find(client => client.fullname === order.clientInfo.name);
           // Match homemaid ID by name
