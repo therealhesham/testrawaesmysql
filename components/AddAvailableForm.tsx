@@ -20,7 +20,9 @@ interface Homemaid {
 interface ApiOrderData {
   orderId: number;
   clientInfo: { name: string; phone: string; email: string };
-  homemaidInfo: { name: string; passportNumber: string; nationality: string; externalOffice: string };
+  homemaidInfo: {
+    religion: string; name: string; passportNumber: string; nationality: string; externalOffice: string 
+};
   documentUpload: { files: string | null };
   ticketUpload: { files: string | null };
   nationality: string;
