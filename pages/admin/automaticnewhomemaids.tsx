@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 
-const API_URL = 'https://aidoc.rawaes.com/process-document';
 const PROCESSOR_CONTROL_URL = 'https://aidoc.rawaes.com/processor-control';
 
 export default function DocumentUpload() {
@@ -9,8 +8,7 @@ export default function DocumentUpload() {
   const [fileUploaded, setFileUploaded] = useState(false);
   const [error, setError] = useState('');
   const [extractedData, setExtractedData] = useState<{
-    text: string;
-    entities: Record<string, string>;
+    jsonResponse: Record<string, string>;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [processorStatus, setProcessorStatus] = useState<'enabled' | 'disabled' | 'loading' | 'unknown'>('unknown');
@@ -111,28 +109,44 @@ export default function DocumentUpload() {
     setExtractedData(null);
 
     try {
+      // Step 1: Upload image to /api/gemini to extract structured data
       const formData = new FormData();
-      formData.append('document', file);
+      formData.append('image', file); // تأكد من استخدام 'document' كما في الـ Backend
 
-      const res = await fetch(API_URL, {
+      const processRes = await fetch("http://localhost:4000/api/gemini", {
         method: 'POST',
         body: formData,
       });
 
-      if (!res.ok) {
-        const errorData = await res.text();
-        throw new Error(`فشل في استخراج البيانات: ${errorData}`);
+      if (!processRes.ok) {
+        const errorData = await processRes.text();
+        throw new Error(`فشل في معالجة الصورة: ${errorData}`);
       }
 
-      const result = await res.json();
-      console.log('Extracted entities:', result.entities); // ✅ للتحقق من الأسماء
-      setExtractedData(result);
+      const processResult = await processRes.json();
+      let entities = processResult.jsonResponse;
 
+      // Ensure entities is a flat object
+      if (typeof entities !== 'object' || Array.isArray(entities) || !entities) {
+        throw new Error('البيانات المستلمة ليست كائنًا صالحًا');
+      }
+
+      // Flatten any nested objects (though Backend ensures flat structure)
+      entities = Object.entries(entities).reduce((acc, [key, value]) => {
+        if (typeof value === 'object' && value !== null) {
+          return { ...acc, [key]: JSON.stringify(value) };
+        }
+        return { ...acc, [key]: String(value) };
+      }, {});
+
+      setExtractedData({ jsonResponse: entities });
+
+      // Step 2: Send structured data to homemaids API
       try {
         const uploadRes = await fetch("/api/automaticnewhomemaids", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(result.entities),
+          body: JSON.stringify(entities),
         });
 
         if (!uploadRes.ok) {
@@ -153,10 +167,14 @@ export default function DocumentUpload() {
       }
     } catch (error: any) {
       console.error('Error:', error);
-      setError(error.message || 'حدث خطأ أثناء رفع الملف أو استخراج البيانات');
+      setError(error.message || 'حدث خطأ أثناء رفع الملف أو معالجة البيانات');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConfirmSave = () => {
+    alert('تم تأكيد الحفظ شكليًا!');
   };
 
   const getProcessorStatusColor = () => {
@@ -264,18 +282,36 @@ export default function DocumentUpload() {
             <div className="mt-6">
               <h2 className="text-2xl font-normal text-black mb-4">البيانات المستخرجة</h2>
               <div className="bg-gray-50 p-4 rounded-md text-sm text-right">
-                <h3 className="font-medium mb-2">النص الكلي:</h3>
-                <p className="text-gray-600 mb-4 break-words">{extractedData.text}</p>
-                {Object.keys(extractedData.entities).length > 0 && (
+                {Object.keys(extractedData.jsonResponse).length > 0 && (
                   <>
                     <h3 className="font-medium mb-2">الحقول المستخرجة:</h3>
-                    <ul className="list-disc pr-5">
-                      {Object.entries(extractedData.entities).map(([key, value]) => (
-                        <li key={key} className="mb-1">
-                          <strong>{key}:</strong> {value}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-right border-collapse">
+                        <thead>
+                          <tr className="bg-gray-200">
+                            <th className="border border-gray-300 px-4 py-2">الحقل</th>
+                            <th className="border border-gray-300 px-4 py-2">القيمة</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(extractedData.jsonResponse).map(([key, value]) => (
+                            <tr key={key} className="hover:bg-gray-100">
+                              <td className="border border-gray-300 px-4 py-2">{key}</td>
+                              <td className="border border-gray-300 px-4 py-2">{value}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
+                        onClick={handleConfirmSave}
+                      >
+                        تأكيد الحفظ
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -298,6 +334,12 @@ export default function DocumentUpload() {
         }
         button:disabled {
           cursor: not-allowed;
+        }
+        table {
+          direction: rtl;
+        }
+        th, td {
+          text-align: right;
         }
       `}</style>
     </div>
