@@ -113,7 +113,7 @@ export default function DocumentUpload() {
       const formData = new FormData();
       formData.append('image', file); // تأكد من استخدام 'document' كما في الـ Backend
 
-      const processRes = await fetch("http://localhost:4000/api/gemini", {
+      const processRes = await fetch("https://aidoc.rawaes.com/api/gemini", {
         method: 'POST',
         body: formData,
       });
@@ -177,24 +177,6 @@ export default function DocumentUpload() {
     alert('تم تأكيد الحفظ شكليًا!');
   };
 
-  const getProcessorStatusColor = () => {
-    switch (processorStatus) {
-      case 'enabled': return 'text-green-600 bg-green-100';
-      case 'disabled': return 'text-red-600 bg-red-100';
-      case 'loading': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getProcessorStatusText = () => {
-    switch (processorStatus) {
-      case 'enabled': return 'مفعل';
-      case 'disabled': return 'معطل';
-      case 'loading': return 'جاري التحميل...';
-      default: return 'غير معروف';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4" dir="rtl">
       <Head>
@@ -211,9 +193,9 @@ export default function DocumentUpload() {
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
           <h2 className="text-lg font-medium text-blue-800 mb-3">التحكم في معالج Document AI</h2>
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className={`px-3 py-1 rounded-md text-sm font-medium ${getProcessorStatusColor()}`}>
+            {/* <div className={`px-3 py-1 rounded-md text-sm font-medium ${getProcessorStatusColor()}`}>
               حالة المعالج: {getProcessorStatusText()}
-            </div>
+            </div> */}
             <div className="flex gap-2">
               <button
                 type="button"
