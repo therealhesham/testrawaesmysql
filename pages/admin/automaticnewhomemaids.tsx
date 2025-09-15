@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 
-const PROCESSOR_CONTROL_URL = 'https://aidoc.rawaes.com/processor-control';
-
 export default function DocumentUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [fileUploaded, setFileUploaded] = useState(false);
@@ -11,28 +9,30 @@ export default function DocumentUpload() {
     jsonResponse: Record<string, string>;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [processorStatus, setProcessorStatus] = useState<'enabled' | 'disabled' | 'loading' | 'unknown'>('unknown');
-  const [isControllingProcessor, setIsControllingProcessor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [homemaids, setHomemaids] = useState<any[]>([]);
+  const [listError, setListError] = useState('');
 
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
-  // ✅ جلب حالة المعالج عند التحميل
   useEffect(() => {
-    const fetchProcessorStatus = async () => {
-      try {
-        const res = await fetch('https://aidoc.rawaes.com/processor-control/status');
-        if (!res.ok) throw new Error('فشل التحقق من حالة المعالج');
-        const data = await res.json();
-        setProcessorStatus(data.status === 'ENABLED' ? 'enabled' : 'disabled');
-      } catch (error) {
-        console.error('خطأ في جلب حالة المعالج:', error);
-        setProcessorStatus('unknown');
-      }
-    };
-
-    fetchProcessorStatus();
+    fetchHomemaids();
   }, []);
+
+  const fetchHomemaids = async () => {
+    try {
+      setListError('');
+      const res = await fetch('/api/automaticnewhomemaids');
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || 'فشل في جلب السجلات');
+      }
+      const data = await res.json();
+      setHomemaids(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setListError(e.message || 'فشل في جلب السجلات');
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -61,46 +61,54 @@ export default function DocumentUpload() {
     }
   };
 
-  const controlProcessor = async (action: 'enable' | 'disable') => {
-    if (isControllingProcessor) return;
+  // Normalize and map Gemini fields to the API expected schema (Prisma)
+  const normalizeBoolean = (value: any) => {
+    if (typeof value === 'boolean') return value;
+    if (value == null) return undefined;
+    const v = String(value).trim().toLowerCase();
+    if (["yes", "y", "true", "1", "نعم"].includes(v)) return true;
+    if (["no", "n", "false", "0", "لا"].includes(v)) return false;
+    return undefined;
+  };
 
-    setIsControllingProcessor(true);
-    setError('');
+  const mapEntitiesToApiBody = (entities: Record<string, any>) => {
+    const pick = (a: any, b: any) => (a !== undefined && a !== null && a !== '' ? a : b);
+    const toInt = (val: any) => {
+      const n = parseInt(val as string, 10);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const toYesNo = (val: any) => {
+      const b = normalizeBoolean(val);
+      return b === undefined ? undefined : (b ? 'Yes' : 'No');
+    };
 
-    try {
-      const response = await fetch(PROCESSOR_CONTROL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`فشل في ${action === 'enable' ? 'تفعيل' : 'تعطيل'} المعالج: ${errorData}`);
-      }
-
-      const result = await response.json();
-      setProcessorStatus(action === 'enable' ? 'enabled' : 'disabled');
-      alert(`${action === 'enable' ? 'تم تفعيل' : 'تم تعطيل'} المعالج بنجاح!`);
-      console.log('Processor control result:', result);
-    } catch (error: any) {
-      console.error('Error controlling processor:', error);
-      setError(error.message || `حدث خطأ أثناء ${action === 'enable' ? 'تفعيل' : 'تعطيل'} المعالج`);
-    } finally {
-      setIsControllingProcessor(false);
-    }
+    return {
+      // API expects these exact keys based on the POST handler
+      Name: pick(entities.Name, entities.full_name),
+      Age: pick(toInt(entities.Age), toInt(entities.age)),
+      Nationality: pick(entities.Nationality, entities.nationality),
+      BirthDate: pick(entities.BirthDate, entities.birthDate),
+      BabySitting: pick(toYesNo(entities.BabySitting), toYesNo(entities.babySitting)),
+      Cleaning: pick(toYesNo(entities.Cleaning), toYesNo(entities.cleaning)),
+      Cooking: pick(toYesNo(entities.Cooking), toYesNo(entities.cooking)),
+      Contract_duration: pick(entities.Contract_duration, entities.contractDuration),
+      height: pick(entities.height, entities.Height),
+      laundry: pick(toYesNo(entities.laundry), toYesNo(entities.Laundry)),
+      MaritalStatus: pick(entities.MaritalStatus, entities.marital_status),
+      OfficeName: pick(entities.OfficeName, entities.office_name),
+      PassportEndDate: pick(entities.PassportEndDate, entities.passport_expiration),
+      PassportNumber: pick(entities.PassportNumber, entities.passport_number),
+      PassportStartDate: pick(entities.PassportStartDate, entities.passport_issue_date),
+      Religion: pick(entities.Religion, entities.religion),
+      salary: pick(entities.salary, entities.Salary),
+      stitiching: pick(toYesNo(entities.stitiching), toYesNo(entities.stitching)),
+      Weight: pick(entities.Weight, entities.weight),
+    };
   };
 
   const handleUpload = async () => {
     if (!file) {
       setError('يرجى اختيار ملف أولاً');
-      return;
-    }
-
-    if (processorStatus === 'disabled') {
-      setError('المعالج معطل حالياً. يرجى تفعيله أولاً.');
       return;
     }
 
@@ -125,7 +133,7 @@ export default function DocumentUpload() {
 
       const processResult = await processRes.json();
       let entities = processResult.jsonResponse;
-
+console.log(entities)
       // Ensure entities is a flat object
       if (typeof entities !== 'object' || Array.isArray(entities) || !entities) {
         throw new Error('البيانات المستلمة ليست كائنًا صالحًا');
@@ -141,12 +149,13 @@ export default function DocumentUpload() {
 
       setExtractedData({ jsonResponse: entities });
 
-      // Step 2: Send structured data to homemaids API
+      // Step 2: Send structured data to homemaids API (mapped to API schema)
       try {
+        const payload = mapEntitiesToApiBody(entities as Record<string, any>);
         const uploadRes = await fetch("/api/automaticnewhomemaids", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(entities),
+          body: JSON.stringify(payload),
         });
 
         if (!uploadRes.ok) {
@@ -159,6 +168,7 @@ export default function DocumentUpload() {
         if (fileInputRef.current) fileInputRef.current.value = '';
 
         alert('تم رفع الملف واستخراج البيانات وإرسالها بنجاح!');
+        fetchHomemaids();
       } catch (apiError: any) {
         console.error('Error sending data to homemaids API:', apiError);
         setError(
@@ -177,6 +187,8 @@ export default function DocumentUpload() {
     alert('تم تأكيد الحفظ شكليًا!');
   };
 
+  // removed processor status helpers and UI
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4" dir="rtl">
       <Head>
@@ -187,38 +199,10 @@ export default function DocumentUpload() {
           href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap"
         />
       </Head>
-      <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 max-w-2xl w-full">
+      <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 max-w-5xl w-full">
         <h1 className="text-3xl font-normal text-black text-center mb-6">رفع المستندات</h1>
 
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <h2 className="text-lg font-medium text-blue-800 mb-3">التحكم في معالج Document AI</h2>
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            {/* <div className={`px-3 py-1 rounded-md text-sm font-medium ${getProcessorStatusColor()}`}>
-              حالة المعالج: {getProcessorStatusText()}
-            </div> */}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                onClick={() => controlProcessor('enable')}
-                disabled={processorStatus === 'enabled' || isControllingProcessor}
-              >
-                {isControllingProcessor ? 'جاري التفعيل...' : 'تفعيل المعالج'}
-              </button>
-              <button
-                type="button"
-                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                onClick={() => controlProcessor('disable')}
-                disabled={processorStatus === 'disabled' || isControllingProcessor}
-              >
-                {isControllingProcessor ? 'جاري التعطيل...' : 'تعطيل المعالج'}
-              </button>
-            </div>
-          </div>
-          {error && (
-            <p className="text-red-500 text-xs mt-2 text-center">{error}</p>
-          )}
-        </div>
+        {/* تم حذف سكشن التحكم في المعالج */}
 
         <div className="space-y-6">
           <div className="flex flex-col">
@@ -241,7 +225,7 @@ export default function DocumentUpload() {
                 type="button"
                 className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs hover:bg-teal-900 disabled:opacity-50"
                 onClick={handleButtonClick}
-                disabled={isLoading || processorStatus === 'disabled'}
+                disabled={isLoading}
               >
                 اختيار ملف
               </button>
@@ -254,7 +238,7 @@ export default function DocumentUpload() {
               type="button"
               className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md hover:bg-teal-900 disabled:opacity-50"
               onClick={handleUpload}
-              disabled={isLoading || !fileUploaded || processorStatus === 'disabled'}
+              disabled={isLoading || !fileUploaded}
             >
               {isLoading ? 'جاري الرفع...' : 'رفع واستخراج البيانات'}
             </button>
@@ -299,6 +283,51 @@ export default function DocumentUpload() {
               </div>
             </div>
           )}
+
+          <div className="mt-10">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-2xl font-normal text-black">السجلات الأخيرة</h2>
+              <button
+                type="button"
+                className="text-sm text-teal-800 hover:underline"
+                onClick={fetchHomemaids}
+                disabled={isLoading}
+              >
+                تحديث
+              </button>
+            </div>
+            {listError && <p className="text-red-500 text-xs mb-2">{listError}</p>}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الاسم</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">السن</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الجنسية</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الميلاد</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المهارات</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {homemaids.map((h) => (
+                    <tr key={h.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">{h.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">{h.age}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">{h.nationality}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">{h.birthDate}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        {h.babySitting && 'Babysitting, '}
+                        {h.cleaning && 'Cleaning, '}
+                        {h.cooking && 'Cooking, '}
+                        {h.laundry && 'Laundry, '}
+                        {h.stitching && 'Stitching'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
       <style jsx>{`

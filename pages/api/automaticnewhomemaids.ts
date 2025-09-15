@@ -1,3 +1,5 @@
+//@ts-ignore
+//@ts-nocheck
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
 import { jwtDecode } from 'jwt-decode';
@@ -52,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           babySitting: BabySitting == "Yes" ? true : false,
           contractDuration: Contract_duration,
           cooking: Cooking == "Yes" ? true : false,
+          age: Array.isArray(Age) ? String(Age[0]) : (Age !== undefined ? String(Age) : undefined),
           height,
           laundry: laundry == "Yes" ? true : false,
           nationality: Array.isArray(Nationality)?Nationality[0]:Nationality,
@@ -93,6 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const homemaids = await prisma.automaticEmployee.findMany({
+        orderBy: { id: 'desc' },
         select: {
           id: true,
           name: true,

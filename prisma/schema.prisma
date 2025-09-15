@@ -596,6 +596,18 @@ transaction_date   DateTime? @default(now())
 
 
 
+/// Income statement entry for admin page
+model IncomeStatement {
+  id           Int       @id @default(autoincrement())
+  date         DateTime
+  mainCategory String    @db.VarChar(100)
+  subCategory  String?   @db.VarChar(100)
+  amount       Decimal
+  notes        String?   @db.VarChar(255)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
 model AutomaticEmployee {
   id                Int       @id @default(autoincrement())
   name              String?
