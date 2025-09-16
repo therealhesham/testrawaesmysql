@@ -59,64 +59,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       orderBy: { date: 'desc' }
     })
 
-    // Get all main categories with their math process
+    // Get all main categories with their subcategories
     const mainCategories = await prisma.mainCategory.findMany({
       include: {
-        subs: true
+        subs: {
+          include: {
+            incomeStatement: {
+              where: {
+                ...(Object.keys(dateFilter).length > 0 && { date: dateFilter })
+              }
+            }
+          }
+        }
       }
     })
 
-    // Calculate monthly data
-    const monthlyData: Record<string, Record<string, number>> = {}
-    const categoryTotals: Record<string, number> = {}
-    const categoryAverages: Record<string, number> = {}
-    const categoryCounts: Record<string, number> = {}
+    // Process main categories and populate subcategory values
+    const processedMainCategories = mainCategories.map(mainCat => {
+      const processedSubs = mainCat.subs.map(subCat => {
+        // Initialize monthly values for the last 6 months
+        const values: Record<string, number> = {}
+        months.forEach(month => {
+          values[month] = 0
+        })
 
-    // Initialize data structures
-    mainCategories.forEach(mainCat => {
-      categoryTotals[mainCat.name] = 0
-      categoryCounts[mainCat.name] = 0
-      monthlyData[mainCat.name] = {}
-      
-      // Initialize monthly data for all months (full year for totals)
-      allMonths.forEach(month => {
-        monthlyData[mainCat.name][month] = 0
+        // Process income statements for this subcategory
+        subCat.incomeStatement.forEach(statement => {
+          const statementDate = new Date(statement.date)
+          const monthYear = `${statementDate.getFullYear()}-${(statementDate.getMonth() + 1).toString().padStart(2, '0')}`
+          const amount = Number(statement.amount)
+          const mathProcess = mainCat.mathProcess || 'add'
+          
+          // Apply math process
+          const processedAmount = mathProcess === 'add' ? amount : -amount
+          
+          if (values[monthYear] !== undefined) {
+            values[monthYear] += processedAmount
+          }
+        })
+
+        // Calculate total for this subcategory
+        const total = Object.values(values).reduce((sum, value) => sum + value, 0)
+
+        return {
+          id: subCat.id,
+          name: subCat.name,
+          mainCategory_id: subCat.mainCategory_id,
+          values,
+          total
+        }
       })
-    })
 
-    // Process income statements
-    incomeStatements.forEach(item => {
-      const itemDate = new Date(item.date)
-      const monthYear = `${itemDate.getFullYear()}-${(itemDate.getMonth() + 1).toString().padStart(2, '0')}`
-      const mainCatName = item.subCategory?.mainCategory?.name || 'غير مصنف'
-      const amount = Number(item.amount)
-      const mathProcess = item.subCategory?.mainCategory?.mathProcess || 'add'
-
-      // Apply math process based on mainCategory mathProcess
-      const processedAmount = mathProcess === 'add' ? amount : -amount
-
-      if (monthlyData[mainCatName]) {
-        monthlyData[mainCatName][monthYear] = (monthlyData[mainCatName][monthYear] || 0) + processedAmount
-        categoryTotals[mainCatName] += processedAmount
-        categoryCounts[mainCatName] += 1
+      return {
+        id: mainCat.id,
+        name: mainCat.name,
+        mathProcess: mainCat.mathProcess,
+        subCategories: processedSubs
       }
     })
 
-    // Calculate averages based on full year
-    Object.keys(categoryTotals).forEach(cat => {
-      categoryAverages[cat] = categoryCounts[cat] > 0 ? categoryTotals[cat] / allMonths.length : 0
-    })
-
-    // Calculate financial metrics - more dynamic, database-driven
+    // Calculate financial metrics from processed data
     let totalRevenues = 0
     let totalExpenses = 0
     let grossProfit = 0
     let totalOperationalExpenses = 0
     let netProfitBeforeZakat = 0
 
-    // Dynamic calculation based on mathProcess from database
-    mainCategories.forEach(mainCat => {
-      const categoryTotal = categoryTotals[mainCat.name] || 0
+    // Calculate totals from processed main categories
+    processedMainCategories.forEach(mainCat => {
+      const categoryTotal = mainCat.subCategories.reduce((sum, sub) => sum + sub.total, 0)
       
       if (mainCat.mathProcess === 'add') {
         totalRevenues += categoryTotal
@@ -126,19 +137,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     // Calculate gross profit (revenues - direct expenses)
-    const directExpensesCategory = mainCategories.find(cat => 
+    const directExpensesCategory = processedMainCategories.find(cat => 
       cat.name === 'المصروفات المباشرة على العقد' && cat.mathProcess === 'subtract'
     )
-    const directExpenses = directExpensesCategory ? categoryTotals[directExpensesCategory.name] || 0 : 0
+    const directExpenses = directExpensesCategory ? 
+      directExpensesCategory.subCategories.reduce((sum, sub) => sum + sub.total, 0) : 0
     grossProfit = totalRevenues + directExpenses // directExpenses is already negative
 
     // Calculate total operational expenses
-    const operationalCategories = mainCategories.filter(cat => 
+    const operationalCategories = processedMainCategories.filter(cat => 
       (cat.name === 'المصروفات التشغيلية' || cat.name === 'المصروفات الاخرى التشغيلية') && 
       cat.mathProcess === 'subtract'
     )
     totalOperationalExpenses = operationalCategories.reduce((sum, cat) => 
-      sum + (categoryTotals[cat.name] || 0), 0
+      sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0
     )
 
     // Calculate net profit before zakat
@@ -146,60 +158,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const zakatAmount = Math.max(0, netProfitBeforeZakat * (Number(zakatRate) / 100))
     const netProfitAfterZakat = netProfitBeforeZakat - zakatAmount
 
-    // Calculate monthly breakdowns dynamically based on database categories
+    // Calculate monthly breakdowns from processed data
     const monthlyBreakdown = {
       revenues: months.map(month => {
-        return mainCategories
+        return processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
       }),
       directExpenses: months.map(month => {
-        const directExpensesCategory = mainCategories.find(cat => 
+        const directExpensesCategory = processedMainCategories.find(cat => 
           cat.name === 'المصروفات المباشرة على العقد' && cat.mathProcess === 'subtract'
         )
-        return directExpensesCategory ? (monthlyData[directExpensesCategory.name]?.[month] || 0) : 0
+        return directExpensesCategory ? 
+          directExpensesCategory.subCategories.reduce((sum, sub) => sum + (sub.values[month] || 0), 0) : 0
       }),
       operationalExpenses: months.map(month => {
-        return mainCategories
+        return processedMainCategories
           .filter(cat => cat.name === 'المصروفات التشغيلية' && cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
       }),
       otherOperationalExpenses: months.map(month => {
-        return mainCategories
+        return processedMainCategories
           .filter(cat => cat.name === 'المصروفات الاخرى التشغيلية' && cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
       }),
       grossProfit: months.map(month => {
-        const monthlyRevenues = mainCategories
+        const monthlyRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
         
-        const directExpensesCategory = mainCategories.find(cat => 
+        const directExpensesCategory = processedMainCategories.find(cat => 
           cat.name === 'المصروفات المباشرة على العقد' && cat.mathProcess === 'subtract'
         )
-        const monthlyDirectExpenses = directExpensesCategory ? (monthlyData[directExpensesCategory.name]?.[month] || 0) : 0
+        const monthlyDirectExpenses = directExpensesCategory ? 
+          directExpensesCategory.subCategories.reduce((sum, sub) => sum + (sub.values[month] || 0), 0) : 0
         
         return monthlyRevenues + monthlyDirectExpenses
       }),
       netProfitBeforeZakat: months.map(month => {
-        const monthlyRevenues = mainCategories
+        const monthlyRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
         
-        const monthlyExpenses = mainCategories
+        const monthlyExpenses = processedMainCategories
           .filter(cat => cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
         
         return monthlyRevenues + monthlyExpenses
       }),
       netProfitAfterZakat: months.map(month => {
-        const monthlyRevenues = mainCategories
+        const monthlyRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
         
-        const monthlyExpenses = mainCategories
+        const monthlyExpenses = processedMainCategories
           .filter(cat => cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + (monthlyData[cat.name]?.[month] || 0), 0)
+          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
         
         const beforeZakat = monthlyRevenues + monthlyExpenses
         const monthlyZakat = Math.max(0, beforeZakat * (Number(zakatRate) / 100))
@@ -207,16 +221,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
 
-    // Calculate totals and averages dynamically based on database categories
+    // Calculate totals and averages from processed data
     const totals = {
       revenues: totalRevenues,
       directExpenses: directExpenses,
-      operationalExpenses: mainCategories
+      operationalExpenses: processedMainCategories
         .filter(cat => cat.name === 'المصروفات التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + (categoryTotals[cat.name] || 0), 0),
-      otherOperationalExpenses: mainCategories
+        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0),
+      otherOperationalExpenses: processedMainCategories
         .filter(cat => cat.name === 'المصروفات الاخرى التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + (categoryTotals[cat.name] || 0), 0),
+        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0),
       grossProfit,
       netProfitBeforeZakat,
       zakatAmount,
@@ -224,16 +238,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const averages = {
-      revenues: mainCategories
-        .filter(cat => cat.mathProcess === 'add')
-        .reduce((sum, cat) => sum + (categoryAverages[cat.name] || 0), 0),
-      directExpenses: directExpensesCategory ? (categoryAverages[directExpensesCategory.name] || 0) : 0,
-      operationalExpenses: mainCategories
+      revenues: totalRevenues / allMonths.length,
+      directExpenses: directExpenses / allMonths.length,
+      operationalExpenses: processedMainCategories
         .filter(cat => cat.name === 'المصروفات التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + (categoryAverages[cat.name] || 0), 0),
-      otherOperationalExpenses: mainCategories
+        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0) / allMonths.length,
+      otherOperationalExpenses: processedMainCategories
         .filter(cat => cat.name === 'المصروفات الاخرى التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + (categoryAverages[cat.name] || 0), 0),
+        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0) / allMonths.length,
       grossProfit: grossProfit / allMonths.length,
       netProfitBeforeZakat: netProfitBeforeZakat / allMonths.length,
       zakatAmount: zakatAmount / allMonths.length,
@@ -248,12 +260,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         monthlyBreakdown,
         totals,
         averages,
-        categories: {
-          mainCategories,
-          monthlyData,
-          categoryTotals,
-          categoryAverages
-        },
+        mainCategories: processedMainCategories, // Processed data with values
         zakatRate: Number(zakatRate)
       }
     })

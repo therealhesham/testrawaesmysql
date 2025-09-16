@@ -60,6 +60,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       months.forEach(month => {
         monthlyData[mainCat.name][month] = 0
       })
+      
+      // Initialize subcategory data
+      mainCat.subs.forEach(subCat => {
+        categoryTotals[subCat.name] = 0
+        categoryCounts[subCat.name] = 0
+        monthlyData[subCat.name] = {}
+        
+        months.forEach(month => {
+          monthlyData[subCat.name][month] = 0
+        })
+      })
     })
 
     // Process income statements
@@ -67,16 +78,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const itemDate = new Date(item.date)
       const monthYear = `${itemDate.getFullYear()}-${(itemDate.getMonth() + 1).toString().padStart(2, '0')}`
       const mainCatName = item.subCategory?.mainCategory?.name || 'غير مصنف'
+      const subCatName = item.subCategory?.name || 'غير مصنف'
       const amount = Number(item.amount)
       const mathProcess = item.subCategory?.mainCategory?.mathProcess || 'add'
 
       // Apply math process based on mainCategory mathProcess
       const processedAmount = mathProcess === 'add' ? amount : -amount
 
+      // Update main category data
       if (monthlyData[mainCatName]) {
         monthlyData[mainCatName][monthYear] = (monthlyData[mainCatName][monthYear] || 0) + processedAmount
         categoryTotals[mainCatName] += processedAmount
         categoryCounts[mainCatName] += 1
+      }
+
+      // Update subcategory data
+      if (monthlyData[subCatName]) {
+        monthlyData[subCatName][monthYear] = (monthlyData[subCatName][monthYear] || 0) + processedAmount
+        categoryTotals[subCatName] += processedAmount
+        categoryCounts[subCatName] += 1
       }
     })
 

@@ -623,6 +623,7 @@ model subCategory{
   id           Int       @id @default(autoincrement())
 name   String
 mainCategory_id   Int
+values Json?   // { month: value } - stores monthly data
 incomeStatement IncomeStatement[]
   mainCategory mainCategory @relation(references: [id],fields: [mainCategory_id])
 }

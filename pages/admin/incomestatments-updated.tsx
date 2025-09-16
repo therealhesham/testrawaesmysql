@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
@@ -8,13 +8,15 @@ interface MainCategory {
   id: number;
   name: string;
   mathProcess: string;
-  subs: SubCategory[];
+  subCategories: SubCategory[];
 }
 
 interface SubCategory {
   id: number;
   name: string;
   mainCategory_id: number;
+  values: Record<string, number>; // { month: value }
+  total: number;
 }
 
 interface FinancialData {
@@ -49,12 +51,7 @@ interface FinancialData {
     zakatAmount: number;
     netProfitAfterZakat: number;
   };
-  categories: {
-    mainCategories: MainCategory[];
-    monthlyData: Record<string, Record<string, number>>;
-    categoryTotals: Record<string, number>;
-    categoryAverages: Record<string, number>;
-  };
+  mainCategories: MainCategory[]; // Processed data with values
   zakatRate: number;
 }
 
@@ -98,6 +95,7 @@ export default function Home() {
     setLoadingData(true);
     try {
       const res = await axios.get(`/api/income-statements/calculations?zakatRate=${zakatRate}`);
+      console.log('API Response:', res.data);
       setFinancialData(res.data.data);
       setDataError(null);
     } catch (err) {
@@ -131,78 +129,6 @@ export default function Home() {
     return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(Number(amount));
   };
 
-  const getCategoryRow = (categoryName: string, isBold = false) => {
-    if (!financialData) return null;
-    
-    // Find category dynamically from database
-    const category = financialData.categories.mainCategories.find(cat => cat.name === categoryName);
-    if (!category) return null;
-    
-    const data = financialData.categories.monthlyData[categoryName] || {};
-    const total = financialData.categories.categoryTotals[categoryName] || 0;
-    const average = financialData.categories.categoryAverages[categoryName] || 0;
-    const rowClass = isBold ? 'font-bold' : '';
-    
-    return (
-      <tr key={categoryName} className={`bg-white hover:bg-[#1A4D4F]/10 ${rowClass}`}>
-        <td className="p-3 text-right text-base font-medium">{formatCurrency(average)}</td>
-        <td className="p-3 text-right text-base font-medium">{formatCurrency(total)}</td>
-        {financialData.months.map((month, i) => (
-          <td key={i} className="p-3 text-right text-base font-medium">{formatCurrency(data[month] || 0)}</td>
-        ))}
-        <td className="text-right font-medium pr-4">{categoryName}</td>
-      </tr>
-    );
-  };
-
-  const getSubCategoryRows = (mainCategoryName: string) => {
-    if (!financialData) return null;
-    
-    // Find main category dynamically from database
-    const mainCat = financialData.categories.mainCategories.find(cat => cat.name === mainCategoryName);
-    if (!mainCat || !mainCat.subs.length) return null;
-
-    return (
-      <tr className="bg-[#F7F8FA]" key={`${mainCategoryName}-subs`}>
-        <td colSpan={8} className="p-5">
-          <div className="px-[21px]">
-            <div className="flex flex-col gap-6">
-              {mainCat.subs.map((subCat, index) => {
-                const data = financialData.categories.monthlyData[subCat.name] || {};
-                return (
-                  <div key={index} className="flex justify-between items-center">
-                    <div className="flex gap-[116px] items-center">
-                      {financialData.months.map((month, i) => (
-                        <span key={i} className="text-[16px] font-normal text-[#1F2937] min-w-[60px] text-right">{formatCurrency(data[month] || 0)}</span>
-                      ))}
-                    </div>
-                    <div className="flex items-center">
-                      <span className="text-[14px] font-normal text-[#1F2937] text-right">{subCat.name}</span>
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="flex justify-between items-center">
-                <div className="flex gap-[116px] items-center">
-                  {financialData.months.map((month, i) => (
-                    <span key={i} className="text-[16px] font-bold text-[#1F2937] min-w-[60px] text-right">
-                      {formatCurrency(mainCat.subs.reduce((sum, sub) => {
-                        const subData = financialData.categories.monthlyData[sub.name] || {};
-                        return sum + (subData[month] || 0);
-                      }, 0))}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center">
-                  <span className="text-[14px] font-bold text-[#1F2937] text-right">الاجمالي</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </td>
-      </tr>
-    );
-  };
 
   const getFinancialMetricRow = (label: string, data: number[], total: number, average: number, isHighlighted = false) => {
     if (!financialData) return null;
@@ -421,14 +347,14 @@ export default function Home() {
                   <table className="w-full bg-white border-collapse">
                     <thead>
                       <tr>
-                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">المتوسط الشهري</th>
-                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">الاجمالي</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">المتوسط الشهري</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">الاجمالي</th>
                         {financialData.months.map((month, index) => (
-                          <th key={index} className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">
+                          <th key={index} className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">
                             {new Date(month).toLocaleDateString('ar-SA', { month: 'numeric' })}
                           </th>
                         ))}
-                        <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">البيان</th>
+                        <th className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">البيان</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -443,27 +369,51 @@ export default function Home() {
                         ))}
                         <td className="text-right font-medium pr-4">عدد العقود</td>
                       </tr>
-                      {getCategoryRow('الايرادات', true)}
-
-                      {/* Direct Expenses Section */}
-                      <tr className="bg-white">
-                        <td colSpan={8} className="text-center font-medium text-sm text-gray-800 p-4">المصاريف المباشرة على العقد</td>
-                      </tr>
-                      {getSubCategoryRows('المصروفات المباشرة على العقد')}
+                      
+                      {/* Dynamic Categories from Database - Following exact pseudo-code structure */}
+                      {console.log('FinancialData:', financialData)}
+                      {financialData.mainCategories && financialData.mainCategories.map(main => (
+                        <React.Fragment key={main.id}>
+                          {/* Main Category Row */}
+                          <tr className="bg-[#1A4D4F]/5 hover:bg-[#1A4D4F]/10 bg-white">
+                            <td className="p-3 text-right text-base font-medium bg-white">
+                              {formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + (sub.total || 0), 0) / (financialData.months?.length || 1))}
+                            </td>
+                            <td className="p-3 text-right text-base font-medium">
+                              {formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + (sub.total || 0), 0))}
+                            </td>
+                            {financialData.months?.map((month, i) => (
+                              <td key={i} className="p-3 text-right text-base font-medium">
+                                {formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + ((sub.values && sub.values[month]) || 0), 0))}
+                              </td>
+                            ))}
+                            <td className="text-right font-medium pr-4">{main.name}</td>
+                          </tr>
+                          
+                          {/* Subcategory Rows */}
+                          {main.subCategories && main.subCategories.map(sub => (
+                            <tr key={sub.id} className="bg-[#F7F8FA] hover:bg-[#1A4D4F]/5">
+                              <td className="p-3 text-right text-base font-medium">
+                                {formatCurrency((sub.total || 0) / (financialData.months?.length || 1))}
+                              </td>
+                              <td className="p-3 text-right text-base font-medium">
+                                {formatCurrency(sub.total || 0)}
+                              </td>
+                              {financialData.months?.map((month, i) => (
+                                <td key={i} className="p-3 text-right text-base font-medium">
+                                  {formatCurrency((sub.values && sub.values[month]) || 0)}
+                                </td>
+                              ))}
+                              <td className="text-right font-medium pr-4 text-[#1F2937]">{sub.name}</td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                      
+                      {/* Financial Metrics */}
                       {getFinancialMetricRow('مجمل الربح', financialData.monthlyBreakdown.grossProfit, financialData.totals.grossProfit, financialData.averages.grossProfit, true)}
-
-                      {/* Operational Expenses Section */}
-                      <tr className="bg-white">
-                        <td colSpan={8} className="text-center font-medium text-sm text-gray-800 p-4">اجمالي المصاريف التشغيلية</td>
-                      </tr>
-                      {getSubCategoryRows('المصروفات التشغيلية')}
-                      {getFinancialMetricRow('اجمالي المصاريف التشغيلة', financialData.monthlyBreakdown.operationalExpenses, financialData.totals.operationalExpenses, financialData.averages.operationalExpenses, true)}
-
-                      {/* Other Operational Expenses Section */}
-                      <tr className="bg-white">
-                        <td colSpan={8} className="text-center font-medium text-sm text-gray-800 p-4">مصاريف اخرى التشغيلية</td>
-                      </tr>
-                      {getSubCategoryRows('المصروفات الاخرى التشغيلية')}
+                      {getFinancialMetricRow('اجمالي المصاريف التشغيلية', financialData.monthlyBreakdown.operationalExpenses, financialData.totals.operationalExpenses, financialData.averages.operationalExpenses, true)}
+                      {getFinancialMetricRow('اجمالي المصاريف الاخرى التشغيلية', financialData.monthlyBreakdown.otherOperationalExpenses, financialData.totals.otherOperationalExpenses, financialData.averages.otherOperationalExpenses, true)}
                       {getFinancialMetricRow('صافي الربح قبل الزكاة', financialData.monthlyBreakdown.netProfitBeforeZakat, financialData.totals.netProfitBeforeZakat, financialData.averages.netProfitBeforeZakat, true)}
                       {getFinancialMetricRow('صافي الربح بعد الزكاة', financialData.monthlyBreakdown.netProfitAfterZakat, financialData.totals.netProfitAfterZakat, financialData.averages.netProfitAfterZakat, true)}
                     </tbody>
