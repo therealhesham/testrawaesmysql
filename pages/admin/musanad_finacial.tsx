@@ -20,9 +20,11 @@ interface FinancialRecord {
 }
 
 interface FinancialRecordForm {
+  orderId: string;
   orderNumber: string;
   officeId: string;
   clientName: string;
+  clientId: string;
   nationality: string;
   orderDate: string;
   transferNumber: string;
@@ -30,6 +32,19 @@ interface FinancialRecordForm {
   revenue: string;
   expenses: string;
   net: string;
+}
+
+interface Order {
+  id: number;
+  clientName: string;
+  clientId: number;
+  phoneNumber: string;
+  maidName: string;
+  maidNationality: string;
+  maidId: number;
+  bookingStatus: string;
+  profileStatus: string;
+  createdAt: string;
 }
 
 interface Office {
@@ -51,9 +66,11 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
   clients: Client[];
 }) => {
   const [formData, setFormData] = useState<FinancialRecordForm>({
+    orderId: '',
     orderNumber: '',
     officeId: '',
     clientName: '',
+    clientId: '',
     nationality: '',
     orderDate: '',
     transferNumber: '',
@@ -63,13 +80,38 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
     net: ''
   });
 
+  const [orderSearch, setOrderSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container')) {
+        setSearchResults([]);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAdd(formData);
     setFormData({
+      orderId: '',
       orderNumber: '',
       officeId: '',
       clientName: '',
+      clientId: '',
       nationality: '',
       orderDate: '',
       transferNumber: '',
@@ -78,7 +120,58 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
       expenses: '',
       net: ''
     });
+    setOrderSearch('');
+    setSearchResults([]);
+    setSelectedOrder(null);
     onClose();
+  };
+
+  const searchOrders = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/orders/search?search=${encodeURIComponent(searchTerm)}&limit=10`);
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.orders || []);
+      } else {
+        console.error('Error searching orders');
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching orders:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleOrderSearch = (value: string) => {
+    setOrderSearch(value);
+    if (value.trim()) {
+      searchOrders(value);
+    } else {
+      setSearchResults([]);
+      setSelectedOrder(null);
+    }
+  };
+
+  const selectOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setFormData(prev => ({
+      ...prev,
+      orderId: order.id.toString(),
+      orderNumber: order.id.toString(),
+      clientName: order.clientName,
+      clientId: order.clientId.toString(),
+      nationality: order.maidNationality
+    }));
+    setSearchResults([]);
+    setOrderSearch('');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -116,25 +209,72 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
         </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Order Search */}
           <div className="col-span-1 md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">رقم الطلب</label>
-            <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-2">البحث عن الطلب</label>
+            <div className="relative search-container">
               <input
                 type="text"
-                name="orderNumber"
-                value={formData.orderNumber}
-                onChange={handleInputChange}
-                placeholder="ادخل رقم الطلب"
-                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 pr-20"
+                value={orderSearch}
+                onChange={(e) => handleOrderSearch(e.target.value)}
+                placeholder="ابحث برقم الطلب أو اسم العميل"
+                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
               />
-              <button
-                type="button"
-                className="absolute right-1 top-1 bg-teal-800 text-white px-3 py-1 rounded text-sm"
-              >
-                بحث
-              </button>
+              {isSearching && (
+                <div className="absolute right-3 top-3">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                </div>
+              )}
+              
+              {/* Search Results Dropdown */}
+              {searchResults.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  {searchResults.map((order) => (
+                    <div
+                      key={order.id}
+                      onClick={() => selectOrder(order)}
+                      className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                    >
+                      <div className="font-medium text-sm">طلب #{order.id}</div>
+                      <div className="text-xs text-gray-600">العميل: {order.clientName}</div>
+                      <div className="text-xs text-gray-600">الجنسية: {order.maidNationality}</div>
+                      <div className="text-xs text-gray-500">الهاتف: {order.phoneNumber}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Selected Order Display */}
+          {selectedOrder && (
+            <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="text-sm font-medium text-green-800">الطلب المحدد:</div>
+                  <div className="text-sm text-green-700">#{selectedOrder.id} - {selectedOrder.clientName}</div>
+                  <div className="text-xs text-green-600">الجنسية: {selectedOrder.maidNationality}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedOrder(null);
+                    setFormData(prev => ({
+                      ...prev,
+                      orderId: '',
+                      orderNumber: '',
+                      clientName: '',
+                      clientId: '',
+                      nationality: ''
+                    }));
+                  }}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">اسم المكتب</label>
@@ -159,7 +299,8 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
               value={formData.clientName}
               onChange={handleInputChange}
               placeholder="ادخل اسم العميل"
-              className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
+              className={`w-full p-3 border border-gray-300 rounded-md ${selectedOrder ? 'bg-gray-100' : 'bg-gray-50'}`}
+              readOnly={!!selectedOrder}
             />
           </div>
 
@@ -171,7 +312,8 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
               value={formData.nationality}
               onChange={handleInputChange}
               placeholder="ادخل الجنسية"
-              className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
+              className={`w-full p-3 border border-gray-300 rounded-md ${selectedOrder ? 'bg-gray-100' : 'bg-gray-50'}`}
+              readOnly={!!selectedOrder}
             />
           </div>
 
@@ -420,12 +562,18 @@ export default function MusanadFinancial({ user }: { user: any }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          clientId: newRecord.officeId ? parseInt(newRecord.officeId) : null,
-          clientName: newRecord.clientName.trim(),
+          // Relations
+          clientId: newRecord.clientId ? parseInt(newRecord.clientId) : null,
+          orderId: newRecord.orderId ? parseInt(newRecord.orderId) : null,
           officeId: newRecord.officeId ? parseInt(newRecord.officeId) : null,
-          officeName: offices.find(o => o.id === newRecord.officeId)?.office || newRecord.clientName.trim(),
+          
+          // Display fields
+          clientName: newRecord.clientName.trim(),
+          officeName: offices.find(o => o.id === newRecord.officeId)?.office || 'غير محدد',
           orderNumber: newRecord.orderNumber?.trim() || null,
           nationality: newRecord.nationality.trim(),
+          
+          // Dates and financial data
           orderDate: newRecord.orderDate,
           transferDate: newRecord.transferDate,
           transferNumber: newRecord.transferNumber.trim(),
