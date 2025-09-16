@@ -196,15 +196,16 @@ model offices {
 Country         String?    @db.VarChar(191)
 phoneNumber     String ?@db.VarChar(191)
 HomeMaid  homemaid[]
-  officemssages   officemssages[] 
+  officemssages   officemssages[]
+  financialRecords foreignOfficeFinancial[]
 }
-model Office {
-  id         Int       @id @default(autoincrement())
-  Officename String    @unique @db.VarChar(191)
-  Location   String    @db.VarChar(191)
-  phonenumber String   @db.VarChar(15)
+// model Office {
+//   id         Int       @id @default(autoincrement())
+//   Officename String    @unique @db.VarChar(191)
+//   Location   String    @db.VarChar(191)
+//   phonenumber String   @db.VarChar(15)
   
-}
+// }
 
 model Client {
   id             Int        @id @default(autoincrement())
@@ -224,7 +225,8 @@ model Client {
   reports        reports[]  // Added opposite relation field
   NewSponsorTransfers transferSponsorShips? @relation("NewSponsor")
   OldSponsorTransfers transferSponsorShips? @relation("OldSponsor")
-notes String? @db.VarChar(255)
+  accountStatements ClientAccountStatement[]
+  notes String? @db.VarChar(255)
 }
 
 
@@ -600,12 +602,29 @@ transaction_date   DateTime? @default(now())
 model IncomeStatement {
   id           Int       @id @default(autoincrement())
   date         DateTime
-  mainCategory String    @db.VarChar(100)
-  subCategory  String?   @db.VarChar(100)
+  subCategory_id  Int
+  subCategory subCategory @relation(references: [id],fields: [subCategory_id])
+ 
   amount       Decimal
   notes        String?   @db.VarChar(255)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model mainCategory{
+  id           Int       @id @default(autoincrement())
+
+name String //"الايرادات " المصروفات التشغيلية على العقد المصروفات التشغيلية   المصروفات الاخرى التشغيلية
+subs   subCategory[] 
+mathProcess  String //add subtract
+}
+
+model subCategory{
+  id           Int       @id @default(autoincrement())
+name   String
+mainCategory_id   Int
+incomeStatement IncomeStatement[]
+  mainCategory mainCategory @relation(references: [id],fields: [mainCategory_id])
 }
 
 model AutomaticEmployee {
@@ -629,4 +648,52 @@ model AutomaticEmployee {
   cooking           Boolean?
   laundry           Boolean?
   stitching         Boolean?
+}
+
+model foreignOfficeFinancial {
+  id             Int       @id @default(autoincrement())
+  date           DateTime
+  clientName     String    @db.VarChar(255)
+  contractNumber String?   @db.VarChar(255)
+  payment        String?   @db.VarChar(255)
+  description    String?   @db.VarChar(500)
+  credit         Decimal   @default(0)
+  debit          Decimal   @default(0)
+  balance        Decimal   @default(0)
+  invoice        String?   @db.VarChar(500)
+  officeId       Int
+  office         offices   @relation(fields: [officeId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// Client Account Statement Models
+model ClientAccountStatement {
+  id             Int       @id @default(autoincrement())
+  clientId       Int
+  client         Client    @relation(fields: [clientId], references: [id])
+  contractNumber String?   @db.VarChar(255)
+  officeName     String?   @db.VarChar(255)
+  totalRevenue   Decimal   @default(0)
+  totalExpenses  Decimal   @default(0)
+  netAmount      Decimal   @default(0)
+  contractStatus String?   @db.VarChar(100)
+  notes          String?   @db.VarChar(500)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  entries        ClientAccountEntry[]
+}
+
+model ClientAccountEntry {
+  id             Int       @id @default(autoincrement())
+  statementId    Int
+  statement      ClientAccountStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  date           DateTime
+  description    String    @db.VarChar(500)
+  debit          Decimal   @default(0)
+  credit         Decimal   @default(0)
+  balance        Decimal   @default(0)
+  entryType      String?   @db.VarChar(100) // نوع الحركة
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

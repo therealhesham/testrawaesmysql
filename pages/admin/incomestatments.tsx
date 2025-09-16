@@ -4,45 +4,280 @@ import axios from 'axios';
 import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
 
-export default function Home() {
-  const mainCategories = [
-    'الايرادات',
-    'المصروفات المباشرة على العقد',
-    'المصروفات التشغيلية',
-  ];
+interface MainCategory {
+  id: number;
+  name: string;
+  mathProcess: string;
+  subs: SubCategory[];
+}
 
-  const subCategoriesByMain: Record<string, string[]> = {
-    'الايرادات': [],
-    'المصروفات المباشرة على العقد': [
-      'عمولة مساند',
-      'رسوم التفويض',
-      'سداد المستحق للمكاتب الخارجية',
-    ],
-    'المصروفات التشغيلية': [],
+interface SubCategory {
+  id: number;
+  name: string;
+  mainCategory_id: number;
+}
+
+interface IncomeStatementItem {
+  id: number;
+  date: string;
+  subCategory: {
+    id: number;
+    name: string;
+    mainCategory: {
+      id: number;
+      name: string;
+      mathProcess: string;
+    };
   };
+  amount: number;
+  notes: string | null;
+}
 
+export default function Home() {
   const [form, setForm] = useState({
     date: '',
-    mainCategory: '',
-    subCategory: '',
+    mainCategoryId: '',
+    subCategoryId: '',
     amount: '',
     notes: '',
   });
   const [openAddModal, setOpenAddModal] = useState(false);
+  const [mainCategories, setMainCategories] = useState<MainCategory[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [incomeStatements, setIncomeStatements] = useState<IncomeStatementItem[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  const fetchCategories = async () => {
+    try {
+      const mainRes = await axios.get('/api/categories/mainCategory');
+      setMainCategories(mainRes.data.items || []);
+    } catch (error) {
+      console.error('Failed to fetch main categories:', error);
+      setMainCategories([]);
+    }
+  };
+
+  const fetchSubCategories = async (mainCategoryId?: string) => {
+    try {
+      const subRes = await axios.get(`/api/categories/subCategory${mainCategoryId ? `?mainCategoryId=${mainCategoryId}` : ''}`);
+      setSubCategories(subRes.data.items || []);
+    } catch (error) {
+      console.error('Failed to fetch sub categories:', error);
+      setSubCategories([]);
+    }
+  };
+
+  const fetchIncomeStatements = async () => {
+    setLoadingData(true);
+    try {
+      const res = await axios.get('/api/income-statements');
+      setIncomeStatements(res.data.items || []);
+      setDataError(null);
+    } catch (err) {
+      console.error('Failed to fetch income statements:', err);
+      setDataError('تعذر جلب السجلات');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+    fetchIncomeStatements();
+  }, []);
+
+  useEffect(() => {
+    if (form.mainCategoryId) {
+      fetchSubCategories(form.mainCategoryId);
+    } else {
+      setSubCategories([]);
+    }
+    setForm((prev) => ({ ...prev, subCategoryId: '' }));
+  }, [form.mainCategoryId]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => {
-    // Reset subcategory when main category changes
-    setForm((prev) => ({ ...prev, subCategory: '' }));
-  }, [form.mainCategory]);
+  const formatCurrency = (amount: number | string) => {
+    return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(Number(amount));
+  };
+
+  const calculateMonthlyData = () => {
+    const monthlyData: Record<string, Record<string, number>> = {}; // { monthYear: { mainCategoryName: amount, ... } }
+    const monthlySubCategoryData: Record<string, Record<string, number>> = {}; // { monthYear: { subCategoryName: amount, ... } }
+
+    // Get last 6 months of current year for UI display (in order)
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1; // 1-based month
+    const months: string[] = [];
+    
+    // Get last 6 months in chronological order
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = currentMonth - i;
+      if (monthIndex > 0) {
+        months.push(`${currentYear}-${monthIndex.toString().padStart(2, '0')}`);
+      } else {
+        // Previous year month
+        const prevYear = currentYear - 1;
+        const prevMonth = 12 + monthIndex;
+        months.push(`${prevYear}-${prevMonth.toString().padStart(2, '0')}`);
+      }
+    }
+
+    incomeStatements.forEach(item => {
+      const itemDate = new Date(item.date);
+      const monthYear = `${itemDate.getFullYear()}-${(itemDate.getMonth() + 1).toString().padStart(2, '0')}`;
+
+      if (!monthlyData[monthYear]) {
+        monthlyData[monthYear] = {};
+      }
+      if (!monthlySubCategoryData[monthYear]) {
+        monthlySubCategoryData[monthYear] = {};
+      }
+
+      const mainCatName = item.subCategory?.mainCategory?.name || 'غير مصنف';
+      const subCatName = item.subCategory?.name || 'غير مصنف';
+      const amount = Number(item.amount);
+
+      monthlyData[monthYear][mainCatName] = (monthlyData[monthYear][mainCatName] || 0) + amount;
+      monthlySubCategoryData[monthYear][subCatName] = (monthlySubCategoryData[monthYear][subCatName] || 0) + amount;
+    });
+
+    const tableData: Record<string, Record<string, number>> = {}; // { categoryName: { monthYear: amount, total: amount, average: amount } }
+
+    mainCategories.forEach(mainCat => {
+      tableData[mainCat.name] = {};
+      mainCat.subs.forEach(subCat => {
+        tableData[subCat.name] = {};
+      });
+    });
+
+    // Initialize totals and averages
+    Object.keys(tableData).forEach(cat => {
+      tableData[cat].total = 0;
+      tableData[cat].count = 0; // To calculate average
+      months.forEach(month => {
+        tableData[cat][month] = 0;
+      });
+    });
+
+    // Populate data dynamically based on mathProcess from database
+    incomeStatements.forEach(item => {
+      const itemDate = new Date(item.date);
+      const monthYear = `${itemDate.getFullYear()}-${(itemDate.getMonth() + 1).toString().padStart(2, '0')}`;
+      const mainCatName = item.subCategory?.mainCategory?.name || 'غير مصنف';
+      const subCatName = item.subCategory?.name || 'غير مصنف';
+      const amount = Number(item.amount);
+      const mathProcess = item.subCategory?.mainCategory?.mathProcess || 'add';
+
+      // Apply math process based on database mathProcess
+      const processedAmount = mathProcess === 'add' ? amount : -amount;
+
+      if (tableData[mainCatName]) {
+        tableData[mainCatName][monthYear] = (tableData[mainCatName][monthYear] || 0) + processedAmount;
+        tableData[mainCatName].total += processedAmount;
+        tableData[mainCatName].count += 1;
+      }
+      if (tableData[subCatName]) {
+        tableData[subCatName][monthYear] = (tableData[subCatName][monthYear] || 0) + processedAmount;
+        tableData[subCatName].total += processedAmount;
+        tableData[subCatName].count += 1;
+      }
+    });
+
+    // Calculate averages
+    Object.keys(tableData).forEach(cat => {
+      tableData[cat].average = tableData[cat].count > 0 ? tableData[cat].total / tableData[cat].count : 0;
+    });
+
+    return { months, tableData };
+  };
+
+  const { months, tableData } = calculateMonthlyData();
+
+  const getCategoryRow = (categoryName: string, isBold = false) => {
+    // Find category dynamically from database
+    const category = mainCategories.find(cat => cat.name === categoryName);
+    if (!category) return null;
+    
+    const data = tableData[categoryName] || {};
+    const rowClass = isBold ? 'font-bold' : '';
+    return (
+      <tr key={categoryName} className={`bg-white hover:bg-[#1A4D4F]/10 ${rowClass}`}>
+        <td className="p-3 text-right text-base font-medium">{formatCurrency(data.average || 0)}</td>
+        <td className="p-3 text-right text-base font-medium">{formatCurrency(data.total || 0)}</td>
+        {months.map((month, i) => (
+          <td key={i} className="p-3 text-right text-base font-medium">{formatCurrency(data[month] || 0)}</td>
+        ))}
+        <td className="text-right font-medium pr-4">{categoryName}</td>
+      </tr>
+    );
+  };
+
+  const getSubCategoryRows = (mainCategoryName: string) => {
+    const mainCat = mainCategories.find(cat => cat.name === mainCategoryName);
+    if (!mainCat || !mainCat.subs.length) return null;
+
+    return (
+      <tr className="bg-[#F7F8FA]" key={`${mainCategoryName}-subs`}>
+        <td colSpan={8} className="p-5">
+          <div className="px-[21px]">
+            <div className="flex flex-col gap-6">
+              {mainCat.subs.map((subCat, index) => {
+                const data = tableData[subCat.name] || {};
+                return (
+                  <div key={index} className="flex justify-between items-center">
+                    <div className="flex gap-[116px] items-center">
+                      {months.map((month, i) => (
+                        <span key={i} className="text-[16px] font-normal text-[#1F2937] min-w-[60px] text-right">{formatCurrency(data[month] || 0)}</span>
+                      ))}
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-[14px] font-normal text-[#1F2937] text-right">{subCat.name}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between items-center">
+                <div className="flex gap-[116px] items-center">
+                  {months.map((month, i) => (
+                    <span key={i} className="text-[16px] font-bold text-[#1F2937] min-w-[60px] text-right">{formatCurrency(mainCat.subs.reduce((sum, sub) => sum + (tableData[sub.name]?.[month] || 0), 0))}</span>
+                  ))}
+                </div>
+                <div className="flex items-center">
+                  <span className="text-[14px] font-bold text-[#1F2937] text-right">الاجمالي</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   // Handle export button clicks
-  const handleExport = (type: string) => {
-    alert(`تصدير إلى ${type}`);
+  const handleExport = async (type: string) => {
+    try {
+      const response = await axios.get(`/api/income-statements/export?format=${type}`);
+      const exportData = response.data.data;
+      
+      if (type === 'excel') {
+        // Process Excel export with full year data
+        console.log('Excel export data:', exportData);
+        alert(`تم تحضير البيانات للتصدير إلى Excel (${exportData.months.length} شهر)`);
+      } else if (type === 'pdf') {
+        // Process PDF export with full year data
+        console.log('PDF export data:', exportData);
+        alert(`تم تحضير البيانات للتصدير إلى PDF (${exportData.months.length} شهر)`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('حدث خطأ في التصدير');
+    }
   };
 
   // Handle reset button
@@ -74,10 +309,6 @@ export default function Home() {
     alert('عرض الإشعارات');
   };
 
-  // Format currency utility
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(amount);
-  };
 
   return (
     <div className="min-h-screen bg-[#F2F3F5]  text-gray-900" dir="rtl">
@@ -91,10 +322,10 @@ export default function Home() {
 <Layout>
       <div className="flex flex-col min-h-screen">
         {/* Header */}
-   
+
         {/* Main Content */}
-        <main className="flex-1 p-4 md:p-8">
-          <div className="flex justify-between items-center mb-10">
+        <main className="flex-1 p-4 md:p-8" dir='ltr'>
+          <div className="flex justify-between items-center mb-10 " >
             <button
               className="bg-[#1A4D4F] text-white rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-[#164044]"
               onClick={() => setOpenAddModal(true)}
@@ -119,16 +350,16 @@ export default function Home() {
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
-                    if (!form.date || !form.mainCategory || !form.amount) return;
+                    if (!form.date || !form.mainCategoryId || !form.subCategoryId || !form.amount) return;
                     await axios.post('/api/income-statements', {
                       date: form.date,
-                      mainCategory: form.mainCategory,
-                      subCategory: form.subCategory || null,
+                      subCategory_id: Number(form.subCategoryId),
                       amount: Number(form.amount),
                       notes: form.notes || null,
                     });
-                    setForm({ date: '', mainCategory: '', subCategory: '', amount: '', notes: '' });
+                    setForm({ date: '', mainCategoryId: '', subCategoryId: '', amount: '', notes: '' });
                     setOpenAddModal(false);
+                    fetchIncomeStatements(); // Refresh list after adding
                     alert('تمت الإضافة');
                   }}
                 >
@@ -146,29 +377,29 @@ export default function Home() {
                     <div className="flex flex-col">
                       <label className="mb-2 font-bold text-[#333]">البند الرئيسي</label>
                       <select
-                        name="mainCategory"
-                        value={form.mainCategory}
+                        name="mainCategoryId"
+                        value={form.mainCategoryId}
                         onChange={handleChange}
                         className="p-[10px] border border-[#CCC] rounded-[6px] bg-white"
                       >
                         <option value="">اختر البند الرئيسي</option>
                         {mainCategories.map((c) => (
-                          <option key={c} value={c}>{c}</option>
+                          <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>
                     <div className="flex flex-col">
                       <label className="mb-2 font-bold text-[#333]">البند الفرعي</label>
                       <select
-                        name="subCategory"
-                        value={form.subCategory}
+                        name="subCategoryId"
+                        value={form.subCategoryId}
                         onChange={handleChange}
                         className="p-[10px] border border-[#CCC] rounded-[6px] bg-white disabled:opacity-60"
-                        disabled={!form.mainCategory || subCategoriesByMain[form.mainCategory]?.length === 0}
+                        disabled={!form.mainCategoryId || subCategories.length === 0}
                       >
                         <option value="">اختر البند الفرعي</option>
-                        {(subCategoriesByMain[form.mainCategory] || []).map((c) => (
-                          <option key={c} value={c}>{c}</option>
+                        {subCategories.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>
@@ -196,30 +427,25 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="text-center space-y-3 sm:space-y-0 sm:space-x-4 sm:[direction:ltr] [direction:rtl]">
-                    <button
-                      type="submit"
+                <button
+                  type="submit"
                       className="inline-flex justify-center items-center px-6 py-2 rounded-[6px] text-[14px] font-bold text-white bg-[#1A4D4F] hover:bg-[#164044]"
-                    >
-                      إضافة
-                    </button>
-                    <button
-                      type="button"
+                >
+                  إضافة
+                </button>
+                <button
+                  type="button"
                       className="inline-flex justify-center items-center px-6 py-2 rounded-[6px] text-[14px] font-bold text-[#1A4D4F] border-2 border-[#1A4D4F] hover:bg-[#1A4D4F] hover:text-white"
                       onClick={() => setOpenAddModal(false)}
-                    >
-                      إلغاء
-                    </button>
-                  </div>
-                </form>
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
               </div>
             </div>
           ) : null}
 
-          {/* Existing Entries */}
-          <div className="bg-white p-6 rounded-lg max-w-3xl mx-auto mb-8 shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
-            <h3 className="text-lg font-bold mb-4 text-gray-800">السجلات الحالية</h3>
-            <IncomeStatementsList />
-          </div>
 
           {/* Financial Table */}
           <div className="bg-[#F2F3F5] border border-[#E0E0E0] rounded-md p-4 md:p-8">
@@ -295,212 +521,55 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full bg-white border-collapse">
                 <thead>
                   <tr>
-                    {['المتوسط الشهري', 'الاجمالي', 'شهر 5', 'شهر 4', 'شهر 3', 'شهر 2', 'شهر 1', 'البيان'].map((header) => (
-                      <th
-                        key={header}
-                        className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]"
-                      >
-                        {header}
+                    <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">المتوسط الشهري</th>
+                    <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">الاجمالي</th>
+                    {months.map((month, index) => (
+                      <th key={index} className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">
+                        {new Date(month).toLocaleDateString('ar-SA', { month: 'numeric' })}
                       </th>
                     ))}
+                    <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal border-b border-[#E0E0E0]">البيان</th>
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Revenue Section */}
                   <tr className="bg-[#1A4D4F]/5 hover:bg-[#1A4D4F]/10">
-                    <td className="p-3 text-center text-base font-medium">35</td>
-                    <td className="p-3 text-center text-base font-medium">100</td>
-                    <td className="p-3 text-center text-base font-medium">14</td>
-                    <td className="p-3 text-center text-base font-medium">20</td>
-                    <td className="p-3 text-center text-base font-medium">16</td>
-                    <td className="p-3 text-center text-base font-medium">25</td>
-                    <td className="p-3 text-center text-base font-medium">30</td>
+                    <td className="p-3 text-right text-base font-medium">35</td>
+                    <td className="p-3 text-right text-base font-medium">100</td>
+                    {months.map((month, i) => (
+                      <td key={i} className="p-3 text-right text-base font-medium">
+                        {i < 5 ? [14, 20, 16, 25, 30][i] : 0}
+                      </td>
+                    ))}
                     <td className="text-right font-medium pr-4">عدد العقود</td>
                   </tr>
-                  <tr className="bg-[#1A4D4F]/5 hover:bg-[#1A4D4F]/10">
-                    <td className="p-3 text-center text-base font-medium">800.00</td>
-                    <td className="p-3 text-center text-base font-medium">2000.00</td>
-                    <td className="p-3 text-center text-base font-medium">298.00</td>
-                    <td className="p-3 text-center text-base font-medium">248.00</td>
-                    <td className="p-3 text-center text-base font-medium">240.00</td>
-                    <td className="p-3 text-center text-base font-medium">240.00</td>
-                    <td className="p-3 text-center text-base font-medium">220.00</td>
-                    <td className="text-right font-medium pr-4">اجمالي الايرادات</td>
-                  </tr>
+                  {getCategoryRow('الايرادات', true)}
 
+                  {/* Direct Expenses Section */}
                   <tr className="bg-white">
                     <td colSpan={8} className="text-center font-medium text-sm text-gray-800 p-4">المصاريف المباشرة على العقد</td>
                   </tr>
+                  {getSubCategoryRows('المصروفات المباشرة على العقد')}
+                  {getCategoryRow('مجمل الربح', true)}
 
-                  <tr className="bg-[#F7F8FA]">
-                    <td colSpan={8} className="p-5">
-                      <div className="px-[21px]">
-                        <div className="flex flex-col gap-6">
-                          {[
-                            'عمولة مساند',
-                            'رسوم التفويض',
-                            'سداد المستحق للمكاتب الخارجية',
-                            'عمولة قطاع التشغيل',
-                            'تحويلات بنكيه',
-                            'تنقل',
-                            'تكاليف اخرى',
-                            'عمولة المناديب',
-                          ].map((label, index) => (
-                            <div key={index} className="flex justify-between items-center">
-                              <div className="flex gap-[116px] items-center">
-                                {['800.00','2000.00','298.00','248.00','240.00','240.00','120.00'].map((value, i) => (
-                                  <span key={i} className="text-[16px] font-normal text-[#1F2937] min-w-[60px] text-center">{value}</span>
-                                ))}
-                              </div>
-                              <div className="flex items-center">
-                                <span className="text-[14px] font-normal text-[#1F2937] text-right">{label}</span>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center">
-                            <div className="flex gap-[116px] items-center">
-                              {['23,000.00','23,000.00','30,000.00','23,000.00','23,000.00','23,000.00','1120.00'].map((value, i) => (
-                                <span key={i} className="text-[16px] font-bold text-[#1F2937] min-w-[60px] text-center">{value}</span>
-                              ))}
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-[14px] font-bold text-[#1F2937] text-right">الاجمالي</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr className="bg-white hover:bg-[#1A4D4F]/10">
-                    <td className="p-3 text-center text-base font-medium">800.00</td>
-                    <td className="p-3 text-center text-base font-medium">2000.00</td>
-                    <td className="p-3 text-center text-base font-medium">298.00</td>
-                    <td className="p-3 text-center text-base font-medium">248.00</td>
-                    <td className="p-3 text-center text-base font-medium">240.00</td>
-                    <td className="p-3 text-center text-base font-medium">240.00</td>
-                    <td className="p-3 text-center text-base font-medium">220.00</td>
-                    <td className="text-center font-medium text-sm">مجمل الربح</td>
-                  </tr>
-
+                  {/* Operational Expenses Section */}
                   <tr className="bg-white">
                     <td colSpan={8} className="text-center font-medium text-sm text-gray-800 p-4">اجمالي المصاريف التشغيلية</td>
                   </tr>
+                  {getSubCategoryRows('المصروفات التشغيلية')}
+                  {getCategoryRow('اجمالي المصاريف التشغيلة', true)}
 
-                  <tr className="bg-[#F7F8FA]">
-                    <td colSpan={8} className="p-5">
-                      <div className="px-[21px]">
-                        <div className="flex flex-col gap-6">
-                          {[
-                            'اجور ومرتبات',
-                            'اتصالات وجوالات',
-                            'عمولات تحويلات بنكية',
-                            'اعاشة الخادمات',
-                            'الايجار',
-                            'تامينات اجتماعية',
-                          ].map((label, index) => (
-                            <div key={index} className="flex justify-between items-center">
-                              <div className="flex gap-[116px] items-center">
-                                {['800.00','2000.00','298.00','248.00','240.00','240.00','120.00'].map((value, i) => (
-                                  <span key={i} className="text-[16px] font-normal text-[#1F2937] min-w-[60px] text-center">{value}</span>
-                                ))}
-                              </div>
-                              <div className="flex items-center">
-                                <span className="text-[14px] font-normal text-[#1F2937] text-right">{label}</span>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center">
-                            <div className="flex gap-[116px] items-center">
-                              {['23,000.00','23,000.00','30,000.00','23,000.00','23,000.00','23,000.00','1120.00'].map((value, i) => (
-                                <span key={i} className="text-[16px] font-bold text-[#1F2937] min-w-[60px] text-center">{value}</span>
-                              ))}
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-[14px] font-bold text-[#1F2937] text-right">الاجمالي</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-
+                  {/* Other Operational Expenses Section */}
                   <tr className="bg-white">
                     <td colSpan={8} className="text-center font-medium text-sm text-gray-800 p-4">مصاريف اخرى التشغيلية</td>
                   </tr>
-
-                  <tr className="bg-[#F7F8FA]">
-                    <td colSpan={8} className="p-5">
-                      <div className="px-[21px]">
-                        <div className="flex flex-col gap-6">
-                          {[
-                            'تامين غير مسترد',
-                            'بنزين، ترجمة اوراق',
-                            'مصاريف حكومية',
-                            'عمولة تسويق',
-                            'دعاية واعلان',
-                            'تحميل جزء من مصروفات الادارة',
-                          ].map((label, index) => (
-                            <div key={index} className="flex justify-between items-center">
-                              <div className="flex gap-[116px] items-center">
-                                {['800.00','2000.00','298.00','248.00','240.00','240.00','120.00'].map((value, i) => (
-                                  <span key={i} className="text-[16px] font-normal text-[#1F2937] min-w-[60px] text-center">{value}</span>
-                                ))}
-                              </div>
-                              <div className="flex items-center">
-                                <span className="text-[14px] font-normal text-[#1F2937] text-right">{label}</span>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center">
-                            <div className="flex gap-[116px] items-center">
-                              {['8,000.00','23,000.00','30,000.00','23,000.00','23,000.00','23,000.00','1120.00'].map((value, i) => (
-                                <span key={i} className="text-[16px] font-bold text-[#1F2937] min-w-[60px] text-center">{value}</span>
-                              ))}
-                            </div>
-                            <div className="flex items-center">
-                              <span className="text-[14px] font-bold text-[#1F2937] text-right">الاجمالي</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr className="bg-white hover:bg-[#1A4D4F]/10">
-                    <td className="p-3 text-center text-base font-medium">15,000.00</td>
-                    <td className="p-3 text-center text-base font-medium">27,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">33,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">29,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">26,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">30,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">29,900.00</td>
-                    <td className="text-center font-medium text-sm">اجمالي المصاريف التشغيلة</td>
-                  </tr>
-                  <tr className="bg-white hover:bg-[#1A4D4F]/10">
-                    <td className="p-3 text-center text-base font-medium">12,000.00</td>
-                    <td className="p-3 text-center text-base font-medium">23,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">23,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">23,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">23,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">23,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">23,900.00</td>
-                    <td className="text-center font-medium text-sm">صافي الربح قبل الزكاة</td>
-                  </tr>
-                  <tr className="bg-[#1A4D4F]/5 hover:bg-[#1A4D4F]/10">
-                    <td className="p-3 text-center text-base font-medium">10,000.00</td>
-                    <td className="p-3 text-center text-base font-medium">21,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">21,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">21,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">21,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">21,900.00</td>
-                    <td className="p-3 text-center text-base font-medium">21,900.00</td>
-                    <td className="text-center font-medium text-sm">صافي الربح بعد الزكاة</td>
-                  </tr>
+                  {getSubCategoryRows('المصروفات الاخرى التشغيلية')}
+                  {getCategoryRow('صافي الربح قبل الزكاة', true)}
+                  {getCategoryRow('صافي الربح بعد الزكاة', true)}
                 </tbody>
               </table>
             </div>
@@ -556,57 +625,6 @@ export default function Home() {
           }
         }
       `}</style>
-    </div>
-  );
-}
-
-function IncomeStatementsList() {
-  const [items, setItems] = useState<Array<{ id: number; date: string; mainCategory: string; subCategory: string | null; amount: number; notes: string | null }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchItems = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get('/api/income-statements');
-      setItems(res.data.items || []);
-      setError(null);
-    } catch (err: any) {
-      setError('تعذر جلب السجلات');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await axios.delete(`/api/income-statements/${id}`);
-      setItems((prev) => prev.filter((x) => x.id !== id));
-    } catch (err) {
-      alert('تعذر الحذف');
-    }
-  };
-
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  if (loading) return <div className="text-sm text-gray-600">جاري التحميل...</div>;
-  if (error) return <div className="text-sm text-red-600">{error}</div>;
-  if (!items.length) return <div className="text-sm text-gray-500">لا توجد سجلات</div>;
-
-  return (
-    <div className="space-y-2">
-      {items.map((item) => (
-        <div key={item.id} className="flex items-center justify-between border rounded p-2 text-sm">
-          <div className="flex flex-col">
-            <span className="font-medium">{item.mainCategory}{item.subCategory ? ` - ${item.subCategory}` : ''}</span>
-            <span className="text-gray-600">{new Date(item.date).toLocaleDateString('ar-SA')} • {new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(Number(item.amount))}</span>
-            {item.notes ? <span className="text-gray-500">{item.notes}</span> : null}
-          </div>
-          <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:text-red-700">حذف</button>
-        </div>
-      ))}
     </div>
   );
 }

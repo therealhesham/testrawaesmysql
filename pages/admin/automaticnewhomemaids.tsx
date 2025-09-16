@@ -269,7 +269,7 @@ console.log(entities)
                         </tbody>
                       </table>
                     </div>
-                    <div className="mt-4 flex justify-end">
+                    {/* <div className="mt-4 flex justify-end">
                       <button
                         type="button"
                         className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
@@ -277,7 +277,7 @@ console.log(entities)
                       >
                         تأكيد الحفظ
                       </button>
-                    </div>
+                    </div> */}
                   </>
                 )}
               </div>

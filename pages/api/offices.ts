@@ -2,17 +2,25 @@ import prisma from "./globalprisma";
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
+    try {
+      const items = await prisma.offices.findMany({
+        select: {
+          id: true,
+          office: true,
+          Country: true,
+          phoneNumber: true,
+        },
+        orderBy: { office: 'asc' }
+      });
 
-
-  const countriesfinder =   await prisma.offices.findMany({distinct:["Country"]})
-  const officesFinder =   await prisma.offices.findMany({distinct:["office"]})
-
-// console.log(finder)
-    // Respond with success
-    return res.status(200).json({countriesfinder,officesFinder});
+      return res.status(200).json({ success: true, items });
+    } catch (error) {
+      console.error('Offices API error:', error);
+      return res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
   } else {
-    // Handle non-POST requests
-    res.setHeader('Allow', ['POST','GET']);
+    // Handle non-GET requests
+    res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 }
