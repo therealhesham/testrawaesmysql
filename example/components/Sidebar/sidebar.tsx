@@ -14,8 +14,8 @@ import {
 import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
-import { AlertOutlined, BellFilled, BellOutlined, FileWordOutlined, MessageOutlined, NotificationFilled, NotificationOutlined } from "@ant-design/icons";
-import { DocumentAddIcon, DocumentIcon, DocumentTextIcon, TemplateIcon } from "@heroicons/react/outline";
+import { AlertOutlined, BellFilled, BellOutlined, DollarCircleFilled, FileWordOutlined, MessageOutlined, NotificationFilled, NotificationOutlined } from "@ant-design/icons";
+import { CurrencyDollarIcon, DocumentAddIcon, DocumentIcon, DocumentTextIcon, TemplateIcon } from "@heroicons/react/outline";
 import { PeopleIcon } from "icons";
 import ReportsIcon from "components/icons/reports";
 
@@ -97,6 +97,16 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 91, label: "قائمة المراسلات", link: "/admin/messages_list" },
       { id: 92, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
+    ],
+  },{
+    id: 254,
+    label: "ادارة المحاسبة",
+    icon:CurrencyDollarIcon,
+    subItems: [
+      { id: 91, label: "كشف حساب المكاتب الخارجية", link: "/admin/foreign_offices_financial" },
+      { id: 92, label: "كشف حساب العملاء", link: "/admin/client-accounts" },
+      { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
+
     ],
   },
  

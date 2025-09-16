@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import prisma from 'lib/prisma'
 import { Prisma } from '@prisma/client'
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
@@ -15,24 +16,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const items = await prisma.incomeStatement.findMany({
         where,
+        include: {
+          subCategory: {
+            include: {
+              mainCategory: true,
+            },
+          },
+        },
         orderBy: { date: 'desc' },
       })
       return res.status(200).json({ success: true, items })
     }
 
     if (req.method === 'POST') {
-      const { date, mainCategory, subCategory, amount, notes } = req.body
+      const { date, subCategory_id, amount, notes } = req.body
 
-      if (!date || !mainCategory || amount === undefined) {
+      if (!date || !subCategory_id || amount === undefined) {
         return res.status(400).json({ success: false, message: 'Missing required fields' })
       }
+      
       const created = await prisma.incomeStatement.create({
         data: {
           date: new Date(date),
-          mainCategory: String(mainCategory),
-          subCategory: subCategory ? String(subCategory) : null,
+          subCategory_id: Number(subCategory_id),
           amount: new Prisma.Decimal(amount),
           notes: notes ? String(notes) : null,
+        },
+        include: {
+          subCategory: {
+            include: {
+              mainCategory: true,
+            },
+          },
         },
       })
       return res.status(201).json({ success: true, item: created })

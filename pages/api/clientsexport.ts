@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         fullname: true,
         email: true,
         phonenumber: true,
-        createdat: true,
+        createdAt: true,
         _count: { select: { orders: true } },
         orders: {
           orderBy: { id: "desc" },
