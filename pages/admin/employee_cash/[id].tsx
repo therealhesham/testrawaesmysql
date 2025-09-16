@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-
+import Layout from 'example/containers/Layout';
+import Style from "styles/Home.module.css"
 interface EmployeeDetail {
   id: number;
   name: string;
@@ -88,7 +89,8 @@ export default function EmployeeCashDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
+    <Layout>
+    <div className={`min-h-screen bg-gray-50 ${Style["tajawal-regular"]}`} dir="rtl">
       {/* Page Content */}
       <div className="p-8">
         <div className="flex justify-between items-center mb-8">
@@ -111,17 +113,15 @@ export default function EmployeeCashDetail() {
               <label className="text-xs text-gray-700 text-right">العميل</label>
               <div className="relative">
                 <select 
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-xs text-gray-500 text-right appearance-none"
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-xs text-gray-500 text-right "
                   value={filters.client}
                   onChange={(e) => setFilters({...filters, client: e.target.value})}
                 >
                   <option value="">اختر العميل</option>
-                  <option value="client1">خالد إبراهيم</option>
-                  <option value="client2">أحمد محمد</option>
                 </select>
-                <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 17 17" fill="none">
+                {/* <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 17 17" fill="none">
                   <path d="M4 6l4.5 4.5L13 6" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                </svg> */}
               </div>
             </div>
 
@@ -129,7 +129,7 @@ export default function EmployeeCashDetail() {
               <label className="text-xs text-gray-700 text-right">نوع الحركة</label>
               <div className="relative">
                 <select 
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-xs text-gray-500 text-right appearance-none"
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-xs text-gray-500 text-right appearance-none"
                   value={filters.movementType}
                   onChange={(e) => setFilters({...filters, movementType: e.target.value})}
                 >
@@ -137,9 +137,7 @@ export default function EmployeeCashDetail() {
                   <option value="debit">مدين</option>
                   <option value="credit">دائن</option>
                 </select>
-                <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 17 17" fill="none">
-                  <path d="M4 6l4.5 4.5L13 6" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+
               </div>
             </div>
             
@@ -152,10 +150,7 @@ export default function EmployeeCashDetail() {
                   value={filters.toDate}
                   onChange={(e) => setFilters({...filters, toDate: e.target.value})}
                 />
-                <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="3" width="12" height="11" rx="2" ry="2" stroke="#6B7280" strokeWidth="2"/>
-                  <path d="M11 1v4M5 1v4M2 7h12" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+
               </div>
             </div>
             
@@ -168,10 +163,7 @@ export default function EmployeeCashDetail() {
                   value={filters.fromDate}
                   onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
                 />
-                <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="3" width="12" height="11" rx="2" ry="2" stroke="#6B7280" strokeWidth="2"/>
-                  <path d="M11 1v4M5 1v4M2 7h12" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+
               </div>
             </div>
           </div>
@@ -391,5 +383,6 @@ export default function EmployeeCashDetail() {
         `
       }} />
     </div>
+    </Layout>
   );
 }

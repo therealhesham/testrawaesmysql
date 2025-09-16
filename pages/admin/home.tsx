@@ -1,5 +1,6 @@
 //@ts-ignore
 //@ts-nocheck
+import React from "react";
 import Layout from "example/containers/Layout";
 import Link from "next/link";
 import Head from "next/head";
@@ -396,6 +397,7 @@ export default function Home({
 }) {
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
+  const [currentWeek, setCurrentWeek] = useState(0); // Week offset from start of month
   const days = ['س', 'م', 'ت', 'و', 'ث', 'ج', 'س'];
   const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
   const getDaysInMonth = (monthIndex, year) => {
@@ -411,6 +413,37 @@ export default function Home({
   const daysInMonth = getDaysInMonth(monthIndex, year);
   const firstDayOffset = getFirstDayOffset(monthIndex, year);
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  
+  // Calculate current week dates
+  const getCurrentWeekDates = () => {
+    const startDate = currentWeek * 7 - firstDayOffset + 1;
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = startDate + i;
+      if (date >= 1 && date <= daysInMonth) {
+        weekDates.push(date);
+      } else {
+        weekDates.push(null);
+      }
+    }
+    return weekDates;
+  };
+  
+  const currentWeekDates = getCurrentWeekDates();
+  const totalWeeks = Math.ceil((daysInMonth + firstDayOffset) / 7);
+  
+  // Auto-scroll to current week on component mount
+  React.useEffect(() => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonthIndex = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    if (currentMonthIndex === monthIndex && currentYear === year) {
+      const weekOfCurrentDay = Math.floor((currentDay + firstDayOffset - 1) / 7);
+      setCurrentWeek(weekOfCurrentDay);
+    }
+  }, [monthIndex, year, firstDayOffset]);
 
   // State for tasks modal (client-side only)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -426,6 +459,7 @@ export default function Home({
       month += 1;
     }
     setCurrentMonth(`${months[month]} ${currentYear}`);
+    setCurrentWeek(0); // Reset to first week when changing month
   };
 
   const getPrevMonth = () => {
@@ -438,6 +472,19 @@ export default function Home({
       month -= 1;
     }
     setCurrentMonth(`${months[month]} ${currentYear}`);
+    setCurrentWeek(0); // Reset to first week when changing month
+  };
+
+  const getNextWeek = () => {
+    if (currentWeek < totalWeeks - 1) {
+      setCurrentWeek(currentWeek + 1);
+    }
+  };
+
+  const getPrevWeek = () => {
+    if (currentWeek > 0) {
+      setCurrentWeek(currentWeek - 1);
+    }
   };
 
   // Client-side state for tab navigation
@@ -471,6 +518,50 @@ export default function Home({
     });
   };
 
+  // Get arrivals for a specific day
+  const getArrivalsForDay = (day) => {
+    return internalArrivals.filter((arrival) => {
+      if (!arrival.createdAt) return false;
+      const arrivalDate = new Date(arrival.createdAt);
+      const arrivalMonth = arrivalDate.getMonth();
+      const arrivalDay = arrivalDate.getDate();
+      return arrivalMonth === monthIndex && arrivalDay === day;
+    });
+  };
+
+  // Get departures for a specific day
+  const getDeparturesForDay = (day) => {
+    return internalDeparatures.filter((departure) => {
+      if (!departure.createdAt) return false;
+      const departureDate = new Date(departure.createdAt);
+      const departureMonth = departureDate.getMonth();
+      const departureDay = departureDate.getDate();
+      return departureMonth === monthIndex && departureDay === day;
+    });
+  };
+
+  // Get housing events for a specific day
+  const getHousingForDay = (day) => {
+    return housed.filter((housing) => {
+      if (!housing.houseentrydate) return false;
+      const housingDate = new Date(housing.houseentrydate);
+      const housingMonth = housingDate.getMonth();
+      const housingDay = housingDate.getDate();
+      return housingMonth === monthIndex && housingDay === day;
+    });
+  };
+
+  // Get sessions for a specific day
+  const getSessionsForDay = (day) => {
+    return sessions.filter((session) => {
+      if (!session.createdAt) return false;
+      const sessionDate = new Date(session.createdAt);
+      const sessionMonth = sessionDate.getMonth();
+      const sessionDay = sessionDate.getDate();
+      return sessionMonth === monthIndex && sessionDay === day;
+    });
+  };
+
   const getEventColor = (eventDate) => {
     const today = new Date();
     const event = new Date(eventDate);
@@ -486,12 +577,69 @@ export default function Home({
   const handleDayClick = (day) => {
     if (day) {
       const tasksForDay = getTasksForDay(day);
+      const arrivalsForDay = getArrivalsForDay(day);
+      const departuresForDay = getDeparturesForDay(day);
+      const housingForDay = getHousingForDay(day);
+      const sessionsForDay = getSessionsForDay(day);
+      const eventsForDay = getEventsForDay(day);
+      
+      let message = `أحداث ${day}/${monthIndex + 1}/${year}:\n\n`;
+      
       if (tasksForDay.length > 0) {
-        alert(`Tasks for ${day}/${monthIndex + 1}/${year}:
-${tasksForDay.map(t => t.Title).join('')}`);
-      } else {
-        alert(`No tasks for ${day}/${monthIndex + 1}/${year}`);
+        message += `المهام (${tasksForDay.length}):\n`;
+        tasksForDay.forEach(task => {
+          message += `• ${task.Title} - ${task.description}\n`;
+        });
+        message += '\n';
       }
+      
+      if (arrivalsForDay.length > 0) {
+        message += `الوصول (${arrivalsForDay.length}):\n`;
+        arrivalsForDay.forEach(arrival => {
+          message += `• وصول #${arrival.id} من ${arrival.ArrivalCity || 'غير محدد'}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (departuresForDay.length > 0) {
+        message += `المغادرة (${departuresForDay.length}):\n`;
+        departuresForDay.forEach(departure => {
+          message += `• مغادرة #${departure.id} إلى ${departure.finaldestination || 'غير محدد'}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (housingForDay.length > 0) {
+        message += `التسكين (${housingForDay.length}):\n`;
+        housingForDay.forEach(housing => {
+          message += `• تسكين #${housing.id} للعميل ${housing.Order?.Name || 'غير محدد'}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (sessionsForDay.length > 0) {
+        message += `الجلسات (${sessionsForDay.length}):\n`;
+        sessionsForDay.forEach(session => {
+          message += `• جلسة #${session.id} - ${session.reason || 'غير محدد'}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (eventsForDay.length > 0) {
+        message += `الأحداث (${eventsForDay.length}):\n`;
+        eventsForDay.forEach(event => {
+          message += `• ${event.title}\n`;
+        });
+        message += '\n';
+      }
+      
+      if (tasksForDay.length === 0 && arrivalsForDay.length === 0 && 
+          departuresForDay.length === 0 && housingForDay.length === 0 && 
+          sessionsForDay.length === 0 && eventsForDay.length === 0) {
+        message = `لا توجد أحداث في ${day}/${monthIndex + 1}/${year}`;
+      }
+      
+      alert(message);
     }
   };
 
@@ -540,7 +688,7 @@ ${tasksForDay.map(t => t.Title).join('')}`);
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-4 mx-auto">
-          {/* Calendar Widget */}
+          {/* New Calendar Card */}
           <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-1">
             <div className="flex justify-between items-center mb-4">
               <button onClick={getPrevMonth} className="text-teal-600 hover:text-teal-800">
@@ -555,51 +703,208 @@ ${tasksForDay.map(t => t.Title).join('')}`);
                 </svg>
               </button>
             </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-gray-600">
-              {days.map((day) => (
-                <div key={day} className="font-medium">{day}</div>
-              ))}
-              {Array.from({ length: firstDayOffset }).map((_, i) => (
-                <div key={`empty-start-${i}`} className="h-8"></div>
-              ))}
-              {dates.map((date) => {
+            
+            {/* Week Navigation */}
+            <div className="flex justify-between items-center mb-4">
+              <button 
+                onClick={getPrevWeek} 
+                disabled={currentWeek === 0}
+                className={`text-teal-600 hover:text-teal-800 ${currentWeek === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <span className="text-sm text-gray-600">
+                الأسبوع {currentWeek + 1} من {totalWeeks}
+                {(() => {
+                  const today = new Date();
+                  const currentDay = today.getDate();
+                  const currentMonthIndex = today.getMonth();
+                  const currentYear = today.getFullYear();
+                  
+                  if (currentMonthIndex === monthIndex && currentYear === year) {
+                    const weekOfCurrentDay = Math.floor((currentDay + firstDayOffset - 1) / 7);
+                    if (weekOfCurrentDay === currentWeek) {
+                      return <span className="text-teal-600 font-semibold"> (الأسبوع الحالي)</span>;
+                    }
+                  }
+                  return null;
+                })()}
+              </span>
+              <button 
+                onClick={getNextWeek} 
+                disabled={currentWeek === totalWeeks - 1}
+                className={`text-teal-600 hover:text-teal-800 ${currentWeek === totalWeeks - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Weekly Calendar Layout - Compact */}
+            <div className="space-y-1">
+              {currentWeekDates.map((date, index) => {
+                if (date === null) {
+                  return (
+                    <div key={`empty-${index}`} className="flex items-center p-1.5 border-b border-gray-100 gap-2 opacity-50">
+                      <div className="flex flex-col items-center text-xs text-center w-12">
+                        <span className="font-normal text-xs">-</span>
+                        <span className="font-light text-xs">-</span>
+                      </div>
+                      <div className="flex gap-1 flex-wrap pr-2 border-r border-gray-100 min-h-5 flex-1">
+                        <span className="text-xs text-gray-400">-</span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const hasTasks = getTasksForDay(date).length > 0;
+                const hasEvents = getEventsForDay(date).length > 0;
+                const hasArrivals = getArrivalsForDay(date).length > 0;
+                const hasDepartures = getDeparturesForDay(date).length > 0;
+                const hasHousing = getHousingForDay(date).length > 0;
+                const hasSessions = getSessionsForDay(date).length > 0;
+                
                 const tasksForDay = getTasksForDay(date);
+                const eventsForDay = getEventsForDay(date);
+                const arrivalsForDay = getArrivalsForDay(date);
+                const departuresForDay = getDeparturesForDay(date);
+                const housingForDay = getHousingForDay(date);
+                const sessionsForDay = getSessionsForDay(date);
+                
                 const today = new Date();
                 const isToday =
                   date === today.getDate() &&
                   monthIndex === today.getMonth() &&
                   year === today.getFullYear();
+                
+                // Get day name
+                const dayDate = new Date(year, monthIndex, date);
+                const dayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                const dayName = dayNames[dayDate.getDay()];
+                
                 return (
-                  <div
-                    key={date}
+                  <div 
+                    key={date} 
+                    className={`flex items-center p-1.5 border-b border-gray-100 gap-2 ${
+                      isToday ? 'bg-teal-50' : ''
+                    }`}
                     onClick={() => handleDayClick(date)}
-                    className={`group relative h-10 flex items-center justify-center rounded-full ${
-                      isToday
-                        ? 'bg-teal-800 text-white'
-                        : hasTasks
-                        ? 'bg-yellow-300 text-gray-800'
-                        : 'hover:bg-teal-100'
-                    } cursor-pointer`}
                   >
-                    <span>{date}</span>
-                    {hasTasks && (
-                      <div className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-2 top-10 z-10 max-w-xs">
-                        <p className="font-semibold">المهام ({tasksForDay.length}):</p>
-                        <ul className="list-disc list-inside">
-                          {tasksForDay.map((task, index) => (
-                            <li key={index}>
-                              {task.Title} - {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
-                              <br />
-                              <span className="text-gray-300">{task.description}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <div className="flex flex-col items-center text-xs text-center w-12">
+                      <span className="font-normal text-xs">{dayName}</span>
+                      <span className={`font-light text-xs ${isToday ? 'text-teal-800 font-semibold' : ''}`}>
+                        {date}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 flex-wrap pr-2 border-r border-gray-100 min-h-5 flex-1">
+                      {/* Tasks */}
+                      {hasTasks && tasksForDay.map((task, taskIndex) => (
+                        <div 
+                          key={`task-${taskIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-red-100 text-red-600 cursor-pointer hover:bg-red-200"
+                          title={`مهمة: ${task.Title} - ${task.description}`}
+                        >
+                          {task.Title.length > 8 ? task.Title.substring(0, 8) + '...' : task.Title}
+                        </div>
+                      ))}
+                      
+                      {/* Arrivals */}
+                      {hasArrivals && arrivalsForDay.map((arrival, arrivalIndex) => (
+                        <div 
+                          key={`arrival-${arrivalIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-blue-100 text-blue-600 cursor-pointer hover:bg-blue-200"
+                          title={`وصول: من ${arrival.ArrivalCity || 'غير محدد'}`}
+                        >
+                          وصول #{arrival.id}
+                        </div>
+                      ))}
+                      
+                      {/* Departures */}
+                      {hasDepartures && departuresForDay.map((departure, departureIndex) => (
+                        <div 
+                          key={`departure-${departureIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-orange-100 text-orange-600 cursor-pointer hover:bg-orange-200"
+                          title={`مغادرة: إلى ${departure.finaldestination || 'غير محدد'}`}
+                        >
+                          مغادرة #{departure.id}
+                        </div>
+                      ))}
+                      
+                      {/* Housing */}
+                      {hasHousing && housingForDay.map((housing, housingIndex) => (
+                        <div 
+                          key={`housing-${housingIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-green-100 text-green-600 cursor-pointer hover:bg-green-200"
+                          title={`تسكين: ${housing.Order?.Name || 'غير محدد'}`}
+                        >
+                          تسكين #{housing.id}
+                        </div>
+                      ))}
+                      
+                      {/* Sessions */}
+                      {hasSessions && sessionsForDay.map((session, sessionIndex) => (
+                        <div 
+                          key={`session-${sessionIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-purple-100 text-purple-600 cursor-pointer hover:bg-purple-200"
+                          title={`جلسة: ${session.reason || 'غير محدد'}`}
+                        >
+                          جلسة #{session.id}
+                        </div>
+                      ))}
+                      
+                      {/* Events */}
+                      {hasEvents && eventsForDay.map((event, eventIndex) => (
+                        <div 
+                          key={`event-${eventIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-gray-100 text-gray-600 cursor-pointer hover:bg-gray-200"
+                          title={event.title}
+                        >
+                          {event.title.length > 8 ? event.title.substring(0, 8) + '...' : event.title}
+                        </div>
+                      ))}
+                      
+                      {/* Show message if no events */}
+                      {!hasTasks && !hasEvents && !hasArrivals && !hasDepartures && !hasHousing && !hasSessions && (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Calendar Legend - Compact */}
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <h4 className="text-xs font-medium text-gray-700 mb-1">مفتاح الألوان:</h4>
+              <div className="grid grid-cols-3 gap-1 text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>مهام</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>وصول</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span>مغادرة</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>تسكين</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>جلسات</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                  <span>أحداث</span>
+                </div>
+              </div>
             </div>
           </div>
           {/* Tasks Widget */}
