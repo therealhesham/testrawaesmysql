@@ -105,6 +105,8 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 91, label: "كشف حساب المكاتب الخارجية", link: "/admin/foreign_offices_financial" },
       { id: 92, label: "كشف حساب العملاء", link: "/admin/client-accounts" },
+      { id: 93, label: "كشف حساب الموظفين", link: "/admin/employee_cash" },
+
       { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
 
     ],
@@ -266,7 +268,7 @@ const Sidebar = (props) => {
                       <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
                       {!toggleCollapse && (
                         <div className="flex items-center justify-between flex-1">
-                          <span className={`text-sm font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
+                          <span className={`text-md font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
                             {menu.label}
                           </span>
                           {subItems && (
@@ -288,7 +290,7 @@ const Sidebar = (props) => {
                     <Icon className="w-7 h-7 group-hover:scale-110 transition-transform duration-200" />
                     {!toggleCollapse && (
                       <div className="flex items-center justify-between flex-1">
-                        <span className={`text-sm font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
+                        <span className={`text-md font-medium mr-4 ml-3 ${Style["tajawal-medium"]}`}>
                           {menu.label}
                         </span>
                         {subItems && (
@@ -322,7 +324,7 @@ const Sidebar = (props) => {
                     >
                       <Link href={subItem.link}>
                         <a className="flex items-center w-full h-full">
-                          <span className={`text-sm font-semibold ${Style["tajawal-medium"]}`}>
+                          <span className={`text-md font-semibold ${Style["tajawal-medium"]}`}>
                             {subItem.label}
                           </span>
                         </a>
