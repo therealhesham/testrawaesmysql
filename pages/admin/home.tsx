@@ -876,8 +876,7 @@ export default function Home({
               })}
             </div>
             
-            {/* Calendar Legend - Compact */}
-            <div className="mt-2 pt-2 border-t border-gray-100">
+            {/* <div className="mt-2 pt-2 border-t border-gray-100">
               <h4 className="text-xs font-medium text-gray-700 mb-1">مفتاح الألوان:</h4>
               <div className="grid grid-cols-3 gap-1 text-xs">
                 <div className="flex items-center gap-1">
@@ -905,7 +904,7 @@ export default function Home({
                   <span>أحداث</span>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
           {/* Tasks Widget */}
           <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-2">
