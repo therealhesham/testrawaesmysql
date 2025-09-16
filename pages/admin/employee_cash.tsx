@@ -31,6 +31,25 @@ interface EmployeeCashData {
   };
 }
 
+// Form data interface matching the EmployeeCash model
+export interface EmployeeCashFormData {
+  employeeId: number | '';
+  cashNumber: string;
+  receivedAmount: number | '';
+  expenseAmount: number | '';
+  description: string;
+  attachment: File | null;
+  transactionDate: string;
+}
+
+// Employee interface for dropdown
+export interface EmployeeOption {
+  id: number;
+  name: string;
+  position?: string;
+  department?: string;
+}
+
 export default function EmployeeCash() {
   const router = useRouter();
   const [data, setData] = useState<EmployeeCashData | null>(null);
@@ -40,9 +59,25 @@ export default function EmployeeCash() {
     fromDate: '',
     toDate: ''
   });
+  
+  // Form state management
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<EmployeeCashFormData>({
+    employeeId: '',
+    cashNumber: '',
+    receivedAmount: '',
+    expenseAmount: '',
+    description: '',
+    attachment: null,
+    transactionDate: new Date().toISOString().split('T')[0]
+  });
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchEmployeeCashData();
+    fetchEmployees();
   }, [filters]);
 
   const fetchEmployeeCashData = async () => {
@@ -63,15 +98,142 @@ export default function EmployeeCash() {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/employees');
+      const result = await response.json();
+      setEmployees(result.employees || []);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
   const handleEmployeeClick = (employeeId: number) => {
     router.push(`/admin/employee_cash/${employeeId}`);
   };
 
   const handleAddCash = () => {
-    // Open modal for adding cash
-    const modal = document.getElementById('add-cash-modal');
-    if (modal) {
-      modal.style.display = 'flex';
+    setIsModalOpen(true);
+    // Reset form data when opening modal
+    setFormData({
+      employeeId: '',
+      cashNumber: '',
+      receivedAmount: '',
+      expenseAmount: '',
+      description: '',
+      attachment: null,
+      transactionDate: new Date().toISOString().split('T')[0]
+    });
+    setFormErrors({});
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // Reset form data when closing modal
+    setFormData({
+      employeeId: '',
+      cashNumber: '',
+      receivedAmount: '',
+      expenseAmount: '',
+      description: '',
+      attachment: null,
+      transactionDate: new Date().toISOString().split('T')[0]
+    });
+    setFormErrors({});
+  };
+
+  // Form field handlers with two-way binding
+  const handleFormFieldChange = (field: keyof EmployeeCashFormData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const { [field]: removed, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    handleFormFieldChange('attachment', file);
+  };
+
+  // Form validation
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!formData.employeeId) {
+      errors.employeeId = 'الموظف مطلوب';
+    }
+    
+    if (!formData.cashNumber.trim()) {
+      errors.cashNumber = 'رقم العهدة مطلوب';
+    }
+    
+    if (formData.receivedAmount === '' || formData.receivedAmount <= 0) {
+      errors.receivedAmount = 'المبلغ المستلم مطلوب ويجب أن يكون أكبر من صفر';
+    }
+    
+    if (formData.expenseAmount === '' || formData.expenseAmount < 0) {
+      errors.expenseAmount = 'المصروف مطلوب ويجب أن يكون أكبر من أو يساوي صفر';
+    }
+    
+    if (!formData.transactionDate) {
+      errors.transactionDate = 'التاريخ مطلوب';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Form submission
+  const handleFormSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Prepare form data for API
+      const submitData = {
+        employeeId: Number(formData.employeeId),
+        cashNumber: formData.cashNumber,
+        receivedAmount: Number(formData.receivedAmount),
+        expenseAmount: Number(formData.expenseAmount),
+        description: formData.description,
+        attachment: formData.attachment?.name || ''
+      };
+      
+      const response = await fetch('/api/employee-cash', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitData),
+      });
+      
+      if (response.ok) {
+        // Success - close modal and refresh data
+        handleCloseModal();
+        fetchEmployeeCashData();
+        alert('تم إضافة العهدة بنجاح');
+      } else {
+        const errorData = await response.json();
+        alert(`خطأ: ${errorData.error || 'حدث خطأ أثناء إضافة العهدة'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('حدث خطأ أثناء إضافة العهدة');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -111,7 +273,7 @@ export default function EmployeeCash() {
               <label className="text-md text-gray-700 text-right">الموظف</label>
               <div className="relative">
                 <select 
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right appearance-none"
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right appearance-none"
                   value={filters.employee}
                   onChange={(e) => setFilters({...filters, employee: e.target.value})}
                 >
@@ -230,68 +392,155 @@ export default function EmployeeCash() {
       </div>
 
       {/* Add Cash Modal */}
-      <div id="add-cash-modal" className="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center">
-        <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-2xl mx-auto relative" dir="rtl">
-          <h2 className="text-center text-xl mb-8 text-gray-700">إضافة عهدة</h2>
-          <form className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col items-end">
-                <label className="text-md text-gray-500 mb-2">التاريخ</label>
-                <input type="date" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center" onClick={handleCloseModal}>
+          <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-2xl mx-auto relative" dir="rtl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-center text-xl mb-8 text-gray-700">إضافة عهدة</h2>
+            <form onSubmit={handleFormSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">التاريخ</label>
+                  <input 
+                    type="date" 
+                    value={formData.transactionDate}
+                    onChange={(e) => handleFormFieldChange('transactionDate', e.target.value)}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      formErrors.transactionDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {formErrors.transactionDate && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors.transactionDate}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">الموظف</label>
+                  <select 
+                    value={formData.employeeId}
+                    onChange={(e) => handleFormFieldChange('employeeId', e.target.value)}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      formErrors.employeeId ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">اختر الموظف</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                  {formErrors.employeeId && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors.employeeId}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">رقم العهدة</label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل رقم العهدة" 
+                    value={formData.cashNumber}
+                    onChange={(e) => handleFormFieldChange('cashNumber', e.target.value)}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      formErrors.cashNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {formErrors.cashNumber && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors.cashNumber}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">المبلغ المستلم</label>
+                  <input 
+                    type="number" 
+                    placeholder="ادخل المبلغ المستلم" 
+                    value={formData.receivedAmount}
+                    onChange={(e) => handleFormFieldChange('receivedAmount', e.target.value ? Number(e.target.value) : '')}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      formErrors.receivedAmount ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    min="0"
+                    step="0.01"
+                  />
+                  {formErrors.receivedAmount && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors.receivedAmount}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">المصروف</label>
+                  <input 
+                    type="number" 
+                    placeholder="ادخل المصروف" 
+                    value={formData.expenseAmount}
+                    onChange={(e) => handleFormFieldChange('expenseAmount', e.target.value ? Number(e.target.value) : '')}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      formErrors.expenseAmount ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    min="0"
+                    step="0.01"
+                  />
+                  {formErrors.expenseAmount && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors.expenseAmount}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">البيان</label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل البيان" 
+                    value={formData.description}
+                    onChange={(e) => handleFormFieldChange('description', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                  />
+                </div>
               </div>
               
               <div className="flex flex-col items-end">
-                <label className="text-md text-gray-500 mb-2">الموظف</label>
-                <select className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right">
-                  <option>اختر الموظف</option>
-                  {data?.employees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name}</option>
-                  ))}
-                </select>
+                <label className="text-md text-gray-500 mb-2">المرفقات</label>
+                <div className="flex gap-3 w-full justify-start flex-row-reverse">
+                  <input 
+                    type="file" 
+                    id="fileUpload" 
+                    className="hidden" 
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => document.getElementById('fileUpload')?.click()} 
+                    className="bg-teal-800 text-white border-none rounded px-5 py-2 text-md cursor-pointer"
+                  >
+                    اختيار ملف
+                  </button>
+                  <span className="self-center text-md text-gray-600">
+                    {formData.attachment ? formData.attachment.name : 'لم يتم اختيار ملف'}
+                  </span>
+                </div>
               </div>
               
-              <div className="flex flex-col items-end">
-                <label className="text-md text-gray-500 mb-2">رقم العهدة</label>
-                <input type="text" placeholder="ادخل رقم العهدة" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+              <div className="flex justify-center gap-4 mt-5">
+                <button 
+                  type="button" 
+                  onClick={handleCloseModal}
+                  className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base"
+                  disabled={isSubmitting}
+                >
+                  إلغاء
+                </button>
+                <button 
+                  type="submit" 
+                  className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'جاري الإضافة...' : 'إضافة'}
+                </button>
               </div>
-              
-              <div className="flex flex-col items-end">
-                <label className="text-md text-gray-500 mb-2">المبلغ المستلم</label>
-                <input type="text" placeholder="ادخل المبلغ المستلم" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
-              </div>
-            </div>
-            
-            <div className="flex flex-col items-end">
-              <label className="text-md text-gray-500 mb-2">المرفقات</label>
-              <div className="flex gap-3 w-full justify-start flex-row-reverse">
-                <input type="file" id="fileUpload" className="hidden" />
-                <button type="button" onClick={() => document.getElementById('fileUpload')?.click()} className="bg-teal-800 text-white border-none rounded px-5 py-2 text-md cursor-pointer">اختيار ملف</button>
-                <span id="fileName" className="self-center text-md text-gray-600"></span>
-              </div>
-            </div>
-            
-            <div className="flex justify-center gap-4 mt-5">
-              <button type="button" className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
-              <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">إضافة</button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
-      <script dangerouslySetInnerHTML={{
-        __html: `
-          document.getElementById('fileUpload')?.addEventListener('change', function(){
-            document.getElementById('fileName').textContent = this.files[0]?.name || '';
-          });
-          
-          // Close modal when clicking outside
-          document.getElementById('add-cash-modal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-              this.style.display = 'none';
-            }
-          });
-        `
-      }} />
     </div>
     
 </Layout>
