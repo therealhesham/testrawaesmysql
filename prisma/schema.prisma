@@ -698,3 +698,57 @@ model ClientAccountEntry {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
+
+model EmployeeCash {
+  id                Int       @id @default(autoincrement())
+  employeeId        Int       // ربط بالموظف
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  cashNumber        String?   @db.VarChar(100) // رقم العهدة
+  receivedAmount    Decimal   @default(0) // المبلغ المستلم
+  expenseAmount     Decimal   @default(0) // المصروف
+  remainingBalance  Decimal   @default(0) // الرصيد المتبقي
+  description       String?   @db.VarChar(500) // البيان
+  attachment        String?   @db.VarChar(255) // المرفق
+  transactionDate   DateTime  @default(now()) // تاريخ المعاملة
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Employee {
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(255) // اسم الموظف
+  position          String?   @db.VarChar(255) // المنصب
+  department        String?   @db.VarChar(255) // القسم
+  phoneNumber       String?   @db.VarChar(20) // رقم الهاتف
+  email             String?   @db.VarChar(255) // البريد الإلكتروني
+  nationalId        String?   @db.VarChar(20) // الهوية الوطنية
+  address           String?   @db.VarChar(500) // العنوان
+  hireDate          DateTime? // تاريخ التوظيف
+  salary            Decimal?  @default(0) // الراتب
+  isActive          Boolean   @default(true) // حالة الموظف (نشط/غير نشط)
+  notes             String?   @db.VarChar(1000) // ملاحظات
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  employeeCash      EmployeeCash[]
+  employeeCashDetails EmployeeCashDetail[]
+}
+
+model EmployeeCashDetail {
+  id                Int       @id @default(autoincrement())
+  employeeId        Int       // ربط بالموظف
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date              DateTime  @default(now())
+  month             String?   @db.VarChar(50) // الشهر
+  mainAccount       String?   @db.VarChar(255) // الحساب الرئيسي
+  subAccount        String?   @db.VarChar(255) // الحساب الفرعي
+  client            String?   @db.VarChar(255) // العميل
+  debit             Decimal   @default(0) // مدين
+  credit            Decimal   @default(0) // دائن
+  balance           Decimal   @default(0) // الرصيد
+  description       String?   @db.VarChar(500) // البيان
+  attachment        String?   @db.VarChar(255) // المرفق
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
