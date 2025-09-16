@@ -198,6 +198,7 @@ phoneNumber     String ?@db.VarChar(191)
 HomeMaid  homemaid[]
   officemssages   officemssages[]
   financialRecords foreignOfficeFinancial[]
+  musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
 }
 // model Office {
 //   id         Int       @id @default(autoincrement())
@@ -226,6 +227,7 @@ model Client {
   NewSponsorTransfers transferSponsorShips? @relation("NewSponsor")
   OldSponsorTransfers transferSponsorShips? @relation("OldSponsor")
   accountStatements ClientAccountStatement[]
+  musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
   notes String? @db.VarChar(255)
 }
 
@@ -341,6 +343,7 @@ Payments Payment[]
   HomeMaid           homemaid? @relation(fields: [HomemaidId], references: [id])
   // OrderStatus        OrderStatus[]
   arrivals        arrivallist[]
+  musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
   isContractEnded Boolean? @default(false)
 
 }
@@ -751,4 +754,56 @@ model EmployeeCashDetail {
   attachment        String?   @db.VarChar(255) // المرفق
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+}
+
+// Musanad Financial Records Model
+model MusanadFinancialRecord {
+  id                Int       @id @default(autoincrement())
+  
+  // Client Information
+  clientId          Int?      // ربط بالعميل
+  client            Client?   @relation(fields: [clientId], references: [id])
+  clientName        String    @db.VarChar(255) // اسم العميل
+  
+  // Office Information
+  officeId          Int?      // ربط بالمكتب الخارجي
+  office            offices?  @relation(fields: [officeId], references: [id])
+  officeName        String    @db.VarChar(255) // اسم المكتب الخارجي
+  
+  // Order Information
+  orderId           Int?      // ربط بالطلب
+  order             neworder? @relation(fields: [orderId], references: [id])
+  orderNumber       String?   @db.VarChar(100) // رقم الطلب
+  
+  // Worker Information
+  nationality       String    @db.VarChar(100) // الجنسية
+  workerName        String?   @db.VarChar(255) // اسم العاملة
+  
+  // Dates
+  orderDate         DateTime  // تاريخ الطلب
+  transferDate      DateTime  // تاريخ الحوالة
+  transferNumber    String    @db.VarChar(100) // رقم الحوالة
+  
+  // Financial Information
+  revenue           Decimal   @default(0) // الإيرادات (مساند)
+  expenses          Decimal   @default(0) // المصروفات (التكاليف المباشرة + العمولة + الضريبة)
+  netAmount         Decimal   @default(0) // الصافي
+  
+  // Status and Additional Info
+  status            String    @default("in_process") @db.VarChar(50) // حالة الطلب
+  notes             String?   @db.VarChar(1000) // ملاحظات إضافية
+  
+  // Audit Fields
+  createdBy         String?   @db.VarChar(100) // منشئ السجل
+  updatedBy         String?   @db.VarChar(100) // آخر معدل
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Indexes for better performance
+  @@index([clientId])
+  @@index([officeId])
+  @@index([orderId])
+  @@index([orderDate])
+  @@index([transferDate])
+  @@index([status])
 }
