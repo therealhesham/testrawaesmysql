@@ -17,31 +17,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get last 6 months for UI display, full year for totals
     let months: string[] = []
     let allMonths: string[] = [] // For totals calculation
+
     if (!from || !to) {
-      const currentYear = new Date().getFullYear()
-      
-      // Full year for totals calculation
+      const today = new Date()
+      const currentYear = today.getFullYear()
+      const currentMonth = today.getMonth() + 1 // 1-based month
+
+      // Full year for totals calculation (always 1-12 of current year)
       allMonths = Array.from({ length: 12 }, (_, i) => {
         return `${currentYear}-${(i + 1).toString().padStart(2, '0')}`
       })
-      
-      // Last 6 months of current year for UI display (in order)
-      const today = new Date()
-      const currentMonth = today.getMonth() + 1 // 1-based month
-      months = []
-      
-      // Get last 6 months in chronological order
-      for (let i = 5; i >= 0; i--) {
-        const monthIndex = currentMonth - i
-        if (monthIndex > 0) {
-          months.push(`${currentYear}-${monthIndex.toString().padStart(2, '0')}`)
-        } else {
-          // Previous year month
-          const prevYear = currentYear - 1
-          const prevMonth = 12 + monthIndex
-          months.push(`${prevYear}-${prevMonth.toString().padStart(2, '0')}`)
+
+      // Last 6 consecutive months including current month
+      months = Array.from({ length: 6 }, (_, i) => {
+        let month = currentMonth - 5 + i
+        let year = currentYear
+        if (month <= 0) {
+          month += 12
+          year -= 1
         }
-      }
+        return `${year}-${month.toString().padStart(2, '0')}`
+      })
     }
 
     // Advanced query to get all income statements with categories
@@ -86,13 +82,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Process income statements for this subcategory
         subCat.incomeStatement.forEach(statement => {
           const statementDate = new Date(statement.date)
-          const monthYear = `${statementDate.getFullYear()}-${(statementDate.getMonth() + 1).toString().padStart(2, '0')}`
+          const monthYear = `${statementDate.getFullYear()}-${(statementDate.getMonth() + 1)
+            .toString()
+            .padStart(2, '0')}`
           const amount = Number(statement.amount)
           const mathProcess = mainCat.mathProcess || 'add'
-          
+
           // Apply math process
           const processedAmount = mathProcess === 'add' ? amount : -amount
-          
+
           if (values[monthYear] !== undefined) {
             values[monthYear] += processedAmount
           }
@@ -128,7 +126,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Calculate totals from processed main categories
     processedMainCategories.forEach(mainCat => {
       const categoryTotal = mainCat.subCategories.reduce((sum, sub) => sum + sub.total, 0)
-      
+
       if (mainCat.mathProcess === 'add') {
         totalRevenues += categoryTotal
       } else if (mainCat.mathProcess === 'subtract') {
@@ -137,20 +135,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     // Calculate gross profit (revenues - direct expenses)
-    const directExpensesCategory = processedMainCategories.find(cat => 
-      cat.name === 'المصروفات المباشرة على العقد' && cat.mathProcess === 'subtract'
-    )
-    const directExpenses = directExpensesCategory ? 
-      directExpensesCategory.subCategories.reduce((sum, sub) => sum + sub.total, 0) : 0
+    // Find the first subtract category as direct expenses
+    const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
+    const directExpenses = directExpensesCategory
+      ? directExpensesCategory.subCategories.reduce((sum, sub) => sum + sub.total, 0)
+      : 0
     grossProfit = totalRevenues + directExpenses // directExpenses is already negative
 
-    // Calculate total operational expenses
-    const operationalCategories = processedMainCategories.filter(cat => 
-      (cat.name === 'المصروفات التشغيلية' || cat.name === 'المصروفات الاخرى التشغيلية') && 
-      cat.mathProcess === 'subtract'
+    // Calculate total operational expenses (all other subtract categories)
+    const operationalCategories = processedMainCategories.filter(
+      cat => cat.mathProcess === 'subtract' && cat.id !== directExpensesCategory?.id
     )
-    totalOperationalExpenses = operationalCategories.reduce((sum, cat) => 
-      sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0
+    totalOperationalExpenses = operationalCategories.reduce(
+      (sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0),
+      0
     )
 
     // Calculate net profit before zakat
@@ -163,58 +161,95 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       revenues: months.map(month => {
         return processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
+          .reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
       }),
-      directExpenses: months.map(month => {
-        const directExpensesCategory = processedMainCategories.find(cat => 
-          cat.name === 'المصروفات المباشرة على العقد' && cat.mathProcess === 'subtract'
-        )
-        return directExpensesCategory ? 
-          directExpensesCategory.subCategories.reduce((sum, sub) => sum + (sub.values[month] || 0), 0) : 0
-      }),
-      operationalExpenses: months.map(month => {
-        return processedMainCategories
-          .filter(cat => cat.name === 'المصروفات التشغيلية' && cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-      }),
-      otherOperationalExpenses: months.map(month => {
-        return processedMainCategories
-          .filter(cat => cat.name === 'المصروفات الاخرى التشغيلية' && cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-      }),
+        directExpenses: months.map(month => {
+          const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
+          return directExpensesCategory
+            ? directExpensesCategory.subCategories.reduce(
+                (sum, sub) => sum + (sub.values[month] || 0),
+                0
+              )
+            : 0
+        }),
+        operationalExpenses: months.map(month => {
+          const operationalCategories = processedMainCategories.filter(
+            cat => cat.mathProcess === 'subtract' && cat.id !== directExpensesCategory?.id
+          )
+          return operationalCategories.reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+        }),
+        otherOperationalExpenses: months.map(month => {
+          // For now, we'll use the same operational expenses logic
+          // This can be split further if needed based on category order
+          const operationalCategories = processedMainCategories.filter(
+            cat => cat.mathProcess === 'subtract' && cat.id !== directExpensesCategory?.id
+          )
+          return operationalCategories.reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+        }),
       grossProfit: months.map(month => {
         const monthlyRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-        
-        const directExpensesCategory = processedMainCategories.find(cat => 
-          cat.name === 'المصروفات المباشرة على العقد' && cat.mathProcess === 'subtract'
-        )
-        const monthlyDirectExpenses = directExpensesCategory ? 
-          directExpensesCategory.subCategories.reduce((sum, sub) => sum + (sub.values[month] || 0), 0) : 0
-        
+          .reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+
+        const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
+        const monthlyDirectExpenses = directExpensesCategory
+          ? directExpensesCategory.subCategories.reduce((sum, sub) => sum + (sub.values[month] || 0), 0)
+          : 0
+
         return monthlyRevenues + monthlyDirectExpenses
       }),
       netProfitBeforeZakat: months.map(month => {
         const monthlyRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-        
+          .reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+
         const monthlyExpenses = processedMainCategories
           .filter(cat => cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-        
+          .reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+
         return monthlyRevenues + monthlyExpenses
       }),
       netProfitAfterZakat: months.map(month => {
         const monthlyRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-        
+          .reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+
         const monthlyExpenses = processedMainCategories
           .filter(cat => cat.mathProcess === 'subtract')
-          .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0), 0)
-        
+          .reduce(
+            (sum, cat) =>
+              sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
+            0
+          )
+
         const beforeZakat = monthlyRevenues + monthlyExpenses
         const monthlyZakat = Math.max(0, beforeZakat * (Number(zakatRate) / 100))
         return beforeZakat - monthlyZakat
@@ -225,12 +260,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totals = {
       revenues: totalRevenues,
       directExpenses: directExpenses,
-      operationalExpenses: processedMainCategories
-        .filter(cat => cat.name === 'المصروفات التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0),
-      otherOperationalExpenses: processedMainCategories
-        .filter(cat => cat.name === 'المصروفات الاخرى التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0),
+      operationalExpenses: operationalCategories.reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0),
+      otherOperationalExpenses: operationalCategories.reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0),
       grossProfit,
       netProfitBeforeZakat,
       zakatAmount,
@@ -240,12 +271,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const averages = {
       revenues: totalRevenues / allMonths.length,
       directExpenses: directExpenses / allMonths.length,
-      operationalExpenses: processedMainCategories
-        .filter(cat => cat.name === 'المصروفات التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0) / allMonths.length,
-      otherOperationalExpenses: processedMainCategories
-        .filter(cat => cat.name === 'المصروفات الاخرى التشغيلية' && cat.mathProcess === 'subtract')
-        .reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0) / allMonths.length,
+      operationalExpenses:
+        operationalCategories.reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0) /
+        allMonths.length,
+      otherOperationalExpenses:
+        operationalCategories.reduce((sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0), 0) /
+        allMonths.length,
       grossProfit: grossProfit / allMonths.length,
       netProfitBeforeZakat: netProfitBeforeZakat / allMonths.length,
       zakatAmount: zakatAmount / allMonths.length,
@@ -264,7 +295,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         zakatRate: Number(zakatRate)
       }
     })
-
   } catch (error) {
     console.error('Financial calculations API error:', error)
     return res.status(500).json({ success: false, message: 'Internal Server Error' })

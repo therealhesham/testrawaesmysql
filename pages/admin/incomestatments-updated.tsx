@@ -95,7 +95,6 @@ export default function Home() {
     setLoadingData(true);
     try {
       const res = await axios.get(`/api/income-statements/calculations?zakatRate=${zakatRate}`);
-      console.log('API Response:', res.data);
       setFinancialData(res.data.data);
       setDataError(null);
     } catch (err) {
@@ -351,7 +350,7 @@ export default function Home() {
                         <th className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">الاجمالي</th>
                         {financialData.months.map((month, index) => (
                           <th key={index} className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">
-                            {new Date(month).toLocaleDateString('ar-SA', { month: 'numeric' })}
+                            {month.split('-')[1]}
                           </th>
                         ))}
                         <th className="bg-[#1A4D4F] text-white p-4 text-right text-sm font-normal border-b border-[#E0E0E0]">البيان</th>
@@ -371,7 +370,6 @@ export default function Home() {
                       </tr>
                       
                       {/* Dynamic Categories from Database - Following exact pseudo-code structure */}
-                      {console.log('FinancialData:', financialData)}
                       {financialData.mainCategories && financialData.mainCategories.map(main => (
                         <React.Fragment key={main.id}>
                           {/* Main Category Row */}

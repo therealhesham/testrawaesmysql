@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (from) dateFilter.gte = new Date(String(from))
     if (to) dateFilter.lte = new Date(String(to))
 
-    // Get full year months for export
+    // Get full year months for export (always 1-12)
     let months: string[] = []
     if (!from || !to) {
       const currentYear = new Date().getFullYear()
