@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from "example/containers/Layout";
 import Head from "next/head";
 import jwt from "jsonwebtoken";
-import Style from "Styles/Home.module.css"
+import Style from "styles/Home.module.css"
 import { PlusIcon } from '@heroicons/react/outline';
 // Types
 interface FinancialRecord {
