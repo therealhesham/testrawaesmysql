@@ -46,51 +46,52 @@ export default function PDFProcessor() {
     setSaveMessage('');
   };
 
-  const handleFileUpload = async () => {
-    if (!file) {
-      setError('Please select a file first');
-      return;
+ const handleFileUpload = async () => {
+  if (!file) {
+    setError('Please select a file first');
+    return;
+  }
+
+  setIsProcessing(true);
+  setError('');
+
+  try {
+    // Step 1: Extract images from PDF only
+    const imageFormData = new FormData();
+    imageFormData.append('file', file); // Changed 'pdf' to 'file'
+
+    const imageResponse = await fetch('https://extract.rawaes.com/extract-images', {
+      method: 'POST',
+      body: imageFormData,
+    });
+
+    if (!imageResponse.ok) {
+      const errorData = await imageResponse.json(); // Capture error details
+      throw new Error(errorData.detail || 'Failed to extract images from PDF');
     }
 
-    setIsProcessing(true);
-    setError('');
+    const imageResult = await imageResponse.json();
+    const extractedImages = imageResult.image_urls || [];
 
-    try {
-      // Step 1: Extract images from PDF only
-      const imageFormData = new FormData();
-      imageFormData.append('pdf', file);
-
-      const imageResponse = await fetch('https://extract.rawaes.com/extract-images', {
-        method: 'POST',
-        body: imageFormData,
-      });
-
-      if (!imageResponse.ok) {
-        throw new Error('Failed to extract images from PDF');
-      }
-
-      const imageResult = await imageResponse.json();
-      const extractedImages = imageResult.image_urls || [];
-
-      if (extractedImages.length === 0) {
-        throw new Error('No images found in the PDF');
-      }
-
-      // Set the extracted images and move to selection step
-      setProcessingResult({
-        extractedImages,
-        geminiData: { jsonResponse: {} },
-        errors: []
-      });
-      
-      setCurrentStep('select-images');
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsProcessing(false);
+    if (extractedImages.length === 0) {
+      throw new Error('No images found in the PDF');
     }
-  };
+
+    // Set the extracted images and move to selection step
+    setProcessingResult({
+      extractedImages,
+      geminiData: { jsonResponse: {} },
+      errors: []
+    });
+    
+    setCurrentStep('select-images');
+    
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const handleImageSelection = () => {
     if (!selectedProfileImage || !selectedFullImage) {
