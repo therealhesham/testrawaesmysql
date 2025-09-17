@@ -9,6 +9,12 @@ export default function DocumentUpload() {
     jsonResponse: Record<string, string>;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedImages, setExtractedImages] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [showImageSelection, setShowImageSelection] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [homemaids, setHomemaids] = useState<any[]>([]);
   const [listError, setListError] = useState('');
@@ -103,6 +109,8 @@ export default function DocumentUpload() {
       salary: pick(entities.salary, entities.Salary),
       stitiching: pick(toYesNo(entities.stitiching), toYesNo(entities.stitching)),
       Weight: pick(entities.Weight, entities.weight),
+      profileImage: null, // Will be set later from uploaded images
+      fullImage: null, // Will be set later from uploaded images
     };
   };
 
@@ -183,8 +191,114 @@ console.log(entities)
     }
   };
 
-  const handleConfirmSave = () => {
-    alert('تم تأكيد الحفظ شكليًا!');
+  const handleImageSelection = (imageUrl: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedImages(prev => [...prev, imageUrl]);
+    } else {
+      setSelectedImages(prev => prev.filter(url => url !== imageUrl));
+    }
+  };
+
+  const uploadSelectedImages = async () => {
+    if (selectedImages.length === 0) {
+      setError('يرجى اختيار صورة واحدة على الأقل');
+      return;
+    }
+
+    setIsUploadingImages(true);
+    setError('');
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (const imageUrl of selectedImages) {
+        // Fetch the image from the extracted URL
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) continue;
+
+        const imageBlob = await imageResponse.blob();
+        
+        // Get presigned URL for Digital Ocean
+        const presignedResponse = await fetch(`/api/upload-presigned-url/image-${Date.now()}`);
+        if (!presignedResponse.ok) continue;
+
+        const { url, filePath } = await presignedResponse.json();
+
+        // Upload to Digital Ocean
+        const uploadResponse = await fetch(url, {
+          method: 'PUT',
+          body: imageBlob,
+          headers: {
+            'Content-Type': imageBlob.type,
+            'x-amz-acl': 'public-read',
+          },
+        });
+
+        if (uploadResponse.ok) {
+          uploadedUrls.push(filePath);
+        }
+      }
+
+      setUploadedImageUrls(uploadedUrls);
+      setShowImageSelection(false);
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      setError('فشل في رفع الصور المختارة');
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    if (!extractedData) {
+      setError('لا توجد بيانات مستخرجة للحفظ');
+      return;
+    }
+
+    if (uploadedImageUrls.length === 0) {
+      setError('يرجى رفع الصور المختارة أولاً');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const payload: any = mapEntitiesToApiBody(extractedData.jsonResponse as Record<string, any>);
+      
+      // Add image URLs to the payload
+      payload.profileImage = uploadedImageUrls[0] || null;
+      payload.fullImage = uploadedImageUrls[1] || uploadedImageUrls[0] || null;
+
+      const uploadRes = await fetch("/api/automaticnewhomemaids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text();
+        throw new Error(`فشل إرسال البيانات: ${errorText}`);
+      }
+
+      // Reset form
+      setFile(null);
+      setFileUploaded(false);
+      setExtractedData(null);
+      setExtractedImages([]);
+      setSelectedImages([]);
+      setUploadedImageUrls([]);
+      setShowImageSelection(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+
+      alert('تم رفع الملف واستخراج البيانات وحفظها بنجاح!');
+      fetchHomemaids();
+    } catch (error: any) {
+      console.error('Error saving data:', error);
+      setError(`فشل في حفظ البيانات: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // removed processor status helpers and UI
@@ -269,17 +383,72 @@ console.log(entities)
                         </tbody>
                       </table>
                     </div>
-                    {/* <div className="mt-4 flex justify-end">
-                      <button
-                        type="button"
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
-                        onClick={handleConfirmSave}
-                      >
-                        تأكيد الحفظ
-                      </button>
-                    </div> */}
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {showImageSelection && extractedImages.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-2xl font-normal text-black mb-4">اختيار الصور</h2>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <p className="text-sm text-gray-600 mb-4">
+                  تم استخراج {extractedImages.length} صورة من الملف. يرجى اختيار الصور التي تريد رفعها:
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+                  {extractedImages.map((imageUrl, index) => (
+                    <div key={index} className="relative">
+                      <label className="cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="absolute top-2 right-2 z-10"
+                          checked={selectedImages.includes(imageUrl)}
+                          onChange={(e) => handleImageSelection(imageUrl, e.target.checked)}
+                        />
+                        <img
+                          src={imageUrl}
+                          alt={`Extracted image ${index + 1}`}
+                          className="w-full h-32 object-cover rounded border-2 border-gray-300 hover:border-teal-500"
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">
+                    تم اختيار {selectedImages.length} صورة
+                  </span>
+                  <button
+                    type="button"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    onClick={uploadSelectedImages}
+                    disabled={selectedImages.length === 0 || isUploadingImages}
+                  >
+                    {isUploadingImages ? 'جاري الرفع...' : 'رفع الصور المختارة'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {uploadedImageUrls.length > 0 && extractedData && (
+            <div className="mt-6">
+              <h2 className="text-2xl font-normal text-black mb-4">تأكيد الحفظ</h2>
+              <div className="bg-green-50 p-4 rounded-md">
+                <p className="text-sm text-green-700 mb-4">
+                  تم رفع {uploadedImageUrls.length} صورة بنجاح. يمكنك الآن حفظ البيانات.
+                </p>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+                    onClick={handleConfirmSave}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'جاري الحفظ...' : 'تأكيد الحفظ'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -306,6 +475,8 @@ console.log(entities)
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الجنسية</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الميلاد</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المهارات</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الصور</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ الإنشاء</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -322,6 +493,36 @@ console.log(entities)
                         {h.laundry && 'Laundry, '}
                         {h.stitching && 'Stitching'}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex gap-2">
+                          {h.profileImage && (
+                            <a
+                              href={h.profileImage}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs"
+                            >
+                              صورة شخصية
+                            </a>
+                          )}
+                          {h.fullImage && (
+                            <a
+                              href={h.fullImage}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline text-xs"
+                            >
+                              صورة كاملة
+                            </a>
+                          )}
+                          {!h.profileImage && !h.fullImage && (
+                            <span className="text-gray-400 text-xs">لا توجد صور</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-xs">
+                        {h.createdAt ? new Date(h.createdAt).toLocaleDateString('ar-SA') : '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -335,6 +536,7 @@ console.log(entities)
           font-family: 'Tajawal', sans-serif;
         }
         .min-h-screen {
+        
           min-height: 100vh;
         }
         .file-upload-display {
