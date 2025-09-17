@@ -893,3 +893,23 @@ model TaxVATRecord {
   
   @@index([taxDeclarationId])
 }
+
+// PDF Processing and Image Extraction Models
+model PDFExtractedRecord {
+  id                Int       @id @default(autoincrement())
+  sessionId         String    @db.VarChar(255) // Unique session identifier for this processing
+  
+  // Extracted data fields (flexible JSON structure)
+  extractedData     Json      // Structured data from Gemini API
+  selectedImages    Json      // Array of selected image URLs
+  originalFileName  String?   @db.VarChar(255)
+  
+  // Metadata
+  processedBy       String?   @db.VarChar(100) // User who processed the data
+  notes             String?   @db.VarChar(1000) // Additional notes
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([sessionId])
+}
