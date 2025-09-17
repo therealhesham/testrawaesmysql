@@ -71,7 +71,7 @@ npx prisma generate
     ```
 
 ### 2. `/api/save-pdf-data` (POST)
-- **Purpose**: Saves selected images and extracted data to database
+- **Purpose**: Saves selected images and extracted data to AutomaticEmployee table
 - **Input**: 
   ```json
   {
@@ -83,25 +83,46 @@ npx prisma generate
     "processedBy": "user identifier"
   }
   ```
+- **Output**:
+  ```json
+  {
+    "success": true,
+    "employeeId": 123,
+    "message": "Employee data saved successfully"
+  }
+  ```
 
 ## Frontend Component
 
 The main component is located at `/pages/admin/pdf-processor.tsx` and provides:
 
-- **Step-by-Step Process**: 4-step wizard interface
+- **Step-by-Step Process**: 5-step wizard interface
 - **File Upload**: Drag-and-drop or click to upload PDF files
 - **Image Selection**: Choose specific profile and full body images
+- **Image Upload**: Upload selected images to Digital Ocean Spaces
 - **Data Extraction**: Trigger Gemini AI processing
 - **Data Preview**: Show extracted structured data in table format
-- **Save Controls**: Save selected images and data with optional notes
+- **Save Controls**: Save uploaded images and data with optional notes
 
 ## Database Models
 
-### PDFExtractedRecord
-- Stores final saved records
-- Contains selected images and extracted data from Gemini
-- Includes metadata like processed by and notes
-- Uses sessionId for unique identification
+### AutomaticEmployee
+- **Primary table** for storing employee data extracted from PDFs
+- Contains all employee information (name, age, nationality, etc.)
+- Stores profile and full images
+- Includes skills (babySitting, cleaning, cooking, etc.)
+
+### Data Mapping
+- **Gemini Data → AutomaticEmployee**: Maps extracted data to employee fields
+- **Image URLs**: First image → profileImage, Second image → fullImage
+- **Boolean Fields**: Converts text values to boolean (yes/no, نعم/لا)
+- **Field Mapping**: Handles multiple field name variations from Gemini
+
+### Digital Ocean Integration
+- **Presigned URLs**: Uses `/api/upload-presigned-url/[id]` for secure uploads
+- **Image Storage**: Stores images in Digital Ocean Spaces
+- **Public Access**: Images are publicly accessible via CDN URLs
+- **File Naming**: Automatic naming with timestamps for uniqueness
 
 ## Usage Flow
 
@@ -110,8 +131,9 @@ The main component is located at `/pages/admin/pdf-processor.tsx` and provides:
 3. **Select Images**: User selects two specific images:
    - Profile image (صورة شخصية)
    - Full body image (صورة بالطول)
-4. **Extract Data**: System sends PDF to Gemini API for data extraction
-5. **Review & Save**: User reviews extracted data and saves to database
+4. **Upload Images**: System uploads selected images to Digital Ocean Spaces
+5. **Extract Data**: System sends PDF to Gemini API for data extraction
+6. **Review & Save**: User reviews extracted data and saves to database
 
 ## Error Handling
 
