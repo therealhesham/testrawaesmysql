@@ -114,39 +114,59 @@ export default function PDFProcessor() {
     try {
       const uploadedUrls: string[] = [];
 
-      for (const imageUrl of selectedImages) {
-        // Fetch the image from the extracted URL
-        const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) continue;
-
-        const imageBlob = await imageResponse.blob();
+      for (let i = 0; i < selectedImages.length; i++) {
+        const imageUrl = selectedImages[i];
         
-        // Get presigned URL for Digital Ocean
-        const presignedResponse = await fetch(`/api/upload-presigned-url/image-${Date.now()}`);
-        if (!presignedResponse.ok) continue;
+        try {
+          // Fetch the image from the extracted URL
+          const imageResponse = await fetchWithTimeout(imageUrl);
+          if (!imageResponse.ok) {
+            console.error(`Failed to fetch image ${i}:`, imageResponse.status);
+            continue;
+          }
 
-        const { url, filePath } = await presignedResponse.json();
+          const imageBlob = await imageResponse.blob();
+          
+          // Get presigned URL for Digital Ocean - استخدام API جديد
+          const presignedResponse = await fetchWithTimeout(`/api/upload-image-presigned-url/image-${Date.now()}-${i}`);
+          if (!presignedResponse.ok) {
+            console.error(`Failed to get presigned URL for image ${i}:`, presignedResponse.status);
+            continue;
+          }
 
-        // Upload to Digital Ocean
-        const uploadResponse = await fetch(url, {
-          method: 'PUT',
-          body: imageBlob,
-          headers: {
-            'Content-Type': imageBlob.type,
-            'x-amz-acl': 'public-read',
-          },
-        });
+          const { url, filePath } = await presignedResponse.json();
 
-        if (uploadResponse.ok) {
-          uploadedUrls.push(filePath);
+          // Upload to Digital Ocean
+          const uploadResponse = await fetchWithTimeout(url, {
+            method: 'PUT',
+            body: imageBlob,
+            headers: {
+              'Content-Type': imageBlob.type || 'image/jpeg',
+              'x-amz-acl': 'public-read',
+            },
+          });
+
+          if (uploadResponse.ok) {
+            uploadedUrls.push(filePath);
+            console.log(`Successfully uploaded image ${i}:`, filePath);
+          } else {
+            console.error(`Failed to upload image ${i}:`, uploadResponse.status);
+          }
+        } catch (imageError) {
+          console.error(`Error processing image ${i}:`, imageError);
+          continue;
         }
+      }
+
+      if (uploadedUrls.length === 0) {
+        throw new Error('فشل في رفع جميع الصور');
       }
 
       setUploadedImageUrls(uploadedUrls);
       setCurrentStep('extract-data');
     } catch (error: any) {
       console.error('Error uploading images:', error);
-      setError('فشل في رفع الصور المختارة');
+      setError(`فشل في رفع الصور المختارة: ${error.message}`);
     } finally {
       setIsUploadingImages(false);
     }
@@ -869,3 +889,21 @@ export default function PDFProcessor() {
     </Layout>
   );
 }
+
+// إضافة timeout للـ fetch requests
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 30000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
