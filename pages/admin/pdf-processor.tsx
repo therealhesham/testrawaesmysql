@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import Head from 'next/head';
+import Layout from 'example/containers/Layout';
 
 interface ExtractedData {
   jsonResponse: Record<string, string>;
@@ -264,7 +265,7 @@ export default function PDFProcessor() {
   };
 
   return (
-    <>
+    <Layout>
       <Head>
         <title>PDF Processor - Document Analysis</title>
         <meta name="description" content="Elegant PDF processing tool for extracting images and data with AI." />
@@ -865,6 +866,6 @@ export default function PDFProcessor() {
           </div>
         </div>
       </div>
-    </>
+    </Layout>
   );
 }
