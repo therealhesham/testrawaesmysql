@@ -80,6 +80,7 @@
     "tailwind-scrollbar-hide": "^2.0.0",
     "to-regex": "^3.0.2",
     "url-encode-decode": "^1.0.0",
+    "uuid": "^9.0.1",
     "xlsx": "^0.18.5",
     "yup": "^1.4.0"
   },
@@ -90,6 +91,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/react": "17.0.21",
     "@types/react-beautiful-dnd": "^13.1.8",
+    "@types/uuid": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^7.10.0",
     "@typescript-eslint/parser": "^7.10.0",
     "autoprefixer": "^10.4.2",
