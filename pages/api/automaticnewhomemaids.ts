@@ -26,7 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         laundry,
         salary,
         stitiching,
-        BirthDate
+        BirthDate,
+        profileImage,
+        fullImage
       } = req.body;
 
       const cookieHeader = req.headers.cookie;
@@ -67,7 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           salary:Array.isArray(salary)?salary[0]:salary,
           stitching: stitiching == "Yes" ? true : false,
           weight: Array.isArray(Weight)?Weight[0]:Weight,
-          // age: Array.isArray(Age)?age[0]:Weight,
+          profileImage: profileImage || null,
+          fullImage: fullImage || null,
         },
       });
 
@@ -117,7 +120,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           religion: true,
           salary: true,
           stitching: true,
-          weight: true
+          weight: true,
+          profileImage: true,
+          fullImage: true,
+          createdAt: true,
+          updatedAt: true
         }
       });
 

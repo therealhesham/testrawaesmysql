@@ -652,6 +652,10 @@ model AutomaticEmployee {
   cooking           Boolean?
   laundry           Boolean?
   stitching         Boolean?
+  profileImage      String?   @db.VarChar(500)
+  fullImage         String?   @db.VarChar(500)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model foreignOfficeFinancial {
@@ -806,4 +810,86 @@ model MusanadFinancialRecord {
   @@index([orderDate])
   @@index([transferDate])
   @@index([status])
+}
+
+// Tax Declaration Models
+model TaxDeclaration {
+  id                Int       @id @default(autoincrement())
+  period            String    @db.VarChar(50) // الفترة الضريبية
+  year              Int       // السنة
+  month             Int       // الشهر
+  status            String    @default("draft") @db.VarChar(50) // حالة الإقرار
+  
+  // Summary Data
+  taxableSales      Decimal   @default(0) // المبيعات الخاضعة للضريبة
+  zeroRateSales     Decimal   @default(0) // المبيعات الخاضعة للصفر
+  adjustments       Decimal   @default(0) // التعديلات
+  taxValue          Decimal   @default(0) // قيمة الضريبة
+  
+  // Audit Fields
+  createdBy         String?   @db.VarChar(100)
+  updatedBy         String?   @db.VarChar(100)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  salesRecords      TaxSalesRecord[]
+  purchaseRecords   TaxPurchaseRecord[]
+  vatRecords        TaxVATRecord[]
+  
+  @@index([year, month])
+  @@index([status])
+}
+
+model TaxSalesRecord {
+  id                Int       @id @default(autoincrement())
+  taxDeclarationId  Int
+  taxDeclaration    TaxDeclaration @relation(fields: [taxDeclarationId], references: [id], onDelete: Cascade)
+  
+  category          String    @db.VarChar(255) // فئة المبيعات
+  description       String    @db.VarChar(500) // وصف المبيعات
+  amount            Decimal   @default(0) // المبلغ
+  adjustment        Decimal   @default(0) // التعديل
+  total             Decimal   @default(0) // الإجمالي
+  taxRate           Decimal   @default(15) // نسبة الضريبة
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([taxDeclarationId])
+}
+
+model TaxPurchaseRecord {
+  id                Int       @id @default(autoincrement())
+  taxDeclarationId  Int
+  taxDeclaration    TaxDeclaration @relation(fields: [taxDeclarationId], references: [id], onDelete: Cascade)
+  
+  category          String    @db.VarChar(255) // فئة المشتريات
+  description       String    @db.VarChar(500) // وصف المشتريات
+  amount            Decimal   @default(0) // المبلغ
+  adjustment        Decimal   @default(0) // التعديل
+  total             Decimal   @default(0) // الإجمالي
+  taxRate           Decimal   @default(15) // نسبة الضريبة
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([taxDeclarationId])
+}
+
+model TaxVATRecord {
+  id                Int       @id @default(autoincrement())
+  taxDeclarationId  Int
+  taxDeclaration    TaxDeclaration @relation(fields: [taxDeclarationId], references: [id], onDelete: Cascade)
+  
+  category          String    @db.VarChar(255) // فئة ضريبة القيمة المضافة
+  description       String    @db.VarChar(500) // وصف ضريبة القيمة المضافة
+  amount            Decimal   @default(0) // المبلغ
+  adjustment        Decimal   @default(0) // التعديل
+  total             Decimal   @default(0) // الإجمالي
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([taxDeclarationId])
 }
