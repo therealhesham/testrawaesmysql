@@ -88,9 +88,11 @@ npx prisma generate
 
 The main component is located at `/pages/admin/pdf-processor.tsx` and provides:
 
+- **Step-by-Step Process**: 4-step wizard interface
 - **File Upload**: Drag-and-drop or click to upload PDF files
-- **Image Gallery**: Display extracted images with selection checkboxes
-- **Data Preview**: Show extracted structured data in JSON format
+- **Image Selection**: Choose specific profile and full body images
+- **Data Extraction**: Trigger Gemini AI processing
+- **Data Preview**: Show extracted structured data in table format
 - **Save Controls**: Save selected images and data with optional notes
 
 ## Database Models
@@ -104,10 +106,12 @@ The main component is located at `/pages/admin/pdf-processor.tsx` and provides:
 ## Usage Flow
 
 1. **Upload PDF**: User selects and uploads a PDF file
-2. **Processing**: System extracts images and data in parallel
-3. **Review**: User reviews extracted images and data
-4. **Selection**: User selects which images to save
-5. **Save**: User clicks save to store data in database
+2. **Extract Images**: System extracts images from PDF using external API
+3. **Select Images**: User selects two specific images:
+   - Profile image (صورة شخصية)
+   - Full body image (صورة بالطول)
+4. **Extract Data**: System sends PDF to Gemini API for data extraction
+5. **Review & Save**: User reviews extracted data and saves to database
 
 ## Error Handling
 
