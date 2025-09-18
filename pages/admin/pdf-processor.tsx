@@ -749,19 +749,46 @@ export default function PDFProcessor() {
                               </tr>
                             </thead>
                             <tbody>
-                              {Object.entries(processingResult.geminiData.jsonResponse).map(([key, value]) => (
-                                <tr
-                                  key={key}
-                                  className="hover:bg-gray-50 transition-all duration-200"
-                                >
-                                  <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">
-                                    {key}
-                                  </td>
-                                  <td className="border border-gray-200 px-4 py-3 text-gray-700">
-                                    {String(value)}
-                                  </td>
-                                </tr>
-                              ))}
+                              {Object.entries(processingResult.geminiData.jsonResponse).map(([key, value]) => {
+                                // Parse JSON strings for skills and languages_spoken
+                                const renderValue = (val: any) => {
+                                  if (key === 'skills' || key === 'languages_spoken') {
+                                    try {
+                                      const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+                                      if (typeof parsed === 'object' && parsed !== null) {
+                                        return (
+                                          <div className="space-y-2">
+                                            {Object.entries(parsed).map(([skillKey, skillValue]) => (
+                                              <div key={skillKey} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                                <span className="font-medium text-gray-800">{skillKey}:</span>
+                                                <span className="text-gray-600">{String(skillValue)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      }
+                                    } catch (e) {
+                                      // If parsing fails, show as string
+                                      return String(val);
+                                    }
+                                  }
+                                  return String(val);
+                                };
+
+                                return (
+                                  <tr
+                                    key={key}
+                                    className="hover:bg-gray-50 transition-all duration-200"
+                                  >
+                                    <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">
+                                      {key}
+                                    </td>
+                                    <td className="border border-gray-200 px-4 py-3 text-gray-700">
+                                      {renderValue(value)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>

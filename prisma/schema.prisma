@@ -654,6 +654,8 @@ model AutomaticEmployee {
   stitching         Boolean?
   profileImage      String?   @db.VarChar(500)
   fullImage         String?   @db.VarChar(500)
+  skills            Json?     // Store skills as JSON object
+  languagesSpoken   Json?     // Store languages as JSON object
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
