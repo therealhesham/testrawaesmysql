@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import Head from 'next/head';
 import Layout from 'example/containers/Layout';
+import AutomaticPreview from '../../components/AutomaticPreview';
 
 interface ExtractedData {
   jsonResponse: Record<string, string>;
@@ -797,6 +798,45 @@ export default function PDFProcessor() {
                           لم يتم استخراج أي بيانات
                         </p>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Preview Section */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
+                      معاينة البيانات
+                    </h3>
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                      <AutomaticPreview 
+                        employee={{
+                          id: 0,
+                          name: processingResult.geminiData.jsonResponse.full_name || processingResult.geminiData.jsonResponse.Name,
+                          age: processingResult.geminiData.jsonResponse.age || processingResult.geminiData.jsonResponse.Age,
+                          religion: processingResult.geminiData.jsonResponse.religion || processingResult.geminiData.jsonResponse.Religion,
+                          maritalStatus: processingResult.geminiData.jsonResponse.marital_status || processingResult.geminiData.jsonResponse.MaritalStatus,
+                          birthDate: processingResult.geminiData.jsonResponse.date_of_birth || processingResult.geminiData.jsonResponse.BirthDate,
+                          nationality: processingResult.geminiData.jsonResponse.nationality || processingResult.geminiData.jsonResponse.Nationality,
+                          officeName: processingResult.geminiData.jsonResponse.office_name || processingResult.geminiData.jsonResponse.OfficeName,
+                          passportNumber: processingResult.geminiData.jsonResponse.passport_number || processingResult.geminiData.jsonResponse.PassportNumber,
+                          passportStartDate: processingResult.geminiData.jsonResponse.passport_issue_date || processingResult.geminiData.jsonResponse.PassportStartDate,
+                          passportEndDate: processingResult.geminiData.jsonResponse.passport_expiration || processingResult.geminiData.jsonResponse.PassportEndDate,
+                          contractDuration: processingResult.geminiData.jsonResponse.contract_duration || processingResult.geminiData.jsonResponse.Contract_duration,
+                          weight: processingResult.geminiData.jsonResponse.weight || processingResult.geminiData.jsonResponse.Weight,
+                          height: processingResult.geminiData.jsonResponse.height || processingResult.geminiData.jsonResponse.Height,
+                          salary: processingResult.geminiData.jsonResponse.salary || processingResult.geminiData.jsonResponse.Salary,
+                          profileImage: uploadedImageUrls[0] || selectedProfileImage,
+                          fullImage: uploadedImageUrls[1] || selectedFullImage,
+                          // Flattened skills
+                          skill_washing: processingResult.geminiData.jsonResponse.skills?.WASHING || processingResult.geminiData.jsonResponse.skills?.washing,
+                          skill_cooking: processingResult.geminiData.jsonResponse.skills?.COOKING || processingResult.geminiData.jsonResponse.skills?.cooking,
+                          skill_babysetting: processingResult.geminiData.jsonResponse.skills?.babysetting || processingResult.geminiData.jsonResponse.skills?.BABYSITTING,
+                          skill_cleaning: processingResult.geminiData.jsonResponse.skills?.CLEANING || processingResult.geminiData.jsonResponse.skills?.cleaning,
+                          skill_laundry: processingResult.geminiData.jsonResponse.skills?.LAUNDRY || processingResult.geminiData.jsonResponse.skills?.laundry,
+                          // Flattened languages
+                          lang_english: processingResult.geminiData.jsonResponse.languages_spoken?.English || processingResult.geminiData.jsonResponse.languages_spoken?.english,
+                          lang_arabic: processingResult.geminiData.jsonResponse.languages_spoken?.Arabic || processingResult.geminiData.jsonResponse.languages_spoken?.arabic,
+                        }}
+                      />
                     </div>
                   </div>
 

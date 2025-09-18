@@ -647,15 +647,21 @@ model AutomaticEmployee {
   weight            String?
   height            String?
   salary            String?
-  babySitting       Boolean?
-  cleaning          Boolean?
-  cooking           Boolean?
-  laundry           Boolean?
-  stitching         Boolean?
+  
+  // Languages (flattened)
+  lang_english      String?   @db.VarChar(50)
+  lang_arabic       String?   @db.VarChar(50)
+  
+  // Skills (flattened)
+  skill_washing     String?   @db.VarChar(50)
+  skill_cooking     String?   @db.VarChar(50)
+  skill_babysetting String?   @db.VarChar(50)
+  skill_cleaning    String?   @db.VarChar(50)
+  skill_laundry     String?   @db.VarChar(50)
+  
   profileImage      String?   @db.VarChar(500)
   fullImage         String?   @db.VarChar(500)
-  skills            Json?     // Store skills as JSON object
-  languagesSpoken   Json?     // Store languages as JSON object
+  
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
