@@ -33,12 +33,23 @@ const mapGeminiDataToEmployee = (geminiData: any, selectedImages: string[]) => {
   const skills = parseJsonField(data.skills);
   const languagesSpoken = parseJsonField(data.languages_spoken);
   
+  // Extract flattened skill values
+  const skill_washing = skills?.WASHING || skills?.washing || '';
+  const skill_cooking = skills?.COOKING || skills?.cooking || '';
+  const skill_babysetting = skills?.babysetting || skills?.BABYSITTING || skills?.babysitting || '';
+  const skill_cleaning = skills?.CLEANING || skills?.cleaning || '';
+  const skill_laundry = skills?.LAUNDRY || skills?.laundry || '';
+  
+  // Extract flattened language values
+  const lang_english = languagesSpoken?.English || languagesSpoken?.english || '';
+  const lang_arabic = languagesSpoken?.Arabic || languagesSpoken?.arabic || '';
+  
   return {
     name: data.Name || data.full_name || data.name,
     age: data.Age || data.age,
     religion: data.Religion || data.religion,
     maritalStatus: data.MaritalStatus || data.marital_status || data.maritalStatus,
-    birthDate: data.BirthDate || data.birthDate || data.birth_date,
+    birthDate: data.BirthDate || data.birthDate || data.birth_date || data.date_of_birth,
     nationality: data.Nationality || data.nationality,
     officeName: data.OfficeName || data.office_name || data.officeName,
     passportNumber: data.PassportNumber || data.passport_number || data.passportNumber,
@@ -48,16 +59,19 @@ const mapGeminiDataToEmployee = (geminiData: any, selectedImages: string[]) => {
     weight: data.Weight || data.weight,
     height: data.height || data.Height,
     salary: data.salary || data.Salary,
-    babySitting: normalizeBoolean(data.BabySitting || data.babySitting || data.baby_sitting),
-    cleaning: normalizeBoolean(data.Cleaning || data.cleaning),
-    cooking: normalizeBoolean(data.Cooking || data.cooking),
-    laundry: normalizeBoolean(data.laundry || data.Laundry),
-    stitching: normalizeBoolean(data.stitiching || data.stitching || data.stitching),
     profileImage: selectedImages[0] || null, // First image as profile
     fullImage: selectedImages[1] || selectedImages[0] || null, // Second image as full image
-    // Store parsed skills and languages as JSON in the database
-    skills: skills,
-    languagesSpoken: languagesSpoken,
+    
+    // Flattened skill fields
+    skill_washing,
+    skill_cooking,
+    skill_babysetting,
+    skill_cleaning,
+    skill_laundry,
+    
+    // Flattened language fields
+    lang_english,
+    lang_arabic,
   };
 };
 

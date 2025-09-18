@@ -2,54 +2,64 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import axios from 'axios';
 import Layout from 'example/containers/Layout';
+import AutomaticPreview from '../../components/AutomaticPreview';
 
-interface Homemaid {
-  id: string;
-  name: string;
-  age: string;
-  nationality: string;
-  birthDate: string;
-  babySitting: boolean;
-  cleaning: boolean;
-  cooking: boolean;
-  contractDuration: string;
-  height: string;
-  laundry: boolean;
-  maritalStatus: string;
-  officeName: string;
-  passportEndDate: string;
-  passportNumber: string;
-  passportStartDate: string;
-  religion: string;
-  salary: string;
-  stitching: boolean;
-  weight: string;
+interface AutomaticEmployee {
+  id: number;
+  name?: string;
+  age?: string;
+  religion?: string;
+  maritalStatus?: string;
+  birthDate?: string;
+  nationality?: string;
+  officeName?: string;
+  passportNumber?: string;
+  passportStartDate?: string;
+  passportEndDate?: string;
+  contractDuration?: string;
+  weight?: string;
+  height?: string;
+  salary?: string;
+  
+  // Languages (flattened)
+  lang_english?: string;
+  lang_arabic?: string;
+  
+  // Skills (flattened)
+  skill_washing?: string;
+  skill_cooking?: string;
+  skill_babysetting?: string;
+  skill_cleaning?: string;
+  skill_laundry?: string;
+  
   profileImage?: string;
   fullImage?: string;
 }
 
 export default function Home() {
-  const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
+  const [employees, setEmployees] = useState<AutomaticEmployee[]>([]);
   const [formData, setFormData] = useState({
-    Name: '',
-    Age: '',
-    Nationality: '',
-    BirthDate: '',
-    BabySitting: 'No',
-    Cleaning: 'No',
-    Cooking: 'No',
-    Contract_duration: '',
+    name: '',
+    age: '',
+    nationality: '',
+    birthDate: '',
+    religion: '',
+    maritalStatus: '',
+    officeName: '',
+    passportNumber: '',
+    passportStartDate: '',
+    passportEndDate: '',
+    contractDuration: '',
     height: '',
-    laundry: 'No',
-    MaritalStatus: '',
-    OfficeName: '',
-    PassportEndDate: '',
-    PassportNumber: '',
-    PassportStartDate: '',
-    Religion: '',
+    weight: '',
     salary: '',
-    stitiching: 'No',
-    Weight: '',
+    lang_english: '',
+    lang_arabic: '',
+    skill_washing: '',
+    skill_cooking: '',
+    skill_babysetting: '',
+    skill_cleaning: '',
+    skill_laundry: '',
     profileImage: '',
     fullImage: ''
   });
@@ -71,15 +81,15 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState('');
 
   useEffect(() => {
-    fetchHomemaids();
+    fetchEmployees();
   }, []);
 
-  const fetchHomemaids = async () => {
+  const fetchEmployees = async () => {
     try {
       const response = await axios.get('/api/automaticnewhomemaids');
-      setHomemaids(response.data);
+      setEmployees(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch homemaids');
+      setError(err.response?.data?.error || 'Failed to fetch employees');
     }
   };
 
@@ -99,30 +109,32 @@ export default function Home() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleEdit = (homemaid: Homemaid) => {
-    setEditingId(homemaid.id);
+  const handleEdit = (employee: AutomaticEmployee) => {
+    setEditingId(employee.id.toString());
     setFormData({
-      Name: homemaid.name || '',
-      Age: homemaid.age || '',
-      Nationality: homemaid.nationality || '',
-      BirthDate: homemaid.birthDate || '',
-      BabySitting: homemaid.babySitting ? 'Yes' : 'No',
-      Cleaning: homemaid.cleaning ? 'Yes' : 'No',
-      Cooking: homemaid.cooking ? 'Yes' : 'No',
-      Contract_duration: homemaid.contractDuration || '',
-      height: homemaid.height || '',
-      laundry: homemaid.laundry ? 'Yes' : 'No',
-      MaritalStatus: homemaid.maritalStatus || '',
-      OfficeName: homemaid.officeName || '',
-      PassportEndDate: homemaid.passportEndDate || '',
-      PassportNumber: homemaid.passportNumber || '',
-      PassportStartDate: homemaid.passportStartDate || '',
-      Religion: homemaid.religion || '',
-      salary: homemaid.salary || '',
-      stitiching: homemaid.stitching ? 'Yes' : 'No',
-      Weight: homemaid.weight || '',
-      profileImage: homemaid.profileImage || '',
-      fullImage: homemaid.fullImage || ''
+      name: employee.name || '',
+      age: employee.age || '',
+      nationality: employee.nationality || '',
+      birthDate: employee.birthDate || '',
+      religion: employee.religion || '',
+      maritalStatus: employee.maritalStatus || '',
+      officeName: employee.officeName || '',
+      passportNumber: employee.passportNumber || '',
+      passportStartDate: employee.passportStartDate || '',
+      passportEndDate: employee.passportEndDate || '',
+      contractDuration: employee.contractDuration || '',
+      height: employee.height || '',
+      weight: employee.weight || '',
+      salary: employee.salary || '',
+      lang_english: employee.lang_english || '',
+      lang_arabic: employee.lang_arabic || '',
+      skill_washing: employee.skill_washing || '',
+      skill_cooking: employee.skill_cooking || '',
+      skill_babysetting: employee.skill_babysetting || '',
+      skill_cleaning: employee.skill_cleaning || '',
+      skill_laundry: employee.skill_laundry || '',
+      profileImage: employee.profileImage || '',
+      fullImage: employee.fullImage || ''
     });
     setShowEditModal(true);
   };
@@ -263,128 +275,36 @@ export default function Home() {
           </div>
         )}
 
-        {/* Table */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4">Homemaid Records</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Images</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nationality</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Birth Date</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Religion</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Marital Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Office</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Passport</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Physical</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Skills</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {homemaids.map((homemaid) => (
-                  <tr key={homemaid.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex space-x-2">
-                        {homemaid.profileImage && (
-                          <div className="relative cursor-pointer" onClick={() => {
-                            setSelectedImage(homemaid.profileImage!);
-                            setShowImageModal(true);
-                          }}>
-                            <img
-                              src={homemaid.profileImage}
-                              alt="Profile"
-                              className="w-12 h-12 rounded-full object-cover border-2 border-gray-300 hover:border-blue-500 transition-colors"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                            <span className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded">P</span>
-                          </div>
-                        )}
-                        {homemaid.fullImage && (
-                          <div className="relative cursor-pointer" onClick={() => {
-                            setSelectedImage(homemaid.fullImage!);
-                            setShowImageModal(true);
-                          }}>
-                            <img
-                              src={homemaid.fullImage}
-                              alt="Full"
-                              className="w-12 h-12 rounded-full object-cover border-2 border-gray-300 hover:border-green-500 transition-colors"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                            <span className="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs px-1 rounded">F</span>
-                          </div>
-                        )}
-                        {!homemaid.profileImage && !homemaid.fullImage && (
-                          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-gray-400 text-xs">No Image</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right font-medium">{homemaid.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">{homemaid.age}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">{homemaid.nationality}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">{homemaid.birthDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">{homemaid.religion}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">{homemaid.maritalStatus}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">{homemaid.officeName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-xs">
-                        <div>No: {homemaid.passportNumber}</div>
-                        <div>Start: {homemaid.passportStartDate}</div>
-                        <div>End: {homemaid.passportEndDate}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-xs">
-                        <div>Duration: {homemaid.contractDuration}</div>
-                        <div>Salary: {homemaid.salary}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-xs">
-                        <div>Height: {homemaid.height}</div>
-                        <div>Weight: {homemaid.weight}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex flex-wrap gap-1">
-                        {homemaid.babySitting && <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Babysitting</span>}
-                        {homemaid.cleaning && <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Cleaning</span>}
-                        {homemaid.cooking && <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded">Cooking</span>}
-                        {homemaid.laundry && <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">Laundry</span>}
-                        {homemaid.stitching && <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded">Stitching</span>}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(homemaid)}
-                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(homemaid.id)}
-                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Employee Records */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-semibold mb-4">Employee Records</h2>
+          {employees.length === 0 ? (
+            <div className="bg-white p-8 rounded-lg shadow-md text-center">
+              <p className="text-gray-500 text-lg">No employee records found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {employees.map((employee) => (
+                <div key={employee.id} className="relative">
+                  <AutomaticPreview employee={employee} />
+                  <div className="absolute top-4 right-4 flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(employee)}
+                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(employee.id.toString())}
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Edit Modal */}
