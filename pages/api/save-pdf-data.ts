@@ -13,9 +13,25 @@ const normalizeBoolean = (value: any) => {
   return undefined;
 };
 
+// Helper function to parse JSON strings for skills and languages
+const parseJsonField = (value: any) => {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return value;
+    }
+  }
+  return value;
+};
+
 // Helper function to map Gemini data to AutomaticEmployee schema
 const mapGeminiDataToEmployee = (geminiData: any, selectedImages: string[]) => {
   const data = geminiData.jsonResponse || {};
+  
+  // Parse skills and languages_spoken if they are JSON strings
+  const skills = parseJsonField(data.skills);
+  const languagesSpoken = parseJsonField(data.languages_spoken);
   
   return {
     name: data.Name || data.full_name || data.name,
@@ -39,6 +55,9 @@ const mapGeminiDataToEmployee = (geminiData: any, selectedImages: string[]) => {
     stitching: normalizeBoolean(data.stitiching || data.stitching || data.stitching),
     profileImage: selectedImages[0] || null, // First image as profile
     fullImage: selectedImages[1] || selectedImages[0] || null, // Second image as full image
+    // Store parsed skills and languages as JSON in the database
+    skills: skills,
+    languagesSpoken: languagesSpoken,
   };
 };
 
