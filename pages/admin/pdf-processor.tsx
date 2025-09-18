@@ -27,6 +27,8 @@ export default function PDFProcessor() {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<'upload' | 'select-images' | 'upload-images' | 'extract-data' | 'save'>('upload');
+  const [currentModel, setCurrentModel] = useState('gemini-2.5-flash');
+  const [isRetryingWithPro, setIsRetryingWithPro] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,7 +175,7 @@ export default function PDFProcessor() {
     }
   };
 
-  const handleDataExtraction = async () => {
+  const handleDataExtraction = async (modelName: string = 'gemini-2.5-flash') => {
     if (!file) {
       setError('No file available for data extraction');
       return;
@@ -185,6 +187,7 @@ export default function PDFProcessor() {
     try {
       const geminiFormData = new FormData();
       geminiFormData.append('image', file);
+      geminiFormData.append('model', modelName);
 
       const geminiResponse = await fetch('https://aidoc.rawaes.com/api/gemini', {
         method: 'POST',
@@ -203,6 +206,7 @@ export default function PDFProcessor() {
           ? { ...prev, geminiData }
           : { extractedImages: [], geminiData, errors: [] }
       );
+      setCurrentModel(modelName);
       setCurrentStep('save');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during data extraction');
@@ -217,6 +221,19 @@ export default function PDFProcessor() {
 
   const handleFullImageSelect = (imageUrl: string) => {
     setSelectedFullImage(imageUrl);
+  };
+
+  const handleProModelRetry = async () => {
+    setIsRetryingWithPro(true);
+    setError('');
+    
+    try {
+      await handleDataExtraction('gemini-2.0-flash-exp');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during pro model extraction');
+    } finally {
+      setIsRetryingWithPro(false);
+    }
   };
 
   const handleSave = async () => {
@@ -280,6 +297,8 @@ export default function PDFProcessor() {
     setError('');
     setSaveMessage('');
     setCurrentStep('upload');
+    setCurrentModel('gemini-2.5-flash');
+    setIsRetryingWithPro(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -686,7 +705,7 @@ export default function PDFProcessor() {
 
                   <div className="mt-6 text-right">
                     <button
-                      onClick={handleDataExtraction}
+                      onClick={() => handleDataExtraction()}
                       disabled={isProcessing}
                       className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                     >
@@ -729,6 +748,58 @@ export default function PDFProcessor() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-5 text-right">
                     الخطوة 5: حفظ البيانات
                   </h2>
+
+                  {/* Model Information and Retry Button */}
+                  <div className="mb-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                      <div className="flex justify-between items-center">
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-blue-900">
+                            النموذج المستخدم: {currentModel}
+                          </p>
+                          <p className="text-xs text-blue-600 mt-1">
+                            تم استخراج البيانات بنجاح باستخدام {currentModel}
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleProModelRetry}
+                          disabled={isRetryingWithPro || currentModel === 'gemini-2.0-flash-exp'}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                        >
+                          {isRetryingWithPro ? (
+                            <>
+                              <svg
+                                className="animate-spin -mr-1 ml-2 h-4 w-4 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                              جاري المحاولة...
+                            </>
+                          ) : currentModel === 'gemini-2.0-flash-exp' ? (
+                            'تم استخدام النموذج الأحدث'
+                          ) : (
+                            'جرب بالنموذج الأحدث (Pro)'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Extracted Data Display */}
                   <div className="mb-6">
@@ -826,15 +897,78 @@ export default function PDFProcessor() {
                           salary: processingResult.geminiData.jsonResponse.salary || processingResult.geminiData.jsonResponse.Salary,
                           profileImage: uploadedImageUrls[0] || selectedProfileImage,
                           fullImage: uploadedImageUrls[1] || selectedFullImage,
-                          // Flattened skills
-                          skill_washing: processingResult.geminiData.jsonResponse.skills?.WASHING || processingResult.geminiData.jsonResponse.skills?.washing,
-                          skill_cooking: processingResult.geminiData.jsonResponse.skills?.COOKING || processingResult.geminiData.jsonResponse.skills?.cooking,
-                          skill_babysetting: processingResult.geminiData.jsonResponse.skills?.babysetting || processingResult.geminiData.jsonResponse.skills?.BABYSITTING,
-                          skill_cleaning: processingResult.geminiData.jsonResponse.skills?.CLEANING || processingResult.geminiData.jsonResponse.skills?.cleaning,
-                          skill_laundry: processingResult.geminiData.jsonResponse.skills?.LAUNDRY || processingResult.geminiData.jsonResponse.skills?.laundry,
+                          // Flattened skills - parse JSON string if needed
+                          skill_washing: (() => {
+                            try {
+                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
+                                : processingResult.geminiData.jsonResponse.skills as any;
+                              return skills?.WASHING || skills?.washing || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
+                          skill_cooking: (() => {
+                            try {
+                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
+                                : processingResult.geminiData.jsonResponse.skills as any;
+                              return skills?.COOKING || skills?.cooking || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
+                          skill_babysetting: (() => {
+                            try {
+                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
+                                : processingResult.geminiData.jsonResponse.skills as any;
+                              return skills?.babysetting || skills?.BABYSITTING || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
+                          skill_cleaning: (() => {
+                            try {
+                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
+                                : processingResult.geminiData.jsonResponse.skills as any;
+                              return skills?.CLEANING || skills?.cleaning || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
+                          skill_laundry: (() => {
+                            try {
+                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
+                                : processingResult.geminiData.jsonResponse.skills as any;
+                              return skills?.LAUNDRY || skills?.laundry || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
                           // Flattened languages
-                          lang_english: processingResult.geminiData.jsonResponse.languages_spoken?.English || processingResult.geminiData.jsonResponse.languages_spoken?.english,
-                          lang_arabic: processingResult.geminiData.jsonResponse.languages_spoken?.Arabic || processingResult.geminiData.jsonResponse.languages_spoken?.arabic,
+                          lang_english: (() => {
+                            try {
+                              const languages = typeof processingResult.geminiData.jsonResponse.languages_spoken === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.languages_spoken) as any
+                                : processingResult.geminiData.jsonResponse.languages_spoken as any;
+                              return languages?.English || languages?.english || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
+                          lang_arabic: (() => {
+                            try {
+                              const languages = typeof processingResult.geminiData.jsonResponse.languages_spoken === 'string' 
+                                ? JSON.parse(processingResult.geminiData.jsonResponse.languages_spoken) as any
+                                : processingResult.geminiData.jsonResponse.languages_spoken as any;
+                              return languages?.Arabic || languages?.arabic || null;
+                            } catch {
+                              return null;
+                            }
+                          })(),
                         }}
                       />
                     </div>
