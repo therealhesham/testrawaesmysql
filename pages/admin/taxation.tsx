@@ -1,376 +1,196 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import React, { useState } from 'react';
+import Head from 'next/head';
 
-interface TaxSummary {
-  taxableSales: number;
-  zeroRateSales: number;
-  adjustments: number;
-  taxValue: number;
-  salesCount: number;
-  purchasesCount: number;
-  vatCount: number;
-}
+// Helper component for SVG icons to keep the main component clean
+const Icon = ({ path, className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d={path} />
+  </svg>
+);
 
-interface TaxRecord {
-  id: number;
-  category: string;
-  description: string;
-  amount: number;
-  adjustment: number;
-  total: number;
-  taxRate?: number;
-}
+const TaxReportPage = () => {
+  const [activeTab, setActiveTab] = useState('vat');
 
-interface TaxDeclaration {
-  id: number;
-  period: string;
-  year: number;
-  month: number;
-  status: string;
-  taxableSales: number;
-  zeroRateSales: number;
-  adjustments: number;
-  taxValue: number;
-  salesRecords: TaxRecord[];
-  purchaseRecords: TaxRecord[];
-  vatRecords: TaxRecord[];
-}
-
-const TaxationPage: React.FC = () => {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'purchases' | 'sales' | 'vat'>('vat');
-  const [summary, setSummary] = useState<TaxSummary | null>(null);
-  const [declaration, setDeclaration] = useState<TaxDeclaration | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-
-  useEffect(() => {
-    fetchTaxData();
-  }, []);
-
-  const fetchTaxData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/tax/summary');
-      if (response.ok) {
-        const data = await response.json();
-        setSummary(data);
-        setDeclaration(data.declaration);
-      }
-    } catch (error) {
-      console.error('Error fetching tax data:', error);
-    } finally {
-      setLoading(false);
+  // Data for the summary cards
+  const summaryData = [
+    { title: 'المبيعات الخاضعة للضريبة', value: '20,000.00' },
+    { title: 'المبيعات الخاضعة للصفر', value: '10,000.00' },
+    { title: 'التعديلات', value: '1200.00' },
+    { title: 'قيمة الضريبة', value: '11200.00' },
+  ];
+  
+  // Data for the main table, structured for easy rendering
+  const tableData = {
+    sales: {
+      title: 'المبيعات',
+      rows: [
+        { description: 'ضريبة المبيعات الخاضعة للنسبة الاساسية (15%)', amount: '10,566.00', adjustment: '8,000', vat: '1,361.00' },
+        { description: 'المبيعات لصالح المواطنين(خدمات صحية خاصة،التعليم الاهلي الخاص، المسكن الاول)', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'المبيعات الداخلية الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'الصادرات الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'المبيعات الملغاة', amount: '700', adjustment: '200', vat: '1,000' },
+      ],
+      total: { amount: '10,566.00', adjustment: '8,000', vat: '1,361.00' }
+    },
+    purchases: {
+      title: 'المشتريات',
+      rows: [
+        { description: 'المشتريات الداخلية الخاضعة للنسبة الاساسية(15%)', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'التوريدات الخاضعة للضريبة القيمة المضافة المسددة للجمارك', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'عمليات الاستيراد الخاضعة لضريبة القيمة المضافة والمستحقة للضريبة وفقا لالية الاحتساب العكسي', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'المشتريات الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'المبيعات المعفاة', amount: '-', adjustment: '-', vat: '-' },
+      ],
+      total: { amount: '-', adjustment: '-', vat: '-' }
+    },
+    vat: {
+      title: 'الضريبة المضافة',
+      rows: [
+        { description: 'ضريبة القيمة المضافة الاجمالية للفترة الضريبية المستحقة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'تصحيحات الفترة السابقة (حوالي +-5000 ريال)', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'ضريبة القيمة المضافة التي تم ترحيلها من الفترة \ الفترات السابقة', amount: '-', adjustment: '-', vat: '-' },
+      ],
+      total: { description: 'ضريبة القيمة المضافة المستحقة (المطلوب اصلاحها)', amount: '-', adjustment: '-', vat: '-' }
     }
   };
 
-  const handleExport = async (format: 'excel' | 'pdf') => {
-    try {
-      const params = new URLSearchParams({
-        format,
-        ...(dateFrom && { year: new Date(dateFrom).getFullYear().toString() }),
-        ...(dateFrom && { month: (new Date(dateFrom).getMonth() + 1).toString() }),
-      });
-
-      const response = await fetch(`/api/tax/export?${params}`);
-      if (response.ok) {
-        if (format === 'excel') {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `tax-declaration-${new Date().getFullYear()}-${new Date().getMonth() + 1}.xlsx`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        } else {
-          const data = await response.json();
-          console.log('PDF data:', data);
-          // Here you would implement PDF generation using jsPDF or similar
-        }
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-    }
-  };
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('ar-SA').format(num);
-  };
-
-  const getCurrentRecords = () => {
-    if (!declaration) return [];
-    
-    switch (activeTab) {
-      case 'sales':
-        return declaration.salesRecords;
-      case 'purchases':
-        return declaration.purchaseRecords;
-      case 'vat':
-        return declaration.vatRecords;
-      default:
-        return [];
-    }
-  };
-
-  const getTabCount = () => {
-    if (!declaration) return { purchases: 0, sales: 0, vat: 0 };
-    
-    return {
-      purchases: declaration.purchaseRecords.length,
-      sales: declaration.salesRecords.length,
-      vat: declaration.vatRecords.length,
-    };
-  };
-
-  const getTabTitle = () => {
-    switch (activeTab) {
-      case 'sales':
-        return 'المبيعات';
-      case 'purchases':
-        return 'المشتريات';
-      case 'vat':
-        return 'الضريبة المضافة';
-      default:
-        return '';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">جاري تحميل البيانات...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-100" dir="rtl">
-      <div className="container mx-auto px-4 py-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-normal text-black mb-2">الاقرار الضريبي</h1>
-        </div>
+    <>
+      <Head>
+        <title>الاقرار الضريبي - الرئيسية</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
+        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
+      </Head>
 
-        <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 max-w-6xl mx-auto">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-5 justify-center">
-            <div className="bg-gray-50 rounded-lg p-5 h-25 shadow-sm flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-base text-gray-800 mb-2">المبيعات الخاضعة للضريبة</div>
-                <div className="text-lg text-gray-800 font-normal">
-                  {summary ? formatNumber(summary.taxableSales) : '0.00'}
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-5 h-25 shadow-sm flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-base text-gray-800 mb-2">المبيعات الخاضعة للصفر</div>
-                <div className="text-lg text-gray-800 font-normal">
-                  {summary ? formatNumber(summary.zeroRateSales) : '0.00'}
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-5 h-25 shadow-sm flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-base text-gray-800 mb-2">التعديلات</div>
-                <div className="text-lg text-gray-800 font-normal">
-                  {summary ? formatNumber(summary.adjustments) : '0.00'}
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-5 h-25 shadow-sm flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-base text-gray-800 mb-2">قيمة الضريبة</div>
-                <div className="text-lg text-gray-800 font-normal">
-                  {summary ? formatNumber(summary.taxValue) : '0.00'}
-                </div>
-              </div>
-            </div>
-          </div>
+      {/* Main content container */}
+      <main dir="rtl" className="bg-[#F2F3F5] p-8 font-['Tajawal'] text-[#1A4D4F]">
+        <div className="max-w-6xl mx-auto">
+          <header className="mb-11">
+            <h1 className="text-3xl text-black font-normal">الاقرار الضريبي</h1>
+          </header>
 
-          {/* Tab Navigation */}
-          <div className="flex gap-9 mb-5 items-end justify-center border-b border-gray-300 pb-4">
-            <button
-              onClick={() => setActiveTab('purchases')}
-              className={`flex items-center gap-2 px-2 py-1 ${
-                activeTab === 'purchases' ? 'border-b border-gray-800' : ''
-              }`}
-            >
-              <span className="text-sm text-gray-600">{getTabCount().purchases}</span>
-              <span className={`text-sm ${activeTab === 'purchases' ? 'text-gray-800' : 'text-gray-600'}`}>
-                المشتريات
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('sales')}
-              className={`flex items-center gap-2 px-2 py-1 ${
-                activeTab === 'sales' ? 'border-b border-gray-800' : ''
-              }`}
-            >
-              <span className="text-sm text-gray-600">{getTabCount().sales}</span>
-              <span className={`text-sm ${activeTab === 'sales' ? 'text-gray-800' : 'text-gray-600'}`}>
-                المبيعات
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('vat')}
-              className={`flex items-center gap-2 px-2 py-1 ${
-                activeTab === 'vat' ? 'border-b border-gray-800' : ''
-              }`}
-            >
-              <span className="text-sm text-gray-600">{getTabCount().vat}</span>
-              <span className={`text-sm ${activeTab === 'vat' ? 'text-gray-800' : 'text-gray-600'}`}>
-                الضريبة المضافة
-              </span>
-            </button>
-          </div>
-
-          {/* Filters Section */}
-          <div className="flex justify-end items-end gap-4 mb-5 px-4">
-            <div className="flex items-center gap-4">
-              <button className="bg-teal-800 text-white border-none rounded px-3 py-2 text-xs h-7">
-                اعادة ضبط
-              </button>
-              <div className="bg-gray-50 border border-gray-300 rounded px-2 py-2 flex items-center gap-12 w-46 h-8">
-                <svg className="w-1 h-2" viewBox="0 0 5 8" fill="none">
-                  <path d="M1 1L4 4L1 7" stroke="#6B7280" strokeWidth="1"/>
-                </svg>
-                <span className="text-xs text-gray-600">كل الاعمدة</span>
-              </div>
-            </div>
+          <div className="bg-white border border-gray-200 rounded-md p-5">
             
-            <div className="flex gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-gray-800">الى</label>
-                <div className="bg-gray-50 border border-gray-300 rounded px-2 py-2 flex items-center justify-between w-51 h-8">
-                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="3" width="12" height="10" rx="1" stroke="#6B7280" strokeWidth="1"/>
-                    <path d="M6 1v4M10 1v4M2 7h12" stroke="#6B7280" strokeWidth="1"/>
-                  </svg>
-                  <span className="text-xs text-gray-600">الى</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-gray-800">من</label>
-                <div className="bg-gray-50 border border-gray-300 rounded px-2 py-2 flex items-center justify-between w-51 h-8">
-                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="3" width="12" height="10" rx="1" stroke="#6B7280" strokeWidth="1"/>
-                    <path d="M6 1v4M10 1v4M2 7h12" stroke="#6B7280" strokeWidth="1"/>
-                  </svg>
-                  <span className="text-xs text-gray-600">من</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-gray-800">بحث</label>
-              <div className="bg-gray-50 border border-gray-300 rounded px-4 py-2 flex items-center gap-9 w-66 h-8">
-                <svg className="w-3 h-3" viewBox="0 0 14 14" fill="none">
-                  <circle cx="6" cy="6" r="5" stroke="#6B7280" strokeWidth="1"/>
-                  <path d="m10 10 3 3" stroke="#6B7280" strokeWidth="1"/>
-                </svg>
-                <span className="text-sm text-gray-600">بحث</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Export Buttons */}
-          <div className="flex gap-1 mb-5 px-4">
-            <button
-              onClick={() => handleExport('excel')}
-              className="bg-teal-800 text-white border-none rounded px-2 py-1 flex items-center gap-1 h-5 w-16"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
-                <rect x="1" y="1" width="10" height="10" rx="1" stroke="currentColor" strokeWidth="1"/>
-                <path d="M4 3h4M4 5h4M4 7h2" stroke="currentColor" strokeWidth="1"/>
-              </svg>
-              <span className="text-xs">Excel</span>
-            </button>
-            <button
-              onClick={() => handleExport('pdf')}
-              className="bg-teal-800 text-white border-none rounded px-2 py-1 flex items-center gap-1 h-5 w-14"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
-                <rect x="1" y="1" width="10" height="10" rx="1" stroke="currentColor" strokeWidth="1"/>
-                <path d="M4 3h4M4 5h4M4 7h2" stroke="currentColor" strokeWidth="1"/>
-              </svg>
-              <span className="text-xs">PDF</span>
-            </button>
-          </div>
-
-          {/* Tax Table */}
-          <div className="flex gap-5">
-            {/* Table Headers */}
-            <div className="bg-teal-800 flex gap-14 px-6 py-3 w-full h-16 items-center mb-5">
-              <div className="text-gray-50 text-base text-center w-45 leading-tight">
-                مبلغ ضريبة القيمة المضافة<br />(بالريال)
-              </div>
-              <div className="text-gray-50 text-base text-center w-21 leading-tight">
-                مبلغ التعديل<br />(بالريال)
-              </div>
-              <div className="text-gray-50 text-base text-center w-14 leading-tight">
-                المبلغ<br />(بالريال)
-              </div>
-            </div>
-
-            {/* Left Data Section */}
-            <div className="w-125 flex flex-col">
-              {getCurrentRecords().map((record, index) => (
-                <div
-                  key={record.id}
-                  className={`bg-gray-50 border border-gray-300 h-14 flex items-center px-5 ${
-                    index === getCurrentRecords().length - 1 ? 'bg-teal-50 h-11' : ''
-                  }`}
-                >
-                  <div className="w-2 h-2 bg-gray-600 rounded-full ml-9"></div>
-                  <div className="flex flex-1 justify-between items-center">
-                    <span className="w-14 text-base text-gray-800 text-center">
-                      {formatNumber(record.amount)}
-                    </span>
-                    <span className="w-11 text-base text-gray-800 text-center">
-                      {formatNumber(record.adjustment)}
-                    </span>
-                    <span className="w-17 text-base text-gray-800 text-center">
-                      {formatNumber(record.total)}
-                    </span>
-                  </div>
+            {/* ## Summary Cards */}
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-5 justify-items-center">
+              {summaryData.map((card, index) => (
+                <div key={index} className="bg-[#F7F8FA] rounded-xl shadow-md p-5 w-full max-w-xs h-[100px] flex flex-col justify-center items-center text-center">
+                  <h3 className="text-base text-gray-800 mb-2 leading-tight">{card.title}</h3>
+                  <p className="text-lg text-gray-800 font-normal">{card.value}</p>
                 </div>
               ))}
-            </div>
+            </section>
 
-            {/* Right Section */}
-            <div className="flex-1">
-              <div className="bg-teal-800 text-gray-50 text-2xl writing-mode-vertical text-orientation-mixed w-13 h-full flex items-center justify-center border-l border-gray-300">
-                {getTabTitle()}
-              </div>
-              <div className="w-132 flex flex-col">
-                {getCurrentRecords().map((record, index) => (
-                  <div
-                    key={record.id}
-                    className={`bg-gray-50 border border-gray-300 h-14 flex items-center justify-between px-3 relative ${
-                      index === getCurrentRecords().length - 1 ? 'bg-teal-50 h-11 justify-center' : ''
-                    }`}
-                  >
-                    <span className="text-base text-gray-800 text-center leading-tight max-w-100">
-                      {record.description}
-                    </span>
-                    <div className="w-2 h-2 bg-gray-600 rounded-full absolute left-3 top-1/2 transform -translate-y-1/2"></div>
+            {/* ## Tab Navigation */}
+            <nav className="flex justify-center items-end gap-9 mb-5 border-b border-gray-200 pb-4">
+              <button onClick={() => setActiveTab('vat')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'vat' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-500'}`}>
+                <span>3</span><span>الضريبة المضافة</span>
+              </button>
+              <button onClick={() => setActiveTab('sales')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'sales' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-500'}`}>
+                <span>6</span><span>المبيعات</span>
+              </button>
+              <button onClick={() => setActiveTab('purchases')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'purchases' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-500'}`}>
+                <span>6</span><span>المشتريات</span>
+              </button>
+            </nav>
+            
+            {/* ## Filters & Actions Section */}
+            <section className="mb-5 px-4">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                {/* Search & Date Filters */}
+                <div className="flex flex-wrap items-end gap-4 flex-grow">
+                  <div className="flex-grow">
+                    <label className="text-xs text-gray-800 block mb-2">بحث</label>
+                    <div className="relative">
+                      <input type="text" placeholder="بحث" className="bg-[#F7F8FA] border border-gray-200 rounded-md w-full h-9 p-2 pr-10 text-sm" />
+                       <span className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400">
+                         <Icon path="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" className="w-4 h-4" />
+                       </span>
+                    </div>
                   </div>
-                ))}
+                   <div className="flex-grow">
+                    <label className="text-xs text-gray-800 block mb-2">من</label>
+                    <input type="date" className="bg-[#F7F8FA] border border-gray-200 rounded-md w-full h-9 p-2 text-sm text-gray-500" />
+                  </div>
+                  <div className="flex-grow">
+                    <label className="text-xs text-gray-800 block mb-2">الى</label>
+                    <input type="date" className="bg-[#F7F8FA] border border-gray-200 rounded-md w-full h-9 p-2 text-sm text-gray-500" />
+                  </div>
+                </div>
+                {/* Reset & Column Filter */}
+                <div className="flex items-end gap-4">
+                   <select className="bg-[#F7F8FA] border border-gray-200 rounded-md h-9 p-2 text-sm text-gray-500 w-48">
+                     <option>كل الاعمدة</option>
+                   </select>
+                   <button className="bg-[#1A4D4F] text-white rounded-md text-xs px-3 h-8">اعادة ضبط</button>
+                </div>
               </div>
-            </div>
+               {/* Export Buttons */}
+              <div className="flex gap-2 mt-5">
+                <button className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6">
+                  <Icon path="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625a1.875 1.875 0 00-1.875 1.875v17.25a1.875 1.875 0 001.875 1.875h12.75a1.875 1.875 0 001.875-1.875V10.5" className="w-3 h-3"/>
+                  <span>PDF</span>
+                </button>
+                 <button className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6">
+                   <Icon path="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625a1.875 1.875 0 00-1.875 1.875v17.25a1.875 1.875 0 001.875 1.875h12.75a1.875 1.875 0 001.875-1.875V10.5" className="w-3 h-3"/>
+                  <span>Excel</span>
+                </button>
+              </div>
+            </section>
+            
+            {/* ## Tax Declaration Table */}
+            <section className="overflow-x-auto">
+              <table className="w-full min-w-[800px] border-collapse text-base text-gray-800">
+                <thead className="bg-[#1A4D4F] text-white">
+                  <tr>
+                    <th className="font-normal p-4 text-center w-1/4">التفاصيل</th>
+                    <th className="font-normal p-4 text-center w-1/4">المبلغ<br/>(بالريال)</th>
+                    <th className="font-normal p-4 text-center w-1/4">مبلغ التعديل<br/>(بالريال)</th>
+                    <th className="font-normal p-4 text-center w-1/4">مبلغ ضريبة القيمة المضافة<br/>(بالريال)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.values(tableData).map((section, sectionIndex) => (
+                    <React.Fragment key={sectionIndex}>
+                      {/* Section Rows */}
+                      {section.rows.map((row, rowIndex) => (
+                        <tr key={rowIndex} className="bg-[#F7F8FA] border border-gray-200">
+                          {rowIndex === 0 && (
+                            <td 
+                              rowSpan={section.rows.length + 1} 
+                              className="bg-[#1A4D4F] text-white text-2xl font-normal p-4 border-l border-gray-200 align-middle text-center"
+                              style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                            >
+                              {section.title}
+                            </td>
+                          )}
+                          <td className="p-4 text-center text-sm leading-tight">{row.description}</td>
+                          <td className="p-4 text-center">{row.amount}</td>
+                          <td className="p-4 text-center">{row.adjustment}</td>
+                          <td className="p-4 text-center">{row.vat}</td>
+                        </tr>
+                      ))}
+                       {/* Section Total Row */}
+                      <tr className="bg-teal-50/50 border border-gray-200 font-bold">
+                        <td className="p-3 text-center">
+                          {section.total.description || 'الاجمالي'}
+                        </td>
+                        <td className="p-3 text-center">{section.total.amount}</td>
+                        <td className="p-3 text-center">{section.total.adjustment}</td>
+                        <td className="p-3 text-center">{section.total.vat}</td>
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </section>
           </div>
         </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 };
 
-export default TaxationPage;
+export default TaxReportPage;

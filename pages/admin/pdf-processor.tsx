@@ -102,7 +102,7 @@ export default function PDFProcessor() {
     }
 
     setSelectedImages([selectedProfileImage, selectedFullImage]);
-    setCurrentStep('upload-images');
+    // Don't auto-advance, let user manually proceed to next step
   };
 
   const uploadSelectedImages = async () => {
@@ -166,7 +166,7 @@ export default function PDFProcessor() {
       }
 
       setUploadedImageUrls(uploadedUrls);
-      setCurrentStep('extract-data');
+      // Don't auto-advance, let user manually proceed to next step
     } catch (error: any) {
       console.error('Error uploading images:', error);
       setError(`فشل في رفع الصور المختارة: ${error.message}`);
@@ -207,7 +207,7 @@ export default function PDFProcessor() {
           : { extractedImages: [], geminiData, errors: [] }
       );
       setCurrentModel(modelName);
-      setCurrentStep('save');
+      // Don't auto-advance, let user manually proceed to next step
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during data extraction');
     } finally {
@@ -323,19 +323,18 @@ export default function PDFProcessor() {
               <div className="mb-10">
                 <div className="flex justify-between items-center">
                    {[
-                     { step: 'upload', label: 'رفع الملف' },
-                     { step: 'select-images', label: 'اختيار الصور' },
-                     { step: 'upload-images', label: 'رفع الصور' },
-                     { step: 'extract-data', label: 'استخراج البيانات' },
-                     { step: 'save', label: 'حفظ البيانات' },
-                   ].map(({ step, label }, index) => (
+                     { step: 'upload', label: 'رفع الملف', completed: !!file },
+                     { step: 'select-images', label: 'اختيار الصور', completed: selectedImages.length > 0 },
+                     { step: 'upload-images', label: 'رفع الصور', completed: uploadedImageUrls.length > 0 },
+                     { step: 'extract-data', label: 'استخراج البيانات', completed: !!(processingResult && processingResult.geminiData && Object.keys(processingResult.geminiData.jsonResponse).length > 0) },
+                     { step: 'save', label: 'حفظ البيانات', completed: !!saveMessage },
+                   ].map(({ step, label, completed }, index) => (
                     <div
                       key={step}
                        className={`flex items-center transition-all duration-300 ${
                          currentStep === step
                            ? 'text-indigo-600'
-                           : ['select-images', 'upload-images', 'extract-data', 'save'].includes(currentStep) &&
-                             ['upload', 'select-images', 'upload-images', 'extract-data'].includes(step)
+                           : completed
                            ? 'text-green-600'
                            : 'text-gray-400'
                        }`}
@@ -344,13 +343,12 @@ export default function PDFProcessor() {
                         className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg transition-all duration-300 ${
                           currentStep === step
                             ? 'bg-indigo-600 text-white'
-                            : ['select-images', 'upload-images', 'extract-data', 'save'].includes(currentStep) &&
-                              ['upload', 'select-images', 'upload-images', 'extract-data'].includes(step)
+                            : completed
                             ? 'bg-green-600 text-white'
                             : 'bg-gray-200 text-gray-600'
                         }`}
                       >
-                        {index + 1}
+                        {completed ? '✓' : index + 1}
                       </div>
                       <span className="mr-3 text-sm font-medium">{label}</span>
                     </div>
@@ -578,7 +576,23 @@ export default function PDFProcessor() {
                       disabled={!selectedProfileImage || !selectedFullImage}
                       className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                     >
-                      المتابعة لاستخراج البيانات
+                      تأكيد اختيار الصور
+                    </button>
+                    
+                    {selectedImages.length > 0 && (
+                      <button
+                        onClick={() => setCurrentStep('upload-images')}
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 mr-3"
+                      >
+                        التالي: رفع الصور
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => setCurrentStep('upload')}
+                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
+                    >
+                      السابق: رفع ملف جديد
                     </button>
                   </div>
                 </div>
@@ -659,6 +673,22 @@ export default function PDFProcessor() {
                         'رفع الصور إلى Digital Ocean'
                       )}
                     </button>
+                    
+                    {uploadedImageUrls.length > 0 && (
+                      <button
+                        onClick={() => setCurrentStep('extract-data')}
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 mr-3"
+                      >
+                        التالي: استخراج البيانات
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => setCurrentStep('select-images')}
+                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
+                    >
+                      السابق: اختيار الصور
+                    </button>
                   </div>
                 </div>
               )}
@@ -737,6 +767,22 @@ export default function PDFProcessor() {
                       ) : (
                         'استخراج البيانات باستخدام Gemini'
                       )}
+                    </button>
+                    
+                    {processingResult && processingResult.geminiData && Object.keys(processingResult.geminiData.jsonResponse).length > 0 && (
+                      <button
+                        onClick={() => setCurrentStep('save')}
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 mr-3"
+                      >
+                        التالي: حفظ البيانات
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => setCurrentStep('upload-images')}
+                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
+                    >
+                      السابق: رفع الصور
                     </button>
                   </div>
                 </div>
@@ -1066,6 +1112,13 @@ export default function PDFProcessor() {
                       ) : (
                         'حفظ البيانات'
                       )}
+                    </button>
+
+                    <button
+                      onClick={() => setCurrentStep('extract-data')}
+                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
+                    >
+                      السابق: استخراج البيانات
                     </button>
 
                     <button

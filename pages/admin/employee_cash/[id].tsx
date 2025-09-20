@@ -5,10 +5,18 @@ import Style from "styles/Home.module.css"
 interface EmployeeDetail {
   id: number;
   name: string;
+  position?: string;
+  department?: string;
   totalDebit: number;
   totalCredit: number;
   totalBalance: number;
   transactions: EmployeeTransaction[];
+  settlements?: {
+    totalDetailsDebit: number;
+    totalDetailsCredit: number;
+    totalCashReceived: number;
+    totalCashExpenses: number;
+  };
 }
 
 interface EmployeeTransaction {
@@ -23,6 +31,7 @@ interface EmployeeTransaction {
   balance: number;
   description: string;
   attachment: string;
+  type?: 'detail' | 'cash';
 }
 
 export default function EmployeeCashDetail() {
@@ -69,10 +78,73 @@ export default function EmployeeCashDetail() {
     }
   };
 
+  const handleSubmitAddRecord = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch(`/api/employee-cash/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionDate: formData.get('transactionDate'),
+          client: formData.get('client'),
+          mainAccount: formData.get('mainAccount'),
+          subAccount: formData.get('subAccount'),
+          debit: Number(formData.get('debit') || 0),
+          credit: Number(formData.get('credit') || 0),
+          attachment: formData.get('attachment') || ''
+        }),
+      });
+
+      if (response.ok) {
+        alert('تم إضافة السجل بنجاح');
+        handleCloseAddModal();
+        fetchEmployeeDetail();
+      } else {
+        const errorData = await response.json();
+        alert(`خطأ: ${errorData.error || 'حدث خطأ أثناء إضافة السجل'}`);
+      }
+    } catch (error) {
+      console.error('Error adding record:', error);
+      alert('حدث خطأ أثناء إضافة السجل');
+    }
+  };
+
+  const handleCloseAddModal = () => {
+    const modal = document.getElementById('add-record-modal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+  };
+
   const handleEditRecord = (transactionId: number) => {
     const modal = document.getElementById('edit-modal-bg');
     if (modal) {
       modal.style.display = 'flex';
+    }
+  };
+
+  const handleDeleteRecord = async (transactionId: number) => {
+    if (confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+      try {
+        const response = await fetch(`/api/employee-cash/${transactionId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          alert('تم حذف السجل بنجاح');
+          fetchEmployeeDetail();
+        } else {
+          alert('حدث خطأ أثناء حذف السجل');
+        }
+      } catch (error) {
+        console.error('Error deleting record:', error);
+        alert('حدث خطأ أثناء حذف السجل');
+      }
     }
   };
 
@@ -94,7 +166,7 @@ export default function EmployeeCashDetail() {
       {/* Page Content */}
       <div className="p-8">
         <div className="flex justify-between items-center mb-8">
-          <button 
+          <button
             onClick={handleAddRecord}
             className="bg-teal-800 text-white border-none rounded px-4 py-2 flex items-center gap-2 text-xs cursor-pointer hover:bg-teal-700"
           >
@@ -112,7 +184,7 @@ export default function EmployeeCashDetail() {
             <div className="flex flex-col gap-2 min-w-56">
               <label className="text-xs text-gray-700 text-right">العميل</label>
               <div className="relative">
-                <select 
+                <select
                   className="w-full bg-gray-100 border border-gray-300 rounded  text-xs text-gray-500 text-right "
                   value={filters.client}
                   onChange={(e) => setFilters({...filters, client: e.target.value})}
@@ -128,7 +200,7 @@ export default function EmployeeCashDetail() {
             <div className="flex flex-col gap-2 min-w-56">
               <label className="text-xs text-gray-700 text-right">نوع الحركة</label>
               <div className="relative">
-                <select 
+                <select
                   className="w-full bg-gray-100 border border-gray-300 rounded  text-xs text-gray-500 text-right appearance-none"
                   value={filters.movementType}
                   onChange={(e) => setFilters({...filters, movementType: e.target.value})}
@@ -140,12 +212,12 @@ export default function EmployeeCashDetail() {
 
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-2 min-w-56">
               <label className="text-xs text-gray-700 text-right">إلى</label>
               <div className="relative">
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-xs text-gray-500 text-right"
                   value={filters.toDate}
                   onChange={(e) => setFilters({...filters, toDate: e.target.value})}
@@ -153,12 +225,12 @@ export default function EmployeeCashDetail() {
 
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-2 min-w-56">
               <label className="text-xs text-gray-700 text-right">من</label>
               <div className="relative">
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-xs text-gray-500 text-right"
                   value={filters.fromDate}
                   onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
@@ -167,8 +239,8 @@ export default function EmployeeCashDetail() {
               </div>
             </div>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleSearch}
             className="bg-teal-800 text-white border-none rounded px-4 py-2 text-sm cursor-pointer"
           >
@@ -194,6 +266,42 @@ export default function EmployeeCashDetail() {
             </div>
           </div>
 
+          {/* Settlements Section */}
+          {data?.settlements && (
+            <div className="p-6 border-b border-gray-300">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 text-right">تفاصيل التسويات</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="text-md font-medium text-blue-800 mb-3 text-right">من جدول التفاصيل</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">إجمالي المدين:</span>
+                      <span className="text-sm font-medium">{data.settlements.totalDetailsDebit.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">إجمالي الدائن:</span>
+                      <span className="text-sm font-medium">{data.settlements.totalDetailsCredit.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h4 className="text-md font-medium text-green-800 mb-3 text-right">من جدول العهدة النقدية</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">إجمالي المستلم:</span>
+                      <span className="text-sm font-medium">{data.settlements.totalCashReceived.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">إجمالي المصروف:</span>
+                      <span className="text-sm font-medium">{data.settlements.totalCashExpenses.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse bg-white">
@@ -202,8 +310,9 @@ export default function EmployeeCashDetail() {
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">#</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">التاريخ</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الشهر</th>
-                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">حساب رئيسي</th>
-                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">حساب فرعي</th>
+                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">النوع</th>
+                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الحساب الرئيسي</th>
+                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الحساب الفرعي</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">العميل</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">مدين</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">دائن</th>
@@ -219,6 +328,15 @@ export default function EmployeeCashDetail() {
                     <td className="p-4 text-center text-sm bg-gray-100">{index + 1}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.date}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.month}</td>
+                    <td className="p-4 text-center text-sm bg-gray-100">
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        transaction.type === 'detail' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {transaction.type === 'detail' ? 'تفاصيل' : 'عهدة نقدية'}
+                      </span>
+                    </td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.mainAccount}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.subAccount}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.client}</td>
@@ -226,24 +344,36 @@ export default function EmployeeCashDetail() {
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.credit.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.balance.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.description}</td>
-                    <td className="p-4 text-center text-sm bg-gray-100">{transaction.attachment}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">
-                      <button 
-                        onClick={() => handleEditRecord(transaction.id)}
-                        className="bg-none border-none cursor-pointer p-1 rounded hover:bg-teal-100"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M2 12.5V14h1.5l8.5-8.5-1.5-1.5L2 12.5z" fill="#1A4D4F"/>
-                          <path d="M13.5 4.5l-2-2" stroke="#1A4D4F" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
-                      </button>
+                      <a href="#" className="text-teal-800 hover:underline">{transaction.attachment}</a>
+                    </td>
+                    <td className="p-4 text-center text-sm bg-gray-100">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleEditRecord(transaction.id)}
+                          className="bg-none border-none cursor-pointer p-1 rounded hover:bg-teal-100"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M2 12.5V14h1.5l8.5-8.5-1.5-1.5L2 12.5z" fill="#1A4D4F"/>
+                            <path d="M13.5 4.5l-2-2" stroke="#1A4D4F" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecord(transaction.id)}
+                          className="bg-none border-none cursor-pointer p-1 rounded hover:bg-red-100"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M6 2h4v1H6V2zm1 0h2v1H7V2zm6 3H3v1h10V5zm-1 3v7c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1V8H4v7c0 1.1.9 2 2 2h4c1.1 0 2-.9 2-2V8h-1z" fill="#DC2626"/>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={6} className="p-4 text-right text-sm bg-gray-200 font-bold text-black">الإجمالي</td>
+                  <td colSpan={7} className="p-4 text-right text-sm bg-gray-200 font-bold text-black">الإجمالي</td>
                   <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalDebit.toLocaleString() || '0'}</td>
                   <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalCredit.toLocaleString() || '0'}</td>
                   <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalBalance.toLocaleString() || '0'}</td>
@@ -259,50 +389,50 @@ export default function EmployeeCashDetail() {
       <div id="add-record-modal" className="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center">
         <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-4xl mx-auto relative" dir="rtl">
           <h2 className="text-center text-xl mb-8 text-gray-700">إضافة سجل</h2>
-          <form className="space-y-6">
+          <form onSubmit={handleSubmitAddRecord} className="space-y-6">
             <div className="grid grid-cols-2 gap-6">
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">التاريخ</label>
-                <input type="date" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input name="transactionDate" type="date" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" required />
               </div>
-              
+
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">العميل</label>
-                <input type="text" placeholder="ادخل العميل" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input name="client" type="text" placeholder="ادخل العميل" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">الحساب الرئيسي</label>
-                <input type="text" placeholder="ادخل الحساب الرئيسي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input name="mainAccount" type="text" placeholder="ادخل الحساب الرئيسي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
               </div>
-              
+
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">الحساب الفرعي</label>
-                <input type="text" placeholder="ادخل الحساب الفرعي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input name="subAccount" type="text" placeholder="ادخل الحساب الفرعي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
               </div>
-              
+
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                <input type="text" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
               </div>
-              
+
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
-                <input type="text" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
               </div>
             </div>
-            
+
             <div className="flex flex-col items-end">
               <label className="text-sm text-gray-500 mb-2">المرفقات</label>
               <div className="flex gap-3 w-full justify-start flex-row-reverse">
-                <input type="file" id="fileAddRecord" className="hidden" />
+                <input name="attachment" type="file" id="fileAddRecord" className="hidden" />
                 <button type="button" onClick={() => document.getElementById('fileAddRecord')?.click()} className="bg-teal-800 text-white border-none rounded px-5 py-2 text-sm cursor-pointer">اختيار ملف</button>
                 <span id="fileNameAdd" className="self-center text-sm text-gray-600"></span>
               </div>
             </div>
-            
+
             <div className="flex justify-center gap-4 mt-5">
-              <button type="button" className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
+              <button type="button" onClick={handleCloseAddModal} className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
               <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">إضافة</button>
             </div>
           </form>
@@ -312,44 +442,49 @@ export default function EmployeeCashDetail() {
       {/* Edit Record Modal */}
       <div id="edit-modal-bg" className="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center">
         <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-3xl mx-auto relative" dir="rtl">
-          <h2 className="text-center text-xl mb-8 text-gray-700">تعديل</h2>
+          <h2 className="text-center text-xl mb-8 text-gray-700">تعديل سجل</h2>
           <form className="space-y-6">
             <div className="grid grid-cols-2 gap-6">
               <div className="flex flex-col items-end">
+                <label className="text-sm text-gray-500 mb-2">التاريخ</label>
+                <input type="date" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+              </div>
+
+              <div className="flex flex-col items-end">
+                <label className="text-sm text-gray-500 mb-2">العميل</label>
+                <input type="text" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+              </div>
+
+              <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">الحساب الرئيسي</label>
-                <input type="text" defaultValue="الحساب الرئيسي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input type="text" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">الحساب الفرعي</label>
-                <input type="text" defaultValue="الحساب الفرعي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input type="text" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                <input type="text" defaultValue="32005" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input type="number" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
-                <input type="text" defaultValue="20005" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
-              </div>
-
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">البيان</label>
-                <input type="text" defaultValue="رصيد مرحل" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+                <input type="number" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">المرفقات</label>
                 <div className="flex items-center w-full bg-gray-50 border border-gray-300 rounded overflow-hidden">
-                  <input type="text" id="fileNameEdit" readOnly defaultValue="pdf" className="flex-1 border-none bg-transparent px-3 py-2 text-sm text-right text-gray-600" />
+                  <input type="text" id="fileNameEdit" readOnly className="flex-1 border-none bg-transparent px-3 py-2 text-sm text-right text-gray-600" />
                   <input type="file" id="fileEditRecord" className="hidden" />
                   <button type="button" onClick={() => document.getElementById('fileEditRecord')?.click()} className="bg-teal-800 text-white border-none px-4 py-2 text-sm cursor-pointer">إدخال</button>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex justify-center gap-4 mt-5">
               <button type="button" className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
               <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">حفظ</button>
@@ -363,23 +498,32 @@ export default function EmployeeCashDetail() {
           document.getElementById('fileAddRecord')?.addEventListener('change', function(){
             document.getElementById('fileNameAdd').textContent = this.files[0]?.name || '';
           });
-          
+
           document.getElementById('fileEditRecord')?.addEventListener('change', function(){
             document.getElementById('fileNameEdit').value = this.files[0]?.name || '';
           });
-          
+
           // Close modals when clicking outside
           document.getElementById('add-record-modal')?.addEventListener('click', function(e) {
             if (e.target === this) {
               this.style.display = 'none';
             }
           });
-          
+
           document.getElementById('edit-modal-bg')?.addEventListener('click', function(e) {
             if (e.target === this) {
               this.style.display = 'none';
             }
           });
+
+          // Cancel buttons for modals
+          document.querySelector('#add-record-modal button[type="button"]').onclick = function() {
+            document.getElementById('add-record-modal').style.display = 'none';
+          };
+
+          document.querySelector('#edit-modal-bg button[type="button"]').onclick = function() {
+            document.getElementById('edit-modal-bg').style.display = 'none';
+          };
         `
       }} />
     </div>

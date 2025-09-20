@@ -108,8 +108,15 @@ export default function EmployeeCash() {
     }
   };
 
-  const handleEmployeeClick = (employeeId: number) => {
-    router.push(`/admin/employee_cash/${employeeId}`);
+  const handleEmployeeClick = (transactionId: number) => {
+    // Get the employee ID from the transaction
+    const transaction = data?.employees.flatMap(emp => emp.transactions).find(t => t.id === transactionId);
+    if (transaction) {
+      const employee = data?.employees.find(emp => emp.transactions.some(t => t.id === transactionId));
+      if (employee) {
+        router.push(`/admin/employee_cash/${employee.id}`);
+      }
+    }
   };
 
   const handleAddCash = () => {
