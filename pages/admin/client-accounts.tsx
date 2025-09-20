@@ -19,6 +19,7 @@ interface ClientAccountStatement {
     nationalId: string;
   };
   entries: any[];
+  contractType: string;
 }
 
 interface Summary {
@@ -42,6 +43,7 @@ const ClientAccountsPage = () => {
   const [filters, setFilters] = useState<Filters>({ foreignOffices: [], clients: [] });
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = useState('recruitment');
   
   // Filter states
   const [selectedOffice, setSelectedOffice] = useState('all');
@@ -65,7 +67,8 @@ const ClientAccountsPage = () => {
         ...(selectedForeignOffice !== 'all' && { foreignOffice: selectedForeignOffice }),
         ...(selectedClient !== 'all' && { client: selectedClient }),
         ...(fromDate && { fromDate }),
-        ...(toDate && { toDate })
+        ...(toDate && { toDate }),
+        ...(activeTab && { contractType: activeTab }),
       });
 
       const response = await fetch(`/api/client-accounts?${params}`);
@@ -84,7 +87,7 @@ const ClientAccountsPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, selectedOffice, selectedClient, fromDate, toDate, selectedForeignOffice]);
+  }, [currentPage, selectedOffice, selectedClient, fromDate, toDate, selectedForeignOffice, activeTab]);
 
   const handleGenerateReport = () => {
     fetchData();
@@ -99,8 +102,8 @@ const ClientAccountsPage = () => {
     }
     setExpandedRows(newExpanded);
   };
-const [clients, setClients] = useState([]);
-const [foreignOffices, setForeignOffices] = useState([]);
+const [clients, setClients] = useState<{ id: number; fullname: string }[]>([]);
+const [foreignOffices, setForeignOffices] = useState<{ office: string }[]>([]);
 const [loadingOffices, setLoadingOffices] = useState(true);
 const fetchClients = async () => {
   const response = await fetch('/api/clientsexport');
@@ -244,13 +247,13 @@ useEffect(() => {
         <div className="bg-white">
           {/* Tab Navigation */}
           <div className="flex gap-4 mb-8 border-b border-gray-300">
-            <div className="flex items-center gap-2 pb-3 border-b-2 border-teal-700">
+            <div className={`flex items-center gap-2 pb-3 cursor-pointer ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('recruitment')}>
               <span className="text-md bg-teal-800 text-white px-2 py-1 rounded-full">
                 {statements.length}
               </span>
               <span className="text-base text-teal-700">عقود الاستقدام</span>
             </div>
-            <div className="flex items-center gap-2 pb-3">
+            <div className={`flex items-center gap-2 pb-3 cursor-pointer ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('rental')}>
               <span className="text-md bg-gray-300 text-gray-600 px-2 py-1 rounded-full">0</span>
               <span className="text-base text-gray-500">عقود التاجير</span>
             </div>
@@ -310,7 +313,12 @@ useEffect(() => {
                       {formatDate(statement.createdAt)}
                     </div>
                     <div className="flex-1 text-center text-md text-gray-700">
-                      {statement.client.fullname}
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/admin/clients/${statement.client.id}`);
+                      }} className="text-teal-800 hover:underline">
+                        {statement.client.fullname}
+                      </button>
                     </div>
                     <div className="flex-1 text-center text-md text-gray-700">
                       {statement.contractNumber}
@@ -355,30 +363,29 @@ useEffect(() => {
                   {expandedRows.has(statement.id) && (
                     <div className="bg-gray-100 border border-gray-300 p-4">
                       <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-center gap-40 px-2">
-                          <div className="flex-1 text-center text-xs text-gray-700">الدولة</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">صافي ربح مؤجل</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">الربح الفعلي</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">المبلغ المحول من مساند</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">تاريخ الطلب</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">تاريخ الوصول</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">تاريخ نهاية الضمان</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">الوقت المتبقي</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">الضريبة</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">العمولة</div>
+                        <div className="flex justify-between items-center gap-4 px-2">
+                          <div className="flex-1 text-center text-xs text-gray-700">التاريخ</div>
+                          <div className="flex-1 text-center text-xs text-gray-700">البيان</div>
+                          <div className="flex-1 text-center text-xs text-gray-700">مدين</div>
+                          <div className="flex-1 text-center text-xs text-gray-700">دائن</div>
+                          <div className="flex-1 text-center text-xs text-gray-700">الرصيد</div>
                         </div>
-                        <div className="flex justify-between items-center gap-40 px-2">
-                          <div className="flex-1 text-center text-xs text-gray-500">كينيا</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">1,200.00</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">2,200.00</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">8,200.00</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">7/20/2025</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">8/20/2025</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">9/20/2025</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">30</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">2,340.00</div>
-                          <div className="flex-1 text-center text-xs text-gray-500">1,000.00</div>
-                        </div>
+                        {statement.entries.map((entry, idx) => {
+                          let description = entry.description;
+                          if (idx === 0) {
+                            description = 'Recruitment fees payment from the client';
+                          }
+                          return (
+                            <div key={idx} className="flex justify-between items-center gap-4 px-2">
+                              <div className="flex-1 text-center text-xs text-gray-500">{formatDate(entry.date)}</div>
+                              <div className="flex-1 text-center text-xs text-gray-500">{description}</div>
+                              <div className="flex-1 text-center text-xs text-gray-500">{formatCurrency(entry.debit)}</div>
+                              <div className="flex-1 text-center text-xs text-gray-500">{formatCurrency(entry.credit)}</div>
+                              <div className="flex-1 text-center text-xs text-gray-500">{formatCurrency(entry.balance)}</div>
+                            </div>
+                          );
+                        })}
+                        {statement.entries.length === 0 && <div className="text-center text-gray-500">لا توجد إدخالات</div>}
                       </div>
                     </div>
                   )}

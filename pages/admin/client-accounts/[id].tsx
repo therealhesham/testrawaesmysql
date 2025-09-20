@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
-
+import { PlusIcon } from '@heroicons/react/outline';
+import Style from "styles/Home.module.css";
 interface ClientAccountEntry {
   id: number;
   date: string;
@@ -32,6 +33,11 @@ interface ClientAccountStatement {
     createdAt: string;
   };
   entries: ClientAccountEntry[];
+  totals: {
+    totalDebit: number;
+    totalCredit: number;
+    netAmount: number;
+  };
 }
 
 const ClientStatementPage = () => {
@@ -59,10 +65,18 @@ const ClientStatementPage = () => {
     entryType: ''
   });
 
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+
   const fetchStatement = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/client-accounts/${id}`);
+      const params = new URLSearchParams({
+        ...(selectedEntryType !== 'all' && { entryType: selectedEntryType }),
+        ...(fromDate && { fromDate }),
+        ...(toDate && { toDate }),
+        ...(searchTerm && { search: searchTerm }),
+      });
+      const response = await fetch(`/api/client-accounts/${id}?${params}`);
       const data = await response.json();
       setStatement(data);
     } catch (error) {
@@ -76,7 +90,20 @@ const ClientStatementPage = () => {
     if (id) {
       fetchStatement();
     }
-  }, [id]);
+  }, [id, selectedEntryType, fromDate, toDate]);
+
+  useEffect(() => {
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+    const timeout = setTimeout(() => {
+      if (id) {
+        fetchStatement();
+      }
+    }, 300);
+    setDebounceTimeout(timeout);
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
 
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,14 +200,6 @@ const ClientStatementPage = () => {
     return new Date(dateString).toLocaleDateString('ar-SA');
   };
 
-  const filteredEntries = statement?.entries.filter(entry => {
-    if (selectedEntryType !== 'all' && entry.entryType !== selectedEntryType) return false;
-    if (fromDate && new Date(entry.date) < new Date(fromDate)) return false;
-    if (toDate && new Date(entry.date) > new Date(toDate)) return false;
-    if (searchTerm && !entry.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return true;
-  }) || [];
-
   if (loading) {
     return (
       <Layout>
@@ -203,20 +222,18 @@ const ClientStatementPage = () => {
 
   return (
     <Layout>
-      <div className="p-6 bg-gray-50 min-h-screen">
+      <div className={`${Style["tajawal-regular"]} min-h-screen p-6 bg-gray-50`} dir="rtl">
         {/* Page Header */}
         <div className="flex justify-between items-center mb-6">
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-teal-700 text-white px-3 py-1 rounded text-xs"
+            className="flex items-center gap-2 bg-teal-800 text-white px-3 py-1 rounded text-md"
           >
             <span>اضافة سجل</span>
-            <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
+            <PlusIcon className="w-4 h-4" />
           </button>
           <h1 className="text-3xl font-normal text-black">
-            {statement.client.fullname} - {statement.client.nationalId}
+            {statement.client?.fullname} - {statement.client?.nationalId}
           </h1>
         </div>
 
@@ -226,48 +243,24 @@ const ClientStatementPage = () => {
             <h3 className="text-2xl font-medium text-gray-700 mb-6 text-right">معلومات الطلب</h3>
             <div className="grid grid-cols-2 gap-4 gap-y-10">
               <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">تاريخ الوصول:</span>
-                <span className="text-base font-normal text-gray-700">4/5/2025</span>
-              </div>
-              <div className="flex flex-col gap-4 items-end">
                 <span className="text-base font-medium text-gray-700">تاريخ الطلب:</span>
                 <span className="text-base font-normal text-gray-700">
-                  {formatDate(statement.client.createdAt)}
+                  {formatDate(statement.client?.createdAt)}
                 </span>
               </div>
               <div className="flex flex-col gap-4 items-end">
                 <span className="text-base font-medium text-gray-700">حالة العقد:</span>
                 <span className="text-base font-normal text-gray-700">{statement.contractStatus}</span>
               </div>
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">تاريخ انتهاء الضمان:</span>
-                <span className="text-base font-normal text-gray-700">3/5/2025</span>
-              </div>
             </div>
           </div>
 
           <div className="bg-gray-100 border border-gray-300 rounded p-6 flex-1">
             <h3 className="text-2xl font-medium text-gray-700 mb-6 text-right">معلومات المكتب</h3>
-            <div className="grid grid-cols-2 gap-4 gap-y-10">
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">نوع العاملة:</span>
-                <span className="text-base font-normal text-gray-700">عادية</span>
-              </div>
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">الدولة:</span>
-                <span className="text-base font-normal text-gray-700">بنجلاديش</span>
-              </div>
+            <div className="grid grid-cols-1 gap-4 gap-y-10">
               <div className="flex flex-col gap-4 items-end">
                 <span className="text-base font-medium text-gray-700">اسم المكتب:</span>
                 <span className="text-base font-normal text-gray-700">{statement.officeName}</span>
-              </div>
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">عمولة المكتب</span>
-                <span className="text-base font-normal text-gray-700">1,200.00</span>
-              </div>
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">نوع العاملة:</span>
-                <span className="text-base font-normal text-gray-700">منزلية</span>
               </div>
             </div>
           </div>
@@ -277,11 +270,11 @@ const ClientStatementPage = () => {
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="flex flex-col">
-              <label className="text-sm text-gray-700 mb-2">نوع الحركة</label>
+              <label className="text-md text-gray-700 mb-2">نوع الحركة</label>
               <select
                 value={selectedEntryType}
                 onChange={(e) => setSelectedEntryType(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded px-4 py-2 text-sm text-gray-600 h-8"
+                className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
               >
                 <option value="all">اختر نوع الحركة</option>
                 <option value="income">ايراد</option>
@@ -291,28 +284,28 @@ const ClientStatementPage = () => {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-sm text-gray-700 mb-2">الى</label>
+              <label className="text-md text-gray-700 mb-2">الى</label>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded px-4 py-2 text-sm text-gray-600 h-8"
+                className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
               />
             </div>
 
             <div className="flex flex-col">
-              <label className="text-sm text-gray-700 mb-2">من</label>
+              <label className="text-md text-gray-700 mb-2">من</label>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded px-4 py-2 text-sm text-gray-600 h-8"
+                className="bg-gray-50 border border-gray-300 rounded text-md text-gray-600 "
               />
             </div>
           </div>
           <button
-            onClick={() => {/* Filter logic */}}
-            className="bg-teal-700 text-white px-6 py-1 rounded text-sm h-7 min-w-[123px]"
+            onClick={() => fetchStatement()}
+            className="bg-teal-800 text-white  rounded text-md h-74 min-w-[123px]"
           >
             كشف حساب
           </button>
@@ -321,10 +314,10 @@ const ClientStatementPage = () => {
         {/* Statement Table */}
         <div className="bg-white">
           <div className="flex items-center gap-2 mb-4 px-4">
-            <button className="bg-teal-700 text-white px-3 py-1 rounded text-xs h-5 w-16">
+            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-16">
               Excel
             </button>
-            <button className="bg-teal-700 text-white px-3 py-1 rounded text-xs h-5 w-14">
+            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-14">
               PDF
             </button>
             <div className="flex-1 max-w-64">
@@ -333,7 +326,7 @@ const ClientStatementPage = () => {
                 placeholder="بحث"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-sm text-gray-600"
+                className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-md text-gray-600"
               />
             </div>
           </div>
@@ -341,42 +334,42 @@ const ClientStatementPage = () => {
           {/* Statement Table */}
           <div className="bg-gray-100 border border-gray-300 rounded overflow-hidden">
             {/* Table Header */}
-            <div className="bg-teal-700 text-white flex items-center p-4 gap-9">
-              <div className="flex-1 text-center text-sm font-normal">#</div>
-              <div className="flex-1 text-center text-sm font-normal">التاريخ</div>
-              <div className="flex-1 text-center text-sm font-normal">البيان</div>
-              <div className="flex-1 text-center text-sm font-normal">مدين</div>
-              <div className="flex-1 text-center text-sm font-normal">دائن</div>
-              <div className="flex-1 text-center text-sm font-normal">الرصيد</div>
-              <div className="flex-1 text-center text-sm font-normal">اجراءات</div>
+            <div className="bg-teal-800 text-white flex items-center p-4 gap-9">
+              <div className="flex-1 text-center text-md font-normal">#</div>
+              <div className="flex-1 text-center text-md font-normal">التاريخ</div>
+              <div className="flex-1 text-center text-md font-normal">البيان</div>
+              <div className="flex-1 text-center text-md font-normal">مدين</div>
+              <div className="flex-1 text-center text-md font-normal">دائن</div>
+              <div className="flex-1 text-center text-md font-normal">الرصيد</div>
+              <div className="flex-1 text-center text-md font-normal">اجراءات</div>
             </div>
 
             {/* Table Rows */}
-            {filteredEntries.length === 0 ? (
+            {statement?.entries?.length === 0 ? (
               <div className="p-8 text-center text-gray-500">لا توجد بيانات</div>
             ) : (
-              filteredEntries.map((entry, index) => (
+              statement?.entries?.map((entry, index) => (
                 <div key={entry.id} className="flex items-center p-4 gap-9 border-b border-gray-300 bg-gray-50 hover:bg-gray-100">
-                  <div className="flex-1 text-center text-sm text-gray-700">#{index + 1}</div>
-                  <div className="flex-1 text-center text-sm text-gray-700">
+                  <div className="flex-1 text-center text-md text-gray-700">#{index + 1}</div>
+                  <div className="flex-1 text-center text-md text-gray-700">
                     {formatDate(entry.date)}
                   </div>
-                  <div className="flex-1 text-center text-sm text-gray-700">
+                  <div className="flex-1 text-center text-md text-gray-700">
                     {entry.description}
                   </div>
-                  <div className="flex-1 text-center text-sm text-gray-700">
+                  <div className="flex-1 text-center text-md text-gray-700">
                     {entry.debit > 0 ? formatCurrency(entry.debit) : 'ـــ'}
                   </div>
-                  <div className="flex-1 text-center text-sm text-gray-700">
+                  <div className="flex-1 text-center text-md text-gray-700">
                     {entry.credit > 0 ? formatCurrency(entry.credit) : 'ـــ'}
                   </div>
-                  <div className="flex-1 text-center text-sm text-gray-700">
+                  <div className="flex-1 text-center text-md text-gray-700">
                     {formatCurrency(entry.balance)}
                   </div>
                   <div className="flex-1 text-center">
                     <button
                       onClick={() => openEditModal(entry)}
-                      className="bg-teal-700 text-white px-3 py-1 rounded text-xs"
+                      className="bg-teal-800 text-white px-3 py-1 rounded text-md"
                     >
                       اجراءات
                     </button>
@@ -388,14 +381,14 @@ const ClientStatementPage = () => {
             {/* Table Footer */}
             <div className="bg-gray-50 flex items-center p-4 gap-9 border-t border-gray-700">
               <div className="text-base font-normal text-gray-700 mr-auto">الاجمالي</div>
-              <div className="flex-1 text-center text-sm text-gray-700">
-                {formatCurrency(statement.totalRevenue)}
+              <div className="flex-1 text-center text-md text-gray-700">
+                {formatCurrency(statement?.totals?.totalDebit || 0)}
               </div>
-              <div className="flex-1 text-center text-sm text-gray-700">
-                {formatCurrency(statement.totalExpenses)}
+              <div className="flex-1 text-center text-md text-gray-700">
+                {formatCurrency(statement?.totals?.totalCredit || 0)}
               </div>
-              <div className="flex-1 text-center text-sm text-gray-700">
-                {formatCurrency(statement.netAmount)}
+              <div className="flex-1 text-center text-md text-gray-700">
+                {formatCurrency(statement?.totals?.netAmount || 0)}
               </div>
             </div>
           </div>
@@ -408,43 +401,43 @@ const ClientStatementPage = () => {
               <h2 className="text-xl text-center mb-6 text-teal-700">إضافة سجل</h2>
               <form onSubmit={handleAddEntry} className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">التاريخ</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">التاريخ</label>
                   <input
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                     required
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">رصيد المدين</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">رصيد المدين</label>
                   <input
                     type="number"
                     placeholder="ادخل رصيد المدين"
                     value={formData.debit}
                     onChange={(e) => setFormData({ ...formData, debit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">رصيد الدائن</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">رصيد الدائن</label>
                   <input
                     type="number"
                     placeholder="ادخل رصيد الدائن"
                     value={formData.credit}
                     onChange={(e) => setFormData({ ...formData, credit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">البيان</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">البيان</label>
                   <input
                     type="text"
                     placeholder="ادخل البيان"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                     required
                   />
                 </div>
@@ -452,13 +445,13 @@ const ClientStatementPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm"
+                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-md"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-teal-700 text-white rounded text-sm"
+                    className="px-6 py-2 bg-teal-800 text-white rounded text-md"
                   >
                     إضافة
                   </button>
@@ -475,30 +468,30 @@ const ClientStatementPage = () => {
               <h2 className="text-xl text-center mb-6 text-teal-700">تعديل</h2>
               <form onSubmit={handleEditEntry} className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">رصيد المدين</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">رصيد المدين</label>
                   <input
                     type="number"
                     value={formData.debit}
                     onChange={(e) => setFormData({ ...formData, debit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">رصيد الدائن</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">رصيد الدائن</label>
                   <input
                     type="number"
                     value={formData.credit}
                     onChange={(e) => setFormData({ ...formData, credit: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                   />
                 </div>
                 <div className="col-span-2 flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">البيان</label>
+                  <label className="text-md font-medium text-gray-700 mb-1">البيان</label>
                   <input
                     type="text"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-sm bg-gray-50"
+                    className="p-2 border border-gray-300 rounded text-md bg-gray-50"
                     required
                   />
                 </div>
@@ -506,13 +499,13 @@ const ClientStatementPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm"
+                    className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-md"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-teal-700 text-white rounded text-sm"
+                    className="px-6 py-2 bg-teal-800 text-white rounded text-md"
                   >
                     حفظ
                   </button>
