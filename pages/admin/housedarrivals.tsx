@@ -87,7 +87,7 @@ const ActionDropdown: React.FC<{
               onEdit(id, name);
               setIsOpen(false);
             }}
-            className="flex gap-1 flex-row w-full text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
+            className="flex gap-1 flex-row w-full text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
           >
             <FaAddressBook />
             تعديل
@@ -97,7 +97,7 @@ const ActionDropdown: React.FC<{
               onDeparture(id, name);
               setIsOpen(false);
             }}
-            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
           >
             <FaAddressBook />
             مغادرة
@@ -107,7 +107,7 @@ const ActionDropdown: React.FC<{
               onAddSession();
               setIsOpen(false);
             }}
-            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-sm text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
           >
             <FaUserFriends />
             اضافة جلسة
@@ -600,7 +600,7 @@ export default function Home({ user }: { user: any }) {
         <title>Dashboard Preview</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
-      <section className={`min-h-screen ${Style['tajawal-bold']}`}>
+      <section className={`min-h-screen ${Style['tajawal-regular']}`}>
         <div className="mx-auto">
           <main className="p-8 flex flex-col gap-6">
             <div className="flex justify-between items-center">
@@ -608,7 +608,7 @@ export default function Home({ user }: { user: any }) {
               <div className="flex gap-4">
                 <button
                   onClick={() => openModal('addResidence')}
-                  className="flex items-center gap-2 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
+                  className="flex items-center gap-2 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
                 >
                   <Plus className="w-5 h-5" />
                   اضافة سكن
@@ -628,9 +628,9 @@ export default function Home({ user }: { user: any }) {
                   progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
                   <div key={location.id} className="bg-white border border-gray-300 rounded-md p-3 text-right">
-                    <h3 className="text-sm font-normal mb-1">{location.location}</h3>
-                    <p className="text-sm font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
-                    <div className="flex justify-between text-xs mb-2">
+                    <h3 className="text-md font-normal mb-1">{location.location}</h3>
+                    <p className="text-md font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
+                    <div className="flex justify-between text-md mb-2">
                       <span>{status}</span>
                       <span>{Math.round(progress)}%</span>
                     </div>
@@ -649,43 +649,46 @@ export default function Home({ user }: { user: any }) {
             </section>
             <section className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 flex flex-col gap-5">
               <div className="flex justify-between items-center border-b border-gray-300 pb-3">
-                <div className="flex gap-10">
-                  <button
-                    onClick={() => openModal('workerTypeSelection')}
-                    className="flex items-center gap-2 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
-                  >
-                    <Plus className="w-5 h-5" />
-                    تسكين عاملة
-                  </button>
-                  <nav className="flex gap-10">
-                    <button
-                      className={`text-sm pb-3 cursor-pointer ${
-                        activeTab === 'housed'
-                          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-gray-900'
-                          : 'text-gray-500'
-                      }`}
-                      onClick={() => handleTabChange('housed')}
-                    >
-                      عاملات الاستقدام <span className="text-[8px] align-super">{totalCount}</span>
-                    </button>
-                    <button
-                      className={`text-sm pb-3 cursor-pointer ${
-                        activeTab === 'departed'
-                          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-gray-900'
-                          : 'text-gray-500'
-                      }`}
-                      onClick={() => handleTabChange('departed')}
-                    >
-                      عاملات التاجير <span className="text-[8px] align-super">{departedTotalCount}</span>
-                    </button>
-                  </nav>
-                </div>
+  <div className="flex flex-row items-center gap-10">
+  {/* هذه القائمة ستلتزم باليسار */}
+  <nav className="flex gap-10">
+    <button
+      className={`text-md pb-3 cursor-pointer ${
+        activeTab === 'housed'
+          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gray-900'
+          : 'text-gray-500'
+      }`}
+      onClick={() => handleTabChange('housed')}
+    >
+      عاملات الاستقدام <span className="text-[8px] align-super">{totalCount}</span>
+    </button>
+    <button
+      className={`text-md pb-3 cursor-pointer ${
+        activeTab === 'departed'
+          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gray-900'
+          : 'text-gray-500'
+      }`}
+      onClick={() => handleTabChange('departed')}
+    >
+      عاملات التاجير <span className="text-[8px] align-super">{departedTotalCount}</span>
+    </button>
+  </nav>
+
+  {/* هذا الزر سيتم دفعه إلى أقصى اليمين بسبب "ml-auto" */}
+  <button
+    onClick={() => openModal('workerTypeSelection')}
+    className="flex items-center gap-2 bg-teal-800 text-white text-md py-2 px-4 rounded-md ml-auto"
+  >
+    <Plus className="w-5 h-5" />
+    تسكين عاملة
+  </button>
+</div>
               </div>
               <div className="flex justify-end gap-4 mb-4">
-                <button className="px-3 py-1 bg-teal-800 text-white text-sm rounded-md">
+                <button className="px-3 py-2 bg-teal-800 text-white text-md rounded-md">
                   عاملات تم تسكينهم
                 </button>
-                <button className="px-3 py-1 bg-gray-200 text-gray-600 text-sm rounded-md">
+                <button className="px-3 py-1 bg-gray-200 text-gray-600 text-md rounded-md">
                   عاملات غادرن السكن
                 </button>
               </div>
@@ -693,21 +696,21 @@ export default function Home({ user }: { user: any }) {
                 <div className="flex items-center gap-4 flex-wrap">
                   <button
                     onClick={() => setFilters({ Name: '', Passportnumber: '', reason: '', id: '' })}
-                    className="bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
+                    className="bg-teal-800 text-white text-md py-2 px-4 rounded-md"
                   >
                     اعادة ضبط
                   </button>
                   <button
                     onClick={() => openModal('columnVisibility')}
-                    className="flex items-center gap-2 bg-gray-100 text-gray-600 text-sm py-2 px-4 rounded-md border border-gray-300"
+                    className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300"
                   >
                     <Settings className="w-5 h-5" />
                     كل الاعمدة
                   </button>
-                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-sm py-2 px-4 rounded-md border border-gray-300">
+                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300">
                     السكن
                   </button>
-                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-sm py-2 px-4 rounded-md border border-gray-300">
+                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300">
                     اختر تاريخ
                   </button>
                   <div className="bg-gray-100 border border-gray-300 rounded-md p-2 flex items-center gap-2">
@@ -717,7 +720,7 @@ export default function Home({ user }: { user: any }) {
                       placeholder="بحث"
                       value={filters.Name}
                       onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right w-24 text-sm border-none"
+                      className="bg-transparent outline-none text-right w-24 text-md border-none"
                     />
                     <Search className="w-5 h-5 text-gray-500" />
                   </div>
@@ -725,14 +728,14 @@ export default function Home({ user }: { user: any }) {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleExport(activeTab, 'pdf')}
-                    className="flex items-center gap-1 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
+                    className="flex items-center gap-1 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
                   >
                     <FileText className="w-5 h-5" />
                     PDF
                   </button>
                   <button
                     onClick={() => handleExport(activeTab, 'xlsx')}
-                    className="flex items-center gap-1 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
+                    className="flex items-center gap-1 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
                   >
                     <DocumentTextIcon className="w-5 h-5" />
                     Excel
@@ -741,7 +744,7 @@ export default function Home({ user }: { user: any }) {
               </div>
               <div className="flex flex-col">
                 <div
-                  className="bg-teal-800 text-white py-4 px-4 grid items-center text-right gap-4 text-sm rounded-t-md"
+                  className="bg-teal-800 text-white py-4 px-4 grid items-center text-right gap-4 text-md rounded-t-md"
                   style={{
                     gridTemplateColumns: '40px 1fr 1fr 0.8fr 1fr 0.8fr 1fr 1fr 1fr 0.6fr 0.7fr 1fr 0.7fr 0.7fr 0.8fr',
                   }}
@@ -772,7 +775,7 @@ export default function Home({ user }: { user: any }) {
                       .map((worker) => (
                       <div
                         key={worker.id}
-                        className="bg-gray-50 border border-gray-300 py-4 px-4 grid items-center text-right gap-4 text-sm last:border-b-0"
+                        className="bg-gray-50 border border-gray-300 py-4 px-4 grid items-center text-right gap-4 text-md last:border-b-0"
                         style={{
                           gridTemplateColumns: '40px 1fr 1fr 0.8fr 1fr 0.8fr 1fr 1fr 1fr 0.6fr 0.7fr 1fr 0.7fr 0.7fr 0.8fr',
                         }}
@@ -829,7 +832,7 @@ export default function Home({ user }: { user: any }) {
                   <button
                     onClick={() => handlePageChange(page + 1)}
                     disabled={page === Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize)}
-                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-sm disabled:opacity-50"
+                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-md disabled:opacity-50"
                   >
                     التالي
                   </button>
@@ -839,7 +842,7 @@ export default function Home({ user }: { user: any }) {
                       onClick={() => handlePageChange(p)}
                       className={`border ${
                         p === page ? 'border-teal-800 bg-teal-800 text-white' : 'border-gray-300 bg-gray-100 text-gray-700'
-                      } py-1 px-2 rounded-sm text-sm`}
+                      } py-1 px-2 rounded-sm text-md`}
                     >
                       {p}
                     </button>
@@ -847,7 +850,7 @@ export default function Home({ user }: { user: any }) {
                   <button
                     onClick={() => handlePageChange(page - 1)}
                     disabled={page === 1}
-                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-sm disabled:opacity-50"
+                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-md disabled:opacity-50"
                   >
                     السابق
                   </button>
@@ -857,14 +860,14 @@ export default function Home({ user }: { user: any }) {
             {/* Add Residence Modal */}
             {modals.addResidence && (
               <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center   items-center z-50 "
                 onClick={() => closeModal('addResidence')}
               >
                 <div
-                  className="bg-gray-200 rounded-lg p-6 w-full max-w-lg shadow-card"
+                  className="bg-gray-200 rounded-lg p-6 justify-between    shadow-card  w-[600px]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center mb-5">
+                  <div className="flex justify-between items-center mb-5  ">
                     <h2 className="text-xl font-bold text-textDark">اضافة سكن</h2>
                     <button onClick={() => closeModal('addResidence')} className="text-textMuted text-2xl">
                       &times;
@@ -873,7 +876,7 @@ export default function Home({ user }: { user: any }) {
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
-                      try {
+                        try {
                         await axios.post('/api/inhouselocation', {
                           location: (e.target as any)['residence-name'].value,
                           quantity: Number((e.target as any)['residence-capacity'].value),
@@ -885,38 +888,41 @@ export default function Home({ user }: { user: any }) {
                         showNotification('خطأ في إضافة السكن', 'error');
                       }
                     }}
+                    
                   >
-                    <div className="mb-4">
-                      <label htmlFor="residence-name" className="block text-sm mb-2 text-textDark">
+                    <div className="grid grid-cols-2 gap-2 " >
+                    <div className="mb-4 ">
+                      <label htmlFor="residence-name" className="block text-md mb-2 text-textDark">
                         اسم السكن
                       </label>
                       <input
                         type="text"
                         id="residence-name"
                         placeholder="ادخل اسم السكن"
-                        className="w-full text-right text-sm text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label htmlFor="residence-capacity" className="block text-sm mb-2 text-textDark">
+                      <label htmlFor="residence-capacity" className="block text-md mb-2 text-textDark">
                         السعة
                       </label>
                       <input
                         type="number"
                         id="residence-capacity"
                         placeholder="ادخل السعة"
-                        className="w-full border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
                       />
                     </div>
-                    <div className="flex justify-end gap-4">
+                    </div>
+                    <div className="flex justify-end gap-4 col-span-2">
                       <button
                         type="button"
                         onClick={() => closeModal('addResidence')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-sm"
+                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
                         حفظ
                       </button>
                     </div>
@@ -942,7 +948,7 @@ export default function Home({ user }: { user: any }) {
                   </div>
                   <form>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">اختر الأعمدة المرئية</label>
+                      <label className="block text-md mb-2 text-textDark">اختر الأعمدة المرئية</label>
                       {Object.keys(columnVisibility).map((column) => (
                         <div key={column} className="flex items-center gap-2 mb-2">
                           <input
@@ -952,7 +958,7 @@ export default function Home({ user }: { user: any }) {
                             onChange={() => toggleColumnVisibility(column as keyof typeof columnVisibility)}
                             className="w-4 h-4"
                           />
-                          <label htmlFor={column} className="text-sm text-textDark">
+                          <label htmlFor={column} className="text-md text-textDark">
                             {
                               {
                                 id: '#',
@@ -978,14 +984,14 @@ export default function Home({ user }: { user: any }) {
                       <button
                         type="button"
                         onClick={() => closeModal('columnVisibility')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-sm"
+                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
                       <button
                         type="button"
                         onClick={() => closeModal('columnVisibility')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
                       >
                         حفظ
                       </button>
@@ -1001,7 +1007,7 @@ export default function Home({ user }: { user: any }) {
                 onClick={() => closeModal('workerTypeSelection')}
               >
                 <div
-                  className="bg-gray-200 rounded-lg p-10 w-full max-w-md shadow-card"
+                  className="bg-gray-200 rounded-lg p-10  shadow-card  w-[600px]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-8">
@@ -1014,7 +1020,7 @@ export default function Home({ user }: { user: any }) {
                   <div className="mb-8">
                     <h3 className="text-2xl font-normal text-gray-900 mb-8 text-center">اختر نوع العاملة</h3>
                     <div className="flex justify-center gap-10 mb-6">
-                      <label className="flex items-center gap-2 cursor-pointer bg-white border border-gray-300 rounded-md p-4 hover:bg-gray-50">
+                      <label className="flex items-center gap-2  w-[120px] cursor-pointer  border border-gray-300 rounded-md p-4 hover:bg-gray-50">
                         <input
                           type="radio"
                           name="workerType"
@@ -1025,7 +1031,7 @@ export default function Home({ user }: { user: any }) {
                         />
                         <span className="text-lg">داخلية</span>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer bg-white border border-gray-300 rounded-md p-4 hover:bg-gray-50">
+                      <label className="flex items-center gap-2 cursor-pointer  border border-gray-300 rounded-md p-4 hover:bg-gray-50">
                         <input
                           type="radio"
                           name="workerType"
@@ -1068,7 +1074,7 @@ export default function Home({ user }: { user: any }) {
                   <form onSubmit={handlenewHousingSubmit} className="space-y-4">
                     {/* Worker Search - similar to musanad_finacial */}
                     <div className="col-span-1 md:col-span-2 mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">البحث عن العاملة</label>
+                      <label className="block text-md font-medium text-gray-700 mb-2">البحث عن العاملة</label>
                       <div className="relative search-container">
                         <input
                           type="text"
@@ -1092,13 +1098,13 @@ export default function Home({ user }: { user: any }) {
                                 onClick={() => handleWorkerSelection(worker)}
                                 className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                               >
-                                <div className="font-medium text-sm">عاملة #{worker.id}</div>
-                                <div className="text-xs text-gray-600">الاسم: {worker.name}</div>
-                                <div className="text-xs text-gray-600">الجنسية: {worker.nationality}</div>
-                                <div className="text-xs text-gray-500">رقم الجواز: {worker.passportNumber}</div>
-                                <div className="text-xs text-gray-500">العمر: {worker.age} سنة</div>
+                                <div className="font-medium text-md">عاملة #{worker.id}</div>
+                                <div className="text-md text-gray-600">الاسم: {worker.name}</div>
+                                <div className="text-md text-gray-600">الجنسية: {worker.nationality}</div>
+                                <div className="text-md text-gray-500">رقم الجواز: {worker.passportNumber}</div>
+                                <div className="text-md text-gray-500">العمر: {worker.age} سنة</div>
                                 {worker.hasOrders && (
-                                  <div className="text-xs text-green-600 mt-1">
+                                  <div className="text-md text-green-600 mt-1">
                                     ✓ لديها طلبات ({worker.orders?.length || 0}) - {worker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
                                   </div>
                                 )}
@@ -1108,7 +1114,7 @@ export default function Home({ user }: { user: any }) {
                         )}
                       </div>
                       {!selectedWorker && (
-                        <div className="text-xs text-red-600 mt-1">
+                        <div className="text-md text-red-600 mt-1">
                           * يجب اختيار عاملة قبل المتابعة
                         </div>
                       )}
@@ -1118,13 +1124,13 @@ export default function Home({ user }: { user: any }) {
                       <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-3 mb-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <div className="text-sm font-medium text-green-800">العاملة المحددة:</div>
-                            <div className="text-sm text-green-700">#{selectedWorker.id} - {selectedWorker.name}</div>
-                            <div className="text-xs text-green-600">الجنسية: {selectedWorker.nationality}</div>
-                            <div className="text-xs text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
-                            <div className="text-xs text-green-600">العمر: {selectedWorker.age} سنة</div>
+                            <div className="text-md font-medium text-green-800">العاملة المحددة:</div>
+                            <div className="text-md text-green-700">#{selectedWorker.id} - {selectedWorker.name}</div>
+                            <div className="text-md text-green-600">الجنسية: {selectedWorker.nationality}</div>
+                            <div className="text-md text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
+                            <div className="text-md text-green-600">العمر: {selectedWorker.age} سنة</div>
                             {selectedWorker.hasOrders && (
-                              <div className="text-xs text-green-600 font-medium">
+                              <div className="text-md text-green-600 font-medium">
                                 ✓ لديها {selectedWorker.orders?.length || 0} طلب - {selectedWorker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
                               </div>
                             )}
@@ -1135,7 +1141,7 @@ export default function Home({ user }: { user: any }) {
                               setSelectedWorker(null);
                               setWorkerSearchTerm('');
                             }}
-                            className="text-green-600 hover:text-green-800 text-sm"
+                            className="text-green-600 hover:text-green-800 text-md"
                           >
                             إزالة
                           </button>
@@ -1145,33 +1151,33 @@ export default function Home({ user }: { user: any }) {
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">اسم العاملة</label>
+                        <label className="block text-md text-gray-700 mb-2">اسم العاملة</label>
                         <input
                           type="text"
                           value={selectedWorker?.name || ''}
                           disabled
-                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">الجنسية</label>
+                        <label className="block text-md text-gray-700 mb-2">الجنسية</label>
                         <input
                           type="text"
                           value={selectedWorker?.nationality || ''}
                           disabled
-                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                     </div>
                     {/* Housing Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">السكن</label>
+                        <label className="block text-md text-gray-700 mb-2">السكن</label>
                         <div className="relative">
                           <select
                             value={formData.location}
                             onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
                           >
                             <option value="">اختر السكن</option>
                             {locations.map((loc) => (
@@ -1188,13 +1194,13 @@ export default function Home({ user }: { user: any }) {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">تاريخ التسكين</label>
+                        <label className="block text-md text-gray-700 mb-2">تاريخ التسكين</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={formData.houseentrydate}
                             onChange={(e) => setFormData({ ...formData, houseentrydate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1207,13 +1213,13 @@ export default function Home({ user }: { user: any }) {
                     {/* Delivery and Reason Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">تاريخ الاستلام</label>
+                        <label className="block text-md text-gray-700 mb-2">تاريخ الاستلام</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={formData.deliveryDate}
                             onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1223,12 +1229,12 @@ export default function Home({ user }: { user: any }) {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">سبب التسكين</label>
+                        <label className="block text-md text-gray-700 mb-2">سبب التسكين</label>
                         <div className="relative">
                           <select
                             value={formData.reason}
                             onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
                           >
                             <option value="">اختر سبب التسكين</option>
                             <option value="انتظار الترحيل">انتظار الترحيل</option>
@@ -1245,12 +1251,12 @@ export default function Home({ user }: { user: any }) {
                     </div>
                     {/* Details */}
                     <div className="mb-6">
-                      <label className="block text-xs text-gray-700 mb-2">التفاصيل</label>
+                      <label className="block text-md text-gray-700 mb-2">التفاصيل</label>
                       <textarea
                         placeholder="التفاصيل"
                         value={formData.details}
                         onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         rows={3}
                       />
                     </div>
@@ -1306,25 +1312,25 @@ export default function Home({ user }: { user: any }) {
                     }}
                   >
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">اسم العاملة</label>
+                      <label className="block text-md mb-2 text-textDark">اسم العاملة</label>
                       <input
                         type="text"
                         value={selectedWorkerName}
                         disabled
-                        className="w-full p-2 rounded-md text-right text-sm text-textDark bg-gray-200"
+                        className="w-full p-2 rounded-md text-right text-md text-textDark bg-gray-200"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
+                      <label className="block text-md mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
                         value={selectedWorkerId || ''}
                         disabled
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-200"
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-200"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">السكن</label>
+                      <label className="block text-md mb-2 text-textDark">السكن</label>
                       <select
                         value={editWorkerForm.location_id}
                         onChange={(e) =>
@@ -1333,7 +1339,7 @@ export default function Home({ user }: { user: any }) {
                             location_id: Number(e.target.value),
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                       >
                         <option value="">اختر السكن</option>
                         {locations.map((loc) => (
@@ -1344,7 +1350,7 @@ export default function Home({ user }: { user: any }) {
                       </select>
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">تاريخ التسكين</label>
+                      <label className="block text-md mb-2 text-textDark">تاريخ التسكين</label>
                       <input
                         type="date"
                         value={editWorkerForm.Date}
@@ -1354,11 +1360,11 @@ export default function Home({ user }: { user: any }) {
                             Date: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">تاريخ التسليم</label>
+                      <label className="block text-md mb-2 text-textDark">تاريخ التسليم</label>
                       <input
                         type="date"
                         value={editWorkerForm.deliveryDate}
@@ -1368,11 +1374,11 @@ export default function Home({ user }: { user: any }) {
                             deliveryDate: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">سبب التسكين</label>
+                      <label className="block text-md mb-2 text-textDark">سبب التسكين</label>
                       <input
                         type="text"
                         value={editWorkerForm.Reason}
@@ -1382,11 +1388,11 @@ export default function Home({ user }: { user: any }) {
                             Reason: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                       />
                     </div>
                     <div className="mb-4 col-span-2">
-                      <label className="block text-sm mb-2 text-textDark">التفاصيل</label>
+                      <label className="block text-md mb-2 text-textDark">التفاصيل</label>
                       <textarea
                         value={editWorkerForm.Details}
                         onChange={(e) =>
@@ -1395,7 +1401,7 @@ export default function Home({ user }: { user: any }) {
                             Details: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-sm text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                         rows={4}
                       />
                     </div>
@@ -1403,11 +1409,11 @@ export default function Home({ user }: { user: any }) {
                       <button
                         type="button"
                         onClick={() => closeModal('editWorker')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-sm"
+                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
                         حفظ
                       </button>
                     </div>
@@ -1442,25 +1448,25 @@ export default function Home({ user }: { user: any }) {
                     }}
                   >
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">اسم العاملة</label>
+                      <label className="block text-md mb-2 text-textDark">اسم العاملة</label>
                       <input
                         type="text"
                         value={selectedWorkerName}
                         disabled
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
+                      <label className="block text-md mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
                         value={selectedWorkerId || ''}
                         disabled
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">سبب المغادرة</label>
+                      <label className="block text-md mb-2 text-textDark">سبب المغادرة</label>
                       <input
                         type="text"
                         value={departureForm.deparatureReason}
@@ -1470,11 +1476,11 @@ export default function Home({ user }: { user: any }) {
                             deparatureReason: e.target.value,
                           })
                         }
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-sm mb-2 text-textDark">تاريخ المغادرة</label>
+                      <label className="block text-md mb-2 text-textDark">تاريخ المغادرة</label>
                       <input
                         type="date"
                         value={departureForm.deparatureHousingDate}
@@ -1484,18 +1490,18 @@ export default function Home({ user }: { user: any }) {
                             deparatureHousingDate: e.target.value,
                           })
                         }
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
                       />
                     </div>
                     <div className="flex justify-end gap-4">
                       <button
                         type="button"
                         onClick={() => closeModal('workerDeparture')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-sm"
+                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
                         تأكيد المغادرة
                       </button>
                     </div>
@@ -1525,7 +1531,7 @@ export default function Home({ user }: { user: any }) {
                   <form className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm text-gray-600 mb-2">المبلغ المستحق</label>
+                        <label className="block text-md text-gray-600 mb-2">المبلغ المستحق</label>
                         <input
                           type="text"
                           value="2000 ريال"
@@ -1534,7 +1540,7 @@ export default function Home({ user }: { user: any }) {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm text-gray-600 mb-2">تفاصيل</label>
+                        <label className="block text-md text-gray-600 mb-2">تفاصيل</label>
                         <input
                           type="text"
                           placeholder="سبب المبلغ المستحق"
@@ -1580,18 +1586,18 @@ export default function Home({ user }: { user: any }) {
                   <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
                     {/* Worker ID Search */}
                     <div className="mb-4">
-                      <label className="block text-xs text-gray-700 mb-2">رقم العاملة</label>
+                      <label className="block text-md text-gray-700 mb-2">رقم العاملة</label>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           value={internalWorkerForm.workerId}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerId: e.target.value })}
                           placeholder="ادخل رقم العاملة"
-                          className="flex-1 bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="flex-1 bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                         <button
                           type="button"
-                          className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm"
+                          className="bg-teal-800 text-white px-4 py-2 rounded-md text-md"
                         >
                           بحث
                         </button>
@@ -1600,91 +1606,91 @@ export default function Home({ user }: { user: any }) {
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">اسم العاملة</label>
+                        <label className="block text-md text-gray-700 mb-2">اسم العاملة</label>
                         <input
                           type="text"
                           value={internalWorkerForm.workerName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerName: e.target.value })}
                           placeholder="ادخل اسم العاملة"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">رقم الجوال</label>
+                        <label className="block text-md text-gray-700 mb-2">رقم الجوال</label>
                         <input
                           type="text"
                           value={internalWorkerForm.mobile}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, mobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                     </div>
                     {/* Client Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">اسم العميل</label>
+                        <label className="block text-md text-gray-700 mb-2">اسم العميل</label>
                         <input
                           type="text"
                           value={internalWorkerForm.clientName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
                           placeholder="اسم العميل"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">رقم الجوال</label>
+                        <label className="block text-md text-gray-700 mb-2">رقم الجوال</label>
                         <input
                           type="text"
                           value={internalWorkerForm.clientMobile}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                     </div>
                     {/* Location Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">المدينة</label>
+                        <label className="block text-md text-gray-700 mb-2">المدينة</label>
                         <input
                           type="text"
                           value={internalWorkerForm.city}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
                           placeholder="ادخل المدينة"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">العنوان</label>
+                        <label className="block text-md text-gray-700 mb-2">العنوان</label>
                         <input
                           type="text"
                           value={internalWorkerForm.address}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
                           placeholder="ادخل العنوان"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                     </div>
                     {/* Office and Housing Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">اسم المكتب</label>
+                        <label className="block text-md text-gray-700 mb-2">اسم المكتب</label>
                         <input
                           type="text"
                           value={internalWorkerForm.officeName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, officeName: e.target.value })}
                           placeholder="ادخل اسم المكتب"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">السكن</label>
+                        <label className="block text-md text-gray-700 mb-2">السكن</label>
                         <div className="relative">
                           <select
                             value={internalWorkerForm.housing}
                             onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, housing: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
                           >
                             <option value="">اختر السكن</option>
                             {locations.map((loc) => (
@@ -1704,13 +1710,13 @@ export default function Home({ user }: { user: any }) {
                     {/* Dates Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">تاريخ التسكين</label>
+                        <label className="block text-md text-gray-700 mb-2">تاريخ التسكين</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={internalWorkerForm.housingDate}
                             onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, housingDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1720,13 +1726,13 @@ export default function Home({ user }: { user: any }) {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">تاريخ الاستلام</label>
+                        <label className="block text-md text-gray-700 mb-2">تاريخ الاستلام</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={internalWorkerForm.receiptDate}
                             onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, receiptDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1739,12 +1745,12 @@ export default function Home({ user }: { user: any }) {
                     {/* Reason and Details Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">سبب التسكين</label>
+                        <label className="block text-md text-gray-700 mb-2">سبب التسكين</label>
                         <div className="relative">
                           <select
                             value={internalWorkerForm.reason}
                             onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, reason: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
                           >
                             <option value="">اختر سبب التسكين</option>
                             <option value="عدم استلام الكفيل العاملة">عدم استلام الكفيل العاملة</option>
@@ -1759,12 +1765,12 @@ export default function Home({ user }: { user: any }) {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-700 mb-2">التفاصيل</label>
+                        <label className="block text-md text-gray-700 mb-2">التفاصيل</label>
                         <textarea
                           value={internalWorkerForm.details}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, details: e.target.value })}
                           placeholder="التفاصيل"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
                           rows={3}
                         />
                       </div>
@@ -1805,7 +1811,7 @@ export default function Home({ user }: { user: any }) {
                   <div className="flex justify-center">
                     <button
                       onClick={() => closeModal('notification')}
-                      className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm hover:bg-teal-700"
+                      className="bg-teal-800 text-white py-2 px-4 rounded-md text-md hover:bg-teal-700"
                     >
                       موافق
                     </button>
