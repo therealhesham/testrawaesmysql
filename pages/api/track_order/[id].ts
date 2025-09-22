@@ -55,7 +55,13 @@ console.log(id)
               InternalmusanedContract: true,
               externalmusanedContract: true,
               office: true,
-            },
+              deparatureCityCountry: true,
+              deparatureCityCountryDate: true,
+              deparatureCityCountryTime: true,
+              ArrivalCity: true,
+              KingdomentryDate: true,
+              KingdomentryTime: true,
+            } as any,
           },
         },
       });
@@ -81,14 +87,14 @@ console.log(id)
           externalOffice: order.HomeMaid?.officeName || 'N/A',
         },
         applicationInfo: {
-          applicationDate: order.createdAt.toISOString().split('T')[0] || 'N/A',
-          applicationTime: order.createdAt.toISOString().split('T')[1]?.split('.')[0] || 'N/A',
+          applicationDate: order.createdAt?.toISOString().split('T')[0] || 'N/A',
+          applicationTime: order.createdAt?.toISOString().split('T')[1]?.split('.')[0] || 'N/A',
         },
         officeLinkInfo: {
           nationalId: order.nationalId || 'N/A',
           visaNumber: order.arrivals[0]?.visaNumber || 'N/A',
           internalMusanedContract: order.arrivals[0]?.InternalmusanedContract || 'N/A',
-          musanedDate: order.arrivals[0]?.DateOfApplication?.toISOString().split('T')[0] || 'N/A',
+          musanedDate: order.arrivals[0]?.DateOfApplication ? (order.arrivals[0].DateOfApplication as Date).toISOString().split('T')[0] : 'N/A',
         },
         externalOfficeInfo: {
           officeName: order.HomeMaid?.officeName || 'N/A',
@@ -117,13 +123,13 @@ console.log(id)
           issued: !!order.arrivals[0]?.travelPermit,
         },
         destinations: {
-          departureCity: order.arrivals[0]?.DeparatureFromSaudiCity || 'N/A',
-          arrivalCity: order.arrivals[0]?.ArrivalOutSaudiCity || 'N/A',
-          departureDateTime: order.arrivals[0]?.DeparatureFromSaudiDate
-            ? `${order.arrivals[0].DeparatureFromSaudiDate.toISOString().split('T')[0]} ${order.arrivals[0].DeparatureFromSaudiTime || ''}`
+          departureCity: order.arrivals[0]?.deparatureCityCountry || 'N/A',
+          arrivalCity: order.arrivals[0]?.ArrivalCity || 'N/A',
+          departureDateTime: order.arrivals[0]?.deparatureCityCountryDate
+            ? `${(order.arrivals[0].deparatureCityCountryDate as Date).toISOString().split('T')[0]} ${order.arrivals[0].deparatureCityCountryTime || ''}`
             : 'N/A',
-          arrivalDateTime: order.arrivals[0]?.finalDestinationDate
-            ? `${order.arrivals[0].finalDestinationDate.toISOString().split('T')[0]} ${order.arrivals[0].finalDestinationTime || ''}`
+          arrivalDateTime: order.arrivals[0]?.KingdomentryDate
+            ? `${(order.arrivals[0].KingdomentryDate as Date).toISOString().split('T')[0]} ${order.arrivals[0].KingdomentryTime || ''}`
             : 'N/A',
         },
         receipt: {
@@ -146,7 +152,7 @@ const cookieHeader = req.headers.cookie;
       });
     }
     console.log(cookies.authToken)
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     eventBus.emit('ACTION', {
         type: 'عرض صفحة تتبع طلب ' + order.id,
@@ -275,19 +281,6 @@ const cookieHeader = req.headers.cookie;
         const updateData: any = {};
         const arrivalUpdate: any = {};
 
-        // Validate date and time formats]
-        if (updatedData['تاريخ ووقت المغادرة_date'] && !/^\d{4}-\d{2}-\d{2}$/.test(updatedData['تاريخ ووقت المغادرة_date'])) {
-          return res.status(400).json({ error: 'Invalid departure date format' });
-        }
-        if (updatedData['تاريخ ووقت المغادرة_time'] && !/^\d{2}:\d{2}:\d{2}$/.test(updatedData['تاريخ ووقت المغادرة_time'])) {
-          return res.status(400).json({ error: 'Invalid departure time format' });
-        }
-        if (updatedData['تاريخ ووقت الوصول_date'] && !/^\d{4}-\d{2}-\d{2}$/.test(updatedData['تاريخ ووقت الوصول_date'])) {
-          return res.status(400).json({ error: 'Invalid arrival date format' });
-        }
-        if (updatedData['تاريخ ووقت الوصول_time'] && !/^\d{2}:\d{2}:\d{2}$/.test(updatedData['تاريخ ووقت الوصول_time'])) {
-          return res.status(400).json({ error: 'Invalid arrival time format' });
-        }
 
         switch (section) {
           case 'homemaidInfo':
@@ -346,23 +339,23 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
               arrivalUpdate.ticketFile = updatedData['ticketFile'];
             }
             if (updatedData['مدينة المغادرة']) {
-              arrivalUpdate.DeparatureFromSaudiCity = updatedData['مدينة المغادرة'];
+              arrivalUpdate.deparatureCityCountry = updatedData['مدينة المغادرة'];
             }
             if (updatedData['مدينة الوصول']) {
-              arrivalUpdate.ArrivalOutSaudiCity = updatedData['مدينة الوصول'];
+              arrivalUpdate.ArrivalCity = updatedData['مدينة الوصول'];
             }
             if (updatedData['تاريخ ووقت المغادرة_date'] || updatedData['تاريخ ووقت المغادرة_time']) {
               console.log('Departure Date:', updatedData['تاريخ ووقت المغادرة_date']);
-              arrivalUpdate.DeparatureFromSaudiDate = updatedData['تاريخ ووقت المغادرة_date']
+              arrivalUpdate.deparatureCityCountryDate = updatedData['تاريخ ووقت المغادرة_date']
                 ? new Date(updatedData['تاريخ ووقت المغادرة_date'])
                 : null;
-              arrivalUpdate.DeparatureFromSaudiTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
+              arrivalUpdate.deparatureCityCountryTime = updatedData['تاريخ ووقت المغادرة_time'] || null;
             }
             if (updatedData['تاريخ ووقت الوصول_date'] || updatedData['تاريخ ووقت الوصول_time']) {
-              arrivalUpdate.finalDestinationDate = updatedData['تاريخ ووقت الوصول_date']
+              arrivalUpdate.KingdomentryDate = updatedData['تاريخ ووقت الوصول_date']
                 ? new Date(updatedData['تاريخ ووقت الوصول_date'])
                 : null;
-              arrivalUpdate.finalDestinationTime = updatedData['تاريخ ووقت الوصول_time'] || null;
+              arrivalUpdate.KingdomentryTime = updatedData['تاريخ ووقت الوصول_time'] || null;
             }
             break;
           case 'documentUpload':
@@ -393,7 +386,7 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
       });
     }
     console.log(cookies.authToken)
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     eventBus.emit('ACTION', {
         type: 'تعديل طلب ' + updatedOrder.id,

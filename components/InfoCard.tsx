@@ -29,12 +29,7 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [], edit
   const [isSaving, setIsSaving] = useState(false);
 
   const validateInput = (key: string, value: string): string | null => {
-    if (key.includes('تاريخ') && value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return 'الرجاء إدخال التاريخ بصيغة YYYY-MM-DD';
-    }
-    // if (key.includes('وقت') && value && !/^\d{2}:\d{2}:\d{2}$/.test(value)) {
-    //   return 'الرجاء إدخال الوقت بصيغة HH:mm:ss';
-    // }
+    // تم إزالة فحص صيغة التاريخ
     return null;
   };
 
@@ -109,7 +104,6 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [], edit
                   onChange={(e) => handleInputChange(item.label, e.target.value)}
                   className="border border-gray-300 rounded-md p-2 text-base text-right"
                   pattern="\d{4}-\d{2}-\d{2}"
-                  title="الرجاء إدخال التاريخ بصيغة YYYY-MM-DD"
                 />
                 {errors[item.label] && <span className="text-red-600 text-sm text-right">{errors[item.label]}</span>}
               </div>
@@ -122,7 +116,6 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [], edit
                     onChange={(e) => handleInputChange(`${item.label}_date`, e.target.value)}
                     className="border border-gray-300 rounded-md p-2 text-base text-right flex-1"
                     pattern="\d{4}-\d{2}-\d{2}"
-                    title="الرجاء إدخال التاريخ بصيغة YYYY-MM-DD"
                   />
                   <input
                     type="time"
@@ -130,7 +123,6 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [], edit
                     onChange={(e) => handleInputChange(`${item.label}_time`, e.target.value)}
                     className="border border-gray-300 rounded-md p-2 text-base text-right flex-1"
                     pattern="\d{2}:\d{2}:\d{2}"
-                    title="الرجاء إدخال الوقت بصيغة HH:mm:ss"
                   />
                 </div>
                 {(errors[`${item.label}_date`] || errors[`${item.label}_time`]) && (

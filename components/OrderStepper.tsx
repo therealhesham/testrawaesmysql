@@ -1,4 +1,6 @@
+import { CheckCircleFilled, CheckCircleOutlined, CheckOutlined } from '@ant-design/icons';
 import { OfficeBuildingIcon } from '@heroicons/react/outline';
+import { CheckCircle2 } from 'lucide-react';
 import { Briefcase, Link, CheckCircle, DollarSign, Flag, Plane, MapPin, Package } from 'lucide-react';
 import { FaPassport, FaStethoscope } from 'react-icons/fa';
 

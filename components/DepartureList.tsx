@@ -7,17 +7,45 @@ import { FaToggleOn } from "react-icons/fa";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { debounce } from "lodash";
 
-export default function DepartureList({ onOpenModal }) {
-  const [departures, setDepartures] = useState([]);
+interface DepartureData {
+  OrderId?: string;
+  HomemaidName?: string;
+  SponsorName?: string;
+  PassportNumber?: string;
+  ArrivalCity?: string;
+  finaldestination?: string;
+  reason?: string;
+  deparatureDate?: string;
+  arrivalDate?: string;
+  Order?: {
+    HomeMaid?: {
+      id?: string;
+      office?: {
+        Country?: string;
+      };
+    };
+  };
+}
+
+interface NationalityData {
+  id: string;
+  Country: string;
+}
+
+interface DepartureListProps {
+  onOpenModal: () => void;
+}
+
+export default function DepartureList({ onOpenModal }: DepartureListProps) {
+  const [departures, setDepartures] = useState<DepartureData[]>([]);
   const [page, setPage] = useState(1);
   const [perPage] = useState(8);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [nationality, setNationality] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [nationalities, setNationalities] = useState(["كل الجنسيات"]);
+  const [nationalities, setNationalities] = useState<NationalityData[]>([{ id: "all", Country: "كل الجنسيات" }]);
 
   const fetchDepartures = async (pageNumber: number, filters: any = {}) => {
     try {
@@ -34,21 +62,24 @@ export default function DepartureList({ onOpenModal }) {
       const res = await fetch(`/api/deparatures?${query}`);
       if (!res.ok) throw new Error("Failed to fetch data");
       const data = await res.json();
-      setDepartures(data.data);
-      setTotalPages(data.totalPages);
+      setDepartures(data.data || []);
+      setTotalPages(data.totalPages || 1);
     } catch (error) {
       console.error("Error fetching departures:", error);
+      setDepartures([]);
+      setTotalPages(1);
     }
   };
-  const [exportedData, setExportedData] = useState([]);
+  const [exportedData, setExportedData] = useState<DepartureData[]>([]);
   const fetchExportedData = async () => {
     try {
       const res = await fetch(`/api/Export/deparatures`);
       if (!res.ok) throw new Error("Failed to fetch exported data");
       const data = await res.json();
-      setExportedData(data.data);
+      setExportedData(data.data || []);
     } catch (error) {
       console.error("Error fetching exported data:", error);
+      setExportedData([]);
     }
   };
   useEffect(() => {
@@ -61,9 +92,10 @@ export default function DepartureList({ onOpenModal }) {
     const fetchOffices = async () => {
       try {
         const response = await axios.get("/api/offices");
-        setNationalities(response.data.countriesfinder);
+        setNationalities(response.data.countriesfinder || [{ id: "all", Country: "كل الجنسيات" }]);
       } catch (error) {
         console.error("Error fetching offices:", error);
+        setNationalities([{ id: "all", Country: "كل الجنسيات" }]);
       }
     };
     fetchOffices();
@@ -92,6 +124,11 @@ export default function DepartureList({ onOpenModal }) {
   };
 
   const exportToPDF = () => {
+    if (!exportedData || exportedData.length === 0) {
+      alert("لا توجد بيانات للتصدير");
+      return;
+    }
+    
     const doc = new jsPDF();
     doc.setFont("Amiri", "normal");
     doc.text("قائمة المغادرة الداخلية", 10, 10, { align: "right" });
@@ -110,7 +147,7 @@ export default function DepartureList({ onOpenModal }) {
       "رقم العاملة",
     ];
 
-    const tableRows = exportedData.map((row) => [
+    const tableRows = exportedData?.map((row) => [
       row.arrivalDate ? new Date(row.arrivalDate).toLocaleDateString() : "-",
       row.deparatureDate ? new Date(row.deparatureDate).toLocaleDateString() : "-",
       row.reason || "-",
@@ -124,7 +161,7 @@ export default function DepartureList({ onOpenModal }) {
       row.Order?.HomeMaid?.id || "-",
     ]);
 
-    doc.autoTable({
+    (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
       startY: 20,
@@ -136,7 +173,12 @@ export default function DepartureList({ onOpenModal }) {
   };
 
   const exportToExcel = () => {
-    const worksheetData = exportedData.map((row) => ({
+    if (!exportedData || exportedData.length === 0) {
+      alert("لا توجد بيانات للتصدير");
+      return;
+    }
+    
+    const worksheetData = exportedData?.map((row) => ({
       "رقم العاملة": row.Order?.HomeMaid?.id || "-",
       "رقم الطلب": row.OrderId || "-",
       "اسم العاملة": row.HomemaidName || "-",
@@ -196,7 +238,7 @@ export default function DepartureList({ onOpenModal }) {
                 onChange={(e) => handleNationalityChange(e.target.value)}
                 className="bg-transparent border-none w-full"
               >
-                {nationalities.map((nat) => (
+                {nationalities?.map((nat) => (
                   <option key={nat.id} value={nat.Country}>
                     {nat.Country}
                   </option>
@@ -259,7 +301,7 @@ export default function DepartureList({ onOpenModal }) {
               </tr>
             </thead>
             <tbody>
-              {departures.map((row, index) => (
+              {departures?.map((row, index) => (
                 <tr
                   key={index}
                   className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
