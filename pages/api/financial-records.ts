@@ -1,7 +1,34 @@
+import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
+
+// Helper function to get user info from cookies
+const getUserFromCookies = (req: NextApiRequest) => {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  
+  if (cookies.authToken) {
+    try {
+      const token = jwtDecode(cookies.authToken) as any;
+      return { userId: Number(token.id), username: token.username };
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return { userId: null, username: 'غير محدد' };
+    }
+  }
+  
+  return { userId: null, username: 'غير محدد' };
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -67,7 +94,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               select: {
                 id: true,
                 ClientName: true,
-                PhoneNumber: true
+                PhoneNumber: true,
+             bookingstatus: true
               }
             }
           },
@@ -92,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         revenue: parseFloat(record.revenue.toString()),
         expenses: parseFloat(record.expenses.toString()),
         net: parseFloat(record.netAmount.toString()),
-        status: record.status,
+        status: record.order?.bookingstatus,
         // Additional fields from relations
         clientId: record.clientId,
         officeId: record.officeId,
@@ -144,6 +172,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: 'Missing required fields' });
       }
 
+      // Get user info for logging
+      const { userId, username } = getUserFromCookies(req);
+
       // Create new financial record
       const newRecord = await prisma.musanadFinancialRecord.create({
         data: {
@@ -163,7 +194,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           netAmount: parseFloat(netAmount) || 0,
           status: status || 'مكتمل',
           notes,
-          createdBy
+          createdBy: createdBy || username
         },
         include: {
           client: {
@@ -189,6 +220,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       });
+
+      // Emit event for logging
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `إضافة سجل مالي جديد - العميل: ${clientName}`,
+          userId: userId,
+        });
+      }
 
       // Transform the response
       const transformedRecord = {
@@ -225,6 +264,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: 'Record ID is required' });
       }
 
+      // Get user info for logging
+      const { userId, username } = getUserFromCookies(req);
+
       // Remove fields that shouldn't be updated directly
       const { id: _, createdAt, ...allowedUpdates } = updateData;
 
@@ -246,6 +288,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (allowedUpdates.netAmount) {
         allowedUpdates.netAmount = parseFloat(allowedUpdates.netAmount);
       }
+
+      // Add updatedBy field
+      allowedUpdates.updatedBy = username;
 
       const updatedRecord = await prisma.musanadFinancialRecord.update({
         where: { id: parseInt(id as string) },
@@ -274,6 +319,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       });
+
+      // Emit event for logging
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `تحديث سجل مالي - العميل: ${updatedRecord.clientName}`,
+          userId: userId,
+        });
+      }
 
       // Transform the response
       const transformedRecord = {
@@ -309,9 +362,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: 'Record ID is required' });
       }
 
+      // Get user info for logging
+      const { userId } = getUserFromCookies(req);
+
+      // Get record info before deletion for logging
+      const recordToDelete = await prisma.musanadFinancialRecord.findUnique({
+        where: { id: parseInt(id as string) },
+        select: { clientName: true }
+      });
+
       await prisma.musanadFinancialRecord.delete({
         where: { id: parseInt(id as string) }
       });
+
+      // Emit event for logging
+      if (userId && recordToDelete) {
+        eventBus.emit('ACTION', {
+          type: `حذف سجل مالي - العميل: ${recordToDelete.clientName}`,
+          userId: userId,
+        });
+      }
 
       return res.status(200).json({
         message: 'Financial record deleted successfully'

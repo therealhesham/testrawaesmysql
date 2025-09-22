@@ -27,9 +27,84 @@ export default function Dashboard({ hasPermission, redirectTo }) {
   const [status, setStatus] = useState('');
   const [offices, setOffices] = useState([]);
   const [nationalities, setNationalities] = useState([]);
-  const [statuses] = useState(['تحت الإجراء', 'قيد التنفيذ']);
+  const [statuses] = useState([
+    'قيد الانتظار',
+    'موافقة المكتب الخارجي',
+    'تم اجتياز الفحص الطبي',
+    'موافقة وزارة العمل الأجنبية',
+    'تم دفع الوكالة',
+    'موافقة السفارة السعودية',
+    'تم إصدار التأشيرة',
+    'تم إصدار تصريح السفر',
+    'تم الاستلام',
+    'ملغي',
+    'مرفوض',
+    'تم التسليم',
+    'طلب جديد',
+    'طلبات جديدة'
+  ]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(!hasPermission);
+
+  // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
+  const translateBookingStatus = (status: string) => {
+    const statusTranslations: { [key: string]: string } = {
+      'pending': 'قيد الانتظار',
+      'external_office_approved': 'موافقة المكتب الخارجي',
+      'pending_external_office': 'في انتظار المكتب الخارجي',
+      'medical_check_passed': 'تم اجتياز الفحص الطبي',
+      'pending_medical_check': 'في انتظار الفحص الطبي',
+      'foreign_labor_approved': 'موافقة وزارة العمل الأجنبية',
+      'pending_foreign_labor': 'في انتظار وزارة العمل الأجنبية',
+      'agency_paid': 'تم دفع الوكالة',
+      'pending_agency_payment': 'في انتظار دفع الوكالة',
+      'embassy_approved': 'موافقة السفارة السعودية',
+      'pending_embassy': 'في انتظار السفارة السعودية',
+      'visa_issued': 'تم إصدار التأشيرة',
+      'pending_visa': 'في انتظار إصدار التأشيرة',
+      'travel_permit_issued': 'تم إصدار تصريح السفر',
+      'pending_travel_permit': 'في انتظار تصريح السفر',
+      'received': 'تم الاستلام',
+      'pending_receipt': 'في انتظار الاستلام',
+      'cancelled': 'ملغي',
+      'rejected': 'مرفوض',
+      'delivered': 'تم التسليم',
+      'new_order': 'طلب جديد',
+      'new_orders': 'طلبات جديدة'
+    };
+    
+    return statusTranslations[status] || status;
+  };
+
+  // دالة ترجمة حالة الطلب من العربية إلى الإنجليزية (للبحث)
+  const translateBookingStatusToEnglish = (arabicStatus: string) => {
+    const reverseTranslations: { [key: string]: string } = {
+      'قيد الانتظار': 'pending',
+      'موافقة المكتب الخارجي': 'external_office_approved',
+      'في انتظار المكتب الخارجي': 'pending_external_office',
+      'تم اجتياز الفحص الطبي': 'medical_check_passed',
+      'في انتظار الفحص الطبي': 'pending_medical_check',
+      'موافقة وزارة العمل الأجنبية': 'foreign_labor_approved',
+      'في انتظار وزارة العمل الأجنبية': 'pending_foreign_labor',
+      'تم دفع الوكالة': 'agency_paid',
+      'في انتظار دفع الوكالة': 'pending_agency_payment',
+      'موافقة السفارة السعودية': 'embassy_approved',
+      'في انتظار السفارة السعودية': 'pending_embassy',
+      'تم إصدار التأشيرة': 'visa_issued',
+      'في انتظار إصدار التأشيرة': 'pending_visa',
+      'تم إصدار تصريح السفر': 'travel_permit_issued',
+      'في انتظار تصريح السفر': 'pending_travel_permit',
+      'تم الاستلام': 'received',
+      'في انتظار الاستلام': 'pending_receipt',
+      'ملغي': 'cancelled',
+      'مرفوض': 'rejected',
+      'تم التسليم': 'delivered',
+      'طلب جديد': 'new_order',
+      'طلبات جديدة': 'new_orders'
+    };
+    
+    return reverseTranslations[arabicStatus] || arabicStatus;
+  };
 
   const pageSize = 10;
 
@@ -59,7 +134,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
         ...(searchTerm && { searchTerm }),
         ...(nationality && { Nationalitycopy: nationality }),
         ...(office && { officeName: office }),
-        ...(status && { bookingstatus: status }),
+        ...(status && { bookingstatus: translateBookingStatusToEnglish(status) }),
       });
 
       const res = await fetch(`/api/currentordersprisma?${queryParams.toString()}`);
@@ -133,7 +208,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
           row.HomeMaid?.Passportnumber || 'غير متوفر',
           row.arrivals?.InternalmusanedContract || 'غير متوفر',
           row.HomeMaid?.office?.office || 'غير متوفر',
-          row.bookingstatus || 'غير متوفر',
+          translateBookingStatus(row.bookingstatus) || 'غير متوفر',
         ])
       : [];
 
@@ -196,7 +271,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
           passport: row.HomeMaid?.Passportnumber || 'غير متوفر',
           contract: row.arrivals?.InternalmusanedContract || 'غير متوفر',
           office: row.HomeMaid?.office?.office || 'غير متوفر',
-          status: row.bookingstatus || 'غير متوفر',
+          status: translateBookingStatus(row.bookingstatus) || 'غير متوفر',
         }).alignment = { horizontal: 'right' };
       });
 
@@ -351,7 +426,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                     <select
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
+                      className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer  text-right"
                     >
                       <option value="">حالة الطلب</option>
                       {statuses.map((s) => (
@@ -360,7 +435,6 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                   </div>
                   <div className="relative">
                     <select
@@ -375,7 +449,6 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                   </div>
                   <div className="relative">
                     <select
@@ -390,7 +463,6 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                   </div>
                 </div>
                 <button
@@ -438,7 +510,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                         <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">{booking.arrivals?.InternalmusanedContract || 'غير متوفر'}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.bookingstatus || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
                       </tr>
                     ))}
                   </tbody>

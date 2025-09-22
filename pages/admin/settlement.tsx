@@ -31,6 +31,8 @@ export default function Settlement() {
   const router = useRouter();
   const [data, setData] = useState<SettlementResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('recruitment');
+  const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
   const [filters, setFilters] = useState({
     client: '',
     date: '',
@@ -39,7 +41,11 @@ export default function Settlement() {
 
   useEffect(() => {
     fetchSettlementData();
-  }, [filters]);
+  }, [filters, activeTab]);
+
+  useEffect(() => {
+    fetchTabCounts();
+  }, []);
 
   const fetchSettlementData = async () => {
     try {
@@ -48,6 +54,7 @@ export default function Settlement() {
       if (filters.client) queryParams.append('client', filters.client);
       if (filters.date) queryParams.append('date', filters.date);
       if (filters.search) queryParams.append('search', filters.search);
+      if (activeTab) queryParams.append('contractType', activeTab);
 
       const response = await fetch(`/api/settlement?${queryParams}`);
       const result = await response.json();
@@ -56,6 +63,27 @@ export default function Settlement() {
       console.error('Error fetching settlement data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTabCounts = async () => {
+    try {
+      const [recruitmentResponse, rentalResponse] = await Promise.all([
+        fetch(`/api/settlement?contractType=recruitment&limit=1`),
+        fetch(`/api/settlement?contractType=rental&limit=1`)
+      ]);
+      
+      const [recruitmentData, rentalData] = await Promise.all([
+        recruitmentResponse.json(),
+        rentalResponse.json()
+      ]);
+      
+      setTabCounts({
+        recruitment: recruitmentData.settlements?.length || 0,
+        rental: rentalData.settlements?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching tab counts:', error);
     }
   };
 
@@ -131,7 +159,7 @@ export default function Settlement() {
               </button>
               
               <div className="flex flex-col gap-2 min-w-56">
-                <label className="text-sm text-gray-500 text-right">التاريخ</label>
+                <label className="text-md text-gray-500 text-right">التاريخ</label>
                 <div className="relative">
                   <input 
                     type="date" 
@@ -143,7 +171,7 @@ export default function Settlement() {
               </div>
               
               <div className="flex flex-col gap-2 min-w-56">
-                <label className="text-sm text-gray-500 text-right">العميل</label>
+                <label className="text-md text-gray-500 text-right">العميل</label>
                 <div className="relative">
                   <select 
                     className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-base text-gray-500 text-right appearance-none h-11"
@@ -161,7 +189,7 @@ export default function Settlement() {
               </div>
               
               <div className="flex flex-col gap-2 min-w-56">
-                <label className="text-sm text-gray-500 text-right">بحث</label>
+                <label className="text-md text-gray-500 text-right">بحث</label>
                 <div className="relative">
                   <input 
                     type="text" 
@@ -184,6 +212,44 @@ export default function Settlement() {
             </div>
           </section>
 
+          {/* Tab Navigation */}
+          <section className="bg-white mb-4">
+            <div className="flex gap-4 mb-8 border-b border-gray-300">
+              <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('recruitment')}>
+                <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                  activeTab === 'recruitment' 
+                    ? 'bg-teal-800 text-white' 
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {tabCounts.recruitment}
+                </span>
+                <span className={`text-base transition-colors duration-200 ${
+                  activeTab === 'recruitment' 
+                    ? 'text-teal-700 font-medium' 
+                    : 'text-gray-500'
+                }`}>
+                  عقود الاستقدام
+                </span>
+              </div>
+              <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('rental')}>
+                <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                  activeTab === 'rental' 
+                    ? 'bg-teal-800 text-white' 
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {tabCounts.rental}
+                </span>
+                <span className={`text-base transition-colors duration-200 ${
+                  activeTab === 'rental' 
+                    ? 'text-teal-700 font-medium' 
+                    : 'text-gray-500'
+                }`}>
+                  عقود التاجير
+                </span>
+              </div>
+            </div>
+          </section>
+
           {/* Results Section */}
           <section className="bg-gray-50 border border-gray-300 rounded-lg shadow-sm">
             {/* Table */}
@@ -191,41 +257,46 @@ export default function Settlement() {
               <table className="w-full border-collapse bg-white">
                 <thead>
                   <tr>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">#</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">العميل</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">رقم العقد</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">قيمة العقد</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">المدفوع</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">المصروف</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الصافي</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">تاريخ آخر تحديث</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">#</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">العميل</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">رقم العقد</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">قيمة العقد</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">المدفوع</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">المصروف</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الصافي</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">تاريخ آخر تحديث</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data?.settlements.map((settlement, index) => (
                     <tr key={settlement.id} className="hover:bg-gray-50">
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         #{index + 1}
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         {settlement.clientName}
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
-                        {settlement.contractNumber}
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
+                        <button
+                          onClick={() => router.push(`/admin/settlement/${settlement.id}`)}
+                          className="text-teal-800 hover:text-teal-600 underline"
+                        >
+                          {settlement.contractNumber}
+                        </button>
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         {settlement.contractValue.toLocaleString()}
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         {settlement.totalPaid.toLocaleString()}
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         {settlement.totalExpenses.toLocaleString()}
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         {settlement.netAmount.toLocaleString()}
                       </td>
-                      <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
+                      <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                         {settlement.lastUpdated}
                       </td>
                     </tr>
@@ -233,22 +304,22 @@ export default function Settlement() {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={3} className="p-4 text-right text-sm border-b border-gray-300 bg-gray-200 font-bold text-black">
+                    <td colSpan={3} className="p-4 text-right text-md border-b border-gray-300 bg-gray-200 font-bold text-black">
                       الإجمالي
                     </td>
-                    <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-200 font-bold">
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">
                       {data?.summary.totalContractValue.toLocaleString() || '0'}
                     </td>
-                    <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-200 font-bold">
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">
                       {data?.summary.totalPaid.toLocaleString() || '0'}
                     </td>
-                    <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-200 font-bold">
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">
                       {data?.summary.totalExpenses.toLocaleString() || '0'}
                     </td>
-                    <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-200 font-bold">
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">
                       {data?.summary.totalNet.toLocaleString() || '0'}
                     </td>
-                    <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-200 font-bold">
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">
                       -
                     </td>
                   </tr>

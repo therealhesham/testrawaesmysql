@@ -32,6 +32,33 @@ interface ClientAccountStatement {
     address: string;
     createdAt: string;
   };
+  order?: {
+    id: number;
+    ClientName: string;
+    PhoneNumber: string;
+    createdAt: string;
+    bookingstatus: string;
+    profileStatus: string;
+    typeOfContract: string;
+    HomeMaid?: {
+      id: number;
+      Name: string;
+      Nationality: any;
+      Experience: string;
+      officeName: string;
+      office?: {
+        id: number;
+        office: string;
+        Country: string;
+        phoneNumber: string;
+      };
+    };
+    arrivals?: {
+      id: number;
+      KingdomentryDate: string;
+      GuaranteeDurationEnd: string;
+    }[];
+  };
   entries: ClientAccountEntry[];
   totals: {
     totalDebit: number;
@@ -197,7 +224,7 @@ const ClientStatementPage = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-SA');
+    return new Date(dateString).toLocaleDateString();
   };
 
   if (loading) {
@@ -222,7 +249,7 @@ const ClientStatementPage = () => {
 
   return (
     <Layout>
-      <div className={`${Style["tajawal-regular"]} min-h-screen p-6 bg-gray-50`} dir="rtl">
+      <div className={`${Style["tajawal-regular"]} min-h-screen p-6 `} dir="rtl">
         {/* Page Header */}
         <div className="flex justify-between items-center mb-6">
           <button
@@ -238,37 +265,60 @@ const ClientStatementPage = () => {
         </div>
 
         {/* Client Info Cards */}
-        <div className="flex gap-3 mb-6">
-          <div className="bg-gray-100 border border-gray-300 rounded p-6 flex-1">
-            <h3 className="text-2xl font-medium text-gray-700 mb-6 text-right">معلومات الطلب</h3>
-            <div className="grid grid-cols-2 gap-4 gap-y-10">
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">تاريخ الطلب:</span>
-                <span className="text-base font-normal text-gray-700">
-                  {formatDate(statement.client?.createdAt)}
+        <div className="client-info-section">
+          <div className="info-card">
+            <h3>معلومات الطلب</h3>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="label">تاريخ الطلب:</span>
+                <span className="value">{statement.order ? formatDate(statement.order.createdAt) : formatDate(statement.client?.createdAt)}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">حالة العقد:</span>
+                <span className="value">{statement.order?.bookingstatus || 'غير محدد'}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">تاريخ الوصول:</span>
+                <span className="value">
+                  {statement.order?.arrivals?.[0]?.KingdomentryDate ? formatDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
                 </span>
               </div>
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">حالة العقد:</span>
-                <span className="text-base font-normal text-gray-700">{statement.contractStatus}</span>
+              <div className="info-item">
+                <span className="label">تاريخ انتهاء الضمان :</span>
+                <span className="value">
+                  {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd ? formatDate(statement.order.arrivals[0].GuaranteeDurationEnd) : 'غير محدد'}
+                </span>
               </div>
             </div>
           </div>
-
-          <div className="bg-gray-100 border border-gray-300 rounded p-6 flex-1">
-            <h3 className="text-2xl font-medium text-gray-700 mb-6 text-right">معلومات المكتب</h3>
-            <div className="grid grid-cols-1 gap-4 gap-y-10">
-              <div className="flex flex-col gap-4 items-end">
-                <span className="text-base font-medium text-gray-700">اسم المكتب:</span>
-                <span className="text-base font-normal text-gray-700">{statement.officeName}</span>
+          
+          <div className="info-card">
+            <h3>معلومات المكتب</h3>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="label">اسم المكتب:</span>
+                <span className="value">{statement.order?.HomeMaid?.office?.office || statement.officeName || 'غير محدد'}</span>
               </div>
+              <div className="info-item">
+                <span className="label">الدولة:</span>
+                <span className="value">{statement.order?.HomeMaid?.office?.Country || 'غير محدد'}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">رقم هاتف المكتب:</span>
+                <span className="value">{statement.order?.HomeMaid?.office?.phoneNumber || 'غير محدد'}</span>
+              </div>
+              <div className="info-item">
+                <span className="label">اسم العاملة:</span>
+                <span className="value">{statement.order?.HomeMaid?.Name || 'غير محدد'}</span>
+              </div>
+              
             </div>
           </div>
         </div>
 
         {/* Statement Filter */}
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-4  gap-4 mb-4">
             <div className="flex flex-col">
               <label className="text-md text-gray-700 mb-2">نوع الحركة</label>
               <select
@@ -277,7 +327,7 @@ const ClientStatementPage = () => {
                 className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
               >
                 <option value="all">اختر نوع الحركة</option>
-                <option value="income">ايراد</option>
+                {/* <option value="income">ايراد</option> */}
                 <option value="expense">مصروف</option>
                 <option value="payment">دفعة</option>
               </select>
@@ -303,12 +353,14 @@ const ClientStatementPage = () => {
               />
             </div>
           </div>
+          <div className="flex justify-end">  
           <button
             onClick={() => fetchStatement()}
             className="bg-teal-800 text-white  rounded text-md h-74 min-w-[123px]"
           >
             كشف حساب
           </button>
+          </div>
         </div>
 
         {/* Statement Table */}
