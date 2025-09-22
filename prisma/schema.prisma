@@ -42,12 +42,6 @@ model homemaid {
   ArabicLanguageLeveL String?  @db.VarChar(100)
   EnglishLanguageLevel String? @db.VarChar(100)
   Salary            String?    @db.VarChar(20)
-  LaundryLeveL      String?    @db.VarChar(20)
-  IroningLevel      String?    @db.VarChar(20)
-  CleaningLeveL     String?    @db.VarChar(20)
-  CookingLeveL      String?    @db.VarChar(20)
-  SewingLeveL       String?    @db.VarChar(20)
-  BabySitterLevel   String?    @db.VarChar(20)
   Education         String?    @db.VarChar(60)
   Housed            housing[]
   inHouse           housedworker[]
@@ -338,6 +332,7 @@ ratings       Rating[]
 PaymentMethod    String?
 Installments Int?
 Total   Int?
+paid    Int?
 Payments Payment[]
   client             Client?   @relation(fields: [clientID], references: [id])
   HomeMaid           homemaid? @relation(fields: [HomemaidId], references: [id])
@@ -345,7 +340,7 @@ Payments Payment[]
   arrivals        arrivallist[]
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
   isContractEnded Boolean? @default(false)
-
+  clientAccountStatement ClientAccountStatement[]
 }
 
 
@@ -698,6 +693,8 @@ model ClientAccountStatement {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   entries        ClientAccountEntry[]
+  orderId Int?
+  order   neworder? @relation(fields: [orderId], references: [id])
 }
 
 model ClientAccountEntry {

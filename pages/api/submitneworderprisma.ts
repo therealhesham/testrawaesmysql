@@ -26,6 +26,7 @@ export default async function handler(
     clientphonenumber,
     PaymentMethod,
     Name,
+    typeOfContract,
     Passportnumber,
     maritalstatus,
     email,
@@ -36,6 +37,7 @@ export default async function handler(
     city,
     externalOfficeStatus,
     ExperienceYears,
+    Paid
   } = req.body;
   console.log(req.body);
   try {
@@ -51,7 +53,7 @@ export default async function handler(
     }
 
     // Begin transaction to update homemaid and create related records
-    const result = await prisma.neworder.create({
+    const result = await prisma.neworder.create({include:{client:true},
       data: {
         HomemaidIdCopy: HomemaidId,
         ExperienceYears:ExperienceYears+"",
@@ -60,6 +62,7 @@ export default async function handler(
         Passportnumber,
         PaymentMethod,
         // externalOfficeStatus,
+        typeOfContract,
         Name,
         ClientName,
         clientphonenumber,
@@ -67,6 +70,8 @@ export default async function handler(
         PhoneNumber: PhoneNumber,
         ages: age + "",
         housed: { create: { HomeMaidId: HomemaidId } },
+        // @ts-ignore
+        paid: Paid == null ? undefined : Number(Paid),
 
         client: {
           create: {
@@ -103,7 +108,7 @@ const cookieHeader = req.headers.cookie;
       });
     }
     console.log(cookies.authToken)
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     eventBus.emit('ACTION', {
         type: 'تسجيل طلب جديد رقم  ' + result.id,
@@ -113,7 +118,41 @@ const cookieHeader = req.headers.cookie;
     // console.log(result);
     // Send response after the transaction is successful
     res.status(200).json(result);
-  } catch (error) {
+
+    const homemaid = await prisma.homemaid.findUnique({
+      where: { id: HomemaidId },
+      include: { office: true }
+    });
+
+    const officeName = homemaid?.officeName || homemaid?.office?.office || '';
+
+    const statement = await prisma.clientAccountStatement.create({
+      data: {
+        clientId: Number(result.client.id), // assuming clientID is set in neworder
+        orderId: Number(result.id),
+        contractNumber: `ORD-${result.id}`,
+        officeName,
+        totalRevenue: Number(Paid),
+        totalExpenses: 0,
+        netAmount: Number(Paid),
+        contractStatus: 'new',
+        notes: ''
+      }
+    });
+
+    await prisma.clientAccountEntry.create({
+      data: {
+        statementId: statement.id,
+        date: new Date(),
+        description: 'دفعة أولى',
+        debit: 0,
+        credit: Number(Paid),
+        balance: Number(Paid),
+        entryType: 'payment'
+      }
+    });
+
+  } catch (error: unknown) {
     console.error("Error in creating new order:", error);
       console.error("Validation error:", error);
 
@@ -138,7 +177,7 @@ const cookieHeader = req.headers.cookie;
       }
       return res.status(500).json({
         message: "خطأ في الاتصال بقاعدة البيانات",
-        details: error.message,
+        details: (error as Error).message,
       });
     }
 
@@ -147,7 +186,7 @@ const cookieHeader = req.headers.cookie;
       console.error("Validation error:", error);
       return res.status(400).json({
         message: "عدم تطابق للبيانات",
-        details: error.message,
+        details: (error as Error).message,
       });
     }
 
@@ -155,7 +194,7 @@ const cookieHeader = req.headers.cookie;
     res.status(500).json({
 
       message: "An unexpected error occurred.",
-      details: error.message,
+      details: (error as Error).message,
     });
   } finally {
     await prisma.$disconnect(); // Disconnect Prisma client properly to avoid memory leak

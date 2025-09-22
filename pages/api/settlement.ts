@@ -7,17 +7,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { client, date, search } = req.query;
+    const { client, date, search, contractType } = req.query;
 
     // Build where clause for filtering
     const where: any = {};
 
     if (client) {
-      where.clientName = { contains: client as string };
+      where.client = {
+        fullname: { contains: client as string }
+      };
     }
 
     if (date) {
-      where.orderDate = {
+      where.createdAt = {
         gte: new Date(date as string),
         lt: new Date(new Date(date as string).getTime() + 24 * 60 * 60 * 1000)
       };
@@ -25,14 +27,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (search) {
       where.OR = [
-        { clientName: { contains: search as string } },
-        { orderNumber: { contains: search as string } },
-        { transferNumber: { contains: search as string } }
+        { contractNumber: { contains: search as string } },
+        { officeName: { contains: search as string } },
+        { client: { fullname: { contains: search as string } } }
       ];
     }
 
-    // Fetch financial records from MusanadFinancialRecord
-    const financialRecords = await prisma.musanadFinancialRecord.findMany({
+    if (contractType) {
+      where.order = {
+        typeOfContract: contractType as string
+      };
+    }
+
+    // Fetch client account statements
+    const statements = await prisma.clientAccountStatement.findMany({
       where,
       include: {
         client: {
@@ -42,15 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             phonenumber: true
           }
         },
-        order: {
+        entries: {
           select: {
-            id: true,
-            Total: true,
-            Payments: {
-              select: {
-                Paid: true
-              }
-            }
+            debit: true,
+            credit: true
           }
         }
       },
@@ -60,32 +63,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Transform data to settlement format
-    const settlements = financialRecords.map(record => {
-      // Calculate total paid from order payments
-      const totalPaid = record.order?.Payments?.reduce((sum, payment) => 
-        sum + parseFloat(payment.Paid.toString()), 0) || 0;
+    const settlements = statements.map(statement => {
+      // Calculate totals from entries
+      const totalPaid = statement.entries
+        .filter(entry => Number(entry.credit) > 0)
+        .reduce((sum, entry) => sum + Number(entry.credit), 0);
+      
+      const totalExpenses = statement.entries
+        .filter(entry => Number(entry.debit) > 0)
+        .reduce((sum, entry) => sum + Number(entry.debit), 0);
 
-      // Get contract value from order total or revenue
-      const contractValue = record.order?.Total ? 
-        parseFloat(record.order.Total.toString()) : 
-        parseFloat(record.revenue.toString());
+      const netAmount = totalPaid - totalExpenses;
 
       return {
-        id: record.id,
-        clientName: record.clientName,
-        contractNumber: record.orderNumber || record.transferNumber,
-        contractValue: contractValue,
+        id: statement.id,
+        clientName: statement.client?.fullname || 'غير محدد',
+        contractNumber: statement.contractNumber || `#${statement.id}`,
+        contractValue: statement.totalRevenue || 0,
         totalPaid: totalPaid,
-        totalExpenses: parseFloat(record.expenses.toString()),
-        netAmount: parseFloat(record.netAmount.toString()),
-        lastUpdated: record.updatedAt.toISOString().split('T')[0]
+        totalExpenses: totalExpenses,
+        netAmount: netAmount,
+        lastUpdated: statement.updatedAt.toISOString().split('T')[0]
       };
     });
 
     // Calculate summary
     const summary = {
       totalContracts: settlements.length,
-      totalContractValue: settlements.reduce((sum, s) => sum + s.contractValue, 0),
+      totalContractValue: settlements.reduce((sum, s) => sum + Number(s.contractValue), 0),
       totalPaid: settlements.reduce((sum, s) => sum + s.totalPaid, 0),
       totalExpenses: settlements.reduce((sum, s) => sum + s.totalExpenses, 0),
       totalNet: settlements.reduce((sum, s) => sum + s.netAmount, 0)

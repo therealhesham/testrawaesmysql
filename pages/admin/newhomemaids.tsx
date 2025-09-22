@@ -48,6 +48,9 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     passportcopy: false,
   });
   const [showModal, setShowModal] = useState(!!error);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
   const fileInputRefs = {
     travelTicket: useRef<HTMLInputElement>(null),
@@ -215,7 +218,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      alert('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
+      setModalMessage('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
+      setShowErrorModal(true);
       return;
     }
 
@@ -268,10 +272,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
       if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
       setErrors({});
-      alert('تم إضافة العاملة بنجاح!');
+      setModalMessage('تم إضافة العاملة بنجاح!');
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('حدث خطأ أثناء إرسال البيانات. حاول مرة أخرى.');
+      setModalMessage('حدث خطأ أثناء إرسال البيانات. حاول مرة أخرى.');
+      setShowErrorModal(true);
     }
   };
 
@@ -298,6 +304,52 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                 onClick={() => (window.location.href = '/admin/home')}
               >
                 العودة إلى الصفحة الرئيسية
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Success Modal */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full text-center">
+              <div className="mb-4">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-xl font-semibold text-green-600 mb-4">نجح!</h2>
+              <p className="text-gray-700 mb-6">{modalMessage}</p>
+              <button
+                className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                onClick={() => setShowSuccessModal(false)}
+              >
+                موافق
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Error Modal */}
+        {showErrorModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full text-center">
+              <div className="mb-4">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                  <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-xl font-semibold text-red-600 mb-4">خطأ</h2>
+              <p className="text-gray-700 mb-6">{modalMessage}</p>
+              <button
+                className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                onClick={() => setShowErrorModal(false)}
+              >
+                موافق
               </button>
             </div>
           </div>

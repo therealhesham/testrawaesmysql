@@ -4,7 +4,6 @@ import { CashIcon } from '@heroicons/react/outline';
 import { ArrowDown, Calendar, CreditCard, Wallet, CheckCircle, X } from 'lucide-react';
 import Style from 'styles/Home.module.css';
 import debounce from 'lodash.debounce';
-import axios from 'axios';
 
 interface FormData {
   customerName: string;
@@ -52,6 +51,38 @@ export default function RentalForm() {
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [file, setFile] = useState<File | null>(null); // Store the selected file
+  const [isUploadingFile, setIsUploadingFile] = useState(false); // Track file upload status
+  const [isProcessingFile, setIsProcessingFile] = useState(false); // Track file processing status
+
+  // Helper: Upload contract to DigitalOcean Spaces using presigned URL
+  const uploadContractFile = async (selectedFile: File, idHint?: string): Promise<string> => {
+    setIsUploadingFile(true);
+    try {
+      const hint = idHint || (typeof clientId === 'string' && clientId) || Date.now().toString();
+      const response = await fetch(`/api/upload-presigned-url/${hint}`, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error('Failed to get presigned URL');
+      }
+      const { url, filePath } = await response.json();
+
+      const uploadResponse = await fetch(url, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file to storage');
+      }
+
+      return filePath as string;
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
 
   // Fetch client data if clientId exists
   useEffect(() => {
@@ -134,9 +165,29 @@ export default function RentalForm() {
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
+    if (!selectedFile) return;
+
+    if (selectedFile.type !== 'application/pdf') {
+      setError('الرجاء اختيار ملف PDF فقط');
+      return;
+    }
+
+    setIsProcessingFile(true);
+    setError(null);
+    setSuccess(null);
     setFile(selectedFile);
+    try {
+      const uploadedPath = await uploadContractFile(selectedFile);
+      setFormData((prev) => ({ ...prev, contractFile: uploadedPath }));
+      setSuccess('تم رفع الملف بنجاح');
+    } catch (err: any) {
+      console.error('Error uploading contract file:', err);
+      setError(err?.message || 'حدث خطأ أثناء رفع الملف');
+    } finally {
+      setIsProcessingFile(false);
+    }
   };
 
   const handleHomemaidSelect = (homemaid: Homemaid) => {
@@ -157,7 +208,7 @@ export default function RentalForm() {
 
     try {
       let finalClientId = clientId;
-      let contractFileUrl: string | null = null;
+      let contractFileUrl: string | null = formData.contractFile;
 
       // Create new client if newClient is true
       if (newClient === 'true') {
@@ -180,23 +231,14 @@ export default function RentalForm() {
         finalClientId = clientResult.client.id;
       }
 
-      // Upload file to DigitalOcean Spaces if a file is selected
-      if (file) {
-        const response = await fetch(`/api/upload-presigned-url/${finalClientId || Date.now()}`, {
-          method: 'GET',
-        });
-        if (!response.ok) {
-          throw new Error('Failed to get presigned URL');
+      // Fallback: if user selected a file but it wasn't uploaded yet, upload now once
+      if (!contractFileUrl && file) {
+        const idHint = (typeof finalClientId === 'string' && finalClientId) || undefined;
+        try {
+          contractFileUrl = await uploadContractFile(file, idHint);
+        } catch (error) {
+          throw new Error('خطأ في رفع الملف');
         }
-        const { url, filePath } = await response.json();
-        contractFileUrl = filePath;
-
-        // Upload the file to the presigned URL
-        await axios.put(url, file, {
-          headers: {
-            'Content-Type': 'application/pdf',
-          },
-        });
       }
 
       // Submit form data with the file URL
@@ -358,21 +400,43 @@ export default function RentalForm() {
           </div>
           <div className="flex flex-col gap-2">
             <label htmlFor="contractFile" className="text-base text-right">ملف العقد</label>
-            <div className="flex items-center justify-end">
+            <div className="flex items-center gap-1">
               <input
                 type="file"
                 id="contractFile"
                 onChange={handleFileChange}
                 accept="application/pdf"
                 className="hidden"
+                disabled={isUploadingFile || isProcessingFile}
               />
+                 {formData.contractFile ? (
+            <a
+              href={formData.contractFile}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mr-2 text-sm text-teal-800 hover:underline"
+            >
+              تصفح الملف
+            </a>
+          ) : (
+            file && (
+              <span className="mr-2 text-sm">
+                {isProcessingFile ? 'جاري معالجة الملف...' : file.name}
+              </span>
+            )
+          )}
               <label
                 htmlFor="contractFile"
-                className="bg-teal-800 text-white px-3 py-1 rounded-md text-sm cursor-pointer"
+                className={`bg-teal-800 text-white px-3 py-1 rounded-md text-sm cursor-pointer flex items-center gap-2 ${
+                  (isUploadingFile || isProcessingFile) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
-                اختيار ملف
+                {(isUploadingFile || isProcessingFile) && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
+                {isProcessingFile ? 'جاري المعالجة...' : isUploadingFile ? 'جاري الرفع...' : 'اختيار ملف'}
               </label>
-              {file && <span className="mr-2 text-sm">{file.name}</span>}
+       
             </div>
           </div>
         </div>

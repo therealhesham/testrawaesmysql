@@ -1,7 +1,34 @@
+import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
+
+// Helper function to get user info from cookies
+const getUserFromCookies = (req: NextApiRequest) => {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  
+  if (cookies.authToken) {
+    try {
+      const token = jwtDecode(cookies.authToken) as any;
+      return { userId: Number(token.id), username: token.username };
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return { userId: null, username: 'غير محدد' };
+    }
+  }
+  
+  return { userId: null, username: 'غير محدد' };
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -12,7 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         fromDate, 
         toDate,
         page = 1,
-        limit = 10
+        limit = 10,
+        contractType
       } = req.query;
 
       const skip = (Number(page) - 1) * Number(limit);
@@ -38,10 +66,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
+      // If contractType provided, filter by related order type
+      const orderFilter = contractType
+        ? { order: { typeOfContract: String(contractType) } }
+        : {};
+
       // Get client account statements with pagination
       const [statements, total] = await Promise.all([
         prisma.clientAccountStatement.findMany({
-          where,
+          where: { ...where, ...orderFilter },
           include: {
             client: {
               select: {
@@ -63,12 +96,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           skip,
           take: Number(limit)
         }),
-        prisma.clientAccountStatement.count({ where })
+        prisma.clientAccountStatement.count({ where: { ...where, ...orderFilter } })
       ]);
 
       // Calculate summary totals
       const summary = await prisma.clientAccountStatement.aggregate({
-        where,
+        where: { ...where, ...orderFilter },
         _sum: {
           totalRevenue: true,
           totalExpenses: true,
@@ -133,6 +166,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         notes
       } = req.body;
 
+      // Get user info for logging
+      const { userId } = getUserFromCookies(req);
+
       const statement = await prisma.clientAccountStatement.create({
         data: {
           clientId: Number(clientId),
@@ -155,6 +191,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       });
+
+      // Emit event for logging
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `إنشاء حساب عميل جديد - رقم العقد: ${contractNumber}`,
+          userId: userId,
+        });
+      }
 
       res.status(201).json(statement);
     } catch (error) {

@@ -57,6 +57,89 @@ interface Client {
   ClientName: string;
 }
 
+// Alert Modal Component
+const AlertModal = ({ isOpen, onClose, title, message, type = 'info' }: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  type?: 'success' | 'error' | 'warning' | 'info';
+}) => {
+  if (!isOpen) return null;
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return (
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+            <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+        );
+      case 'warning':
+        return (
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+        );
+      default:
+        return (
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+            <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+    }
+  };
+
+  const getButtonColor = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-600 hover:bg-green-700';
+      case 'error':
+        return 'bg-red-600 hover:bg-red-700';
+      case 'warning':
+        return 'bg-yellow-600 hover:bg-yellow-700';
+      default:
+        return 'bg-blue-600 hover:bg-blue-700';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50 p-4" dir="rtl">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="text-center">
+          {getIcon()}
+          <h3 className="mt-4 text-lg font-medium text-gray-900">{title}</h3>
+          <div className="mt-2">
+            <p className="text-sm text-gray-500">{message}</p>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={onClose}
+            className={`px-4 py-2 text-white rounded-md ${getButtonColor()} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-${type === 'success' ? 'green' : type === 'error' ? 'red' : type === 'warning' ? 'yellow' : 'blue'}-500`}
+          >
+            موافق
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Modal Component
 const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
   isOpen: boolean;
@@ -421,8 +504,26 @@ export default function MusanadFinancial({ user }: { user: any }) {
   const [orderDateFilter, setOrderDateFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Alert Modal state
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info' as 'success' | 'error' | 'warning' | 'info'
+  });
 
   const itemsPerPage = 10;
+
+  // Helper function to show alert modal
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
 
   // Calculate financial summary
   const totalRevenue = records.reduce((sum, record) => sum + record.revenue, 0);
@@ -474,13 +575,13 @@ export default function MusanadFinancial({ user }: { user: any }) {
         setRecords([]);
         setTotalPages(0);
         // Show user-friendly error message
-        alert(`خطأ في تحميل البيانات: ${errorData.message || 'حدث خطأ غير متوقع'}`);
+        showAlert('خطأ في تحميل البيانات', errorData.message || 'حدث خطأ غير متوقع', 'error');
       }
     } catch (error) {
       console.error('Error fetching data:', error);
       setRecords([]);
       setTotalPages(0);
-      alert('خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+      showAlert('خطأ في الاتصال', 'خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.', 'error');
     } finally {
       setLoading(false);
     }
@@ -536,13 +637,13 @@ export default function MusanadFinancial({ user }: { user: any }) {
     try {
       // Validate required fields
       if (!newRecord.clientName?.trim() || !newRecord.nationality?.trim() || !newRecord.transferNumber?.trim()) {
-        alert('يرجى ملء جميع الحقول المطلوبة');
+        showAlert('حقول مطلوبة', 'يرجى ملء جميع الحقول المطلوبة', 'warning');
         return;
       }
 
       // Validate dates
       if (!newRecord.orderDate || !newRecord.transferDate) {
-        alert('يرجى تحديد تاريخ الطلب وتاريخ الحوالة');
+        showAlert('تواريخ مطلوبة', 'يرجى تحديد تاريخ الطلب وتاريخ الحوالة', 'warning');
         return;
       }
 
@@ -552,7 +653,7 @@ export default function MusanadFinancial({ user }: { user: any }) {
       const netAmount = parseFloat(newRecord.net) || 0;
 
       if (revenue < 0 || expenses < 0 || netAmount < 0) {
-        alert('القيم المالية يجب أن تكون أكبر من أو تساوي الصفر');
+        showAlert('قيم غير صحيحة', 'القيم المالية يجب أن تكون أكبر من أو تساوي الصفر', 'warning');
         return;
       }
 
@@ -593,14 +694,14 @@ export default function MusanadFinancial({ user }: { user: any }) {
           fetchOffices(),
           fetchClients()
         ]);
-        alert('تم إضافة السجل بنجاح');
+        showAlert('تم بنجاح', 'تم إضافة السجل بنجاح', 'success');
       } else {
         const error = await response.json();
-        alert(`خطأ في إضافة السجل: ${error.message || 'حدث خطأ غير متوقع'}`);
+        showAlert('خطأ في الإضافة', error.message || 'حدث خطأ غير متوقع', 'error');
       }
     } catch (error) {
       console.error('Error adding record:', error);
-      alert('حدث خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+      showAlert('خطأ في الاتصال', 'حدث خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -636,7 +737,7 @@ export default function MusanadFinancial({ user }: { user: any }) {
 
   const handleExportExcel = () => {
     if (records.length === 0) {
-      alert('لا توجد بيانات للتصدير');
+      showAlert('لا توجد بيانات', 'لا توجد بيانات للتصدير', 'warning');
       return;
     }
 
@@ -674,13 +775,13 @@ export default function MusanadFinancial({ user }: { user: any }) {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting Excel:', error);
-      alert('حدث خطأ في تصدير البيانات');
+      showAlert('خطأ في التصدير', 'حدث خطأ في تصدير البيانات', 'error');
     }
   };
 
   const handleExportPDF = () => {
     if (records.length === 0) {
-      alert('لا توجد بيانات للتصدير');
+      showAlert('لا توجد بيانات', 'لا توجد بيانات للتصدير', 'warning');
       return;
     }
 
@@ -806,7 +907,7 @@ export default function MusanadFinancial({ user }: { user: any }) {
       }
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      alert('حدث خطأ في تصدير البيانات');
+      showAlert('خطأ في التصدير', 'حدث خطأ في تصدير البيانات', 'error');
     }
   };
 
@@ -1028,13 +1129,21 @@ export default function MusanadFinancial({ user }: { user: any }) {
             {renderPagination()}
           </div>
 
-          {/* Modal */}
+          {/* Modals */}
           <AddRecordModal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
             onAdd={handleAddRecord}
             offices={offices}
             clients={clients}
+          />
+          
+          <AlertModal
+            isOpen={alertModal.isOpen}
+            onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+            title={alertModal.title}
+            message={alertModal.message}
+            type={alertModal.type}
           />
         </div>
       </Layout>

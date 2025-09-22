@@ -1,8 +1,35 @@
+import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
+
+// Helper function to get user info from cookies
+const getUserFromCookies = (req: NextApiRequest) => {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  
+  if (cookies.authToken) {
+    try {
+      const token = jwtDecode(cookies.authToken) as any;
+      return { userId: Number(token.id), username: token.username };
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return { userId: null, username: 'غير محدد' };
+    }
+  }
+  
+  return { userId: null, username: 'غير محدد' };
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -47,22 +74,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           entries: {
             where: whereClause.AND.length > 0 ? whereClause : undefined,
-            orderBy: { date: 'desc' }
+            orderBy: { date: 'asc' }
           }
         }
       });
+
+      // Get order data separately if orderId exists
+      let orderData = null;
+      if ((statement as any)?.orderId) {
+        orderData = await prisma.neworder.findUnique({
+          where: { id: (statement as any).orderId },
+          include: {
+            HomeMaid: {
+              include: {
+                office: true
+              }
+            },
+            arrivals: {
+              take: 1,
+              orderBy: { createdAt: 'desc' }
+            }
+          }
+        });
+      }
 
       if (!statement) {
         return res.status(404).json({ error: 'Not found' });
       }
 
       const entries = statement.entries;
-      const totalDebit = entries.reduce((sum, e) => sum + Number(e.debit), 0);
-      const totalCredit = entries.reduce((sum, e) => sum + Number(e.credit), 0);
-      const netAmount = totalCredit - totalDebit;
+      const totalDebit = entries.reduce((sum: number, e: { debit: Prisma.Decimal }) => sum + Number(e.debit), 0);
+      const totalCredit = entries.reduce((sum: number, e: { credit: Prisma.Decimal }) => sum + Number(e.credit), 0);
+      const netAmount = Number(totalCredit) - Number(totalDebit);
 
       res.status(200).json({
         ...statement,
+        order: orderData,
         totals: { totalDebit, totalCredit, netAmount }
       });
     } catch (error) {
@@ -80,6 +127,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         contractStatus,
         notes
       } = req.body;
+
+      // Get user info for logging
+      const { userId } = getUserFromCookies(req);
 
       const statement = await prisma.clientAccountStatement.update({
         where: {
@@ -106,6 +156,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
+      // Emit event for logging
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `تحديث حساب عميل - رقم العقد: ${contractNumber}`,
+          userId: userId,
+        });
+      }
+
       res.status(200).json(statement);
     } catch (error) {
       console.error('Error updating client account statement:', error);
@@ -113,11 +171,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'DELETE') {
     try {
+      // Get user info for logging
+      const { userId } = getUserFromCookies(req);
+
+      // Get statement info before deletion for logging
+      const statementToDelete = await prisma.clientAccountStatement.findUnique({
+        where: { id: Number(id) },
+        select: { contractNumber: true, client: { select: { fullname: true } } }
+      });
+
       await prisma.clientAccountStatement.delete({
         where: {
           id: Number(id)
         }
       });
+
+      // Emit event for logging
+      if (userId && statementToDelete) {
+        eventBus.emit('ACTION', {
+          type: `حذف حساب عميل - العميل: ${statementToDelete.client?.fullname} - رقم العقد: ${statementToDelete.contractNumber}`,
+          userId: userId,
+        });
+      }
 
       res.status(200).json({ message: 'Client account statement deleted successfully' });
     } catch (error) {

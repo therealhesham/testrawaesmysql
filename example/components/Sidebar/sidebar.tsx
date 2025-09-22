@@ -120,6 +120,7 @@ const menuItems: MenuItem[] = [
       { id: 92, label: "كشف حساب العملاء", link: "/admin/client-accounts" },
       { id: 93, label: "كشف حساب الموظفين", link: "/admin/employee_cash" },
       { id: 94, label: "التقرير المالي لمساند", link: "/admin/musanad_finacial" },
+      { id: 94, label: "التسوية المالية", link: "/admin/settlement" },
 
       { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
 

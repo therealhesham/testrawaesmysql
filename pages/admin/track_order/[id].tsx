@@ -11,10 +11,39 @@ import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select'; // Added for autocomplete
 import prisma from 'pages/api/globalprisma';
 
+interface OrderData {
+  orderId: string;
+  clientInfo: { name: string; phone: string; email: string };
+  homemaidInfo: { id: string; name: string; passportNumber: string; nationality: string; externalOffice: string };
+  applicationInfo: { applicationDate: string; applicationTime: string };
+  officeLinkInfo: { nationalId: string; visaNumber: string; internalMusanedContract: string; musanedDate: string };
+  externalOfficeInfo: { officeName: string; country: string; externalMusanedContract: string };
+  externalOfficeApproval: { approved: boolean };
+  medicalCheck: { passed: boolean };
+  foreignLaborApproval: { approved: boolean };
+  agencyPayment: { paid: boolean };
+  saudiEmbassyApproval: { approved: boolean };
+  visaIssuance: { issued: boolean };
+  travelPermit: { issued: boolean };
+  destinations: { departureCity: string; arrivalCity: string; departureDateTime: string; arrivalDateTime: string };
+  ticketUpload: { files: string };
+  receipt: { received: boolean };
+  documentUpload: { files: string };
+  bookingStatus: string;
+  nationality?: string;
+}
+
+interface Homemaid {
+  id: string;
+  Name: string;
+  Passportnumber: string;
+  office: { Country: string; office: string };
+}
+
 export default function TrackOrder() {
   const router = useRouter();
   const { id } = router.query;
-  const [orderData, setOrderData] = useState(null);
+  const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +55,8 @@ export default function TrackOrder() {
     nationality: '',
     externalOffice: '',
   });
-  const [homemaids, setHomemaids] = useState([]); // State for homemaid options
-  const [selectedHomemaid, setSelectedHomemaid] = useState(null); // State for selected homemaid
+  const [homemaids, setHomemaids] = useState<Homemaid[]>([]); // State for homemaid options
+  const [selectedHomemaid, setSelectedHomemaid] = useState<{ value: string; label: string } | null>(null);
 
   // --- Modal States ---
   const [showConfirmModal, setShowConfirmModal] = useState({
@@ -186,7 +215,7 @@ export default function TrackOrder() {
     });
   };
 
-  const handleHomemaidSelect = (selectedOption) => {
+  const handleHomemaidSelect = (selectedOption: { value: string; label: string } | null) => {
     setSelectedHomemaid(selectedOption);
     if (selectedOption) {
       const selectedHomemaid = homemaids.find((h) => h.id === selectedOption.value);
@@ -646,16 +675,17 @@ export default function TrackOrder() {
                 value: (
                   <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                     <span className="text-gray-500 text-sm pr-2">
-                      {orderData.ticketUpload.files ? '' : 'إرفاق ملف التذكرة'}
-                      {orderData.ticketUpload.files && (
+                      {orderData.ticketUpload.files ? (
                         <a
                           href={orderData.ticketUpload.files}
-                          target="_blank"
+                          target="_blank" 
                           rel="noopener noreferrer"
                           className="text-teal-800 hover:underline"
                         >
-                          فتح الملف
+                          تصفح الملف
                         </a>
+                      ) : (
+                        'إرفاق ملف التذكرة'
                       )}
                     </span>
                     <input
@@ -693,6 +723,12 @@ export default function TrackOrder() {
                             });
 
                             await fetchOrderData();
+                            
+                            // Show success message
+                            setShowAlertModal({
+                              isOpen: true,
+                              message: 'تم رفع الملف بنجاح',
+                            });
                           } catch (error: any) {
                             console.error('Error uploading file:', error);
                             setError('حدث خطأ أثناء رفع الملف');
@@ -754,7 +790,18 @@ export default function TrackOrder() {
                 value: (
                   <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                     <span className="text-gray-500 text-sm pr-2">
-                      {orderData.documentUpload.files ? 'ملفات مرفقة' : 'إرفاق ملف التذكرة'}
+                      {orderData.documentUpload.files ? (
+                        <a
+                          href={orderData.documentUpload.files}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-800 hover:underline"
+                        >
+                          تصفح الملف
+                        </a>
+                      ) : (
+                        'إرفاق ملفات أخرى'
+                      )}
                     </span>
                     <input
                       type="file"
@@ -778,8 +825,23 @@ export default function TrackOrder() {
                             });
 
                             if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-                            console.log('تم رفع الملف بنجاح');
+                            
+                            await fetch(`/api/track_order/${id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                section: 'documentUpload',
+                                updatedData: { files: filePath },
+                              }),
+                            });
+
                             await fetchOrderData();
+                            
+                            // Show success message
+                            setShowAlertModal({
+                              isOpen: true,
+                              message: 'تم رفع الملف بنجاح',
+                            });
                           } catch (error: any) {
                             console.error('Error uploading file:', error);
                             setError('حدث خطأ أثناء رفع الملف');

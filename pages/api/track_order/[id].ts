@@ -365,6 +365,11 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
               arrivalUpdate.finalDestinationTime = updatedData['تاريخ ووقت الوصول_time'] || null;
             }
             break;
+          case 'documentUpload':
+            if (updatedData.files) {
+              arrivalUpdate.additionalfiles = updatedData.files;
+            }
+            break;
           default:
             return res.status(400).json({ error: 'Invalid section' });
         }

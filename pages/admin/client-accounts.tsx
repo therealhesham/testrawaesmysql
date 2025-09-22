@@ -44,6 +44,7 @@ const ClientAccountsPage = () => {
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState('recruitment');
+  const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
   
   // Filter states
   const [selectedOffice, setSelectedOffice] = useState('all');
@@ -78,6 +79,12 @@ const ClientAccountsPage = () => {
       setSummary(data.summary);
       setFilters(data.filters);
       setTotalPages(data.pagination.pages);
+      
+      // Update tab counts
+      setTabCounts(prev => ({
+        ...prev,
+        [activeTab]: data.pagination.total
+      }));
     } catch (error) {
       console.error('Error fetching client accounts:', error);
     } finally {
@@ -85,9 +92,35 @@ const ClientAccountsPage = () => {
     }
   };
 
+  // Fetch counts for both tabs on component mount
+  const fetchTabCounts = async () => {
+    try {
+      const [recruitmentResponse, rentalResponse] = await Promise.all([
+        fetch(`/api/client-accounts?contractType=recruitment&limit=1`),
+        fetch(`/api/client-accounts?contractType=rental&limit=1`)
+      ]);
+      
+      const [recruitmentData, rentalData] = await Promise.all([
+        recruitmentResponse.json(),
+        rentalResponse.json()
+      ]);
+      
+      setTabCounts({
+        recruitment: recruitmentData.pagination?.total || 0,
+        rental: rentalData.pagination?.total || 0
+      });
+    } catch (error) {
+      console.error('Error fetching tab counts:', error);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [currentPage, selectedOffice, selectedClient, fromDate, toDate, selectedForeignOffice, activeTab]);
+
+  useEffect(() => {
+    fetchTabCounts();
+  }, []);
 
   const handleGenerateReport = () => {
     fetchData();
@@ -247,15 +280,37 @@ useEffect(() => {
         <div className="bg-white">
           {/* Tab Navigation */}
           <div className="flex gap-4 mb-8 border-b border-gray-300">
-            <div className={`flex items-center gap-2 pb-3 cursor-pointer ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('recruitment')}>
-              <span className="text-md bg-teal-800 text-white px-2 py-1 rounded-full">
-                {statements.length}
+            <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('recruitment')}>
+              <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                activeTab === 'recruitment' 
+                  ? 'bg-teal-800 text-white' 
+                  : 'bg-gray-200 text-gray-600'
+              }`}>
+                {tabCounts.recruitment}
               </span>
-              <span className="text-base text-teal-700">عقود الاستقدام</span>
+              <span className={`text-base transition-colors duration-200 ${
+                activeTab === 'recruitment' 
+                  ? 'text-teal-700 font-medium' 
+                  : 'text-gray-500'
+              }`}>
+                عقود الاستقدام
+              </span>
             </div>
-            <div className={`flex items-center gap-2 pb-3 cursor-pointer ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('rental')}>
-              <span className="text-md bg-gray-300 text-gray-600 px-2 py-1 rounded-full">0</span>
-              <span className="text-base text-gray-500">عقود التاجير</span>
+            <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('rental')}>
+              <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                activeTab === 'rental' 
+                  ? 'bg-teal-800 text-white' 
+                  : 'bg-gray-200 text-gray-600'
+              }`}>
+                {tabCounts.rental}
+              </span>
+              <span className={`text-base transition-colors duration-200 ${
+                activeTab === 'rental' 
+                  ? 'text-teal-700 font-medium' 
+                  : 'text-gray-500'
+              }`}>
+                عقود التاجير
+              </span>
             </div>
           </div>
 

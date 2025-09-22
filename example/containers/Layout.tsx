@@ -25,6 +25,7 @@ function Layout({ children }: ILayout) {
   const [isOpen, setIsOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false); // حالة للقائمة المنسدلة
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false); // حالة للقائمة المنسدلة للمستخدم
 const [notifications, setNotifications] = useState([]);
   const [counts, setCounts] = useState({ all: 0, read: 0, unread: 0 });
   const { isSidebarOpen } = useContext(SidebarContext);
@@ -51,8 +52,12 @@ const fetchNotifications = async  ()=>{
 useEffect(() => {
   const handleClickOutside = (event: MouseEvent) => {
     const notificationDiv = document.querySelector(".notification-dropdown");
+    const userDropdownDiv = document.querySelector(".user-dropdown");
     if (notificationDiv && !notificationDiv.contains(event.target as Node)) {
       setIsNotificationOpen(false);
+    }
+    if (userDropdownDiv && !userDropdownDiv.contains(event.target as Node)) {
+      setIsUserDropdownOpen(false);
     }
   };
   document.addEventListener("mousedown", handleClickOutside);
@@ -93,6 +98,7 @@ function isJwtExpired(token) {
   };
 
   const [image, setImage] = React.useState<string | null>(null);
+  const [userName, setUserName] = React.useState<string>("");
   useEffect(() => {
     try {
 
@@ -104,6 +110,8 @@ function isJwtExpired(token) {
       const token = localStorage.getItem("token");
       const info = jwtDecode(token);
       setImage(info.picture);
+      console.log(info);
+      setUserName(info.username);
     } catch (error) {
       console.error("Error decoding token:", error);
       router.push("/admin/login");
@@ -116,6 +124,11 @@ function isJwtExpired(token) {
     setIsNotificationOpen(!isNotificationOpen);
   };
 
+  // دالة لتبديل حالة القائمة المنسدلة للمستخدم
+  const toggleUserDropdown = () => {
+    setIsUserDropdownOpen(!isUserDropdownOpen);
+  };
+
   // Navigation functions for arrows
   const goBack = () => {
     window.history.back();
@@ -126,7 +139,7 @@ function isJwtExpired(token) {
   };
 
   return (
-    <div dir="rtl" className="flex h-screen w-screen bg-gray-50 dark:bg-gray-900">
+    <div dir="rtl" className={`flex h-screen w-screen bg-gray-50 dark:bg-gray-900 ${Style["tajawal-regular"]}`}>
       <Sidebar />
       <div className="flex flex-col flex-1 w-full h-full ">
         <nav className="bg-white shadow-lg py-2" dir="rtl ">
@@ -189,10 +202,34 @@ function isJwtExpired(token) {
 </span>
 
 </div>
-                <div className="rounded-xl flex align-baseline justify-between w-14 border border-gray-200 h-8">
-                  <FaSortDown />
-                  <img src="/images/favicon.ico" />
+                {/* User dropdown with dynamic name */}
+                <div className="relative user-dropdown px-2">
+                  <div 
+                    className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-200 transition-colors"
+                    onClick={toggleUserDropdown}
+                  >
+                    <span className="text-sm font-medium text-teal-700">{userName}</span>
+                    <FaSortDown className="text-gray-500" />
+                  </div>
+                  
+                  {/* User dropdown menu */}
+                  {isUserDropdownOpen && (
+                    <div className="absolute top-10 left-0 w-48 bg-gray-100 shadow-lg rounded-lg z-10 border border-gray-200">
+                      <div >
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-right px-4 py-2 text-md text-teal-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          تسجيل الخروج
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
               </div>
             </div>
           </div>
