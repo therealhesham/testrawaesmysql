@@ -740,8 +740,7 @@ export default function TrackOrder() {
                     />
                     <label
                       htmlFor="file-upload-destinations"
-                      className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 disabled:opacity-50"
-                      disabled={updating}
+                      className={`bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
                     >
                       اختيار ملف
                     </label>
@@ -976,13 +975,13 @@ export default function TrackOrder() {
   );
 }
 
-export async function getServerSideProps ({ req }) {
+export async function getServerSideProps ({ req }: { req: any }) {
   try {
     // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: string) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
@@ -995,7 +994,7 @@ export async function getServerSideProps ({ req }) {
       };
     }
 
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
@@ -1004,7 +1003,7 @@ export async function getServerSideProps ({ req }) {
     });
     if (
       !findUser ||
-      !findUser.role?.permissions?.["إدارة الطلبات"]?.["إضافة"]
+      !(findUser.role?.permissions as any)?.["إدارة الطلبات"]?.["إضافة"]
     ) {
       return {
         redirect: { destination: "/admin/home", permanent: false }, // or show 403

@@ -114,8 +114,8 @@ export async function getServerSideProps({ req }) {
     });
 
     if (
-      !findUser ||
-      !findUser.role?.permissions?.["إدارة الوصول والمغادرة"]?.["عرض"]
+      !findUser 
+      // !findUser.role?.permissions?.["إدارة الوصول والمغادرة"]?.["عرض"]
     ) {
       return {
         props: { isUnauthorized: true }, // Show modal for unauthorized access

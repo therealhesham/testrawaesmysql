@@ -386,6 +386,14 @@ model arrivallist {
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
   id                        Int       @id @default(autoincrement())
+  
+  deparatureCityCountry  String? @db.VarChar(191) // يتم استخدامها في وجهة المغادرة في صفحة تتبع الطلب
+  deparatureCityCountryDate DateTime?
+  deparatureCityCountryTime   String?
+  
+
+    arrivalSaudiAirport String?
+
   SponsorName               String?   @db.VarChar(191)
   office                    String?   @db.VarChar(191)
   InternalmusanedContract   String?   @db.VarChar(191)
