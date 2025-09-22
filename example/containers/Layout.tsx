@@ -143,8 +143,8 @@ function isJwtExpired(token) {
       <Sidebar />
       <div className="flex flex-col flex-1 w-full h-full ">
         <nav className="bg-white shadow-lg py-2" dir="rtl ">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8">
-            <div className="flex justify-between h-16">
+          <div className="w-full px-4">
+            <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
                 <img
                   src="/images/homelogo.png"
@@ -153,12 +153,12 @@ function isJwtExpired(token) {
                 />
               </div>
 
-              <div className="flex items-center cursor-pointer space-x-4 ml-4 align-baseline  ">
+              <div className="flex items-center space-x-2">
                 {/* أيقونة الجرس مع القائمة المنسدلة */}
                 <div className="relative">
                   <div onClick={toggleNotificationDropdown}>
                     <BellIcon className="w-7 h-7 text-teal-700" />
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 text-sm ml-2 rounded-full"></span>
+                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 text-md ml-2 rounded-full"></span>
                   </div>
                   {/* القائمة المنسدلة */}
                   {isNotificationOpen && (
@@ -177,7 +177,7 @@ function isJwtExpired(token) {
                           >
                             <div className="flex justify-between items-center">
                               <div>
-                                <p className="text-sm font-semibold text-gray-900">{n.message}</p>
+                                <p className="text-md font-semibold text-gray-900">{n.message}</p>
                                 <p className="text-xs text-gray-500">
                                   منذ {new Date(n.createdAt).toLocaleDateString()}
                                 </p>
@@ -194,21 +194,20 @@ function isJwtExpired(token) {
                     </div>
                   )}
                 </div>
-<div>
-
-<span className="text-red-500 text-sm">
-
-  لديك {counts.unread} إشعارات جديدة  
-</span>
-
-</div>
+                
+                <div>
+                  <span className="text-red-500 text-md">
+                    لديك {counts.unread} إشعارات جديدة  
+                  </span>
+                </div>
+                
                 {/* User dropdown with dynamic name */}
-                <div className="relative user-dropdown px-2">
+                <div className="relative user-dropdown">
                   <div 
                     className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-200 transition-colors"
                     onClick={toggleUserDropdown}
                   >
-                    <span className="text-sm font-medium text-teal-700">{userName}</span>
+                    <span className="text-md font-medium text-teal-700">{userName}</span>
                     <FaSortDown className="text-gray-500" />
                   </div>
                   

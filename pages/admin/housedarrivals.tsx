@@ -20,6 +20,7 @@ interface HousedWorker {
   employee: string;
   Reason: string;
   Details: string;
+  isHasEntitlements?: boolean;
   Order?: {
     Name: string;
     phone: string;
@@ -37,6 +38,7 @@ interface EditWorkerForm {
   employee: string;
   Date: string;
   deliveryDate: string;
+  isHasEntitlements: boolean;
 }
 interface DepartureForm {
   deparatureHousingDate: string;
@@ -136,6 +138,12 @@ export default function Home({ user }: { user: any }) {
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [departedTotalCount, setDepartedTotalCount] = useState(0);
+  const [tabCounts, setTabCounts] = useState({ housed: 0, departed: 0 });
+  
+  // Debug: Log tabCounts changes
+  useEffect(() => {
+    console.log('tabCounts updated:', tabCounts);
+  }, [tabCounts]);
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -178,6 +186,7 @@ export default function Home({ user }: { user: any }) {
     reason: '',
     employee: user,
     details: '',
+    isHasEntitlements: true, // إضافة حقل المستحقات
   });
   const [editWorkerForm, setEditWorkerForm] = useState<EditWorkerForm>({
     location_id: 0,
@@ -186,6 +195,7 @@ export default function Home({ user }: { user: any }) {
     employee: '',
     Date: '',
     deliveryDate: '',
+    isHasEntitlements: true,
   });
   const [departureForm, setDepartureForm] = useState<DepartureForm>({
     deparatureHousingDate: '',
@@ -313,10 +323,13 @@ export default function Home({ user }: { user: any }) {
       });
       console.log('Housed workers response:', response.data);
       console.log('Housing data:', response.data.housing);
-      console.log('Total count:', response.data.totalCount);
+      console.log('Total count from API:', response.data.totalCount);
       console.log('Housed workers length:', response.data.housing?.length || 0);
+      console.log('Current tabCounts before update:', tabCounts);
       setHousedWorkers(response.data.housing);
       setTotalCount(response.data.totalCount);
+      setTabCounts(prev => ({ ...prev, housed: response.data.totalCount }));
+      console.log('Updated tabCounts housed:', response.data.totalCount);
     } catch (error) {
       console.error('Error fetching housed workers:', error);
       showNotification('خطأ في جلب بيانات التسكين', 'error');
@@ -337,8 +350,12 @@ export default function Home({ user }: { user: any }) {
       });
       console.log('Departed workers response:', response.data);
       console.log('Departed housing data:', response.data.housing);
+      console.log('Total count from API (departed):', response.data.totalCount);
+      console.log('Current tabCounts before update (departed):', tabCounts);
       setDepartedWorkers(response.data.housing);
       setDepartedTotalCount(response.data.totalCount);
+      setTabCounts(prev => ({ ...prev, departed: response.data.totalCount }));
+      console.log('Updated tabCounts departed:', response.data.totalCount);
     } catch (error) {
       console.error('Error fetching departed workers:', error);
       showNotification('خطأ في جلب بيانات العاملات اللي غادرن', 'error');
@@ -371,7 +388,11 @@ export default function Home({ user }: { user: any }) {
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
-      await axios.put(`/api/confirmhousinginformation`, { ...data, homeMaidId: workerId });
+      await axios.put(`/api/confirmhousinginformation`, { 
+        ...data, 
+        homeMaidId: workerId,
+        isHasEntitlements: data.isHasEntitlements
+      });
       showNotification('تم تحديث بيانات العاملة بنجاح');
       fetchHousedWorkers();
       fetchDepartedWorkers();
@@ -434,6 +455,7 @@ export default function Home({ user }: { user: any }) {
         employee: worker.employee || '',
         Date: worker.houseentrydate || '',
         deliveryDate: worker.deparatureHousingDate || '',
+        isHasEntitlements: worker.isHasEntitlements !== undefined ? worker.isHasEntitlements : true,
       });
       openModal('editWorker');
     }
@@ -480,6 +502,7 @@ export default function Home({ user }: { user: any }) {
         reason: '',
         employee: user,
         details: '',
+        isHasEntitlements: true,
       });
       // Clear selected worker and search term
       setSelectedWorker(null);
@@ -652,26 +675,46 @@ export default function Home({ user }: { user: any }) {
   <div className="flex flex-row items-center gap-10">
   {/* هذه القائمة ستلتزم باليسار */}
   <nav className="flex gap-10">
-    <button
-      className={`text-md pb-3 cursor-pointer ${
-        activeTab === 'housed'
-          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gray-900'
+    <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'housed' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('housed')}>
+      <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+        activeTab === 'housed' 
+          ? 'bg-teal-800 text-white' 
+          : 'bg-gray-200 text-gray-600'
+      }`}>
+{(() => {
+  const count = tabCounts.housed || totalCount || 0;
+  console.log('Displaying housed count:', count, 'tabCounts.housed:', tabCounts.housed, 'totalCount:', totalCount);
+  return count;
+})()}
+      </span>
+      <span className={`text-base transition-colors duration-200 ${
+        activeTab === 'housed' 
+          ? 'text-teal-700 font-medium' 
           : 'text-gray-500'
-      }`}
-      onClick={() => handleTabChange('housed')}
-    >
-      عاملات الاستقدام <span className="text-[8px] align-super">{totalCount}</span>
-    </button>
-    <button
-      className={`text-md pb-3 cursor-pointer ${
-        activeTab === 'departed'
-          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-gray-900'
+      }`}>
+        عاملات الاستقدام
+      </span>
+    </div>
+    <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'departed' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('departed')}>
+      <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+        activeTab === 'departed' 
+          ? 'bg-teal-800 text-white' 
+          : 'bg-gray-200 text-gray-600'
+      }`}>
+{(() => {
+  const count = tabCounts.departed || departedTotalCount || 0;
+  console.log('Displaying departed count:', count, 'tabCounts.departed:', tabCounts.departed, 'departedTotalCount:', departedTotalCount);
+  return count;
+})()}
+      </span>
+      <span className={`text-base transition-colors duration-200 ${
+        activeTab === 'departed' 
+          ? 'text-teal-700 font-medium' 
           : 'text-gray-500'
-      }`}
-      onClick={() => handleTabChange('departed')}
-    >
-      عاملات التاجير <span className="text-[8px] align-super">{departedTotalCount}</span>
-    </button>
+      }`}>
+        عاملات التاجير
+      </span>
+    </div>
   </nav>
 
   {/* هذا الزر سيتم دفعه إلى أقصى اليمين بسبب "ml-auto" */}
@@ -1260,6 +1303,34 @@ export default function Home({ user }: { user: any }) {
                         rows={3}
                       />
                     </div>
+                    {/* Entitlements */}
+                    <div className="mb-6">
+                      <label className="block text-md text-gray-700 mb-2">هل لديها مستحقات؟</label>
+                      <div className="flex gap-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="isHasEntitlements"
+                            value="true"
+                            checked={formData.isHasEntitlements === true}
+                            onChange={() => setFormData({ ...formData, isHasEntitlements: true })}
+                            className="w-4 h-4 text-teal-600"
+                          />
+                          <span className="text-md text-gray-700">نعم</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="isHasEntitlements"
+                            value="false"
+                            checked={formData.isHasEntitlements === false}
+                            onChange={() => setFormData({ ...formData, isHasEntitlements: false })}
+                            className="w-4 h-4 text-teal-600"
+                          />
+                          <span className="text-md text-gray-700">لا</span>
+                        </label>
+                      </div>
+                    </div>
                     {/* Action Buttons */}
                     <div className="flex justify-center gap-4">
                       <button
@@ -1404,6 +1475,33 @@ export default function Home({ user }: { user: any }) {
                         className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                         rows={4}
                       />
+                    </div>
+                    <div className="mb-4 col-span-2">
+                      <label className="block text-md mb-2 text-textDark">هل لديها مستحقات؟</label>
+                      <div className="flex gap-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="editIsHasEntitlements"
+                            value="true"
+                            checked={editWorkerForm.isHasEntitlements === true}
+                            onChange={() => setEditWorkerForm({ ...editWorkerForm, isHasEntitlements: true })}
+                            className="w-4 h-4 text-teal-600"
+                          />
+                          <span className="text-md text-textDark">نعم</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="editIsHasEntitlements"
+                            value="false"
+                            checked={editWorkerForm.isHasEntitlements === false}
+                            onChange={() => setEditWorkerForm({ ...editWorkerForm, isHasEntitlements: false })}
+                            className="w-4 h-4 text-teal-600"
+                          />
+                          <span className="text-md text-textDark">لا</span>
+                        </label>
+                      </div>
                     </div>
                     <div className="flex justify-end gap-4">
                       <button
