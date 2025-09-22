@@ -8,7 +8,6 @@ import { DocumentTextIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends } from 'react-icons/fa';
 import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
-
 // Interfaces
 interface HousedWorker {
   id: number;
@@ -26,9 +25,11 @@ interface HousedWorker {
     phone: string;
     Nationalitycopy: string;
     Passportnumber: string;
+    NewOrder?: Array<{
+      typeOfContract: string;
+    }>;
   };
 }
-
 interface EditWorkerForm {
   location_id: number;
   Reason: string;
@@ -37,25 +38,21 @@ interface EditWorkerForm {
   Date: string;
   deliveryDate: string;
 }
-
 interface DepartureForm {
   deparatureHousingDate: string;
   deparatureReason: string;
   status: string;
 }
-
 interface InHouseLocation {
   id: number;
   location: string;
   quantity: number;
   currentOccupancy?: number;
 }
-
 interface Homemaid {
   id: number;
   Name: string;
 }
-
 // ActionDropdown Component
 const ActionDropdown: React.FC<{
   id: number;
@@ -66,7 +63,6 @@ const ActionDropdown: React.FC<{
 }> = ({ id, name, onEdit, onDeparture, onAddSession }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -76,7 +72,6 @@ const ActionDropdown: React.FC<{
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -122,8 +117,7 @@ const ActionDropdown: React.FC<{
     </div>
   );
 };
-
-export default function Home({ user }) {
+export default function Home({ user }: { user: any }) {
   const [modals, setModals] = useState({
     addResidence: false,
     editWorker: false,
@@ -131,6 +125,10 @@ export default function Home({ user }) {
     newHousing: false,
     columnVisibility: false,
     notification: false,
+    amountModal: false,
+    workerTypeSelection: false,
+    housingForm: false,
+    internalWorkerModal: false,
   });
   const [housedWorkers, setHousedWorkers] = useState<HousedWorker[]>([]);
   const [departedWorkers, setDepartedWorkers] = useState<HousedWorker[]>([]);
@@ -150,7 +148,6 @@ export default function Home({ user }) {
   });
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
-
   const [columnVisibility, setColumnVisibility] = useState({
     id: true,
     Name: true,
@@ -166,9 +163,7 @@ export default function Home({ user }) {
     actions: true,
     deparatureReason: true,
   });
-
   const pageSize = 10;
-
   const [formData, setFormData] = useState({
     homeMaidId: '',
     profileStatus: '',
@@ -184,7 +179,6 @@ export default function Home({ user }) {
     employee: user,
     details: '',
   });
-
   const [editWorkerForm, setEditWorkerForm] = useState<EditWorkerForm>({
     location_id: 0,
     Reason: '',
@@ -193,36 +187,67 @@ export default function Home({ user }) {
     Date: '',
     deliveryDate: '',
   });
-
   const [departureForm, setDepartureForm] = useState<DepartureForm>({
     deparatureHousingDate: '',
     deparatureReason: '',
     status: 'departed',
   });
-
   const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(null);
   const [selectedWorkerName, setSelectedWorkerName] = useState<string>('');
-
+  const [workerType, setWorkerType] = useState<'داخلية' | 'خارجية'>('داخلية');
+  const [workerSearchTerm, setWorkerSearchTerm] = useState('');
+  const [workerSuggestions, setWorkerSuggestions] = useState<any[]>([]);
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  // Internal worker modal form data
+  const [internalWorkerForm, setInternalWorkerForm] = useState({
+    workerId: '',
+    workerName: '',
+    mobile: '',
+    clientName: '',
+    clientMobile: '',
+    city: '',
+    address: '',
+    officeName: '',
+    housing: '',
+    housingDate: '',
+    receiptDate: '',
+    reason: '',
+    details: '',
+  });
+  // Helper function to get contract type in Arabic
+  const getContractTypeInArabic = (typeOfContract: string) => {
+    switch (typeOfContract) {
+      case 'recruitment':
+        return 'استقدام';
+      case 'rental':
+        return 'تأجير';
+      default:
+        return 'غير محدد';
+    }
+  };
   // Open/close modals
   const openModal = (modalName: string) => {
     setModals((prev) => ({ ...prev, [modalName]: true }));
   };
-
   const closeModal = (modalName: string) => {
     setModals((prev) => ({ ...prev, [modalName]: false }));
     if (modalName !== 'notification') {
       setSelectedWorkerId(null);
       setSelectedWorkerName('');
     }
+    // Clear worker selection when closing housing form
+    if (modalName === 'housingForm') {
+      setSelectedWorker(null);
+      setWorkerSearchTerm('');
+    }
   };
-
   // Show notification modal
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotificationMessage(message);
     setNotificationType(type);
     openModal('notification');
   };
-
   // Toggle column visibility
   const toggleColumnVisibility = (column: keyof typeof columnVisibility) => {
     setColumnVisibility((prev) => ({
@@ -230,7 +255,6 @@ export default function Home({ user }) {
       [column]: !prev[column],
     }));
   };
-
   // Fetch locations
   const fetchLocations = async () => {
     try {
@@ -240,7 +264,6 @@ export default function Home({ user }) {
       showNotification('خطأ في جلب بيانات المواقع', 'error');
     }
   };
-
   // Fetch homemaids
   const fetchHomemaids = async () => {
     try {
@@ -250,43 +273,77 @@ export default function Home({ user }) {
       showNotification('خطأ في جلب بيانات العاملات', 'error');
     }
   };
-
-  // Fetch housed workers
+  // Search workers by ID - search in homemaid table
+  const searchWorkers = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setWorkerSuggestions([]);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      // Determine contract type based on worker type
+      const contractType = workerType === 'داخلية' ? 'rental' : 'recruitment'; // Swapped as per request
+      const response = await fetch(`/api/housing/search-workers?search=${encodeURIComponent(searchTerm)}&limit=10&contractType=${contractType}`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkerSuggestions(data.homemaids || []);
+      } else {
+        console.error('Error searching workers');
+        setWorkerSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error searching workers:', error);
+      setWorkerSuggestions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+  // Fetch housed workers (recruitment)
   const fetchHousedWorkers = async () => {
     try {
+      console.log('Fetching housed workers with contractType: recruitment');
       const response = await axios.get('/api/confirmhousinginformation', {
         params: {
           ...filters,
           page,
           sortKey,
           sortDirection,
+          contractType: 'recruitment', // Show recruitment workers in housed tab
         },
       });
+      console.log('Housed workers response:', response.data);
+      console.log('Housing data:', response.data.housing);
+      console.log('Total count:', response.data.totalCount);
+      console.log('Housed workers length:', response.data.housing?.length || 0);
       setHousedWorkers(response.data.housing);
       setTotalCount(response.data.totalCount);
     } catch (error) {
+      console.error('Error fetching housed workers:', error);
       showNotification('خطأ في جلب بيانات التسكين', 'error');
     }
   };
-
-  // Fetch departed workers
+  // Fetch departed workers (rental)
   const fetchDepartedWorkers = async () => {
     try {
-      const response = await axios.get('/api/departedhousedarrivals', {
+      console.log('Fetching departed workers with contractType: rental');
+      const response = await axios.get('/api/confirmhousinginformation', {
         params: {
           ...filters,
           page,
           sortKey,
           sortDirection,
+          contractType: 'rental', // Show rental workers in departed tab
         },
       });
+      console.log('Departed workers response:', response.data);
+      console.log('Departed housing data:', response.data.housing);
       setDepartedWorkers(response.data.housing);
-      setDepartedTotalCount(response.data.housing.length);
+      setDepartedTotalCount(response.data.totalCount);
     } catch (error) {
+      console.error('Error fetching departed workers:', error);
       showNotification('خطأ في جلب بيانات العاملات اللي غادرن', 'error');
     }
   };
-
   // Fetch housed workers for exporting
   const fetchHousedforExporting = async () => {
     try {
@@ -299,7 +356,6 @@ export default function Home({ user }) {
       throw error;
     }
   };
-
   // Fetch departed workers for exporting
   const fetchDepartedHousedforExporting = async () => {
     try {
@@ -312,7 +368,6 @@ export default function Home({ user }) {
       throw error;
     }
   };
-
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
@@ -324,7 +379,6 @@ export default function Home({ user }) {
       showNotification('حدث خطأ أثناء تحديث البيانات', 'error');
     }
   };
-
   // Record departure
   const recordDeparture = async (workerId: number, data: DepartureForm) => {
     try {
@@ -336,7 +390,6 @@ export default function Home({ user }) {
       showNotification('حدث خطأ أثناء تسجيل المغادرة', 'error');
     }
   };
-
   // Handle export
   const handleExport = async (type: 'housed' | 'departed', format: 'xlsx' | 'pdf') => {
     try {
@@ -346,7 +399,6 @@ export default function Home({ user }) {
       } else {
         data = await fetchDepartedHousedforExporting();
       }
-
       // Create a URL for the file blob and trigger download
       const url = window.URL.createObjectURL(new Blob([data]));
       const link = document.createElement('a');
@@ -359,7 +411,6 @@ export default function Home({ user }) {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
       showNotification(
         `تم تصدير الملف بصيغة ${format === 'xlsx' ? 'Excel' : 'PDF'} بنجاح`
       );
@@ -370,7 +421,6 @@ export default function Home({ user }) {
       );
     }
   };
-
   // Handle edit worker modal opening
   const handleEditWorker = (id: number, name: string) => {
     const worker = (activeTab === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
@@ -388,7 +438,6 @@ export default function Home({ user }) {
       openModal('editWorker');
     }
   };
-
   // Handle departure modal opening
   const handleWorkerDeparture = (id: number, name: string) => {
     setSelectedWorkerId(id);
@@ -400,17 +449,23 @@ export default function Home({ user }) {
     });
     openModal('workerDeparture');
   };
-
   // Handle form submission for newHousing
   const handlenewHousingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+   
+    // Validate that a worker is selected
+    if (!selectedWorker || !selectedWorker.id) {
+      showNotification('يرجى اختيار عاملة أولاً', 'error');
+      return;
+    }
+   
     try {
       const response = await axios.post('/api/confirmhousinginformation', {
         ...formData,
-        homeMaidId: Number(formData.homeMaidId),
+        homeMaidId: Number(selectedWorker.id),
       });
       showNotification(response.data.message);
-      closeModal('newHousing');
+      closeModal('housingForm');
       setFormData({
         homeMaidId: '',
         profileStatus: '',
@@ -423,38 +478,92 @@ export default function Home({ user }) {
         location: '',
         DeparatureTime: '',
         reason: '',
-        employee: '',
+        employee: user,
         details: '',
       });
+      // Clear selected worker and search term
+      setSelectedWorker(null);
+      setWorkerSearchTerm('');
       fetchHousedWorkers();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة', 'error');
     }
   };
-
   // Handle filter input changes
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setPage(1); // Reset to first page on filter change
   };
-
   // Handle sorting
   const handleSort = (key: string) => {
     setSortKey(key);
     setSortDirection(sortKey === key && sortDirection === 'asc' ? 'desc' : 'asc');
   };
-
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
-
   // Handle tab change with page reset
   const handleTabChange = (tab: 'housed' | 'departed') => {
     setActiveTab(tab);
     setPage(1); // Reset to first page when switching tabs
   };
-
+  // Handle worker type next button
+  const handleWorkerTypeNext = () => {
+    closeModal('workerTypeSelection');
+    if (workerType === 'داخلية') {
+      openModal('housingForm'); // Swapped as per request
+    } else {
+      openModal('internalWorkerModal'); // Swapped as per request
+    }
+  };
+  // Handle internal worker form submission
+  const handleInternalWorkerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post('/api/confirmhousinginformation', {
+        ...internalWorkerForm,
+        workerType: 'خارجية', // Adjusted for swap
+        employee: user,
+      });
+      showNotification(response.data.message);
+      closeModal('internalWorkerModal');
+      setInternalWorkerForm({
+        workerId: '',
+        workerName: '',
+        mobile: '',
+        clientName: '',
+        clientMobile: '',
+        city: '',
+        address: '',
+        officeName: '',
+        housing: '',
+        housingDate: '',
+        receiptDate: '',
+        reason: '',
+        details: '',
+      });
+      fetchHousedWorkers();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة الخارجية', 'error');
+    }
+  };
+  // Handle worker search input - similar to musanad_finacial
+  const handleWorkerSearch = (value: string) => {
+    setWorkerSearchTerm(value);
+    if (value.trim()) {
+      searchWorkers(value);
+    } else {
+      setWorkerSuggestions([]);
+      setSelectedWorker(null);
+    }
+  };
+  // Handle worker selection from suggestions
+  const handleWorkerSelection = (worker: any) => {
+    setSelectedWorker(worker);
+    setWorkerSearchTerm(worker.name || worker.Name || '');
+    setWorkerSuggestions([]);
+  };
   // Calculate duration
   const calculateDuration = (startDate: string) => {
     if (!startDate) return 'غير محدد';
@@ -464,15 +573,27 @@ export default function Home({ user }) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
-
   // Fetch data on component mount
   useEffect(() => {
+    console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab });
     fetchLocations();
     fetchHomemaids();
     fetchHousedWorkers();
     fetchDepartedWorkers();
   }, [page, sortKey, sortDirection, filters, activeTab]);
-
+  // Close search results when clicking outside - similar to musanad_finacial
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container')) {
+        setWorkerSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   return (
     <Layout>
       <Head>
@@ -504,259 +625,231 @@ export default function Home({ user }) {
                     ? 'السكن ممتلى جزئيا'
                     : 'السكن متاح';
                 const color =
-                  progress === 100 ? 'dangerDark' : progress > 50 ? 'warning' : 'success';
+                  progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
-                  <div key={location.id} className="bg-cardBg border border-border rounded-md p-4 text-right">
+                  <div key={location.id} className="bg-white border border-gray-300 rounded-md p-3 text-right">
                     <h3 className="text-sm font-normal mb-1">{location.location}</h3>
                     <p className="text-sm font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
-                    <div className="flex justify-between text-md mb-2">
+                    <div className="flex justify-between text-xs mb-2">
                       <span>{status}</span>
                       <span>{Math.round(progress)}%</span>
                     </div>
-                    <div className="bg-white border border-border rounded-sm h-3 overflow-hidden">
-                      <div className={`h-full bg-${color}`} style={{ width: `${progress}%` }}></div>
+                    <div className="bg-white border border-gray-300 rounded-sm h-3 overflow-hidden">
+                      <div
+                        className={`h-full ${
+                          progress === 100 ? 'bg-red-600' :
+                          progress > 50 ? 'bg-yellow-500' : 'bg-green-600'
+                        }`}
+                        style={{ width: `${progress}%` }}
+                      ></div>
                     </div>
                   </div>
                 );
               })}
             </section>
-            <section className="border border-border rounded-lg shadow-card p-6 flex flex-col gap-5">
-              <div className="flex justify-between items-center border-b border-border pb-3">
-                <nav className="flex gap-10">
+            <section className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 flex flex-col gap-5">
+              <div className="flex justify-between items-center border-b border-gray-300 pb-3">
+                <div className="flex gap-10">
                   <button
-                    className={`text-sm pb-3 cursor-pointer ${
-                      activeTab === 'housed'
-                        ? 'text-teal-800 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-teal-800'
-                        : 'text-textMuted'
-                    }`}
-                    onClick={() => handleTabChange('housed')}
-                  >
-                    عاملات تم تسكينهم <span className="text-[8px] align-super">{totalCount}</span>
-                  </button>
-                  <button
-                    className={`text-sm pb-3 cursor-pointer ${
-                      activeTab === 'departed'
-                        ? 'text-teal-800 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-teal-800'
-                        : 'text-textMuted'
-                    }`}
-                    onClick={() => handleTabChange('departed')}
-                  >
-                    قائمة عاملات غادرن التسكين <span className="text-[8px] align-super">{departedTotalCount}</span>
-                  </button>
-                </nav>
-                <div>
-                  <button
-                    onClick={() => openModal('newHousing')}
+                    onClick={() => openModal('workerTypeSelection')}
                     className="flex items-center gap-2 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
                   >
                     <Plus className="w-5 h-5" />
                     تسكين عاملة
                   </button>
+                  <nav className="flex gap-10">
+                    <button
+                      className={`text-sm pb-3 cursor-pointer ${
+                        activeTab === 'housed'
+                          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-gray-900'
+                          : 'text-gray-500'
+                      }`}
+                      onClick={() => handleTabChange('housed')}
+                    >
+                      عاملات الاستقدام <span className="text-[8px] align-super">{totalCount}</span>
+                    </button>
+                    <button
+                      className={`text-sm pb-3 cursor-pointer ${
+                        activeTab === 'departed'
+                          ? 'text-gray-900 font-bold relative after:content-[""] after:absolute after:bottom-0 after:right-0 after:w-full after:h-0.5 after:bg-gray-900'
+                          : 'text-gray-500'
+                      }`}
+                      onClick={() => handleTabChange('departed')}
+                    >
+                      عاملات التاجير <span className="text-[8px] align-super">{departedTotalCount}</span>
+                    </button>
+                  </nav>
                 </div>
+              </div>
+              <div className="flex justify-end gap-4 mb-4">
+                <button className="px-3 py-1 bg-teal-800 text-white text-sm rounded-md">
+                  عاملات تم تسكينهم
+                </button>
+                <button className="px-3 py-1 bg-gray-200 text-gray-600 text-sm rounded-md">
+                  عاملات غادرن السكن
+                </button>
               </div>
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <div className="bg-cardBg border border-border rounded-md p-2 flex items-center gap-2">
+                  <button
+                    onClick={() => setFilters({ Name: '', Passportnumber: '', reason: '', id: '' })}
+                    className="bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
+                  >
+                    اعادة ضبط
+                  </button>
+                  <button
+                    onClick={() => openModal('columnVisibility')}
+                    className="flex items-center gap-2 bg-gray-100 text-gray-600 text-sm py-2 px-4 rounded-md border border-gray-300"
+                  >
+                    <Settings className="w-5 h-5" />
+                    كل الاعمدة
+                  </button>
+                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-sm py-2 px-4 rounded-md border border-gray-300">
+                    السكن
+                  </button>
+                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-sm py-2 px-4 rounded-md border border-gray-300">
+                    اختر تاريخ
+                  </button>
+                  <div className="bg-gray-100 border border-gray-300 rounded-md p-2 flex items-center gap-2">
                     <input
                       type="text"
                       name="Name"
-                      placeholder="الاسم"
+                      placeholder="بحث"
                       value={filters.Name}
                       onChange={handleFilterChange}
                       className="bg-transparent outline-none text-right w-24 text-sm border-none"
                     />
                     <Search className="w-5 h-5 text-gray-500" />
                   </div>
-                  <div className="bg-cardBg border border-border rounded-md p-2 flex items-center gap-2">
-                    <input
-                      type="text"
-                      name="Passportnumber"
-                      placeholder="رقم الجواز"
-                      value={filters.Passportnumber}
-                      onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right text-sm border-none"
-                    />
-                    <Search className="w-5 h-5 text-gray-500" />
-                  </div>
-                  <div className="bg-cardBg border border-border rounded-md p-2 flex items-center gap-2">
-                    <input
-                      type="text"
-                      name="reason"
-                      placeholder="سبب التسكين"
-                      value={filters.reason}
-                      onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right text-sm border-none"
-                    />
-                    <Search className="w-5 h-5 text-gray-500" />
-                  </div>
-                  <button
-                    onClick={() => openModal('columnVisibility')}
-                    className="flex items-center gap-2 bg-gray-100 text-gray-500 text-sm py-4 px-4 rounded-md"
-                  >
-                    <Settings className="w-5 h-5" />
-                    إعدادات الأعمدة
-                  </button>
-                  <button
-                    onClick={() => setFilters({ Name: '', Passportnumber: '', reason: '', id: '' })}
-                    className="bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
-                  >
-                    <RotateCcw className="w-5 h-5 inline-block mr-2" />
-                    اعادة ضبط
-                  </button>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleExport(activeTab, 'xlsx')}
-                    className="flex items-center gap-1 bg-teal-800 text-white text-xs py-1 px-3 rounded-sm"
+                    onClick={() => handleExport(activeTab, 'pdf')}
+                    className="flex items-center gap-1 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
                   >
-                    Excel <DocumentTextIcon className="w-5 h-5" />
+                    <FileText className="w-5 h-5" />
+                    PDF
                   </button>
                   <button
-                    onClick={() => handleExport(activeTab, 'pdf')}
-                    className="flex items-center gap-1 bg-teal-800 text-white text-xs py-1 px-3 rounded-sm"
+                    onClick={() => handleExport(activeTab, 'xlsx')}
+                    className="flex items-center gap-1 bg-teal-800 text-white text-sm py-2 px-4 rounded-md"
                   >
-                    PDF <FileText className="w-5 h-5" />
+                    <DocumentTextIcon className="w-5 h-5" />
+                    Excel
                   </button>
                 </div>
               </div>
               <div className="flex flex-col">
                 <div
-                  className="bg-teal-800 text-white py-4 px-4 grid items-center text-right gap-2 text-sm"
+                  className="bg-teal-800 text-white py-4 px-4 grid items-center text-right gap-4 text-sm rounded-t-md"
                   style={{
-                    gridTemplateColumns: [
-                      columnVisibility.id && '1fr',
-                      columnVisibility.Name && '1fr',
-                      columnVisibility.phone && '1.5fr',
-                      columnVisibility.Nationalitycopy && '1fr',
-                      columnVisibility.Passportnumber && '1.5fr',
-                      columnVisibility.location && '1.5fr',
-                      columnVisibility.Reason && '1.5fr',
-                      columnVisibility.houseentrydate && '1.5fr',
-                      columnVisibility.deliveryDate && '1.5fr',
-                      columnVisibility.duration && '1fr',
-                      columnVisibility.employee && '1fr',
-                      columnVisibility.deparatureReason && '1.5fr',
-                      columnVisibility.actions && '1fr',
-                    ]
-                      .filter(Boolean)
-                      .join(' '),
+                    gridTemplateColumns: '40px 1fr 1fr 0.8fr 1fr 0.8fr 1fr 1fr 1fr 0.6fr 0.7fr 1fr 0.7fr 0.7fr 0.8fr',
                   }}
                 >
-                  {columnVisibility.id && <span>#</span>}
-                  {columnVisibility.Name && <button onClick={() => handleSort('Name')}>الاسم</button>}
-                  {columnVisibility.phone && <button onClick={() => handleSort('phone')}>رقم الجوال</button>}
-                  {columnVisibility.Nationalitycopy && (
-                    <button onClick={() => handleSort('Nationalitycopy')}>الجنسية</button>
-                  )}
-                  {columnVisibility.Passportnumber && <span>رقم الجواز</span>}
-                  {columnVisibility.location && <span>السكن</span>}
-                  {columnVisibility.Reason && <button onClick={() => handleSort('Details')}>سبب التسكين</button>}
-                  {columnVisibility.houseentrydate && <span>تاريخ التسكين</span>}
-                  {columnVisibility.deliveryDate && <span>تاريخ التسليم</span>}
-                  {columnVisibility.duration && <span>مدة السكن</span>}
-                  {columnVisibility.employee && <span>الموظف</span>}
-                  {columnVisibility.deparatureReason && <span>سبب المغادرة</span>}
-                  {columnVisibility.actions && <span>اجراءات</span>}
+                  <span>#</span>
+                  <span>الاسم</span>
+                  <span>رقم الجوال</span>
+                  <span>الجنسية</span>
+                  <span>رقم الجواز</span>
+                  <span>السكن</span>
+                  <span>سبب التسكين</span>
+                  <span>تاريخ التسكين</span>
+                  <span>تاريخ التسليم</span>
+                  <span>مدة السكن</span>
+                  <span>الموظف</span>
+                  <span>لديها مستحقات</span>
+                  <span>ملاحظات</span>
+                  <span>نوع العقد</span>
+                  <span>اجراءات</span>
                 </div>
                 <div className="flex flex-col">
+                  {console.log('Rendering workers:', activeTab, (activeTab === 'housed' ? housedWorkers : departedWorkers).length)}
                   {(activeTab === 'housed' ? housedWorkers : departedWorkers)
-                    .filter((worker) => worker.Order?.Name && worker.Order?.Passportnumber)
-                    .map((worker) => (
+                    .filter((worker) => worker.Order?.Name)
+                    .length > 0 ? (
+                    (activeTab === 'housed' ? housedWorkers : departedWorkers)
+                      .filter((worker) => worker.Order?.Name)
+                      .map((worker) => (
                       <div
                         key={worker.id}
-                        className="bg-cardBg border-b border-border py-3 px-4 grid items-center text-right gap-2 text-sm last:border-b-0"
+                        className="bg-gray-50 border border-gray-300 py-4 px-4 grid items-center text-right gap-4 text-sm last:border-b-0"
                         style={{
-                          gridTemplateColumns: [
-                            columnVisibility.id && '1fr',
-                            columnVisibility.Name && '1fr',
-                            columnVisibility.phone && '1.5fr',
-                            columnVisibility.Nationalitycopy && '1fr',
-                            columnVisibility.Passportnumber && '1.5fr',
-                            columnVisibility.location && '1.5fr',
-                            columnVisibility.Reason && '1.5fr',
-                            columnVisibility.houseentrydate && '1.5fr',
-                            columnVisibility.deliveryDate && '1.5fr',
-                            columnVisibility.duration && '1fr',
-                            columnVisibility.employee && '1fr',
-                            columnVisibility.deparatureReason && '1.5fr',
-                            columnVisibility.actions && '1fr',
-                          ]
-                            .filter(Boolean)
-                            .join(' '),
+                          gridTemplateColumns: '40px 1fr 1fr 0.8fr 1fr 0.8fr 1fr 1fr 1fr 0.6fr 0.7fr 1fr 0.7fr 0.7fr 0.8fr',
                         }}
                       >
-                        {columnVisibility.id && <span>{worker.id}</span>}
-                        {columnVisibility.Name && (
-                          <span className="text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</span>
-                        )}
-                        {columnVisibility.phone && <span>{worker.Order?.phone || ''}</span>}
-                        {columnVisibility.Nationalitycopy && <span>{worker.Order?.Nationalitycopy || ''}</span>}
-                        {columnVisibility.Passportnumber && <span>{worker.Order?.Passportnumber || ''}</span>}
-                        {columnVisibility.location && (
-                          <span>{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</span>
-                        )}
-                        {columnVisibility.Reason && <span>{worker.Reason}</span>}
-                        {columnVisibility.houseentrydate && (
-                          <span>{worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد'}</span>
-                        )}
-                        {columnVisibility.deliveryDate && (
-                          <span>
-                            {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
-                          </span>
-                        )}
-                        {columnVisibility.duration && (
-                          <span
-                            className={worker.houseentrydate && calculateDuration(worker.houseentrydate) > 10 ? 'text-danger' : 'text-black'}
-                          >
-                            {calculateDuration(worker.houseentrydate)}
-                          </span>
-                        )}
-                        {columnVisibility.employee && <span>{worker.employee}</span>}
-                        {columnVisibility.deparatureReason && <span>{worker.deparatureReason || 'غير محدد'}</span>}
-                        {columnVisibility.actions && (
-                          <div className="flex justify-center">
-                            <ActionDropdown
-                              id={worker.id}
-                              name={worker.Order?.Name || ''}
-                              onEdit={handleEditWorker}
-                              onDeparture={handleWorkerDeparture}
-                              onAddSession={() => openModal('newHousing')}
-                            />
-                          </div>
-                        )}
+                        <span>#{worker.id}</span>
+                        <span className="text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</span>
+                        <span>{worker.Order?.phone || ''}</span>
+                        <span>{worker.Order?.Nationalitycopy || ''}</span>
+                        <span>{worker.Order?.Passportnumber || ''}</span>
+                        <span>{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</span>
+                        <span>{worker.Reason}</span>
+                        <span>{worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد'}</span>
+                        <span>
+                          {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
+                        </span>
+                        <span
+                          className={worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}
+                        >
+                          {calculateDuration(worker.houseentrydate)}
+                        </span>
+                        <span>{worker.employee}</span>
+                        <button
+                          onClick={() => openModal('amountModal')}
+                          className="text-teal-800 hover:text-teal-600"
+                        >
+                          نعم
+                        </button>
+                        <span className="text-center">
+                          {getContractTypeInArabic(worker.Order?.NewOrder?.[0]?.typeOfContract || '')}
+                        </span>
+                        <div className="flex justify-center">
+                          <ActionDropdown
+                            id={worker.id}
+                            name={worker.Order?.Name || ''}
+                            onEdit={handleEditWorker}
+                            onDeparture={handleWorkerDeparture}
+                            onAddSession={() => openModal('newHousing')}
+                          />
+                        </div>
                       </div>
-                    ))}
+                    ))
+                  ) : (
+                    <div className="col-span-full py-8 text-center text-gray-500">
+                      لا توجد بيانات متاحة
+                    </div>
+                  )}
                 </div>
               </div>
-              <footer className="flex justify-between items-center pt-4">
+              <footer className="flex justify-between items-center pt-6">
                 <span className="text-base">
                   عرض {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, activeTab === 'housed' ? totalCount : departedTotalCount)} من {activeTab === 'housed' ? totalCount : departedTotalCount} نتيجة
                 </span>
-                <nav className="flex items-center gap-2">
+                <nav className="flex items-center gap-1">
                   <button
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page === 1}
-                    className="border border-border bg-cardBg text-textDark py-1 px-2 rounded-sm text-sm disabled:opacity-50"
+                    onClick={() => handlePageChange(page + 1)}
+                    disabled={page === Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize)}
+                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-sm disabled:opacity-50"
                   >
-                    السابق
+                    التالي
                   </button>
                   {Array.from({ length: Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize) }, (_, i) => i + 1).map((p) => (
                     <button
                       key={p}
                       onClick={() => handlePageChange(p)}
                       className={`border ${
-                        p === page ? 'border-primary bg-teal-800 text-white' : 'text-textDark'
+                        p === page ? 'border-teal-800 bg-teal-800 text-white' : 'border-gray-300 bg-gray-100 text-gray-700'
                       } py-1 px-2 rounded-sm text-sm`}
                     >
                       {p}
                     </button>
                   ))}
                   <button
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page === Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize)}
-                    className="border border-border bg-cardBg text-textDark py-1 px-2 rounded-sm text-sm disabled:opacity-50"
+                    onClick={() => handlePageChange(page - 1)}
+                    disabled={page === 1}
+                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-sm disabled:opacity-50"
                   >
-                    التالي
+                    السابق
                   </button>
                 </nav>
               </footer>
@@ -801,7 +894,7 @@ export default function Home({ user }) {
                         type="text"
                         id="residence-name"
                         placeholder="ادخل اسم السكن"
-                        className="w-full   text-right text-sm text-textDark"
+                        className="w-full text-right text-sm text-textDark"
                       />
                     </div>
                     <div className="mb-4">
@@ -812,7 +905,7 @@ export default function Home({ user }) {
                         type="number"
                         id="residence-capacity"
                         placeholder="ادخل السعة"
-                        className="w-full  border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full border border-border rounded-md text-right text-sm text-textDark"
                       />
                     </div>
                     <div className="flex justify-end gap-4">
@@ -901,196 +994,284 @@ export default function Home({ user }) {
                 </div>
               </div>
             )}
-            {/* Add Session Modal */}
-            {modals.newHousing && (
+            {/* Worker Type Selection Modal */}
+            {modals.workerTypeSelection && (
               <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
-                onClick={() => closeModal('newHousing')}
+                onClick={() => closeModal('workerTypeSelection')}
               >
                 <div
-                  className="bg-gray-100 rounded-lg p-6 w-full max-w-lg shadow-card"
+                  className="bg-gray-200 rounded-lg p-10 w-full max-w-md shadow-card"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center mb-5">
-                    <h2 className="text-xl font-bold text-textDark">تسكين عاملة</h2>
-                    <button onClick={() => closeModal('newHousing')} className="text-textMuted text-2xl">
+                  <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-normal text-black">تسكين عاملة</h2>
+                    <button onClick={() => closeModal('workerTypeSelection')} className="text-gray-400 text-2xl hover:text-gray-600">
                       &times;
                     </button>
                   </div>
-                  <form onSubmit={handlenewHousingSubmit} className="grid grid-cols-2 gap-2">
-                    <div className="mb-4">
-                      <label htmlFor="session-worker" className="block text-sm mb-2 text-textDark">
-                        اسم العاملة
+                 
+                  <div className="mb-8">
+                    <h3 className="text-2xl font-normal text-gray-900 mb-8 text-center">اختر نوع العاملة</h3>
+                    <div className="flex justify-center gap-10 mb-6">
+                      <label className="flex items-center gap-2 cursor-pointer bg-white border border-gray-300 rounded-md p-4 hover:bg-gray-50">
+                        <input
+                          type="radio"
+                          name="workerType"
+                          value="داخلية"
+                          checked={workerType === 'داخلية'}
+                          onChange={() => setWorkerType('داخلية')}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-lg">داخلية</span>
                       </label>
-                      <select
-                        id="session-worker"
-                        value={formData.homeMaidId}
-                        onChange={(e) => setFormData({ ...formData, homeMaidId: e.target.value })}
-                        className="w-full border border-border rounded-md text-right text-sm text-textDark"
+                      <label className="flex items-center gap-2 cursor-pointer bg-white border border-gray-300 rounded-md p-4 hover:bg-gray-50">
+                        <input
+                          type="radio"
+                          name="workerType"
+                          value="خارجية"
+                          checked={workerType === 'خارجية'}
+                          onChange={() => setWorkerType('خارجية')}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-lg">خارجية</span>
+                      </label>
+                    </div>
+                    <div className="flex justify-center">
+                      <button
+                        onClick={handleWorkerTypeNext}
+                        className="bg-teal-800 text-white py-2 px-6 rounded-md text-base hover:bg-teal-700"
                       >
-                        <option value="">اختر العاملة</option>
-                        {homemaids.map((maid) => (
-                          <option key={maid.id} value={maid.id}>
-                            {maid.Name}
-                          </option>
-                        ))}
-                      </select>
+                        التالي
+                      </button>
                     </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-residence" className="block text-sm mb-2 text-textDark">
-                        السكن
-                      </label>
-                      <select
-                        id="session-residence"
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                        className="w-full  border border-border rounded-md text-right text-sm text-textDark"
-                      >
-                        <option value="">اختر السكن</option>
-                        {locations.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.location}
-                          </option>
-                        ))}
-                      </select>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Housing Form Modal */}
+            {modals.housingForm && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('housingForm')}
+              >
+                <div
+                  className="bg-gray-200 rounded-lg p-10 w-full max-w-4xl shadow-card"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-normal text-black">تسكين عاملة - {workerType}</h2>
+                    <button onClick={() => closeModal('housingForm')} className="text-gray-400 text-2xl hover:text-gray-600">
+                      &times;
+                    </button>
+                  </div>
+                  <form onSubmit={handlenewHousingSubmit} className="space-y-4">
+                    {/* Worker Search - similar to musanad_finacial */}
+                    <div className="col-span-1 md:col-span-2 mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">البحث عن العاملة</label>
+                      <div className="relative search-container">
+                        <input
+                          type="text"
+                          value={workerSearchTerm}
+                          onChange={(e) => handleWorkerSearch(e.target.value)}
+                          placeholder="ابحث برقم العاملة أو الاسم أو رقم الجواز"
+                          className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
+                        />
+                        {isSearching && (
+                          <div className="absolute right-3 top-3">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                          </div>
+                        )}
+                       
+                        {/* Search Results Dropdown */}
+                        {workerSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                            {workerSuggestions.map((worker) => (
+                              <div
+                                key={worker.id}
+                                onClick={() => handleWorkerSelection(worker)}
+                                className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                              >
+                                <div className="font-medium text-sm">عاملة #{worker.id}</div>
+                                <div className="text-xs text-gray-600">الاسم: {worker.name}</div>
+                                <div className="text-xs text-gray-600">الجنسية: {worker.nationality}</div>
+                                <div className="text-xs text-gray-500">رقم الجواز: {worker.passportNumber}</div>
+                                <div className="text-xs text-gray-500">العمر: {worker.age} سنة</div>
+                                {worker.hasOrders && (
+                                  <div className="text-xs text-green-600 mt-1">
+                                    ✓ لديها طلبات ({worker.orders?.length || 0}) - {worker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {!selectedWorker && (
+                        <div className="text-xs text-red-600 mt-1">
+                          * يجب اختيار عاملة قبل المتابعة
+                        </div>
+                      )}
                     </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-start-date" className="block text-sm mb-2 text-textDark">
-                        تاريخ التسكين
-                      </label>
-                      <input
-                        type="date"
-                        id="session-start-date"
-                        value={formData.houseentrydate}
-                        onChange={(e) => setFormData({ ...formData, houseentrydate: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      />
+                    {/* Selected Worker Display */}
+                    {selectedWorker && (
+                      <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-3 mb-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-medium text-green-800">العاملة المحددة:</div>
+                            <div className="text-sm text-green-700">#{selectedWorker.id} - {selectedWorker.name}</div>
+                            <div className="text-xs text-green-600">الجنسية: {selectedWorker.nationality}</div>
+                            <div className="text-xs text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
+                            <div className="text-xs text-green-600">العمر: {selectedWorker.age} سنة</div>
+                            {selectedWorker.hasOrders && (
+                              <div className="text-xs text-green-600 font-medium">
+                                ✓ لديها {selectedWorker.orders?.length || 0} طلب - {selectedWorker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedWorker(null);
+                              setWorkerSearchTerm('');
+                            }}
+                            className="text-green-600 hover:text-green-800 text-sm"
+                          >
+                            إزالة
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Worker Info Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">اسم العاملة</label>
+                        <input
+                          type="text"
+                          value={selectedWorker?.name || ''}
+                          disabled
+                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">الجنسية</label>
+                        <input
+                          type="text"
+                          value={selectedWorker?.nationality || ''}
+                          disabled
+                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
                     </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-reason" className="block text-sm mb-2 text-textDark">
-                        سبب التسكين
-                      </label>
-                      <input
-                        type="text"
-                        id="session-reason"
-                        placeholder="ادخل سبب التسكين"
-                        value={formData.reason}
-                        onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                        className="w-full border border-border rounded-md text-right text-sm text-textDark"
-                      />
+                    {/* Housing Info Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">السكن</label>
+                        <div className="relative">
+                          <select
+                            value={formData.location}
+                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                          >
+                            <option value="">اختر السكن</option>
+                            {locations.map((loc) => (
+                              <option key={loc.id} value={loc.id}>
+                                {loc.location}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ التسكين</label>
+                        <div className="relative">
+                          <input
+                            type="date"
+                            value={formData.houseentrydate}
+                            onChange={(e) => setFormData({ ...formData, houseentrydate: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                          />
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-employee" className="block text-sm mb-2 text-textDark">
-                        الموظف
-                      </label>
-                      <input
-                        type="text"
-                        id="session-employee"
-                        placeholder="ادخل اسم الموظف"
-                        value={formData.employee}
-                        onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      />
+                    {/* Delivery and Reason Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ الاستلام</label>
+                        <div className="relative">
+                          <input
+                            type="date"
+                            value={formData.deliveryDate}
+                            onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                          />
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">سبب التسكين</label>
+                        <div className="relative">
+                          <select
+                            value={formData.reason}
+                            onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                          >
+                            <option value="">اختر سبب التسكين</option>
+                            <option value="انتظار الترحيل">انتظار الترحيل</option>
+                            <option value="نقل كفالة">نقل كفالة</option>
+                            <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
+                          </select>
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-details" className="block text-sm mb-2 text-textDark">
-                        التفاصيل
-                      </label>
+                    {/* Details */}
+                    <div className="mb-6">
+                      <label className="block text-xs text-gray-700 mb-2">التفاصيل</label>
                       <textarea
-                        id="session-details"
-                        placeholder="ادخل التفاصيل"
+                        placeholder="التفاصيل"
                         value={formData.details}
                         onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                        rows={4}
-                      ></textarea>
-                    </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-departure-city" className="block text-sm mb-2 text-textDark">
-                        مدينة المغادرة
-                      </label>
-                      <input
-                        type="text"
-                        id="session-departure-city"
-                        placeholder="ادخل مدينة المغادرة"
-                        value={formData.deparatureCity}
-                        onChange={(e) => setFormData({ ...formData, deparatureCity: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
+                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        rows={3}
                       />
                     </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-arrival-city" className="block text-sm mb-2 text-textDark">
-                        مدينة الوصول
-                      </label>
-                      <input
-                        type="text"
-                        id="session-arrival-city"
-                        placeholder="ادخل مدينة الوصول"
-                        value={formData.arrivalCity}
-                        onChange={(e) => setFormData({ ...formData, arrivalCity: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      />
-                    </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-departure-date" className="block text-sm mb-2 text-textDark">
-                        تاريخ المغادرة
-                      </label>
-                      <input
-                        type="date"
-                        id="session-departure-date"
-                        value={formData.deparatureDate}
-                        onChange={(e) => setFormData({ ...formData, deparatureDate: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      />
-                    </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-departure-time" className="block text-sm mb-2 text-textDark">
-                        وقت المغادرة
-                      </label>
-                      <input
-                        type="time"
-                        id="session-departure-time"
-                        value={formData.DeparatureTime}
-                        onChange={(e) => setFormData({ ...formData, DeparatureTime: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      />
-                    </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-delivery-date" className="block text-sm mb-2 text-textDark">
-                        تاريخ التسليم
-                      </label>
-                      <input
-                        type="date"
-                        id="session-delivery-date"
-                        value={formData.deliveryDate}
-                        onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      />
-                    </div>
-                    <div className="mb-4">
-                      <label htmlFor="session-profile-status" className="block text-sm mb-2 text-textDark">
-                        حالة الملف
-                      </label>
-                      <select
-                        id="session-profile-status"
-                        value={formData.profileStatus}
-                        onChange={(e) => setFormData({ ...formData, profileStatus: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark"
-                      >
-                        <option value="">اختر الحالة</option>
-                        <option value="بدأت العمل">بدأت العمل</option>
-                        <option value="قيد الانتظار">قيد الانتظار</option>
-                      </select>
-                    </div>
+                    {/* Action Buttons */}
                     <div className="flex justify-center gap-4">
                       <button
                         type="button"
-                        onClick={() => closeModal('newHousing')}
-                        className="bg-gray-300 text-white py-2 px-4 rounded-md text-sm"
+                        onClick={() => closeModal('housingForm')}
+                        className="bg-white text-teal-800 border border-teal-800 rounded-md w-28 h-8 text-base"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-sm">
+                      <button
+                        type="submit"
+                        disabled={!selectedWorker || !selectedWorker.id}
+                        className={`rounded-md w-28 h-8 text-base ${
+                          !selectedWorker || !selectedWorker.id
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            : 'bg-teal-800 text-white hover:bg-teal-700'
+                        }`}
+                      >
                         حفظ
                       </button>
                     </div>
@@ -1137,7 +1318,7 @@ export default function Home({ user }) {
                       <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
-                        value={selectedWorkerId}
+                        value={selectedWorkerId || ''}
                         disabled
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-200"
                       />
@@ -1273,7 +1454,7 @@ export default function Home({ user }) {
                       <label className="block text-sm mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
-                        value={selectedWorkerId}
+                        value={selectedWorkerId || ''}
                         disabled
                         className="w-full p-2 border border-border rounded-md text-right text-sm text-textDark bg-gray-100"
                       />
@@ -1322,6 +1503,292 @@ export default function Home({ user }) {
                 </div>
               </div>
             )}
+            {/* Amount Modal */}
+            {modals.amountModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-20 flex justify-center items-center z-50"
+                onClick={() => closeModal('amountModal')}
+              >
+                <div
+                  className="bg-white rounded-xl p-8 w-full max-w-md shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-xl font-normal text-gray-900">المبلغ المستحق</h2>
+                    <button
+                      onClick={() => closeModal('amountModal')}
+                      className="text-gray-400 text-2xl hover:text-gray-600"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  <form className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-2">المبلغ المستحق</label>
+                        <input
+                          type="text"
+                          value="2000 ريال"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base"
+                          readOnly
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-2">تفاصيل</label>
+                        <input
+                          type="text"
+                          placeholder="سبب المبلغ المستحق"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => closeModal('amountModal')}
+                        className="bg-white text-teal-800 border border-teal-800 rounded-md w-28 h-10 text-base"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-teal-800 text-white rounded-md w-28 h-10 text-base"
+                      >
+                        تعديل
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            {/* Internal Worker Modal */}
+            {modals.internalWorkerModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('internalWorkerModal')}
+              >
+                <div
+                  className="bg-gray-200 rounded-lg p-10 w-full max-w-4xl shadow-card"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-normal text-black">تسكين عاملة - {workerType}</h2>
+                    <button onClick={() => closeModal('internalWorkerModal')} className="text-gray-400 text-2xl hover:text-gray-600">
+                      &times;
+                    </button>
+                  </div>
+                  <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
+                    {/* Worker ID Search */}
+                    <div className="mb-4">
+                      <label className="block text-xs text-gray-700 mb-2">رقم العاملة</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={internalWorkerForm.workerId}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerId: e.target.value })}
+                          placeholder="ادخل رقم العاملة"
+                          className="flex-1 bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                        <button
+                          type="button"
+                          className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm"
+                        >
+                          بحث
+                        </button>
+                      </div>
+                    </div>
+                    {/* Worker Info Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">اسم العاملة</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.workerName}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerName: e.target.value })}
+                          placeholder="ادخل اسم العاملة"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">رقم الجوال</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.mobile}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, mobile: e.target.value })}
+                          placeholder="ادخل رقم الجوال"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                    </div>
+                    {/* Client Info Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">اسم العميل</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.clientName}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
+                          placeholder="اسم العميل"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">رقم الجوال</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.clientMobile}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
+                          placeholder="ادخل رقم الجوال"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                    </div>
+                    {/* Location Info Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">المدينة</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.city}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
+                          placeholder="ادخل المدينة"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">العنوان</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.address}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
+                          placeholder="ادخل العنوان"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                    </div>
+                    {/* Office and Housing Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">اسم المكتب</label>
+                        <input
+                          type="text"
+                          value={internalWorkerForm.officeName}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, officeName: e.target.value })}
+                          placeholder="ادخل اسم المكتب"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">السكن</label>
+                        <div className="relative">
+                          <select
+                            value={internalWorkerForm.housing}
+                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, housing: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                          >
+                            <option value="">اختر السكن</option>
+                            {locations.map((loc) => (
+                              <option key={loc.id} value={loc.id}>
+                                {loc.location}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Dates Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ التسكين</label>
+                        <div className="relative">
+                          <input
+                            type="date"
+                            value={internalWorkerForm.housingDate}
+                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, housingDate: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                          />
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ الاستلام</label>
+                        <div className="relative">
+                          <input
+                            type="date"
+                            value={internalWorkerForm.receiptDate}
+                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, receiptDate: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm pr-8"
+                          />
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Reason and Details Row */}
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">سبب التسكين</label>
+                        <div className="relative">
+                          <select
+                            value={internalWorkerForm.reason}
+                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, reason: e.target.value })}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm appearance-none pr-8"
+                          >
+                            <option value="">اختر سبب التسكين</option>
+                            <option value="عدم استلام الكفيل العاملة">عدم استلام الكفيل العاملة</option>
+                            <option value="الكفيل في منطقة اخرى">الكفيل في منطقة اخرى</option>
+                            <option value="اخرى">اخرى</option>
+                          </select>
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-700 mb-2">التفاصيل</label>
+                        <textarea
+                          value={internalWorkerForm.details}
+                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, details: e.target.value })}
+                          placeholder="التفاصيل"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-sm"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    {/* Action Buttons */}
+                    <div className="flex justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => closeModal('internalWorkerModal')}
+                        className="bg-white text-teal-800 border border-teal-800 rounded-md w-28 h-8 text-base"
+                      >
+                        الغاء
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-teal-800 text-white rounded-md w-28 h-8 text-base hover:bg-teal-700"
+                      >
+                        حفظ
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
             {/* Notification Modal */}
             {modals.notification && (
               <div
@@ -1352,28 +1819,25 @@ export default function Home({ user }) {
     </Layout>
   );
 }
-
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: { req: any }) {
   try {
     // Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: any) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
     }
-
     // Check for authToken
     if (!cookies.authToken) {
       return {
         redirect: { destination: "/admin/login", permanent: false },
       };
     }
-
     // Decode JWT
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
     console.log(token);
     // Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
@@ -1381,14 +1845,13 @@ export async function getServerSideProps({ req }) {
       include: { role: true },
     });
     if (
-      !findUser ||
-      !findUser.role?.permissions?.["شؤون الاقامة"]?.["عرض"]
+      !findUser
+      // !(findUser.role?.permissions as any)?.["شؤون الاقامة"]?.["عرض"]
     ) {
       return {
         redirect: { destination: "/admin/home", permanent: false },
       };
     }
-
     return { props: { user: token.username } };
   } catch (err) {
     console.error("Authorization error:", err);

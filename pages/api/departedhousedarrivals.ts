@@ -99,6 +99,7 @@ export default async function handler(req, res) {
       page,
       sortKey,
       sortDirection,
+      contractType,
     } = req.query;
 
     const pageSize = 10;
@@ -112,6 +113,18 @@ export default async function handler(req, res) {
         ...(id && { id: { equals: Number(id) } }),
       },
     };
+
+    // Add contract type filter if provided - filter by NewOrder relation
+    if (contractType) {
+      filters.Order = {
+        ...filters.Order,
+        NewOrder: {
+          some: {
+            typeOfContract: contractType as string
+          }
+        }
+      };
+    }
 
     if (Nationality)
       filters.Nationalitycopy = { contains: Nationality.toLowerCase() };
@@ -147,11 +160,19 @@ export default async function handler(req, res) {
           ...filters,
           deparatureHousingDate: { not: { equals: null } },
         },
-        include: { Order: true },
+        include: { 
+          Order: {
+            include: {
+              NewOrder: true
+            }
+          }
+        },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
         orderBy: orderBy, // Apply sorting
       });
+
+      console.log('Departed housing results:', housing.length);
 
       if (!housing) {
         return res.status(404).json({ error: "Housing not found" });
