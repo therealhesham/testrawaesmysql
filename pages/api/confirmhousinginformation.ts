@@ -176,7 +176,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Error updating housing" });
     }
 
-  } else if (req.method === "GET") {
+  }
+   else if (req.method === "GET") {
        const cookieHeader = req.headers.cookie;
           let cookies: { [key: string]: string } = {};
           if (cookieHeader) {
@@ -201,8 +202,9 @@ export default async function handler(req, res) {
       page,
       sortKey,
       sortDirection,
+      contractType,
     } = req.query;
-
+console.log(req.query)
     const pageSize = 10;
     const pageNumber = parseInt(page, 10) || 1;
 
@@ -215,9 +217,21 @@ export default async function handler(req, res) {
         ...(id && { id: { equals: Number(id) } }),
       },
     };
+    // Add contract type filter if provided - filter by NewOrder relation
+    if (contractType) {
+      // The relationship is: housedworker -> homemaid (Order) -> neworder[] (NewOrder)
+      filters.Order = {
+        ...filters.Order,
+        NewOrder: {
+          some: {
+            typeOfContract: contractType as string
+          }
+        }
+      };
+    }
 
     // Build the sorting object dynamically based on sortKey and sortDirection
-    let orderBy = { id: "desc" }; // Default sorting by id in descending order
+    let orderBy: any = { id: "desc" }; // Default sorting by id in descending order
     if (sortKey) {
       switch (sortKey) {
         case "Name":
@@ -235,29 +249,52 @@ export default async function handler(req, res) {
           };
           break;
         default:
-          orderBy = {};
+          orderBy = { id: "desc" };
       }
     }
 
     try {
+      console.log('Filters:', JSON.stringify(filters, null, 2));
+      
+      // First, let's check total count without contract type filter
+      const totalCountWithoutFilter = await prisma.housedworker.count({
+        where: {
+          deparatureHousingDate: null,
+        },
+      });
+      console.log('Total housed workers without filter:', totalCountWithoutFilter);
+      
       const totalCount = await prisma.housedworker.count({
         where: {
           ...filters,
           deparatureHousingDate: null,
         },
       });
+      console.log('Total housed workers with filter:', totalCount);
 
       const housing = await prisma.housedworker.findMany({
         where: {
-          ...filters,
+          Order:{NewOrder:{ some:{typeOfContract:contractType as string}}},
           deparatureHousingDate: null,
         },
-        include: { Order: { include: { weeklyStatusId: true, logs: true } } },
+        include: { 
+          Order: { 
+            include: { 
+              weeklyStatusId: true, 
+              logs: true,
+              NewOrder: {select:{typeOfContract:true}} // Include NewOrder to access typeOfContract
+            } 
+          } 
+        },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
         orderBy: orderBy,
       });
 
+      console.log('Housing results:', housing.length);
+      
+
+      // Let's also check if there are any neworder records with recruitment type
       if (!housing) {
         return res.status(404).json({ error: "Housing not found" });
       }

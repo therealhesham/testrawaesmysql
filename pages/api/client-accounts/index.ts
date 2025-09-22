@@ -1,5 +1,6 @@
-import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
+import 'lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
 import { NextApiRequest, NextApiResponse } from 'next';
+
 import { PrismaClient } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
