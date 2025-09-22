@@ -544,7 +544,7 @@ deparatureHousingDate  DateTime?
   checkIns       CheckIn[] // يحتوي على جميع سجلات CheckIn المرتبطة بهذا العامل
   location_id     Int?
     location          inHouseLocation?  @relation(fields: [location_id], references: [id])
-
+isHasEntitlements     Boolean? @default(true)
   Order          homemaid  @relation(fields: [homeMaid_id], references: [id])
 }
 
