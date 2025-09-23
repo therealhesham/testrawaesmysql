@@ -1,4 +1,4 @@
-import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
+// import '../../lib/loggers'; // استدعاء loggers.ts في بداية التطبيق
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -157,12 +157,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // Emit event for logging
-      if (userId) {
-        eventBus.emit('ACTION', {
-          type: `تحديث حساب عميل - رقم العقد: ${contractNumber}`,
-          userId: userId,
-        });
-      }
+      // if (userId) {
+      //   eventBus.emit('ACTION', {
+      //     type: `تحديث حساب عميل - رقم العقد: ${contractNumber}`,
+      //     userId: userId,
+      //   });
+      // }
 
       res.status(200).json(statement);
     } catch (error) {
