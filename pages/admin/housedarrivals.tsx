@@ -1,6 +1,6 @@
 import Layout from 'example/containers/Layout';
 import Head from 'next/head';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Style from 'styles/Home.module.css';
 import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal } from 'lucide-react';
@@ -216,6 +216,7 @@ export default function Home({ user }: { user: any }) {
   const [externalWorkerSuggestions, setExternalWorkerSuggestions] = useState<any[]>([]);
   const [selectedExternalWorker, setSelectedExternalWorker] = useState<any>(null);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   // Internal worker modal form data
   const [internalWorkerForm, setInternalWorkerForm] = useState({
     workerId: '',
@@ -271,6 +272,19 @@ export default function Home({ user }: { user: any }) {
       ...prev,
       [column]: !prev[column],
     }));
+  };
+
+  // Toggle row expansion
+  const toggleRowExpansion = (workerId: number) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(workerId)) {
+        newSet.delete(workerId);
+      } else {
+        newSet.add(workerId);
+      }
+      return newSet;
+    });
   };
   // Fetch locations
   const fetchLocations = async () => {
@@ -745,7 +759,7 @@ export default function Home({ user }: { user: any }) {
   {/* هذه القائمة ستلتزم باليسار */}
   <nav className="flex gap-10">
     <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('recruitment')}>
-      <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+      <span className={`text-md w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
         activeTab === 'recruitment' 
           ? 'bg-teal-800 text-white' 
           : 'bg-gray-200 text-gray-600'
@@ -765,7 +779,7 @@ export default function Home({ user }: { user: any }) {
       </span>
     </div>
     <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('rental')}>
-      <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+      <span className={`text-md w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
         activeTab === 'rental' 
           ? 'bg-teal-800 text-white' 
           : 'bg-gray-200 text-gray-600'
@@ -868,87 +882,132 @@ export default function Home({ user }: { user: any }) {
                   </button>
                 </div>
               </div>
-              <div className="flex flex-col">
-                <div
-                  className="bg-teal-800 text-white py-4 px-4 grid items-center text-right gap-4 text-md rounded-t-md"
-                  style={{
-                    gridTemplateColumns: '40px 1fr 1fr 0.8fr 1fr 0.8fr 1fr 1fr 1fr 0.6fr 0.7fr 1fr 0.7fr 0.7fr 0.8fr',
-                  }}
-                >
-                  <span>#</span>
-                  <span>الاسم</span>
-                  <span>رقم الجوال</span>
-                  <span>الجنسية</span>
-                  <span>رقم الجواز</span>
-                  <span>السكن</span>
-                  <span>سبب التسكين</span>
-                  <span>تاريخ التسكين</span>
-                  <span>تاريخ التسليم</span>
-                  <span>مدة السكن</span>
-                  <span>الموظف</span>
-                  <span>لديها مستحقات</span>
-                  <span>ملاحظات</span>
-                  <span>نوع العقد</span>
-                  <span>اجراءات</span>
-                </div>
-                <div className="flex flex-col">
-                  {console.log('Rendering workers:', activeTab, housingStatus, (housingStatus === 'housed' ? housedWorkers : departedWorkers).length)}
-                  {(housingStatus === 'housed' ? housedWorkers : departedWorkers)
-                    .filter((worker) => worker.Order?.Name)
-                    .length > 0 ? (
-                    (housingStatus === 'housed' ? housedWorkers : departedWorkers)
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-teal-800 text-white">
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">سبب التسكين</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسكين</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">اجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {console.log('Rendering workers:', activeTab, housingStatus, (housingStatus === 'housed' ? housedWorkers : departedWorkers).length)}
+                    {(housingStatus === 'housed' ? housedWorkers : departedWorkers)
                       .filter((worker) => worker.Order?.Name)
-                      .map((worker) => (
-                      <div
-                        key={worker.id}
-                        className="bg-gray-50 border border-gray-300 py-4 px-4 grid items-center text-right gap-4 text-md last:border-b-0"
-                        style={{
-                          gridTemplateColumns: '40px 1fr 1fr 0.8fr 1fr 0.8fr 1fr 1fr 1fr 0.6fr 0.7fr 1fr 0.7fr 0.7fr 0.8fr',
-                        }}
-                      >
-                        <span>#{worker.id}</span>
-                        <span className="text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</span>
-                        <span>{worker.Order?.phone || ''}</span>
-                        <span>{worker.Order?.Nationalitycopy || ''}</span>
-                        <span>{worker.Order?.Passportnumber || ''}</span>
-                        <span>{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</span>
-                        <span>{worker.Reason}</span>
-                        <span>{worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد'}</span>
-                        <span>
-                          {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
-                        </span>
-                        <span
-                          className={worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}
+                      .length > 0 ? (
+                      (housingStatus === 'housed' ? housedWorkers : departedWorkers)
+                        .filter((worker) => worker.Order?.Name)
+                        .map((worker) => (
+                        <React.Fragment key={worker.id}>
+                        <tr
+                          className="bg-gray-50 border-b border-gray-300 hover:bg-gray-100 transition-colors"
                         >
-                          {calculateDuration(worker.houseentrydate)}
-                        </span>
-                        <span>{worker.employee}</span>
-                        <button
-                          onClick={() => openModal('amountModal')}
-                          className="text-teal-800 hover:text-teal-600"
-                        >
-                          نعم
-                        </button>
-                        <span className="text-center">
-                          {getContractTypeInArabic(worker.Order?.NewOrder?.[0]?.typeOfContract || '')}
-                        </span>
-                        <div className="flex justify-center">
-                          <ActionDropdown
-                            id={worker.id}
-                            name={worker.Order?.Name || ''}
-                            onEdit={handleEditWorker}
-                            onDeparture={handleWorkerDeparture}
-                            onAddSession={() => openModal('newHousing')}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full py-8 text-center text-gray-500">
-                      لا توجد بيانات متاحة
-                    </div>
-                  )}
-                </div>
+                          <td className="py-4 px-4 text-right text-md">#{worker.id}</td>
+                          <td className="py-4 px-4 text-right text-md text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</td>
+                          <td className="py-4 px-4 text-right text-md">{worker.Order?.phone || ''}</td>
+                          <td className="py-4 px-4 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>
+                          <td className="py-4 px-4 text-right text-md">{worker.Order?.Passportnumber || ''}</td>
+                          <td className="py-4 px-4 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>
+                          <td className="py-4 px-4 text-right text-md">{worker.Reason}</td>
+                          <td className="py-4 px-4 text-right text-md">{worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد'}</td>
+                          <td className="py-4 px-4 text-right text-md">
+                            {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
+                          </td>
+                          <td className={`py-4 px-4 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
+                            {calculateDuration(worker.houseentrydate)}
+                          </td>
+                          <td className="py-4 px-4 text-right text-md">{worker.employee}</td>
+                          <td className="py-4 px-4 text-center">
+                            <button
+                              onClick={() => openModal('amountModal')}
+                              className="text-teal-800 hover:text-teal-600"
+                            >
+                              نعم
+                            </button>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <button
+                              onClick={() => toggleRowExpansion(worker.id)}
+                              className="flex items-center justify-center gap-2 text-teal-800 hover:text-teal-600 transition-colors"
+                            >
+                              ملاحظات
+                              {expandedRows.has(worker.id) ? (
+                                <span className="text-md">▲</span>
+                              ) : (
+                                <span className="text-md">▼</span>
+                              )}
+                            </button>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <ActionDropdown
+                              id={worker.id}
+                              name={worker.Order?.Name || ''}
+                              onEdit={handleEditWorker}
+                              onDeparture={handleWorkerDeparture}
+                              onAddSession={() => openModal('newHousing')}
+                            />
+                          </td>
+                        </tr>
+                        {expandedRows.has(worker.id) && (
+                          <tr>
+                            <td colSpan={15} className="p-0">
+                              <div className="bg-gray-100 border-l-4 border-teal-500 p-4">
+                                <h4 className="text-lg font-semibold text-gray-800 mb-3">تفاصيل إضافية</h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse">
+                                    <thead>
+                                      <tr className="bg-gray-100">
+                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">التاريخ</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">الموظف</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">سبب التسكين</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">السبب التفصيلي</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr className="bg-gray-50">
+                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                          {worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString('ar-SA') : 'غير محدد'}
+                                        </td>
+                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                          {worker.employee || 'غير محدد'}
+                                        </td>
+                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                          {worker.Reason || 'غير محدد'}
+                                        </td>
+                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                          {worker.Details || 'لا توجد تفاصيل إضافية'}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={15} className="py-8 text-center text-gray-500">
+                          لا توجد بيانات متاحة
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
               <footer className="flex justify-between items-center pt-6">
                 <span className="text-base">
