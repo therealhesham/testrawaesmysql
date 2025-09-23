@@ -35,8 +35,9 @@ export default async function handler(
           },
           {
             // Only get homemaids that are NOT in housedworker table
+            // This ensures no housedworker record exists for this homemaid
             inHouse: {
-              none: {} // This ensures no housedworker record exists for this homemaid
+              none: {}
             }
           }
         ]
@@ -75,23 +76,45 @@ export default async function handler(
       office: worker.office?.office || 'غير محدد',
       country: worker.office?.Country || 'غير محدد',
       hasOrders: worker.NewOrder && worker.NewOrder.length > 0,
-      orders: worker.NewOrder || []
+      orders: worker.NewOrder || [],
+      isExternal: worker.isExternal || false,
+      isAvailable: true, // All workers returned are available for housing
+      status: 'متاحة للتسكين'
     }));
+
+    // Additional verification: Double-check that these workers are not in housedworker table
+    const verificationCheck = await prisma.housedworker.findMany({
+      where: {
+        homeMaid_id: {
+          in: homemaids.map(w => w.id)
+        }
+      },
+      select: {
+        homeMaid_id: true
+      }
+    });
+
+    if (verificationCheck.length > 0) {
+      console.warn(`Warning: Found ${verificationCheck.length} workers that are actually housed but appeared in search results`);
+      console.warn('Housed worker IDs:', verificationCheck.map(w => w.homeMaid_id));
+    }
 
     console.log(`Found ${homemaids.length} unlinked workers for search: "${search}"`);
     console.log('Sample unlinked worker data:', homemaids[0]);
+    console.log('Verification: No housed workers found in results:', verificationCheck.length === 0);
 
     res.status(200).json({
       success: true,
       homemaids: formattedHomemaids,
       count: homemaids.length,
       searchTerm: search,
-      message: 'العاملات غير المرتبطة بجدول housedarrivals',
+      message: 'العاملات المتاحة للتسكين (غير مربوطة بجدول housedarrivals)',
       debug: {
         totalFound: homemaids.length,
         searchTerm: search,
         sampleWorker: homemaids[0] || null,
-        isUnlinked: true
+        isUnlinked: true,
+        isAvailable: true
       }
     });
 
