@@ -9,7 +9,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  function excludeEmptyFields(obj) {
+  function excludeEmptyFields(obj: any) {
     return Object.fromEntries(
       Object.entries(obj).filter(([key, value]) => {
         return (
@@ -70,6 +70,11 @@ export default async function handler(
       DeliveryDate,
       externalmusanedContract,
       GuaranteeDurationEnd,
+      // الحقول الجديدة للمغادرة الداخلية
+      internaldeparatureCity,
+      internaldeparatureDate,
+      internalArrivalCity,
+      internalArrivalCityDate,
     } = req.body;
 
     console.log(req.body); // Log the request body for debugging
@@ -113,6 +118,14 @@ export default async function handler(
       ? new Date(finalDestinationDate).toISOString()
       : null;
 
+    // معالجة التواريخ الجديدة للمغادرة الداخلية
+    const validInternalDeparatureDate = internaldeparatureDate
+      ? new Date(internaldeparatureDate).toISOString()
+      : null;
+    const validInternalArrivalCityDate = internalArrivalCityDate
+      ? new Date(internalArrivalCityDate).toISOString()
+      : null;
+
     const ss = {
       finaldestination,
       deparatureTime,
@@ -136,6 +149,11 @@ export default async function handler(
       EmbassySealing: validEmbassySealing,
       BookinDate: validBookinDate,
       GuaranteeDurationEnd: validGuaranteeDurationEnd,
+      // الحقول الجديدة للمغادرة الداخلية
+      internaldeparatureCity,
+      internaldeparatureDate: validInternalDeparatureDate,
+      internalArrivalCity,
+      internalArrivalCityDate: validInternalArrivalCityDate,
     };
 
     // Apply `excludeEmptyFields` to filter out empty fields from the object

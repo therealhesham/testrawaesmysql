@@ -177,9 +177,7 @@ export default async function handler(req, res) {
       if (!housing) {
         return res.status(404).json({ error: "Housing not found" });
       }
-
-      return res.status(200).json({ housing });
-    } catch (error) {
+    return res.status(200).json({ housing });    } catch (error) {
       console.error(error);
       return res.status(500).json({ error: "Error fetching housing" });
     }

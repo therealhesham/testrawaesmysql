@@ -7,6 +7,7 @@ import { FaToggleOn } from "react-icons/fa";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import AlertModal from './AlertModal';
 
 interface DepartureData {
   OrderId?: string;
@@ -17,7 +18,12 @@ interface DepartureData {
   finaldestination?: string;
   reason?: string;
   deparatureDate?: string;
-  arrivalDate?: string;
+  internalArrivalCityDate?: string;
+  // الحقول الجديدة للمغادرة الداخلية
+  internaldeparatureCity?: string;
+  internaldeparatureDate?: string;
+  internalArrivalCity?: string;
+  internalArrivalCityDate?: string;
   Order?: {
     HomeMaid?: {
       id?: string;
@@ -46,6 +52,10 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
   const [nationality, setNationality] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [nationalities, setNationalities] = useState<NationalityData[]>([{ id: "all", Country: "كل الجنسيات" }]);
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>('success');
+  const [alertMessage, setAlertMessage] = useState('');
 
   const fetchDepartures = async (pageNumber: number, filters: any = {}) => {
     try {
@@ -125,7 +135,9 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
 
   const exportToPDF = () => {
     if (!exportedData || exportedData.length === 0) {
-      alert("لا توجد بيانات للتصدير");
+      setAlertType('warning');
+      setAlertMessage('لا توجد بيانات للتصدير');
+      setShowAlert(true);
       return;
     }
     
@@ -148,7 +160,7 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
     ];
 
     const tableRows = exportedData?.map((row) => [
-      row.arrivalDate ? new Date(row.arrivalDate).toLocaleDateString() : "-",
+      row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toLocaleDateString() : "-",
       row.deparatureDate ? new Date(row.deparatureDate).toLocaleDateString() : "-",
       row.reason || "-",
       row.finaldestination || "-",
@@ -174,7 +186,9 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
 
   const exportToExcel = () => {
     if (!exportedData || exportedData.length === 0) {
-      alert("لا توجد بيانات للتصدير");
+      setAlertType('warning');
+      setAlertMessage('لا توجد بيانات للتصدير');
+      setShowAlert(true);
       return;
     }
     
@@ -191,8 +205,8 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
       "تاريخ المغادرة": row.deparatureDate
         ? new Date(row.deparatureDate).toLocaleDateString()
         : "-",
-      "تاريخ الوصول": row.arrivalDate
-        ? new Date(row.arrivalDate).toLocaleDateString()
+      "تاريخ الوصول": row.internalArrivalCityDate
+        ? new Date(row.internalArrivalCityDate).toLocaleDateString()
         : "-",
     }));
 
@@ -244,7 +258,6 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
                   </option>
                 ))}
               </select>
-              <ArrowSmDownIcon className="h-4 absolute right-3 top-1/2 transform -translate-y-1/2" />
             </div>
 
             <div className="flex items-center justify-between bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-600 text-md cursor-pointer min-w-[150px] shadow-sm">
@@ -254,7 +267,6 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
                 onChange={(e) => handleDateChange(e.target.value)}
                 className="bg-transparent border-none"
               />
-              <CalendarFilled className="h-4" />
             </div>
 
             <button
@@ -268,14 +280,14 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
           <div className="flex gap-2">
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-2 bg-teal-800 text-white text-xs px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
+              className="flex items-center gap-2 bg-teal-800 text-white text-md px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
             >
               <FilePdfOutlined className="h-4" />
               <span>PDF</span>
             </button>
             <button
               onClick={exportToExcel}
-              className="flex items-center gap-2 bg-teal-800 text-white text-xs px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
+              className="flex items-center gap-2 bg-teal-800 text-white text-md px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
             >
               <FileExcelOutlined className="h-4" />
               <span>Excel</span>
@@ -324,7 +336,7 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
                     {row.deparatureDate ? new Date(row.deparatureDate).toLocaleDateString() : "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
-                    {row.arrivalDate ? new Date(row.arrivalDate).toLocaleDateString() : "-"}
+                    {row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toLocaleDateString() : "-"}
                   </td>
                 </tr>
               ))}
@@ -372,6 +384,16 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
           </nav>
         </div>
       </div>
+      
+      <AlertModal
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+        title={alertType === 'warning' ? 'تحذير' : alertType === 'error' ? 'خطأ' : 'نجح'}
+        message={alertMessage}
+        autoClose={true}
+        autoCloseDelay={3000}
+      />
     </section>
   );
 }

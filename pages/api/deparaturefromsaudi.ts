@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
-
+import { jwtDecode } from "jwt-decode";
 const prisma = new PrismaClient();
 
 export default async function handler(
@@ -46,7 +46,7 @@ export default async function handler(
         },
       };
     if (deparatureDate)
-      filters.DeparatureFromSaudiDate = {
+      filters.externaldeparatureDate = {
         equals: new Date(deparatureDate as string),
       };
 
@@ -54,7 +54,7 @@ export default async function handler(
       const totalRecords = await prisma.arrivallist.count({
         where: {
           ...filters,
-          DeparatureFromSaudiDate: { not: null },
+          externaldeparatureDate: { not: null },
         },
       });
       const totalPages = Math.ceil(totalRecords / pageSize);
@@ -62,7 +62,7 @@ export default async function handler(
       const homemaids = await prisma.arrivallist.findMany({
         where: {
           ...filters,
-           DeparatureFromSaudiDate: { not: null },
+           externaldeparatureDate: { not: null },
         },
         select: {
           Sponsor: true,
@@ -78,17 +78,16 @@ export default async function handler(
           OrderId: true,
           SponsorName: true,
           PassportNumber: true,
-          DeparatureFromSaudiDate: true,
-          deparatureTime: true,
+          externaldeparatureDate: true,
+          externaldeparatureTime: true,
           SponsorPhoneNumber: true,
           HomemaidName: true,
           id: true,
-        ArrivalCity: true,
-        finaldestination: true,
+        externaldeparatureCity: true,
+        externalArrivalCity: true,
         externalReason:true,
-        DeparatureFromSaudiCity:true,
-        ArrivalOutSaudiCity:true,
-        DeparatureFromSaudiTime:true,
+        externalArrivalCityDate: true,
+        externalArrivalCityTime: true,
 
 
         
@@ -126,8 +125,8 @@ export default async function handler(
           SponsorName,
           PassportNumber,
           OrderId,
-          DeparatureFromSaudiDate,
-          deparatureTime,
+          // DeparatureFromSaudiDate,
+          // deparatureTime,
           SponsorPhoneNumber,
           HomemaidName,
         },

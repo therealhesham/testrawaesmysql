@@ -2,37 +2,69 @@ import { CheckIcon } from '@heroicons/react/outline';
 import { de } from 'date-fns/locale';
 import { Calendar } from 'lucide-react';
 import { useState } from 'react';
+import AlertModal from './AlertModal';
 
-export default function FormStepExternal2({ onPrevious, onClose, data }) {
+interface FormStepExternal2Props {
+  onPrevious: () => void;
+  onClose: () => void;
+  data: any;
+}
+
+export default function FormStepExternal2({ onPrevious, onClose, data }: FormStepExternal2Props) {
 const [formData, setFormData] = useState({
-  ArrivalCity: '',
+  externaldeparatureCity: '',
   externalReason: '',
-  arrivalOutSaudiCity: '',
-  arrivalOutSaudiDate: '',
-  DeparatureFromSaudiCity: '',
-  deparatureOutSaudiDate: '',
+  externalArrivalCity: '',
+  externalArrivalCityDate: '',
+  externalArrivalCityTime: '',
+  externaldeparatureDate: '',
+  externaldeparatureTime: '',
   notes: ''
 });
-  const handleSubmit = async (e) => {
+
+const [showAlert, setShowAlert] = useState(false);
+const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+const [alertMessage, setAlertMessage] = useState('');
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const postData = await fetch('/api/updatehomemaidarrivalexternalprisma', {
-      method: 'POST',
-      body: JSON.stringify({
-        Orderid: data?.Order?.id, // Use correct field from data
-        id: data?.id, // Assuming data has an id field
-        externalReason: formData.externalReason,
-        notes: formData.notes,
-        DeparatureFromSaudiDate: formData.deparatureOutSaudiDate,
-        DeparatureFromSaudiCity: formData.DeparatureFromSaudiCity,
-        arrivalOutSaudiCity: formData.arrivalOutSaudiCity,
-        arrivalOutSaudiDate: formData.arrivalOutSaudiDate,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (postData.status === 200) alert('تم الحفظ بنجاح');
-    onClose(); // Close modal after successful submission
+    try {
+      const postData = await fetch('/api/updatehomemaidarrivalexternalprisma', {
+        method: 'POST',
+        body: JSON.stringify({
+          Orderid: data?.Order?.id, // Use correct field from data
+          id: data?.id, // Assuming data has an id field
+          externalReason: formData.externalReason,
+          notes: formData.notes,
+          externaldeparatureDate: formData.externaldeparatureDate,
+          externaldeparatureCity: formData.externaldeparatureCity,
+          externaldeparatureTime: formData.externaldeparatureTime,
+          externalArrivalCity: formData.externalArrivalCity,
+          externalArrivalCityDate: formData.externalArrivalCityDate,
+          externalArrivalCityTime: formData.externalArrivalCityTime,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (postData.status === 200) {
+        setAlertType('success');
+        setAlertMessage('تم الحفظ بنجاح');
+        setShowAlert(true);
+        // إعادة تحميل الصفحة لجلب البيانات الجديدة
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setAlertType('error');
+        setAlertMessage('حدث خطأ أثناء الحفظ');
+        setShowAlert(true);
+      }
+    } catch (error) {
+      setAlertType('error');
+      setAlertMessage('حدث خطأ أثناء الحفظ');
+      setShowAlert(true);
+    }
   };
 
   return (
@@ -70,8 +102,8 @@ const [formData, setFormData] = useState({
               type="text" 
               id="departure-from" 
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
-              value={formData.DeparatureFromSaudiCity} 
-              onChange={(e) => setFormData({ ...formData, DeparatureFromSaudiCity: e.target.value })} 
+              value={formData.externaldeparatureCity} 
+              onChange={(e) => setFormData({ ...formData, externaldeparatureCity: e.target.value })} 
               placeholder="وجهة المغادرة" 
             />
           </div>
@@ -84,8 +116,8 @@ const [formData, setFormData] = useState({
               id="arrival-destination" 
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
               placeholder="وجهة الوصول" 
-              value={formData.arrivalOutSaudiCity} 
-              onChange={(e) => setFormData({ ...formData, arrivalOutSaudiCity: e.target.value })} 
+              value={formData.externalArrivalCity} 
+              onChange={(e) => setFormData({ ...formData, externalArrivalCity: e.target.value })} 
             />
           </div>
           <div className="flex-1 flex flex-col gap-2">
@@ -96,11 +128,33 @@ const [formData, setFormData] = useState({
                 id="departure-date" 
                 className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md w-full" 
                 placeholder="ادخل تاريخ ووقت المغادرة"  
-                value={formData.deparatureOutSaudiDate} 
-                onChange={(e) => setFormData({ ...formData, deparatureOutSaudiDate: e.target.value })} 
+                value={formData.externaldeparatureDate} 
+                onChange={(e) => setFormData({ ...formData, externaldeparatureDate: e.target.value })} 
               />
               <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>
+          </div>
+        </div>
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="flex-1 flex flex-col gap-2">
+            <label htmlFor="departure-time" className="text-xs text-gray-500 text-right font-inter">وقت المغادرة</label>
+            <input 
+              type="time" 
+              id="departure-time" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              value={formData.externaldeparatureTime} 
+              onChange={(e) => setFormData({ ...formData, externaldeparatureTime: e.target.value })} 
+            />
+          </div>
+          <div className="flex-1 flex flex-col gap-2">
+            <label htmlFor="arrival-time" className="text-xs text-gray-500 text-right font-inter">وقت الوصول</label>
+            <input 
+              type="time" 
+              id="arrival-time" 
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              value={formData.externalArrivalCityTime} 
+              onChange={(e) => setFormData({ ...formData, externalArrivalCityTime: e.target.value })} 
+            />
           </div>
         </div>
         <div className="flex flex-col md:flex-row gap-8">
@@ -112,8 +166,8 @@ const [formData, setFormData] = useState({
                 id="arrival-date" 
                 className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md w-full" 
                 placeholder="ادخل تاريخ ووقت الوصول"  
-                value={formData.arrivalOutSaudiDate} 
-                onChange={(e) => setFormData({ ...formData, arrivalOutSaudiDate: e.target.value })} 
+                value={formData.externalArrivalCityDate} 
+                onChange={(e) => setFormData({ ...formData, externalArrivalCityDate: e.target.value })} 
               />
               <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>
@@ -153,6 +207,16 @@ const [formData, setFormData] = useState({
           </button>
         </div>
       </form>
+      
+      <AlertModal
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+        title={alertType === 'success' ? 'نجح الحفظ' : 'خطأ في الحفظ'}
+        message={alertMessage}
+        autoClose={true}
+        autoCloseDelay={3000}
+      />
     </section>
   );
 }

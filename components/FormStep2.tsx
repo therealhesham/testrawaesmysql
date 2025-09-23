@@ -1,8 +1,15 @@
 import { CheckIcon } from '@heroicons/react/outline';
 import { Calendar } from 'lucide-react';
 import { useState } from 'react';
+import AlertModal from './AlertModal';
 
-export default function FormStep2({ onPrevious, onClose, data }) {
+interface FormStep2Props {
+  onPrevious: () => void;
+  onClose: () => void;
+  data: any;
+}
+
+export default function FormStep2({ onPrevious, onClose, data }: FormStep2Props) {
   const [formData, setFormData] = useState({
     ArrivalCity: '',
     finaldestination: '',
@@ -13,28 +20,55 @@ export default function FormStep2({ onPrevious, onClose, data }) {
     deparatureDate: '',
     notes: ''
   });
-  const handleSubmit = async (e) => {
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const [alertMessage, setAlertMessage] = useState('');
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const postData = await fetch('/api/updatehomemaidarrivalprisma', {
-      method: 'POST',
-      body: JSON.stringify({
-        Orderid: data?.Order?.id, // Use correct field from data
-        id: data?.id, // Assuming data has an id field
-        ArrivalCity: formData.ArrivalCity,
-        finaldestination: formData.finaldestination,
-        internalReason: formData.internalReason,
-        notes: formData.notes,
-        deparatureTime: formData.deparatureTime,
-        finalDestinationDate: formData.finalDestinationDate,
-        finalDestinationTime: formData.finalDestinationTime,
-        deparatureDate: formData.deparatureDate,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (postData.status === 200) alert('تم الحفظ بنجاح');
-    onClose(); // Close modal after successful submission
+    try {
+      const postData = await fetch('/api/updatehomemaidarrivalprisma', {
+        method: 'POST',
+        body: JSON.stringify({
+          Orderid: data?.Order?.id, // Use correct field from data
+          id: data?.id, // Assuming data has an id field
+          ArrivalCity: formData.ArrivalCity,
+          finaldestination: formData.finaldestination,
+          internalReason: formData.internalReason,
+          notes: formData.notes,
+          deparatureTime: formData.deparatureTime,
+          finalDestinationDate: formData.finalDestinationDate,
+          finalDestinationTime: formData.finalDestinationTime,
+          deparatureDate: formData.deparatureDate,
+          // الحقول الجديدة للمغادرة الداخلية
+          internaldeparatureCity: formData.ArrivalCity, // مدينة المغادرة = من
+          internaldeparatureDate: formData.deparatureDate, // تاريخ المغادرة = تاريخ المغادرة
+          internalArrivalCity: formData.finaldestination, // مدينة الوصول = الى
+          internalArrivalCityDate: formData.finalDestinationDate, // تاريخ الوصول = تاريخ الوصول
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (postData.status === 200) {
+        setAlertType('success');
+        setAlertMessage('تم الحفظ بنجاح');
+        setShowAlert(true);
+        // إعادة تحميل الصفحة لجلب البيانات الجديدة
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setAlertType('error');
+        setAlertMessage('حدث خطأ أثناء الحفظ');
+        setShowAlert(true);
+      }
+    } catch (error) {
+      setAlertType('error');
+      setAlertMessage('حدث خطأ أثناء الحفظ');
+      setShowAlert(true);
+    }
   };
 
   return (
@@ -155,6 +189,16 @@ export default function FormStep2({ onPrevious, onClose, data }) {
           </button>
         </div>
       </form>
+      
+      <AlertModal
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+        title={alertType === 'success' ? 'نجح الحفظ' : 'خطأ في الحفظ'}
+        message={alertMessage}
+        autoClose={true}
+        autoCloseDelay={3000}
+      />
     </section>
   );
 }

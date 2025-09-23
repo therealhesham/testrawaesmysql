@@ -387,12 +387,39 @@ model arrivallist {
   updatedAt DateTime? @updatedAt
   id                        Int       @id @default(autoincrement())
   
+
+  //
   deparatureCityCountry  String? @db.VarChar(191) // يتم استخدامها في وجهة المغادرة في صفحة تتبع الطلب
   deparatureCityCountryDate DateTime?
   deparatureCityCountryTime   String?
-  
+      arrivalSaudiAirport String?
+KingdomentryDate          DateTime?
+  KingdomentryTime           String?  @db.VarChar(30)
 
-    arrivalSaudiAirport String?
+
+
+
+//صفحة المغادرة الداخلية
+  internaldeparatureCity  String? @db.VarChar(191) 
+  internaldeparatureDate DateTime?
+  internaldeparatureTime   String?
+      internalArrivalCity String?
+internalArrivalCityDate          DateTime?
+ internalArrivalCityTime           String?  @db.VarChar(30)
+
+//صفحة المغادرة الخارجية
+externaldeparatureCity  String? @db.VarChar(191) 
+  externaldeparatureDate DateTime?
+  externaldeparatureTime   String?
+      externalArrivalCity String?
+externalArrivalCityDate          DateTime?
+ externalArrivalCityTime           String?  @db.VarChar(30)
+
+
+//////
+
+
+
 
   SponsorName               String?   @db.VarChar(191)
   office                    String?   @db.VarChar(191)
@@ -406,39 +433,39 @@ nationalidNumber            String?@db.VarChar(25)
   OrderId                   Int?       
   Order                     neworder?  @relation(fields: [OrderId], references: [id])
 DeliveryDate              DateTime?
-finaldestination          String?//في نموذج المغادرة الداخلية // دي مدينة الوصول
 internalReason            String?
 externalReason            String?
 visaNumber                String?   @db.VarChar(191)
-deparatureDate            DateTime?
 foreignLaborApproval        Boolean? @default(false)
 foreignLaborApprovalDate    DateTime?
-deparatureTime            String?
 startWorkingDate       DateTime?
 endWorkingDate          DateTime?
 ExternalStatusByoffice    String?
-finalDestinationDate      DateTime?
 DeliveryFile           String?      @db.VarChar(191)
   SponsorPhoneNumber        String?   @db.VarChar(15)
   PassportNumber            String?   @db.VarChar(191)
-  KingdomentryDate          DateTime?
-  KingdomentryTime           String?  @db.VarChar(30)
-finalDestinationTime          String? @db.VarChar(30)
+
+
+
+
+
+
+
   WorkDuration              String?   @db.VarChar(191)
   Cost                      String?   @db.VarChar(191)
   HomemaIdnumber            Int?
   HomemaidName              String?   @db.VarChar(191)
   Notes                     String?   @db.VarChar(191)
-  ArrivalCity               String?   @db.VarChar(191)//في نموذج المغادرة الداخلية // دي مدينة المغادرة
   MusanadDuration           String?   @db.VarChar(191)
   DateOfApplication         DateTime?
   DayDate                   DateTime? @default(now())
   ExternalDateLinking       DateTime?
   ExternalOFficeApproval    DateTime?
- DeparatureFromSaudiCity      String?  @db.VarChar(100)
- ArrivalOutSaudiCity      String?  @db.VarChar(100)
- DeparatureFromSaudiDate      DateTime? 
- DeparatureFromSaudiTime      String?  @db.VarChar(100)
+
+
+
+
+
 guaranteeStatus               String?  @db.VarChar(100)
   AgencyDate                DateTime?
   EmbassySealing            DateTime?
@@ -448,6 +475,7 @@ guaranteeStatus               String?  @db.VarChar(100)
   travelPermit              String?
   medicalCheckFile          String?   @db.VarChar(191)
   ticketFile                String?   @db.VarChar(191)
+  deparatureTicketFile      String?    @db.VarChar(255)
   receivingFile             String?   @db.VarChar(191)
   approvalPayment           String?   @db.VarChar(191)
   additionalfiles           Json?

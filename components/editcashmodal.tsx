@@ -1,11 +1,18 @@
 import { set } from "mongoose";
 import { useState, useEffect } from "react";
+import AlertModal from "./AlertModal";
 
 export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
   const [amount, setAmount] = useState("");
   const [transactionType, setTransactionType] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
 
@@ -36,8 +43,19 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
       const updated = await res.json();
       onSave(updated);
       onClose();
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'تم التحديث بنجاح',
+        message: 'تم تحديث البيانات بنجاح'
+      });
     } else {
-      alert("حصل خطأ أثناء التحديث");
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ في التحديث',
+        message: 'حصل خطأ أثناء التحديث'
+      });
     }
   };
 
@@ -99,6 +117,17 @@ export default function EditCashModal({ isOpen, onClose, cashData, onSave }) {
           </button>
         </div>
       </div>
+      
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        autoClose={alertModal.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  function excludeEmptyFields(obj) {
+  function excludeEmptyFields(obj: any) {
     return Object.fromEntries(
       Object.entries(obj).filter(([key, value]) => {
         return (
@@ -44,7 +44,13 @@ export default async function handler(
       id,
       ArrivalCity,
       ticketFile,
-      DeparatureFromSaudiDate,
+      externaldeparatureDate,
+      externaldeparatureCity,
+      externaldeparatureTime,
+      externalArrivalCity,
+      externalArrivalCityDate,
+      externalArrivalCityTime,
+      externalReason,
       externalmusanadcontractfile,
       receivingFile,
       externalOfficeFile,
@@ -61,7 +67,6 @@ export default async function handler(
       profileStatus,
       Orderid,
       EmbassySealing,
-      DeparatureFromSaudiCity,
       
       // BookinDate,internalReason,
       bookingstatus,
@@ -105,8 +110,11 @@ export default async function handler(
     const validDeliveryDate = DeliveryDate
       ? new Date(DeliveryDate).toISOString()
       : null;
-    const validDeparatureFromSaudiDate = DeparatureFromSaudiDate
-      ? new Date(DeparatureFromSaudiDate).toISOString()
+    const validExternaldeparatureDate = externaldeparatureDate
+      ? new Date(externaldeparatureDate).toISOString()
+      : null;
+    const validExternalArrivalCityDate = externalArrivalCityDate
+      ? new Date(externalArrivalCityDate).toISOString()
       : null;
     const validfinalDestinationDate = finalDestinationDate
       ? new Date(finalDestinationDate).toISOString()
@@ -117,12 +125,17 @@ export default async function handler(
       deparatureTime,
       finalDestinationTime,
       finalDestinationDate: validfinalDestinationDate,
-      DeparatureFromSaudiDate: validDeparatureFromSaudiDate,
+      externaldeparatureDate: validExternaldeparatureDate,
+      externaldeparatureCity,
+      externaldeparatureTime,
+      externalArrivalCity,
+      externalArrivalCityDate: validExternalArrivalCityDate,
+      externalArrivalCityTime,
+      externalReason,
       KingdomentryDate: validKingdomEntryDate,
       HomemaIdnumber,
       DeliveryDate: validDeliveryDate,
       notes: Notes,
-      DeparatureFromSaudiCity,
       ticketFile,
       externalOfficeStatus,
       externalmusanadcontractfile,
