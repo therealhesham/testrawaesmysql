@@ -108,8 +108,8 @@ const menuItems: MenuItem[] = [
     label: "ادارة المراسلات",
     icon: FaEnvelope,
     subItems: [
-      { id: 91, label: "قائمة المراسلات", link: "/admin/messages_list" },
-      { id: 92, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
+      { id: 91, label: "قائمة المراسلات", link: "/admin/messages" },
+      // { id: 92, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
     ],
   },{
     id: 254,
