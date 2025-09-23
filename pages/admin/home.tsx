@@ -29,6 +29,7 @@ import jwt from "jsonwebtoken";
 import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
+import AlertModal from "../../components/AlertModal";
 
 // --- Helper Functions (Moved outside component for reusability on server) ---
 const calculateRemainingDays = (eventDate) => {
@@ -448,6 +449,30 @@ export default function Home({
   // State for tasks modal (client-side only)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', taskDeadline: '' });
+  const [clientTasks, setClientTasks] = useState([]);
+  const [randomNamesFound, setRandomNamesFound] = useState([]);
+  
+  // State for task details modal
+  const [taskDetailsModal, setTaskDetailsModal] = useState({
+    isOpen: false,
+    task: null
+  });
+  
+  // State for alert modal
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: ''
+  });
+
+  // Initialize tasks from server-side props
+  React.useEffect(() => {
+    console.log('Initializing tasks from server:', tasks);
+    if (tasks && Array.isArray(tasks)) {
+      setClientTasks(tasks);
+    }
+  }, [tasks]);
 
   const getNextMonth = () => {
     let month = monthIndex;
@@ -510,11 +535,11 @@ export default function Home({
   };
 
   const getTasksForDay = (day) => {
-    return tasks.filter((task) => {
+    return clientTasks.filter((task) => {
       const taskDate = new Date(task.taskDeadline);
       const taskMonth = taskDate.getMonth();
       const taskDay = taskDate.getDate();
-      return taskMonth === monthIndex && taskDay === day;
+      return taskMonth === monthIndex && taskDay === day && !task.isCompleted;
     });
   };
 
@@ -639,7 +664,12 @@ export default function Home({
         message = `لا توجد أحداث في ${day}/${monthIndex + 1}/${year}`;
       }
       
-      alert(message);
+      setAlertModal({
+        isOpen: true,
+        type: 'info',
+        title: 'أحداث اليوم',
+        message: message
+      });
     }
   };
 
@@ -648,28 +678,48 @@ export default function Home({
     e.preventDefault();
     if (newTask.title && newTask.description && newTask.taskDeadline) {
       try {
-        const response = await fetch(`/api/tasks/${user.id}`, {
+        console.log('Creating task for user:', user.id);
+        const response = await fetch(`/api/tasks/add-with-random-search`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            userId: user.id,
             description: newTask.description,
-            Title: newTask.title,
+            title: newTask.title,
             taskDeadline: newTask.taskDeadline,
-            isCompleted: false,
           }),
         });
         const data = await response.json();
         if (response.status === 201) {
-          // Optimistically update the UI
-          setTasks(prevTasks => [...prevTasks, data]);
+          // Only add to client tasks if the task was assigned to current user
+          if (data.task.userId === user.id) {
+            setClientTasks(prevTasks => [...prevTasks, data.task]);
+          }
+          setRandomNamesFound(data.randomNamesFound || []);
           setNewTask({ title: '', description: '', taskDeadline: '' });
           setIsModalOpen(false);
+          setAlertModal({
+            isOpen: true,
+            type: 'success',
+            title: 'تم إضافة المهمة بنجاح',
+            message: data.message || 'تم إضافة المهمة الجديدة بنجاح'
+          });
         } else {
-          alert(data.error);
+          setAlertModal({
+            isOpen: true,
+            type: 'error',
+            title: 'خطأ في إضافة المهمة',
+            message: data.error
+          });
           console.error("Error creating task:", data.error);
         }
       } catch (error) {
-        alert(error);
+        setAlertModal({
+          isOpen: true,
+          type: 'error',
+          title: 'خطأ في إضافة المهمة',
+          message: error.toString()
+        });
         console.error("Error creating task:", error);
       }
     }
@@ -678,6 +728,14 @@ export default function Home({
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewTask((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Function to open task details modal
+  const handleTaskClick = (task) => {
+    setTaskDetailsModal({
+      isOpen: true,
+      task: task
+    });
   };
 
   return (
@@ -921,8 +979,12 @@ export default function Home({
               </button>
             </div>
             <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-              {tasks.map((task, index) => (
-                <li key={index} className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0">
+              {clientTasks.filter(task => !task.isCompleted).slice(0, 5).map((task, index) => (
+                <li 
+                  key={index} 
+                  className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => handleTaskClick(task)}
+                >
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-lg font-medium text-gray-900">{task.Title}</p>
@@ -931,10 +993,22 @@ export default function Home({
                         الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
                       </p>
                     </div>
-                    <span className="text-sm text-teal-600">{task.isCompleted ? 'مكتمل' : 'غير مكتمل'}</span>
+                    <span className="text-sm text-teal-600">غير مكتمل</span>
                   </div>
                 </li>
               ))}
+              {clientTasks.filter(task => !task.isCompleted).length > 5 && (
+                <div className="text-center py-2">
+                  <span className="text-sm text-gray-500">
+                    عرض {clientTasks.filter(task => !task.isCompleted).length - 5} مهمة إضافية...
+                  </span>
+                </div>
+              )}
+              {clientTasks.filter(task => !task.isCompleted).length === 0 && (
+                <div className="text-center py-8">
+                  <span className="text-sm text-gray-500">لا توجد مهام غير مكتملة</span>
+                </div>
+              )}
             </ul>
           </div>
         </div>
@@ -1226,6 +1300,21 @@ export default function Home({
                     required
                   />
                 </div>
+                {/* Display random names found */}
+                {randomNamesFound.length > 0 && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <h4 className="text-sm font-medium text-blue-800 mb-2">أسماء عشوائية تم العثور عليها:</h4>
+                    <div className="space-y-1">
+                      {randomNamesFound.map((name, index) => (
+                        <div key={index} className={`text-xs ${name.selected ? 'text-green-700 font-semibold' : 'text-blue-700'}`}>
+                          • {name.name} ({name.type}) - {name.phone}
+                          {name.selected && <span className="text-green-600"> ← تم اختياره</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-4">
                   <button
                     type="button"
@@ -1245,6 +1334,72 @@ export default function Home({
             </div>
           </div>
         )}
+
+        {/* Task Details Modal */}
+        {taskDetailsModal.isOpen && taskDetailsModal.task && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-800">تفاصيل المهمة</h3>
+                <button
+                  onClick={() => setTaskDetailsModal({ isOpen: false, task: null })}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">عنوان المهمة</label>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{taskDetailsModal.task.Title}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">الوصف</label>
+                  <p className="mt-1 text-gray-600">{taskDetailsModal.task.description}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">الموعد النهائي</label>
+                  <p className="mt-1 text-gray-600">{new Date(taskDetailsModal.task.taskDeadline).toLocaleDateString('ar-SA')}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">الحالة</label>
+                  <p className={`mt-1 inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+                    taskDetailsModal.task.isCompleted 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {taskDetailsModal.task.isCompleted ? 'مكتمل' : 'غير مكتمل'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">تاريخ الإنشاء</label>
+                  <p className="mt-1 text-gray-600">{new Date(taskDetailsModal.task.createdAt).toLocaleDateString('ar-SA')}</p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setTaskDetailsModal({ isOpen: false, task: null })}
+                  className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Alert Modal */}
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+          type={alertModal.type}
+          title={alertModal.title}
+          message={alertModal.message}
+          autoClose={alertModal.type === 'success'}
+          autoCloseDelay={3000}
+        />
       </div>
     </Layout>
   );
@@ -1266,6 +1421,7 @@ export async function getServerSideProps(context) {
     }
 
     const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log('User from token:', user);
 
     // Helper function to fetch data from API
     const fetchDataFromApi = async (url) => {

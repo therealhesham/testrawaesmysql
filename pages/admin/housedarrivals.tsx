@@ -138,7 +138,8 @@ export default function Home({ user }: { user: any }) {
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [departedTotalCount, setDepartedTotalCount] = useState(0);
-  const [tabCounts, setTabCounts] = useState({ housed: 0, departed: 0 });
+  const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
+  const [housingStatus, setHousingStatus] = useState<'housed' | 'departed'>('housed');
   
   // Debug: Log tabCounts changes
   useEffect(() => {
@@ -147,7 +148,7 @@ export default function Home({ user }: { user: any }) {
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [activeTab, setActiveTab] = useState<'housed' | 'departed'>('housed');
+  const [activeTab, setActiveTab] = useState<'recruitment' | 'rental'>('recruitment');
   const [filters, setFilters] = useState({
     Name: '',
     Passportnumber: '',
@@ -308,57 +309,48 @@ export default function Home({ user }: { user: any }) {
       setIsSearching(false);
     }
   };
-  // Fetch housed workers (recruitment)
-  const fetchHousedWorkers = async () => {
+  // Fetch workers based on contract type and housing status
+  const fetchWorkers = async () => {
     try {
-      console.log('Fetching housed workers with contractType: recruitment');
-      const response = await axios.get('/api/confirmhousinginformation', {
+      const contractType = activeTab; // recruitment or rental
+      const status = housingStatus; // housed or departed
+      
+      console.log(`Fetching workers - contractType: ${contractType}, status: ${status}`);
+      
+      let apiEndpoint = '';
+      if (status === 'housed') {
+        apiEndpoint = '/api/confirmhousinginformation';
+      } else {
+        apiEndpoint = '/api/housingdeparature';
+      }
+      
+      const response = await axios.get(apiEndpoint, {
         params: {
           ...filters,
           page,
           sortKey,
           sortDirection,
-          contractType: 'recruitment', // Show recruitment workers in housed tab
+          contractType: contractType,
         },
       });
-      console.log('Housed workers response:', response.data);
-      console.log('Housing data:', response.data.housing);
+      
+      console.log('Workers response:', response.data);
+      console.log('Workers data:', response.data.housing);
       console.log('Total count from API:', response.data.totalCount);
-      console.log('Housed workers length:', response.data.housing?.length || 0);
-      console.log('Current tabCounts before update:', tabCounts);
-      setHousedWorkers(response.data.housing);
-      setTotalCount(response.data.totalCount);
-      setTabCounts(prev => ({ ...prev, housed: response.data.totalCount }));
-      console.log('Updated tabCounts housed:', response.data.totalCount);
+      
+      if (status === 'housed') {
+        setHousedWorkers(response.data.housing);
+        setTotalCount(response.data.totalCount);
+      } else {
+        setDepartedWorkers(response.data.housing);
+        setDepartedTotalCount(response.data.totalCount);
+      }
+      
+      setTabCounts(prev => ({ ...prev, [contractType]: response.data.totalCount }));
+      console.log(`Updated tabCounts ${contractType}:`, response.data.totalCount);
     } catch (error) {
-      console.error('Error fetching housed workers:', error);
-      showNotification('خطأ في جلب بيانات التسكين', 'error');
-    }
-  };
-  // Fetch departed workers (rental)
-  const fetchDepartedWorkers = async () => {
-    try {
-      console.log('Fetching departed workers with contractType: rental');
-      const response = await axios.get('/api/confirmhousinginformation', {
-        params: {
-          ...filters,
-          page,
-          sortKey,
-          sortDirection,
-          contractType: 'rental', // Show rental workers in departed tab
-        },
-      });
-      console.log('Departed workers response:', response.data);
-      console.log('Departed housing data:', response.data.housing);
-      console.log('Total count from API (departed):', response.data.totalCount);
-      console.log('Current tabCounts before update (departed):', tabCounts);
-      setDepartedWorkers(response.data.housing);
-      setDepartedTotalCount(response.data.totalCount);
-      setTabCounts(prev => ({ ...prev, departed: response.data.totalCount }));
-      console.log('Updated tabCounts departed:', response.data.totalCount);
-    } catch (error) {
-      console.error('Error fetching departed workers:', error);
-      showNotification('خطأ في جلب بيانات العاملات اللي غادرن', 'error');
+      console.error('Error fetching workers:', error);
+      showNotification('خطأ في جلب بيانات العاملات', 'error');
     }
   };
   // Fetch housed workers for exporting
@@ -394,8 +386,7 @@ export default function Home({ user }: { user: any }) {
         isHasEntitlements: data.isHasEntitlements
       });
       showNotification('تم تحديث بيانات العاملة بنجاح');
-      fetchHousedWorkers();
-      fetchDepartedWorkers();
+      fetchWorkers();
     } catch (error) {
       showNotification('حدث خطأ أثناء تحديث البيانات', 'error');
     }
@@ -405,17 +396,16 @@ export default function Home({ user }: { user: any }) {
     try {
       await axios.put(`/api/housingdeparature`,{...data,homeMaid:workerId});
       showNotification('تم تسجيل مغادرة العاملة بنجاح');
-      fetchHousedWorkers();
-      fetchDepartedWorkers();
+      fetchWorkers();
     } catch (error) {
       showNotification('حدث خطأ أثناء تسجيل المغادرة', 'error');
     }
   };
   // Handle export
-  const handleExport = async (type: 'housed' | 'departed', format: 'xlsx' | 'pdf') => {
+  const handleExport = async (format: 'xlsx' | 'pdf') => {
     try {
       let data;
-      if (type === 'housed') {
+      if (housingStatus === 'housed') {
         data = await fetchHousedforExporting();
       } else {
         data = await fetchDepartedHousedforExporting();
@@ -426,7 +416,7 @@ export default function Home({ user }: { user: any }) {
       link.href = url;
       link.setAttribute(
         'download',
-        `${type}_${format}_${new Date().toISOString()}.${format}`
+        `${activeTab}_${housingStatus}_${format}_${new Date().toISOString()}.${format}`
       );
       document.body.appendChild(link);
       link.click();
@@ -444,7 +434,7 @@ export default function Home({ user }: { user: any }) {
   };
   // Handle edit worker modal opening
   const handleEditWorker = (id: number, name: string) => {
-    const worker = (activeTab === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
+    const worker = (housingStatus === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
     if (worker) {
       setSelectedWorkerId( worker.homeMaid_id);
       setSelectedWorkerName(name);
@@ -507,7 +497,7 @@ export default function Home({ user }: { user: any }) {
       // Clear selected worker and search term
       setSelectedWorker(null);
       setWorkerSearchTerm('');
-      fetchHousedWorkers();
+      fetchWorkers();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة', 'error');
     }
@@ -527,10 +517,17 @@ export default function Home({ user }: { user: any }) {
     setPage(newPage);
   };
   // Handle tab change with page reset
-  const handleTabChange = (tab: 'housed' | 'departed') => {
+  const handleTabChange = (tab: 'recruitment' | 'rental') => {
     setActiveTab(tab);
     setPage(1); // Reset to first page when switching tabs
   };
+  
+  // Handle housing status change
+  const handleHousingStatusChange = (status: 'housed' | 'departed') => {
+    setHousingStatus(status);
+    setPage(1); // Reset to first page when switching status
+  };
+
   // Handle worker type next button
   const handleWorkerTypeNext = () => {
     closeModal('workerTypeSelection');
@@ -566,7 +563,7 @@ export default function Home({ user }: { user: any }) {
         reason: '',
         details: '',
       });
-      fetchHousedWorkers();
+      fetchWorkers();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة الخارجية', 'error');
     }
@@ -598,12 +595,11 @@ export default function Home({ user }: { user: any }) {
   };
   // Fetch data on component mount
   useEffect(() => {
-    console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab });
+    console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab, housingStatus });
     fetchLocations();
     fetchHomemaids();
-    fetchHousedWorkers();
-    fetchDepartedWorkers();
-  }, [page, sortKey, sortDirection, filters, activeTab]);
+    fetchWorkers();
+  }, [page, sortKey, sortDirection, filters, activeTab, housingStatus]);
   // Close search results when clicking outside - similar to musanad_finacial
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -675,40 +671,40 @@ export default function Home({ user }: { user: any }) {
   <div className="flex flex-row items-center gap-10">
   {/* هذه القائمة ستلتزم باليسار */}
   <nav className="flex gap-10">
-    <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'housed' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('housed')}>
+    <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('recruitment')}>
       <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
-        activeTab === 'housed' 
+        activeTab === 'recruitment' 
           ? 'bg-teal-800 text-white' 
           : 'bg-gray-200 text-gray-600'
       }`}>
 {(() => {
-  const count = tabCounts.housed || totalCount || 0;
-  console.log('Displaying housed count:', count, 'tabCounts.housed:', tabCounts.housed, 'totalCount:', totalCount);
+  const count = tabCounts.recruitment || 0;
+  console.log('Displaying recruitment count:', count, 'tabCounts.recruitment:', tabCounts.recruitment);
   return count;
 })()}
       </span>
       <span className={`text-base transition-colors duration-200 ${
-        activeTab === 'housed' 
+        activeTab === 'recruitment' 
           ? 'text-teal-700 font-medium' 
           : 'text-gray-500'
       }`}>
         عاملات الاستقدام
       </span>
     </div>
-    <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'departed' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('departed')}>
+    <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('rental')}>
       <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
-        activeTab === 'departed' 
+        activeTab === 'rental' 
           ? 'bg-teal-800 text-white' 
           : 'bg-gray-200 text-gray-600'
       }`}>
 {(() => {
-  const count = tabCounts.departed || departedTotalCount || 0;
-  console.log('Displaying departed count:', count, 'tabCounts.departed:', tabCounts.departed, 'departedTotalCount:', departedTotalCount);
+  const count = tabCounts.rental || 0;
+  console.log('Displaying rental count:', count, 'tabCounts.rental:', tabCounts.rental);
   return count;
 })()}
       </span>
       <span className={`text-base transition-colors duration-200 ${
-        activeTab === 'departed' 
+        activeTab === 'rental' 
           ? 'text-teal-700 font-medium' 
           : 'text-gray-500'
       }`}>
@@ -728,10 +724,24 @@ export default function Home({ user }: { user: any }) {
 </div>
               </div>
               <div className="flex justify-end gap-4 mb-4">
-                <button className="px-3 py-2 bg-teal-800 text-white text-md rounded-md">
+                <button 
+                  onClick={() => handleHousingStatusChange('housed')}
+                  className={`px-3 py-2 text-md rounded-md ${
+                    housingStatus === 'housed' 
+                      ? 'bg-teal-800 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
                   عاملات تم تسكينهم
                 </button>
-                <button className="px-3 py-1 bg-gray-200 text-gray-600 text-md rounded-md">
+                <button 
+                  onClick={() => handleHousingStatusChange('departed')}
+                  className={`px-3 py-2 text-md rounded-md ${
+                    housingStatus === 'departed' 
+                      ? 'bg-teal-800 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
                   عاملات غادرن السكن
                 </button>
               </div>
@@ -770,14 +780,14 @@ export default function Home({ user }: { user: any }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleExport(activeTab, 'pdf')}
+                    onClick={() => handleExport('pdf')}
                     className="flex items-center gap-1 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
                   >
                     <FileText className="w-5 h-5" />
                     PDF
                   </button>
                   <button
-                    onClick={() => handleExport(activeTab, 'xlsx')}
+                    onClick={() => handleExport('xlsx')}
                     className="flex items-center gap-1 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
                   >
                     <DocumentTextIcon className="w-5 h-5" />
@@ -809,11 +819,11 @@ export default function Home({ user }: { user: any }) {
                   <span>اجراءات</span>
                 </div>
                 <div className="flex flex-col">
-                  {console.log('Rendering workers:', activeTab, (activeTab === 'housed' ? housedWorkers : departedWorkers).length)}
-                  {(activeTab === 'housed' ? housedWorkers : departedWorkers)
+                  {console.log('Rendering workers:', activeTab, housingStatus, (housingStatus === 'housed' ? housedWorkers : departedWorkers).length)}
+                  {(housingStatus === 'housed' ? housedWorkers : departedWorkers)
                     .filter((worker) => worker.Order?.Name)
                     .length > 0 ? (
-                    (activeTab === 'housed' ? housedWorkers : departedWorkers)
+                    (housingStatus === 'housed' ? housedWorkers : departedWorkers)
                       .filter((worker) => worker.Order?.Name)
                       .map((worker) => (
                       <div
@@ -869,17 +879,17 @@ export default function Home({ user }: { user: any }) {
               </div>
               <footer className="flex justify-between items-center pt-6">
                 <span className="text-base">
-                  عرض {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, activeTab === 'housed' ? totalCount : departedTotalCount)} من {activeTab === 'housed' ? totalCount : departedTotalCount} نتيجة
+                  عرض {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, housingStatus === 'housed' ? totalCount : departedTotalCount)} من {housingStatus === 'housed' ? totalCount : departedTotalCount} نتيجة
                 </span>
                 <nav className="flex items-center gap-1">
                   <button
                     onClick={() => handlePageChange(page + 1)}
-                    disabled={page === Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize)}
+                    disabled={page === Math.ceil((housingStatus === 'housed' ? totalCount : departedTotalCount) / pageSize)}
                     className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-md disabled:opacity-50"
                   >
                     التالي
                   </button>
-                  {Array.from({ length: Math.ceil((activeTab === 'housed' ? totalCount : departedTotalCount) / pageSize) }, (_, i) => i + 1).map((p) => (
+                  {Array.from({ length: Math.ceil((housingStatus === 'housed' ? totalCount : departedTotalCount) / pageSize) }, (_, i) => i + 1).map((p) => (
                     <button
                       key={p}
                       onClick={() => handlePageChange(p)}

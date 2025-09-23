@@ -8,8 +8,13 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { debounce } from "lodash";
+import AlertModal from './AlertModal';
 
-export default function DepartureExternalList({ onOpenModal }) {
+interface DepartureExternalListProps {
+  onOpenModal: () => void;
+}
+
+export default function DepartureExternalList({ onOpenModal }: DepartureExternalListProps) {
   const [departures, setDepartures] = useState([]);
   const [page, setPage] = useState(1);
   const [perPage] = useState(8);
@@ -18,6 +23,10 @@ export default function DepartureExternalList({ onOpenModal }) {
   const [nationality, setNationality] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [nationalities, setNationalities] = useState(["كل الجنسيات"]);
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>('success');
+  const [alertMessage, setAlertMessage] = useState('');
 
 
   
@@ -114,9 +123,9 @@ export default function DepartureExternalList({ onOpenModal }) {
 
     const tableRows = exportedData.map((row) => [
       // row.arrivalDate ? new Date(row.arrivalDate).toLocaleDateString() : "-",
-      row.DeparatureFromSaudiDate ? new Date(row.DeparatureFromSaudiDate).toLocaleDateString() : "-",
-      row.reason || "-",
-      row.ArrivalOutSaudiCity || "-",
+      row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-",
+      row.externalReason || "-",
+      row.externalArrivalCity || "-",
       // row.ArrivalCity || "-",
       row.PassportNumber || "-",
       row.Order?.HomeMaid?.office?.Country || "-",
@@ -145,14 +154,14 @@ export default function DepartureExternalList({ onOpenModal }) {
       "اسم العميل": row.SponsorName || "-",
       "الجنسية": row.Order?.HomeMaid?.office?.Country || "-",
       "رقم الجواز": row.PassportNumber || "-",
-      "من": row.ArrivalCity || "-",
-      "الى": row.finaldestination || "-",
-      "سبب المغادرة": row.reason || "-",
-      "تاريخ المغادرة": row.deparatureDate
-        ? new Date(row.deparatureDate).toLocaleDateString()
+      "من": row.externaldeparatureCity || "-",
+      "الى": row.externalArrivalCity || "-",
+      "سبب المغادرة": row.externalReason || "-",
+      "تاريخ المغادرة": row.externaldeparatureDate
+        ? new Date(row.externaldeparatureDate).toLocaleDateString()
         : "-",
-      "تاريخ الوصول": row.arrivalDate
-        ? new Date(row.arrivalDate).toLocaleDateString()
+      "تاريخ الوصول": row.externalArrivalCityDate
+        ? new Date(row.externalArrivalCityDate).toLocaleDateString()
         : "-",
     }));
 
@@ -187,7 +196,7 @@ export default function DepartureExternalList({ onOpenModal }) {
                 placeholder="ابحث باسم العاملة أو العميل"
                 value={searchTerm}
                 onChange={handleSearch}
-                className="bg-transparent border-none text-gray-600 text-md w-full"
+                className="bg-transparent border-none text-gray-600 text-md "
               />
               <Search className="h-5 text-gray-600" />
             </form>
@@ -198,13 +207,13 @@ export default function DepartureExternalList({ onOpenModal }) {
                 onChange={(e) => handleNationalityChange(e.target.value)}
                 className="bg-transparent border-none w-full"
               >
-                {nationalities.map((nat) => (
+                <option value="كل الجنسيات">كل الجنسيات</option>
+                {nationalities?.map((nat) => (
                   <option key={nat.id} value={nat.Country}>
                     {nat.Country}
                   </option>
                 ))}
               </select>
-              <ArrowSmDownIcon className="h-4 absolute right-3 top-1/2 transform -translate-y-1/2" />
             </div>
 
             <div className="flex items-center justify-between bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-600 text-md cursor-pointer min-w-[150px] shadow-sm">
@@ -214,7 +223,6 @@ export default function DepartureExternalList({ onOpenModal }) {
                 onChange={(e) => handleDateChange(e.target.value)}
                 className="bg-transparent border-none"
               />
-              <CalendarFilled className="h-4" />
             </div>
 
             <button
@@ -273,7 +281,7 @@ export default function DepartureExternalList({ onOpenModal }) {
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.PassportNumber || "-"}</td>
                   {/* <td className="py-3 px-2 border-t border-gray-200">{row.ArrivalCity || "-"}</td> */}
-                  <td className="py-3 px-2 border-t border-gray-200">{row.ArrivalOutSaudiCity || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.externalArrivalCity || "-"}</td>
                   <td
                     className="py-3 px-2 border-t border-gray-200"
                     // dangerouslySetInnerHTML={{ __html: row.reason || "-" }}
@@ -281,7 +289,7 @@ export default function DepartureExternalList({ onOpenModal }) {
                     {row.reason || "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
-                    {row.DeparatureFromSaudiDate ? new Date(row.DeparatureFromSaudiDate).toLocaleDateString() : "-"}
+                    {row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
                     {row.Order?.isContractEnded === "منتهي" ? "منتهي" : "مفعل"}
@@ -332,6 +340,16 @@ export default function DepartureExternalList({ onOpenModal }) {
           </nav>
         </div>
       </div>
+      
+      <AlertModal
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+        title={alertType === 'warning' ? 'تحذير' : alertType === 'error' ? 'خطأ' : 'نجح'}
+        message={alertMessage}
+        autoClose={true}
+        autoCloseDelay={3000}
+      />
     </section>
   );
 }

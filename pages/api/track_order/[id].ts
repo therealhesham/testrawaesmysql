@@ -42,15 +42,9 @@ console.log(id)
               EmbassySealing: true,
               visaNumber: true,
               DeliveryDate: true,
-              DeparatureFromSaudiCity: true,
               ticketFile: true,
-              ArrivalOutSaudiCity: true,
               foreignLaborApproval: true,
               foreignLaborApprovalDate: true,
-              DeparatureFromSaudiDate: true,
-              DeparatureFromSaudiTime: true,
-              finalDestinationDate: true,
-              finalDestinationTime: true,
               additionalfiles: true,
               InternalmusanedContract: true,
               externalmusanedContract: true,
@@ -58,7 +52,7 @@ console.log(id)
               deparatureCityCountry: true,
               deparatureCityCountryDate: true,
               deparatureCityCountryTime: true,
-              ArrivalCity: true,
+              arrivalSaudiAirport: true,
               KingdomentryDate: true,
               KingdomentryTime: true,
             } as any,
@@ -125,6 +119,7 @@ console.log(id)
         destinations: {
           departureCity: order.arrivals[0]?.deparatureCityCountry || 'N/A',
           arrivalCity: order.arrivals[0]?.ArrivalCity || 'N/A',
+          arrivalSaudiAirport: order.arrivals[0]?.arrivalSaudiAirport || 'N/A',
           departureDateTime: order.arrivals[0]?.deparatureCityCountryDate
             ? `${(order.arrivals[0].deparatureCityCountryDate as Date).toISOString().split('T')[0]} ${order.arrivals[0].deparatureCityCountryTime || ''}`
             : 'N/A',
@@ -343,6 +338,9 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             }
             if (updatedData['مدينة الوصول']) {
               arrivalUpdate.ArrivalCity = updatedData['مدينة الوصول'];
+            }
+            if (updatedData['مطار الوصول السعودي']) {
+              arrivalUpdate.arrivalSaudiAirport = updatedData['مطار الوصول السعودي'];
             }
             if (updatedData['تاريخ ووقت المغادرة_date'] || updatedData['تاريخ ووقت المغادرة_time']) {
               console.log('Departure Date:', updatedData['تاريخ ووقت المغادرة_date']);

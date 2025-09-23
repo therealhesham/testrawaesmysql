@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
-import Style from "styles/Home.module.css"
+import Style from "styles/Home.module.css";
+import AlertModal from '../../../components/AlertModal';
 interface EmployeeDetail {
   id: number;
   name: string;
@@ -45,6 +46,10 @@ export default function EmployeeCashDetail() {
     fromDate: '',
     toDate: ''
   });
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -101,16 +106,22 @@ export default function EmployeeCashDetail() {
       });
 
       if (response.ok) {
-        alert('تم إضافة السجل بنجاح');
+        setAlertType('success');
+        setAlertMessage('تم إضافة السجل بنجاح');
+        setShowAlert(true);
         handleCloseAddModal();
         fetchEmployeeDetail();
       } else {
         const errorData = await response.json();
-        alert(`خطأ: ${errorData.error || 'حدث خطأ أثناء إضافة السجل'}`);
+        setAlertType('error');
+        setAlertMessage(`خطأ: ${errorData.error || 'حدث خطأ أثناء إضافة السجل'}`);
+        setShowAlert(true);
       }
     } catch (error) {
       console.error('Error adding record:', error);
-      alert('حدث خطأ أثناء إضافة السجل');
+      setAlertType('error');
+      setAlertMessage('حدث خطأ أثناء إضافة السجل');
+      setShowAlert(true);
     }
   };
 
@@ -526,6 +537,16 @@ export default function EmployeeCashDetail() {
           };
         `
       }} />
+      
+      <AlertModal
+        isOpen={showAlert}
+        onClose={() => setShowAlert(false)}
+        type={alertType}
+        title={alertType === 'success' ? 'نجح الحفظ' : 'خطأ في الحفظ'}
+        message={alertMessage}
+        autoClose={true}
+        autoCloseDelay={3000}
+      />
     </div>
     </Layout>
   );

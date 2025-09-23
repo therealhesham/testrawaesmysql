@@ -11,7 +11,7 @@ export default async function handler(
   try {
     const homemaids = await prisma.arrivallist.findMany({
       where: {
-        DeparatureFromSaudiDate: { not: null },
+        externaldeparatureDate: { not: null },
       },
       select: {
         Order: {
@@ -30,21 +30,18 @@ export default async function handler(
         PassportNumber: true,
         KingdomentryDate: true,
         KingdomentryTime: true,
-        deparatureDate: true,
-        deparatureTime: true,
-        ArrivalCity: true,
+        externaldeparatureDate: true,
+        externaldeparatureTime: true,
+        externaldeparatureCity: true,
+        externalArrivalCity: true,
+        externalArrivalCityDate: true,
+        externalArrivalCityTime: true,
         medicalCheckFile: true,
         ticketFile: true,
         SponsorPhoneNumber: true,
         SponsorIdnumber: true,
-        ArrivalOutSaudiCity:true,
-        DeparatureFromSaudiCity:true,
         externalReason:true,
-        DeparatureFromSaudiTime:true,
-        DeparatureFromSaudiDate:true,
         InternalmusanedContract: true,
-        finaldestination: true,
-        finalDestinationDate: true,
         HomemaIdnumber: true,
         HomemaidName: true,
         Notes: true,
