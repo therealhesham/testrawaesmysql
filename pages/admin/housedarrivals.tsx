@@ -210,6 +210,12 @@ export default function Home({ user }: { user: any }) {
   const [workerSuggestions, setWorkerSuggestions] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // External worker search states
+  const [externalWorkerSearchTerm, setExternalWorkerSearchTerm] = useState('');
+  const [externalWorkerSuggestions, setExternalWorkerSuggestions] = useState<any[]>([]);
+  const [selectedExternalWorker, setSelectedExternalWorker] = useState<any>(null);
+  const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   // Internal worker modal form data
   const [internalWorkerForm, setInternalWorkerForm] = useState({
     workerId: '',
@@ -309,6 +315,32 @@ export default function Home({ user }: { user: any }) {
       setIsSearching(false);
     }
   };
+  
+  // Search external workers - similar to musanad_finacial
+  const searchExternalWorkers = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setExternalWorkerSuggestions([]);
+      return;
+    }
+    setIsSearchingExternal(true);
+    try {
+      console.log('Searching for external workers with term:', searchTerm);
+      const response = await fetch(`/api/housing/search-external-workers?search=${encodeURIComponent(searchTerm)}&limit=10`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('External workers search response:', data);
+        setExternalWorkerSuggestions(data.homemaids || []);
+      } else {
+        console.error('Error searching external workers:', response.status, response.statusText);
+        setExternalWorkerSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error searching external workers:', error);
+      setExternalWorkerSuggestions([]);
+    } finally {
+      setIsSearchingExternal(false);
+    }
+  };
   // Fetch workers based on contract type and housing status
   const fetchWorkers = async () => {
     try {
@@ -342,8 +374,8 @@ export default function Home({ user }: { user: any }) {
         setHousedWorkers(response.data.housing);
         setTotalCount(response.data.totalCount);
       } else {
-        setDepartedWorkers(response.data.housing);
-        setDepartedTotalCount(response.data.totalCount);
+      setDepartedWorkers(response.data.housing);
+      setDepartedTotalCount(response.data.totalCount);
       }
       
       setTabCounts(prev => ({ ...prev, [contractType]: response.data.totalCount }));
@@ -540,12 +572,22 @@ export default function Home({ user }: { user: any }) {
   // Handle internal worker form submission
   const handleInternalWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     try {
-      const response = await axios.post('/api/confirmhousinginformation', {
+      const formData = selectedExternalWorker ? {
         ...internalWorkerForm,
-        workerType: 'خارجية', // Adjusted for swap
+        workerId: selectedExternalWorker.id.toString(),
+        workerName: selectedExternalWorker.name,
+        mobile: selectedExternalWorker.phone,
+        workerType: 'خارجية',
         employee: user,
-      });
+      } : {
+        ...internalWorkerForm,
+        workerType: 'خارجية',
+        employee: user,
+      };
+      
+      const response = await axios.post('/api/confirmhousinginformation', formData);
       showNotification(response.data.message);
       closeModal('internalWorkerModal');
       setInternalWorkerForm({
@@ -563,6 +605,10 @@ export default function Home({ user }: { user: any }) {
         reason: '',
         details: '',
       });
+      // Clear search states
+      setSelectedExternalWorker(null);
+      setExternalWorkerSearchTerm('');
+      setExternalWorkerSuggestions([]);
       fetchWorkers();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة الخارجية', 'error');
@@ -583,6 +629,32 @@ export default function Home({ user }: { user: any }) {
     setSelectedWorker(worker);
     setWorkerSearchTerm(worker.name || worker.Name || '');
     setWorkerSuggestions([]);
+  };
+  
+  // Handle external worker search input - similar to musanad_finacial
+  const handleExternalWorkerSearch = (value: string) => {
+    setExternalWorkerSearchTerm(value);
+    if (value.trim()) {
+      searchExternalWorkers(value);
+    } else {
+      setExternalWorkerSuggestions([]);
+      setSelectedExternalWorker(null);
+    }
+  };
+  
+  // Handle external worker selection from suggestions
+  const handleExternalWorkerSelection = (worker: any) => {
+    setSelectedExternalWorker(worker);
+    setExternalWorkerSearchTerm(worker.name || worker.Name || '');
+    setExternalWorkerSuggestions([]);
+    
+    // Auto-fill form with worker data
+    setInternalWorkerForm(prev => ({
+      ...prev,
+      workerId: worker.id.toString(),
+      workerName: worker.name,
+      mobile: worker.phone,
+    }));
   };
   // Calculate duration
   const calculateDuration = (startDate: string) => {
@@ -606,6 +678,7 @@ export default function Home({ user }: { user: any }) {
       const target = event.target as HTMLElement;
       if (!target.closest('.search-container')) {
         setWorkerSuggestions([]);
+        setExternalWorkerSuggestions([]);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1692,45 +1765,106 @@ export default function Home({ user }: { user: any }) {
                     </button>
                   </div>
                   <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
-                    {/* Worker ID Search */}
+                    {/* Worker Search - similar to musanad_finacial */}
                     <div className="mb-4">
-                      <label className="block text-md text-gray-700 mb-2">رقم العاملة</label>
-                      <div className="flex gap-2">
+                      <label className="block text-md text-gray-700 mb-2">البحث عن العاملة</label>
+                      <div className="relative search-container">
                         <input
                           type="text"
-                          value={internalWorkerForm.workerId}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerId: e.target.value })}
-                          placeholder="ادخل رقم العاملة"
-                          className="flex-1 bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          value={externalWorkerSearchTerm}
+                          onChange={(e) => handleExternalWorkerSearch(e.target.value)}
+                          placeholder="ابحث برقم العاملة أو الاسم أو رقم الجواز"
+                          className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
                         />
+                        {isSearchingExternal && (
+                          <div className="absolute right-3 top-3">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                          </div>
+                        )}
+                       
+                        {/* Search Results Dropdown */}
+                        {externalWorkerSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                            {externalWorkerSuggestions.map((worker) => (
+                              <div
+                                key={worker.id}
+                                onClick={() => handleExternalWorkerSelection(worker)}
+                                className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                              >
+                                <div className="font-medium text-md">عاملة #{worker.id}</div>
+                                <div className="text-md text-gray-600">الاسم: {worker.name}</div>
+                                <div className="text-md text-gray-600">الجنسية: {worker.nationality}</div>
+                                <div className="text-md text-gray-500">رقم الجواز: {worker.passportNumber}</div>
+                                <div className="text-md text-gray-500">العمر: {worker.age} سنة</div>
+                                <div className="text-md text-blue-600 mt-1">
+                                  ✓ عاملة متاحة للتسكين
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Selected Worker Display */}
+                    {selectedExternalWorker && (
+                      <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-3 mb-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-md font-medium text-green-800">العاملة المحددة:</div>
+                            <div className="text-md text-green-700">#{selectedExternalWorker.id} - {selectedExternalWorker.name}</div>
+                            <div className="text-md text-green-600">الجنسية: {selectedExternalWorker.nationality}</div>
+                            <div className="text-md text-green-600">رقم الجواز: {selectedExternalWorker.passportNumber}</div>
+                            <div className="text-md text-green-600">العمر: {selectedExternalWorker.age} سنة</div>
+                            <div className="text-md text-green-600 font-medium">
+                              ✓ عاملة خارجية - متاحة للتسكين
+                            </div>
+                          </div>
                         <button
                           type="button"
-                          className="bg-teal-800 text-white px-4 py-2 rounded-md text-md"
-                        >
-                          بحث
+                            onClick={() => {
+                              setSelectedExternalWorker(null);
+                              setExternalWorkerSearchTerm('');
+                              setInternalWorkerForm(prev => ({
+                                ...prev,
+                                workerId: '',
+                                workerName: '',
+                                mobile: '',
+                              }));
+                            }}
+                            className="text-green-600 hover:text-green-800 text-md"
+                          >
+                            إزالة
                         </button>
                       </div>
                     </div>
+                    )}
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
                         <label className="block text-md text-gray-700 mb-2">اسم العاملة</label>
                         <input
                           type="text"
-                          value={internalWorkerForm.workerName}
+                          value={selectedExternalWorker ? selectedExternalWorker.name : internalWorkerForm.workerName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerName: e.target.value })}
                           placeholder="ادخل اسم العاملة"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          disabled={!!selectedExternalWorker}
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                            selectedExternalWorker ? 'bg-gray-200' : 'bg-gray-100'
+                          }`}
                         />
                       </div>
                       <div>
                         <label className="block text-md text-gray-700 mb-2">رقم الجوال</label>
                         <input
                           type="text"
-                          value={internalWorkerForm.mobile}
+                          value={selectedExternalWorker ? selectedExternalWorker.phone : internalWorkerForm.mobile}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, mobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          disabled={!!selectedExternalWorker}
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                            selectedExternalWorker ? 'bg-gray-200' : 'bg-gray-100'
+                          }`}
                         />
                       </div>
                     </div>
