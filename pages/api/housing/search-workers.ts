@@ -1,5 +1,7 @@
-import prisma from "../../../lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
+
+const prisma = new PrismaClient();
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,45 +12,36 @@ export default async function handler(
   }
 
   try {
-    // Test database connection first
-    await prisma.$connect();
-    
     const { search, limit = '10', contractType } = req.query;
 
     if (!search || typeof search !== 'string') {
       return res.status(400).json({ message: 'Search term is required' });
     }
 
-    const limitNum = Math.min(parseInt(limit as string) || 10, 100); // Cap at 100 for performance
-
-    // Build search conditions
-    const searchConditions = {
-      OR: [
-        ...(parseInt(search) ? [{ id: parseInt(search) }] : []),
-        { Name: { contains: search } },
-        { Passportnumber: { contains: search } },
-        { phone: { contains: search } }
-      ]
-    };
-
-    // Build where clause
-    const whereClause: any = {
-      AND: [
-        searchConditions,
-        {
-          NewOrder: {
-            some: contractType ? {
-              typeOfContract: contractType as string
-            } : {} // Only homemaids that have at least one neworder record with specific contract type
-          }
-        },
-      ]
-    };
+    const limitNum = parseInt(limit as string);
 
     // Search homemaids by ID, name, passport number, or phone
     // Only search homemaids that are linked to neworder table (have orders)
     const homemaids = await prisma.homemaid.findMany({
-      where: whereClause,
+      where: {
+        AND: [
+          {
+            OR: [
+              { id: parseInt(search) || undefined },
+              { Name: { contains: search } },
+              { Passportnumber: { contains: search } },
+              { phone: { contains: search } }
+            ]
+          },
+          {
+            NewOrder: {
+              some: contractType ? {
+                typeOfContract: contractType as string
+              } : {} // Only homemaids that have at least one neworder record with specific contract type
+            }
+          }
+        ]
+      },
       include: {
         office: {
           select: {
@@ -100,38 +93,19 @@ export default async function handler(
       hasOrders: homemaid.NewOrder && homemaid.NewOrder.length > 0
     }));
 
-    // Add response headers for better caching in production
-    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60');
-    
     res.status(200).json({
       success: true,
       homemaids: formattedHomemaids,
-      total: formattedHomemaids.length,
-      searchTerm: search,
-      contractType: contractType || null,
-      timestamp: new Date().toISOString()
+      total: formattedHomemaids.length
     });
 
   } catch (error) {
     console.error("Error searching homemaids:", error);
-    
-    // Log detailed error information for debugging
-    if (error instanceof Error) {
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
-    
-    // Check if it's a database connection error
-    if (error && typeof error === 'object' && 'code' in error) {
-      console.error("Database error code:", error.code);
-    }
-    
     res.status(500).json({ 
       success: false,
-      message: process.env.NODE_ENV === 'production' 
-        ? "Internal Server Error" 
-        : `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      error: process.env.NODE_ENV === 'development' ? error : undefined
+      message: "Internal Server Error" 
     });
+  } finally {
+    await prisma.$disconnect();
   }
 }
