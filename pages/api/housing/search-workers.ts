@@ -1,8 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "lib/prisma";
 import type { NextApiRequest, NextApiResponse } from "next";
-
-const prisma = new PrismaClient();
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -39,6 +36,9 @@ export default async function handler(
                 typeOfContract: contractType as string
               } : {} // Only homemaids that have at least one neworder record with specific contract type
             }
+          },
+          {
+            bookingstatus: { not:{in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} } //// استعين بالفيم اللي في track_order Only available homemaids
           }
         ]
       },
