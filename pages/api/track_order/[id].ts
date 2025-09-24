@@ -337,7 +337,7 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
               arrivalUpdate.deparatureCityCountry = updatedData['مدينة المغادرة'];
             }
             if (updatedData['مدينة الوصول']) {
-              arrivalUpdate.ArrivalCity = updatedData['مدينة الوصول'];
+              arrivalUpdate.arrivalSaudiAirport = updatedData['مدينة الوصول'];
             }
             if (updatedData['مطار الوصول السعودي']) {
               arrivalUpdate.arrivalSaudiAirport = updatedData['مطار الوصول السعودي'];
