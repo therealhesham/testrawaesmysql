@@ -1,4 +1,4 @@
-import prisma from "lib/prisma";
+import prisma from "../../../lib/prisma";
 import type { NextApiRequest, NextApiResponse } from "next";
 export default async function handler(
   req: NextApiRequest,
@@ -15,24 +15,27 @@ export default async function handler(
       return res.status(400).json({ message: 'Search term is required' });
     }
 
-    const limitNum = parseInt(limit as string);
+    const limitNum = Math.min(parseInt(limit as string) || 10, 100);
+
+    // Build search conditions
+    const searchConditions = {
+      OR: [
+        ...(parseInt(search) ? [{ id: parseInt(search) }] : []),
+        { Name: { contains: search, mode: 'insensitive' as const } },
+        { Passportnumber: { contains: search, mode: 'insensitive' as const } },
+        { phone: { contains: search, mode: 'insensitive' as const } }
+      ]
+    };
 
     // Search homemaids by ID, name, passport number, or phone
-    // Only search homemaids that are linked to neworder table (have orders)
     const homemaids = await prisma.homemaid.findMany({
       where: {
         AND: [
+          searchConditions,
           {
-            OR: [
-              { id: parseInt(search) || undefined },
-              { Name: { contains: search } },
-              { Passportnumber: { contains: search } },
-              { phone: { contains: search } }
-            ]
-          },
-      
-          {
-            bookingstatus: { not:{in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} } //// استعين بالفيم اللي في track_order Only available homemaids
+            bookingstatus: { 
+              not: { in: ["booked", "new_order", "new_orders", "delivered", "cancelled", "rejected"] } 
+            }
           }
         ]
       },
@@ -95,11 +98,19 @@ export default async function handler(
 
   } catch (error) {
     console.error("Error searching homemaids:", error);
+    
+    // Log detailed error for debugging
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    
     res.status(500).json({ 
       success: false,
-      message: "Internal Server Error" 
+      message: process.env.NODE_ENV === 'production' 
+        ? "Internal Server Error" 
+        : `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: process.env.NODE_ENV === 'development' ? error : undefined
     });
-  } finally {
-    await prisma.$disconnect();
   }
 }
