@@ -32,13 +32,6 @@ export default async function handler(
               { Passportnumber: { contains: search } },
               { phone: { contains: search } }
             ]
-          },
-          {
-            NewOrder: {
-              some: contractType ? {
-                typeOfContract: contractType as string
-              } : {} // Only homemaids that have at least one neworder record with specific contract type
-            }
           }
         ]
       },
