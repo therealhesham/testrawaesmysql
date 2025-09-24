@@ -18,7 +18,6 @@ interface DepartureData {
   finaldestination?: string;
   reason?: string;
   deparatureDate?: string;
-  internalArrivalCityDate?: string;
   // الحقول الجديدة للمغادرة الداخلية
   internaldeparatureCity?: string;
   internaldeparatureDate?: string;
@@ -41,9 +40,10 @@ interface NationalityData {
 
 interface DepartureListProps {
   onOpenModal: () => void;
+  refreshTrigger?: number; // Add refresh trigger prop
 }
 
-export default function DepartureList({ onOpenModal }: DepartureListProps) {
+export default function DepartureList({ onOpenModal, refreshTrigger }: DepartureListProps) {
   const [departures, setDepartures] = useState<DepartureData[]>([]);
   const [page, setPage] = useState(1);
   const [perPage] = useState(8);
@@ -52,6 +52,9 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
   const [nationality, setNationality] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [nationalities, setNationalities] = useState<NationalityData[]>([{ id: "all", Country: "كل الجنسيات" }]);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>('success');
@@ -80,6 +83,27 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
       setTotalPages(1);
     }
   };
+
+  const fetchSearchSuggestions = async (query: string) => {
+    if (query.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/deparatures/suggestions?q=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchSuggestions(data.suggestions || []);
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
   const [exportedData, setExportedData] = useState<DepartureData[]>([]);
   const fetchExportedData = async () => {
     try {
@@ -97,6 +121,14 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
   
   }, [page, searchTerm, nationality, selectedDate]);
 
+  // Watch for refresh trigger
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchDepartures(page, { searchTerm, nationality, selectedDate });
+      fetchExportedData();
+    }
+  }, [refreshTrigger]);
+
   useEffect(() => {
     fetchExportedData();
     const fetchOffices = async () => {
@@ -111,10 +143,35 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
     fetchOffices();
   }, []);
 
-  const handleSearch =(e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
     setPage(1);
-  }
+
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for suggestions
+    const timeout = setTimeout(() => {
+      fetchSearchSuggestions(value);
+    }, 300);
+    setSearchTimeout(timeout);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchTerm(suggestion);
+    setShowSuggestions(false);
+    setPage(1);
+  };
+
+  const handleSearchBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
 
   const handleNationalityChange = (value: string) => {
     setNationality(value);
@@ -161,10 +218,10 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
 
     const tableRows = exportedData?.map((row) => [
       row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toLocaleDateString() : "-",
-      row.deparatureDate ? new Date(row.deparatureDate).toLocaleDateString() : "-",
+      row.internaldeparatureDate ? new Date(row.internaldeparatureDate).toLocaleDateString() : "-",
       row.reason || "-",
-      row.finaldestination || "-",
-      row.ArrivalCity || "-",
+      row.internalArrivalCity || "-",
+      row.internaldeparatureCity || "-",
       row.PassportNumber || "-",
       row.Order?.HomeMaid?.office?.Country || "-",
       row.SponsorName || "-",
@@ -199,11 +256,11 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
       "اسم العميل": row.SponsorName || "-",
       "الجنسية": row.Order?.HomeMaid?.office?.Country || "-",
       "رقم الجواز": row.PassportNumber || "-",
-      "من": row.ArrivalCity || "-",
-      "الى": row.finaldestination || "-",
+      "من": row.internaldeparatureCity || "-",
+      "الى": row.internalArrivalCity || "-",
       "سبب المغادرة": row.reason || "-",
-      "تاريخ المغادرة": row.deparatureDate
-        ? new Date(row.deparatureDate).toLocaleDateString()
+      "تاريخ المغادرة": row.internaldeparatureDate
+        ? new Date(row.internaldeparatureDate).toLocaleDateString()
         : "-",
       "تاريخ الوصول": row.internalArrivalCityDate
         ? new Date(row.internalArrivalCityDate).toLocaleDateString()
@@ -229,22 +286,41 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
         </button>
       </div>
 
-      <div className="p-6 border border-gray-200 rounded-xl bg-white shadow-sm space-y-6">
+      <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <form
-              className="flex items-center bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-60 shadow-sm"
-              // onSubmit={(e) => e.preventDefault()}
-            >
-              <input
-                type="text"
-                placeholder="ابحث باسم العاملة أو العميل"
-                value={searchTerm}
-                onChange={handleSearch}
-                className="bg-transparent border-none text-gray-600 text-md w-full"
-              />
-              <Search className="h-5 text-gray-600" />
-            </form>
+            <div className="relative">
+              <form
+                className="flex items-center bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 w-60 shadow-sm"
+                // onSubmit={(e) => e.preventDefault()}
+              >
+                <input
+                  type="text"
+                  placeholder="ابحث باسم العاملة أو العميل"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  onBlur={handleSearchBlur}
+                  onFocus={() => searchTerm.length >= 2 && setShowSuggestions(true)}
+                  className="bg-transparent border-none text-gray-600 text-md w-full"
+                />
+                <Search className="h-5 text-gray-600" />
+              </form>
+              
+              {/* Search Suggestions Dropdown */}
+              {showSuggestions && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-50 mt-1 max-h-60 overflow-y-auto">
+                  {searchSuggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-right text-gray-700"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="relative bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-600 text-md cursor-pointer min-w-[150px] shadow-sm">
               <select
@@ -316,7 +392,7 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
               {departures?.map((row, index) => (
                 <tr
                   key={index}
-                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  className={index % 2 === 0 ? "bg-gray-50" : "bg-gray-50"}
                 >
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.id || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.OrderId || "-"}</td>
@@ -324,8 +400,8 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
                   <td className="py-3 px-2 border-t border-gray-200">{row.SponsorName || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.PassportNumber || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.ArrivalCity || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.finaldestination || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.internaldeparatureCity || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.internalArrivalCity || "-"}</td>
                   <td
                     className="py-3 px-2 border-t border-gray-200"
                     // dangerouslySetInnerHTML={{ __html: row.reason || "-" }}
@@ -333,7 +409,7 @@ export default function DepartureList({ onOpenModal }: DepartureListProps) {
                     {row.reason || "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
-                    {row.deparatureDate ? new Date(row.deparatureDate).toLocaleDateString() : "-"}
+                    {row.internaldeparatureDate ? new Date(row.internaldeparatureDate).toLocaleDateString() : "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
                     {row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toLocaleDateString() : "-"}

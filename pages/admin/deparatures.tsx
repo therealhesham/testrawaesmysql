@@ -9,7 +9,7 @@ import prisma from 'pages/api/globalprisma';
 import { useRouter } from 'next/router';
 
 // Unauthorized Modal Component
-const UnauthorizedModal = ({ onClose }) => {
+const UnauthorizedModal = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
@@ -30,6 +30,7 @@ export default function Home({ isUnauthorized = false }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [showUnauthorizedModal, setShowUnauthorizedModal] = useState(isUnauthorized);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const router = useRouter();
 
   const openModal = () => {
@@ -39,6 +40,10 @@ export default function Home({ isUnauthorized = false }) {
 
   const closeModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleDepartureSuccess = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const goToNextStep = () => {
@@ -69,13 +74,14 @@ export default function Home({ isUnauthorized = false }) {
       </Head>
       <div className={`max-w-7xl mx-auto  min-h-screen ${Style["tajawal-regular"]}`}>
         <main className="p-6 md:p-10">
-          {!isUnauthorized && <DepartureList onOpenModal={openModal} />}
+          {!isUnauthorized && <DepartureList onOpenModal={openModal} refreshTrigger={refreshTrigger} />}
           {isModalOpen && (
             <DepartureModal
               currentStep={currentStep}
               onNext={goToNextStep}
               onPrevious={goToPreviousStep}
               onClose={closeModal}
+              onSuccess={handleDepartureSuccess}
             />
           )}
           {showUnauthorizedModal && <UnauthorizedModal onClose={handleUnauthorizedClose} />}
@@ -85,13 +91,13 @@ export default function Home({ isUnauthorized = false }) {
   );
 }
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: { req: any }) {
   try {
     // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
-    let cookies = {};
+    let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: string) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
@@ -105,7 +111,7 @@ export async function getServerSideProps({ req }) {
     }
 
     // 🔹 Decode JWT
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({

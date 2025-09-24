@@ -46,7 +46,7 @@ export default async function handler(
         },
       };
     if (deparatureDate)
-      filters.deparatureDate = {
+      filters.internaldeparatureDate = {
         equals: new Date(deparatureDate as string),
       };
 
@@ -54,7 +54,7 @@ export default async function handler(
       const totalRecords = await prisma.arrivallist.count({
         where: {
           ...filters,
-          deparatureDate: { not: null },
+          internaldeparatureDate: { not: null },
         },
       });
       const totalPages = Math.ceil(totalRecords / pageSize);
@@ -62,7 +62,7 @@ export default async function handler(
       const homemaids = await prisma.arrivallist.findMany({
         where: {
           ...filters,
-          deparatureDate: { not: null },
+          internaldeparatureDate: { not: null },
         },
         select: {
           Sponsor: true,
@@ -78,20 +78,18 @@ export default async function handler(
           OrderId: true,
           SponsorName: true,
           PassportNumber: true,
-          deparatureDate: true,
-          deparatureTime: true,
+          internaldeparatureDate: true,
+          internaldeparatureTime: true,
           SponsorPhoneNumber: true,
           createdAt:true,
           updatedAt:true,
           HomemaidName: true,
           id: true,
-          ArrivalCity: true,
-          finaldestination: true,
           // الحقول الجديدة للمغادرة الداخلية
           internaldeparatureCity: true,
-          internaldeparatureDate: true,
           internalArrivalCity: true,
           internalArrivalCityDate: true,
+          internalArrivalCityTime: true,
         },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
@@ -126,8 +124,8 @@ export default async function handler(
           SponsorName,
           PassportNumber,
           OrderId,
-          deparatureDate,
-          deparatureTime,
+          internaldeparatureDate: deparatureDate,
+          internaldeparatureTime: deparatureTime,
           SponsorPhoneNumber,
           HomemaidName,
         },

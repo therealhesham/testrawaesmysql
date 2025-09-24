@@ -1,4 +1,79 @@
+import { useState, useEffect } from 'react';
+
 export default function FormStep1({ onNext, id, setId, data, getData }) {
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const searchOrders = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/orders/suggestions?q=${encodeURIComponent(searchTerm)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.suggestions || []);
+        setShowSuggestions(true);
+      } else {
+        console.error('Error searching orders');
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error searching orders:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setId(value);
+    
+    if (value.trim()) {
+      searchOrders(value);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setId(suggestion);
+    setShowSuggestions(false);
+    // Auto-fetch data when order is selected
+    setTimeout(() => {
+      getData();
+    }, 100);
+  };
+
+  const handleInputBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
+
+  // Close search results when clicking outside - similar to housedarrivals
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container')) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   return (
     <section id="form-step1">
       <h2 className="text-2xl font-normal text-black text-right mb-12">تسجيل مغادرة</h2>
@@ -15,23 +90,38 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
       </div>
       <form className="flex flex-col gap-4">
         <div className="flex flex-col gap-2 w-full">
-          <label htmlFor="order-number" className="text-xs text-gray-500 text-right font-inter">رقم الطلب</label>
-          <div className="flex items-center bg-gray-50 border border-gray-300 rounded pl-2">
+          <label htmlFor="order-number" className="text-xs text-gray-500 text-right font-inter">البحث عن الطلب</label>
+          <div className="relative search-container">
             <input 
               type="text" 
               id="order-number" 
-              className="flex-1 border-none bg-transparent outline-none text-gray-800 text-md p-3" 
-              onChange={(e) => setId(e.target.value)} 
+              className="w-full p-3 border border-gray-300 rounded-md bg-gray-50" 
+              onChange={handleIdChange}
+              onBlur={handleInputBlur}
+              onFocus={() => id.length >= 1 && setShowSuggestions(true)}
               value={id}
-              placeholder="ادخل رقم الطلب" 
+              placeholder="ابحث برقم الطلب أو اسم العميل أو اسم العاملة" 
             />
-            <button 
-              type="button" 
-              className="bg-teal-800 text-white text-md font-tajawal px-4 py-2 rounded" 
-              onClick={getData}
-            >
-              بحث
-            </button>
+            {isSearching && (
+              <div className="absolute right-3 top-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+              </div>
+            )}
+            
+            {/* Search Results Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {suggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                  >
+                    <div className="font-medium text-md">طلب #{suggestion}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-col md:flex-row gap-8">

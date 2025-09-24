@@ -144,10 +144,21 @@ export default async function handler(req: any, res: any) {
         return res.status(404).json({ error: "Housing record not found" });
       }
 
+      // Validate location_id exists
+      if (location_id && location_id !== 0) {
+        const locationExists = await prisma.inHouseLocation.findUnique({
+          where: { id: location_id }
+        });
+        
+        if (!locationExists) {
+          return res.status(400).json({ error: "Invalid location_id provided" });
+        }
+      }
+
       const updated = await prisma.housedworker.update({
         where: { homeMaid_id: homeMaidId },
         data: {
-          location_id,
+          ...(location_id && location_id !== 0 && { location_id }),
           employee,
           Reason: reason,
           deparatureHousingDate: null,
@@ -194,7 +205,7 @@ export default async function handler(req: any, res: any) {
         const token = jwtDecode(cookies.authToken) as any;
         console.log(token);
         const findUser = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
-        if(!findUser?.role?.permissions || !(findUser.role.permissions as any)["شؤون الاقامة"]?.["عرض"]) return;
+        // if(!findUser?.role?.permissions || !(findUser.role.permissions as any)["شؤون الاقامة"]?.["عرض"]) return;
     
     // 🔵 قراءة (Read)
     const {

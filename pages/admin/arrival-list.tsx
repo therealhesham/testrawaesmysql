@@ -47,7 +47,12 @@ interface ApiResponse {
     OrderId: number;
     HomemaidName: string;
     KingdomentryDate: string;
-    ArrivalCity: string;
+    KingdomentryTime: string;
+    DeliveryDate: string;
+    arrivalSaudiAirport: string;
+    deparatureCityCountry: string;
+    deparatureCityCountryDate: string;
+    deparatureCityCountryTime: string;
     id: number;
   }[];
   totalPages: number;
@@ -55,15 +60,15 @@ interface ApiResponse {
 
 const transformData = (data: any[]): TableRow[] => {
   return data.map((item) => ({
-    workerId: String(item.Order.HomeMaid.id),
-    orderId: String(item.OrderId),
-    workerName: item.HomemaidName || item.Order.HomeMaid.Name,
-    clientName: item.Order.ClientName || 'غير متوفر',
-    nationality: item.Order.HomeMaid.office.Country,
-    passport: item.Order.HomeMaid.Passportnumber,
-    from: 'غير محدد',
-    to: item.ArrivalCity || 'غير محدد',
-    status: item.KingdomentryDate ? 'وصلت' : 'تحديث الوصول',
+    workerId: String(item.Order?.HomeMaid?.id || 'غير محدد'),
+    orderId: String(item.OrderId || 'غير محدد'),
+    workerName: item.HomemaidName || item.Order?.HomeMaid?.Name || 'غير محدد',
+    clientName: item.Order?.ClientName || 'غير متوفر',
+    nationality: item.Order?.HomeMaid?.office?.Country || 'غير محدد',
+    passport: item.Order?.HomeMaid?.Passportnumber || 'غير محدد',
+    from: item.deparatureCityCountry || 'غير محدد',
+    to: item.arrivalSaudiAirport || 'غير محدد',
+    status: item.DeliveryDate ? 'وصلت' : 'لم تصل',
     arrivalDate: item.KingdomentryDate
       ? new Date(item.KingdomentryDate).toLocaleString('ar-EG', {
           dateStyle: 'short',
@@ -139,7 +144,7 @@ const fetchCities = async (setCities: (cities: string[]) => void) => {
     });
     if (!response.ok) throw new Error('فشل جلب المدن');
     const { data }: ApiResponse = await response.json();
-    const cities = Array.from(new Set(data.map((item) => item.ArrivalCity).filter((city): city is string => !!city)));
+    const cities = Array.from(new Set(data.map((item) => item.arrivalSaudiAirport).filter((city): city is string => !!city && city.trim() !== '')));
     setCities(['كل المدن', ...cities]);
   } catch (error) {
     console.error('Error fetching cities:', error);
@@ -336,7 +341,7 @@ const Controls = ({
             className="bg-transparent border-none"
           />
         </div>
-        <div className="relative flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-xs">
+        <div className="relative flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-md">
           <select
             value={selectedCity}
             onChange={(e) => handleCityChange(e.target.value)}
@@ -349,7 +354,7 @@ const Controls = ({
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-xs">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-md">
           <DatePicker
             selected={selectedDate}
             onChange={handleDateChange}
@@ -454,13 +459,7 @@ const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: str
               )}
               {visibleColumns.includes('status') && (
                 <td className="p-4 text-right">
-                  {row.status === 'وصلت' ? (
-                    <span className="text-black">{row.status}</span>
-                  ) : (
-                    <a href="#" className="text-teal-900">
-                      تحديث الوصول
-                    </a>
-                  )}
+                  <span className="text-black">{row.status}</span>
                 </td>
               )}
               {visibleColumns.includes('arrivalDate') && (
@@ -491,7 +490,7 @@ const Pagination = ({
     <nav className="flex items-center gap-1">
       <a
         href="#"
-        className={`px-3 py-1 text-xs rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
+        className={`px-3 py-1 text-md rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
           currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''
         }`}
         onClick={(e) => {
@@ -505,7 +504,7 @@ const Pagination = ({
         <a
           key={page}
           href="#"
-          className={`px-2 py-1 text-xs rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
+          className={`px-2 py-1 text-md rounded-sm border border-gray-300 bg-gray-50 text-white ${
             page === currentPage ? 'bg-teal-900 text-gray-50 border-teal-900' : ''
           }`}
           onClick={(e) => {
@@ -518,7 +517,7 @@ const Pagination = ({
       ))}
       <a
         href="#"
-        className={`px-3 py-1 text-xs rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
+        className={`px-3 py-1 text-md rounded-sm border border-gray-300 bg-gray-50 text-gray-800 ${
           currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''
         }`}
         onClick={(e) => {
@@ -625,15 +624,10 @@ export default function Home({ hasPermission }) {
 
   return (
     <Layout>
-      <div className={`font-tajawal bg-gray-100 text-gray-800 min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
+      <div className={`font-tajawal  text-gray-800 min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
         <Head>
           <title>قائمة الوصول</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-          />
-          <script src="https://cdn.tailwindcss.com"></script>
+          
         </Head>
         <div className="max-w-7xl mx-auto">
           <main className="p-6 md:p-8">

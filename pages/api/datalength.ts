@@ -55,7 +55,7 @@ export default async function handler(
 
     const deparatures = await prisma.arrivallist.count({
       where: {
-        deparatureDate: { not: null },
+        internaldeparatureDate: { not: null },
       },
     });
 

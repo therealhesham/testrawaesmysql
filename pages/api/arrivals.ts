@@ -38,7 +38,7 @@ export default async function handler(
   if (age)
     filters.Order = { HomeMaid: { age: { equals: parseInt(age as string, 10) } } };
   if (ArrivalCity)
-    filters.ArrivalCity = { contains: (ArrivalCity as string).toLowerCase() };
+    filters.arrivalSaudiAirport = { contains: (ArrivalCity as string).toLowerCase() };
   if (KingdomentryDate)
     filters.KingdomentryDate = {
       gte: new Date(KingdomentryDate as string),
@@ -51,6 +51,7 @@ export default async function handler(
       where: {
         ...filters,
         KingdomentryDate: { not: null },
+        Order: { isNot: null }, // تأكد من وجود Order مرتبط
       },
     });
 
@@ -62,6 +63,7 @@ export default async function handler(
       where: {
         ...filters,
         KingdomentryDate: { not: null },
+        Order: { isNot: null }, // تأكد من وجود Order مرتبط
       },
       select: {
         Order: {
@@ -80,9 +82,11 @@ export default async function handler(
         PassportNumber: true,
         KingdomentryDate: true,
         KingdomentryTime: true,
-        deparatureDate: true,
-        deparatureTime: true,
-        ArrivalCity: true,
+        DeliveryDate: true,
+        arrivalSaudiAirport: true,
+        deparatureCityCountry: true,
+        deparatureCityCountryDate: true,
+        deparatureCityCountryTime: true,
         medicalCheckFile: true,
         ticketFile: true,
         SponsorPhoneNumber: true,
@@ -90,8 +94,6 @@ export default async function handler(
         InternalmusanedContract: true,
         createdAt:true,
         updatedAt:true,
-        finaldestination: true,
-        finalDestinationDate: true,
         HomemaIdnumber: true,
         HomemaidName: true,
         Notes: true,
@@ -107,7 +109,7 @@ export default async function handler(
 
        eventBus.emit('ACTION', {
            type: "عرض قائمة الوصول صفحة رقم" + page,
-           userId: Number(token.id),
+           userId: Number((token as any).id),
          });  
    
     res.status(200).json({
