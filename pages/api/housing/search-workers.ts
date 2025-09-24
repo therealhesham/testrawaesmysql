@@ -41,7 +41,7 @@ export default async function handler(
             }
           },
           {
-            bookingstatus: { not: "booked" } // Only available homemaids
+            bookingstatus: { not:{in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} } //// استعين بالفيم اللي في track_order Only available homemaids
           }
         ]
       },
