@@ -118,7 +118,7 @@ console.log(id)
         },
         destinations: {
           departureCity: order.arrivals[0]?.deparatureCityCountry || 'N/A',
-          arrivalCity: order.arrivals[0]?.ArrivalCity || 'N/A',
+          arrivalCity: order.arrivals[0]?.arrivalSaudiAirport || 'N/A',
           arrivalSaudiAirport: order.arrivals[0]?.arrivalSaudiAirport || 'N/A',
           departureDateTime: order.arrivals[0]?.deparatureCityCountryDate
             ? `${(order.arrivals[0].deparatureCityCountryDate as Date).toISOString().split('T')[0]} ${order.arrivals[0].deparatureCityCountryTime || ''}`

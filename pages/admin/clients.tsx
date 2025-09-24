@@ -113,7 +113,7 @@ const Customers = ({ hasPermission }: Props) => {
         client.nationalId || '-',
         client.city || '-',
         client._count.orders.toString(),
-        client.orders[0]?.createdat ? new Date(client.orders[0].createdat).toLocaleDateString('ar-SA') : '-',
+        client.orders[0]?.createdAt ? new Date(client.orders[0]?.createdAt).toLocaleDateString() : '-',
       ];
       tableRows.push(clientData);
     });
@@ -138,8 +138,8 @@ const Customers = ({ hasPermission }: Props) => {
       الهوية: client.nationalId || '-',
       المدينة: client.city || '-',
       'عدد الطلبات': client._count.orders,
-      'تاريخ آخر طلب': client.orders[0]?.createdat
-        ? new Date(client.orders[0].createdat).toLocaleDateString('ar-SA')
+      'تاريخ آخر طلب': client.orders[0]?.createdAt
+        ? new Date(client.orders[0]?.createdAt).toLocaleDateString()
         : '-',
     }));
 
@@ -232,14 +232,14 @@ const Customers = ({ hasPermission }: Props) => {
                   <div className="flex gap-2">
                     <button
                       onClick={exportToPDF}
-                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-teal-800/90"
+                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-md font-medium hover:bg-teal-800/90"
                     >
                       <FileText className="w-4 h-4" />
                       <span>PDF</span>
                     </button>
                     <button
                       onClick={exportToExcel}
-                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-xs font-medium hover:bg-teal-800/90"
+                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-md font-medium hover:bg-teal-800/90"
                     >
                       <FileExcelOutlined className="w-4 h-4" />
                       <span>Excel</span>
@@ -269,7 +269,7 @@ const Customers = ({ hasPermission }: Props) => {
                     ) : (
                       clients.map((client) => (
                         <div key={client.id}>
-                          <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-background-light text-text-dark text-xs p-4">
+                          <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-background-light text-text-dark text-md p-4">
                             <div>#{client.id}</div>
                             <div>{client.fullname }</div>
                             <div>{client.phonenumber }</div>
@@ -277,8 +277,8 @@ const Customers = ({ hasPermission }: Props) => {
                             <div>{client.city }</div>
                             <div>{client._count.orders}</div>
                             <div>
-                              {client.orders[0]?.createdat
-                                ? new Date(client.orders[0].createdat).toLocaleDateString('ar-SA')
+                              {client.orders[0]?.createdAt
+                                ? new Date(client.orders[0]?.createdAt).toLocaleDateString()
                                 : '-'}
                             </div>
                             <div>
@@ -295,7 +295,7 @@ const Customers = ({ hasPermission }: Props) => {
                             </div>
                             <div>-</div>
                             <div>
-                              <a href="#" className="flex items-center gap-1 text-primary-dark text-xs hover:underline">
+                              <a href="#" className="flex items-center gap-1 text-primary-dark text-md hover:underline">
                                 <DocumentTextIcon className="w-4 h-4" />
                                 <span>إضافة ملاحظة</span>
                               </a>
@@ -321,14 +321,14 @@ const Customers = ({ hasPermission }: Props) => {
                                   client.orders.map((order) => (
                                     <div
                                       key={order.id}
-                                      className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 bg-background-light text-text-dark text-xs p-4"
+                                      className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 bg-background-light text-text-dark text-md p-4"
                                     >
                                       <div>#{order.id}</div>
                                       <div>{order.HomeMaid?.Name || '-'}</div>
                                       <div>{order.bookingstatus || '-'}</div>
                                       <div>
-                                        {order.createdat
-                                          ? new Date(order.createdat).toLocaleDateString('ar-SA')
+                                        {order.createdAt
+                                          ? new Date(order.createdAt).toLocaleDateString()
                                           : '-'}
                                       </div>
                                     </div>
@@ -351,7 +351,7 @@ const Customers = ({ hasPermission }: Props) => {
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-2 py-1 border border-border-color rounded text-xs bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
+                      className="px-2 py-1 border border-border-color rounded text-md bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
                     >
                       السابق
                     </button>
@@ -362,7 +362,7 @@ const Customers = ({ hasPermission }: Props) => {
                           setCurrentPage(page);
                           setExpandedClientId(null);
                         }}
-                        className={`px-2 py-1 border rounded text-xs ${
+                        className={`px-2 py-1 border rounded text-md ${
                           currentPage === page
                             ? 'border-primary-dark bg-teal-800 text-white'
                             : 'border-border-color bg-background-light hover:bg-teal-800 hover:text-white'
@@ -374,7 +374,7 @@ const Customers = ({ hasPermission }: Props) => {
                     <button
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-2 py-1 border border-border-color rounded text-xs bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
+                      className="px-2 py-1 border border-border-color rounded text-md bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
                     >
                       التالي
                     </button>
