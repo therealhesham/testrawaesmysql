@@ -1,5 +1,7 @@
+import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
-import prisma from "../../../lib/prisma";
+
+const prisma = new PrismaClient();
 
 export default async function handler(
   req: NextApiRequest,
@@ -9,45 +11,54 @@ export default async function handler(
     return res.status(405).json({ message: "Method not allowed" });
   }
 
-  // منع التخزين المؤقت لتجنب 304
-  res.setHeader('Cache-Control', 'no-store');
-
   try {
-    const { search, limit = '10' } = req.query;
+    const { search, limit = '10', contractType } = req.query;
 
     if (!search || typeof search !== 'string') {
       return res.status(400).json({ message: 'Search term is required' });
     }
 
-    const limitNum = Math.min(parseInt(limit as string) || 10, 50);
+    const limitNum = parseInt(limit as string);
 
+    // Search homemaids by ID, name, passport number, or phone
+    // Only search homemaids that are linked to neworder table (have orders)
     const homemaids = await prisma.homemaid.findMany({
       where: {
-        OR: [
-          { Name: { contains: search } },
-          { Passportnumber: { contains: search } },
-          { phone: { contains: search } }
-        ],
-        bookingstatus: { 
-          not: { in: ["booked", "new_order", "new_orders", "delivered", "cancelled", "rejected"] } 
-        }
+        AND: [
+          {
+            OR: [
+              { id: parseInt(search) || undefined },
+              { Name: { contains: search } },
+              { Passportnumber: { contains: search } },
+              { phone: { contains: search } }
+            ]
+          },
+          {
+            NewOrder: {
+              some: contractType ? {
+                typeOfContract: contractType as string
+              } : {} // Only homemaids that have at least one neworder record with specific contract type
+            }
+          }
+        ]
       },
-      select: {
-        id: true,
-        Name: true,
-        Nationalitycopy: true,
-        Passportnumber: true,
-        phone: true,
-        age: true,
-        ExperienceYears: true,
-        Religion: true,
-        Picture: true,
-        bookingstatus: true,
-        createdAt: true,
+      include: {
         office: {
           select: {
+            id: true,
             office: true,
             Country: true
+          }
+        },
+        NewOrder: {
+          select: {
+            id: true,
+            bookingstatus: true,
+            profileStatus: true,
+            createdAt: true
+          },
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       },
@@ -57,6 +68,7 @@ export default async function handler(
       }
     });
 
+    // Format the response
     const formattedHomemaids = homemaids.map(homemaid => ({
       id: homemaid.id,
       name: homemaid.Name,
@@ -70,7 +82,15 @@ export default async function handler(
       country: homemaid.office?.Country,
       picture: homemaid.Picture,
       bookingStatus: homemaid.bookingstatus,
-      createdAt: homemaid.createdAt
+      createdAt: homemaid.createdAt,
+      // Add order information
+      orders: homemaid.NewOrder?.map(order => ({
+        id: order.id,
+        bookingStatus: order.bookingstatus,
+        profileStatus: order.profileStatus,
+        createdAt: order.createdAt
+      })) || [],
+      hasOrders: homemaid.NewOrder && homemaid.NewOrder.length > 0
     }));
 
     res.status(200).json({
@@ -83,7 +103,7 @@ export default async function handler(
     console.error("Error searching homemaids:", error);
     res.status(500).json({ 
       success: false,
-      message: "Internal Server Error"
+      message: "Internal Server Error" 
     });
   } finally {
     await prisma.$disconnect();
