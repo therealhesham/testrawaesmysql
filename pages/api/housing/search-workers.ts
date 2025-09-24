@@ -21,9 +21,9 @@ export default async function handler(
     const searchConditions = {
       OR: [
         ...(parseInt(search) ? [{ id: parseInt(search) }] : []),
-        { Name: { contains: search, mode: 'insensitive' as const } },
-        { Passportnumber: { contains: search, mode: 'insensitive' as const } },
-        { phone: { contains: search, mode: 'insensitive' as const } }
+        { Name: { contains: search } },
+        { Passportnumber: { contains: search } },
+        { phone: { contains: search } }
       ]
     };
 
