@@ -9,6 +9,9 @@ export default async function handler(
     return res.status(405).json({ message: "Method not allowed" });
   }
 
+  // منع التخزين المؤقت لتجنب 304
+  res.setHeader('Cache-Control', 'no-store');
+
   try {
     const { search, limit = '10' } = req.query;
 
@@ -78,7 +81,6 @@ export default async function handler(
 
   } catch (error) {
     console.error("Error searching homemaids:", error);
-    
     res.status(500).json({ 
       success: false,
       message: "Internal Server Error"
