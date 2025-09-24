@@ -371,20 +371,20 @@ export default function TrackOrder() {
           <title>تتبع الطلب</title>
         </Head>
         <main className="max-w-7xl mx-auto px-5 py-8">
-          {error && <div className="text-red-600 text-sm mb-4 text-right">{error}</div>}
+          {error && <div className="text-red-600 text-md mb-4 text-right">{error}</div>}
 
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
             <div className="flex gap-4">
               <button
-                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 disabled:opacity-50"
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-md hover:bg-red-700 disabled:opacity-50"
                 onClick={handleCancelContract}
                 disabled={updating}
               >
                 إلغاء العقد
               </button>
               <button
-                className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-sm hover:bg-teal-800 hover:text-white disabled:opacity-50"
+                className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-md hover:bg-teal-800 hover:text-white disabled:opacity-50"
                 onClick={handleChangeHomemaid}
                 disabled={updating}
               >
@@ -460,7 +460,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('externalOfficeApproval', true)}
                     disabled={updating}
                   >
@@ -488,7 +488,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الاجتياز" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('medicalCheck', true)}
                     disabled={updating}
                   >
@@ -516,7 +516,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الموافقة" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('foreignLaborApproval', true)}
                     disabled={updating}
                   >
@@ -544,7 +544,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الدفع" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('agencyPayment', true)}
                     disabled={updating}
                   >
@@ -572,7 +572,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('saudiEmbassyApproval', true)}
                     disabled={updating}
                   >
@@ -600,7 +600,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الإصدار" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('visaIssuance', true)}
                     disabled={updating}
                   >
@@ -628,7 +628,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الإصدار" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('travelPermit', true)}
                     disabled={updating}
                   >
@@ -674,7 +674,7 @@ export default function TrackOrder() {
                 label: 'ملف التذكرة',
                 value: (
                   <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
-                    <span className="text-gray-500 text-sm pr-2">
+                    <span className="text-gray-500 text-md pr-2">
                       {orderData.ticketUpload.files ? (
                         <a
                           href={orderData.ticketUpload.files}
@@ -762,7 +762,7 @@ export default function TrackOrder() {
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الاستلام" />
                 ) : (
                   <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900 disabled:opacity-50"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
                     onClick={() => handleStatusUpdate('receipt', true)}
                     disabled={updating}
                   >
@@ -788,7 +788,7 @@ export default function TrackOrder() {
                 label: 'ملفات أخرى',
                 value: (
                   <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
-                    <span className="text-gray-500 text-sm pr-2">
+                    <span className="text-gray-500 text-md pr-2">
                       {orderData.documentUpload.files ? (
                         <a
                           href={orderData.documentUpload.files}
@@ -889,7 +889,7 @@ export default function TrackOrder() {
 
                 <div className="space-y-4 text-right">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">اسم العاملة</label>
+                    <label className="block text-md font-medium text-gray-700 mb-1">اسم العاملة</label>
                     <Select
                       options={homemaidOptions}
                       value={selectedHomemaid}
@@ -914,7 +914,7 @@ export default function TrackOrder() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">رقم جواز السفر</label>
+                    <label className="block text-md font-medium text-gray-700 mb-1">رقم جواز السفر</label>
                     <input
                       type="text"
                       value={newHomemaidData.passportNumber}
@@ -925,7 +925,7 @@ export default function TrackOrder() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الجنسية</label>
+                    <label className="block text-md font-medium text-gray-700 mb-1">الجنسية</label>
                     <input
                       type="text"
                       value={newHomemaidData.nationality}
@@ -936,7 +936,7 @@ export default function TrackOrder() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">المكتب الخارجي</label>
+                    <label className="block text-md font-medium text-gray-700 mb-1">المكتب الخارجي</label>
                     <input
                       type="text"
                       value={newHomemaidData.externalOffice}

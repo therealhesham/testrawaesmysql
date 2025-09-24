@@ -331,7 +331,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
             e.preventDefault();
             handlePageChange(i);
           }}
-          className={`px-2.5 py-1 border rounded text-xs ${
+          className={`px-2.5 py-1 border rounded text-md ${
             i === currentPage
               ? 'border-teal-900 bg-teal-900 text-white'
               : 'border-gray-300 bg-gray-50 text-gray-800'
@@ -370,7 +370,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                       contractType === 'recruitment' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات الاستقدام <span className="text-xs align-super">{recruitmentCount}</span>
+                    طلبات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
                   </a>
                   <a
                     href="#"
@@ -382,28 +382,28 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                       contractType === 'rental' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات التأجير <span className="text-xs align-super">{rentalCount}</span>
+                    طلبات التأجير <span className="text-md align-super">{rentalCount}</span>
                   </a>
                 </div>
                 <div className="flex gap-2">
                   {contractType === 'rental' && (
                     <button
                       onClick={handleOpenModal}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
                     >
                       إضافة طلب تأجير
                     </button>
                   )}
                   <button
                     onClick={exportToPDF}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
                   >
                     <DocumentDownloadIcon className="w-4 h-4" />
                     PDF
                   </button>
                   <button
                     onClick={exportToExcel}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
                   >
                     <TableIcon className="w-4 h-4" />
                     Excel
@@ -489,7 +489,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                         'اسم المكتب الخارجي',
                         'حالة الطلب',
                       ].map((header) => (
-                        <th key={header} className="text-white text-xs font-normal p-4 text-right">
+                        <th key={header} className="text-white text-md font-normal p-4 text-right">
                           {header}
                         </th>
                       ))}
@@ -498,19 +498,19 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                   <tbody>
                     {data.map((booking) => (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-xs text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
+                        <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
                           #{booking.id}
                         </td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.phone || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.arrivals?.InternalmusanedContract || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.phone || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.arrivals?.InternalmusanedContract || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -527,7 +527,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                       e.preventDefault();
                       handlePageChange(currentPage - 1);
                     }}
-                    className={`px-2.5 py-1 border rounded text-xs ${
+                    className={`px-2.5 py-1 border rounded text-md ${
                       currentPage === 1 ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
@@ -540,7 +540,7 @@ export default function Dashboard({ hasPermission, redirectTo }) {
                       e.preventDefault();
                       handlePageChange(currentPage + 1);
                     }}
-                    className={`px-2.5 py-1 border rounded text-xs ${
+                    className={`px-2.5 py-1 border rounded text-md ${
                       currentPage === totalPages ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
