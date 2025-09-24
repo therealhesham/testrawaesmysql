@@ -30,13 +30,7 @@ export default async function handler(
               { phone: { contains: search } }
             ]
           },
-          {
-            NewOrder: {
-              some: contractType ? {
-                typeOfContract: contractType as string
-              } : {} // Only homemaids that have at least one neworder record with specific contract type
-            }
-          },
+      
           {
             bookingstatus: { not:{in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} } //// استعين بالفيم اللي في track_order Only available homemaids
           }
