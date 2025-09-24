@@ -1,7 +1,8 @@
 
 // prisma
 import type { NextApiRequest, NextApiResponse } from "next";
-import prisma from "../globalprisma";
+import prisma from "../../../lib/prisma"; // استخدم نفس مسار الملفات العاملة
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -11,53 +12,42 @@ export default async function handler(
   }
 
   try {
-    const { search, limit = '10', contractType } = req.query;
+    const { search, limit = '10' } = req.query;
 
     if (!search || typeof search !== 'string') {
       return res.status(400).json({ message: 'Search term is required' });
     }
 
-    const limitNum = Math.min(parseInt(limit as string) || 10, 100);
+    const limitNum = Math.min(parseInt(limit as string) || 10, 50); // قلل الحد الأقصى
 
-    // Build search conditions
-    const searchConditions = {
-      OR: [
-        ...(parseInt(search) ? [{ id: parseInt(search) }] : []),
-        { Name: { contains: search } },
-        { Passportnumber: { contains: search } },
-        { phone: { contains: search } }
-      ]
-    };
-
-    // Search homemaids by ID, name, passport number, or phone
+    // استعلام مبسط أولاً
     const homemaids = await prisma.homemaid.findMany({
       where: {
-        AND: [
-          searchConditions,
-          {
-            bookingstatus: { 
-              not: { in: ["booked", "new_order", "new_orders", "delivered", "cancelled", "rejected"] } 
-            }
-          }
-        ]
+        OR: [
+          { Name: { contains: search } },
+          { Passportnumber: { contains: search } },
+          { phone: { contains: search } }
+        ],
+        bookingstatus: { 
+          not: { in: ["booked", "new_order", "new_orders", "delivered", "cancelled", "rejected"] } 
+        }
       },
-      include: {
+      select: { // استخدم select بدلاً من include لتقليل البيانات
+        id: true,
+        Name: true,
+        Nationalitycopy: true,
+        Passportnumber: true,
+        phone: true,
+        age: true,
+        ExperienceYears: true,
+        Religion: true,
+        Picture: true,
+        bookingstatus: true,
+        createdAt: true,
         office: {
           select: {
-            id: true,
             office: true,
             Country: true
-          }
-        },
-        NewOrder: {
-          select: {
-            id: true,
-            bookingstatus: true,
-            profileStatus: true,
-            createdAt: true
-          },
-          orderBy: {
-            createdAt: 'desc'
           }
         }
       },
@@ -67,7 +57,7 @@ export default async function handler(
       }
     });
 
-    // Format the response
+    // تبسيط الاستجابة
     const formattedHomemaids = homemaids.map(homemaid => ({
       id: homemaid.id,
       name: homemaid.Name,
@@ -81,15 +71,7 @@ export default async function handler(
       country: homemaid.office?.Country,
       picture: homemaid.Picture,
       bookingStatus: homemaid.bookingstatus,
-      createdAt: homemaid.createdAt,
-      // Add order information
-      orders: homemaid.NewOrder?.map(order => ({
-        id: order.id,
-        bookingStatus: order.bookingstatus,
-        profileStatus: order.profileStatus,
-        createdAt: order.createdAt
-      })) || [],
-      hasOrders: homemaid.NewOrder && homemaid.NewOrder.length > 0
+      createdAt: homemaid.createdAt
     }));
 
     res.status(200).json({
@@ -101,18 +83,9 @@ export default async function handler(
   } catch (error) {
     console.error("Error searching homemaids:", error);
     
-    // Log detailed error for debugging
-    if (error instanceof Error) {
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
-    
     res.status(500).json({ 
       success: false,
-      message: process.env.NODE_ENV === 'production' 
-        ? "Internal Server Error" 
-        : `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      error: process.env.NODE_ENV === 'development' ? error : undefined
+      message: "Internal Server Error"
     });
   }
 }
