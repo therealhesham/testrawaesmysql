@@ -2,7 +2,7 @@ import { useState } from "react";
 import FormStep1 from './FormStep1';
 import FormStep2 from './FormStep2';
 
-export default function DepartureModal({ currentStep, onNext, onPrevious, onClose }) {
+export default function DepartureModal({ currentStep, onNext, onPrevious, onClose, onSuccess }) {
   const [id, setId] = useState("");
   const [data, setData] = useState<any>(null);
 
@@ -24,7 +24,7 @@ export default function DepartureModal({ currentStep, onNext, onPrevious, onClos
         {currentStep === 1 ? (
           <FormStep1 onNext={onNext} id={id} setId={setId} data={data} getData={getData} />
         ) : (
-          <FormStep2 onPrevious={onPrevious} onClose={onClose} data={data} />
+          <FormStep2 onPrevious={onPrevious} onClose={onClose} data={data} onSuccess={onSuccess} />
         )}
       </div>
     </div>

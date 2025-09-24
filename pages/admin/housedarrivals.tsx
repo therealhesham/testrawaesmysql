@@ -32,7 +32,7 @@ interface HousedWorker {
   };
 }
 interface EditWorkerForm {
-  location_id: number;
+  location_id: number | null;
   Reason: string;
   Details: string;
   employee: string;
@@ -154,6 +154,8 @@ export default function Home({ user }: { user: any }) {
     Passportnumber: '',
     reason: '',
     id: '',
+    location: '',
+    houseentrydate: '',
   });
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
@@ -290,6 +292,7 @@ export default function Home({ user }: { user: any }) {
   const fetchLocations = async () => {
     try {
       const response = await axios.get('/api/inhouselocation');
+      console.log('Locations data:', response.data);
       setLocations(response.data);
     } catch (error) {
       showNotification('خطأ في جلب بيانات المواقع', 'error');
@@ -355,6 +358,36 @@ export default function Home({ user }: { user: any }) {
       setIsSearchingExternal(false);
     }
   };
+  // Fetch counts from server-side API
+  const fetchCounts = async () => {
+    try {
+      console.log('Fetching counts from server-side API');
+      
+      const response = await axios.get('/api/housing/counts');
+      
+      if (response.data.success) {
+        setTabCounts({
+          recruitment: response.data.counts.recruitment || 0,
+          rental: response.data.counts.rental || 0
+        });
+        
+        console.log('Server-side counts loaded:', response.data.counts);
+      } else {
+        console.error('Server returned error:', response.data.message);
+        setTabCounts({
+          recruitment: 0,
+          rental: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching counts from server:', error);
+      setTabCounts({
+        recruitment: 0,
+        rental: 0
+      });
+    }
+  };
+
   // Fetch workers based on contract type and housing status
   const fetchWorkers = async () => {
     try {
@@ -426,14 +459,29 @@ export default function Home({ user }: { user: any }) {
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
-      await axios.put(`/api/confirmhousinginformation`, { 
-        ...data, 
+      const updateData: any = {
         homeMaidId: workerId,
+        employee: data.employee,
+        reason: data.Reason,
+        details: data.Details, // تحويل Details إلى details
+        houseentrydate: data.Date,
+        deliveryDate: data.deliveryDate,
         isHasEntitlements: data.isHasEntitlements
-      });
+      };
+      
+      // Only include location_id if it's valid
+      if (data.location_id && data.location_id !== 0) {
+        updateData.location_id = data.location_id;
+      }
+      
+      console.log('Sending update data:', updateData);
+      
+      await axios.put(`/api/confirmhousinginformation`, updateData);
       showNotification('تم تحديث بيانات العاملة بنجاح');
       fetchWorkers();
+      fetchLocations();
     } catch (error) {
+      console.error('Update error:', error);
       showNotification('حدث خطأ أثناء تحديث البيانات', 'error');
     }
   };
@@ -443,6 +491,7 @@ export default function Home({ user }: { user: any }) {
       await axios.put(`/api/housingdeparature`,{...data,homeMaid:workerId});
       showNotification('تم تسجيل مغادرة العاملة بنجاح');
       fetchWorkers();
+      fetchLocations();
     } catch (error) {
       showNotification('حدث خطأ أثناء تسجيل المغادرة', 'error');
     }
@@ -481,18 +530,21 @@ export default function Home({ user }: { user: any }) {
   // Handle edit worker modal opening
   const handleEditWorker = (id: number, name: string) => {
     const worker = (housingStatus === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
+    console.log('Edit worker clicked:', { id, name, worker, housingStatus });
     if (worker) {
       setSelectedWorkerId( worker.homeMaid_id);
       setSelectedWorkerName(name);
-      setEditWorkerForm({
-        location_id: worker.location_id,
+      const formData = {
+        location_id: worker.location_id || null,
         Reason: worker.Reason || '',
         Details: worker.Details || '',
-        employee: worker.employee || '',
-        Date: worker.houseentrydate || '',
-        deliveryDate: worker.deparatureHousingDate || '',
+        employee: worker.employee || user,
+        Date: worker.houseentrydate ? worker.houseentrydate.split('T')[0] : '',
+        deliveryDate: worker.deparatureHousingDate ? worker.deparatureHousingDate.split('T')[0] : '',
         isHasEntitlements: worker.isHasEntitlements !== undefined ? worker.isHasEntitlements : true,
-      });
+      };
+      console.log('Setting edit form data:', formData);
+      setEditWorkerForm(formData);
       openModal('editWorker');
     }
   };
@@ -544,12 +596,13 @@ export default function Home({ user }: { user: any }) {
       setSelectedWorker(null);
       setWorkerSearchTerm('');
       fetchWorkers();
+      fetchLocations();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة', 'error');
     }
   };
   // Handle filter input changes
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setPage(1); // Reset to first page on filter change
   };
@@ -624,6 +677,7 @@ export default function Home({ user }: { user: any }) {
       setExternalWorkerSearchTerm('');
       setExternalWorkerSuggestions([]);
       fetchWorkers();
+      fetchLocations();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة الخارجية', 'error');
     }
@@ -679,11 +733,18 @@ export default function Home({ user }: { user: any }) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
-  // Fetch data on component mount
+  // Fetch initial data and counts on component mount
   useEffect(() => {
-    console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab, housingStatus });
+    console.log('Initial useEffect triggered');
     fetchLocations();
     fetchHomemaids();
+    fetchCounts();
+    fetchWorkers();
+  }, []); // Only run once on mount
+
+  // Fetch data when filters or tabs change
+  useEffect(() => {
+    console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab, housingStatus });
     fetchWorkers();
   }, [page, sortKey, sortDirection, filters, activeTab, housingStatus]);
   // Close search results when clicking outside - similar to musanad_finacial
@@ -722,7 +783,9 @@ export default function Home({ user }: { user: any }) {
               </div>
             </div>
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {locations.map((location) => {
+              {console.log('Rendering locations:', locations)}
+              {locations && locations.length > 0 ? locations.map((location) => {
+                console.log('Location:', location);
                 const progress = ((location.currentOccupancy || 0) / location.quantity) * 100;
                 const status =
                   progress === 100
@@ -751,7 +814,11 @@ export default function Home({ user }: { user: any }) {
                     </div>
                   </div>
                 );
-              })}
+              }) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500">لا توجد بيانات سكن متاحة</p>
+                </div>
+              )}
             </section>
             <section className="bg-white border border-gray-300 rounded-lg shadow-sm p-6 flex flex-col gap-5">
               <div className="flex justify-between items-center border-b border-gray-300 pb-3">
@@ -834,12 +901,18 @@ export default function Home({ user }: { user: any }) {
               </div>
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-4 flex-wrap">
-                  <button
-                    onClick={() => setFilters({ Name: '', Passportnumber: '', reason: '', id: '' })}
-                    className="bg-teal-800 text-white text-md py-2 px-4 rounded-md"
-                  >
-                    اعادة ضبط
-                  </button>
+                 
+                  <div className="bg-gray-100 border border-gray-300 rounded-md  flex items-center gap-2">
+                    <input
+                      type="text"
+                      name="Name"
+                      placeholder="بحث"
+                      value={filters.Name}
+                      onChange={handleFilterChange}
+                      className="bg-transparent outline-none text-right  text-md border-none"
+                    />
+                    <Search className="w-5 h-5 text-gray-500" /> 
+                  </div>
                   <button
                     onClick={() => openModal('columnVisibility')}
                     className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300"
@@ -847,23 +920,39 @@ export default function Home({ user }: { user: any }) {
                     <Settings className="w-5 h-5" />
                     كل الاعمدة
                   </button>
-                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300">
-                    السكن
-                  </button>
-                  <button className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300">
-                    اختر تاريخ
-                  </button>
-                  <div className="bg-gray-100 border border-gray-300 rounded-md p-2 flex items-center gap-2">
-                    <input
-                      type="text"
-                      name="Name"
-                      placeholder="بحث"
-                      value={filters.Name}
-                      onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right w-24 text-md border-none"
-                    />
-                    <Search className="w-5 h-5 text-gray-500" />
+                  <div className="bg-gray-100 border border-gray-300 rounded-md  flex items-center gap-2">
+                    <select
+                      name="location"
+                      value={filters.location}
+                      onChange={(e) => handleFilterChange(e)}
+                      className="bg-transparent outline-none text-right text-md border-none"
+                    >
+                      <option value="">جميع السكن</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.location}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  <div className="bg-gray-100 border border-gray-300 rounded-md  flex items-center gap-2">
+                    <input
+                      type="date"
+                      name="houseentrydate"
+                      value={filters.houseentrydate}
+                      onChange={handleFilterChange}
+                      placeholder="تاريخ التسكين"
+                      className="bg-transparent outline-none text-right text-md border-none"
+                    />
+                  </div>
+                 
+                 
+                   <button
+                    onClick={() => setFilters({ Name: '', Passportnumber: '', reason: '', id: '', location: '', houseentrydate: '' })}
+                    className="bg-teal-800 text-white text-md py-2 px-4 rounded-md"
+                  >
+                    اعادة ضبط
+                  </button>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -882,7 +971,7 @@ export default function Home({ user }: { user: any }) {
                   </button>
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-teal-800 text-white">
@@ -892,8 +981,12 @@ export default function Home({ user }: { user: any }) {
                       <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>
                       <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>
                       <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">سبب التسكين</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسكين</th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                        {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
+                      </th>
+                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                        {housingStatus === 'housed' ? 'تاريخ التسكين' : 'تاريخ المغادرة'}
+                      </th>
                       <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>
                       <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>
                       <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>
@@ -912,16 +1005,23 @@ export default function Home({ user }: { user: any }) {
                         .map((worker) => (
                         <React.Fragment key={worker.id}>
                         <tr
-                          className="bg-gray-50 border-b border-gray-300 hover:bg-gray-100 transition-colors"
+                          className="bg-gray-50 text-nowrap border-b border-gray-300 hover:bg-gray-100 transition-colors"
                         >
                           <td className="py-4 px-4 text-right text-md">#{worker.id}</td>
-                          <td className="py-4 px-4 text-right text-md text-[11px] leading-tight text-center">{worker.Order?.Name || ''}</td>
+                          <td className="py-4 px-4 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>
                           <td className="py-4 px-4 text-right text-md">{worker.Order?.phone || ''}</td>
                           <td className="py-4 px-4 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>
                           <td className="py-4 px-4 text-right text-md">{worker.Order?.Passportnumber || ''}</td>
                           <td className="py-4 px-4 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>
-                          <td className="py-4 px-4 text-right text-md">{worker.Reason}</td>
-                          <td className="py-4 px-4 text-right text-md">{worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد'}</td>
+                          <td className="py-4 px-4 text-right text-md">
+                            {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
+                          </td>
+                          <td className="py-4 px-4 text-right text-md">
+                            {housingStatus === 'housed' 
+                              ? (worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد')
+                              : (worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد')
+                            }
+                          </td>
                           <td className="py-4 px-4 text-right text-md">
                             {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
                           </td>
@@ -1524,6 +1624,7 @@ export default function Home({ user }: { user: any }) {
                       }
                     }}
                   >
+                    {console.log('Edit form data in modal:', editWorkerForm)}
                     <div className="mb-4">
                       <label className="block text-md mb-2 text-textDark">اسم العاملة</label>
                       <input
@@ -1545,11 +1646,11 @@ export default function Home({ user }: { user: any }) {
                     <div className="mb-4">
                       <label className="block text-md mb-2 text-textDark">السكن</label>
                       <select
-                        value={editWorkerForm.location_id}
+                        value={editWorkerForm.location_id || ''}
                         onChange={(e) =>
                           setEditWorkerForm({
                             ...editWorkerForm,
-                            location_id: Number(e.target.value),
+                            location_id: e.target.value ? Number(e.target.value) : null,
                           })
                         }
                         className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"

@@ -40,7 +40,6 @@ export default async function handler(
     const {
       finaldestination,
       deparatureTime,
-      finalDestinationDate,
       KingdomentryDate,
       HomemaIdnumber,
       Notes,
@@ -73,8 +72,10 @@ export default async function handler(
       // الحقول الجديدة للمغادرة الداخلية
       internaldeparatureCity,
       internaldeparatureDate,
+      internaldeparatureTime,
       internalArrivalCity,
       internalArrivalCityDate,
+      internalArrivalCityTime,
     } = req.body;
 
     console.log(req.body); // Log the request body for debugging
@@ -114,24 +115,20 @@ export default async function handler(
     const validDeparatureDate = deparatureDate
       ? new Date(deparatureDate).toISOString()
       : null;
-    const validfinalDestinationDate = finalDestinationDate
-      ? new Date(finalDestinationDate).toISOString()
+    const validInternalArrivalCityDate = internalArrivalCityDate
+      ? new Date(internalArrivalCityDate).toISOString()
       : null;
 
     // معالجة التواريخ الجديدة للمغادرة الداخلية
     const validInternalDeparatureDate = internaldeparatureDate
       ? new Date(internaldeparatureDate).toISOString()
       : null;
-    const validInternalArrivalCityDate = internalArrivalCityDate
-      ? new Date(internalArrivalCityDate).toISOString()
-      : null;
 
     const ss = {
       finaldestination,
-      deparatureTime,
-      finalDestinationTime,
-      finalDestinationDate: validfinalDestinationDate,
-      deparatureDate: validDeparatureDate,
+      internaldeparatureTime,
+      internalArrivalCityTime,
+      internaldeparatureDate: validInternalDeparatureDate,
       KingdomentryDate: validKingdomEntryDate,
       HomemaIdnumber,
       DeliveryDate: validDeliveryDate,
@@ -140,7 +137,6 @@ export default async function handler(
       externalOfficeStatus,
       externalmusanadcontractfile,
       additionalfiles,
-      ArrivalCity,
       externalmusanedContract: validexternalmusanedContract,
       MusanadDuration,
       ExternalDateLinking: validExternalDateLinking,
@@ -151,9 +147,7 @@ export default async function handler(
       GuaranteeDurationEnd: validGuaranteeDurationEnd,
       // الحقول الجديدة للمغادرة الداخلية
       internaldeparatureCity,
-      internaldeparatureDate: validInternalDeparatureDate,
       internalArrivalCity,
-      internalArrivalCityDate: validInternalArrivalCityDate,
     };
 
     // Apply `excludeEmptyFields` to filter out empty fields from the object

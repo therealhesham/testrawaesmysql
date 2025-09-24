@@ -7,9 +7,10 @@ interface FormStep2Props {
   onPrevious: () => void;
   onClose: () => void;
   data: any;
+  onSuccess?: () => void;
 }
 
-export default function FormStep2({ onPrevious, onClose, data }: FormStep2Props) {
+export default function FormStep2({ onPrevious, onClose, data, onSuccess }: FormStep2Props) {
   const [formData, setFormData] = useState({
     ArrivalCity: '',
     finaldestination: '',
@@ -55,9 +56,12 @@ export default function FormStep2({ onPrevious, onClose, data }: FormStep2Props)
         setAlertType('success');
         setAlertMessage('تم الحفظ بنجاح');
         setShowAlert(true);
-        // إعادة تحميل الصفحة لجلب البيانات الجديدة
+        // استخدام onSuccess بدلاً من إعادة تحميل الصفحة
         setTimeout(() => {
-          window.location.reload();
+          if (onSuccess) {
+            onSuccess();
+          }
+          onClose();
         }, 2000);
       } else {
         setAlertType('error');
