@@ -1,7 +1,5 @@
-
-// prisma
 import type { NextApiRequest, NextApiResponse } from "next";
-import prisma from "../../../lib/prisma"; // استخدم نفس مسار الملفات العاملة
+import prisma from "../../../lib/prisma";
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,9 +16,8 @@ export default async function handler(
       return res.status(400).json({ message: 'Search term is required' });
     }
 
-    const limitNum = Math.min(parseInt(limit as string) || 10, 50); // قلل الحد الأقصى
+    const limitNum = Math.min(parseInt(limit as string) || 10, 50);
 
-    // استعلام مبسط أولاً
     const homemaids = await prisma.homemaid.findMany({
       where: {
         OR: [
@@ -32,7 +29,7 @@ export default async function handler(
           not: { in: ["booked", "new_order", "new_orders", "delivered", "cancelled", "rejected"] } 
         }
       },
-      select: { // استخدم select بدلاً من include لتقليل البيانات
+      select: {
         id: true,
         Name: true,
         Nationalitycopy: true,
@@ -57,7 +54,6 @@ export default async function handler(
       }
     });
 
-    // تبسيط الاستجابة
     const formattedHomemaids = homemaids.map(homemaid => ({
       id: homemaid.id,
       name: homemaid.Name,
@@ -87,5 +83,7 @@ export default async function handler(
       success: false,
       message: "Internal Server Error"
     });
+  } finally {
+    await prisma.$disconnect();
   }
 }
