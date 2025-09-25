@@ -591,8 +591,10 @@ export default function Dashboard({ hasPermission }) {
                       </td>
                     </tr>
                     {detailsRow === index && (
+                      
+                      
                       <tr className="bg-white">
-                        <td colSpan="11" className="p-0">
+                        <td colSpan={11} className="p-0">
                           <div className="p-4">
                             <div className="border border-gray-300 rounded">
                               <div className="grid grid-cols-5 bg-gray-100 font-bold text-base p-3 border-b border-gray-300">
@@ -602,13 +604,16 @@ export default function Dashboard({ hasPermission }) {
                                 <span>الوصف</span>
                                 <span>السبب</span>
                               </div>
-                              <div className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
-                                <span>{row.HomeMaid?.logs[0]?.status || "غير متوفر"}</span>
-                                <span>{row.HomeMaid?.logs[0]?.createdAt ? new Date(row.HomeMaid.logs[0].createdAt).toLocaleString('ar-SA') : "غير متوفر"}</span>
-                                <span>{row.HomeMaid?.logs[0]?.user?.username || "غير متوفر"}</span>
-                                <span>{row.HomeMaid?.logs[0]?.Details || "غير متوفر"}</span>
-                                <span>{row.HomeMaid?.logs[0]?.reason || "غير متوفر"}</span>
-                              </div>
+                              {row.HomeMaid?.logs.length > 0 && (row.HomeMaid?.logs.map((log) => (
+                                <div className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
+                                  <span>{log.Status || "غير متوفر"}</span>
+                                  <span>{log.createdAt ? new Date(log.createdAt).toLocaleString('ar-SA') : "غير متوفر"}</span>
+                                  <span>{log.user?.username || "غير متوفر"}</span>
+                                  <span>{log.Details || "غير متوفر"}</span>
+                                  <span>{log.reason || "غير متوفر"}</span>
+                                </div>
+                              )))}
+                             
                             </div>
                           </div>
                         </td>
