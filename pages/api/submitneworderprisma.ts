@@ -116,7 +116,7 @@ const cookieHeader = req.headers.cookie;
       });
 
       try {
-        await prisma.logs.create({data:{Status: 'تسجيل طلب جديد رقم  ' + result.id,homemaidId: HomemaidId,userId: token.id}})
+        await prisma.logs.create({data:{Details: 'تسجيل طلب جديد رقم  ' + result.id,homemaidId: HomemaidId,userId: token.id,Status:"طلب جديد"}})
       } catch (error) {
         console.log(error)
       }
@@ -130,18 +130,19 @@ const cookieHeader = req.headers.cookie;
     });
 
     const officeName = homemaid?.officeName || homemaid?.office?.office || '';
+    const bookingstatus = homemaid?.bookingstatus || '';
 
     const statement = await prisma.clientAccountStatement.create({
       data: {
-        clientId: Number(result.client.id), // assuming clientID is set in neworder
+        clientId: Number(result.client?.id), // assuming clientID is set in neworder
         orderId: Number(result.id),
         contractNumber: `ORD-${result.id}`,
         officeName,
         totalRevenue: Number(Paid),
         totalExpenses: 0,
         netAmount: Number(Paid),
-        contractStatus: 'new',
-        notes: ''
+        contractStatus: result.bookingstatus,
+        notes: 'تم اضافتها تلقائيا خلال عملية اضافة الطلب'
       }
     });
 
