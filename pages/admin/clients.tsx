@@ -1,6 +1,6 @@
 import AddClientModal from 'components/AddClientModal';
 import Style from "styles/Home.module.css";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp } from 'lucide-react';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { DocumentTextIcon } from '@heroicons/react/outline';
@@ -48,6 +48,34 @@ const Customers = ({ hasPermission }: Props) => {
     date: '',
   });
   const [loading, setLoading] = useState(false);
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  const columnDropdownRef = useRef<HTMLDivElement>(null);
+  const [cities, setCities] = useState<string[]>([]);
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    fullname: true,
+    phonenumber: true,
+    nationalId: true,
+    city: true,
+    ordersCount: true,
+    lastOrderDate: true,
+    showOrders: true,
+    remainingAmount: true,
+    notes: true,
+    view: true
+  });
+
+  const fetchCities = async () => {
+    try {
+      const response = await fetch('/api/unique-cities');
+      const { success, cities } = await response.json();
+      if (success) {
+        setCities(cities);
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    }
+  };
 
   const fetchClients = async (page: number = 1) => {
     if (!hasPermission) return; // لا تجلب البيانات إذا لم يكن لديه صلاحية
@@ -76,8 +104,23 @@ const Customers = ({ hasPermission }: Props) => {
   useEffect(() => {
     if (hasPermission) {
       fetchClients(currentPage);
+      fetchCities();
     }
   }, [currentPage, filters, hasPermission]);
+
+  // إضافة مستمع للنقر خارج القائمة المنسدلة
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnDropdownRef.current && !columnDropdownRef.current.contains(event.target as Node)) {
+        setIsColumnDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -93,6 +136,59 @@ const Customers = ({ hasPermission }: Props) => {
 
   const toggleOrders = (clientId: number) => {
     setExpandedClientId(expandedClientId === clientId ? null : clientId);
+  };
+
+  const toggleColumn = (columnKey: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [columnKey]: !prev[columnKey]
+    }));
+  };
+
+  const selectAllColumns = () => {
+    setVisibleColumns({
+      id: true,
+      fullname: true,
+      phonenumber: true,
+      nationalId: true,
+      city: true,
+      ordersCount: true,
+      lastOrderDate: true,
+      showOrders: true,
+      remainingAmount: true,
+      notes: true,
+      view: true
+    });
+  };
+
+  const deselectAllColumns = () => {
+    setVisibleColumns({
+      id: false,
+      fullname: false,
+      phonenumber: false,
+      nationalId: false,
+      city: false,
+      ordersCount: false,
+      lastOrderDate: false,
+      showOrders: false,
+      remainingAmount: false,
+      notes: false,
+      view: false
+    });
+  };
+
+  const columnLabels = {
+    id: 'الرقم',
+    fullname: 'الاسم',
+    phonenumber: 'رقم الجوال',
+    nationalId: 'الهوية',
+    city: 'المدينة',
+    ordersCount: 'عدد الطلبات',
+    lastOrderDate: 'تاريخ آخر طلب',
+    showOrders: 'عرض الطلبات',
+    remainingAmount: 'المبلغ المتبقي',
+    notes: 'ملاحظات',
+    view: 'عرض'
   };
 
   // دالة تصدير PDF
@@ -120,19 +216,55 @@ const Customers = ({ hasPermission }: Props) => {
     doc.setFontSize(16);
     doc.text("قائمة العملاء", 200, 10, { align: 'center' });
 
-    const tableColumn = ["الرقم", "الاسم", "رقم الجوال", "الهوية", "المدينة", "عدد الطلبات", "تاريخ آخر طلب"];
+    // إنشاء أعمدة الجدول بناء على الأعمدة المرئية
+    const tableColumn: string[] = [];
+    const columnKeys: string[] = [];
+    
+    if (visibleColumns.id) { tableColumn.push("الرقم"); columnKeys.push("id"); }
+    if (visibleColumns.fullname) { tableColumn.push("الاسم"); columnKeys.push("fullname"); }
+    if (visibleColumns.phonenumber) { tableColumn.push("رقم الجوال"); columnKeys.push("phonenumber"); }
+    if (visibleColumns.nationalId) { tableColumn.push("الهوية"); columnKeys.push("nationalId"); }
+    if (visibleColumns.city) { tableColumn.push("المدينة"); columnKeys.push("city"); }
+    if (visibleColumns.ordersCount) { tableColumn.push("عدد الطلبات"); columnKeys.push("ordersCount"); }
+    if (visibleColumns.lastOrderDate) { tableColumn.push("تاريخ آخر طلب"); columnKeys.push("lastOrderDate"); }
+    if (visibleColumns.remainingAmount) { tableColumn.push("المبلغ المتبقي"); columnKeys.push("remainingAmount"); }
+
     const tableRows: any[] = [];
 
     clients.forEach((client) => {
-      const clientData = [
-        client.id.toString(),
-        client.fullname || '-',
-        client.phonenumber || '-',
-        client.nationalId || '-',
-        client.city || '-',
-        client._count.orders.toString(),
-        client.orders[0]?.createdAt ? new Date(client.orders[0]?.createdAt).toLocaleDateString() : '-',
-      ];
+      const clientData: string[] = [];
+      
+      columnKeys.forEach((key) => {
+        switch (key) {
+          case "id":
+            clientData.push(client.id.toString());
+            break;
+          case "fullname":
+            clientData.push(client.fullname || '-');
+            break;
+          case "phonenumber":
+            clientData.push(client.phonenumber || '-');
+            break;
+          case "nationalId":
+            clientData.push(client.nationalId || '-');
+            break;
+          case "city":
+            clientData.push(client.city || '-');
+            break;
+          case "ordersCount":
+            clientData.push(client._count.orders.toString());
+            break;
+          case "lastOrderDate":
+              clientData.push(client.orders[0]?.createdat ? new Date(client.orders[0]?.createdat).toLocaleDateString() : '-');
+            break;
+          case "remainingAmount":
+            clientData.push('-');
+            break;
+          default:
+            clientData.push('-');
+        }
+      });
+      
       tableRows.push(clientData);
     });
 
@@ -153,17 +285,24 @@ const Customers = ({ hasPermission }: Props) => {
 
   // دالة تصدير Excel
   const exportToExcel = () => {
-    const worksheetData = clients.map((client) => ({
-      الرقم: client.id,
-      الاسم: client.fullname || '-',
-      'رقم الجوال': client.phonenumber || '-',
-      الهوية: client.nationalId || '-',
-      المدينة: client.city || '-',
-      'عدد الطلبات': client._count.orders,
-      'تاريخ آخر طلب': client.orders[0]?.createdAt
-        ? new Date(client.orders[0]?.createdAt).toLocaleDateString()
-        : '-',
-    }));
+    const worksheetData = clients.map((client) => {
+      const clientData: any = {};
+      
+      if (visibleColumns.id) clientData['الرقم'] = client.id;
+      if (visibleColumns.fullname) clientData['الاسم'] = client.fullname || '-';
+      if (visibleColumns.phonenumber) clientData['رقم الجوال'] = client.phonenumber || '-';
+      if (visibleColumns.nationalId) clientData['الهوية'] = client.nationalId || '-';
+      if (visibleColumns.city) clientData['المدينة'] = client.city || '-';
+      if (visibleColumns.ordersCount) clientData['عدد الطلبات'] = client._count.orders;
+      if (visibleColumns.lastOrderDate) {
+        clientData['تاريخ آخر طلب'] = client.orders[0]?.createdat
+          ? new Date(client.orders[0]?.createdat).toLocaleDateString()
+          : '-';
+      }
+      if (visibleColumns.remainingAmount) clientData['المبلغ المتبقي'] = '-';
+      
+      return clientData;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
@@ -227,8 +366,11 @@ const Customers = ({ hasPermission }: Props) => {
                         className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
                       >
                         <option value="all">كل المدن</option>
-                        <option value="الرياض">الرياض</option>
-                        <option value="جدة">جدة</option>
+                        {cities.map((city) => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div className="flex items-center bg-background-light border border-border-color rounded-md text-sm text-text-muted cursor-pointer">
@@ -240,9 +382,48 @@ const Customers = ({ hasPermission }: Props) => {
                       />
                       <Calendar className="mr-2 w-4 h-4" />
                     </div>
-                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-sm text-text-muted cursor-pointer">
-                      <span>كل الاعمدة</span>
-                      <Filter className="mr-2 w-4 h-4" />
+                    <div className="relative" ref={columnDropdownRef}>
+                      <button
+                        onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+                        className="flex items-center bg-background-light border border-border-color rounded-md px-3 py-2 text-sm text-text-muted hover:bg-gray-50"
+                      >
+                        <span>تحديد الاعمدة</span>
+                        <Filter className="mr-2 w-4 h-4" />
+                        <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${isColumnDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {isColumnDropdownOpen && (
+                        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-border-color rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
+                          <div className="p-3 border-b border-border-color">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={selectAllColumns}
+                                className="flex-1 px-2 py-1 text-xs bg-teal-800 text-white rounded hover:bg-teal-700"
+                              >
+                                تحديد الكل
+                              </button>
+                              <button
+                                onClick={deselectAllColumns}
+                                className="flex-1 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                              >
+                                إلغاء الكل
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-2">
+                            {Object.entries(columnLabels).map(([key, label]) => (
+                              <label key={key} className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                checked={visibleColumns[key as keyof typeof visibleColumns]}
+                                onChange={() => toggleColumn(key as keyof typeof visibleColumns)}
+                                  className="w-4 h-4 text-teal-800 border-gray-300 rounded focus:ring-teal-500"
+                                />
+                                <span className="text-sm text-text-dark">{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={handleResetFilters}
@@ -270,18 +451,20 @@ const Customers = ({ hasPermission }: Props) => {
                 </section>
 
                 <section className="bg-text-light border border-border-color rounded-md overflow-hidden">
-                  <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-teal-800 text-white text-sm font-medium p-4">
-                    <div>الرقم</div>
-                    <div>الاسم</div>
-                    <div>رقم الجوال</div>
-                    <div>الهوية</div>
-                    <div>المدينة</div>
-                    <div>عدد الطلبات</div>
-                    <div>تاريخ آخر طلب</div>
-                    <div>عرض الطلبات</div>
-                    <div>المبلغ المتبقي</div>
-                    <div>ملاحظات</div>
-                    <div>عرض</div>
+                  <div className="grid gap-5 bg-teal-800 text-white text-sm font-medium p-4" style={{
+                    gridTemplateColumns: `${Object.entries(visibleColumns).filter(([_, visible]) => visible).map(() => '1fr').join(' ')}`
+                  }}>
+                    {visibleColumns.id && <div>الرقم</div>}
+                    {visibleColumns.fullname && <div>الاسم</div>}
+                    {visibleColumns.phonenumber && <div>رقم الجوال</div>}
+                    {visibleColumns.nationalId && <div>الهوية</div>}
+                    {visibleColumns.city && <div>المدينة</div>}
+                    {visibleColumns.ordersCount && <div>عدد الطلبات</div>}
+                    {visibleColumns.lastOrderDate && <div>تاريخ آخر طلب</div>}
+                    {visibleColumns.showOrders && <div>عرض الطلبات</div>}
+                    {visibleColumns.remainingAmount && <div>المبلغ المتبقي</div>}
+                    {visibleColumns.notes && <div>ملاحظات</div>}
+                    {visibleColumns.view && <div>عرض</div>}
                   </div>
                   <div className="divide-y divide-border-color">
                     {loading ? (
@@ -291,42 +474,52 @@ const Customers = ({ hasPermission }: Props) => {
                     ) : (
                       clients.map((client) => (
                         <div key={client.id}>
-                          <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_50px] gap-5 bg-background-light text-text-dark text-md p-4">
-                            <div>#{client.id}</div>
-                            <div>{client.fullname }</div>
-                            <div>{client.phonenumber }</div>
-                            <div>{client.nationalId }</div>
-                            <div>{client.city }</div>
-                            <div>{client._count.orders}</div>
-                            <div>
-                              {client.orders[0]?.createdAt
-                                ? new Date(client.orders[0]?.createdAt).toLocaleDateString()
-                                : '-'}
-                            </div>
-                            <div>
-                              <button
-                                onClick={() => toggleOrders(client.id)}
-                                className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
-                              >
-                                {expandedClientId === client.id ? (
-                                  <ChevronUp className="w-4 h-4" />
-                                ) : (
-                                  <ChevronRight className="w-4 h-4 rotate-90" />
-                                )}
-                              </button>
-                            </div>
-                            <div>-</div>
-                            <div>
-                              <a href="#" className="flex items-center gap-1 text-primary-dark text-md hover:underline">
-                                <DocumentTextIcon className="w-4 h-4" />
-                                <span>إضافة ملاحظة</span>
-                              </a>
-                            </div>
-                            <div>
-                              <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10">
-                                <Eye className="w-4 h-4 rotate-90" />
-                              </button>
-                            </div>
+                          <div className="grid gap-5 bg-background-light text-text-dark text-md p-4" style={{
+                            gridTemplateColumns: `${Object.entries(visibleColumns).filter(([_, visible]) => visible).map(() => '1fr').join(' ')}`
+                          }}>
+                            {visibleColumns.id && <div>#{client.id}</div>}
+                            {visibleColumns.fullname && <div>{client.fullname}</div>}
+                            {visibleColumns.phonenumber && <div>{client.phonenumber}</div>}
+                            {visibleColumns.nationalId && <div>{client.nationalId}</div>}
+                            {visibleColumns.city && <div>{client.city}</div>}
+                            {visibleColumns.ordersCount && <div>{client._count.orders}</div>}
+                            {visibleColumns.lastOrderDate && (
+                              <div>
+                                {client.orders[0]?.createdat
+                                  ? new Date(client.orders[0]?.createdat).toLocaleDateString()
+                                  : '-'}
+                              </div>
+                            )}
+                            {visibleColumns.showOrders && (
+                              <div>
+                                <button
+                                  onClick={() => toggleOrders(client.id)}
+                                  className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
+                                >
+                                  {expandedClientId === client.id ? (
+                                    <ChevronUp className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 rotate-90" />
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                            {visibleColumns.remainingAmount && <div>-</div>}
+                            {visibleColumns.notes && (
+                              <div>
+                                <a href="#" className="flex items-center gap-1 text-primary-dark text-md hover:underline">
+                                  <DocumentTextIcon className="w-4 h-4" />
+                                  <span>إضافة ملاحظة</span>
+                                </a>
+                              </div>
+                            )}
+                            {visibleColumns.view && (
+                              <div>
+                                <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10">
+                                  <Eye className="w-4 h-4 rotate-90" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                           {expandedClientId === client.id && (
                             <div className="bg-background-light p-4">
@@ -349,8 +542,8 @@ const Customers = ({ hasPermission }: Props) => {
                                       <div>{order.HomeMaid?.Name || '-'}</div>
                                       <div>{order.bookingstatus || '-'}</div>
                                       <div>
-                                        {order.createdAt
-                                          ? new Date(order.createdAt).toLocaleDateString()
+                                        {order.createdat
+                                          ? new Date(order.createdat).toLocaleDateString()
                                           : '-'}
                                       </div>
                                     </div>
@@ -415,13 +608,13 @@ const Customers = ({ hasPermission }: Props) => {
 export default Customers;
 
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: any) {
   try {
     // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: string) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
@@ -435,7 +628,7 @@ export async function getServerSideProps({ req }) {
     }
 
     // 🔹 Decode JWT
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
@@ -444,7 +637,8 @@ export async function getServerSideProps({ req }) {
     });
 
     // 🔹 Check permission
-    const hasPermission = findUser && findUser.role?.permissions?.["إدارة العملاء"]?.["عرض"];
+    const hasPermission = findUser && findUser.role?.permissions && 
+      (findUser.role.permissions as any)["إدارة العملاء"]?.["عرض"];
 
     return {
       props: { hasPermission: !!hasPermission }, // إرجاع حالة الصلاحية
