@@ -139,7 +139,6 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
                 value={formData.deparatureDate} 
                 onChange={(e) => setFormData({ ...formData, deparatureDate: e.target.value })} 
               />
-              <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>
           </div>
         </div>
@@ -155,7 +154,6 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
                 value={formData.finalDestinationDate} 
                 onChange={(e) => setFormData({ ...formData, finalDestinationDate: e.target.value })} 
               />
-              <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>
           </div>
           <div className="flex-1 flex flex-col gap-2">

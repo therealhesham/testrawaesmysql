@@ -2,12 +2,12 @@ import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/o
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import Select from 'react-select';
 
 interface Client {
   id: string;
   fullname: string;
   phonenumber: string;
+  city?: string;
 }
 
 interface Homemaid {
@@ -30,6 +30,7 @@ interface ApiOrderData {
 }
 
 interface FormData {
+  City:string;
   clientID: string;
   HomemaidId: string;
   ClientName: string;
@@ -57,6 +58,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
     clientID: '',
     HomemaidId: '',
     ClientName: '',
+    City: '',
     PhoneNumber: '',
     Nationalitycopy: '',
     Religion: '',
@@ -71,10 +73,22 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
     orderDocument: false,
     contract: false,
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<any>({});
   const [modalMessage, setModalMessage] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+
+  // Auto search states for clients
+  const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [isSearchingClients, setIsSearchingClients] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+
+  // Auto search states for homemaids
+  const [homemaidSuggestions, setHomemaidSuggestions] = useState<any[]>([]);
+  const [showHomemaidSuggestions, setShowHomemaidSuggestions] = useState(false);
+  const [isSearchingHomemaids, setIsSearchingHomemaids] = useState(false);
+  const [homemaidSearchTerm, setHomemaidSearchTerm] = useState('');
 
   const fileInputRefs = {
     orderDocument: useRef<HTMLInputElement>(null),
@@ -82,6 +96,146 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
   };
 
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+  // Auto search functions for clients
+  const searchClients = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+      return;
+    }
+    
+    setIsSearchingClients(true);
+    try {
+      const response = await fetch(`/api/clients/suggestions?q=${encodeURIComponent(searchTerm)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setClientSuggestions(data.suggestions || []);
+        setShowClientSuggestions(true);
+      } else {
+        console.error('Error searching clients');
+        setClientSuggestions([]);
+        setShowClientSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error searching clients:', error);
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+    } finally {
+      setIsSearchingClients(false);
+    }
+  };
+
+  // Auto search functions for homemaids
+  const searchHomemaids = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setHomemaidSuggestions([]);
+      setShowHomemaidSuggestions(false);
+      return;
+    }
+    
+    setIsSearchingHomemaids(true);
+    try {
+      const response = await fetch(`/api/homemaids/suggestions?q=${encodeURIComponent(searchTerm)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setHomemaidSuggestions(data.suggestions || []);
+        setShowHomemaidSuggestions(true);
+      } else {
+        console.error('Error searching homemaids');
+        setHomemaidSuggestions([]);
+        setShowHomemaidSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error searching homemaids:', error);
+      setHomemaidSuggestions([]);
+      setShowHomemaidSuggestions(false);
+    } finally {
+      setIsSearchingHomemaids(false);
+    }
+  };
+
+  // Handle client search input change
+  const handleClientSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setClientSearchTerm(value);
+    
+    if (value.trim()) {
+      searchClients(value);
+    } else {
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+    }
+  };
+
+  // Handle homemaid search input change
+  const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setHomemaidSearchTerm(value);
+    
+    if (value.trim()) {
+      searchHomemaids(value);
+    } else {
+      setHomemaidSuggestions([]);
+      setShowHomemaidSuggestions(false);
+    }
+  };
+
+  // Handle client suggestion click
+  const handleClientSuggestionClick = (client: any) => {
+    console.log('Selected client:', client); // Debug log
+    setFormData((prev) => ({
+      ...prev,
+      City: client.city,
+      clientID: client.id,
+      ClientName: client.fullname,
+      PhoneNumber: client.phonenumber,
+    }));
+    setClientSearchTerm(client.fullname);
+    setShowClientSuggestions(false);
+  };
+
+  // Handle homemaid suggestion click
+  const handleHomemaidSuggestionClick = (homemaid: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      HomemaidId: homemaid.id,
+      Nationalitycopy: homemaid.Country,
+      Religion: homemaid.religion,
+    }));
+    setHomemaidSearchTerm(homemaid.Name);
+    setShowHomemaidSuggestions(false);
+  };
+
+  // Handle input blur for suggestions
+  const handleClientInputBlur = () => {
+    setTimeout(() => {
+      setShowClientSuggestions(false);
+    }, 200);
+  };
+
+  const handleHomemaidInputBlur = () => {
+    setTimeout(() => {
+      setShowHomemaidSuggestions(false);
+    }, 200);
+  };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.client-search-container')) {
+        setShowClientSuggestions(false);
+      }
+      if (!target.closest('.homemaid-search-container')) {
+        setShowHomemaidSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (orderId) {
@@ -109,6 +263,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
             Remaining: 0,
             orderDocument: order.documentUpload.files || '',
             contract: order.ticketUpload.files || '',
+            City: matchedClient?.city || ''
           };
           
           setFormData(mappedFormData);
@@ -116,6 +271,10 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
             orderDocument: !!order.documentUpload.files,
             contract: !!order.ticketUpload.files,
           });
+          
+          // Set search terms for auto search
+          setClientSearchTerm(order.clientInfo.name);
+          setHomemaidSearchTerm(order.homemaidInfo.name);
         } catch (error) {
           console.error('Error fetching order:', error);
           setModalMessage('حدث خطأ أثناء جلب بيانات الطلب');
@@ -129,15 +288,15 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
-      setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      setErrors((prev: any) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
+      setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
       return;
     }
 
     const file = files[0];
     if (!allowedFileTypes.includes(file.type)) {
-      setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      setErrors((prev: any) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+      setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
       return;
     }
 
@@ -161,18 +320,18 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
         throw new Error('فشل في رفع الملف');
       }
 
-      setFormData((prev) => ({ ...prev, [fileId]: filePath }));
-      setErrors((prev) => ({ ...prev, [fileId]: '' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
+      setFormData((prev: any) => ({ ...prev, [fileId]: filePath }));
+      setErrors((prev: any) => ({ ...prev, [fileId]: '' }));
+      setFileUploaded((prev: any) => ({ ...prev, [fileId]: true }));
 
       const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
       if (ref && ref.current) {
         ref.current.value = '';
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+      setErrors((prev: any) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
+      setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
     }
   };
 
@@ -182,7 +341,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
       ref.current.click();
     } else {
       console.error(`Reference for ${fileId} is not defined or has no current value`);
-      setErrors((prev) => ({ ...prev, [fileId]: 'خطأ في تحديد حقل الملف' }));
+      setErrors((prev: any) => ({ ...prev, [fileId]: 'خطأ في تحديد حقل الملف' }));
     }
   };
 
@@ -208,6 +367,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
         ClientName: selectedClient?.fullname || '',
         PhoneNumber: selectedClient?.phonenumber || '',
       }));
+      setClientSearchTerm(selectedClient?.fullname || '');
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -215,6 +375,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
         ClientName: '',
         PhoneNumber: '',
       }));
+      setClientSearchTerm('');
     }
   };
 
@@ -227,13 +388,15 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
         Nationalitycopy: selectedHomemaid?.office?.Country || '',
         Religion: selectedHomemaid?.religion || '',
       }));
+      setHomemaidSearchTerm(selectedHomemaid?.Name || '');
     } else {
       setFormData((prev) => ({
         ...prev,
         HomemaidId: '',
+        Religion:'',
         Nationalitycopy: '',
-        Religion: '',
       }));
+      setHomemaidSearchTerm('');
     }
   };
 
@@ -242,7 +405,6 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
     const requiredFields = [
       { id: 'clientID', label: 'اسم العميل' },
       { id: 'Total', label: 'المبلغ كامل' },
-      { id: 'Paid', label: 'المبلغ المدفوع' },
     ];
 
     requiredFields.forEach((field) => {
@@ -271,7 +433,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
       return;
     }
     try {
-      const submitData = { ...formData };
+      const submitData: any = { ...formData };
       if (orderId) {
         submitData.orderId = orderId; // Add for edit
       }
@@ -299,18 +461,6 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
     setModalMessage('');
   };
 
-  const clientOptions = clients.map(client => ({
-    value: client.id,
-    label: client.fullname,
-  }));
-
-  const homemaidOptions = homemaids.map(homemaid => ({
-    value: homemaid.id,
-    label: homemaid.Name,
-  }));
-
-  const selectedClientOption = clientOptions.find(option => option.label === formData.ClientName);
-  const selectedHomemaidOption = homemaidOptions.find(option => option.label === formData.HomemaidId);
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
@@ -326,25 +476,38 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
           <div className="flex flex-col gap-2">
             <label className="text-base">اسم العميل</label>
-            <Select
-              options={clientOptions}
-              onChange={handleClientSelect}
-              value={selectedClientOption || null}
-              placeholder="اختر عميل"
-              className="text-right"
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  backgroundColor: '#F9FAFB',
-                  borderColor: '#D1D5DB',
-                  padding: '0.5rem',
-                  textAlign: 'right',
-                }),
-                menu: (base) => ({ ...base, textAlign: 'right' }),
-                singleValue: (base) => ({ ...base, textAlign: 'right' }),
-                placeholder: (base) => ({ ...base, textAlign: 'right' }),
-              }}
-            />
+            <div className="relative client-search-container">
+              <input
+                type="text"
+                value={clientSearchTerm}
+                onChange={handleClientSearchChange}
+                onBlur={handleClientInputBlur}
+                onFocus={() => clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
+                placeholder="ابحث عن العميل بالاسم أو رقم الهاتف"
+                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-right"
+              />
+              {isSearchingClients && (
+                <div className="absolute right-3 top-3">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                </div>
+              )}
+              
+              {/* Client Search Results Dropdown */}
+              {showClientSuggestions && clientSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  {clientSuggestions.map((client, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleClientSuggestionClick(client)}
+                      className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                    >
+                      <div className="font-medium text-md">{client.fullname}</div>
+                      <div className="text-sm text-gray-500">{client.phonenumber} - {client.city}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {errors.clientID && <p className="text-red-500 text-xs mt-1">{errors.clientID}</p>}
           </div>
           <div className="flex flex-col gap-2">
@@ -361,31 +524,47 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
             <label className="text-base">مدينة العميل</label>
             <input
               type="text"
+              name="City"
               placeholder="مدينة العميل"
+              value={formData.City || ''}
+              readOnly
               className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">اسم العاملة</label>
-            <Select
-              options={homemaidOptions}
-              onChange={handleHomemaidSelect}
-              value={selectedHomemaidOption || null}
-              placeholder="اختر عاملة"
-              className="text-right"
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  backgroundColor: '#F9FAFB',
-                  borderColor: '#D1D5DB',
-                  padding: '0.5rem',
-                  textAlign: 'right',
-                }),
-                menu: (base) => ({ ...base, textAlign: 'right' }),
-                singleValue: (base) => ({ ...base, textAlign: 'right' }),
-                placeholder: (base) => ({ ...base, textAlign: 'right' }),
-              }}
-            />
+            <div className="relative homemaid-search-container">
+              <input
+                type="text"
+                value={homemaidSearchTerm}
+                onChange={handleHomemaidSearchChange}
+                onBlur={handleHomemaidInputBlur}
+                onFocus={() => homemaidSearchTerm.length >= 1 && setShowHomemaidSuggestions(true)}
+                placeholder="ابحث عن العاملة بالاسم"
+                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-right"
+              />
+              {isSearchingHomemaids && (
+                <div className="absolute right-3 top-3">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                </div>
+              )}
+              
+              {/* Homemaid Search Results Dropdown */}
+              {showHomemaidSuggestions && homemaidSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  {homemaidSuggestions.map((homemaid, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleHomemaidSuggestionClick(homemaid)}
+                      className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                    >
+                      <div className="font-medium text-md">{homemaid.Name}</div>
+                      <div className="text-sm text-gray-500">{homemaid.Country} - {homemaid.religion}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">رقم العاملة</label>
@@ -489,7 +668,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
               <label htmlFor={file.id} className="text-base">{file.label}</label>
               <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
                 <span className="text-gray-500 text-sm pr-2">
-                  {fileUploaded[file.id] ? (
+                  {fileUploaded[file.id as keyof typeof fileUploaded] ? (
                     <a
                       href={formData[file.id as keyof FormData] as string}
                       target="_blank"
@@ -518,7 +697,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
                   اختيار ملف
                 </button>
               </div>
-              {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
+              {errors[file.id as keyof typeof errors] && <p className="text-red-500 text-xs mt-1">{errors[file.id as keyof typeof errors]}</p>}
             </div>
           ))}
         </div>

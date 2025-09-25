@@ -77,7 +77,7 @@ console.log(id)
           religion:order.HomeMaid?.Religion || 'N/A',
 
           passportNumber: order.HomeMaid?.Passportnumber || 'N/A',
-          nationality: order.HomeMaid?.Nationalitycopy || 'N/A',
+          nationality: order.HomeMaid?.office?.Country || 'N/A',
           externalOffice: order.HomeMaid?.officeName || 'N/A',
         },
         applicationInfo: {

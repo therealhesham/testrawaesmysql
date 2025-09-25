@@ -255,11 +255,29 @@ const router = useRouter();
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     const doc = new jsPDF();
-    doc.setFont("Amiri");
-    doc.setFontSize(12);
-    doc.text("الطلبات الجديدة", 200, 10, { align: 'right' });
+    
+    try {
+      // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text("الطلبات المرفوضة", 200, 10, { align: 'center' });
 
     const tableColumn = [
       "رقم الطلب",

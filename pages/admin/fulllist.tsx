@@ -6,6 +6,9 @@ import { FaSearch, FaRedo, FaFileExcel, FaFilePdf } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import Modal from "react-modal";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
 
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
@@ -17,7 +20,7 @@ export default function Table() {
     PassportNumber: "",
     OrderId: "",
   });
-  function getDate(date) {
+  function getDate(date: any) {
     const currentDate = new Date(date); // Original date
     // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
     const form = currentDate.toISOString().split("T")[0];
@@ -26,17 +29,20 @@ export default function Table() {
   }
 
   const [visibleColumns, setVisibleColumns] = useState({
-    OrderId: true,
-    SponsorName: true,
-    SponsorPhoneNumber: true,
-    WorkerName: true,
-    PassportNumber: true,
-    DepartureDate: true,
-    DepartureTime: true,
+    id: true,
+    Name: true,
+    phone: true,
+    Country: true,
+    maritalstatus: true,
+    dateofbirth: true,
+    Passportnumber: true,
+    PassportStart: true,
+    PassportEnd: true,
+    office: true,
   });
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [isStep1ModalOpen, setIsStep1ModalOpen] = useState(false);
   const [isStep2ModalOpen, setIsStep2ModalOpen] = useState(false);
@@ -86,19 +92,22 @@ export default function Table() {
     EmbassySealing: "",
     BookinDate: "",
     GuaranteeDurationEnd: "",
+    Nationality: "",
+    GuaranteeStatus: "",
+    reason: "",
+    ArrivalDate: "",
   });
 
-  function getDate(date) {
-    if (!date) return null;
-    const currentDate = new Date(date);
-    return currentDate.toISOString().split("T")[0];
-  }
 
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const isFetchingRef = useRef(false);
+  const [exportedData, setExportedData] = useState<any[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
+  const [exportType, setExportType] = useState("");
 
   const fetchData = async (page = 1) => {
     if (isFetchingRef.current) return;
@@ -138,13 +147,42 @@ export default function Table() {
     }
   };
 
+  const fetchExportData = async () => {
+    try {
+      // Remove all filters to get ALL data for export
+      const queryParams = new URLSearchParams({
+        page: "1",
+        perPage: "10000", // Get all data for export - increased limit
+      });
+
+      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "get",
+      });
+
+      const { data: res } = await response.json();
+      console.log('API response (ALL DATA):', res);
+      const exportData = Array.isArray(res) ? res : [];
+      console.log('Processed export data (ALL DATA):', exportData);
+      setExportedData(exportData);
+      return exportData;
+    } catch (error) {
+      console.error("Error fetching export data:", error);
+      setExportedData([]);
+      return [];
+    }
+  };
+
   useEffect(() => {
     fetchData(currentPage);
   }, [currentPage, filters]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
@@ -152,7 +190,7 @@ export default function Table() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleFilterChange = (e, column) => {
+  const handleFilterChange = (e: any, column: string) => {
     const value = e.target.value;
     setFilters((prev) => ({
       ...prev,
@@ -162,7 +200,7 @@ export default function Table() {
   };
 
   const router = useRouter();
-  const handleUpdate = (id) => {
+  const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);
   };
 
@@ -178,15 +216,15 @@ export default function Table() {
     setData([]);
   };
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
 
-  const toggleColumn = (column) => {
+  const toggleColumn = (column: string) => {
     setVisibleColumns((prev) => ({
       ...prev,
-      [column]: !prev[column],
+      [column]: !prev[column as keyof typeof prev],
     }));
   };
 
@@ -281,6 +319,10 @@ export default function Table() {
       EmbassySealing: "",
       BookinDate: "",
       GuaranteeDurationEnd: "",
+      Nationality: "",
+      GuaranteeStatus: "",
+      reason: "",
+      ArrivalDate: "",
     });
   };
 
@@ -291,23 +333,26 @@ export default function Table() {
   };
   const closeStep2Modal = () => setIsStep2ModalOpen(false);
 
-  const handleStep1Submit = (e) => {
+  const handleStep1Submit = (e: any) => {
     e.preventDefault();
     openStep2Modal();
   };
 
-  const handleStep2Submit = async (e) => {
+  const handleStep2Submit = async (e: any) => {
     e.preventDefault();
     const data = new FormData();
     Object.keys(formData).forEach((key) => {
+      const value = (formData as any)[key];
       if (key === "additionalfiles") {
-        formData[key].forEach((file, index) => {
-          data.append(`additionalfiles[${index}]`, file);
-        });
-      } else if (formData[key] instanceof File) {
-        data.append(key, formData[key]);
+        if (Array.isArray(value)) {
+          value.forEach((file, index) => {
+            data.append(`additionalfiles[${index}]`, file);
+          });
+        }
+      } else if (value instanceof File) {
+        data.append(key, value);
       } else {
-        data.append(key, formData[key]);
+        data.append(key, String(value));
       }
     });
 
@@ -330,7 +375,7 @@ export default function Table() {
     }
   };
 
-  const handleFormChange = (e) => {
+  const handleFormChange = (e: any) => {
     const { name, value, files } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -338,12 +383,150 @@ export default function Table() {
     }));
   };
 
-  const handleMultipleFilesChange = (e) => {
+  const handleMultipleFilesChange = (e: any) => {
     const { name, files } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: Array.from(files),
     }));
+  };
+
+  const exportToPDF = async () => {
+    try {
+      setExportMessage('جاري تحميل جميع البيانات للتصدير...');
+      setExportType('loading');
+      setShowExportModal(true);
+      
+      const exportData = await fetchExportData();
+      console.log('Export data for PDF:', exportData);
+      const doc = new jsPDF();
+      
+      try {
+        const response = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!response.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        const fontBase64 = Buffer.from(fontBytes).toString('base64');
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (error) {
+        console.error('Error loading Amiri font:', error);
+        setExportMessage('خطأ في تحميل الخط العربي');
+        setExportType('error');
+        return;
+      }
+      
+      doc.setLanguage('ar');
+      doc.setFontSize(12);
+      doc.text('قائمة العاملات', 200, 10, { align: 'right' });
+      const tableColumn = [
+        'الرقم',
+        'الاسم',
+        'رقم الجوال',
+        'الجنسية',
+        'الحالة الاجتماعية',
+        'العمر',
+        'رقم جواز السفر',
+        'بداية الجواز',
+        'نهاية الجواز',
+        'المكتب',
+      ];
+      const tableRows = exportData.map(row => [
+        row.id || 'غير متوفر',
+        row.Name || 'غير متوفر',
+        row.phone || 'غير متوفر',
+        row?.office?.Country || 'غير متوفر',
+        row.maritalstatus || 'غير متوفر',
+        row.dateofbirth || 'غير متوفر',
+        row.Passportnumber || 'غير متوفر',
+        row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
+        row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
+        row?.office?.office || 'غير متوفر',
+      ]);
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 10,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [0, 105, 92],
+          textColor: [255, 255, 255],
+          halign: 'right',
+        },
+        margin: { top: 20, right: 10, left: 10 },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+      doc.save('homemaids_list.pdf');
+      setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى PDF`);
+      setExportType('success');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      setExportMessage('حدث خطأ أثناء تصدير PDF');
+      setExportType('error');
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      setExportMessage('جاري تحميل جميع البيانات للتصدير...');
+      setExportType('loading');
+      setShowExportModal(true);
+      
+      const exportData = await fetchExportData();
+      console.log('Export data for Excel:', exportData);
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('قائمة العاملات', { properties: { defaultColWidth: 20 } });
+      worksheet.columns = [
+        { header: 'الرقم', key: 'id', width: 15 },
+        { header: 'الاسم', key: 'name', width: 20 },
+        { header: 'رقم الجوال', key: 'phone', width: 15 },
+        { header: 'الجنسية', key: 'nationality', width: 15 },
+        { header: 'الحالة الاجتماعية', key: 'maritalStatus', width: 20 },
+        { header: 'العمر', key: 'age', width: 10 },
+        { header: 'رقم جواز السفر', key: 'passport', width: 15 },
+        { header: 'بداية الجواز', key: 'passportStart', width: 15 },
+        { header: 'نهاية الجواز', key: 'passportEnd', width: 15 },
+        { header: 'المكتب', key: 'office', width: 15 },
+      ];
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+      exportData.forEach(row => {
+        worksheet.addRow({
+          id: row.id || 'غير متوفر',
+          name: row.Name || 'غير متوفر',
+          phone: row.phone || 'غير متوفر',
+          nationality: row?.office?.Country || 'غير متوفر',
+          maritalStatus: row.maritalstatus || 'غير متوفر',
+          age: row.dateofbirth || 'غير متوفر',
+          passport: row.Passportnumber || 'غير متوفر',
+          passportStart: row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
+          passportEnd: row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
+          office: row?.office?.office || 'غير متوفر',
+        }).alignment = { horizontal: 'right' };
+      });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'homemaids_list.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى Excel`);
+      setExportType('success');
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      setExportMessage('حدث خطأ أثناء تصدير Excel');
+      setExportType('error');
+    }
   };
 
   // Modal styles with responsiveness and modern design
@@ -392,15 +575,15 @@ export default function Table() {
               </button>
             </div>
 
-            <div className="flex flex-col gap-4 p-4">
-              <div className="flex flex-row flex-nowrap justify-between items-center gap-2">
-                <div className="relative w-[280px] max-w-md">
+            <div className="flex flex-col  p-4">
+              <div className="flex flex-row flex-nowrap  items-center gap-3">
+                <div className="relative  max-w-md">
                   <input
                     type="text"
                     value={filters.SponsorName}
                     onChange={(e) => handleFilterChange(e, "SponsorName")}
                     placeholder="بحث "
-                    className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="p-2  border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
@@ -444,18 +627,21 @@ export default function Table() {
                           >
                             <input
                               type="checkbox"
-                              checked={visibleColumns[column]}
+                              checked={visibleColumns[column as keyof typeof visibleColumns]}
                               onChange={() => toggleColumn(column)}
                               className="form-checkbox"
                             />
-                            <span className="text-sm">
-                              {column === "OrderId" && "رقم الطلب"}
-                              {column === "SponsorName" && "اسم الكفيل"}
-                              {column === "SponsorPhoneNumber" && "جوال العميل"}
-                              {column === "WorkerName" && "اسم العاملة"}
-                              {column === "PassportNumber" && "رقم جواز السفر"}
-                              {column === "DepartureDate" && "تاريخ المغادرة"}
-                              {column === "DepartureTime" && "وقت المغادرة"}
+                            <span className="text-md">
+                              {column === "id" && "الرقم"}
+                              {column === "Name" && "الاسم"}
+                              {column === "phone" && "رقم الجوال"}
+                              {column === "Country" && "الجنسية"}
+                              {column === "maritalstatus" && "الحالة الاجتماعية"}
+                              {column === "dateofbirth" && "العمر"}
+                              {column === "Passportnumber" && "رقم جواز السفر"}
+                              {column === "PassportStart" && "بداية الجواز"}
+                              {column === "PassportEnd" && "نهاية الجواز"}
+                              {column === "office" && "المكتب"}
                             </span>
                           </label>
                         ))}
@@ -475,6 +661,7 @@ export default function Table() {
               </div>
               <div className="flex flex-row gap-2 justify-end">
                 <button
+                  onClick={exportToExcel}
                   className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
                   title="تصدير إلى Excel"
                 >
@@ -482,7 +669,7 @@ export default function Table() {
                   <span className="text-white">Excel</span>
                 </button>
                 <button
-                  onClick={() => alert("سيتم إضافة وظيفة تصدير PDF لاحقًا")}
+                  onClick={exportToPDF}
                   className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
                   title="تصدير إلى PDF"
                 >
@@ -492,28 +679,26 @@ export default function Table() {
               </div>
             </div>
 
-            <table className="min-w-full text-sm text-left">
+            <table className="min-w-full text-md text-left">
               <thead className="bg-teal-800">
                 <tr className="text-white">
-                  <th className="px-4 py-2 text-center">الرقم</th>
-                  <th className="px-4 py-2 text-center">الاسم</th>
-                  <th className="px-4 py-2 text-center">رقم الجوال</th>
-                  <th className="px-4 py-2 text-center">الجنسية</th>
-                  <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>
-                  <th className="px-4 py-2 text-center">العمر</th>
-                  <th className="px-4 py-2 text-center">رقم جواز السفر</th>
-                  <th className="px-4 py-2 text-center">بداية الجواز</th>
-                  <th className="px-4 py-2 text-center">نهاية الجواز</th>
-                  <th className="px-4 py-2 text-center">المكتب</th>
+                  {visibleColumns.id && <th className="px-4 py-2 text-center">الرقم</th>}
+                  {visibleColumns.Name && <th className="px-4 py-2 text-center">الاسم</th>}
+                  {visibleColumns.phone && <th className="px-4 py-2 text-center">رقم الجوال</th>}
+                  {visibleColumns.Country && <th className="px-4 py-2 text-center">الجنسية</th>}
+                  {visibleColumns.maritalstatus && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
+                  {visibleColumns.dateofbirth && <th className="px-4 py-2 text-center">العمر</th>}
+                  {visibleColumns.Passportnumber && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
+                  {visibleColumns.PassportStart && <th className="px-4 py-2 text-center">بداية الجواز</th>}
+                  {visibleColumns.PassportEnd && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
+                  {visibleColumns.office && <th className="px-4 py-2 text-center">المكتب</th>}
                 </tr>
               </thead>
-              <tbody className="bg-white">
+              <tbody className="bg-gray-50">
                 {data.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={
-                        Object.values(visibleColumns).filter(Boolean).length
-                      }
+                      colSpan={Object.values(visibleColumns).filter(Boolean).length}
                       className="px-4 py-2 text-center text-gray-500"
                     >
                       لا توجد نتائج
@@ -522,39 +707,59 @@ export default function Table() {
                 ) : (
                   data.map((item) => (
                     <tr key={item.id} className="border-b hover:bg-gray-50">
-                      <td
-                        onClick={() => router.push("./neworder/" + item.homemaidId)}
-                        className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
-                      >
-                        {item.id}
-                      </td>
-                      <td className="px-4 py-2 text-center text-gray-600">
-                        {item.Name}
-                      </td>
-                      <td className="px-4 py-2 text-center text-gray-600">
-                        {item.phone}
-                      </td>
-                      <td className="px-4 py-2 text-center text-gray-600">
-                        {item?.office?.Country}
-                      </td>
-                      <td className="px-4 py-2 text-center text-gray-600">
-                        {item.maritalstatus}
-                      </td>
-                      <td className="px-4 py-2 text-center text-gray-600">
-                        {item.dateofbirth}
-                      </td>
-                      <td className="px-4 py-2 text-center text-gray-600">
-                        {item.Passportnumber}
-                      </td>
-                      <td className="px-4  py-2 text-center text-gray-600">
-                        {item.PassportStart?getDate(item.PassportStart):""}
-                      </td>
-                                            <td className="px-4  py-2 text-center text-gray-600">
-                        {item.PassportEnd?getDate(item.PassportEnd):""}
-                      </td>
-     <td className="px-4 py-2 text-center text-gray-600">
-                        {item?.office?.office}
-                      </td>
+                      {visibleColumns.id && (
+                        <td
+                          onClick={() => router.push("./neworder/" + item.homemaidId)}
+                          className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
+                        >
+                          {item.id}
+                        </td>
+                      )}
+                      {visibleColumns.Name && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.Name}
+                        </td>
+                      )}
+                      {visibleColumns.phone && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.phone}
+                        </td>
+                      )}
+                      {visibleColumns.Country && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item?.office?.Country}
+                        </td>
+                      )}
+                      {visibleColumns.maritalstatus && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.maritalstatus}
+                        </td>
+                      )}
+                      {visibleColumns.dateofbirth && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.dateofbirth}
+                        </td>
+                      )}
+                      {visibleColumns.Passportnumber && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.Passportnumber}
+                        </td>
+                      )}
+                      {visibleColumns.PassportStart && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.PassportStart ? getDate(item.PassportStart) : ""}
+                        </td>
+                      )}
+                      {visibleColumns.PassportEnd && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item.PassportEnd ? getDate(item.PassportEnd) : ""}
+                        </td>
+                      )}
+                      {visibleColumns.office && (
+                        <td className="px-4 py-2 text-center text-gray-600">
+                          {item?.office?.office}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -596,7 +801,7 @@ export default function Table() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              
                 <div className="flex flex-col col-span-2">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     رقم الطلب *
                   </label>
                   <input
@@ -611,7 +816,7 @@ export default function Table() {
                 </div>
              
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     اسم العميل *
                   </label>
                   <input
@@ -625,7 +830,7 @@ export default function Table() {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                      هوية العميل *
                   </label>
                   <input
@@ -641,7 +846,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     مدينة العاملة *
                   </label>
                   <input
@@ -658,7 +863,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     اسم العاملة *
                   </label>
                   <input
@@ -675,7 +880,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     رقم الجواز *
                   </label>
                   <input
@@ -692,7 +897,7 @@ export default function Table() {
              
              
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     جنسية العاملة *
                   </label>
                   <input
@@ -709,7 +914,7 @@ export default function Table() {
              
              
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     حالة الضمان 
                   </label>
      <input
@@ -726,7 +931,7 @@ export default function Table() {
 
              
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
               المدة المتبقية
                   </label>
                   <input
@@ -792,7 +997,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     سبب المغادرة
                   </label>
                   <input
@@ -808,7 +1013,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     من
                   </label>
                   <input
@@ -825,7 +1030,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     الى
                   </label>
                   <input
@@ -842,7 +1047,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     تاريخ المغادرة
                   </label>
                   <input
@@ -857,7 +1062,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     تاريخ الوصول
                   </label>
                   <input
@@ -872,7 +1077,7 @@ export default function Table() {
 
 
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-gray-700 mb-1">
+                  <label className="text-md font-medium text-gray-700 mb-1">
                     ملف التذكرة
                   </label>
                   <input
@@ -910,6 +1115,84 @@ export default function Table() {
                 </button>
               </div>
             </form>
+          </div>
+        </Modal>
+
+        {/* Export Modal */}
+        <Modal
+          isOpen={showExportModal}
+          onRequestClose={() => setShowExportModal(false)}
+          style={customModalStyles}
+          contentLabel="حالة التصدير"
+          shouldFocusAfterRender={true}
+          shouldCloseOnOverlayClick={false}
+        >
+          <div className="relative text-center">
+            <button
+              onClick={() => setShowExportModal(false)}
+              className="absolute top-0 right-0 text-gray-500 hover:text-gray-700"
+              aria-label="إغلاق"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {exportType === 'loading' && (
+              <div className="py-8">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-800 mx-auto mb-4"></div>
+                <h2 className={`text-xl font-bold text-teal-800 mb-2 ${Style["almarai-bold"]}`}>
+                  جاري التصدير...
+                </h2>
+                <p className={`text-gray-600 ${Style["almarai-regular"]}`}>
+                  {exportMessage}
+                </p>
+              </div>
+            )}
+
+            {exportType === 'success' && (
+              <div className="py-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                <h2 className={`text-xl font-bold text-green-800 mb-2 ${Style["almarai-bold"]}`}>
+                  تم التصدير بنجاح!
+                </h2>
+                <p className={`text-gray-600 mb-6 ${Style["almarai-regular"]}`}>
+                  {exportMessage}
+                </p>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="bg-teal-800 text-white px-6 py-2 rounded-lg hover:bg-teal-900 transition-colors"
+                >
+                  موافق
+                </button>
+              </div>
+            )}
+
+            {exportType === 'error' && (
+              <div className="py-8">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </div>
+                <h2 className={`text-xl font-bold text-red-800 mb-2 ${Style["almarai-bold"]}`}>
+                  حدث خطأ!
+                </h2>
+                <p className={`text-gray-600 mb-6 ${Style["almarai-regular"]}`}>
+                  {exportMessage}
+                </p>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  موافق
+                </button>
+              </div>
+            )}
           </div>
         </Modal>
       </div>

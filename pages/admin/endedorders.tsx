@@ -43,15 +43,29 @@ export default function Dashboard() {
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     const doc = new jsPDF();
     
-    // Add Arabic font support (Note: You need to include Amiri font in your project)
-    doc.setFont("Amiri", "normal");
-    
-    // Set title
+    try {
+      // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
     doc.setFontSize(16);
-    doc.text(contractType === 'recruitment' ? 'طلبات الاستقدام' : 'طلبات التأجير', 105, 15, { align: 'center' });
+    doc.text(contractType === 'recruitment' ? 'طلبات الاستقدام' : 'طلبات التأجير', 200, 10, { align: 'center' });
     
     // Define table columns
     const columns = [

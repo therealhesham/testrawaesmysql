@@ -115,6 +115,11 @@ const cookieHeader = req.headers.cookie;
         userId: Number(token.id),
       });
 
+      try {
+        await prisma.logs.create({data:{Status: 'تسجيل طلب جديد رقم  ' + result.id,homemaidId: HomemaidId,userId: token.id}})
+      } catch (error) {
+        console.log(error)
+      }
     // console.log(result);
     // Send response after the transaction is successful
     res.status(200).json(result);

@@ -29,15 +29,35 @@ export default async function handler(
   }
   if (PassportNumber) {
     filters.Passportnumber = {
-      contains: (PassportNumber as string).toLowerCase(),
-      mode: "insensitive",
+      contains: PassportNumber as string,
+      // mode: "insensitive",
     };
   }
   if (age) {
+  const ageNum = parseInt(age as string, 10);
+  if (!isNaN(ageNum)) {
+    const today = new Date();
+
+    // أقصى تاريخ ميلاد (الأكبر سنًا)
+    const maxBirthDate = new Date(
+      today.getFullYear() - ageNum,
+      today.getMonth(),
+      today.getDate()
+    );
+
+    // أقل تاريخ ميلاد (الأصغر سنًا)
+    const minBirthDate = new Date(
+      today.getFullYear() - ageNum - 1,
+      today.getMonth(),
+      today.getDate() + 1
+    );
+
     filters.dateofbirth = {
-      equals: parseInt(age as string, 10),
+      gte: minBirthDate.toISOString(),
+      lte: maxBirthDate.toISOString(),
     };
   }
+}
 
   try {
     // Count total records for pagination

@@ -16,7 +16,20 @@ export default async function handler(
   const filters: any = {};
 
   if (Name) filters.Name = { contains: (Name as string).toLowerCase() };
-  if (age) filters.age = { equals: parseInt(age as string, 10) };
+  if (age) {
+    const ageNum = parseInt(age as string, 10);
+    if (!isNaN(ageNum)) {
+      // Calculate birth year directly from current year minus age
+      const currentYear = new Date().getFullYear();
+      const targetBirthYear = currentYear - ageNum;
+      
+      // Search for birth year with tolerance of ±2 years
+      filters.dateofbirth = {
+        gte: new Date(`${targetBirthYear - 2}-01-01T00:00:00.000Z`).toISOString(),
+        lte: new Date(`${targetBirthYear + 2}-12-31T23:59:59.999Z`).toISOString(),
+      };
+    }
+  }
   if (Passport)
     filters.Passportnumber = { contains: (Passport as string).toLowerCase() };
   if (Nationality)
