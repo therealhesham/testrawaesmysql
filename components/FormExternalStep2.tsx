@@ -128,8 +128,8 @@ const [alertMessage, setAlertMessage] = useState('');
                 id="departure-date" 
                 className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md w-full" 
                 placeholder="ادخل تاريخ ووقت المغادرة"  
-                value={formData.externaldeparatureDate} 
-                onChange={(e) => setFormData({ ...formData, externaldeparatureDate: e.target.value })} 
+              value={formData.externaldeparatureDate} 
+              onChange={(e) => setFormData({ ...formData, externaldeparatureDate: e.target.value })}
               />
               <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>
@@ -166,8 +166,8 @@ const [alertMessage, setAlertMessage] = useState('');
                 id="arrival-date" 
                 className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md w-full" 
                 placeholder="ادخل تاريخ ووقت الوصول"  
-                value={formData.externalArrivalCityDate} 
-                onChange={(e) => setFormData({ ...formData, externalArrivalCityDate: e.target.value })} 
+              value={formData.externalArrivalCityDate} 
+              onChange={(e) => setFormData({ ...formData, externalArrivalCityDate: e.target.value })}
               />
               <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>

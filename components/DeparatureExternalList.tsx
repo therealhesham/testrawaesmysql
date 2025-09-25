@@ -15,14 +15,14 @@ interface DepartureExternalListProps {
 }
 
 export default function DepartureExternalList({ onOpenModal }: DepartureExternalListProps) {
-  const [departures, setDepartures] = useState([]);
+  const [departures, setDepartures] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [perPage] = useState(8);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [nationality, setNationality] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [nationalities, setNationalities] = useState(["كل الجنسيات"]);
+  const [nationalities, setNationalities] = useState<any[]>(["كل الجنسيات"]);
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>('success');
@@ -51,7 +51,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
       console.error("Error fetching departures:", error);
     }
   };
-  const [exportedData, setExportedData] = useState([]);
+  const [exportedData, setExportedData] = useState<any[]>([]);
   const fetchExportedData = async () => {
     try {
       const res = await fetch(`/api/Export/deparaturesfromsaudi`);
@@ -102,48 +102,74 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
     setPage(1);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    if (!exportedData || exportedData.length === 0) {
+      setAlertType('warning');
+      setAlertMessage('لا توجد بيانات للتصدير');
+      setShowAlert(true);
+      return;
+    }
+
     const doc = new jsPDF();
-    doc.setFont("Amiri", "normal");
-    doc.text("قائمة المغادرة الخارجية", 10, 10, { align: "right" });
+    
+    try {
+      // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text('قائمة المغادرة الخارجية', 200, 10, { align: 'center' });
 
     const tableColumn = [
-      // "تاريخ الوصول",
-      "تاريخ المغادرة",
+      "رقم العاملة",
+      "رقم الطلب", 
+      "اسم العاملة",
+      "اسم العميل",
+      "الجنسية",
+      "رقم الجواز",
       "سبب المغادرة",
       "جهة الوصول",
-      // "من",
-      "رقم الجواز",
-      "الجنسية",
-      "اسم العميل",
-      "اسم العاملة",
-      "رقم الطلب",
-      "رقم العاملة",
+      "تاريخ المغادرة",
     ];
 
     const tableRows = exportedData.map((row) => [
-      // row.arrivalDate ? new Date(row.arrivalDate).toLocaleDateString() : "-",
-      row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-",
+      row.Order?.HomeMaid?.id || "-",
+      row.OrderId || "-",
+      row.HomemaidName || "-",
+      row.SponsorName || "-",
+      row.Order?.HomeMaid?.office?.Country || "-",
+      row.PassportNumber || "-",
       row.externalReason || "-",
       row.externalArrivalCity || "-",
-      // row.ArrivalCity || "-",
-      row.PassportNumber || "-",
-      row.Order?.HomeMaid?.office?.Country || "-",
-      row.SponsorName || "-",
-      row.HomemaidName || "-",
-      row.OrderId || "-",
-      row.Order?.HomeMaid?.id || "-",
+      row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-",
     ]);
 
-    doc.autoTable({
+    (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 20,
-      styles: { font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [0, 105, 92] },
+      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
+      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      margin: { top: 30 },
+      didDrawPage: () => {
+        doc.setFontSize(10);
+        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
+      },
     });
 
-    doc.save("قائمة_المغادرة.pdf");
+    doc.save('قائمة_المغادرة_الخارجية.pdf');
   };
 
   const exportToExcel = () => {
@@ -184,7 +210,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
         </button>
       </div>
 
-      <div className="p-6 border border-gray-200 rounded-xl bg-white shadow-sm space-y-6">
+      <div className="p-6 border border-gray-200 rounded-xl bg-gray-100 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <form
@@ -236,14 +262,14 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
           <div className="flex gap-2">
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-2 bg-teal-800 text-white text-xs px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
+              className="flex items-center gap-2 bg-teal-800 text-white text-md px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
             >
               <FilePdfOutlined className="h-4" />
               <span>PDF</span>
             </button>
             <button
               onClick={exportToExcel}
-              className="flex items-center gap-2 bg-teal-800 text-white text-xs px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
+              className="flex items-center gap-2 bg-teal-800 text-white text-md px-3 py-2 rounded-lg shadow hover:bg-teal-700 transition"
             >
               <FileExcelOutlined className="h-4" />
               <span>Excel</span>
@@ -262,8 +288,8 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
                 <th className="py-3 px-2">الجنسية</th>
                 <th className="py-3 px-2">رقم الجواز</th>
                 {/* <th className="py-3 px-2">من</th> */}
-                <th className="py-3 px-2">وجهة المغادرة </th>
                 <th className="py-3 px-2">سبب المغادرة</th>
+                <th className="py-3 px-2">وجهة المغادرة </th>
                 <th className="py-3 px-2">تاريخ المغادرة</th>
                 <th className="py-3 px-2">حالة العقد</th>
               </tr>
@@ -272,7 +298,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
               {departures.map((row, index) => (
                 <tr
                   key={index}
-                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  className={index % 2 === 0 ? "bg-gray-100" : "bg-gray-100"}
                 >
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.id || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.OrderId || "-"}</td>
@@ -281,13 +307,14 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.PassportNumber || "-"}</td>
                   {/* <td className="py-3 px-2 border-t border-gray-200">{row.ArrivalCity || "-"}</td> */}
-                  <td className="py-3 px-2 border-t border-gray-200">{row.externalArrivalCity || "-"}</td>
                   <td
                     className="py-3 px-2 border-t border-gray-200"
                     // dangerouslySetInnerHTML={{ __html: row.reason || "-" }}
                   >
                     {row.reason || "-"}
                   </td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.externalArrivalCity || "-"}</td>
+
                   <td className="py-3 px-2 border-t border-gray-200">
                     {row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-"}
                   </td>

@@ -190,7 +190,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
     setPage(1);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!exportedData || exportedData.length === 0) {
       setAlertType('warning');
       setAlertMessage('لا توجد بيانات للتصدير');
@@ -199,8 +199,27 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
     }
     
     const doc = new jsPDF();
-    doc.setFont("Amiri", "normal");
-    doc.text("قائمة المغادرة الداخلية", 10, 10, { align: "right" });
+    
+    try {
+      // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text('قائمة المغادرة الداخلية', 200, 10, { align: 'center' });
 
     const tableColumn = [
       "تاريخ الوصول",
@@ -233,9 +252,13 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
     (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 20,
-      styles: { font: "Amiri", halign: "right" },
-      headStyles: { fillColor: [0, 105, 92] },
+      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
+      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      margin: { top: 30 },
+      didDrawPage: () => {
+        doc.setFontSize(10);
+        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
+      },
     });
 
     doc.save("قائمة_المغادرة.pdf");

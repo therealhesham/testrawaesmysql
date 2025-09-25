@@ -37,7 +37,20 @@ export default async function handler(
       if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
 
       // Apply a filter for `age` if present
-      if (age) filters.age = { equals: parseInt(age as string, 10) };
+      if (age) {
+        const ageNum = parseInt(age as string, 10);
+        if (!isNaN(ageNum)) {
+          // Calculate birth year directly from current year minus age
+          const currentYear = new Date().getFullYear();
+          const targetBirthYear = currentYear - ageNum;
+          
+          // Search for birth year with tolerance of ±2 years
+          filters.dateofbirth = {
+            gte: `${targetBirthYear - 2}-01-01`,
+            lte: `${targetBirthYear + 2}-12-31`,
+          };
+        }
+      }
 
       // Apply a filter for `Nationalitycopy` if present
       if (Nationalitycopy) {

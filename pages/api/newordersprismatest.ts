@@ -58,18 +58,43 @@ if(!findUser?.role?.permissions["إدارة الطلبات"]["عرض"] )return;
 
   // Age filter: Calculate age from dateofbirth
   if (age) {
-    const [minAge, maxAge] = (age as string).split("-").map(Number);
+    const ageString = age as string;
     const currentYear = new Date().getFullYear();
-    const minBirthYear = currentYear - maxAge;
-    const maxBirthYear = currentYear - minAge;
+    
+    // Check if age is in range format (e.g., "25-35") or single age (e.g., "30")
+    if (ageString.includes("-")) {
+      const [minAge, maxAge] = ageString.split("-").map(Number);
+      
+      // Validate that both ages are valid numbers
+      if (!isNaN(minAge) && !isNaN(maxAge) && minAge > 0 && maxAge > 0) {
+        // For age range: minAge=25, maxAge=35
+        // We want birth years between (currentYear - maxAge) and (currentYear - minAge)
+        const maxBirthYear = currentYear - minAge; // Older birth year (younger age)
+        const minBirthYear = currentYear - maxAge; // Younger birth year (older age)
 
-    filters.HomeMaid = {
-      ...filters.HomeMaid,
-      dateofbirth: {
-        gte: `${maxBirthYear}-01-01`, // Greater than or equal to max birth year
-        lte: `${minBirthYear}-12-31`, // Less than or equal to min birth year
-      },
-    };
+        filters.HomeMaid = {
+          ...filters.HomeMaid,
+          dateofbirth: {
+            gte: new Date(`${minBirthYear}-01-01T00:00:00.000Z`).toISOString(), // Greater than or equal to younger birth year
+            lte: new Date(`${maxBirthYear}-12-31T23:59:59.999Z`).toISOString(), // Less than or equal to older birth year
+          },
+        };
+      }
+    } else {
+      // Single age format
+      const singleAge = parseInt(ageString, 10);
+      if (!isNaN(singleAge) && singleAge > 0) {
+        const targetBirthYear = currentYear - singleAge;
+        
+        filters.HomeMaid = {
+          ...filters.HomeMaid,
+          dateofbirth: {
+            gte: new Date(`${targetBirthYear - 2}-01-01T00:00:00.000Z`).toISOString(),
+            lte: new Date(`${targetBirthYear + 2}-12-31T23:59:59.999Z`).toISOString(),
+          },
+        };
+      }
+    }
   }
 
   // Nationality filter: Search in neworder.Nationalitycopy, homemaid.Nationalitycopy, and offices.Country

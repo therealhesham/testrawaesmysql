@@ -171,10 +171,10 @@ export default function Dashboard({ hasPermission }) {
 
   const fetchOffices = async () => {
     try {
-      const response = await axios.get("/api/offices");
-      setOffices(Array.isArray(response.data.countriesfinder) ? response.data.countriesfinder : []);
+      const response = await axios.get("/api/nationalities");
+      setOffices(Array.isArray(response.data.nationalities) ? response.data.nationalities : []);
     } catch (error) {
-      console.error('Error fetching offices:', error);
+      console.error('Error fetching nationalities:', error);
     }
   };
 

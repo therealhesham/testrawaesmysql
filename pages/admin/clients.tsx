@@ -96,11 +96,29 @@ const Customers = ({ hasPermission }: Props) => {
   };
 
   // دالة تصدير PDF
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     const doc = new jsPDF();
-    doc.setFont('Amiri');
-    doc.setFontSize(12);
-    doc.text("قائمة العملاء", 10, 10);
+    
+    try {
+      // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text("قائمة العملاء", 200, 10, { align: 'center' });
 
     const tableColumn = ["الرقم", "الاسم", "رقم الجوال", "الهوية", "المدينة", "عدد الطلبات", "تاريخ آخر طلب"];
     const tableRows: any[] = [];
@@ -122,8 +140,12 @@ const Customers = ({ hasPermission }: Props) => {
       head: [tableColumn],
       body: tableRows,
       styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
-      headStyles: { fillColor: [0, 128, 128] },
-      margin: { top: 20 },
+      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      margin: { top: 30 },
+      didDrawPage: () => {
+        doc.setFontSize(10);
+        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
+      },
     });
 
     doc.save('clients.pdf');

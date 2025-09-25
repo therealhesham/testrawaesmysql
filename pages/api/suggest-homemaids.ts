@@ -34,9 +34,14 @@ export default async function handler(
     if (age) {
       const ageNum = parseInt(age as string);
       if (!isNaN(ageNum)) {
-        whereClause.age = {
-          gte: ageNum - 5, // Allow 5 years younger
-          lte: ageNum + 5, // Allow 5 years older
+        // Calculate birth year directly from current year minus age
+        const currentYear = new Date().getFullYear();
+        const targetBirthYear = currentYear - ageNum;
+        
+        // Search for birth year with tolerance of ±2 years
+        whereClause.dateofbirth = {
+          gte: `${targetBirthYear - 2}-01-01`,
+          lte: `${targetBirthYear + 2}-12-31`,
         };
       }
     }
@@ -115,8 +120,17 @@ export default async function handler(
       if (experience && homemaid.ExperienceYears?.includes(experience as string)) {
         score += 6;
       }
-      if (age && homemaid.age) {
-        const ageDiff = Math.abs(homemaid.age - parseInt(age as string));
+      if (age && homemaid.dateofbirth) {
+        // Calculate age from dateofbirth
+        const birthDate = new Date(homemaid.dateofbirth);
+        const currentDate = new Date();
+        const calculatedAge = currentDate.getFullYear() - birthDate.getFullYear();
+        const monthDiff = currentDate.getMonth() - birthDate.getMonth();
+        const finalAge = monthDiff < 0 || (monthDiff === 0 && currentDate.getDate() < birthDate.getDate()) 
+          ? calculatedAge - 1 
+          : calculatedAge;
+        
+        const ageDiff = Math.abs(finalAge - parseInt(age as string));
         if (ageDiff <= 2) score += 5;
         else if (ageDiff <= 5) score += 3;
         else if (ageDiff <= 10) score += 1;
@@ -131,19 +145,33 @@ export default async function handler(
       .slice(0, 5);
 
     // Transform the data for the frontend
-    const suggestions = sortedHomemaids.map((homemaid) => ({
-      id: homemaid.id,
-      name: homemaid.Name,
-      nationality: homemaid.Nationalitycopy,
-      religion: homemaid.Religion,
-      experience: homemaid.ExperienceYears,
-      age: homemaid.age,
-      passportNumber: homemaid.Passportnumber,
-      office: homemaid.office?.office,
-      country: homemaid.office?.Country,
-      picture: homemaid.Picture,
-      relevanceScore: homemaid.relevanceScore,
-    }));
+    const suggestions = sortedHomemaids.map((homemaid) => {
+      // Calculate age from dateofbirth
+      let calculatedAge = null;
+      if (homemaid.dateofbirth) {
+        const birthDate = new Date(homemaid.dateofbirth);
+        const currentDate = new Date();
+        const age = currentDate.getFullYear() - birthDate.getFullYear();
+        const monthDiff = currentDate.getMonth() - birthDate.getMonth();
+        calculatedAge = monthDiff < 0 || (monthDiff === 0 && currentDate.getDate() < birthDate.getDate()) 
+          ? age - 1 
+          : age;
+      }
+      
+      return {
+        id: homemaid.id,
+        name: homemaid.Name,
+        nationality: homemaid.Nationalitycopy,
+        religion: homemaid.Religion,
+        experience: homemaid.ExperienceYears,
+        age: calculatedAge,
+        passportNumber: homemaid.Passportnumber,
+        office: homemaid.office?.office,
+        country: homemaid.office?.Country,
+        picture: homemaid.Picture,
+        relevanceScore: homemaid.relevanceScore,
+      };
+    });
 
     res.status(200).json({
       success: true,
