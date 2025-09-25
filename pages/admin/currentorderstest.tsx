@@ -35,19 +35,19 @@ export default function Dashboard({
   initialNationalities 
 }: DashboardProps) {
   const router = useRouter();
-  const [data, setData] = useState(initialData || []);
+  const [data, setData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(initialCounts?.totalCount || 0);
-  const [totalPages, setTotalPages] = useState(initialCounts?.totalPages || 1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [contractType, setContractType] = useState('recruitment');
-  const [recruitmentCount, setRecruitmentCount] = useState(initialCounts?.recruitment || 0);
-  const [rentalCount, setRentalCount] = useState(initialCounts?.rental || 0);
+  const [recruitmentCount, setRecruitmentCount] = useState(0);
+  const [rentalCount, setRentalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [nationality, setNationality] = useState('');
   const [office, setOffice] = useState('');
   const [status, setStatus] = useState('');
-  const [offices, setOffices] = useState(initialOffices || []);
-  const [nationalities, setNationalities] = useState(initialNationalities || []);
+  const [offices, setOffices] = useState([]);
+  const [nationalities, setNationalities] = useState([]);
   const [statuses] = useState([
     'قيد الانتظار',
     'موافقة المكتب الخارجي',
@@ -129,9 +129,9 @@ export default function Dashboard({
 
   const pageSize = 10;
 
-  // Fetch offices and nationalities only if not provided initially
+  // Fetch offices and nationalities
   useEffect(() => {
-    if (hasPermission && (!initialOffices || !initialNationalities)) {
+    if (hasPermission) {
       const fetchOffices = async () => {
         try {
           const response = await axios.get("/api/offices");
@@ -143,7 +143,7 @@ export default function Dashboard({
       };
       fetchOffices();
     }
-  }, [hasPermission, initialOffices, initialNationalities]);
+  }, [hasPermission]);
 
   // Fetch data with filters
   async function fetchData(page = 1) {
@@ -174,9 +174,9 @@ export default function Dashboard({
     }
   }
 
-  // Fetch data when filters or contract type change (skip initial load if data is provided)
+  // Fetch data when filters or contract type change
   useEffect(() => {
-    if (hasPermission && (searchTerm || nationality || office || status)) {
+    if (hasPermission) {
       fetchData();
     }
   }, [contractType, searchTerm, nationality, office, status, hasPermission]);
@@ -249,7 +249,7 @@ export default function Dashboard({
         halign: 'right',
       },
       margin: { top: 20, right: 10, left: 10 },
-      didParseCell: (data: any) => {
+      didParseCell: (data) => {
         data.cell.styles.halign = 'right';
       },
     });
@@ -464,7 +464,7 @@ export default function Dashboard({
                       className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
                     >
                       <option value="">كل الجنسيات</option>
-                      {nationalities.map((nat: any) => (
+                      {nationalities.map((nat) => (
                         <option key={nat?.Country} value={nat?.Country}>
                           {nat?.Country}
                         </option>
@@ -517,7 +517,7 @@ export default function Dashboard({
                     </tr>
                   </thead>
                   <tbody>
-                    {data.map((booking: any) => (
+                    {data.map((booking) => (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
                         <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
                           #{booking.id}
@@ -587,10 +587,9 @@ export default function Dashboard({
             <PreRentalModal
               isOpen={isModalOpen}
               onClose={handleCloseModal}
-              onSelectClient={(client: any) => {
+              onSelectClient={(client) => {
                 handleCloseModal();
               }}
-              onNewClient={() => {}}
             />
           </div>
         </div>
@@ -620,12 +619,12 @@ export default function Dashboard({
   );
 }
 
-export async function getServerSideProps({ req, query }: { req: any; query: any }) {
+export async function getServerSideProps({ req }) {
   try {
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie: string) => {
+      cookieHeader.split(";").forEach((cookie) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
@@ -637,182 +636,19 @@ export async function getServerSideProps({ req, query }: { req: any; query: any 
       };
     }
 
-    const token = jwtDecode(cookies.authToken) as any;
+    const token = jwtDecode(cookies.authToken);
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
 
-    if (!findUser || !(findUser.role?.permissions as any)?.["إدارة الطلبات"]?.["عرض"]) {
+    if (!findUser || !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]) {
       return {
         props: { hasPermission: false, redirectTo: "/admin/home" },
       };
     }
 
-    // جلب البيانات الأولية من الخادم
-    const page = parseInt(query.page as string) || 1;
-    const contractType = (query.typeOfContract as string) || 'recruitment';
-    const searchTerm = query.searchTerm as string || '';
-    const nationality = query.Nationalitycopy as string || '';
-    const office = query.officeName as string || '';
-    const status = query.bookingstatus as string || '';
-
-    // دالة ترجمة حالة الطلب من العربية إلى الإنجليزية
-    const translateBookingStatusToEnglish = (arabicStatus: string) => {
-      const reverseTranslations: { [key: string]: string } = {
-        'قيد الانتظار': 'pending',
-        'موافقة المكتب الخارجي': 'external_office_approved',
-        'في انتظار المكتب الخارجي': 'pending_external_office',
-        'تم اجتياز الفحص الطبي': 'medical_check_passed',
-        'في انتظار الفحص الطبي': 'pending_medical_check',
-        'موافقة وزارة العمل الأجنبية': 'foreign_labor_approved',
-        'في انتظار وزارة العمل الأجنبية': 'pending_foreign_labor',
-        'تم دفع الوكالة': 'agency_paid',
-        'في انتظار دفع الوكالة': 'pending_agency_payment',
-        'موافقة السفارة السعودية': 'embassy_approved',
-        'في انتظار السفارة السعودية': 'pending_embassy',
-        'تم إصدار التأشيرة': 'visa_issued',
-        'في انتظار إصدار التأشيرة': 'pending_visa',
-        'تم إصدار تصريح السفر': 'travel_permit_issued',
-        'في انتظار تصريح السفر': 'pending_travel_permit',
-        'تم الاستلام': 'received',
-        'في انتظار الاستلام': 'pending_receipt',
-        'ملغي': 'cancelled',
-        'مرفوض': 'rejected',
-        'تم التسليم': 'delivered',
-        'طلب جديد': 'new_order',
-        'طلبات جديدة': 'new_orders'
-      };
-      return reverseTranslations[arabicStatus] || arabicStatus;
-    };
-
-    const pageSize = 10;
-    const skip = (page - 1) * pageSize;
-
-    // بناء شروط البحث
-    const whereConditions: any = {
-      typeOfContract: contractType,
-    };
-
-    if (searchTerm) {
-      whereConditions.OR = [
-        { client: { fullname: { contains: searchTerm, mode: 'insensitive' } } },
-        { client: { phone: { contains: searchTerm, mode: 'insensitive' } } },
-        { client: { nationalId: { contains: searchTerm, mode: 'insensitive' } } },
-        { HomeMaid: { Name: { contains: searchTerm, mode: 'insensitive' } } },
-        { HomeMaid: { Passportnumber: { contains: searchTerm, mode: 'insensitive' } } },
-      ];
-    }
-
-    if (nationality) {
-      whereConditions.HomeMaid = {
-        ...whereConditions.HomeMaid,
-        office: { Country: nationality }
-      };
-    }
-
-    if (office) {
-      whereConditions.HomeMaid = {
-        ...whereConditions.HomeMaid,
-        office: { 
-          ...whereConditions.HomeMaid?.office,
-          office: office 
-        }
-      };
-    }
-
-    if (status) {
-      whereConditions.bookingstatus = translateBookingStatusToEnglish(status);
-    }
-
-    // جلب البيانات
-    const [homemaids, totalCount, recruitmentCount, rentalCount, offices, nationalities] = await Promise.all([
-      prisma.neworder.findMany({
-        where: whereConditions,
-        include: {
-          client: true,
-          HomeMaid: {
-            include: {
-              office: true
-            }
-          },
-          arrivals: true
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: pageSize,
-      }),
-      prisma.neworder.count({ where: whereConditions }),
-      prisma.neworder.count({ where: { typeOfContract: 'recruitment' } }),
-      prisma.neworder.count({ where: { typeOfContract: 'rental' } }),
-      prisma.offices.findMany({ select: { id: true, office: true } }),
-      prisma.offices.findMany({ 
-        select: { Country: true },
-        distinct: ['Country']
-      })
-    ]);
-
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    // تحويل التواريخ إلى strings لتجنب مشاكل التسلسل
-    const serializedHomemaids = homemaids.map(order => ({
-      ...order,
-      createdAt: order.createdAt?.toISOString() || null,
-      updatedAt: order.updatedAt?.toISOString() || null,
-      client: order.client ? {
-        ...order.client,
-        createdAt: order.client.createdAt?.toISOString() || null,
-      } : null,
-      HomeMaid: order.HomeMaid ? {
-        ...order.HomeMaid,
-        createdAt: order.HomeMaid.createdAt?.toISOString() || null,
-        updatedAt: order.HomeMaid.updatedAt?.toISOString() || null,
-        dateofbirth: order.HomeMaid.dateofbirth || null,
-        PassportStart: order.HomeMaid.PassportStart?.toISOString() || null,
-        PassportEnd: order.HomeMaid.PassportEnd?.toISOString() || null,
-        office: order.HomeMaid.office ? {
-          ...order.HomeMaid.office
-        } : null
-      } : null,
-      arrivals: order.arrivals ? order.arrivals.map(arrival => ({
-        ...arrival,
-        createdAt: arrival.createdAt?.toISOString() || null,
-        updatedAt: arrival.updatedAt?.toISOString() || null,
-        deparatureCityCountryDate: arrival.deparatureCityCountryDate?.toISOString() || null,
-        KingdomentryDate: arrival.KingdomentryDate?.toISOString() || null,
-        internaldeparatureDate: arrival.internaldeparatureDate?.toISOString() || null,
-        internalArrivalCityDate: arrival.internalArrivalCityDate?.toISOString() || null,
-        externaldeparatureDate: arrival.externaldeparatureDate?.toISOString() || null,
-        externalArrivalCityDate: arrival.externalArrivalCityDate?.toISOString() || null,
-        DeliveryDate: arrival.DeliveryDate?.toISOString() || null,
-        foreignLaborApprovalDate: arrival.foreignLaborApprovalDate?.toISOString() || null,
-        startWorkingDate: arrival.startWorkingDate?.toISOString() || null,
-        endWorkingDate: arrival.endWorkingDate?.toISOString() || null,
-        DayDate: arrival.DayDate?.toISOString() || null,
-        ExternalDateLinking: arrival.ExternalDateLinking?.toISOString() || null,
-        ExternalOFficeApproval: arrival.ExternalOFficeApproval?.toISOString() || null,
-        AgencyDate: arrival.AgencyDate?.toISOString() || null,
-        EmbassySealing: arrival.EmbassySealing?.toISOString() || null,
-        BookinDate: arrival.BookinDate?.toISOString() || null,
-        GuaranteeDurationEnd: arrival.GuaranteeDurationEnd?.toISOString() || null,
-        DateOfApplication: arrival.DateOfApplication?.toISOString() || null
-      })) : []
-    }));
-
-    return { 
-      props: { 
-        hasPermission: true,
-        initialData: serializedHomemaids,
-        initialCounts: {
-          totalCount,
-          totalPages,
-          recruitment: recruitmentCount,
-          rental: rentalCount
-        },
-        initialOffices: offices,
-        initialNationalities: nationalities
-      } 
-    };
+    return { props: { hasPermission: true } };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
