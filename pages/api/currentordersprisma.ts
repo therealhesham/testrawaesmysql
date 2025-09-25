@@ -75,11 +75,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 console.log(filters)
       const homemaids = await prisma.neworder.findMany({
         orderBy: { id: "desc" },
-        include: {
-          arrivals: { select: { InternalmusanedContract: true } },
-          HomeMaid: { include: { office: true } },
-          client: true,
-        },
+        select:{arrivals:{select:{InternalmusanedContract:true}},
+
+          client:{select:{fullname:true,
+            phonenumber:true,
+            nationalId:true,
+            id:true,
+          }}
+          ,
+          HomeMaid:{select:{Name:true,
+            Passportnumber:true,
+            id:true,office:{select:{office:true,Country:true}}
+            // officeName:true,
+            // Nationalitycopy:true,
+          }},
+        }
+        ,
         where: {
           ...filters,
           NOT: {
