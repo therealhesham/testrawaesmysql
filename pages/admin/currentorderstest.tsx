@@ -4,7 +4,6 @@ import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
 import { Search, ChevronDown, X } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
-import axios from 'axios';
 import PreRentalModal from 'components/PreRentalModal';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
@@ -15,7 +14,8 @@ import ExcelJS from 'exceljs';
 interface DashboardProps {
   hasPermission: boolean;
   redirectTo?: string;
-  initialData: any[];
+  recruitmentData: any[]; // Recruitment orders data
+  rentalData: any[]; // Rental orders data
   initialCounts: {
     totalCount: number;
     totalPages: number;
@@ -30,7 +30,8 @@ interface DashboardProps {
 export default function Dashboard({ 
   hasPermission: initialHasPermission, 
   redirectTo, 
-  initialData, 
+  recruitmentData, 
+  rentalData,
   initialCounts, 
   initialOffices, 
   initialNationalities,
@@ -38,7 +39,8 @@ export default function Dashboard({
 }: DashboardProps) {
   const router = useRouter();
   const [hasPermission, setHasPermission] = useState(initialHasPermission);
-  const [data, setData] = useState(initialData || []);
+  // Set initial data based on contract type
+  const [data, setData] = useState(recruitmentData || []);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(initialCounts?.totalCount || 0);
   const [totalPages, setTotalPages] = useState(initialCounts?.totalPages || 1);
@@ -191,28 +193,6 @@ useEffect(() => {
 
   const pageSize = 10;
 
-  // Update offices and nationalities if not already set (fallback for older static data)
-  useEffect(() => {
-    if (hasPermission && (!offices.length || !nationalities.length)) {
-      const fetchOffices = async () => {
-        try {
-          const response = await axios.get("/api/offices");
-          if (!offices.length) setOffices(response.data.items || []);
-          if (!nationalities.length) {
-            const countries = (response.data.items || []).map((office: any) => office.Country);
-            const uniqueCountriesSet = new Set(countries);
-            const uniqueCountries = Array.from(uniqueCountriesSet).map(country => ({
-              Country: country
-            }));
-            setNationalities(uniqueCountries);
-          }
-        } catch (error) {
-          console.error('Error fetching offices:', error);
-        }
-      };
-      fetchOffices();
-    }
-  }, [hasPermission, offices.length, nationalities.length]);
 
   // Fetch data with filters
   async function fetchData(page = 1) {
@@ -251,12 +231,24 @@ useEffect(() => {
     }
   }
 
-  // Fetch data when filters or contract type change
+  // Handle contract type change
   useEffect(() => {
-    if (hasPermission) {
-      fetchData();
+    if (!searchTerm && !nationality && !office && !status) {
+      // Use pre-loaded data if no filters
+      if (contractType === 'recruitment') {
+        setData(recruitmentData || []);
+        setCurrentPage(1);
+      } else if (contractType === 'rental') {
+        setData(rentalData || []);
+        setCurrentPage(1);
+      }
+    } else {
+      // Fetch filtered data
+      if (hasPermission) {
+        fetchData();
+      }
     }
-  }, [contractType, searchTerm, nationality, office, status, hasPermission]);
+  }, [contractType, searchTerm, nationality, office, status, hasPermission, recruitmentData, rentalData]);
 
   // Export to PDF
   const exportToPDF = async () => {
@@ -602,46 +594,46 @@ useEffect(() => {
                     <span className="mr-2 text-teal-900">جاري التحميل...</span>
                   </div>
                 ) : (
-                  <table className="w-full border-collapse min-w-[1000px] text-right">
-                    <thead>
-                      <tr className="bg-teal-900">
-                        {[
-                          'رقم الطلب',
-                          'اسم العميل',
-                          'جوال العميل',
-                          'هوية العميل',
-                          'رقم العاملة',
-                          'اسم العاملة',
-                          'الجنسية',
-                          'رقم جواز السفر',
-                          'رقم عقد مساند',
-                          'اسم المكتب الخارجي',
-                          'حالة الطلب',
-                        ].map((header) => (
-                          <th key={header} className="text-white text-md font-normal p-4 text-right">
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
+                <table className="w-full border-collapse min-w-[1000px] text-right">
+                  <thead>
+                    <tr className="bg-teal-900">
+                      {[
+                        'رقم الطلب',
+                        'اسم العميل',
+                        'جوال العميل',
+                        'هوية العميل',
+                        'رقم العاملة',
+                        'اسم العاملة',
+                        'الجنسية',
+                        'رقم جواز السفر',
+                        'رقم عقد مساند',
+                        'اسم المكتب الخارجي',
+                        'حالة الطلب',
+                      ].map((header) => (
+                        <th key={header} className="text-white text-md font-normal p-4 text-right">
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
                       {data.length > 0 ? (
                         data.map((booking) => (
-                          <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                            <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
-                              #{booking.id}
-                            </td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
+                      <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
+                        <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
+                          #{booking.id}
+                        </td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
                             <td className="p-4 text-md text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.arrivals?.InternalmusanedContract || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
-                          </tr>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.arrivals?.InternalmusanedContract || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
+                      </tr>
                         ))
                       ) : (
                         <tr>
@@ -650,8 +642,8 @@ useEffect(() => {
                           </td>
                         </tr>
                       )}
-                    </tbody>
-                  </table>
+                  </tbody>
+                </table>
                 )}
               </div>
               <div className="flex justify-between items-center mt-6 flex-col sm:flex-row gap-4">
@@ -744,8 +736,8 @@ export async function getStaticProps() {
     // Fetch initial data for ISR
     const currentTime = new Date().toISOString();
     
-    // Fetch initial orders data
-    const initialOrders = await prisma.neworder.findMany({
+    // Fetch recruitment orders (page 1)
+    const recruitmentOrders = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
       select: {
         id: true,
@@ -770,13 +762,50 @@ export async function getStaticProps() {
         },
       },
       where: {
+        typeOfContract: "recruitment",
         NOT: {
           bookingstatus: {
             in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
           },
         },
       },
-      take: 10, // Initial page size
+      take: 10, // First page
+    });
+
+    // Fetch rental orders (page 1)
+    const rentalOrders = await prisma.neworder.findMany({
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        bookingstatus: true,
+        typeOfContract: true,
+        arrivals: { select: { InternalmusanedContract: true } },
+        client: {
+          select: {
+            fullname: true,
+            phonenumber: true,
+            nationalId: true,
+            id: true,
+          }
+        },
+        HomeMaid: {
+          select: {
+            Name: true,
+            Passportnumber: true,
+            id: true,
+            office: { select: { office: true, Country: true } }
+          }
+        },
+      },
+      where: {
+        typeOfContract: "rental",
+        NOT: {
+          bookingstatus: {
+            in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+          },
+        },
+      },
+      take: 10, // First page
     });
 
     // Fetch offices and nationalities
@@ -833,7 +862,8 @@ export async function getStaticProps() {
     return {
       props: {
         hasPermission: true, // We'll handle auth on client-side for ISR
-        initialData: initialOrders,
+        recruitmentData: recruitmentOrders, // Recruitment orders page 1
+        rentalData: rentalOrders, // Rental orders page 1
         initialCounts: {
           totalCount,
           totalPages: Math.ceil(totalCount / 10),
@@ -849,17 +879,18 @@ export async function getStaticProps() {
     };
   } catch (err) {
     console.error("ISR data fetching error:", err);
-    return {
-      props: {
-        hasPermission: false,
-        redirectTo: "/admin/home",
-        initialData: [],
-        initialCounts: { totalCount: 0, totalPages: 1, recruitment: 0, rental: 0 },
-        initialOffices: [],
-        initialNationalities: [],
-        lastUpdated: new Date().toISOString(),
-      },
-      revalidate: 30,
-    };
+      return {
+        props: {
+          hasPermission: false,
+          redirectTo: "/admin/home",
+          recruitmentData: [],
+          rentalData: [],
+          initialCounts: { totalCount: 0, totalPages: 1, recruitment: 0, rental: 0 },
+          initialOffices: [],
+          initialNationalities: [],
+          lastUpdated: new Date().toISOString(),
+        },
+        revalidate: 30,
+      };
   }
 }
