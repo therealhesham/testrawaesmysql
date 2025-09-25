@@ -79,6 +79,8 @@ useEffect(() => {
       
       const cookieHeader = localStorage.getItem('token');
       const authToken = cookieHeader;
+      const decoder = jwtDecode(authToken || '')
+      if(!decoder)return router.push("/admin/login");
       // alert(authToken)
       if (!authToken) {
         setHasPermission(false);
