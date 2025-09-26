@@ -84,6 +84,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           city: true,
           email: true,
           createdAt: true,
+          notes: true,
+          notes_date: true,
           _count: {
             select: { orders: true },
           },

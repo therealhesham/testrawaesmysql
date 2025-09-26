@@ -732,7 +732,7 @@ export default function Dashboard({ hasPermission }) {
               </div>
             )}
             {activePopup === 'popup-product-check' && (
-              <div className="bg-white p-8 rounded-xl shadow-2xl w-96 text-center transform transition-all duration-300 ease-in-out relative">
+              <div className="bg-gray-100 p-8 rounded-xl shadow-2xl w-120 text-center transform transition-all duration-300 ease-in-out relative">
                 <button
                   className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
                   onClick={closePopup}

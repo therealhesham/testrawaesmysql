@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { CashIcon } from '@heroicons/react/outline';
-import { ArrowDown, Calendar, CreditCard, Wallet, CheckCircle, X } from 'lucide-react';
+import { Calendar, CreditCard, Wallet, CheckCircle, X } from 'lucide-react';
 import Style from 'styles/Home.module.css';
-import debounce from 'lodash.debounce';
 
 interface FormData {
   customerName: string;
@@ -45,14 +44,18 @@ export default function RentalForm() {
     remainingAmount: '',
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [homemaidSearchTerm, setHomemaidSearchTerm] = useState('');
+  const [homemaidSuggestions, setHomemaidSuggestions] = useState<any[]>([]);
+  const [showHomemaidSuggestions, setShowHomemaidSuggestions] = useState(false);
+  const [isSearchingHomemaids, setIsSearchingHomemaids] = useState(false);
   const [file, setFile] = useState<File | null>(null); // Store the selected file
   const [isUploadingFile, setIsUploadingFile] = useState(false); // Track file upload status
   const [isProcessingFile, setIsProcessingFile] = useState(false); // Track file processing status
+  
+  // Modal states
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
   // Helper: Upload contract to DigitalOcean Spaces using presigned URL
   const uploadContractFile = async (selectedFile: File, idHint?: string): Promise<string> => {
@@ -102,11 +105,13 @@ export default function RentalForm() {
               customerCity: client.city,
             }));
           } else {
-            setError('لم يتم العثور على العميل');
+            setModalMessage('لم يتم العثور على العميل');
+            setShowErrorModal(true);
           }
         } catch (err) {
           console.error('Error fetching client:', err);
-          setError('خطأ في جلب بيانات العميل');
+          setModalMessage('خطأ في جلب بيانات العميل');
+          setShowErrorModal(true);
         } finally {
           setIsLoading(false);
         }
@@ -115,38 +120,113 @@ export default function RentalForm() {
     }
   }, [clientId]);
 
-  // Debounced function to fetch homemaids
-  const fetchHomemaids = useCallback(
-    debounce(async (query: string) => {
-      if (!query.trim()) {
-        setHomemaids([]);
-        setShowSuggestions(false);
-        return;
+  // Auto search functions for homemaids - supports both name and ID search
+  const searchHomemaids = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setHomemaidSuggestions([]);
+      setShowHomemaidSuggestions(false);
+      return;
+    }
+    
+    setIsSearchingHomemaids(true);
+    try {
+      // Check if search term is a number (ID search)
+      const isId = searchTerm.match(/^\d+$/);
+      
+      let response;
+      if (isId) {
+        // Search by ID using the existing API
+        response = await fetch(`/api/getallhomemaids?id=${searchTerm}`);
+      } else {
+        // Search by name using the suggestions API
+        response = await fetch(`/api/homemaids/suggestions?q=${encodeURIComponent(searchTerm)}`);
       }
-      try {
-        const isId = query.match(/^\d+$/);
-        const response = await fetch(
-          `/api/getallhomemaids?${isId ? `id=${query}` : `Name=${encodeURIComponent(query)}`}`
-        );
+      
+      if (response.ok) {
         const data = await response.json();
-        if (response.ok && data.data) {
-          setHomemaids(data.data);
-          setShowSuggestions(true);
+        let suggestions = [];
+        
+        if (isId) {
+          // Transform data from getallhomemaids API
+          if (data.data && data.data.length > 0) {
+            suggestions = data.data.map((homemaid: any) => ({
+              id: homemaid.id,
+              Name: homemaid.Name,
+              Country: homemaid.office?.Country || '',
+              religion: homemaid.Religion || '',
+            }));
+          }
         } else {
-          setHomemaids([]);
-          setShowSuggestions(false);
+          // Use suggestions from homemaids/suggestions API
+          suggestions = data.suggestions || [];
         }
-      } catch (err) {
-        console.error('Error fetching homemaids:', err);
-        setError('خطأ في جلب بيانات العاملات');
+        
+        setHomemaidSuggestions(suggestions);
+        setShowHomemaidSuggestions(true);
+      } else {
+        console.error('Error searching homemaids');
+        setHomemaidSuggestions([]);
+        setShowHomemaidSuggestions(false);
       }
-    }, 300),
-    []
-  );
+    } catch (error) {
+      console.error('Error searching homemaids:', error);
+      setHomemaidSuggestions([]);
+      setShowHomemaidSuggestions(false);
+    } finally {
+      setIsSearchingHomemaids(false);
+    }
+  };
 
+  // Handle homemaid search input change
+  const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setHomemaidSearchTerm(value);
+    
+    if (value.trim()) {
+      searchHomemaids(value);
+    } else {
+      setHomemaidSuggestions([]);
+      setShowHomemaidSuggestions(false);
+    }
+  };
+
+  // Handle homemaid suggestion click
+  const handleHomemaidSuggestionClick = (homemaid: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      workerId: homemaid.id.toString(),
+    }));
+    setHomemaidSearchTerm(homemaid.Name);
+    setShowHomemaidSuggestions(false);
+  };
+
+  // Handle input blur for suggestions
+  const handleHomemaidInputBlur = () => {
+    setTimeout(() => {
+      setShowHomemaidSuggestions(false);
+    }, 200);
+  };
+
+  // Close search results when clicking outside
   useEffect(() => {
-    fetchHomemaids(searchQuery);
-  }, [searchQuery, fetchHomemaids]);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.homemaid-search-container')) {
+        setShowHomemaidSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Modal functions
+  const closeModal = () => {
+    setShowSuccessModal(false);
+    setShowErrorModal(false);
+    setModalMessage('');
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -158,7 +238,8 @@ export default function RentalForm() {
         newData.remainingAmount = (total - paid).toFixed(2);
       }
       if (id === 'contractEndDate' && newData.contractStartDate && value < newData.contractStartDate) {
-        setError('تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية');
+        setModalMessage('تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية');
+        setShowErrorModal(true);
         return prev;
       }
       return newData;
@@ -170,41 +251,36 @@ export default function RentalForm() {
     if (!selectedFile) return;
 
     if (selectedFile.type !== 'application/pdf') {
-      setError('الرجاء اختيار ملف PDF فقط');
+      setModalMessage('الرجاء اختيار ملف PDF فقط');
+      setShowErrorModal(true);
       return;
     }
 
     setIsProcessingFile(true);
-    setError(null);
-    setSuccess(null);
     setFile(selectedFile);
     try {
       const uploadedPath = await uploadContractFile(selectedFile);
       setFormData((prev) => ({ ...prev, contractFile: uploadedPath }));
-      setSuccess('تم رفع الملف بنجاح');
+      setModalMessage('تم رفع الملف بنجاح');
+      setShowSuccessModal(true);
     } catch (err: any) {
       console.error('Error uploading contract file:', err);
-      setError(err?.message || 'حدث خطأ أثناء رفع الملف');
+      setModalMessage(err?.message || 'حدث خطأ أثناء رفع الملف');
+      setShowErrorModal(true);
     } finally {
       setIsProcessingFile(false);
     }
   };
 
-  const handleHomemaidSelect = (homemaid: Homemaid) => {
-    setFormData((prev) => ({ ...prev, workerId: homemaid.id.toString() }));
-    setSearchQuery(homemaid.Name);
-    setShowSuggestions(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.workerId) {
-      setError('يرجى اختيار عاملة');
+      setModalMessage('يرجى اختيار عاملة');
+      setShowErrorModal(true);
       return;
     }
     setIsLoading(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       let finalClientId = clientId;
@@ -253,15 +329,38 @@ export default function RentalForm() {
       });
 
       if (response.ok) {
-        setSuccess('تم إنشاء طلب التأجير بنجاح!');
-        setTimeout(() => router.push('/admin/neworders'), 2000);
+        // Clear form data after successful submission
+        setFormData({
+          customerName: '',
+          phoneNumber: '',
+          nationalId: '',
+          customerCity: '',
+          workerId: '',
+          contractDuration: '',
+          contractStartDate: '',
+          contractEndDate: '',
+          contractFile: null,
+          paymentMethod: 'two-installments',
+          totalAmount: '',
+          paidAmount: '',
+          remainingAmount: '',
+        });
+        setHomemaidSearchTerm('');
+        setFile(null);
+        
+        setModalMessage('تم إنشاء طلب التأجير بنجاح!');
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          router.push('/admin/neworders');
+        }, 2000);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'خطأ في إنشاء الطلب');
       }
     } catch (error: any) {
       console.error('Error submitting form:', error);
-      setError(error.message || 'خطأ في الخادم الداخلي');
+      setModalMessage(error.message || 'خطأ في الخادم الداخلي');
+      setShowErrorModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -274,18 +373,6 @@ export default function RentalForm() {
       </h2>
 
       {isLoading && <div className="text-center text-gray-500">جاري التحميل...</div>}
-      {error && (
-        <div className="flex items-center gap-2 text-red-500 text-center mb-4">
-          <X className="w-5 h-5" />
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 text-green-500 text-center mb-4">
-          <CheckCircle className="w-5 h-5" />
-          {success}
-        </div>
-      )}
 
       <form className={`${Style['tajawal-regular']} flex flex-col gap-12`} onSubmit={handleSubmit}>
         <div className="grid grid-cols-3 gap-8">
@@ -325,31 +412,39 @@ export default function RentalForm() {
               required
             />
           </div>
-          <div className="flex flex-col gap-2 relative">
+          <div className="flex flex-col gap-2 relative homemaid-search-container">
             <label htmlFor="workerSearch" className="text-base text-right">اسم أو رقم العاملة</label>
             <input
               type="text"
               id="workerSearch"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={homemaidSearchTerm}
+              onChange={handleHomemaidSearchChange}
+              onBlur={handleHomemaidInputBlur}
+              onFocus={() => homemaidSearchTerm.length >= 1 && setShowHomemaidSuggestions(true)}
               placeholder="ابحث بالاسم أو الرقم"
               className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               required
             />
-            {showSuggestions && homemaids.length > 0 && (
-              <ul className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md mt-1 max-h-40 overflow-y-auto z-10 shadow-md">
-                {homemaids.map((homemaid) => (
-                  <li
-                    key={homemaid.id}
-                    className="px-4 py-2 hover:bg-teal-50 cursor-pointer text-right text-base"
-                    onMouseDown={() => handleHomemaidSelect(homemaid)}
+            {isSearchingHomemaids && (
+              <div className="absolute right-3 top-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+              </div>
+            )}
+            
+            {/* Homemaid Search Results Dropdown */}
+            {showHomemaidSuggestions && homemaidSuggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {homemaidSuggestions.map((homemaid, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleHomemaidSuggestionClick(homemaid)}
+                    className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                   >
-                    {homemaid.Name} (ID: {homemaid.id})
-                  </li>
+                    <div className="font-medium text-md">{homemaid.Name}</div>
+                    <div className="text-sm text-gray-500">{homemaid.Country} - {homemaid.religion}</div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
             <input
               type="hidden"
@@ -521,8 +616,7 @@ export default function RentalForm() {
               className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
               min="0"
               step="0.01"
-              placeholder="أدخل المبلغ الكلي"
-              required
+              placeholder="أدخل المبلغ الكلي (اختياري)"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -535,8 +629,7 @@ export default function RentalForm() {
               className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
               min="0"
               step="0.01"
-              placeholder="أدخل المبلغ المدفوع"
-              required
+              placeholder="أدخل المبلغ المدفوع (اختياري)"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -547,7 +640,7 @@ export default function RentalForm() {
               value={formData.remainingAmount}
               readOnly
               className="bg-gray-100 border border-gray-200 rounded-md p-3 text-base text-right"
-              placeholder="سيتم حسابه تلقائيًا"
+              placeholder="سيتم حسابه تلقائيًا (اختياري)"
             />
           </div>
         </div>
@@ -570,6 +663,54 @@ export default function RentalForm() {
           </button>
         </div>
       </form>
+      
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+            <button
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+              onClick={closeModal}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center justify-center mb-4">
+              <CheckCircle className="w-12 h-12 text-green-500" />
+            </div>
+            <p className="text-green-600 text-lg font-medium">{modalMessage}</p>
+            <button
+              className="bg-green-500 text-white px-4 py-2 rounded mt-4 hover:bg-green-600 transition duration-200"
+              onClick={closeModal}
+            >
+              موافق
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+            <button
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+              onClick={closeModal}
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center justify-center mb-4">
+              <X className="w-12 h-12 text-red-500" />
+            </div>
+            <p className="text-red-600 text-lg font-medium">{modalMessage}</p>
+            <button
+              className="bg-red-500 text-white px-4 py-2 rounded mt-4 hover:bg-red-600 transition duration-200"
+              onClick={closeModal}
+            >
+              موافق
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
