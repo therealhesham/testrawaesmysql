@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { userId, username } = getUserFromCookies(req);
     
     // Validate required fields
-    const requiredFields = ['customerName', 'phoneNumber', 'workerId', 'contractDuration', 'contractStartDate', 'contractEndDate', 'paymentMethod'];
+    const requiredFields = ['customerName', 'workerId', 'contractDuration', 'contractStartDate', 'contractEndDate', 'paymentMethod'];
     for (const field of requiredFields) {
       if (!formData[field]) {
         return res.status(400).json({ message: `Missing required field: ${field}` });
