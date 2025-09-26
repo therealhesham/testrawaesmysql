@@ -86,6 +86,7 @@ model User {
   role          Role?     @relation(fields: [roleId], references: [id])
     notifications notifications[]
   tasks         tasks[]
+  assignedTasks tasks[] @relation("TaskAssignedBy")
   logs          logs[]
   emaillist    emaillist[]
   cashLogs      cashLogs[]
@@ -119,6 +120,8 @@ model tasks{
 id              Int       @id @default(autoincrement())
 userId            Int
 user                 User @relation(fields: [userId], references: [id])  
+assignedBy        Int?
+assignedByUser    User? @relation("TaskAssignedBy", fields: [assignedBy], references: [id])
 description       String
 taskDeadline DateTime
  createdAt       DateTime  @default(now())

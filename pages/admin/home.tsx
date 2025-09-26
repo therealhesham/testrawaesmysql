@@ -863,7 +863,7 @@ export default function Home({
                         <div 
                           key={`task-${taskIndex}`}
                           className="text-xs font-light px-1 py-0.5 rounded bg-red-100 text-red-600 cursor-pointer hover:bg-red-200"
-                          title={`مهمة: ${task.Title} - ${task.description}`}
+                          title={`مهمة: ${task.Title} - ${task.description}${task.assignedBy ? ` (مُسندة من: ${task.assignedBy})` : ''}`}
                         >
                           {task.Title.length > 8 ? task.Title.substring(0, 8) + '...' : task.Title}
                         </div>
@@ -992,6 +992,11 @@ export default function Home({
                       <p className="text-sm text-gray-500">
                         الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
                       </p>
+                      {task.assignedBy && (
+                        <p className="text-xs text-blue-600">
+                          مُسندة من: المستخدم #{task.assignedBy}
+                        </p>
+                      )}
                     </div>
                     <span className="text-sm text-teal-600">غير مكتمل</span>
                   </div>
@@ -1377,6 +1382,12 @@ export default function Home({
                   <label className="block text-sm font-medium text-gray-700">تاريخ الإنشاء</label>
                   <p className="mt-1 text-gray-600">{new Date(taskDetailsModal.task.createdAt).toLocaleDateString('ar-SA')}</p>
                 </div>
+                {taskDetailsModal.task.assignedBy && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">مُسندة من</label>
+                    <p className="mt-1 text-blue-600 font-medium">المستخدم #{taskDetailsModal.task.assignedBy}</p>
+                  </div>
+                )}
               </div>
               <div className="mt-6 flex justify-end">
                 <button
