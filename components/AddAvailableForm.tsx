@@ -77,6 +77,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
   const [modalMessage, setModalMessage] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Auto search states for clients
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
@@ -432,6 +433,8 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
       setShowErrorModal(true);
       return;
     }
+    
+    setIsSubmitting(true);
     try {
       const submitData: any = { ...formData };
       if (orderId) {
@@ -452,6 +455,8 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
     } catch (error: any) {
       setModalMessage(error.response?.data?.message || `حدث خطأ أثناء ${orderId ? 'تحديث' : 'إضافة'} الطلب`);
       setShowErrorModal(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -484,7 +489,10 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
                 onBlur={handleClientInputBlur}
                 onFocus={() => clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
                 placeholder="ابحث عن العميل بالاسم أو رقم الهاتف"
-                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-right"
+                disabled={isSubmitting}
+                className={`w-full p-3 border border-gray-300 rounded-md text-right ${
+                  isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
+                }`}
               />
               {isSearchingClients && (
                 <div className="absolute right-3 top-3">
@@ -541,7 +549,10 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
                 onBlur={handleHomemaidInputBlur}
                 onFocus={() => homemaidSearchTerm.length >= 1 && setShowHomemaidSuggestions(true)}
                 placeholder="ابحث عن العاملة بالاسم"
-                className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-right"
+                disabled={isSubmitting}
+                className={`w-full p-3 border border-gray-300 rounded-md text-right ${
+                  isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
+                }`}
               />
               {isSearchingHomemaids && (
                 <div className="absolute right-3 top-3">
@@ -634,7 +645,10 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
               name="Total"
               value={formData.Total}
               onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
+              disabled={isSubmitting}
+              className={`border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right ${
+                isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
+              }`}
             />
             {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
           </div>
@@ -645,7 +659,10 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
               name="Paid"
               value={formData.Paid}
               onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
+              disabled={isSubmitting}
+              className={`border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right ${
+                isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
+              }`}
             />
             {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
           </div>
@@ -691,7 +708,12 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
                 />
                 <button
                   type="button"
-                  className="bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+                  disabled={isSubmitting}
+                  className={`px-3 py-1 rounded text-sm transition duration-200 ${
+                    isSubmitting 
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                      : 'bg-teal-900 text-white hover:bg-teal-800'
+                  }`}
                   onClick={() => handleButtonClick(file.id)}
                 >
                   اختيار ملف
@@ -702,8 +724,32 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
           ))}
         </div>
         <div className="flex gap-6 flex-col sm:flex-row">
-          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
-          <button type="button" onClick={onCancel} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className={`px-4 py-2 rounded w-full sm:w-40 transition duration-200 flex items-center justify-center gap-2 ${
+              isSubmitting 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-teal-900 text-white hover:bg-teal-800'
+            }`}
+          >
+            {isSubmitting && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
+            {isSubmitting ? 'جاري الحفظ...' : 'حفظ'}
+          </button>
+          <button 
+            type="button" 
+            onClick={onCancel} 
+            disabled={isSubmitting}
+            className={`px-4 py-2 rounded w-full sm:w-40 transition duration-200 ${
+              isSubmitting 
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                : 'bg-gray-100 text-gray-800 border-2 border-teal-800 hover:bg-gray-200'
+            }`}
+          >
+            إلغاء
+          </button>
         </div>
       </form>
       {(showSuccessModal || showErrorModal) && (
