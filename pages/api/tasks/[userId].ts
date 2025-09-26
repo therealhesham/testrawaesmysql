@@ -1,21 +1,26 @@
 import prisma from "../globalprisma";
+import { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   switch (req.method) {
     case 'GET':
       try {
         const { userId } = req.query;
+        const userIdStr = Array.isArray(userId) ? userId[0] : userId;
 
-        console.log('Fetching tasks for userId:', userId);
+        console.log('Fetching tasks for userId:', userIdStr);
 
         // Validate userId
-        if (!userId || isNaN(parseInt(userId))) {
+        if (!userIdStr || isNaN(parseInt(userIdStr))) {
           return res.status(400).json({ error: 'Invalid userId' });
         }
 
         const tasks = await prisma.tasks.findMany({
           where: {
-            userId: parseInt(userId),
+            OR: [
+              { userId: parseInt(userIdStr) }, // المهام المُسندة للمستخدم
+              { assignedBy: parseInt(userIdStr) } // المهام المُرسلة من المستخدم
+            ]
           },
           select: {
             taskDeadline: true,
@@ -24,8 +29,10 @@ export default async function handler(req, res) {
             description: true,
             Title: true,
             isCompleted: true,
+            userId: true,
+            assignedBy: true,
           },
-        });
+        } as any);
         console.log('Found tasks:', tasks.length);
         res.status(200).json(tasks);
       } catch (error) {
@@ -36,13 +43,14 @@ export default async function handler(req, res) {
     case 'POST':
       try {
         const { userId } = req.query;
+        const userIdStr = Array.isArray(userId) ? userId[0] : userId;
         const { description, Title, taskDeadline, isCompleted } = req.body;
 
-        console.log('Creating task for userId:', userId);
+        console.log('Creating task for userId:', userIdStr);
         console.log('Task data:', { description, Title, taskDeadline, isCompleted });
 
         // Validate userId
-        if (!userId || isNaN(parseInt(userId))) {
+        if (!userIdStr || isNaN(parseInt(userIdStr))) {
           return res.status(400).json({ error: 'Invalid userId' });
         }
 
@@ -53,13 +61,13 @@ export default async function handler(req, res) {
 
         const task = await prisma.tasks.create({
           data: {
-            userId: parseInt(userId),
-            assignedBy: parseInt(userId), // The person creating the task is also the assigner
+            userId: parseInt(userIdStr),
+            assignedBy: parseInt(userIdStr), // The person creating the task is also the assigner
             description,
             taskDeadline: new Date(taskDeadline).toISOString(),
             Title,
             isCompleted: isCompleted || false,
-          },
+          } as any,
           select: {
             createdAt: true,
             id: true,
@@ -69,7 +77,7 @@ export default async function handler(req, res) {
             isCompleted: true,
             userId: true,
             assignedBy: true,
-          },
+          } as any,
         });
 
         res.status(201).json(task);
