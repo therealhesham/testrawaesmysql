@@ -518,6 +518,7 @@ export default function Home({
   const [housingSectionState, setHousingSectionState] = useState("housing");
   const [workersSectionState, setWorkersSectionState] = useState("workers");
   const [relationsSectionState, setRelationsSectionState] = useState("relations");
+  const [tasksSectionState, setTasksSectionState] = useState("myTasks");
 
   const sectionRef = useRef(null);
   const scrollToSection = () => {
@@ -978,43 +979,106 @@ export default function Home({
                 </span>
               </button>
             </div>
-            <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-              {clientTasks.filter(task => !task.isCompleted).slice(0, 5).map((task, index) => (
-                <li 
-                  key={index} 
-                  className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => handleTaskClick(task)}
+            
+            {/* Tasks Tabs */}
+            <div className="mb-4">
+              <nav className="flex gap-4 border-b border-gray-100 pb-3">
+                <button
+                  onClick={() => setTasksSectionState("myTasks")}
+                  className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "myTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-lg font-medium text-gray-900">{task.Title}</p>
-                      <p className="text-sm text-gray-600">{task.description}</p>
-                      <p className="text-sm text-gray-500">
-                        الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
-                      </p>
-                      {task.assignedBy && (
-                        <p className="text-xs text-blue-600">
-                          مُسندة من: المستخدم #{task.assignedBy}
+                  مهامي <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length}</span>
+                </button>
+                <button
+                  onClick={() => setTasksSectionState("sentTasks")}
+                  className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "sentTasks" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user.id).length}</span>
+                </button>
+              </nav>
+            </div>
+
+            {/* My Tasks Tab */}
+            {tasksSectionState === "myTasks" && (
+              <ul className={`${Style["tajawal-medium"]} space-y-4`}>
+                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).slice(0, 5).map((task, index) => (
+                  <li 
+                    key={index} 
+                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => handleTaskClick(task)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                        <p className="text-sm text-gray-600">{task.description}</p>
+                        <p className="text-sm text-gray-500">
+                          الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
                         </p>
-                      )}
+                        {task.assignedBy && task.assignedBy !== user.id && (
+                          <p className="text-xs text-blue-600">
+                            مُسندة من: المستخدم #{task.assignedBy}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-sm text-teal-600">غير مكتمل</span>
                     </div>
-                    <span className="text-sm text-teal-600">غير مكتمل</span>
+                  </li>
+                ))}
+                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length > 5 && (
+                  <div className="text-center py-2">
+                    <span className="text-sm text-gray-500">
+                      عرض {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length - 5} مهمة إضافية...
+                    </span>
                   </div>
-                </li>
-              ))}
-              {clientTasks.filter(task => !task.isCompleted).length > 5 && (
-                <div className="text-center py-2">
-                  <span className="text-sm text-gray-500">
-                    عرض {clientTasks.filter(task => !task.isCompleted).length - 5} مهمة إضافية...
-                  </span>
-                </div>
-              )}
-              {clientTasks.filter(task => !task.isCompleted).length === 0 && (
-                <div className="text-center py-8">
-                  <span className="text-sm text-gray-500">لا توجد مهام غير مكتملة</span>
-                </div>
-              )}
-            </ul>
+                )}
+                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length === 0 && (
+                  <div className="text-center py-8">
+                    <span className="text-sm text-gray-500">لا توجد مهام غير مكتملة</span>
+                  </div>
+                )}
+              </ul>
+            )}
+
+            {/* Sent Tasks Tab */}
+            {tasksSectionState === "sentTasks" && (
+              <ul className={`${Style["tajawal-medium"]} space-y-4`}>
+                {clientTasks.filter(task => task.assignedBy === user.id).slice(0, 5).map((task, index) => (
+                  <li 
+                    key={index} 
+                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => handleTaskClick(task)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                        <p className="text-sm text-gray-600">{task.description}</p>
+                        <p className="text-sm text-gray-500">
+                          الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
+                        </p>
+                        <p className="text-xs text-green-600">
+                          مُرسلة إلى: المستخدم #{task.userId}
+                        </p>
+                      </div>
+                      <span className={`text-sm ${task.isCompleted ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {task.isCompleted ? 'مكتمل' : 'غير مكتمل'}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+                {clientTasks.filter(task => task.assignedBy === user.id).length > 5 && (
+                  <div className="text-center py-2">
+                    <span className="text-sm text-gray-500">
+                      عرض {clientTasks.filter(task => task.assignedBy === user.id).length - 5} مهمة إضافية...
+                    </span>
+                  </div>
+                )}
+                {clientTasks.filter(task => task.assignedBy === user.id).length === 0 && (
+                  <div className="text-center py-8">
+                    <span className="text-sm text-gray-500">لا توجد مهام مرسلة</span>
+                  </div>
+                )}
+              </ul>
+            )}
           </div>
         </div>
 
