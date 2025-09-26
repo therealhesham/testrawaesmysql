@@ -38,6 +38,7 @@ export default async function handler(req, res) {
     const task = await prisma.tasks.create({
       data: {
         userId: selectedUserId,
+        assignedBy: parseInt(userId), // The person who created the task
         description,
         Title: title,
         taskDeadline: new Date(taskDeadline).toISOString(),
@@ -46,6 +47,7 @@ export default async function handler(req, res) {
       select: {
         id: true,
         userId: true,
+        assignedBy: true,
         description: true,
         Title: true,
         taskDeadline: true,
