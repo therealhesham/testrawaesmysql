@@ -16,7 +16,7 @@ export default async function handler(
 
     // Build where clause for filtering
     const whereClause: any = {
-      bookingstatus: { not: "booked" }, // Only available homemaids
+      bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} }, // Only available homemaids
     };
 
     if (experience) {
@@ -24,7 +24,11 @@ export default async function handler(
     }
 
     if (nationality) {
-      whereClause.Nationalitycopy = { contains: nationality as string };
+      // Search in office.Country field where nationality is actually stored
+      // This is the primary search criteria
+      whereClause.office = {
+        Country: { contains: nationality as string }
+      };
     }
 
     if (religion) {
@@ -39,9 +43,10 @@ export default async function handler(
         const targetBirthYear = currentYear - ageNum;
         
         // Search for birth year with tolerance of ±2 years
+        // Convert to proper ISO-8601 DateTime format
         whereClause.dateofbirth = {
-          gte: `${targetBirthYear - 2}-01-01`,
-          lte: `${targetBirthYear + 2}-12-31`,
+          gte: new Date(`${targetBirthYear - 2}-01-01T00:00:00.000Z`),
+          lte: new Date(`${targetBirthYear + 2}-12-31T23:59:59.999Z`),
         };
       }
     }
@@ -66,9 +71,11 @@ export default async function handler(
         bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} },
       };
 
-      // Try matching nationality only
+      // Try matching nationality only (highest priority)
       if (nationality) {
-        flexibleWhereClause.Nationalitycopy = { contains: nationality as string };
+        flexibleWhereClause.office = {
+          Country: { contains: nationality as string }
+        };
       }
 
       const flexibleHomemaids = await prisma.homemaid.findMany({
@@ -110,16 +117,24 @@ export default async function handler(
     const scoredHomemaids = homemaids.map((homemaid) => {
       let score = 0;
       
-      // Exact matches get highest score
-      if (nationality && homemaid.Nationalitycopy?.toLowerCase().includes((nationality as string).toLowerCase())) {
-        score += 10;
+      // Exact matches get highest score - NATIONALITY FIRST (highest priority)
+      if (nationality) {
+        const nationalityLower = (nationality as string).toLowerCase();
+        // Check office Country field (where nationality is actually stored) - HIGHEST PRIORITY
+        if (homemaid.office?.Country?.toLowerCase().includes(nationalityLower)) {
+          score += 25; // Highest score for nationality match
+        }
+        // Also check Nationalitycopy field as fallback
+        if (homemaid.Nationalitycopy?.toLowerCase().includes(nationalityLower)) {
+          score += 15;
+        }
       }
+      // RELIGION SECOND PRIORITY
       if (religion && homemaid.Religion?.toLowerCase().includes((religion as string).toLowerCase())) {
-        score += 8;
+        score += 20; // Second highest score for religion match
       }
-      if (experience && homemaid.ExperienceYears?.includes(experience as string)) {
-        score += 6;
-      }
+      
+      // AGE THIRD PRIORITY
       if (age && homemaid.dateofbirth) {
         // Calculate age from dateofbirth
         const birthDate = new Date(homemaid.dateofbirth);
@@ -131,15 +146,21 @@ export default async function handler(
           : calculatedAge;
         
         const ageDiff = Math.abs(finalAge - parseInt(age as string));
-        if (ageDiff <= 2) score += 5;
-        else if (ageDiff <= 5) score += 3;
-        else if (ageDiff <= 10) score += 1;
+        if (ageDiff <= 2) score += 15; // High score for exact age match
+        else if (ageDiff <= 5) score += 10; // Medium score for close age
+        else if (ageDiff <= 10) score += 5; // Low score for far age
+      }
+      
+      // EXPERIENCE FOURTH PRIORITY
+      if (experience && homemaid.ExperienceYears?.includes(experience as string)) {
+        score += 12; // Fourth priority for experience match
       }
 
       return { ...homemaid, relevanceScore: score };
     });
 
     // Sort by relevance score (highest first) and take top 5
+    // Priority: Nationality (25) > Religion (20) > Age (15) > Experience (12)
     const sortedHomemaids = scoredHomemaids
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
       .slice(0, 5);
@@ -161,7 +182,7 @@ export default async function handler(
       return {
         id: homemaid.id,
         name: homemaid.Name,
-        nationality: homemaid.Nationalitycopy,
+        nationality: homemaid.office?.Country || homemaid.Nationalitycopy, // Use office country as primary nationality
         religion: homemaid.Religion,
         experience: homemaid.ExperienceYears,
         age: calculatedAge,
@@ -177,6 +198,7 @@ export default async function handler(
       success: true,
       suggestions,
       count: suggestions.length,
+      message: suggestions.length === 0 ? "لم يتم العثور على عاملات تطابق المواصفات المطلوبة" : null,
     });
   } catch (error) {
     console.error("Error fetching homemaid suggestions:", error);

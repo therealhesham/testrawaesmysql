@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { userId, username } = getUserFromCookies(req);
     
     // Validate required fields
-    const requiredFields = ['customerName', 'phoneNumber', 'workerId', 'contractDuration', 'contractStartDate', 'contractEndDate', 'paymentMethod', 'totalAmount', 'paidAmount'];
+    const requiredFields = ['customerName', 'phoneNumber', 'workerId', 'contractDuration', 'contractStartDate', 'contractEndDate', 'paymentMethod'];
     for (const field of requiredFields) {
       if (!formData[field]) {
         return res.status(400).json({ message: `Missing required field: ${field}` });
@@ -92,12 +92,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         createdAt: new Date(),
         updatedAt: new Date(),
         PaymentMethod: formData.paymentMethod,
-        Total: parseInt(formData.totalAmount) || 0,
+        Total: formData.totalAmount ? parseInt(formData.totalAmount) : 0,
         Installments: formData.paymentMethod === 'cash' ? 1 : formData.paymentMethod === 'two-installments' ? 2 : 3,
       },
     });
 
-    // Create payment record
+    // Create payment record (only if paidAmount is provided and greater than 0)
     if (formData.paidAmount && parseFloat(formData.paidAmount) > 0) {
       await prisma.payment.create({
         data: {
@@ -116,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       const officeName = homemaid?.officeName || homemaid?.office?.office || '';
 
-      const totalRevenue = Number(formData.paidAmount || 0);
+      const totalRevenue = formData.paidAmount ? Number(formData.paidAmount) : 0;
 
       const statement = await prisma.clientAccountStatement.create({
         data: {

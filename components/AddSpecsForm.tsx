@@ -246,12 +246,19 @@ export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: 
       );
       const data = await response.json();
       
-      if (data.success && data.suggestions.length > 0) {
-        setSuggestions(data.suggestions);
-        setShowSuggestionModal(true);
+      if (data.success) {
+        if (data.suggestions.length > 0) {
+          setSuggestions(data.suggestions);
+          setShowSuggestionModal(true);
+        } else {
+          setModalMessage(data.message || 'لم يتم العثور على عاملات تطابق المواصفات المطلوبة');
+          setShowErrorModal(true);
+        }
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
+      setModalMessage('حدث خطأ أثناء البحث عن العاملات');
+      setShowErrorModal(true);
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -332,9 +339,34 @@ export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: 
       return;
     }
     try {
-      const submitData = { ...formData } as any;
+      let submitData = { ...formData } as any;
+      
+      // Map selectedHomemaidId to HomemaidId for backend compatibility
+      if (formData.selectedHomemaidId) {
+        submitData.HomemaidId = formData.selectedHomemaidId;
+      }
+      
       if (orderId) {
-        submitData.orderId = orderId;
+        // For updates, send data in the format expected by track_order endpoint
+        submitData = {
+          section: 'homemaidInfo',
+          updatedData: {
+            id: formData.selectedHomemaidId,
+            name: formData.ClientName,
+            nationality: formData.Nationalitycopy,
+            religion: formData.Religion,
+            experience: formData.ExperienceYears,
+            age: formData.age,
+            notes: formData.notes,
+            typeOfContract: "recruitment",
+            paymentMethod: formData.PaymentMethod,
+            total: formData.Total,
+            paid: formData.Paid,
+            remaining: formData.Remaining,
+            orderDocument: formData.orderDocument,
+            contract: formData.contract,
+          }
+        };
       }
       const url = orderId ? `/api/track_order/${orderId}` : '/api/submitneworderbyspecs';
       const method = orderId ? 'PATCH' : 'POST';
@@ -482,6 +514,8 @@ export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: 
             />
           </div>
           <div className="flex flex-col gap-2">
+            <label className="text-base"> &nbsp;  </label>
+
             <button
               type="button"
               onClick={fetchSuggestions}

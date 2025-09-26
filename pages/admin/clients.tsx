@@ -1,9 +1,11 @@
+// React
 import AddClientModal from 'components/AddClientModal';
+import AddNotesModal from 'components/AddNotesModal';
 import Style from "styles/Home.module.css";
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp } from 'lucide-react';
 import { FileExcelOutlined } from '@ant-design/icons';
-import { DocumentTextIcon } from '@heroicons/react/outline';
+import { DocumentTextIcon, DownloadIcon } from '@heroicons/react/outline';
 import Layout from 'example/containers/Layout';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -27,6 +29,8 @@ interface Client {
   createdat: string | null;
   orders: Order[];
   _count: { orders: number };
+  notes: string | null;
+  notes_date: string | null;
 }
 
 interface Props {
@@ -35,6 +39,8 @@ interface Props {
 
 const Customers = ({ hasPermission }: Props) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<{ id: number; name: string } | null>(null);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(!hasPermission); // مودال الصلاحية
   const [clients, setClients] = useState<Client[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -136,6 +142,15 @@ const Customers = ({ hasPermission }: Props) => {
 
   const toggleOrders = (clientId: number) => {
     setExpandedClientId(expandedClientId === clientId ? null : clientId);
+  };
+
+  const handleAddNotes = (clientId: number, clientName: string) => {
+    setSelectedClient({ id: clientId, name: clientName });
+    setIsNotesModalOpen(true);
+  };
+
+  const handleNotesSuccess = () => {
+    fetchClients(currentPage); // إعادة تحميل البيانات
   };
 
   const toggleColumn = (columnKey: keyof typeof visibleColumns) => {
@@ -380,7 +395,7 @@ const Customers = ({ hasPermission }: Props) => {
                         onChange={(e) => handleFilterChange('date', e.target.value)}
                         className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
                       />
-                      <Calendar className="mr-2 w-4 h-4" />
+                      {/* <Calendar className="mr-2 w-4 h-4" /> */}
                     </div>
                     <div className="relative" ref={columnDropdownRef}>
                       <button
@@ -389,7 +404,7 @@ const Customers = ({ hasPermission }: Props) => {
                       >
                         <span>تحديد الاعمدة</span>
                         <Filter className="mr-2 w-4 h-4" />
-                        <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${isColumnDropdownOpen ? 'rotate-180' : ''}`} />
+                        {/* <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${isColumnDropdownOpen ? 'rotate-180' : ''}`} /> */}
                       </button>
                       {isColumnDropdownOpen && (
                         <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-border-color rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
@@ -450,113 +465,129 @@ const Customers = ({ hasPermission }: Props) => {
                   </div>
                 </section>
 
-                <section className="bg-text-light border border-border-color rounded-md overflow-hidden">
-                  <div className="grid gap-5 bg-teal-800 text-white text-sm font-medium p-4" style={{
-                    gridTemplateColumns: `${Object.entries(visibleColumns).filter(([_, visible]) => visible).map(() => '1fr').join(' ')}`
-                  }}>
-                    {visibleColumns.id && <div>الرقم</div>}
-                    {visibleColumns.fullname && <div>الاسم</div>}
-                    {visibleColumns.phonenumber && <div>رقم الجوال</div>}
-                    {visibleColumns.nationalId && <div>الهوية</div>}
-                    {visibleColumns.city && <div>المدينة</div>}
-                    {visibleColumns.ordersCount && <div>عدد الطلبات</div>}
-                    {visibleColumns.lastOrderDate && <div>تاريخ آخر طلب</div>}
-                    {visibleColumns.showOrders && <div>عرض الطلبات</div>}
-                    {visibleColumns.remainingAmount && <div>المبلغ المتبقي</div>}
-                    {visibleColumns.notes && <div>ملاحظات</div>}
-                    {visibleColumns.view && <div>عرض</div>}
-                  </div>
-                  <div className="divide-y divide-border-color">
-                    {loading ? (
-                      <div className="p-4 text-center text-text-dark">جاري التحميل...</div>
-                    ) : clients.length === 0 ? (
-                      <div className="p-4 text-center text-text-dark">لا توجد بيانات</div>
+<section className="bg-text-light border border-border-color rounded-md overflow-x-auto">
+  <table className="w-full text-sm font-medium ">
+    <thead>
+      <tr className="bg-teal-800 text-white">
+        {visibleColumns.id && <th className="text-nowrap text-center p-4 w-[8%]">الرقم</th>}
+        {visibleColumns.fullname && <th className="text-nowrap text-center p-4 w-[15%]">الاسم</th>}
+        {visibleColumns.phonenumber && <th className="text-nowrap text-center p-4 w-[12%]">رقم الجوال</th>}
+        {visibleColumns.nationalId && <th className="text-nowrap text-center p-4 w-[12%]">الهوية</th>}
+        {visibleColumns.city && <th className="text-nowrap text-center p-4 w-[10%]">المدينة</th>}
+        {visibleColumns.ordersCount && <th className="text-nowrap text-center p-4 w-[10%]">عدد الطلبات</th>}
+        {visibleColumns.lastOrderDate && <th className="text-nowrap text-center p-4 w-[12%]">تاريخ آخر طلب</th>}
+        {visibleColumns.showOrders && <th className="text-nowrap text-center p-4 w-[8%]">عرض الطلبات</th>}
+        {visibleColumns.remainingAmount && <th className="text-nowrap text-center p-4 w-[10%]">المبلغ المتبقي</th>}
+        {visibleColumns.notes && <th className="text-nowrap text-center p-4 w-[10%]">ملاحظات</th>}
+        {visibleColumns.view && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">عرض</th>}
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-border-color">
+      {loading ? (
+        <tr>
+          <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="p-4 text-center text-text-dark">
+            جاري التحميل...
+          </td>
+        </tr>
+      ) : clients.length === 0 ? (
+        <tr>
+          <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="p-4 text-center text-text-dark">
+            لا توجد بيانات
+          </td>
+        </tr>
+      ) : (
+        clients.map((client) => (
+          <React.Fragment key={client.id}>
+            <tr className="bg-background-light text-text-dark text-md">
+              {visibleColumns.id && <td className="text-nowrap text-center p-4">#{client.id}</td>}
+              {visibleColumns.fullname && <td className="text-nowrap text-center p-4">{client.fullname}</td>}
+              {visibleColumns.phonenumber && <td className="text-nowrap text-center p-4">{client.phonenumber}</td>}
+              {visibleColumns.nationalId && <td className="text-nowrap text-center p-4">{client.nationalId}</td>}
+              {visibleColumns.city && <td className="text-nowrap text-center p-4">{client.city}</td>}
+              {visibleColumns.ordersCount && <td className="text-nowrap text-center p-4">{client._count.orders}</td>}
+              {visibleColumns.lastOrderDate && (
+                <td className="text-nowrap text-center p-4">
+                  {client.orders[0]?.createdat
+                    ? new Date(client.orders[0]?.createdat).toLocaleDateString()
+                    : '-'}
+                </td>
+              )}
+              {visibleColumns.showOrders && (
+                <td className="text-nowrap text-center p-4">
+                  <button
+                    onClick={() => toggleOrders(client.id)}
+                    className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
+                  >
+                    {expandedClientId === client.id ? (
+                      <ChevronUp className="w-4 h-4" />
                     ) : (
-                      clients.map((client) => (
-                        <div key={client.id}>
-                          <div className="grid gap-5 bg-background-light text-text-dark text-md p-4" style={{
-                            gridTemplateColumns: `${Object.entries(visibleColumns).filter(([_, visible]) => visible).map(() => '1fr').join(' ')}`
-                          }}>
-                            {visibleColumns.id && <div>#{client.id}</div>}
-                            {visibleColumns.fullname && <div>{client.fullname}</div>}
-                            {visibleColumns.phonenumber && <div>{client.phonenumber}</div>}
-                            {visibleColumns.nationalId && <div>{client.nationalId}</div>}
-                            {visibleColumns.city && <div>{client.city}</div>}
-                            {visibleColumns.ordersCount && <div>{client._count.orders}</div>}
-                            {visibleColumns.lastOrderDate && (
-                              <div>
-                                {client.orders[0]?.createdat
-                                  ? new Date(client.orders[0]?.createdat).toLocaleDateString()
-                                  : '-'}
-                              </div>
-                            )}
-                            {visibleColumns.showOrders && (
-                              <div>
-                                <button
-                                  onClick={() => toggleOrders(client.id)}
-                                  className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
-                                >
-                                  {expandedClientId === client.id ? (
-                                    <ChevronUp className="w-4 h-4" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4 rotate-90" />
-                                  )}
-                                </button>
-                              </div>
-                            )}
-                            {visibleColumns.remainingAmount && <div>-</div>}
-                            {visibleColumns.notes && (
-                              <div>
-                                <a href="#" className="flex items-center gap-1 text-primary-dark text-md hover:underline">
-                                  <DocumentTextIcon className="w-4 h-4" />
-                                  <span>إضافة ملاحظة</span>
-                                </a>
-                              </div>
-                            )}
-                            {visibleColumns.view && (
-                              <div>
-                                <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10">
-                                  <Eye className="w-4 h-4 rotate-90" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          {expandedClientId === client.id && (
-                            <div className="bg-background-light p-4">
-                              <div className="border border-border-color rounded-md overflow-hidden">
-                                <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 bg-teal-800 text-white text-sm font-medium p-4">
-                                  <div>رقم الطلب</div>
-                                  <div>اسم العامل</div>
-                                  <div>حالة الحجز</div>
-                                  <div>تاريخ الإنشاء</div>
-                                </div>
-                                {client.orders.length === 0 ? (
-                                  <div className="p-4 text-center text-text-dark">لا توجد طلبات</div>
-                                ) : (
-                                  client.orders.map((order) => (
-                                    <div
-                                      key={order.id}
-                                      className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 bg-background-light text-text-dark text-md p-4"
-                                    >
-                                      <div>#{order.id}</div>
-                                      <div>{order.HomeMaid?.Name || '-'}</div>
-                                      <div>{order.bookingstatus || '-'}</div>
-                                      <div>
-                                        {order.createdat
-                                          ? new Date(order.createdat).toLocaleDateString()
-                                          : '-'}
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))
+                      <ChevronRight className="w-4 h-4 rotate-90" />
                     )}
-                  </div>
-                </section>
+                  </button>
+                </td>
+              )}
+              {visibleColumns.remainingAmount && <td className="text-nowrap text-center p-4">-</td>}
+              {visibleColumns.notes && (
+                <td className="text-nowrap text-center p-4">
+                  <button 
+                    onClick={() => handleAddNotes(client.id, client.fullname || 'غير محدد')}
+                    className="flex items-center gap-1 text-primary-dark text-md hover:underline"
+                  >
+                    <DocumentTextIcon className="w-4 h-4" />
+                    <span>إضافة ملاحظة</span>
+                  </button>
+                </td>
+              )}
+              {visibleColumns.view && (
+                <td className="text-nowrap text-center p-4">
+                  <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10">
+                    <DownloadIcon className="w-4 h-4" />
+                  </button>
+                </td>
+              )}
+            </tr>
+            {expandedClientId === client.id && (
+              <tr>
+                <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
+                  <table className="w-full border border-border-color rounded-md">
+                    <thead>
+                      <tr className="bg-teal-800 text-white text-sm font-medium">
+                        <th className="text-nowrap text-center p-4">رقم الطلب</th>
+                        <th className="text-nowrap text-center p-4">اسم العامل</th>
+                        <th className="text-nowrap text-center p-4">حالة الحجز</th>
+                        <th className="text-nowrap text-center p-4">تاريخ الإنشاء</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {client.orders.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="p-4 text-center text-text-dark">
+                            لا توجد طلبات
+                          </td>
+                        </tr>
+                      ) : (
+                        client.orders.map((order) => (
+                          <tr key={order.id} className="bg-background-light text-text-dark text-md">
+                            <td className="text-nowrap text-center p-4">#{order.id}</td>
+                            <td className="text-nowrap text-center p-4">{order.HomeMaid?.Name || '-'}</td>
+                            <td className="text-nowrap text-center p-4">{order.bookingstatus || '-'}</td>
+                            <td className="text-nowrap text-center p-4">
+                              {order.createdat ? new Date(order.createdat).toLocaleDateString() : '-'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            )}
+          </React.Fragment>
+        ))
+      )}
+    </tbody>
+  </table>
+</section>
 
                 <footer className="flex flex-col sm:flex-row justify-between items-center p-5 mt-6">
                   <p className="text-base text-text-dark">
@@ -600,6 +631,18 @@ const Customers = ({ hasPermission }: Props) => {
           </main>
         </div>
         <AddClientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+        {selectedClient && (
+          <AddNotesModal
+            isOpen={isNotesModalOpen}
+            onClose={() => {
+              setIsNotesModalOpen(false);
+              setSelectedClient(null);
+            }}
+            clientId={selectedClient.id}
+            clientName={selectedClient.name}
+            onSuccess={handleNotesSuccess}
+          />
+        )}
       </div>
     </Layout>
   );
