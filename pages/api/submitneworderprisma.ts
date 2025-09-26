@@ -116,7 +116,7 @@ const cookieHeader = req.headers.cookie;
       });
 
       try {
-        await prisma.logs.create({data:{Details: 'تسجيل طلب جديد رقم  ' + result.id,homemaidId: HomemaidId,userId: token.id,Status:"طلب جديد"}})
+        await prisma.logs.create({data:{Details: 'تسجيل طلب جديد رقم  ' + result.id,homemaidId:result.HomemaidId,userId: token.username,Status:"طلب جديد"}})
       } catch (error) {
         console.log(error)
       }
