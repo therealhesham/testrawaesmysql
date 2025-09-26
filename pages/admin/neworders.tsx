@@ -14,15 +14,34 @@ import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 
-export default function Dashboard({ hasPermission }) {
-  const [activePopup, setActivePopup] = useState(null);
-  const [newOrders, setNewOrders] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [homemaids, setHomemaids] = useState([]);
-  const [offices, setOffices] = useState([]);
+// Type definitions
+interface MenuPosition {
+  x: number;
+  y: number;
+  row: number;
+}
+
+interface InitialData {
+  newOrders: any[];
+  clients: any[];
+  homemaids: any[];
+  offices: any[];
+  exportData: any[];
+}
+
+interface DashboardProps {
+  hasPermission: boolean;
+  initialData: InitialData;
+}
+
+export default function Dashboard({ hasPermission, initialData }: DashboardProps) {
+  const [activePopup, setActivePopup] = useState<string | null>(null);
+  const [allOrders] = useState(initialData?.newOrders || []);
+  const [clients] = useState(initialData?.clients || []);
+  const [homemaids] = useState(initialData?.homemaids || []);
+  const [offices] = useState(initialData?.offices || []);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(10);
   const [formData, setFormData] = useState({
     searchTerm: '',
@@ -33,14 +52,14 @@ export default function Dashboard({ hasPermission }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(!hasPermission);
-  const [menuPosition, setMenuPosition] = useState(null);
-  const [detailsRow, setDetailsRow] = useState(null);
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const [exportedData, setExportedData] = useState([]);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const [detailsRow, setDetailsRow] = useState<number | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [exportedData] = useState(initialData?.exportData || []);
 
   const router = useRouter();
 
-  const handleOpenMenu = (e, rowIndex) => {
+  const handleOpenMenu = (e: React.MouseEvent, rowIndex: number) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setMenuPosition({
       x: rect.right - 160,
@@ -49,7 +68,7 @@ export default function Dashboard({ hasPermission }) {
     });
   };
 
-  const openPopup = (popupId) => setActivePopup(popupId);
+  const openPopup = (popupId: string) => setActivePopup(popupId);
   const closePopup = () => {
     setActivePopup(null);
     setMenuPosition(null);
@@ -66,13 +85,14 @@ export default function Dashboard({ hasPermission }) {
     router.push('/admin/home');
   };
 
-  const confirmAccept = async (id) => {
+  const confirmAccept = async (id: string) => {
     try {
       const confirmRequest = await axios.post('/api/confirmrequest', { id });
       if (confirmRequest.status === 200) {
         setModalMessage('تم قبول الطلب');
         setShowSuccessModal(true);
-        newOrdersList();
+        // Refresh data by reloading the page
+        window.location.reload();
       }
     } catch (error) {
       setModalMessage('حدث خطأ أثناء قبول الطلب');
@@ -81,7 +101,7 @@ export default function Dashboard({ hasPermission }) {
     closePopup();
   };
 
-  const confirmReject = async (id) => {
+  const confirmReject = async (id: string) => {
     try {
       const rejectRequest = await axios.post('/api/rejectbookingprisma', { id });
       if (rejectRequest.status === 200) {
@@ -96,15 +116,15 @@ export default function Dashboard({ hasPermission }) {
     closePopup();
   };
 
-  const handleOrderClick = (id) => {
+  const handleOrderClick = (id: string) => {
     router.push(`/admin/track_order/${id}`);
   };
 
-  const toggleDetails = (index) => {
+  const toggleDetails = (index: number) => {
     setDetailsRow(detailsRow === index ? null : index);
   };
 
-  const calculateAge = (dateofbirth) => {
+  const calculateAge = (dateofbirth: string | Date) => {
     if (!dateofbirth) return "غير متوفر";
     const birthDate = new Date(dateofbirth);
     const currentDate = new Date();
@@ -116,80 +136,76 @@ export default function Dashboard({ hasPermission }) {
     return age;
   };
 
-  const newExportOrdersList = async () => {
-    setIsLoading(true);
-    try {
-      const fetchNewOrders = await axios.get("/api/Export/neworders");
-      setExportedData(Array.isArray(fetchNewOrders.data.homemaids) ? fetchNewOrders.data.homemaids : []);
-    } catch (error) {
-      console.error("Error fetching new orders:", error.response?.data || error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Client-side filtering logic
+  const filterOrders = () => {
+    let filtered = [...allOrders];
 
-  const newOrdersList = async (page = 1) => {
-    setIsLoading(true);
-    try {
-      const fetchNewOrders = await axios.get("/api/newordersprismatest", {
-        params: {
-          searchTerm: formData.searchTerm || "",
-          age: ageFilter,
-          Country: nationalityFilter,
-          page,
-        },
+    // Search filter
+    if (formData.searchTerm) {
+      const searchTerm = formData.searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        (order.client?.fullname || '').toLowerCase().includes(searchTerm) ||
+        (order.HomeMaid?.Name || '').toLowerCase().includes(searchTerm) ||
+        (order.ClientName || '').toLowerCase().includes(searchTerm) ||
+        (order.Name || '').toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Age filter
+    if (ageFilter) {
+      filtered = filtered.filter(order => {
+        const maid = order.HomeMaid;
+        if (!maid?.dateofbirth) return false;
+        
+        const age = calculateAge(maid.dateofbirth);
+        if (typeof age === 'number') {
+          if (ageFilter.includes('-')) {
+            const [minAge, maxAge] = ageFilter.split('-').map(Number);
+            return age >= minAge && age <= maxAge;
+          } else {
+            const targetAge = parseInt(ageFilter);
+            return Math.abs(age - targetAge) <= 2;
+          }
+        }
+        return false;
       });
-      setNewOrders(Array.isArray(fetchNewOrders.data.homemaids) ? fetchNewOrders.data.homemaids : []);
-      setTotalCount(fetchNewOrders.data.totalCount || 0);
-      setCurrentPage(fetchNewOrders.data.page || 1);
-    } catch (error) {
-      console.error("Error fetching new orders:", error.response?.data || error.message);
-      setNewOrders([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
     }
+
+    // Nationality filter
+    if (nationalityFilter) {
+      filtered = filtered.filter(order => 
+        order.HomeMaid?.office?.Country === nationalityFilter
+      );
+    }
+
+    return filtered;
   };
 
-  const fetchClients = async () => {
-    try {
-      const response = await axios.get("/api/autocomplete/clients");
-      setClients(Array.isArray(response.data.data) ? response.data.data : []);
-    } catch (error) {
-      console.error('Error fetching clients:', error);
-    }
+  const getPaginatedOrders = () => {
+    const filtered = filterOrders();
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return {
+      orders: filtered.slice(startIndex, endIndex),
+      totalCount: filtered.length
+    };
   };
 
-  const fetchHomemaids = async () => {
-    try {
-      const response = await axios.get("/api/autocomplete/homemaids");
-      setHomemaids(Array.isArray(response.data.data) ? response.data.data : []);
-    } catch (error) {
-      console.error('Error fetching homemaids:', error);
-    }
-  };
+  // Get current filtered and paginated data
+  const { orders: newOrders, totalCount } = getPaginatedOrders();
 
-  const fetchOffices = async () => {
-    try {
-      const response = await axios.get("/api/nationalities");
-      setOffices(Array.isArray(response.data.nationalities) ? response.data.nationalities : []);
-    } catch (error) {
-      console.error('Error fetching nationalities:', error);
-    }
-  };
-
-  const handleSearchChange = (e) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData((prev) => ({ ...prev, searchTerm: value }));
     setCurrentPage(1);
   };
 
-  const handleAgeFilterChange = (selectedOption) => {
+  const handleAgeFilterChange = (selectedOption: any) => {
     setAgeFilter(selectedOption ? selectedOption.value : "");
     setCurrentPage(1);
   };
 
-  const handleNationalityFilterChange = (selectedOption) => {
+  const handleNationalityFilterChange = (selectedOption: any) => {
     setNationalityFilter(selectedOption ? selectedOption.value : "");
     setCurrentPage(1);
   };
@@ -225,7 +241,7 @@ export default function Dashboard({ hasPermission }) {
       'جواز السفر',
       'العمر',
     ];
-    const tableRows = exportedData.map(row => [
+    const tableRows = exportedData.map((row: any) => [
       row.id || 'غير متوفر',
       row.client?.fullname || 'غير متوفر',
       row.client?.phonenumber || 'غير متوفر',
@@ -252,7 +268,7 @@ export default function Dashboard({ hasPermission }) {
         halign: 'right',
       },
       margin: { top: 20, right: 10, left: 10 },
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         data.cell.styles.halign = 'right';
       },
     });
@@ -275,7 +291,7 @@ export default function Dashboard({ hasPermission }) {
     ];
     worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
     worksheet.getRow(1).alignment = { horizontal: 'right' };
-    exportedData.forEach(row => {
+    exportedData.forEach((row: any) => {
       worksheet.addRow({
         id: row.id || 'غير متوفر',
         clientName: row.client?.fullname || 'غير متوفر',
@@ -298,18 +314,32 @@ export default function Dashboard({ hasPermission }) {
     window.URL.revokeObjectURL(url);
   };
 
+  // Client-side authentication check
   useEffect(() => {
-    fetchClients();
-    fetchHomemaids();
-    fetchOffices();
-    newExportOrdersList();
-  }, []);
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/admin/login');
+          return;
+        }
+        
+        // Use verify-permissions API which checks token validity
+        const response = await axios.post('/api/verify-permissions');
+        
+        if (!response.data.hasPermission) {
+          setShowPermissionModal(true);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/admin/login');
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
 
-  useEffect(() => {
-    newOrdersList(currentPage);
-  }, [currentPage, ageFilter, nationalityFilter, formData.searchTerm]);
-
-  const clientOptions = clients.map(client => ({
+  const clientOptions = clients.map((client: any) => ({
     value: client.id,
     label: client.fullname,
   }));
@@ -322,16 +352,16 @@ export default function Dashboard({ hasPermission }) {
     { value: "51-60", label: "51-60 سنة" },
   ];
 
-  const nationalityOptions = offices.map(office => ({
+  const nationalityOptions = offices.map((office: any) => ({
     value: office.Country,
     label: office.Country,
   }));
 
   const totalPages = Math.ceil(totalCount / pageSize);
-  const startRecord = (currentPage - 1) * pageSize + 1;
+  const startRecord = totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0;
   const endRecord = Math.min(currentPage * pageSize, totalCount);
 
-  const handlePageChange = (page) => {
+  const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
@@ -534,14 +564,14 @@ export default function Dashboard({ hasPermission }) {
                         >
                           <MoreHorizontal />
                         </button>
-                        {menuPosition && menuPosition.row === index && (
-                          <div
-                            className="fixed w-40 bg-gray-100 border border-gray-200 rounded shadow-lg z-50"
-                            style={{
-                              top: typeof menuPosition.y === 'number' ? menuPosition.y : 0,
-                              left: typeof menuPosition.x === 'number' ? menuPosition.x : 0,
-                            }}
-                          >
+                         {menuPosition && menuPosition.row === index && (
+                           <div
+                             className="fixed w-40 bg-gray-100 border border-gray-200 rounded shadow-lg z-50"
+                             style={{
+                               top: menuPosition.y,
+                               left: menuPosition.x,
+                             }}
+                           >
                             <button
                               className="block w-full text-right px-4 py-2 hover:bg-gray-100"
                               onClick={() => {
@@ -604,15 +634,15 @@ export default function Dashboard({ hasPermission }) {
                                 <span>الوصف</span>
                                 <span>السبب</span>
                               </div>
-                              {row.HomeMaid?.logs.length > 0 && (row.HomeMaid?.logs.map((log) => (
-                                <div className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
-                                  <span>{log.Status || "غير متوفر"}</span>
-                                  <span>{log.createdAt ? new Date(log.createdAt).toLocaleString('ar-SA') : "غير متوفر"}</span>
-                                  <span>{log.user?.username || "غير متوفر"}</span>
-                                  <span>{log.Details || "غير متوفر"}</span>
-                                  <span>{log.reason || "غير متوفر"}</span>
-                                </div>
-                              )))}
+                               {row.HomeMaid?.logs.length > 0 && (row.HomeMaid?.logs.map((log: any) => (
+                                 <div key={log.id || Math.random()} className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
+                                   <span>{log.Status || "غير متوفر"}</span>
+                                   <span>{log.createdAt ? new Date(log.createdAt).toLocaleString('ar-SA') : "غير متوفر"}</span>
+                                   <span>{log.user?.username || "غير متوفر"}</span>
+                                   <span>{log.Details || "غير متوفر"}</span>
+                                   <span>{log.reason || "غير متوفر"}</span>
+                                 </div>
+                               )))}
                              
                             </div>
                           </div>
@@ -655,12 +685,12 @@ export default function Dashboard({ hasPermission }) {
                   >
                     إلغاء
                   </button>
-                  <button
-                    className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-                    onClick={() => confirmAccept(selectedOrderId)}
-                  >
-                    نعم
-                  </button>
+                   <button
+                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+                     onClick={() => selectedOrderId && confirmAccept(selectedOrderId)}
+                   >
+                     نعم
+                   </button>
                 </div>
               </div>
             )}
@@ -680,12 +710,12 @@ export default function Dashboard({ hasPermission }) {
                   >
                     إلغاء
                   </button>
-                  <button
-                    className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-                    onClick={() => confirmReject(selectedOrderId)}
-                  >
-                    نعم
-                  </button>
+                   <button
+                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+                     onClick={() => selectedOrderId && confirmReject(selectedOrderId)}
+                   >
+                     نعم
+                   </button>
                 </div>
               </div>
             )}
@@ -813,41 +843,142 @@ export default function Dashboard({ hasPermission }) {
   );
 }
 
-export async function getServerSideProps({ req }) {
+// Helper function to serialize dates
+const serializeDates = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (obj instanceof Date) return obj.toISOString();
+  if (Array.isArray(obj)) return obj.map(serializeDates);
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      serialized[key] = serializeDates(obj[key]);
+    }
+    return serialized;
+  }
+  return obj;
+};
+
+export async function getStaticProps() {
   try {
-    const cookieHeader = req.headers.cookie;
-    let cookies = {};
-    if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        cookies[key] = decodeURIComponent(value);
-      });
-    }
+    // Fetch all the data needed for the page
+    const [newOrders, clients, homemaids, offices, exportData] = await Promise.all([
+      // Fetch new orders
+      prisma.neworder.findMany({
+        orderBy: { id: "desc" },
+        include: {
+          client: true,
+          HomeMaid: {
+            select: {
+              dateofbirth: true,
+              Name: true,
+              Passportnumber: true,
+              id: true,
+              officeName: true,
+              Nationalitycopy: true,
+              office: {
+                select: {
+                  Country: true,
+                },
+              },
+              logs: { include: { user: true } },
+            },
+          },
+        },
+        where: {
+          bookingstatus: "new_order",
+        },
+      }),
+      // Fetch clients
+      prisma.client.findMany({
+        orderBy: { id: "desc" },
+      }),
+      // Fetch homemaids
+      prisma.homemaid.findMany({
+        select: {
+          Name: true,
+          id: true,
+          dateofbirth: true,
+          Passportnumber: true,
+          office: {
+            select: {
+              office: true,
+              Country: true
+            }
+          }
+        }
+      }),
+      // Fetch offices/nationalities
+      prisma.offices.findMany({
+        select: {
+          Country: true,
+        },
+        orderBy: { Country: 'asc' }
+      }),
+      // Fetch export data (all new orders for export)
+      prisma.neworder.findMany({
+        orderBy: { id: "desc" },
+        include: {
+          client: true,
+          HomeMaid: {
+            select: {
+              dateofbirth: true,
+              Name: true,
+              Passportnumber: true,
+              id: true,
+              officeName: true,
+              Nationalitycopy: true,
+              office: {
+                select: {
+                  Country: true,
+                },
+              },
+              logs: { include: { user: true } },
+            },
+          },
+        },
+        where: {
+          bookingstatus: "new_order",
+        },
+      })
+    ]);
 
-    if (!cookies.authToken) {
-      return {
-        redirect: { destination: "/admin/login", permanent: false },
-      };
-    }
+    // Process offices to get unique countries
+    const uniqueCountries = Array.from(new Set(offices.map(office => office.Country).filter(Boolean)));
+    const processedOffices = uniqueCountries.map((country, index) => ({
+      id: index + 1,
+      value: country,
+      label: country,
+      Country: country
+    }));
 
-    const token = jwtDecode(cookies.authToken);
-    const findUser = await prisma.user.findUnique({
-      where: { id: token.id },
-      include: { role: true },
-    });
-
-    const hasPermission = findUser && findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"];
+    // Serialize all data to make it JSON serializable
+    const serializedData = {
+      newOrders: serializeDates(newOrders),
+      clients: serializeDates(clients),
+      homemaids: serializeDates(homemaids),
+      offices: serializeDates(processedOffices),
+      exportData: serializeDates(exportData)
+    };
 
     return {
       props: {
-        hasPermission: !!hasPermission,
+        hasPermission: true, // Static pages can't check auth, handle in component
+        initialData: serializedData
       },
+      revalidate: 60, // Revalidate every 60 seconds
     };
   } catch (err) {
-    console.error("Authorization error:", err);
+    console.error("Static generation error:", err);
     return {
       props: {
         hasPermission: false,
+        initialData: {
+          newOrders: [],
+          clients: [],
+          homemaids: [],
+          offices: [],
+          exportData: []
+        }
       },
     };
   }
