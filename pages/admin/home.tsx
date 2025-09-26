@@ -1016,7 +1016,7 @@ export default function Home({
                         </p>
                         {task.assignedBy && task.assignedBy !== user.id && (
                           <p className="text-xs text-blue-600">
-                            مُسندة من: المستخدم #{task.assignedBy}
+                            مُسندة من: {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
                           </p>
                         )}
                       </div>
@@ -1056,7 +1056,7 @@ export default function Home({
                           الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
                         </p>
                         <p className="text-xs text-green-600">
-                          مُرسلة إلى: المستخدم #{task.userId}
+                          مُرسلة إلى: {task.user?.username || `المستخدم #${task.userId}`}
                         </p>
                       </div>
                       <span className={`text-sm ${task.isCompleted ? 'text-green-600' : 'text-yellow-600'}`}>

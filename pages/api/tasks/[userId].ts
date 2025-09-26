@@ -31,6 +31,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isCompleted: true,
             userId: true,
             assignedBy: true,
+            user: {
+              select: {
+                username: true,
+                id: true
+              }
+            },
+            assignedByUser: {
+              select: {
+                username: true,
+                id: true
+              }
+            }
           },
         } as any);
         console.log('Found tasks:', tasks.length);
