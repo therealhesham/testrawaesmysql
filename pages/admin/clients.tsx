@@ -12,6 +12,7 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'lib/prisma';
+import ColumnSelector from '../../components/ColumnSelector';
 
 interface Order {
   id: number;
@@ -54,8 +55,6 @@ const Customers = ({ hasPermission }: Props) => {
     date: '',
   });
   const [loading, setLoading] = useState(false);
-  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
-  const columnDropdownRef = useRef<HTMLDivElement>(null);
   const [cities, setCities] = useState<string[]>([]);
   const [visibleColumns, setVisibleColumns] = useState({
     id: true,
@@ -70,6 +69,21 @@ const Customers = ({ hasPermission }: Props) => {
     notes: true,
     view: true
   });
+
+  // Column definitions for the reusable component
+  const columnDefinitions = [
+    { key: 'id', label: 'الرقم' },
+    { key: 'fullname', label: 'الاسم' },
+    { key: 'phonenumber', label: 'رقم الجوال' },
+    { key: 'nationalId', label: 'الهوية' },
+    { key: 'city', label: 'المدينة' },
+    { key: 'ordersCount', label: 'عدد الطلبات' },
+    { key: 'lastOrderDate', label: 'تاريخ آخر طلب' },
+    { key: 'showOrders', label: 'عرض الطلبات' },
+    { key: 'remainingAmount', label: 'المبلغ المتبقي' },
+    { key: 'notes', label: 'ملاحظات' },
+    { key: 'view', label: 'عرض' }
+  ];
 
   const fetchCities = async () => {
     try {
@@ -115,18 +129,6 @@ const Customers = ({ hasPermission }: Props) => {
   }, [currentPage, filters, hasPermission]);
 
   // إضافة مستمع للنقر خارج القائمة المنسدلة
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (columnDropdownRef.current && !columnDropdownRef.current.contains(event.target as Node)) {
-        setIsColumnDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -153,58 +155,7 @@ const Customers = ({ hasPermission }: Props) => {
     fetchClients(currentPage); // إعادة تحميل البيانات
   };
 
-  const toggleColumn = (columnKey: keyof typeof visibleColumns) => {
-    setVisibleColumns(prev => ({
-      ...prev,
-      [columnKey]: !prev[columnKey]
-    }));
-  };
 
-  const selectAllColumns = () => {
-    setVisibleColumns({
-      id: true,
-      fullname: true,
-      phonenumber: true,
-      nationalId: true,
-      city: true,
-      ordersCount: true,
-      lastOrderDate: true,
-      showOrders: true,
-      remainingAmount: true,
-      notes: true,
-      view: true
-    });
-  };
-
-  const deselectAllColumns = () => {
-    setVisibleColumns({
-      id: false,
-      fullname: false,
-      phonenumber: false,
-      nationalId: false,
-      city: false,
-      ordersCount: false,
-      lastOrderDate: false,
-      showOrders: false,
-      remainingAmount: false,
-      notes: false,
-      view: false
-    });
-  };
-
-  const columnLabels = {
-    id: 'الرقم',
-    fullname: 'الاسم',
-    phonenumber: 'رقم الجوال',
-    nationalId: 'الهوية',
-    city: 'المدينة',
-    ordersCount: 'عدد الطلبات',
-    lastOrderDate: 'تاريخ آخر طلب',
-    showOrders: 'عرض الطلبات',
-    remainingAmount: 'المبلغ المتبقي',
-    notes: 'ملاحظات',
-    view: 'عرض'
-  };
 
   // دالة تصدير PDF
   const exportToPDF = async () => {
@@ -397,49 +348,13 @@ const Customers = ({ hasPermission }: Props) => {
                       />
                       {/* <Calendar className="mr-2 w-4 h-4" /> */}
                     </div>
-                    <div className="relative" ref={columnDropdownRef}>
-                      <button
-                        onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-                        className="flex items-center bg-background-light border border-border-color rounded-md px-3 py-2 text-sm text-text-muted hover:bg-gray-50"
-                      >
-                        <span>تحديد الاعمدة</span>
-                        <Filter className="mr-2 w-4 h-4" />
-                        {/* <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${isColumnDropdownOpen ? 'rotate-180' : ''}`} /> */}
-                      </button>
-                      {isColumnDropdownOpen && (
-                        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-border-color rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
-                          <div className="p-3 border-b border-border-color">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={selectAllColumns}
-                                className="flex-1 px-2 py-1 text-xs bg-teal-800 text-white rounded hover:bg-teal-700"
-                              >
-                                تحديد الكل
-                              </button>
-                              <button
-                                onClick={deselectAllColumns}
-                                className="flex-1 px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
-                              >
-                                إلغاء الكل
-                              </button>
-                            </div>
-                          </div>
-                          <div className="p-2">
-                            {Object.entries(columnLabels).map(([key, label]) => (
-                              <label key={key} className="flex items-center gap-2 p-2 hover:bg-gray-50 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                checked={visibleColumns[key as keyof typeof visibleColumns]}
-                                onChange={() => toggleColumn(key as keyof typeof visibleColumns)}
-                                  className="w-4 h-4 text-teal-800 border-gray-300 rounded focus:ring-teal-500"
-                                />
-                                <span className="text-sm text-text-dark">{label}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <ColumnSelector
+                      visibleColumns={visibleColumns}
+                      setVisibleColumns={setVisibleColumns}
+                      columns={columnDefinitions}
+                      buttonText="الأعمدة"
+                      buttonStyle="bg-white justify-between py-2 px-4 rounded-lg border border-gray-200 flex items-center gap-1 text-gray hover:bg-gray-50 transition-colors"
+                    />
                     <button
                       onClick={handleResetFilters}
                       className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"

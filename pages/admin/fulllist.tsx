@@ -9,6 +9,7 @@ import Modal from "react-modal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
+import ColumnSelector from '../../components/ColumnSelector';
 
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
@@ -17,9 +18,10 @@ export default function Table() {
   const [filters, setFilters] = useState({
     SponsorName: "",
     age: "",
-    PassportNumber: "",
-    OrderId: "",
+    nationality: "",
   });
+  const [activeTab, setActiveTab] = useState<'recruitment' | 'rental'>('recruitment');
+  const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
   function getDate(date: any) {
     const currentDate = new Date(date); // Original date
     // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
@@ -41,8 +43,20 @@ export default function Table() {
     office: true,
   });
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Column definitions for the reusable component
+  const columnDefinitions = [
+    { key: 'id', label: 'الرقم' },
+    { key: 'Name', label: 'الاسم' },
+    { key: 'phone', label: 'رقم الجوال' },
+    { key: 'Country', label: 'الجنسية' },
+    { key: 'maritalstatus', label: 'الحالة الاجتماعية' },
+    { key: 'dateofbirth', label: 'العمر' },
+    { key: 'Passportnumber', label: 'رقم جواز السفر' },
+    { key: 'PassportStart', label: 'بداية الجواز' },
+    { key: 'PassportEnd', label: 'نهاية الجواز' },
+    { key: 'office', label: 'المكتب' },
+  ];
 
   const [isStep1ModalOpen, setIsStep1ModalOpen] = useState(false);
   const [isStep2ModalOpen, setIsStep2ModalOpen] = useState(false);
@@ -108,6 +122,7 @@ export default function Table() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [exportType, setExportType] = useState("");
+  const [nationalities, setNationalities] = useState<any[]>([]);
 
   const fetchData = async (page = 1) => {
     if (isFetchingRef.current) return;
@@ -117,12 +132,14 @@ export default function Table() {
     try {
       const queryParams = new URLSearchParams({
         age: filters.age,
-        PassportNumber: filters.PassportNumber,
+        SponsorName: filters.SponsorName,
+        nationality: filters.nationality,
         page: String(page),
         perPage: "10",
+        contractType: activeTab, // Add contract type filter
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/fulllist?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -130,11 +147,16 @@ export default function Table() {
         method: "get",
       });
 
-      const { data: res, totalPages: pages } = await response.json();
+      const { data: res, totalPages: pages, recruitmentCount, rentalCount } = await response.json();
       if (res && res.length > 0) {
         setData(res);
         console.log("Data fetched successfully:", res);
         setTotalPages(pages || 1);
+        // Update tab counts
+        setTabCounts({
+          recruitment: recruitmentCount || 0,
+          rental: rentalCount || 0,
+        });
       } else {
         setData([]);
         setTotalPages(1);
@@ -149,13 +171,14 @@ export default function Table() {
 
   const fetchExportData = async () => {
     try {
-      // Remove all filters to get ALL data for export
+      // Include contract type filter for export
       const queryParams = new URLSearchParams({
         page: "1",
         perPage: "10000", // Get all data for export - increased limit
+        contractType: activeTab, // Filter by active tab
       });
 
-      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
+      const response = await fetch(`/api/fulllist?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -178,17 +201,24 @@ export default function Table() {
 
   useEffect(() => {
     fetchData(currentPage);
-  }, [currentPage, filters]);
+  }, [currentPage, filters, activeTab]);
 
+  // Fetch nationalities on component mount
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+    const fetchNationalities = async () => {
+      try {
+        const response = await fetch('/api/nationalities');
+        const data = await response.json();
+        if (data.success) {
+          setNationalities(data.nationalities);
+        }
+      } catch (error) {
+        console.error('Error fetching nationalities:', error);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    fetchNationalities();
   }, []);
+
 
   const handleFilterChange = (e: any, column: string) => {
     const value = e.target.value;
@@ -208,9 +238,8 @@ export default function Table() {
     isFetchingRef.current = false;
     setFilters({
       age: "",
-      OrderId: "",
-      PassportNumber: "",
       SponsorName: "",
+      nationality: "",
     });
     setCurrentPage(1);
     setData([]);
@@ -226,6 +255,10 @@ export default function Table() {
       ...prev,
       [column]: !prev[column as keyof typeof prev],
     }));
+  };
+
+  const handleSetVisibleColumns = (columns: { [key: string]: boolean }) => {
+    setVisibleColumns(columns as any);
   };
 
   const renderPagination = () => {
@@ -419,7 +452,8 @@ export default function Table() {
       
       doc.setLanguage('ar');
       doc.setFontSize(12);
-      doc.text('قائمة العاملات', 200, 10, { align: 'right' });
+      const title = activeTab === 'recruitment' ? 'قائمة عاملات الاستقدام' : 'قائمة عاملات التأجير';
+      doc.text(title, 200, 10, { align: 'right' });
       const tableColumn = [
         'الرقم',
         'الاسم',
@@ -464,7 +498,8 @@ export default function Table() {
           data.cell.styles.halign = 'right';
         },
       });
-      doc.save('homemaids_list.pdf');
+      const filename = activeTab === 'recruitment' ? 'recruitment_workers_list.pdf' : 'rental_workers_list.pdf';
+      doc.save(filename);
       setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى PDF`);
       setExportType('success');
     } catch (error) {
@@ -483,7 +518,8 @@ export default function Table() {
       const exportData = await fetchExportData();
       console.log('Export data for Excel:', exportData);
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('قائمة العاملات', { properties: { defaultColWidth: 20 } });
+      const worksheetTitle = activeTab === 'recruitment' ? 'قائمة عاملات الاستقدام' : 'قائمة عاملات التأجير';
+      const worksheet = workbook.addWorksheet(worksheetTitle, { properties: { defaultColWidth: 20 } });
       worksheet.columns = [
         { header: 'الرقم', key: 'id', width: 15 },
         { header: 'الاسم', key: 'name', width: 20 },
@@ -517,7 +553,8 @@ export default function Table() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'homemaids_list.xlsx';
+      const filename = activeTab === 'recruitment' ? 'recruitment_workers_list.xlsx' : 'rental_workers_list.xlsx';
+      a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
       setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى Excel`);
@@ -557,9 +594,9 @@ export default function Table() {
 
   return (
     <Layout>
-      <div className={`container mx-auto p-4 ${Style["almarai-regular"]}`}>
+      <div className={`container mx-auto p-4 ${Style["almarai-regular"]} min-h-screen`}>
         <div className="space-y-4">
-          <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
+          <div className="shadow-lg rounded-lg border border-gray-200">
             <div className="flex items-center justify-between p-4">
               <h1
                 className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
@@ -575,6 +612,42 @@ export default function Table() {
               </button>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="flex gap-4 mb-6 border-b border-gray-300 px-4">
+              <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('recruitment')}>
+                <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                  activeTab === 'recruitment' 
+                    ? 'bg-teal-800 text-white' 
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {tabCounts.recruitment}
+                </span>
+                <span className={`text-base transition-colors duration-200 ${
+                  activeTab === 'recruitment' 
+                    ? 'text-teal-700 font-medium' 
+                    : 'text-gray-500'
+                }`}>
+                  عاملات الاستقدام
+                </span>
+              </div>
+              <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('rental')}>
+                <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+                  activeTab === 'rental' 
+                    ? 'bg-teal-800 text-white' 
+                    : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {tabCounts.rental}
+                </span>
+                <span className={`text-base transition-colors duration-200 ${
+                  activeTab === 'rental' 
+                    ? 'text-teal-700 font-medium' 
+                    : 'text-gray-500'
+                }`}>
+                  عاملات التأجير
+                </span>
+              </div>
+            </div>
+
             <div className="flex flex-col  p-4">
               <div className="flex flex-row flex-nowrap  items-center gap-3">
                 <div className="relative  max-w-md">
@@ -582,72 +655,33 @@ export default function Table() {
                     type="text"
                     value={filters.SponsorName}
                     onChange={(e) => handleFilterChange(e, "SponsorName")}
-                    placeholder="بحث "
+                    placeholder="بحث بالاسم"
                     className="p-2  border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
                 <div className="relative w-[280px] max-w-md">
-                  <input
-                    type="text"
-                    value={filters.PassportNumber}
-                    onChange={(e) => handleFilterChange(e, "PassportNumber")}
-                    placeholder="بحث برقم الجواز"
-                    className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
-                <div className="relative w-[280px] max-w-md">
-                  <input
-                    type="text"
-                    value={filters.OrderId}
-                    onChange={(e) => handleFilterChange(e, "OrderId")}
-                    placeholder="بحث برقم الطلب"
-                    className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="bg-white justify-between py-2 px-4 rounded-lg border border-gray-200 flex items-center gap-1 text-gray"
+                  <select
+                    value={filters.nationality}
+                    onChange={(e) => handleFilterChange(e, "nationality")}
+                    className="p-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <span className={`${Style["almarai-regular"]} text-gray-400`}>
-                      الأعمدة
-                    </span>
-                    <ArrowLeftIcon className="w-4 h-4 text-gray-400" />
-                  </button>
-                  {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                      <div className="p-2">
-                        {Object.keys(visibleColumns).map((column) => (
-                          <label
-                            key={column}
-                            className="flex items-center gap-2 py-1"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={visibleColumns[column as keyof typeof visibleColumns]}
-                              onChange={() => toggleColumn(column)}
-                              className="form-checkbox"
-                            />
-                            <span className="text-md">
-                              {column === "id" && "الرقم"}
-                              {column === "Name" && "الاسم"}
-                              {column === "phone" && "رقم الجوال"}
-                              {column === "Country" && "الجنسية"}
-                              {column === "maritalstatus" && "الحالة الاجتماعية"}
-                              {column === "dateofbirth" && "العمر"}
-                              {column === "Passportnumber" && "رقم جواز السفر"}
-                              {column === "PassportStart" && "بداية الجواز"}
-                              {column === "PassportEnd" && "نهاية الجواز"}
-                              {column === "office" && "المكتب"}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    <option value="">جميع الجنسيات</option>
+                    {nationalities.map((nationality) => (
+                      <option key={nationality.id} value={nationality.Country}>
+                        {nationality.Country}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="relative z-50">
+                  <ColumnSelector
+                    visibleColumns={visibleColumns}
+                    setVisibleColumns={handleSetVisibleColumns}
+                    columns={columnDefinitions}
+                    buttonText="الأعمدة"
+                    buttonStyle="bg-white justify-between py-2 px-4 rounded-lg border border-gray-200 flex items-center gap-1 text-gray hover:bg-gray-50 transition-colors"
+                  />
                 </div>
                 <button
                   onClick={resetFilters}
@@ -679,22 +713,23 @@ export default function Table() {
               </div>
             </div>
 
-            <table className="min-w-full text-md text-left">
-              <thead className="bg-teal-800">
-                <tr className="text-white">
-                  {visibleColumns.id && <th className="px-4 py-2 text-center">الرقم</th>}
-                  {visibleColumns.Name && <th className="px-4 py-2 text-center">الاسم</th>}
-                  {visibleColumns.phone && <th className="px-4 py-2 text-center">رقم الجوال</th>}
-                  {visibleColumns.Country && <th className="px-4 py-2 text-center">الجنسية</th>}
-                  {visibleColumns.maritalstatus && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
-                  {visibleColumns.dateofbirth && <th className="px-4 py-2 text-center">العمر</th>}
-                  {visibleColumns.Passportnumber && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
-                  {visibleColumns.PassportStart && <th className="px-4 py-2 text-center">بداية الجواز</th>}
-                  {visibleColumns.PassportEnd && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
-                  {visibleColumns.office && <th className="px-4 py-2 text-center">المكتب</th>}
-                </tr>
-              </thead>
-              <tbody className="bg-gray-50">
+            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto border-t border-gray-200">
+              <table className="min-w-full text-md text-left">
+                <thead className="bg-teal-800 sticky top-0 z-10">
+                  <tr className="text-white">
+                    {visibleColumns.id && <th className="px-4 py-2 text-center">الرقم</th>}
+                    {visibleColumns.Name && <th className="px-4 py-2 text-center">الاسم</th>}
+                    {visibleColumns.phone && <th className="px-4 py-2 text-center">رقم الجوال</th>}
+                    {visibleColumns.Country && <th className="px-4 py-2 text-center">الجنسية</th>}
+                    {visibleColumns.maritalstatus && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
+                    {visibleColumns.dateofbirth && <th className="px-4 py-2 text-center">العمر</th>}
+                    {visibleColumns.Passportnumber && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
+                    {visibleColumns.PassportStart && <th className="px-4 py-2 text-center">بداية الجواز</th>}
+                    {visibleColumns.PassportEnd && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
+                    {visibleColumns.office && <th className="px-4 py-2 text-center">المكتب</th>}
+                  </tr>
+                </thead>
+                <tbody className="bg-gray-50">
                 {data.length === 0 ? (
                   <tr>
                     <td
@@ -763,15 +798,18 @@ export default function Table() {
                     </tr>
                   ))
                 )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
 
-            {totalPages > 1 && renderPagination()}
-            {loading && (
-              <div className="flex justify-center mt-4">
-                <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
-              </div>
-            )}
+            <div className="border-t border-gray-200 p-4 bg-gray-50">
+              {totalPages > 1 && renderPagination()}
+              {loading && (
+                <div className="flex justify-center mt-4">
+                  <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
