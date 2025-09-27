@@ -713,7 +713,7 @@ export default function Table() {
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto border-t border-gray-200">
+            <div className="overflow-x-auto border-t border-gray-200">
               <table className="min-w-full text-md text-left">
                 <thead className="bg-teal-800 sticky top-0 z-10">
                   <tr className="text-white">
