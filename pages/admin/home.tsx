@@ -59,18 +59,20 @@ function getDate(date) {
 const NewOrdersTab = ({ orders, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            منذ {order.createdAt} <FieldTimeOutlined />
-          </p>
+      <Link key={order.id} href={`/admin/track_order/${order.id}`}>
+        <div className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer">
+          <div className="item-details flex flex-col gap-2">
+            <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
+            <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              منذ {order.createdAt} <FieldTimeOutlined />
+            </p>
+          </div>
+          <div className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+            <ArrowLeftOutlined className="w-4 h-4" />
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-          <ArrowLeftOutlined className="w-4 h-4" />
-        </button>
-      </div>
+      </Link>
     ))}
   </div>
 );
@@ -78,18 +80,20 @@ const NewOrdersTab = ({ orders, count }) => (
 const CurrentOrdersTab = ({ orders, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">طلب تحت الإجراء #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">الحالة: {order.status ?? "غير محدد"}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ البدء: {order.startDate ?? order.createdAt} <FieldTimeOutlined />
-          </p>
+      <Link key={order.id} href={`/admin/track_order/${order.id}`}>
+        <div className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer">
+          <div className="item-details flex flex-col gap-2">
+            <p className="item-title text-sm font-semibold text-gray-900">طلب تحت الإجراء #{order.id}</p>
+            <p className="item-subtitle text-xs text-gray-600">الحالة: {order.status ?? "غير محدد"}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              تاريخ البدء: {order.startDate ?? order.createdAt} <FieldTimeOutlined />
+            </p>
+          </div>
+          <div className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+            <ArrowLeftOutlined className="w-4 h-4" />
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-          <ArrowLeftOutlined className="w-4 h-4" />
-        </button>
-      </div>
+      </Link>
     ))}
   </div>
 );
@@ -97,18 +101,20 @@ const CurrentOrdersTab = ({ orders, count }) => (
 const EndedOrdersTab = ({ orders, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">طلب مكتمل #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الانتهاء: {order.endDate ?? order.createdAt} <FieldTimeOutlined />
-          </p>
+      <Link key={order.id} href={`/admin/track_order/${order.id}`}>
+        <div className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer">
+          <div className="item-details flex flex-col gap-2">
+            <p className="item-title text-sm font-semibold text-gray-900">طلب مكتمل #{order.id}</p>
+            <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              تاريخ الانتهاء: {order.endDate ?? order.createdAt} <FieldTimeOutlined />
+            </p>
+          </div>
+          <div className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+            <ArrowLeftOutlined className="w-4 h-4" />
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-          <ArrowLeftOutlined className="w-4 h-4" />
-        </button>
-      </div>
+      </Link>
     ))}
   </div>
 );
@@ -116,18 +122,20 @@ const EndedOrdersTab = ({ orders, count }) => (
 const CancelledOrdersTab = ({ orders, count }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order.cancelReason ?? "غير محدد"}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الإلغاء: {order.cancelDate ?? order.createdAt} <FieldTimeOutlined />
-          </p>
+      <Link key={order.id} href={`/admin/track_order/${order.id}`}>
+        <div className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer">
+          <div className="item-details flex flex-col gap-2">
+            <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
+            <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order.cancelReason ?? "غير محدد"}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              تاريخ الإلغاء: {order.cancelDate ?? order.createdAt} <FieldTimeOutlined />
+            </p>
+          </div>
+          <div className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+            <ArrowLeftOutlined className="w-4 h-4" />
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
-          <ArrowLeftOutlined className="w-4 h-4" />
-        </button>
-      </div>
+      </Link>
     ))}
   </div>
 );
