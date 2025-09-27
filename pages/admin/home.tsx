@@ -51,8 +51,8 @@ const getCurrentMonthYear = () => {
 function getDate(date) {
   if (!date) return null;
   const currentDate = new Date(date);
-  const form = currentDate.toISOString().split("T")[0];
-  return form;
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
 }
 
 // --- Tab Components (Remain unchanged) ---
@@ -1012,7 +1012,7 @@ export default function Home({
                         <p className="text-lg font-medium text-gray-900">{task.Title}</p>
                         <p className="text-sm text-gray-600">{task.description}</p>
                         <p className="text-sm text-gray-500">
-                          الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
+                          الموعد النهائي: {getDate(task.taskDeadline)}
                         </p>
                         {task.assignedBy && task.assignedBy !== user.id && (
                           <p className="text-xs text-blue-600">
@@ -1053,7 +1053,7 @@ export default function Home({
                         <p className="text-lg font-medium text-gray-900">{task.Title}</p>
                         <p className="text-sm text-gray-600">{task.description}</p>
                         <p className="text-sm text-gray-500">
-                          الموعد النهائي: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}
+                          الموعد النهائي: {getDate(task.taskDeadline)}
                         </p>
                         <p className="text-xs text-green-600">
                           مُرسلة إلى: {task.user?.username || `المستخدم #${task.userId}`}
@@ -1430,7 +1430,7 @@ export default function Home({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">الموعد النهائي</label>
-                  <p className="mt-1 text-gray-600">{new Date(taskDetailsModal.task.taskDeadline).toLocaleDateString('ar-SA')}</p>
+                  <p className="mt-1 text-gray-600">{getDate(taskDetailsModal.task.taskDeadline)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">الحالة</label>
@@ -1444,7 +1444,7 @@ export default function Home({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">تاريخ الإنشاء</label>
-                  <p className="mt-1 text-gray-600">{new Date(taskDetailsModal.task.createdAt).toLocaleDateString('ar-SA')}</p>
+                  <p className="mt-1 text-gray-600">{getDate(taskDetailsModal.task.createdAt)}</p>
                 </div>
                 {taskDetailsModal.task.assignedBy && (
                   <div>
@@ -1473,7 +1473,7 @@ export default function Home({
           title={alertModal.title}
           message={alertModal.message}
           autoClose={alertModal.type === 'success'}
-          autoCloseDelay={3000}
+          autoCloseDelay={3005}
         />
       </div>
     </Layout>
