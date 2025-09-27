@@ -749,23 +749,23 @@ export default function Home({
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50" ref={sectionRef}>
+      <div className="min-h-screen bg-gray-50 overflow-x-hidden" ref={sectionRef}>
         <Head>
           <title>الصفحة الرئيسية</title>
           <link rel="icon" href="/favicon.ico" />
         </Head>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-4 mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 w-full max-w-full mt-4 mx-auto px-4 md:px-6">
           {/* New Calendar Card */}
-          <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-1">
+          <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 transform hover:scale-105 transition duration-300 lg:col-span-1 w-full max-w-full">
             <div className="flex justify-between items-center mb-4">
-              <button onClick={getPrevMonth} className="text-teal-600 hover:text-teal-800">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button onClick={getPrevMonth} className="text-teal-600 hover:text-teal-800 p-2 touch-manipulation">
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <h2 className="text-2xl font-semibold text-gray-800">{currentMonth}</h2>
-              <button onClick={getNextMonth} className="text-teal-600 hover:text-teal-800">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h2 className="text-lg md:text-2xl font-semibold text-gray-800 text-center flex-1 px-2">{currentMonth}</h2>
+              <button onClick={getNextMonth} className="text-teal-600 hover:text-teal-800 p-2 touch-manipulation">
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -776,13 +776,13 @@ export default function Home({
               <button 
                 onClick={getPrevWeek} 
                 disabled={currentWeek === 0}
-                className={`text-teal-600 hover:text-teal-800 ${currentWeek === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`text-teal-600 hover:text-teal-800 p-2 touch-manipulation ${currentWeek === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <span className="text-sm text-gray-600">
+              <span className="text-xs md:text-sm text-gray-600 text-center px-2 flex-1">
                 الأسبوع {currentWeek + 1} من {totalWeeks}
                 {(() => {
                   const today = new Date();
@@ -802,9 +802,9 @@ export default function Home({
               <button 
                 onClick={getNextWeek} 
                 disabled={currentWeek === totalWeeks - 1}
-                className={`text-teal-600 hover:text-teal-800 ${currentWeek === totalWeeks - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`text-teal-600 hover:text-teal-800 p-2 touch-manipulation ${currentWeek === totalWeeks - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -855,18 +855,18 @@ export default function Home({
                 return (
                   <div 
                     key={date} 
-                    className={`flex items-center p-1.5 border-b border-gray-100 gap-2 ${
+                    className={`flex items-center p-2 md:p-1.5 border-b border-gray-100 gap-2 touch-manipulation ${
                       isToday ? 'bg-teal-50' : ''
                     }`}
                     onClick={() => handleDayClick(date)}
                   >
-                    <div className="flex flex-col items-center text-xs text-center w-12">
+                    <div className="flex flex-col items-center text-xs text-center w-10 md:w-12 flex-shrink-0">
                       <span className="font-normal text-xs">{dayName}</span>
                       <span className={`font-light text-xs ${isToday ? 'text-teal-800 font-semibold' : ''}`}>
                         {date}
                       </span>
                     </div>
-                    <div className="flex gap-1 flex-wrap pr-2 border-r border-gray-100 min-h-5 flex-1">
+                    <div className="flex gap-1 flex-wrap pr-2 border-r border-gray-100 min-h-5 flex-1 overflow-hidden">
                       {/* Tasks */}
                       {hasTasks && tasksForDay.map((task, taskIndex) => (
                         <div 
@@ -974,34 +974,35 @@ export default function Home({
             </div> */}
           </div>
           {/* Tasks Widget */}
-          <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-2">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className={`${Style["tajawal-medium"]} text-2xl font-semibold text-gray-800`}>المهام اليومية</h2>
+          <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 transform hover:scale-105 transition duration-300 lg:col-span-2 w-full max-w-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+              <h2 className={`${Style["tajawal-medium"]} text-xl md:text-2xl font-semibold text-gray-800`}>المهام اليومية</h2>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className={`bg-teal-800 text-white flex flex-row items-center px-4 py-2 rounded-lg ${Style["tajawal-medium"]}`}
+                className={`bg-teal-800 text-white flex flex-row items-center px-3 md:px-4 py-2 rounded-lg ${Style["tajawal-medium"]} text-sm md:text-base touch-manipulation w-full sm:w-auto`}
               >
                 <span className="flex flex-row items-center gap-2">
-                  <PlusIcon height={16} width={16} />
-                  إضافة مهمة
+                  <PlusIcon height={14} width={14} className="md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">إضافة مهمة</span>
+                  <span className="sm:hidden">إضافة</span>
                 </span>
               </button>
             </div>
             
             {/* Tasks Tabs */}
             <div className="mb-4">
-              <nav className="flex gap-4 border-b border-gray-100 pb-3">
+              <nav className="flex gap-2 md:gap-4 border-b border-gray-100 pb-3 overflow-x-auto">
                 <button
                   onClick={() => setTasksSectionState("myTasks")}
-                  className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "myTasks" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${tasksSectionState === "myTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  مهامي <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length}</span>
+                  مهامي <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length}</span>
                 </button>
                 <button
                   onClick={() => setTasksSectionState("sentTasks")}
-                  className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "sentTasks" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${tasksSectionState === "sentTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user.id).length}</span>
+                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user.id).length}</span>
                 </button>
               </nav>
             </div>
@@ -1012,14 +1013,14 @@ export default function Home({
                 {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).slice(0, 5).map((task, index) => (
                   <li 
                     key={index} 
-                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors touch-manipulation"
                     onClick={() => handleTaskClick(task)}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-lg font-medium text-gray-900">{task.Title}</p>
-                        <p className="text-sm text-gray-600">{task.description}</p>
-                        <p className="text-sm text-gray-500">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base md:text-lg font-medium text-gray-900 truncate">{task.Title}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
+                        <p className="text-xs md:text-sm text-gray-500">
                           الموعد النهائي: {getDate(task.taskDeadline)}
                         </p>
                         {task.assignedBy && task.assignedBy !== user.id && (
@@ -1028,7 +1029,7 @@ export default function Home({
                           </p>
                         )}
                       </div>
-                      <span className="text-sm text-teal-600">غير مكتمل</span>
+                      <span className="text-xs md:text-sm text-teal-600 whitespace-nowrap">غير مكتمل</span>
                     </div>
                   </li>
                 ))}
@@ -1091,34 +1092,34 @@ export default function Home({
         </div>
 
         {/* Requests Section */}
-        <section id="requests" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <header className="info-card-header flex justify-between items-center mb-6">
-            <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
-              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">الطلبات</h3>
-              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+        <section id="requests" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 mx-4 md:mx-0">
+          <header className="info-card-header flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+            <div className={`info-card-title-tabs flex flex-col gap-4 md:gap-6 ${Style["tajawal-medium"]} w-full lg:w-auto`}>
+              <h3 className="info-card-title text-xl md:text-2xl font-semibold text-gray-800 tracking-tight">الطلبات</h3>
+              <nav className="info-card-tabs flex gap-2 md:gap-6 border-b border-gray-100 pb-3 overflow-x-auto">
                 <a
                   onClick={() => setOrdersSectionState("newOrders")}
-                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "newOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${ordersSectionState === "newOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  الطلبات الجديدة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{newOrdersLength}</span>
+                  الطلبات الجديدة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{newOrdersLength}</span>
                 </a>
                 <a
                   onClick={() => setOrdersSectionState("currentOrders")}
-                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "currentOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${ordersSectionState === "currentOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  طلبات تحت الإجراء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{currentOrdersLength}</span>
+                  طلبات تحت الإجراء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{currentOrdersLength}</span>
                 </a>
                 <a
                   onClick={() => setOrdersSectionState("endedOrders")}
-                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{finished}</span>
+                  الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{finished}</span>
                 </a>
                 <a
                   onClick={() => setOrdersSectionState("cancelledOrders")}
-                  className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  الطلبات الملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{cancelledorders}</span>
+                  الطلبات الملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{cancelledorders}</span>
                 </a>
               </nav>
             </div>
@@ -1134,7 +1135,7 @@ export default function Home({
                   ? router.push("/admin/cancelledorders")
                   : null;
               }}
-              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-xs md:text-sm font-medium px-3 md:px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300 touch-manipulation w-full lg:w-auto text-center"
             >
               عرض الكل
             </a>
@@ -1146,28 +1147,28 @@ export default function Home({
         </section>
 
         {/* Arrivals and Departures Section */}
-        <section id="arrivals" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <header className="info-card-header flex justify-between items-center mb-6">
-            <div className={`${Style["tajawal-medium"]} info-card-title-tabs flex flex-col gap-6`}>
-              <h3 className={`${Style["tajawal-medium"]} info-card-title text-2xl font-semibold text-gray-800 tracking-tight`}>الوصول و المغادرة</h3>
-              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+        <section id="arrivals" className="info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 mx-4 md:mx-0">
+          <header className="info-card-header flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+            <div className={`${Style["tajawal-medium"]} info-card-title-tabs flex flex-col gap-4 md:gap-6 w-full lg:w-auto`}>
+              <h3 className={`${Style["tajawal-medium"]} info-card-title text-xl md:text-2xl font-semibold text-gray-800 tracking-tight`}>الوصول و المغادرة</h3>
+              <nav className="info-card-tabs flex gap-2 md:gap-6 border-b border-gray-100 pb-3 overflow-x-auto">
                 <a
                   onClick={() => setArrivalsSectionState("internalArrivals")}
-                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalArrivals" ? "text-teal-700 bg-teal-50" : ""}`}
+                  className={`tab-item cursor-pointer text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${arrivalsSectionState === "internalArrivals" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  الوصول <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{arrivalsLength}</span>
+                  الوصول <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{arrivalsLength}</span>
                 </a>
                 <a
                   onClick={() => setArrivalsSectionState("internalDeparatures")}
-                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
+                  className={`tab-item cursor-pointer text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${arrivalsSectionState === "internalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  مغادرة داخلية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{deparaturesLength}</span>
+                  مغادرة داخلية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{deparaturesLength}</span>
                 </a>
                 <a
                   onClick={() => setArrivalsSectionState("externalDeparatures")}
-                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
+                  className={`tab-item cursor-pointer text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externaldeparaturesLength}</span>
+                  مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{externaldeparaturesLength}</span>
                 </a>
               </nav>
             </div>
@@ -1181,7 +1182,7 @@ export default function Home({
                   ? router.push("/admin/deparaturesfromsaudi")
                   : null;
               }}
-              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-xs md:text-sm font-medium px-3 md:px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300 touch-manipulation w-full lg:w-auto text-center"
             >
               عرض الكل
             </a>
@@ -1192,28 +1193,28 @@ export default function Home({
         </section>
 
         {/* Housing Section */}
-        <section id="housing" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
-          <header className="info-card-header flex justify-between items-center mb-6">
-            <div className={`info-card-title-tabs flex flex-col gap-6 ${Style["tajawal-medium"]}`}>
-              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">شئون الاقامة</h3>
-              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+        <section id="housing" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 mx-4 md:mx-0`}>
+          <header className="info-card-header flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+            <div className={`info-card-title-tabs flex flex-col gap-4 md:gap-6 ${Style["tajawal-medium"]} w-full lg:w-auto`}>
+              <h3 className="info-card-title text-xl md:text-2xl font-semibold text-gray-800 tracking-tight">شئون الاقامة</h3>
+              <nav className="info-card-tabs flex gap-2 md:gap-6 border-b border-gray-100 pb-3 overflow-x-auto">
                 <a
                   onClick={() => setHousingSectionState("housing")}
-                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "housing" ? "text-teal-700 bg-teal-50" : ""}`}
+                  className={`tab-item cursor-pointer text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${housingSectionState === "housing" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
+                  التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{housed.length}</span>
                 </a>
                 <a
                   onClick={() => setHousingSectionState("checkedTable")}
-                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "checkedTable" ? "text-teal-700 bg-teal-50" : ""}`}
+                  className={`tab-item cursor-pointer text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${housingSectionState === "checkedTable" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
+                  الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{housed.length}</span>
                 </a>
                 <a
                   onClick={() => setHousingSectionState("sessions")}
-                  className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "sessions" ? "text-teal-700 bg-teal-50" : ""}`}
+                  className={`tab-item cursor-pointer text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${housingSectionState === "sessions" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{sessionsLength}</span>
+                  الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{sessionsLength}</span>
                 </a>
               </nav>
             </div>
@@ -1227,7 +1228,7 @@ export default function Home({
                   ? router.push("/admin/sessions")
                   : null;
               }}
-              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-xs md:text-sm font-medium px-3 md:px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300 touch-manipulation w-full lg:w-auto text-center"
             >
               عرض الكل
             </a>
@@ -1238,28 +1239,28 @@ export default function Home({
         </section>
 
         {/* Workers Section */}
-        <section id="homemaids" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
-          <header className="info-card-header flex justify-between items-center mb-6">
-            <div className="info-card-title-tabs flex flex-col gap-6">
-              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">العاملات</h3>
-              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+        <section id="homemaids" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 mx-4 md:mx-0`}>
+          <header className="info-card-header flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+            <div className="info-card-title-tabs flex flex-col gap-4 md:gap-6 w-full lg:w-auto">
+              <h3 className="info-card-title text-xl md:text-2xl font-semibold text-gray-800 tracking-tight">العاملات</h3>
+              <nav className="info-card-tabs flex gap-2 md:gap-6 border-b border-gray-100 pb-3 overflow-x-auto">
                 <a
                   onClick={() => setWorkersSectionState("workers")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{homeMaidsLength}</span>
+                  العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{homeMaidsLength}</span>
                 </a>
                 <a
                   onClick={() => setWorkersSectionState("bookedlist")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  العاملات المحجوزة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{bookedList.length}</span>
+                  العاملات المحجوزة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{bookedList.length}</span>
                 </a>
                 <a
                   onClick={() => setWorkersSectionState("availablelist")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  العاملات المتاحة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{availableList.length}</span>
+                  العاملات المتاحة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{availableList.length}</span>
                 </a>
               </nav>
             </div>
@@ -1273,7 +1274,7 @@ export default function Home({
                   ? router.push("/admin/availablelist")
                   : null;
               }}
-              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-xs md:text-sm font-medium px-3 md:px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300 touch-manipulation w-full lg:w-auto text-center"
             >
               عرض الكل
             </a>
@@ -1284,28 +1285,28 @@ export default function Home({
         </section>
 
         {/* Public Relations Section */}
-        <section id="public-relations" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300`}>
-          <header className="info-card-header flex justify-between items-center mb-6">
-            <div className="info-card-title-tabs flex flex-col gap-6">
-              <h3 className="info-card-title text-2xl font-semibold text-gray-800 tracking-tight">إدارة العلاقات</h3>
-              <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
+        <section id="public-relations" className={`${Style["tajawal-medium"]} info-card card bg-gradient-to-br mt-2 from-white to-gray-50 border border-gray-100 rounded-2xl p-4 md:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 mx-4 md:mx-0`}>
+          <header className="info-card-header flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+            <div className="info-card-title-tabs flex flex-col gap-4 md:gap-6 w-full lg:w-auto">
+              <h3 className="info-card-title text-xl md:text-2xl font-semibold text-gray-800 tracking-tight">إدارة العلاقات</h3>
+              <nav className="info-card-tabs flex gap-2 md:gap-6 border-b border-gray-100 pb-3 overflow-x-auto">
                 <a
                   onClick={() => setRelationsSectionState("relations")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientsCount}</span>
+                  قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{clientsCount}</span>
                 </a>
                 <a
                   onClick={() => setRelationsSectionState("sponsorship-transfers")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{transferSponsorshipsLength}</span>
+                  معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{transferSponsorshipsLength}</span>
                 </a>
                 <a
                   onClick={() => setRelationsSectionState("foreign-offices")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-xs md:text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-1 md:gap-2 py-2 px-2 md:px-3 rounded-lg transition-colors duration-200 whitespace-nowrap touch-manipulation ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{officesCount}</span>
+                  المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-1.5 md:px-2 py-0.5 rounded-full">{officesCount}</span>
                 </a>
               </nav>
             </div>
@@ -1319,7 +1320,7 @@ export default function Home({
                   ? router.push("/admin/offices")
                   : null;
               }}
-              className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
+              className="view-all-btn cursor-pointer bg-teal-800 text-white text-xs md:text-sm font-medium px-3 md:px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300 touch-manipulation w-full lg:w-auto text-center"
             >
               عرض الكل
             </a>
@@ -1331,15 +1332,15 @@ export default function Home({
 
         {/* Task Modal */}
         {isModalOpen && (
-          <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${Style["tajawal-medium"]}`}>
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 ${Style["tajawal-medium"]}`}>
+            <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-800">إضافة مهمة جديدة</h3>
+                <h3 className="text-lg md:text-xl font-semibold text-gray-800">إضافة مهمة جديدة</h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 p-2 touch-manipulation"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -1352,7 +1353,7 @@ export default function Home({
                     name="title"
                     value={newTask.title}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 md:p-3 focus:ring-teal-500 focus:border-teal-500 text-base"
                     required
                   />
                 </div>
@@ -1362,7 +1363,7 @@ export default function Home({
                     name="description"
                     value={newTask.description}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 md:p-3 focus:ring-teal-500 focus:border-teal-500 text-base"
                     required
                   />
                 </div>
@@ -1373,7 +1374,7 @@ export default function Home({
                     name="taskDeadline"
                     value={newTask.taskDeadline}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 md:p-3 focus:ring-teal-500 focus:border-teal-500 text-base"
                     required
                   />
                 </div>
@@ -1392,17 +1393,17 @@ export default function Home({
                   </div>
                 )}
 
-                <div className="flex justify-end gap-4">
+                <div className="flex flex-col sm:flex-row justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 touch-manipulation text-base"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                    className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900 touch-manipulation text-base"
                   >
                     إضافة
                   </button>
@@ -1414,15 +1415,15 @@ export default function Home({
 
         {/* Task Details Modal */}
         {taskDetailsModal.isOpen && taskDetailsModal.task && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-4 md:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-800">تفاصيل المهمة</h3>
+                <h3 className="text-lg md:text-xl font-semibold text-gray-800">تفاصيل المهمة</h3>
                 <button
                   onClick={() => setTaskDetailsModal({ isOpen: false, task: null })}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 p-2 touch-manipulation"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -1464,7 +1465,7 @@ export default function Home({
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setTaskDetailsModal({ isOpen: false, task: null })}
-                  className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                  className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900 touch-manipulation text-base"
                 >
                   إغلاق
                 </button>

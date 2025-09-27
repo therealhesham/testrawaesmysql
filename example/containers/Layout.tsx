@@ -5,6 +5,8 @@ import SidebarContext, { SidebarProvider } from "context/SidebarContext";
 import Style from "styles/Home.module.css";
 import Link from "next/link";
 import Sidebar from "example/components/Sidebar/sidebar";
+import MobileNavbar from "components/MobileNavbar";
+import DesktopNavbar from "components/DesktopNavbar";
 import Header from "example/components/Header";
 import Main from "./Main";
 import Cookies from "js-cookie";
@@ -139,101 +141,22 @@ function isJwtExpired(token) {
   };
 
   return (
-    <div dir="rtl" className={`flex h-screen w-screen bg-gray-50 dark:bg-gray-900 ${Style["tajawal-regular"]}`}>
-      <Sidebar />
-      <div className="flex flex-col flex-1 w-full h-full ">
-        <nav className="bg-white shadow-lg py-2" dir="rtl ">
-          <div className="w-full px-4">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center">
-                <img
-                  src="/images/homelogo.png"
-                  className="h-20 w-30 object-contain"
-                  alt="لوجو روائس"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                {/* أيقونة الجرس مع القائمة المنسدلة */}
-                <div className="relative">
-                  <div onClick={toggleNotificationDropdown}>
-                    <BellIcon className="w-7 h-7 text-teal-700" />
-                    <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 text-md ml-2 rounded-full"></span>
-                  </div>
-                  {/* القائمة المنسدلة */}
-                  {isNotificationOpen && (
-                    <div className="absolute top-10 left-0 w-64 bg-white shadow-lg rounded-lg z-10">
-                      <ul className="py-2">
-                        {notifications.map((n) => (
-                          <li
-                            onClick={() => {
-                  router.push(`/admin/notifications`); // هنا يمكنك تعديل الرابط حسب الحاجة
-                                  // هنا يمكنك 
-                                  // إضافة منطق لفتح الإشعار أو التعامل معه
-                                  console.log("Notification clicked:", n);
-                                }}
-                            key={n.id}
-                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="text-md font-semibold text-gray-900">{n.message}</p>
-                                <p className="text-xs text-gray-500">
-                                  منذ {new Date(n.createdAt).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <button
-                                className="text-teal-600 hover:text-teal-800"
-                                
-                              >
-                                <ArrowRightIcon className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </li>
-                        ))}                      </ul>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <span className="text-red-500 text-md">
-                    لديك {counts.unread} إشعارات جديدة  
-                  </span>
-                </div>
-                
-                {/* User dropdown with dynamic name */}
-                <div className="relative user-dropdown">
-                  <div 
-                    className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-200 transition-colors"
-                    onClick={toggleUserDropdown}
-                  >
-                    <span className="text-md font-medium text-teal-700">{userName}</span>
-                    <FaSortDown className="text-gray-500" />
-                  </div>
-                  
-                  {/* User dropdown menu */}
-                  {isUserDropdownOpen && (
-                    <div className="absolute top-10 left-0 w-48 bg-gray-100 shadow-lg rounded-lg z-10 border border-gray-200">
-                      <div >
-                        <button
-                          onClick={handleLogout}
-                          className="w-full text-right px-4 py-2 text-md text-teal-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          تسجيل الخروج
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </nav>
-        <div className="flex justify-start" style={{ marginLeft: "20%" }}></div>
+    <div dir="rtl" className={`min-h-screen bg-gray-50 dark:bg-gray-900 ${Style["tajawal-regular"]}`}>
+      {/* Mobile Navbar */}
+      <MobileNavbar />
+      
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex h-screen w-screen">
+        <Sidebar />
+        <div className="flex flex-col flex-1 w-full h-full">
+          <DesktopNavbar />
+          <div className="flex justify-start" style={{ marginLeft: "20%" }}></div>
+          <Main>{children}</Main>
+        </div>
+      </div>
+      
+      {/* Mobile Layout */}
+      <div className="lg:hidden">
         <Main>{children}</Main>
       </div>
     </div>
