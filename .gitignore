@@ -14,7 +14,7 @@
 
 # production
 /build
-
+NEXT15_APP
 # misc
 .DS_Store
 *.pem
@@ -35,3 +35,4 @@ package-lock.json
 .vercel
 package-lock.json
 package-lock.json
+NEXT15_APP
