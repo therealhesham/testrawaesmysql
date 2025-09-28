@@ -637,7 +637,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
                                {row.HomeMaid?.logs.length > 0 && (row.HomeMaid?.logs.map((log: any) => (
                                  <div key={log.id || Math.random()} className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
                                    <span>{log.Status || "غير متوفر"}</span>
-                                   <span>{log.createdAt ? new Date(log.createdAt).toLocaleString('ar-SA') : "غير متوفر"}</span>
+                                   <span>{log.createdAt ? new Date(log.createdAt).toLocaleString() : "غير متوفر"}</span>
                                    <span>{log.user?.username || "غير متوفر"}</span>
                                    <span>{log.Details || "غير متوفر"}</span>
                                    <span>{log.reason || "غير متوفر"}</span>
