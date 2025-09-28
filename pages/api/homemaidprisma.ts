@@ -7,8 +7,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { SponsorName, PassportNumber, OrderId, age, page, perPage } = req.query;
-
+  const { SponsorName, PassportNumber, Name,OrderId, age, page, perPage } = req.query;
+  console.log(req.query);
   // Set the page size for pagination
   const pageSize = parseInt(perPage as string, 10) || 10;
   const pageNumber = parseInt(page as string, 10) || 1;
@@ -21,10 +21,16 @@ export default async function handler(
       equals: Number(OrderId),
     };
   }
+  if(Name){
+    filters.Name = {
+      contains: (Name as string).toLowerCase(),
+      // mode: "insensitive",
+    };
+  }
   if (SponsorName) {
-    filters.ClientName = {
+    filters.Name = {
       contains: (SponsorName as string).toLowerCase(),
-      mode: "insensitive",
+      // mode: "insensitive",
     };
   }
   if (PassportNumber) {
