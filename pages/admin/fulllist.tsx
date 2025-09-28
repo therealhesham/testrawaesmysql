@@ -9,19 +9,16 @@ import Modal from "react-modal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
-import ColumnSelector from '../../components/ColumnSelector';
 
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
 
 export default function Table() {
   const [filters, setFilters] = useState({
-    SponsorName: "",
+    Name: "",
     age: "",
-    nationality: "",
+    PassportNumber: "",
   });
-  const [activeTab, setActiveTab] = useState<'recruitment' | 'rental'>('recruitment');
-  const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
   function getDate(date: any) {
     const currentDate = new Date(date); // Original date
     // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
@@ -30,38 +27,49 @@ export default function Table() {
     return form;
   }
 
-  const [visibleColumns, setVisibleColumns] = useState({
-    id: true,
-    Name: true,
-    phone: true,
-    Country: true,
-    maritalstatus: true,
-    dateofbirth: true,
-    Passportnumber: true,
-    PassportStart: true,
-    PassportEnd: true,
-    office: true,
-  });
+  function calculateAge(birthDate: any) {
+    if (!birthDate) return 'غير محدد';
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
 
+  function formatBirthDate(birthDate: any) {
+    if (!birthDate) return 'غير محدد';
+    const birth = new Date(birthDate);
+    return birth.toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
 
-  // Column definitions for the reusable component
-  const columnDefinitions = [
-    { key: 'id', label: 'الرقم' },
-    { key: 'Name', label: 'الاسم' },
-    { key: 'phone', label: 'رقم الجوال' },
-    { key: 'Country', label: 'الجنسية' },
-    { key: 'maritalstatus', label: 'الحالة الاجتماعية' },
-    { key: 'dateofbirth', label: 'العمر' },
-    { key: 'Passportnumber', label: 'رقم جواز السفر' },
-    { key: 'PassportStart', label: 'بداية الجواز' },
-    { key: 'PassportEnd', label: 'نهاية الجواز' },
-    { key: 'office', label: 'المكتب' },
-  ];
+  // Column selector state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([
+    'id',
+    'Name',
+    'phone',
+    'Country',
+    'maritalstatus',
+    'dateofbirth',
+    'Passportnumber',
+    'PassportStart',
+    'PassportEnd',
+    'office',
+  ]);
+
 
   const [isStep1ModalOpen, setIsStep1ModalOpen] = useState(false);
   const [isStep2ModalOpen, setIsStep2ModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    SponsorName: "",
+    Name: "",
     InternalmusanedContract: "",
     id: "",
     SponsorIdnumber: "",
@@ -122,7 +130,6 @@ export default function Table() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [exportType, setExportType] = useState("");
-  const [nationalities, setNationalities] = useState<any[]>([]);
 
   const fetchData = async (page = 1) => {
     if (isFetchingRef.current) return;
@@ -131,15 +138,18 @@ export default function Table() {
 
     try {
       const queryParams = new URLSearchParams({
+        Name: filters.Name,
+        SponsorName: filters.Name, // Also send as SponsorName for API compatibility
         age: filters.age,
-        SponsorName: filters.SponsorName,
-        nationality: filters.nationality,
+        PassportNumber: filters.PassportNumber,
         page: String(page),
         perPage: "10",
-        contractType: activeTab, // Add contract type filter
       });
+      
+      console.log('Fetching data with filters:', filters);
+      console.log('Query params:', queryParams.toString());
 
-      const response = await fetch(`/api/fulllist?${queryParams}`, {
+      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -147,16 +157,11 @@ export default function Table() {
         method: "get",
       });
 
-      const { data: res, totalPages: pages, recruitmentCount, rentalCount } = await response.json();
+      const { data: res, totalPages: pages } = await response.json();
       if (res && res.length > 0) {
         setData(res);
         console.log("Data fetched successfully:", res);
         setTotalPages(pages || 1);
-        // Update tab counts
-        setTabCounts({
-          recruitment: recruitmentCount || 0,
-          rental: rentalCount || 0,
-        });
       } else {
         setData([]);
         setTotalPages(1);
@@ -171,14 +176,13 @@ export default function Table() {
 
   const fetchExportData = async () => {
     try {
-      // Include contract type filter for export
+      // Remove all filters to get ALL data for export
       const queryParams = new URLSearchParams({
         page: "1",
         perPage: "10000", // Get all data for export - increased limit
-        contractType: activeTab, // Filter by active tab
       });
 
-      const response = await fetch(`/api/fulllist?${queryParams}`, {
+      const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -201,27 +205,12 @@ export default function Table() {
 
   useEffect(() => {
     fetchData(currentPage);
-  }, [currentPage, filters, activeTab]);
-
-  // Fetch nationalities on component mount
-  useEffect(() => {
-    const fetchNationalities = async () => {
-      try {
-        const response = await fetch('/api/nationalities');
-        const data = await response.json();
-        if (data.success) {
-          setNationalities(data.nationalities);
-        }
-      } catch (error) {
-        console.error('Error fetching nationalities:', error);
-      }
-    };
-    fetchNationalities();
-  }, []);
+  }, [currentPage, filters]);
 
 
   const handleFilterChange = (e: any, column: string) => {
     const value = e.target.value;
+    console.log('Filter change:', column, value);
     setFilters((prev) => ({
       ...prev,
       [column]: value,
@@ -238,8 +227,8 @@ export default function Table() {
     isFetchingRef.current = false;
     setFilters({
       age: "",
-      SponsorName: "",
-      nationality: "",
+      PassportNumber: "",
+      Name: "",
     });
     setCurrentPage(1);
     setData([]);
@@ -250,16 +239,6 @@ export default function Table() {
     setCurrentPage(page);
   };
 
-  const toggleColumn = (column: string) => {
-    setVisibleColumns((prev) => ({
-      ...prev,
-      [column]: !prev[column as keyof typeof prev],
-    }));
-  };
-
-  const handleSetVisibleColumns = (columns: { [key: string]: boolean }) => {
-    setVisibleColumns(columns as any);
-  };
 
   const renderPagination = () => {
     const pages = [];
@@ -307,7 +286,7 @@ export default function Table() {
   const openStep1Modal = () => {
     setIsStep1ModalOpen(true);
     setFormData({
-      SponsorName: "",
+      Name: "",
       InternalmusanedContract: "",
       id: "",
       SponsorIdnumber: "",
@@ -424,6 +403,63 @@ export default function Table() {
     }));
   };
 
+  // Column Selector Component
+  const ColumnSelector = ({
+    visibleColumns,
+    setVisibleColumns,
+  }: {
+    visibleColumns: string[];
+    setVisibleColumns: (columns: string[]) => void;
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const columns = [
+      { key: 'id', label: 'الرقم' },
+      { key: 'Name', label: 'الاسم' },
+      { key: 'phone', label: 'رقم الجوال' },
+      { key: 'Country', label: 'الجنسية' },
+      { key: 'maritalstatus', label: 'الحالة الاجتماعية' },
+      { key: 'dateofbirth', label: 'العمر' },
+      { key: 'Passportnumber', label: 'رقم جواز السفر' },
+      { key: 'PassportStart', label: 'بداية الجواز' },
+      { key: 'PassportEnd', label: 'نهاية الجواز' },
+      { key: 'office', label: 'المكتب' },
+    ];
+
+    const toggleColumn = (columnKey: string) => {
+      if (visibleColumns.includes(columnKey)) {
+        setVisibleColumns(visibleColumns.filter((col) => col !== columnKey));
+      } else {
+        setVisibleColumns([...visibleColumns, columnKey]);
+      }
+    };
+
+    return (
+      <div className="relative">
+        <button
+          className="bg-gray-400 px-3 cursor-pointer py-2 h-10 items-center align-baseline text-white rounded-md flex items-center gap-2"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          اختر الأعمدة
+        </button>
+        {isOpen && (
+          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+            {columns.map((column) => (
+              <label key={column.key} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.includes(column.key)}
+                  onChange={() => toggleColumn(column.key)}
+                  className="form-checkbox h-4 w-4 text-teal-900"
+                />
+                {column.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const exportToPDF = async () => {
     try {
       setExportMessage('جاري تحميل جميع البيانات للتصدير...');
@@ -452,8 +488,7 @@ export default function Table() {
       
       doc.setLanguage('ar');
       doc.setFontSize(12);
-      const title = activeTab === 'recruitment' ? 'قائمة عاملات الاستقدام' : 'قائمة عاملات التأجير';
-      doc.text(title, 200, 10, { align: 'right' });
+      doc.text('قائمة العاملات', 200, 10, { align: 'right' });
       const tableColumn = [
         'الرقم',
         'الاسم',
@@ -472,7 +507,7 @@ export default function Table() {
         row.phone || 'غير متوفر',
         row?.office?.Country || 'غير متوفر',
         row.maritalstatus || 'غير متوفر',
-        row.dateofbirth || 'غير متوفر',
+        row.dateofbirth ? `${calculateAge(row.dateofbirth)} سنة` : 'غير متوفر',
         row.Passportnumber || 'غير متوفر',
         row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
         row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
@@ -498,8 +533,7 @@ export default function Table() {
           data.cell.styles.halign = 'right';
         },
       });
-      const filename = activeTab === 'recruitment' ? 'recruitment_workers_list.pdf' : 'rental_workers_list.pdf';
-      doc.save(filename);
+      doc.save('homemaids_list.pdf');
       setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى PDF`);
       setExportType('success');
     } catch (error) {
@@ -518,8 +552,7 @@ export default function Table() {
       const exportData = await fetchExportData();
       console.log('Export data for Excel:', exportData);
       const workbook = new ExcelJS.Workbook();
-      const worksheetTitle = activeTab === 'recruitment' ? 'قائمة عاملات الاستقدام' : 'قائمة عاملات التأجير';
-      const worksheet = workbook.addWorksheet(worksheetTitle, { properties: { defaultColWidth: 20 } });
+      const worksheet = workbook.addWorksheet('قائمة العاملات', { properties: { defaultColWidth: 20 } });
       worksheet.columns = [
         { header: 'الرقم', key: 'id', width: 15 },
         { header: 'الاسم', key: 'name', width: 20 },
@@ -541,7 +574,7 @@ export default function Table() {
           phone: row.phone || 'غير متوفر',
           nationality: row?.office?.Country || 'غير متوفر',
           maritalStatus: row.maritalstatus || 'غير متوفر',
-          age: row.dateofbirth || 'غير متوفر',
+          age: row.dateofbirth ? `${calculateAge(row.dateofbirth)} سنة` : 'غير متوفر',
           passport: row.Passportnumber || 'غير متوفر',
           passportStart: row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
           passportEnd: row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
@@ -553,8 +586,7 @@ export default function Table() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const filename = activeTab === 'recruitment' ? 'recruitment_workers_list.xlsx' : 'rental_workers_list.xlsx';
-      a.download = filename;
+      a.download = 'homemaids_list.xlsx';
       a.click();
       window.URL.revokeObjectURL(url);
       setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى Excel`);
@@ -594,9 +626,9 @@ export default function Table() {
 
   return (
     <Layout>
-      <div className={`container mx-auto p-4 ${Style["almarai-regular"]} min-h-screen`}>
+      <div className={`container mx-auto p-4 ${Style["almarai-regular"]}`}>
         <div className="space-y-4">
-          <div className="shadow-lg rounded-lg border border-gray-200">
+          <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
             <div className="flex items-center justify-between p-4">
               <h1
                 className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
@@ -612,77 +644,29 @@ export default function Table() {
               </button>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex gap-4 mb-6 border-b border-gray-300 px-4">
-              <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('recruitment')}>
-                <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
-                  activeTab === 'recruitment' 
-                    ? 'bg-teal-800 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {tabCounts.recruitment}
-                </span>
-                <span className={`text-base transition-colors duration-200 ${
-                  activeTab === 'recruitment' 
-                    ? 'text-teal-700 font-medium' 
-                    : 'text-gray-500'
-                }`}>
-                  عاملات الاستقدام
-                </span>
-              </div>
-              <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => setActiveTab('rental')}>
-                <span className={`text-sm w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
-                  activeTab === 'rental' 
-                    ? 'bg-teal-800 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {tabCounts.rental}
-                </span>
-                <span className={`text-base transition-colors duration-200 ${
-                  activeTab === 'rental' 
-                    ? 'text-teal-700 font-medium' 
-                    : 'text-gray-500'
-                }`}>
-                  عاملات التأجير
-                </span>
-              </div>
-            </div>
-
             <div className="flex flex-col  p-4">
               <div className="flex flex-row flex-nowrap  items-center gap-3">
                 <div className="relative  max-w-md">
                   <input
                     type="text"
-                    value={filters.SponsorName}
-                    onChange={(e) => handleFilterChange(e, "SponsorName")}
-                    placeholder="بحث بالاسم"
+                    value={filters.Name}
+                    onChange={(e) => handleFilterChange(e, "Name")}
+                    placeholder="بحث "
                     className="p-2  border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
                 <div className="relative w-[280px] max-w-md">
-                  <select
-                    value={filters.nationality}
-                    onChange={(e) => handleFilterChange(e, "nationality")}
-                    className="p-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">جميع الجنسيات</option>
-                    {nationalities.map((nationality) => (
-                      <option key={nationality.id} value={nationality.Country}>
-                        {nationality.Country}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="relative z-50">
-                  <ColumnSelector
-                    visibleColumns={visibleColumns}
-                    setVisibleColumns={handleSetVisibleColumns}
-                    columns={columnDefinitions}
-                    buttonText="الأعمدة"
-                    buttonStyle="bg-white justify-between py-2 px-4 rounded-lg border border-gray-200 flex items-center gap-1 text-gray hover:bg-gray-50 transition-colors"
+                  <input
+                    type="text"
+                    value={filters.PassportNumber}
+                    onChange={(e) => handleFilterChange(e, "PassportNumber")}
+                    placeholder="بحث برقم الجواز"
+                    className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
+                <ColumnSelector visibleColumns={visibleColumns} setVisibleColumns={setVisibleColumns} />
                 <button
                   onClick={resetFilters}
                   className="bg-teal-800 py-2 px-4 rounded-lg flex items-center gap-1 hover:bg-teal-900"
@@ -713,27 +697,26 @@ export default function Table() {
               </div>
             </div>
 
-            <div className="overflow-x-auto border-t border-gray-200">
-              <table className="min-w-full text-md text-left">
-                <thead className="bg-teal-800 sticky top-0 z-10">
-                  <tr className="text-white">
-                    {visibleColumns.id && <th className="px-4 py-2 text-center">الرقم</th>}
-                    {visibleColumns.Name && <th className="px-4 py-2 text-center">الاسم</th>}
-                    {visibleColumns.phone && <th className="px-4 py-2 text-center">رقم الجوال</th>}
-                    {visibleColumns.Country && <th className="px-4 py-2 text-center">الجنسية</th>}
-                    {visibleColumns.maritalstatus && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
-                    {visibleColumns.dateofbirth && <th className="px-4 py-2 text-center">العمر</th>}
-                    {visibleColumns.Passportnumber && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
-                    {visibleColumns.PassportStart && <th className="px-4 py-2 text-center">بداية الجواز</th>}
-                    {visibleColumns.PassportEnd && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
-                    {visibleColumns.office && <th className="px-4 py-2 text-center">المكتب</th>}
-                  </tr>
-                </thead>
-                <tbody className="bg-gray-50">
+            <table className="min-w-full text-md text-left">
+              <thead className="bg-teal-800">
+                <tr className="text-white">
+                  {visibleColumns.includes('id') && <th className="px-4 py-2 text-center">الرقم</th>}
+                  {visibleColumns.includes('Name') && <th className="px-4 py-2 text-center">الاسم</th>}
+                  {visibleColumns.includes('phone') && <th className="px-4 py-2 text-center">رقم الجوال</th>}
+                  {visibleColumns.includes('Country') && <th className="px-4 py-2 text-center">الجنسية</th>}
+                  {visibleColumns.includes('maritalstatus') && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
+                  {visibleColumns.includes('dateofbirth') && <th className="px-4 py-2 text-center">العمر</th>}
+                  {visibleColumns.includes('Passportnumber') && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
+                  {visibleColumns.includes('PassportStart') && <th className="px-4 py-2 text-center">بداية الجواز</th>}
+                  {visibleColumns.includes('PassportEnd') && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
+                  {visibleColumns.includes('office') && <th className="px-4 py-2 text-center">المكتب</th>}
+                </tr>
+              </thead>
+              <tbody className="bg-gray-50">
                 {data.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={Object.values(visibleColumns).filter(Boolean).length}
+                      colSpan={visibleColumns.length}
                       className="px-4 py-2 text-center text-gray-500"
                     >
                       لا توجد نتائج
@@ -742,7 +725,7 @@ export default function Table() {
                 ) : (
                   data.map((item) => (
                     <tr key={item.id} className="border-b hover:bg-gray-50">
-                      {visibleColumns.id && (
+                      {visibleColumns.includes('id') && (
                         <td
                           onClick={() => router.push("./neworder/" + item.homemaidId)}
                           className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
@@ -750,47 +733,50 @@ export default function Table() {
                           {item.id}
                         </td>
                       )}
-                      {visibleColumns.Name && (
+                      {visibleColumns.includes('Name') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item.Name}
                         </td>
                       )}
-                      {visibleColumns.phone && (
+                      {visibleColumns.includes('phone') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item.phone}
                         </td>
                       )}
-                      {visibleColumns.Country && (
+                      {visibleColumns.includes('Country') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item?.office?.Country}
                         </td>
                       )}
-                      {visibleColumns.maritalstatus && (
+                      {visibleColumns.includes('maritalstatus') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item.maritalstatus}
                         </td>
                       )}
-                      {visibleColumns.dateofbirth && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.dateofbirth}
+                      {visibleColumns.includes('dateofbirth') && (
+                        <td 
+                          className="px-4 py-2 text-center text-gray-600 cursor-help" 
+                          title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}
+                        >
+                          {calculateAge(item.dateofbirth)} سنة
                         </td>
                       )}
-                      {visibleColumns.Passportnumber && (
+                      {visibleColumns.includes('Passportnumber') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item.Passportnumber}
                         </td>
                       )}
-                      {visibleColumns.PassportStart && (
+                      {visibleColumns.includes('PassportStart') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item.PassportStart ? getDate(item.PassportStart) : ""}
                         </td>
                       )}
-                      {visibleColumns.PassportEnd && (
+                      {visibleColumns.includes('PassportEnd') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item.PassportEnd ? getDate(item.PassportEnd) : ""}
                         </td>
                       )}
-                      {visibleColumns.office && (
+                      {visibleColumns.includes('office') && (
                         <td className="px-4 py-2 text-center text-gray-600">
                           {item?.office?.office}
                         </td>
@@ -798,363 +784,19 @@ export default function Table() {
                     </tr>
                   ))
                 )}
-                </tbody>
-              </table>
-            </div>
+              </tbody>
+            </table>
 
-            <div className="border-t border-gray-200 p-4 bg-gray-50">
-              {totalPages > 1 && renderPagination()}
-              {loading && (
-                <div className="flex justify-center mt-4">
-                  <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
-                </div>
-              )}
-            </div>
+            {totalPages > 1 && renderPagination()}
+            {loading && (
+              <div className="flex justify-center mt-4">
+                <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Step 1 Modal */}
-        <Modal
-          isOpen={isStep1ModalOpen}
-          onRequestClose={closeStep1Modal}
-          style={customModalStyles}
-          contentLabel="تسجيل مغادرة - الخطوة 1"
-          shouldFocusAfterRender={true}
-          shouldCloseOnOverlayClick={true}
-        >
-          <div className="relative">
-            <button
-              onClick={closeStep1Modal}
-              className="absolute top-0 right-0 text-gray-500 hover:text-gray-700"
-              aria-label="إغلاق"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <h2 className={`text-2xl font-bold text-teal-800 mb-6 ${Style["almarai-bold"]}`}>
-              تسجيل مغادرة - الخطوة 1
-            </h2>
-            <form className="space-y-4" onSubmit={handleStep1Submit}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             
-                <div className="flex flex-col col-span-2">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    رقم الطلب *
-                  </label>
-                  <input
-                    type="text"
-                    name="Orderid"
-                    value={formData.Orderid}
-                    onChange={handleFormChange}
-                    placeholder="أدخل رقم الطلب"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-             
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    اسم العميل *
-                  </label>
-                  <input
-                    type="text"
-                    name="SponsorName"
-                    value={formData.SponsorName}
-                    onChange={handleFormChange}
-                    placeholder="أدخل اسم الكفيل"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                     هوية العميل *
-                  </label>
-                  <input
-                    type="text"
-                    name="SponsorIdnumber"
-                    value={formData.SponsorIdnumber}
-                    onChange={handleFormChange}
-                    placeholder=" هوية العميل"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    مدينة العاملة *
-                  </label>
-                  <input
-                    type="text"
-                    name="HomemaidName"
-                    value={formData.HomemaidName}
-                    onChange={handleFormChange}
-                    placeholder="مدينة العاملة"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    اسم العاملة *
-                  </label>
-                  <input
-                    type="text"
-                    name="HomemaidName"
-                    value={formData.HomemaidName}
-                    onChange={handleFormChange}
-                    placeholder="اسم العاملة"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    رقم الجواز *
-                  </label>
-                  <input
-                    type="text"
-                    name="PassportNumber"
-                    value={formData.PassportNumber}
-                    onChange={handleFormChange}
-                    placeholder="أدخل رقم الجواز"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-             
-             
-             
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    جنسية العاملة *
-                  </label>
-                  <input
-                    type="text"
-                    name="nationality"
-                    value={formData.Nationality}
-                    onChange={handleFormChange}
-                    placeholder="جنسية العاملة"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-             
-             
-             
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    حالة الضمان 
-                  </label>
-     <input
-                    type="text"
-                    name="GuaranteedStatus"
-                    value={formData.GuaranteeStatus}
-                    onChange={handleFormChange}
-                    placeholder="حالة الضمان"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-             
-
-
-             
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-              المدة المتبقية
-                  </label>
-                  <input
-                    type="text"
-                    name="GuaranteeDurationEnd"
-                    value={formData.GuaranteeDurationEnd}
-                    onChange={handleFormChange}
-                    placeholder="المدة المتبقية"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-             
-
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={closeStep1Modal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition-colors"
-                >
-                  التالي
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-
-        {/* Step 2 Modal */}
-        <Modal
-          isOpen={isStep2ModalOpen}
-          onRequestClose={closeStep2Modal}
-          style={customModalStyles}
-          contentLabel="تسجيل مغادرة - الخطوة 2"
-          shouldFocusAfterRender={true}
-          shouldCloseOnOverlayClick={true}
-        >
-          <div className="relative">
-            <button
-              onClick={closeStep2Modal}
-              className="absolute top-0 right-0 text-gray-500 hover:text-gray-700"
-              aria-label="إغلاق"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <h2 className={`text-2xl font-bold text-teal-800 mb-6 ${Style["almarai-bold"]}`}>
-              تسجيل مغادرة - الخطوة 2
-            </h2>
-            <form className="space-y-4" onSubmit={handleStep2Submit}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-
-
-
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    سبب المغادرة
-                  </label>
-                  <input
-                    type="text"
-                    name="reason"
-                    placeholder="سبب المغادرة"
-                    value={formData.reason}
-                    onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    من
-                  </label>
-                  <input
-                    type="text"
-                    name="reason"
-                    placeholder="وجهة المغادرة"
-                    value={formData.ArrivalCity}
-                    onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    الى
-                  </label>
-                  <input
-                    type="text"
-                    name="reason"
-                    placeholder="وجهة الوصول"
-                    value={formData.finaldestination}
-                    onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    تاريخ المغادرة
-                  </label>
-                  <input
-                  placeholder="ادخل تاريخ ووقت المغادرة"
-                    type="datetime-local"
-                    name="deparatureDate"
-                    value={formData.deparatureDate}
-                    onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    تاريخ الوصول
-                  </label>
-                  <input
-                  placeholder="ادخل تاريخ ووقت الوصول"
-                    type="datetime-local"
-                    name="deparatureDate"
-                    value={formData.ArrivalDate}
-                    onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-
-                <div className="flex flex-col">
-                  <label className="text-md font-medium text-gray-700 mb-1">
-                    ملف التذكرة
-                  </label>
-                  <input
-                    type="file"
-                    name="ticketFile"
-                    onChange={handleFormChange}
-                    accept=".pdf,.jpg,.png"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeStep2Modal();
-                    setIsStep1ModalOpen(true);
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                  رجوع
-                </button>
-                <button
-                  type="button"
-                  onClick={closeStep2Modal}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition-colors"
-                >
-                  إرسال
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
+    
 
         {/* Export Modal */}
         <Modal
