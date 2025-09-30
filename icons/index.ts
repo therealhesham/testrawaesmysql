@@ -27,6 +27,17 @@ import OutlinePersonIcon from './outlinePerson.svg'
 import OutlineCogIcon from './outlineCog.svg'
 import OutlineLogoutIcon from './outlineLogout.svg'
 import Country from "./Country.svg"
+import LinkIcon from './link.svg'
+import PaperClipIcon from './paperclip.svg'
+import AlignRightIcon from './align-right.svg'
+import AlignCenterIcon from './align-center.svg'
+import ListBulletIcon from './list-bullet.svg'
+import ListNumberedIcon from './list-numbered.svg'
+import StrikethroughIcon from './strikethrough.svg'
+import UnderlineIcon from './underline.svg'
+import ItalicIcon from './italic.svg'
+import BoldIcon from './bold.svg'
+import PlusIcon from './plus.svg'
 
 export {Country,
   ButtonsIcon,
@@ -57,6 +68,17 @@ export {Country,
   OutlinePersonIcon,
   OutlineCogIcon,
   OutlineLogoutIcon,
+  LinkIcon,
+  PaperClipIcon,
+  AlignRightIcon,
+  AlignCenterIcon,
+  ListBulletIcon,
+  ListNumberedIcon,
+  StrikethroughIcon,
+  UnderlineIcon,
+  ItalicIcon,
+  BoldIcon,
+  PlusIcon,
 }
 
 interface IIcon{

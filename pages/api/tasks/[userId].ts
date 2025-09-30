@@ -31,6 +31,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isCompleted: true,
             userId: true,
             assignedBy: true,
+            priority: true,
+            isActive: true,
+            isRepeating: true,
+            repeatType: true,
+            repeatInterval: true,
+            repeatStartDate: true,
+            repeatEndDate: true,
+            repeatEndType: true,
+            repeatCount: true,
+            repeatDays: true,
+            repeatTime: true,
+            completionDate: true,
+            completionNotes: true,
+            parentTaskId: true,
             user: {
               select: {
                 username: true,
@@ -48,6 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.log('Found tasks:', tasks.length);
         res.status(200).json(tasks);
       } catch (error) {
+        console.log(error)
         res.status(500).json({ error: 'Error fetching tasks' });
       }
       break;
@@ -56,10 +71,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       try {
         const { userId } = req.query;
         const userIdStr = Array.isArray(userId) ? userId[0] : userId;
-        const { description, Title, taskDeadline, isCompleted } = req.body;
+        const { 
+          description, 
+          Title, 
+          taskDeadline, 
+          isCompleted,
+          assignee,
+          priority,
+          isActive,
+          isRepeating,
+          repeatType,
+          repeatInterval,
+          repeatStartDate,
+          repeatEndDate,
+          repeatEndType,
+          repeatCount,
+          repeatDays,
+          repeatTime
+        } = req.body;
 
         console.log('Creating task for userId:', userIdStr);
-        console.log('Task data:', { description, Title, taskDeadline, isCompleted });
+        console.log('Task data:', { 
+          description, 
+          Title, 
+          taskDeadline, 
+          isCompleted,
+          assignee,
+          priority,
+          isRepeating,
+          repeatType
+        });
 
         // Validate userId
         if (!userIdStr || isNaN(parseInt(userIdStr))) {
@@ -71,15 +112,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(400).json({ error: 'Description, Title, and taskDeadline are required' });
         }
 
+        // Determine the assignee
+        let assignedUserId = parseInt(userIdStr);
+        if (assignee && assignee !== '') {
+          assignedUserId = parseInt(assignee);
+        }
+
+        // Create the main task
+        const taskData: any = {
+          userId: assignedUserId,
+          assignedBy: parseInt(userIdStr),
+          description,
+          taskDeadline: new Date(taskDeadline).toISOString(),
+          Title,
+          isCompleted: isCompleted || false,
+          priority: priority || null,
+          isActive: isActive !== undefined ? isActive : true,
+          isRepeating: isRepeating || false,
+        };
+
+        // Add repeating fields if task is repeating
+        if (isRepeating) {
+          taskData.repeatType = repeatType || 'daily';
+          taskData.repeatInterval = parseInt(repeatInterval) || 1;
+          taskData.repeatStartDate = repeatStartDate ? new Date(repeatStartDate).toISOString() : null;
+          taskData.repeatEndDate = repeatEndDate ? new Date(repeatEndDate).toISOString() : null;
+          taskData.repeatEndType = repeatEndType || 'never';
+          taskData.repeatCount = parseInt(repeatCount) || 1;
+          taskData.repeatDays = repeatDays ? JSON.stringify(repeatDays) : null;
+          taskData.repeatTime = repeatTime || '00:00';
+        }
+
         const task = await prisma.tasks.create({
-          data: {
-            userId: parseInt(userIdStr),
-            assignedBy: parseInt(userIdStr), // The person creating the task is also the assigner
-            description,
-            taskDeadline: new Date(taskDeadline).toISOString(),
-            Title,
-            isCompleted: isCompleted || false,
-          } as any,
+          data: taskData,
           select: {
             createdAt: true,
             id: true,
@@ -89,6 +154,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isCompleted: true,
             userId: true,
             assignedBy: true,
+            priority: true,
+            isActive: true,
+            isRepeating: true,
+            repeatType: true,
+            repeatInterval: true,
+            repeatStartDate: true,
+            repeatEndDate: true,
+            repeatEndType: true,
+            repeatCount: true,
+            repeatDays: true,
+            repeatTime: true,
+            completionDate: true,
+            completionNotes: true,
           } as any,
         });
 

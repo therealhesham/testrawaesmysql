@@ -27,7 +27,7 @@ interface OrderData {
   travelPermit: { issued: boolean };
   destinations: { departureCity: string; arrivalCity: string; departureDateTime: string; arrivalDateTime: string };
   ticketUpload: { files: string };
-  receipt: { received: boolean };
+  receipt: { received: boolean; method?: string };
   documentUpload: { files: string };
   bookingStatus: string;
   nationality?: string;
@@ -106,11 +106,28 @@ export default function TrackOrder() {
     }
   };
 
+  // خريطة لتحويل أسماء الحقول الإنجليزية إلى أسماء عربية
+  const fieldNames: { [key: string]: string } = {
+    'officeLinkInfo': 'الربط مع إدارة المكاتب',
+    'externalOfficeInfo': 'المكتب الخارجي',
+    'externalOfficeApproval': 'موافقة المكتب الخارجي',
+    'medicalCheck': 'الفحص الطبي',
+    'foreignLaborApproval': 'موافقة وزارة العمل الأجنبية',
+    'agencyPayment': 'دفع الوكالة',
+    'saudiEmbassyApproval': 'موافقة السفارة السعودية',
+    'visaIssuance': 'إصدار التأشيرة',
+    'travelPermit': 'تصريح السفر',
+    'destinations': 'الوجهات',
+    'receipt': 'الاستلام',
+    'ticketUpload': 'رفع المستندات'
+  };
+
   const handleStatusUpdate = async (field: string, value: boolean) => {
+    const fieldName = fieldNames[field] || field;
     setShowConfirmModal({
       isOpen: true,
       title: 'تحديث الحالة',
-      message: `هل أنت متأكد من تحديث حالة ${field}؟`,
+      message: `هل أنت متأكد من تحديث حالة ${fieldName}؟`,
       onConfirm: async () => {
         setUpdating(true);
         try {
@@ -740,7 +757,7 @@ export default function TrackOrder() {
                     />
                     <label
                       htmlFor="file-upload-destinations"
-                      className={`bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
+                      className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
                     >
                       اختيار ملف
                     </label>
@@ -757,17 +774,130 @@ export default function TrackOrder() {
             title="11- الاستلام"
             data={[
               {
-                label: 'هل تم الاستلام؟',
+                label: 'طريقة الاستلام',
                 value: orderData.receipt.received ? (
-                  <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الاستلام" />
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="w-6 h-6 text-teal-800" aria-label="تم الاستلام" />
+                      <span className="text-gray-700">
+                        {orderData.receipt.method === 'direct' ? 'مباشر' :
+                         orderData.receipt.method === 'indirect' ? 'غير مباشر' :
+                         orderData.receipt.method === 'intermediary' ? 'عن طريق وسيط' :
+                         'غير محدد'}
+                      </span>
+                    </div>
+                  </div>
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('receipt', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الاستلام
-                  </button>
+                  <div className="space-y-2 flex flex-row justify-center gap-6" >
+                    <div className="flex items-center  gap-2 text-right">
+                      <input
+                        type="radio"
+                        id="receipt-direct"
+                        name="receipt-method"
+                        value="direct"
+                        className="ml-2"
+                        checked={orderData.receipt.method === 'direct'}
+                        onChange={async (e) => {
+                          if (e.target.checked) {
+                            // تأكيد الاستلام تلقائياً عند اختيار الطريقة
+                            setUpdating(true);
+                            try {
+                              const res = await fetch(`/api/track_order/${id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  field: 'receipt', 
+                                  value: true,
+                                  section: 'receipt',
+                                  updatedData: { method: 'direct' }
+                                }),
+                              });
+                              if (res.ok) {
+                                await fetchOrderData();
+                              }
+                            } catch (error) {
+                              console.error('Error updating receipt:', error);
+                            } finally {
+                              setUpdating(false);
+                            }
+                          }
+                        }}
+                      />
+                      <label htmlFor="receipt-direct" className="text-gray-700">مباشر</label>
+                    </div>
+                    <div className="flex items-center gap-2 text-right">
+                      <input
+                        type="radio"
+                        id="receipt-indirect"
+                        name="receipt-method"
+                        value="indirect"
+                        className="ml-2"
+                        checked={orderData.receipt.method === 'indirect'}
+                        onChange={async (e) => {
+                          if (e.target.checked) {
+                            // تأكيد الاستلام تلقائياً عند اختيار الطريقة
+                            setUpdating(true);
+                            try {
+                              const res = await fetch(`/api/track_order/${id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  field: 'receipt', 
+                                  value: true,
+                                  section: 'receipt',
+                                  updatedData: { method: 'indirect' }
+                                }),
+                              });
+                              if (res.ok) {
+                                await fetchOrderData();
+                              }
+                            } catch (error) {
+                              console.error('Error updating receipt:', error);
+                            } finally {
+                              setUpdating(false);
+                            }
+                          }
+                        }}
+                      />
+                      <label htmlFor="receipt-indirect" className="text-gray-700">غير مباشر</label>
+                    </div>
+                    <div className="flex items-center gap-2 text-right">
+                      <input
+                        type="radio"
+                        id="receipt-intermediary"
+                        name="receipt-method"
+                        value="intermediary"
+                        className="ml-2"
+                        checked={orderData.receipt.method === 'intermediary'}
+                        onChange={async (e) => {
+                          if (e.target.checked) {
+                            // تأكيد الاستلام تلقائياً عند اختيار الطريقة
+                            setUpdating(true);
+                            try {
+                              const res = await fetch(`/api/track_order/${id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  field: 'receipt', 
+                                  value: true,
+                                  section: 'receipt',
+                                  updatedData: { method: 'intermediary' }
+                                }),
+                              });
+                              if (res.ok) {
+                                await fetchOrderData();
+                              }
+                            } catch (error) {
+                              console.error('Error updating receipt:', error);
+                            } finally {
+                              setUpdating(false);
+                            }
+                          }
+                        }}
+                      />
+                      <label htmlFor="receipt-intermediary" className="text-gray-700">عن طريق وسيط</label>
+                    </div>
+                  </div>
                 ),
               },
             ]}
@@ -852,7 +982,7 @@ export default function TrackOrder() {
                     />
                     <label
                       htmlFor="file-upload"
-                      className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs cursor-pointer hover:bg-teal-900 disabled:opacity-50"
+                      className="bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 disabled:opacity-50"
                     >
                       اختيار ملف
                     </label>

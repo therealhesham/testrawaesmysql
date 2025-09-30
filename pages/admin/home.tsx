@@ -30,6 +30,8 @@ import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
 import AlertModal from "../../components/AlertModal";
+import AddTaskModal from "../../components/AddTaskModal";
+import TaskCompletionModal from "../../components/TaskCompletionModal";
 
 // --- Helper Functions (Moved outside component for reusability on server) ---
 const calculateRemainingDays = (eventDate) => {
@@ -458,6 +460,19 @@ export default function Home({
     task: null
   });
   
+  // State for more tasks modal
+  const [moreTasksModal, setMoreTasksModal] = useState({
+    isOpen: false,
+    tasks: [],
+    title: ''
+  });
+
+  // State for task completion modal
+  const [taskCompletionModal, setTaskCompletionModal] = useState({
+    isOpen: false,
+    task: null
+  });
+  
   // State for alert modal
   const [alertModal, setAlertModal] = useState({
     isOpen: false,
@@ -675,9 +690,8 @@ export default function Home({
   };
 
   // Function to handle adding a new task (client-side API call)
-  const handleAddTask = async (e) => {
-    e.preventDefault();
-    if (newTask.title && newTask.description && newTask.taskDeadline) {
+  const handleAddTask = async (taskData) => {
+    if (taskData.title && taskData.description && taskData.deadline) {
       try {
         console.log('Creating task for user:', user.id);
         const response = await fetch(`/api/tasks/add-with-random-search`, {
@@ -685,9 +699,21 @@ export default function Home({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user.id,
-            description: newTask.description,
-            title: newTask.title,
-            taskDeadline: newTask.taskDeadline,
+            description: taskData.description,
+            title: taskData.title,
+            taskDeadline: taskData.deadline,
+            assignee: taskData.assignee,
+            priority: taskData.priority,
+            isActive: taskData.isActive,
+            isRepeating: taskData.isRepeating,
+            repeatType: taskData.repeatType,
+            repeatInterval: taskData.repeatInterval,
+            repeatStartDate: taskData.repeatStartDate,
+            repeatEndDate: taskData.repeatEndDate,
+            repeatEndType: taskData.repeatEndType,
+            repeatCount: taskData.repeatCount,
+            repeatDays: taskData.repeatDays,
+            repeatTime: taskData.repeatTime,
           }),
         });
         const data = await response.json();
@@ -696,9 +722,6 @@ export default function Home({
           if (data.task.userId === user.id) {
             setClientTasks(prevTasks => [...prevTasks, data.task]);
           }
-          setRandomNamesFound(data.randomNamesFound || []);
-          setNewTask({ title: '', description: '', taskDeadline: '' });
-          setIsModalOpen(false);
           setAlertModal({
             isOpen: true,
             type: 'success',
@@ -726,6 +749,57 @@ export default function Home({
     }
   };
 
+  // Function to handle task completion update
+  const handleTaskUpdate = async (taskId: number, isCompleted: boolean, completionDate?: string, completionNotes?: string) => {
+    try {
+      const response = await fetch('/api/tasks/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId,
+          isCompleted,
+          completionDate,
+          completionNotes
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Update the task in clientTasks state
+        setClientTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === taskId 
+              ? { ...task, isCompleted, completionDate, completionNotes }
+              : task
+          )
+        );
+
+        setAlertModal({
+          isOpen: true,
+          type: 'success',
+          title: 'تم تحديث المهمة بنجاح',
+          message: isCompleted ? 'تم تحديد المهمة كمكتملة' : 'تم تحديث حالة المهمة'
+        });
+      } else {
+        setAlertModal({
+          isOpen: true,
+          type: 'error',
+          title: 'خطأ في تحديث المهمة',
+          message: data.error || 'حدث خطأ أثناء تحديث المهمة'
+        });
+      }
+    } catch (error) {
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ في تحديث المهمة',
+        message: error.toString()
+      });
+      console.error('Error updating task:', error);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewTask((prev) => ({ ...prev, [name]: value }));
@@ -734,6 +808,23 @@ export default function Home({
   // Function to open task details modal
   const handleTaskClick = (task) => {
     setTaskDetailsModal({
+      isOpen: true,
+      task: task
+    });
+  };
+
+  // Function to open more tasks modal
+  const handleMoreTasksClick = (tasks, title) => {
+    setMoreTasksModal({
+      isOpen: true,
+      tasks: tasks,
+      title: title
+    });
+  };
+
+  // Function to open task completion modal
+  const handleTaskCompletionClick = (task) => {
+    setTaskCompletionModal({
       isOpen: true,
       task: task
     });
@@ -1001,34 +1092,74 @@ export default function Home({
             {/* My Tasks Tab */}
             {tasksSectionState === "myTasks" && (
               <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).slice(0, 5).map((task, index) => (
+                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).slice(0, 3).map((task, index) => (
                   <li 
                     key={index} 
-                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => handleTaskClick(task)}
+                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-lg font-medium text-gray-900">{task.Title}</p>
-                        <p className="text-sm text-gray-600">{task.description}</p>
-                        <p className="text-sm text-gray-500">
-                          الموعد النهائي: {getDate(task.taskDeadline)}
-                        </p>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          {task.priority && (
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
+                              task.priority === 'متوسط الأهمية' ? 'bg-yellow-100 text-yellow-600' :
+                              'bg-green-100 text-green-600'
+                            }`}>
+                              {task.priority}
+                            </span>
+                          )}
+                          {task.isRepeating && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">
+                              متكررة
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <span>الموعد: {getDate(task.taskDeadline)}</span>
+                          {task.repeatTime && (
+                            <span>الوقت: {task.repeatTime}</span>
+                          )}
+                        </div>
                         {task.assignedBy && task.assignedBy !== user.id && (
-                          <p className="text-xs text-blue-600">
+                          <p className="text-xs text-blue-600 mt-1">
                             مُسندة من: {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
                           </p>
                         )}
+                        {task.completionDate && (
+                          <p className="text-xs text-green-600 mt-1">
+                            تاريخ الانتهاء: {getDate(task.completionDate)}
+                          </p>
+                        )}
                       </div>
-                      <span className="text-sm text-teal-600">غير مكتمل</span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="text-sm text-teal-600">غير مكتمل</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTaskCompletionClick(task);
+                          }}
+                          className="px-3 py-1 text-xs bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
+                        >
+                          تحديد انتهى
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
-                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length > 5 && (
+                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length > 3 && (
                   <div className="text-center py-2">
-                    <span className="text-sm text-gray-500">
-                      عرض {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length - 5} مهمة إضافية...
-                    </span>
+                    <button 
+                      onClick={() => handleMoreTasksClick(
+                        clientTasks.filter(task => !task.isCompleted && task.userId === user.id), 
+                        'مهامي'
+                      )}
+                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
+                    >
+                      عرض المزيد ({clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length - 3} مهمة إضافية)
+                    </button>
                   </div>
                 )}
                 {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length === 0 && (
@@ -1042,34 +1173,79 @@ export default function Home({
             {/* Sent Tasks Tab */}
             {tasksSectionState === "sentTasks" && (
               <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-                {clientTasks.filter(task => task.assignedBy === user.id).slice(0, 5).map((task, index) => (
+                {clientTasks.filter(task => task.assignedBy === user.id).slice(0, 3).map((task, index) => (
                   <li 
                     key={index} 
-                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => handleTaskClick(task)}
+                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-lg font-medium text-gray-900">{task.Title}</p>
-                        <p className="text-sm text-gray-600">{task.description}</p>
-                        <p className="text-sm text-gray-500">
-                          الموعد النهائي: {getDate(task.taskDeadline)}
-                        </p>
-                        <p className="text-xs text-green-600">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          {task.priority && (
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
+                              task.priority === 'متوسط الأهمية' ? 'bg-yellow-100 text-yellow-600' :
+                              'bg-green-100 text-green-600'
+                            }`}>
+                              {task.priority}
+                            </span>
+                          )}
+                          {task.isRepeating && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">
+                              متكررة
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <span>الموعد: {getDate(task.taskDeadline)}</span>
+                          {task.repeatTime && (
+                            <span>الوقت: {task.repeatTime}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-green-600 mt-1">
                           مُرسلة إلى: {task.user?.username || `المستخدم #${task.userId}`}
                         </p>
+                        {task.completionDate && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            تاريخ الانتهاء: {getDate(task.completionDate)}
+                          </p>
+                        )}
+                        {task.completionNotes && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            ملاحظات: {task.completionNotes}
+                          </p>
+                        )}
                       </div>
-                      <span className={`text-sm ${task.isCompleted ? 'text-green-600' : 'text-yellow-600'}`}>
-                        {task.isCompleted ? 'مكتمل' : 'غير مكتمل'}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`text-sm ${task.isCompleted ? 'text-green-600' : 'text-yellow-600'}`}>
+                          {task.isCompleted ? 'مكتمل' : 'غير مكتمل'}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTaskCompletionClick(task);
+                          }}
+                          className="px-3 py-1 text-xs bg-teal-100 text-teal-700 hover:bg-teal-200 rounded-lg transition-colors"
+                        >
+                          تحديث الحالة
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
-                {clientTasks.filter(task => task.assignedBy === user.id).length > 5 && (
+                {clientTasks.filter(task => task.assignedBy === user.id).length > 3 && (
                   <div className="text-center py-2">
-                    <span className="text-sm text-gray-500">
-                      عرض {clientTasks.filter(task => task.assignedBy === user.id).length - 5} مهمة إضافية...
-                    </span>
+                    <button 
+                      onClick={() => handleMoreTasksClick(
+                        clientTasks.filter(task => task.assignedBy === user.id), 
+                        'المهام المرسلة'
+                      )}
+                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
+                    >
+                      عرض المزيد ({clientTasks.filter(task => task.assignedBy === user.id).length - 3} مهمة إضافية)
+                    </button>
                   </div>
                 )}
                 {clientTasks.filter(task => task.assignedBy === user.id).length === 0 && (
@@ -1322,87 +1498,11 @@ export default function Home({
         </section>
 
         {/* Task Modal */}
-        {isModalOpen && (
-          <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${Style["tajawal-medium"]}`}>
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-800">إضافة مهمة جديدة</h3>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <form onSubmit={handleAddTask}>
-                <div className={`${Style["tajawal-medium"]} mb-4`}>
-                  <label className="block text-sm font-medium text-gray-700">عنوان المهمة</label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={newTask.title}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">الوصف</label>
-                  <textarea
-                    name="description"
-                    value={newTask.description}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">الموعد النهائي</label>
-                  <input
-                    type="date"
-                    name="taskDeadline"
-                    value={newTask.taskDeadline}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:ring-teal-500 focus:border-teal-500"
-                    required
-                  />
-                </div>
-                {/* Display random names found */}
-                {randomNamesFound.length > 0 && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <h4 className="text-sm font-medium text-blue-800 mb-2">أسماء عشوائية تم العثور عليها:</h4>
-                    <div className="space-y-1">
-                      {randomNamesFound.map((name, index) => (
-                        <div key={index} className={`text-xs ${name.selected ? 'text-green-700 font-semibold' : 'text-blue-700'}`}>
-                          • {name.name} ({name.type}) - {name.phone}
-                          {name.selected && <span className="text-green-600"> ← تم اختياره</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
-                  >
-                    إلغاء
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
-                  >
-                    إضافة
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        <AddTaskModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleAddTask}
+        />
 
         {/* Task Details Modal */}
         {taskDetailsModal.isOpen && taskDetailsModal.task && (
@@ -1426,7 +1526,7 @@ export default function Home({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">الوصف</label>
-                  <p className="mt-1 text-gray-600">{taskDetailsModal.task.description}</p>
+                  <p className="mt-1 text-gray-600" dangerouslySetInnerHTML={{ __html: taskDetailsModal.task.description }}></p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">الموعد النهائي</label>
@@ -1465,6 +1565,92 @@ export default function Home({
           </div>
         )}
 
+        {/* More Tasks Modal */}
+        {moreTasksModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-800">{moreTasksModal.title}</h3>
+                <button
+                  onClick={() => setMoreTasksModal({ isOpen: false, tasks: [], title: '' })}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-4">
+                {moreTasksModal.tasks.map((task, index) => (
+                  <div 
+                    key={index} 
+                    className="border px-4 py-3 rounded-lg border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setMoreTasksModal({ isOpen: false, tasks: [], title: '' });
+                      handleTaskClick(task);
+                    }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          {task.priority && (
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
+                              task.priority === 'متوسط الأهمية' ? 'bg-yellow-100 text-yellow-600' :
+                              'bg-green-100 text-green-600'
+                            }`}>
+                              {task.priority}
+                            </span>
+                          )}
+                          {task.isRepeating && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">
+                              متكررة
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <span>الموعد: {getDate(task.taskDeadline)}</span>
+                          {task.repeatTime && (
+                            <span>الوقت: {task.repeatTime}</span>
+                          )}
+                        </div>
+                        {task.assignedBy && task.assignedBy !== user.id && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            مُسندة من: {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
+                          </p>
+                        )}
+                        {task.userId && task.userId !== user.id && (
+                          <p className="text-xs text-green-600 mt-1">
+                            مُرسلة إلى: {task.user?.username || `المستخدم #${task.userId}`}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-sm ${task.isCompleted ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {task.isCompleted ? 'مكتمل' : 'غير مكتمل'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {moreTasksModal.tasks.length === 0 && (
+                  <div className="text-center py-8">
+                    <span className="text-sm text-gray-500">لا توجد مهام</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setMoreTasksModal({ isOpen: false, tasks: [], title: '' })}
+                  className="bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Alert Modal */}
         <AlertModal
           isOpen={alertModal.isOpen}
@@ -1473,7 +1659,15 @@ export default function Home({
           title={alertModal.title}
           message={alertModal.message}
           autoClose={alertModal.type === 'success'}
-          autoCloseDelay={3005}
+          autoCloseDelay={3000}
+        />
+
+        {/* Task Completion Modal */}
+        <TaskCompletionModal
+          isOpen={taskCompletionModal.isOpen}
+          onClose={() => setTaskCompletionModal({ isOpen: false, task: null })}
+          task={taskCompletionModal.task}
+          onTaskUpdate={handleTaskUpdate}
         />
       </div>
     </Layout>

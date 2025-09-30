@@ -89,7 +89,7 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [], edit
   };
 
   return (
-    <section className="bg-gray-100 border border-gray-200 rounded-md p-6 mb-6">
+    <section className="bg-gray-100  rounded-md p-6 mb-6">
       <h3 className="text-2xl font-normal text-center mb-6">{title}</h3>
       {errors.global && <div className="text-red-600 text-sm mb-4 text-right">{errors.global}</div>}
       <div className={`grid grid-cols-${gridCols} gap-4`}>

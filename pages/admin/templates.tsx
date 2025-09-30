@@ -19,6 +19,7 @@ interface Template {
   content: string;
   type: string;
   dynamicFields?: string[];
+  defaultValues?: { [key: string]: string };
 }
 
 export default function Home() {
@@ -94,7 +95,8 @@ export default function Home() {
   const handleTemplateSelect = (template: Template) => {
     setSelectedTemplate(template);
     setEditorContent(template.content);
-    setDynamicFieldValues({});
+    // Load default values if they exist, otherwise use empty values
+    setDynamicFieldValues(template.defaultValues || {});
   };
 
   const handleAddTemplate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -116,8 +118,8 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           isEditMode
-            ? { id: selectedTemplate?.id, title, content, type, dynamicFields }
-            : { title, content, type, dynamicFields }
+            ? { id: selectedTemplate?.id, title, content, type, dynamicFields, defaultValues: dynamicFieldValues }
+            : { title, content, type, dynamicFields, defaultValues: dynamicFieldValues }
         ),
       });
 
@@ -150,6 +152,39 @@ export default function Home() {
       renderedContent = renderedContent.replace(`{${field}}`, value || `{${field}}`);
     }
     return renderedContent;
+  };
+
+  const handleSaveDefaults = async () => {
+    if (!selectedTemplate) return;
+
+    try {
+      const res = await fetch('/api/templates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedTemplate.id,
+          title: selectedTemplate.title,
+          content: selectedTemplate.content,
+          type: selectedTemplate.type,
+          dynamicFields: selectedTemplate.dynamicFields,
+          defaultValues: dynamicFieldValues
+        }),
+      });
+
+      if (res.ok) {
+        const updatedTemplate = await res.json();
+        setTemplates((prev) =>
+          prev.map((t) => (t.id === updatedTemplate.id ? updatedTemplate : t))
+        );
+        setSelectedTemplate(updatedTemplate);
+        alert('تم حفظ القيم الافتراضية بنجاح');
+      } else {
+        alert('فشل في حفظ القيم الافتراضية');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('حدث خطأ في حفظ القيم الافتراضية');
+    }
   };
 
   const handleExportToPDF = async () => {
@@ -252,6 +287,12 @@ export default function Home() {
                     >
                       <FileText className="w-4 h-4" />
                       <span>PDF</span>
+                    </button>
+                    <button
+                      onClick={handleSaveDefaults}
+                      className="flex items-center gap-1 bg-green-600 text-white px-4 py-1 rounded text-sm hover:bg-green-700"
+                    >
+                      <span>حفظ القيم الافتراضية</span>
                     </button>
                   </div>
 

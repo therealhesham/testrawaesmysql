@@ -1,6 +1,6 @@
 import { CheckIcon } from '@heroicons/react/outline';
 import { Calendar } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import AlertModal from './AlertModal';
 
 interface FormStep2Props {
@@ -25,6 +25,60 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
   const [alertMessage, setAlertMessage] = useState('');
+  
+  // إضافة state لرفع ملف التذكرة
+  const [internalTicketFile, setInternalTicketFile] = useState<string>('');
+  const [fileUploaded, setFileUploaded] = useState(false);
+  const [uploadError, setUploadError] = useState<string>('');
+  const ticketFileInputRef = useRef<HTMLInputElement>(null);
+
+  // دالة رفع ملف التذكرة
+  const handleTicketFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      setUploadError('لم يتم اختيار ملف');
+      setFileUploaded(false);
+      return;
+    }
+
+    const file = files[0];
+    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    
+    if (!allowedFileTypes.includes(file.type)) {
+      setUploadError('نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)');
+      setFileUploaded(false);
+      return;
+    }
+
+    try {
+      setUploadError('');
+      const res = await fetch(`/api/upload-presigned-url/internalTicketFile`);
+      if (!res.ok) {
+        throw new Error('فشل في الحصول على رابط الرفع');
+      }
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (uploadRes.ok) {
+        setInternalTicketFile(filePath);
+        setFileUploaded(true);
+        setUploadError('');
+      } else {
+        throw new Error('فشل في رفع الملف');
+      }
+    } catch (error: any) {
+      setUploadError(error.message || 'حدث خطأ أثناء رفع الملف');
+      setFileUploaded(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -46,6 +100,7 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
           internaldeparatureDate: formData.deparatureDate, // تاريخ المغادرة = تاريخ المغادرة
           internalArrivalCity: formData.finaldestination, // مدينة الوصول = الى
           internalArrivalCityDate: formData.finalDestinationDate, // تاريخ الوصول = تاريخ الوصول
+          internalTicketFile: internalTicketFile, // ملف التذكرة
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -159,10 +214,36 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="ticket-upload" className="text-xs text-gray-500 text-right font-inter">ارفاق التذكرة</label>
             <div className="flex items-center justify-between bg-gray-50 border border-gray-300 rounded p-1 pl-3">
-              <span className="text-md text-gray-500 font-tajawal">ارفاق ملف التذكرة</span>
-              <label htmlFor="ticket-upload-btn" className="bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded cursor-pointer">اختيار ملف</label>
-              <input type="file" id="ticket-upload-btn" className="hidden" />
+              <span className="text-md text-gray-500 font-tajawal">
+                {fileUploaded ? 'تم رفع الملف بنجاح' : 'ارفاق ملف التذكرة'}
+              </span>
+              <label htmlFor="ticket-upload-btn" className="bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded cursor-pointer">
+                {fileUploaded ? 'تغيير الملف' : 'اختيار ملف'}
+              </label>
+              <input 
+                type="file" 
+                id="ticket-upload-btn" 
+                className="hidden" 
+                ref={ticketFileInputRef}
+                onChange={handleTicketFileChange}
+                accept=".pdf,.jpg,.jpeg,.png"
+              />
             </div>
+            {uploadError && (
+              <span className="text-red-500 text-xs text-right">{uploadError}</span>
+            )}
+            {fileUploaded && internalTicketFile && (
+              <div className="mt-2">
+                <a 
+                  href={internalTicketFile} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-500 text-xs hover:underline"
+                >
+                  عرض الملف المرفوع
+                </a>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-2">
