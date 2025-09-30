@@ -128,7 +128,22 @@ taskDeadline DateTime
   updatedAt       DateTime  @updatedAt
   isCompleted      Boolean?  @default(false)
 Title               String?
-
+priority           String?   @db.VarChar(50) // درجة الأهمية
+isActive           Boolean?  @default(true) // تفعيل المهمة
+isRepeating        Boolean?  @default(false) // تكرار المهمة
+repeatType         String?   @db.VarChar(20) // نوع التكرار: daily, weekly, monthly, yearly
+repeatInterval     Int?      @default(1) // فاصل التكرار
+repeatStartDate    DateTime? // تاريخ بداية التكرار
+repeatEndDate      DateTime? // تاريخ انتهاء التكرار
+repeatEndType      String?   @db.VarChar(20) // نوع انتهاء التكرار: never, date, count
+repeatCount        Int?      @default(1) // عدد مرات التكرار
+repeatDays         Json?     // أيام الأسبوع للتكرار الأسبوعي
+repeatTime         String?   @db.VarChar(10) // وقت التنفيذ
+completionDate     DateTime? // تاريخ إنجاز المهمة
+completionNotes    String?   @db.VarChar(500) // ملاحظات الإنجاز
+parentTaskId       Int?      // المهمة الأصلية للتكرار
+parentTask         tasks?    @relation("TaskRepeats", fields: [parentTaskId], references: [id])
+repeatTasks        tasks[]   @relation("TaskRepeats") // المهام المتكررة
 }
 model weeklyStatus{
   id              Int       @id @default(autoincrement())
@@ -174,12 +189,14 @@ message        String?   @db.VarChar(255)
 }
 
 model Template {
-  id        Int      @id @default(autoincrement())
-  title     String   @db.VarChar(255)
-  content   String   @db.Text
-  type      String   @db.VarChar(100) 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  title          String   @db.VarChar(255)
+  content        String   @db.Text
+  type           String   @db.VarChar(100) 
+  dynamicFields  String?  @db.Text // JSON string for dynamic fields
+  defaultValues  String?  @db.Text // JSON string for default values
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 
@@ -411,6 +428,7 @@ KingdomentryDate          DateTime?
       internalArrivalCity String?
 internalArrivalCityDate          DateTime?
  internalArrivalCityTime           String?  @db.VarChar(30)
+ internalTicketFile              String?   @db.VarChar(255)
 
 //صفحة المغادرة الخارجية
 externaldeparatureCity  String? @db.VarChar(191) 
@@ -482,6 +500,7 @@ guaranteeStatus               String?  @db.VarChar(100)
   ticketFile                String?   @db.VarChar(191)
   deparatureTicketFile      String?    @db.VarChar(255)
   receivingFile             String?   @db.VarChar(191)
+  receiptMethod            String?   @db.VarChar(50) // طريقة الاستلام: direct, indirect, intermediary
   approvalPayment           String?   @db.VarChar(191)
   additionalfiles           Json?
   

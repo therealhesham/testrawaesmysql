@@ -1,12 +1,30 @@
 import prisma from "../globalprisma";
+import { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { userId, title, description, taskDeadline } = req.body;
+    const { 
+      userId, 
+      title, 
+      description, 
+      taskDeadline, 
+      assignee,
+      priority,
+      isActive,
+      isRepeating,
+      repeatType,
+      repeatInterval,
+      repeatStartDate,
+      repeatEndDate,
+      repeatEndType,
+      repeatCount,
+      repeatDays,
+      repeatTime
+    } = req.body;
 
     // Validate required fields
     if (!userId || !title || !description || !taskDeadline) {
@@ -15,35 +33,60 @@ export default async function handler(req, res) {
       });
     }
 
-    // Search for random names that don't have tasks assigned
-    const randomNames = await findRandomNamesWithoutTasks();
-
-    // Select a random user from the found names (excluding current user)
-    let selectedUserId = null;
-    if (randomNames.length > 0) {
-      // Filter out current user from random names
-      const filteredNames = randomNames.filter(name => name.id !== parseInt(userId));
-      if (filteredNames.length > 0) {
-        const randomIndex = Math.floor(Math.random() * filteredNames.length);
-        selectedUserId = filteredNames[randomIndex].id;
+    // Use the specific assignee if provided, otherwise fall back to current user
+    let selectedUserId = parseInt(userId); // Default to current user
+    
+    if (assignee && assignee !== '') {
+      // If a specific assignee is provided, use that user
+      // The assignee field should contain the user ID or username
+      if (assignee.startsWith('user')) {
+        // Handle cases where assignee is like "user1", "user2", etc.
+        const assigneeId = assignee.replace('user', '');
+        selectedUserId = parseInt(assigneeId);
+      } else {
+        // Try to find user by username or ID
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: parseInt(assignee) },
+              { username: assignee }
+            ]
+          }
+        });
+        if (user) {
+          selectedUserId = user.id;
+        }
       }
     }
 
-    // If no random user found, use current user as fallback
-    if (!selectedUserId) {
-      selectedUserId = parseInt(userId);
+    // Prepare task data
+    const taskData: any = {
+      userId: selectedUserId,
+      assignedBy: parseInt(userId),
+      description,
+      Title: title,
+      taskDeadline: new Date(taskDeadline).toISOString(),
+      isCompleted: false,
+      priority: priority || null,
+      isActive: isActive !== undefined ? isActive : true,
+      isRepeating: isRepeating || false,
+    };
+
+    // Add repeating fields if task is repeating
+    if (isRepeating) {
+      taskData.repeatType = repeatType || null;
+      taskData.repeatInterval = parseInt(repeatInterval) || 1;
+      taskData.repeatStartDate = repeatStartDate ? new Date(repeatStartDate).toISOString() : null;
+      taskData.repeatEndDate = repeatEndDate ? new Date(repeatEndDate).toISOString() : null;
+      taskData.repeatEndType = repeatEndType || 'never';
+      taskData.repeatCount = parseInt(repeatCount) || 1;
+      taskData.repeatDays = repeatDays ? JSON.stringify(repeatDays) : null;
+      taskData.repeatTime = repeatTime || null;
     }
 
-    // Create the task for the selected random user
+    // Create the task for the selected user
     const task = await prisma.tasks.create({
-      data: {
-        userId: selectedUserId,
-        assignedBy: parseInt(userId), // The person who created the task
-        description,
-        Title: title,
-        taskDeadline: new Date(taskDeadline).toISOString(),
-        isCompleted: false,
-      },
+      data: taskData,
       select: {
         id: true,
         userId: true,
@@ -52,95 +95,36 @@ export default async function handler(req, res) {
         Title: true,
         taskDeadline: true,
         isCompleted: true,
+        priority: true,
+        isActive: true,
+        isRepeating: true,
+        repeatType: true,
+        repeatInterval: true,
+        repeatStartDate: true,
+        repeatEndDate: true,
+        repeatEndType: true,
+        repeatCount: true,
+        repeatDays: true,
+        repeatTime: true,
         createdAt: true,
         updatedAt: true,
-      },
+      } as any,
     });
 
-    // Mark the selected user in the random names list
-    const randomNamesWithSelection = randomNames.map(name => ({
-      ...name,
-      selected: name.id === selectedUserId
-    }));
+    // Get the assigned user details
+    const assignedUser = await prisma.user.findUnique({
+      where: { id: selectedUserId },
+      select: { id: true, username: true }
+    });
 
-    const selectedUser = randomNames.find(name => name.id === selectedUserId);
     res.status(201).json({
       task,
-      randomNamesFound: randomNamesWithSelection,
-      selectedUser: selectedUser,
-      message: `تم إنشاء المهمة بنجاح للمستخدم: ${selectedUser ? selectedUser.name : 'المستخدم الحالي'}. تم العثور على ${randomNames.length} اسم عشوائي بدون تاسكات`
+      assignedUser: assignedUser,
+      message: `تم إنشاء المهمة بنجاح للمستخدم: ${assignedUser ? assignedUser.username : 'المستخدم المحدد'}`
     });
 
   } catch (error) {
-    console.error("Error creating task with random search:", error);
+    console.error("Error creating task:", error);
     res.status(500).json({ error: 'Error creating task' });
-  }
-}
-
-// Function to find random names without tasks
-async function findRandomNamesWithoutTasks() {
-  try {
-    // Get all users who don't have any tasks
-    const usersWithoutTasks = await prisma.user.findMany({
-      where: {
-        tasks: {
-          none: {}
-        }
-      },
-      select: {
-        id: true,
-        username: true,
-        phonenumber: true,
-      },
-      take: 10 // Limit to 10 random names
-    });
-
-    // Also search in homemaid table for names without tasks
-    const homemaidsWithoutTasks = await prisma.homemaid.findMany({
-      where: {
-        // Check if this homemaid doesn't have any associated tasks
-        // We'll check by looking for users with tasks that might be related
-        Name: {
-          not: null
-        }
-      },
-      select: {
-        id: true,
-        Name: true,
-        phone: true,
-      },
-      take: 10
-    });
-
-    // Get random clients without tasks
-    const clientsWithoutTasks = await prisma.client.findMany({
-      where: {
-        // Clients don't have direct task relationship, but we can find them
-        fullname: {
-          not: null
-        }
-      },
-      select: {
-        id: true,
-        fullname: true,
-        phonenumber: true,
-      },
-      take: 10
-    });
-
-    // Combine all results and randomize
-    const allNames = [
-      ...usersWithoutTasks.map(u => ({ type: 'user', name: u.username, phone: u.phonenumber, id: u.id })),
-      ...homemaidsWithoutTasks.map(h => ({ type: 'homemaid', name: h.Name, phone: h.phone, id: h.id })),
-      ...clientsWithoutTasks.map(c => ({ type: 'client', name: c.fullname, phone: c.phonenumber, id: c.id }))
-    ];
-
-    // Shuffle and return first 5
-    const shuffled = allNames.sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 5);
-
-  } catch (error) {
-    console.error("Error finding random names:", error);
-    return [];
   }
 }

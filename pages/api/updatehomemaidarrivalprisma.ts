@@ -76,6 +76,7 @@ export default async function handler(
       internalArrivalCity,
       internalArrivalCityDate,
       internalArrivalCityTime,
+      internalTicketFile,
     } = req.body;
 
     console.log(req.body); // Log the request body for debugging
@@ -148,6 +149,7 @@ export default async function handler(
       // الحقول الجديدة للمغادرة الداخلية
       internaldeparatureCity,
       internalArrivalCity,
+      internalTicketFile,
     };
 
     // Apply `excludeEmptyFields` to filter out empty fields from the object

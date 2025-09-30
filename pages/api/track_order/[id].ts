@@ -55,6 +55,7 @@ console.log(id)
               arrivalSaudiAirport: true,
               KingdomentryDate: true,
               KingdomentryTime: true,
+              receiptMethod: true,
             } as any,
           },
         },
@@ -129,6 +130,7 @@ console.log(id)
         },
         receipt: {
           received: !!order.arrivals[0]?.DeliveryDate, // Fixed condition
+          method: order.arrivals[0]?.receiptMethod || null,
         },
         ticketUpload: {
           files: order.arrivals[0]?.ticketFile || null,
@@ -178,6 +180,7 @@ const cookieHeader = req.headers.cookie;
     try {
       const { field, value, section, updatedData } = req.body;
       console.log('Request Body:', { field, value, section, updatedData });
+      console.log('Receipt update - field:', field, 'value:', value, 'section:', section, 'updatedData:', updatedData);
 
       const order = await prisma.neworder.findUnique({
         where: { id: Number(id) },
@@ -243,6 +246,11 @@ const cookieHeader = req.headers.cookie;
           case 'receipt':
             arrivalUpdate.DeliveryDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'received' : 'pending_receipt';
+            // إضافة طريقة الاستلام إذا تم تمريرها
+            if (section === 'receipt' && updatedData && updatedData.method) {
+              console.log('Setting receiptMethod to:', updatedData.method);
+              arrivalUpdate.receiptMethod = updatedData.method;
+            }
             break;
           case 'bookingStatus':
             if (value === 'cancelled') {
@@ -359,6 +367,11 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
           case 'documentUpload':
             if (updatedData.files) {
               arrivalUpdate.additionalfiles = updatedData.files;
+            }
+            break;
+          case 'receipt':
+            if (updatedData.method) {
+              arrivalUpdate.receiptMethod = updatedData.method;
             }
             break;
           default:
