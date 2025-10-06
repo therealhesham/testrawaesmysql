@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "POST") {
     try {
-      const { fullname, phonenumber, nationalId, city, clientSource } = req.body;
+      const { fullname, phonenumber, nationalId, city, clientSource, nationality, gender, profession, visaFile } = req.body;
 
       // Basic validation
       if (!fullname || !phonenumber || !nationalId) {
@@ -21,6 +21,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           phonenumber,
           nationalId,
           city,
+          // nationality: nationality as string,
+          // : gender as string,
+          // : profession as string,
+          // : visaFile as string,
           // createdAt: new Date(),
         },
       });

@@ -2,7 +2,7 @@ import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
-import { ArrowDown, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, Plus, Search, X, ChevronUp, ChevronDown } from 'lucide-react';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Select from 'react-select';
@@ -13,6 +13,7 @@ import ExcelJS from 'exceljs';
 import { useRouter } from 'next/router';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
+import { getSuccessMessage, getErrorMessage } from 'utils/translations';
 
 // Type definitions
 interface MenuPosition {
@@ -56,8 +57,221 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
   const [detailsRow, setDetailsRow] = useState<number | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [exportedData] = useState(initialData?.exportData || []);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortedOrders, setSortedOrders] = useState(initialData?.newOrders || []);
 
   const router = useRouter();
+
+  
+const [hidden, setHidden] = useState(true);
+const [selectedClient, setSelectedClient] = useState<any>(null);
+const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+const [clientSearchTerm, setClientSearchTerm] = useState('');
+
+// Auto search functions for clients
+const searchClients = (searchTerm: string) => {
+  if (!searchTerm.trim()) {
+    setClientSuggestions([]);
+    setShowClientSuggestions(false);
+    return;
+  }
+  
+  // Search in the existing clients data
+  const filteredClients = clients.filter((client: any) => 
+    client.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.phonenumber?.includes(searchTerm)
+  );
+  
+  setClientSuggestions(filteredClients.slice(0, 10)); // Limit to 10 results
+  setShowClientSuggestions(true);
+};
+
+// Handle client search input change
+const handleClientSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  setClientSearchTerm(value);
+  
+  if (value.trim()) {
+    searchClients(value);
+  } else {
+    setClientSuggestions([]);
+    setShowClientSuggestions(false);
+  }
+};
+
+// Handle client suggestion click
+const handleClientSuggestionClick = (client: any) => {
+  setSelectedClient(client);
+  setClientSearchTerm(client.fullname);
+  setShowClientSuggestions(false);
+};
+
+// Handle input blur for suggestions
+const handleClientInputBlur = () => {
+  setTimeout(() => {
+    setShowClientSuggestions(false);
+  }, 200);
+};
+
+// Close search results when clicking outside
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.client-search-container')) {
+      setShowClientSuggestions(false);
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, []);
+
+function PrePopupmodal({ hidden, setHidden, setActivePopup }: { hidden: boolean; setHidden: (value: boolean) => void; setActivePopup: (value: string) => void }) {
+  return (
+    <div
+      className={`  p-6 rounded-2xl shadow-lg fixed inset-0 flex items-center justify-center z-[3500] ${
+        hidden ? 'hidden' : 'flex'
+      }`}
+    >
+      <div className="bg-white rounded-2xl shadow-lg w-full max-w-md text-center relative p-6">
+        <button
+          className="absolute top-2 left-2 text-gray-600 hover:text-gray-800"
+          onClick={() => {
+            setHidden(true);
+            setSelectedClient(null);
+            setClientSearchTerm('');
+            setClientSuggestions([]);
+            setShowClientSuggestions(false);
+          }}
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex flex-col gap-3 w-full">
+          <p className="text-base font-medium">تحقق من العميل</p>
+          <p className="text-sm text-gray-600">هل العميل موجود مسبقاً؟</p>
+
+          <div className="relative client-search-container">
+            <input
+              type="text"
+              value={clientSearchTerm}
+              onChange={handleClientSearchChange}
+              onBlur={handleClientInputBlur}
+              onFocus={() => clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
+              placeholder="ابحث عن العميل بالاسم أو رقم الهاتف"
+              className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
+            />
+            
+            {/* Client Search Results Dropdown */}
+            {showClientSuggestions && clientSuggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {clientSuggestions.map((client, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleClientSuggestionClick(client)}
+                    className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                  >
+                    <div className="font-medium text-md">{client.fullname}</div>
+                    <div className="text-sm text-gray-500">{client.phonenumber} - {client.city}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-row gap-2">
+            <button onClick={()=>router.push("/admin/clients")} className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200">
+              عميل جديد
+            </button>
+            <button
+              className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200"
+              onClick={() => {
+                setHidden(true);
+                setActivePopup("popup-product-check");
+              }}
+              disabled={!selectedClient}
+            >
+              متابعة
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+  // Sorting function
+  const handleSort = (field: string) => {
+    let newDirection: 'asc' | 'desc' = 'asc';
+    if (sortField === field && sortDirection === 'asc') {
+      newDirection = 'desc';
+    }
+    
+    setSortField(field);
+    setSortDirection(newDirection);
+    
+    const sorted = [...allOrders].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (field) {
+        case 'id':
+          aValue = a.id;
+          bValue = b.id;
+          break;
+        case 'clientName':
+          aValue = a.client?.fullname || '';
+          bValue = b.client?.fullname || '';
+          break;
+        case 'clientPhone':
+          aValue = a.client?.phonenumber || '';
+          bValue = b.client?.phonenumber || '';
+          break;
+        case 'clientId':
+          aValue = a.client?.nationalId || '';
+          bValue = b.client?.nationalId || '';
+          break;
+        case 'maidId':
+          aValue = a.HomeMaid?.id || '';
+          bValue = b.HomeMaid?.id || '';
+          break;
+        case 'maidName':
+          aValue = a.HomeMaid?.Name || '';
+          bValue = b.HomeMaid?.Name || '';
+          break;
+        case 'nationality':
+          aValue = a.HomeMaid?.office?.Country || '';
+          bValue = b.HomeMaid?.office?.Country || '';
+          break;
+        case 'passport':
+          aValue = a.Passportnumber || '';
+          bValue = b.Passportnumber || '';
+          break;
+        case 'age':
+          aValue = a.HomeMaid?.age || calculateAge(a.HomeMaid?.dateofbirth) || 0;
+          bValue = b.HomeMaid?.age || calculateAge(b.HomeMaid?.dateofbirth) || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return newDirection === 'asc' 
+          ? aValue.localeCompare(bValue, 'ar')
+          : bValue.localeCompare(aValue, 'ar');
+      }
+      
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return newDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      return 0;
+    });
+    
+    setSortedOrders(sorted);
+  };
 
   const handleOpenMenu = (e: React.MouseEvent, rowIndex: number) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -89,13 +303,13 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
     try {
       const confirmRequest = await axios.post('/api/confirmrequest', { id });
       if (confirmRequest.status === 200) {
-        setModalMessage('تم قبول الطلب');
+        setModalMessage(getSuccessMessage('orderAccepted'));
         setShowSuccessModal(true);
         // Refresh data by reloading the page
         window.location.reload();
       }
     } catch (error) {
-      setModalMessage('حدث خطأ أثناء قبول الطلب');
+      setModalMessage(getErrorMessage('generalError'));
       setShowErrorModal(true);
     }
     closePopup();
@@ -105,12 +319,12 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
     try {
       const rejectRequest = await axios.post('/api/rejectbookingprisma', { id });
       if (rejectRequest.status === 200) {
-        setModalMessage('تم رفض الطلب');
+        setModalMessage(getSuccessMessage('orderRejected'));
         setShowSuccessModal(true);
         router.push("/admin/rejectedorders");
       }
     } catch (error) {
-      setModalMessage('حدث خطأ أثناء رفض الطلب');
+      setModalMessage(getErrorMessage('generalError'));
       setShowErrorModal(true);
     }
     closePopup();
@@ -427,7 +641,10 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
           className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
-          onClick={() => openPopup('popup-product-check')}
+          onClick={() => {
+            setHidden(false);
+          }}
+          //  openPopup('popup-product-check')
         >
           <Plus />
           <span>إضافة طلب</span>
@@ -542,19 +759,82 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
                 <tr>
                   <th className="p-4 pr-6">الإجراءات</th>
                   <th className="p-4">عرض</th>
-                  <th className="p-4">العمر</th>
-                  <th className="p-4">جواز السفر</th>
-                  <th className="p-4">الجنسية</th>
-                  <th className="p-4">اسم العاملة</th>
-                  <th className="p-4">رقم العاملة</th>
-                  <th className="p-4">هوية العميل</th>
-                  <th className="p-4">رقم العميل</th>
-                  <th className="p-4">اسم العميل</th>
-                  <th className="p-4 pl-6">رقم الطلب</th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('age')}>
+                    <div className="flex items-center gap-1">
+                      <span>العمر</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('passport')}>
+                    <div className="flex items-center gap-1">
+                      <span>جواز السفر</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('nationality')}>
+                    <div className="flex items-center gap-1">
+                      <span>الجنسية</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('maidName')}>
+                    <div className="flex items-center gap-1">
+                      <span>اسم العاملة</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('maidId')}>
+                    <div className="flex items-center gap-1">
+                      <span>رقم العاملة</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientId')}>
+                    <div className="flex items-center gap-1">
+                      <span>هوية العميل</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientPhone')}>
+                    <div className="flex items-center gap-1">
+                      <span>رقم العميل</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientName')}>
+                    <div className="flex items-center gap-1">
+                      <span>اسم العميل</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
+                      )}
+                    </div>
+                  </th>
+                  <th className="p-4 pl-6 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('id')}>
+                    <div className="flex items-center gap-1">
+                      <span>رقم الطلب</span>
+                      {sortField  && (
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
+                      )}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {newOrders.map((row, index) => (
+                {sortedOrders.map((row, index) => (
                   <>
                     <tr key={index} className="bg-gray-50">
                       <td className="p-4 pr-6">
@@ -666,6 +946,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
         <title>الطلبات الجديدة</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
+      <PrePopupmodal hidden={hidden} setHidden={setHidden} setActivePopup={setActivePopup} />
       <div className={`text-gray-800 ${Style["tajawal-regular"]}`}>
         {activePopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[999] flex items-center justify-center">
@@ -771,12 +1052,20 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
                 </button>
                 <h2 className="text-xl font-semibold mb-4 text-teal-900">اختيار نوع الطلب</h2>
                 <p className="text-gray-600 mb-6">هل تريد اختيار من العاملات المتاحات أو حسب المواصفات؟</p>
+                {selectedClient && (
+                  <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                    <p className="text-sm text-gray-600 mb-1">العميل المختار:</p>
+                    <p className="font-medium">{selectedClient.fullname}</p>
+                    <p className="text-sm text-gray-500">{selectedClient.phonenumber} - {selectedClient.city}</p>
+                  </div>
+                )}
                 <div className="flex justify-center gap-4">
                   <button
                     className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-6 py-3 rounded-lg hover:bg-gray-200 transition duration-200 text-base font-medium"
                     onClick={() => {
                       closePopup();
-                      router.push('/admin/order-form?type=add-specs');
+                      const clientData = selectedClient ? `&clientId=${selectedClient.id}&clientName=${encodeURIComponent(selectedClient.fullname)}&clientPhone=${selectedClient.phonenumber}&clientCity=${selectedClient.city || ''}` : '';
+                      router.push(`/admin/order-form?type=add-specs${clientData}`);
                     }}
                   >
                     حسب المواصفات
@@ -785,7 +1074,8 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
                     className="bg-teal-900 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition duration-200 text-base font-medium"
                     onClick={() => {
                       closePopup();
-                      router.push('/admin/order-form?type=add-available');
+                      const clientData = selectedClient ? `&clientId=${selectedClient.id}&clientName=${encodeURIComponent(selectedClient.fullname)}&clientPhone=${selectedClient.phonenumber}&clientCity=${selectedClient.city || ''}` : '';
+                      router.push(`/admin/order-form?type=add-available${clientData}`);
                     }}
                   >
                     قائمة العاملات المتاحة

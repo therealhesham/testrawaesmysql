@@ -231,6 +231,7 @@ notes_date        DateTime?
   phonenumber    String?    @unique @db.VarChar(15)
   password       String?
   HomeMaidRecod  Int?
+  Source          String?
   createdAt      DateTime?  @default(now())
   nationalId      String? @db.VarChar(30)
   city             String? @db.VarChar(100)
@@ -443,7 +444,7 @@ externalArrivalCityDate          DateTime?
 
 
 
-
+  VisaFile                  String?   @db.VarChar(522)
   SponsorName               String?   @db.VarChar(191)
   office                    String?   @db.VarChar(191)
   InternalmusanedContract   String?   @db.VarChar(191)

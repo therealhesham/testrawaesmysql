@@ -6,13 +6,15 @@ interface TaskCompletionModalProps {
   onClose: () => void;
   task: any;
   onTaskUpdate: (taskId: number, isCompleted: boolean, completionDate?: string, completionNotes?: string) => void;
+  currentUser?: any; // Add current user to determine context
 }
 
 export default function TaskCompletionModal({ 
   isOpen, 
   onClose, 
   task, 
-  onTaskUpdate 
+  onTaskUpdate,
+  currentUser 
 }: TaskCompletionModalProps) {
   const [isCompleted, setIsCompleted] = useState(task?.isCompleted || false);
   const [completionDate, setCompletionDate] = useState(
@@ -21,14 +23,22 @@ export default function TaskCompletionModal({
   const [completionNotes, setCompletionNotes] = useState(task?.completionNotes || '');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Determine the workflow based on user context
+  const isMyTask = task?.userId === currentUser?.id;
+  const isSentTask = task?.assignedBy === currentUser?.id;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // For "My Tasks": only set completion date, don't mark as completed
+      // For "Sent Tasks": can mark as truly completed if has completion date
+      const shouldMarkCompleted = isSentTask && isCompleted;
+      
       await onTaskUpdate(
         task.id,
-        isCompleted,
+        shouldMarkCompleted,
         completionDate || undefined,
         completionNotes || undefined
       );
@@ -58,7 +68,9 @@ export default function TaskCompletionModal({
             <div className="p-2 bg-teal-100 rounded-lg">
               <CheckCircle className="w-5 h-5 text-teal-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">تحديث حالة المهمة</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {isMyTask ? 'تحديد انتهاء المهمة' : 'تحديث حالة المهمة'}
+            </h2>
           </div>
           <button
             onClick={handleClose}
@@ -94,40 +106,61 @@ export default function TaskCompletionModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Completion Status */}
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
-              حالة المهمة
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="completion"
-                  checked={!isCompleted}
-                  onChange={() => setIsCompleted(false)}
-                  className="w-4 h-4 text-teal-600"
-                />
-                <span className="text-sm text-gray-700">غير مكتمل</span>
+          {/* For My Tasks: Only show completion status as informational */}
+          {isMyTask && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                حالة الانتهاء من جانبي
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="completion"
-                  checked={isCompleted}
-                  onChange={() => setIsCompleted(true)}
-                  className="w-4 h-4 text-teal-600"
-                />
-                <span className="text-sm text-gray-700">مكتمل</span>
-              </label>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  عند تحديد تاريخ الانتهاء، سيتم إشعار الشخص الذي أسند لك المهمة لاعتمادها كمكتملة نهائياً
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Completion Date */}
-          {isCompleted && (
+          {/* For Sent Tasks: Show completion approval options */}
+          {isSentTask && task.completionDate && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                حالة المهمة
+              </label>
+              <div className="p-3 bg-green-50 rounded-lg mb-3">
+                <p className="text-sm text-green-800">
+                  المكلف بالمهمة أنهى من جانبه في: {new Date(task.completionDate).toLocaleDateString('ar-SA')}
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="completion"
+                    checked={!isCompleted}
+                    onChange={() => setIsCompleted(false)}
+                    className="w-4 h-4 text-teal-600"
+                  />
+                  <span className="text-sm text-gray-700">في انتظار المراجعة</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="completion"
+                    checked={isCompleted}
+                    onChange={() => setIsCompleted(true)}
+                    className="w-4 h-4 text-teal-600"
+                  />
+                  <span className="text-sm text-gray-700">اعتماد كمكتملة</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Completion Date - Always show for My Tasks, conditionally for Sent Tasks */}
+          {(isMyTask || (isSentTask && !task.completionDate)) && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                تاريخ الانتهاء
+                {isMyTask ? 'تاريخ انتهائي من المهمة' : 'تاريخ الانتهاء'}
               </label>
               <div className="relative">
                 <input
@@ -144,14 +177,14 @@ export default function TaskCompletionModal({
           {/* Completion Notes */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              ملاحظات الإنجاز (اختياري)
+              ملاحظات (اختياري)
             </label>
             <textarea
               value={completionNotes}
               onChange={(e) => setCompletionNotes(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none"
-              placeholder="أضف ملاحظات حول إنجاز المهمة..."
+              placeholder={isMyTask ? "أضف ملاحظات حول إنجازك للمهمة..." : "أضف ملاحظات حول حالة المهمة..."}
             />
           </div>
 
@@ -177,7 +210,7 @@ export default function TaskCompletionModal({
               ) : (
                 <>
                   <CheckCircle className="w-4 h-4" />
-                  حفظ التغييرات
+                  {isMyTask ? 'تحديد انتهيت' : 'حفظ التغييرات'}
                 </>
               )}
             </button>

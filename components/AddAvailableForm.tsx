@@ -49,11 +49,12 @@ interface AddAvailableFormProps {
   clients: Client[];
   homemaids: Homemaid[];
   orderId?: string;
+  preSelectedClient?: Client | null;
   onCancel: () => void;
   onSuccess: () => void;
 }
 
-export default function AddAvailableForm({ clients, homemaids, orderId, onCancel, onSuccess }: AddAvailableFormProps) {
+export default function AddAvailableForm({ clients, homemaids, orderId, preSelectedClient, onCancel, onSuccess }: AddAvailableFormProps) {
   const [formData, setFormData] = useState<FormData>({
     clientID: '',
     HomemaidId: '',
@@ -285,6 +286,20 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
       fetchOrder();
     }
   }, [orderId, clients, homemaids]);
+
+  // Handle pre-selected client
+  useEffect(() => {
+    if (preSelectedClient) {
+      setFormData((prev) => ({
+        ...prev,
+        clientID: preSelectedClient.id,
+        ClientName: preSelectedClient.fullname,
+        PhoneNumber: preSelectedClient.phonenumber,
+        City: preSelectedClient.city || '',
+      }));
+      setClientSearchTerm(preSelectedClient.fullname);
+    }
+  }, [preSelectedClient]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
     const files = e.target.files;
@@ -607,37 +622,36 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
             />
           </div>
         </div>
-        <div className="mb-10">
+     <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
-          <div className="flex flex-wrap gap-6 justify-center">
+          <div className="flex gap-[56px] justify-center flex-wrap">
             {[
-              { option: 'كاش', icon: <CashIcon className={`w-6 h-6 ${formData.PaymentMethod === 'كاش' ? 'text-white' : 'text-gray-400'}`} /> },
-              { option: 'دفعتين', icon: <CreditCardIcon className={`w-6 h-6 ${formData.PaymentMethod === 'دفعتين' ? 'text-white' : 'text-gray-400'}`} /> },
-              { option: 'ثلاثة دفعات', icon: <CurrencyDollarIcon className={`w-6 h-6 ${formData.PaymentMethod === 'ثلاثة دفعات' ? 'text-white' : 'text-gray-400'}`} /> },
-            ].map(({ option, icon }, index) => (
-              <label
-                key={index}
-                className={`flex items-center gap-3 p-3 border-2 rounded cursor-pointer w-60 ${
-                  formData.PaymentMethod === option ? 'border-teal-900 bg-teal-800' : 'border-gray-300 bg-gray-50'
-                }`}
-              >
+              { option: 'كاش', value: 'cash', imgSrc: <CashIcon className="w-6 h-6" /> },
+              { option: 'دفعتين', value: 'two-installments', imgSrc: <CreditCardIcon className="w-6 h-6" /> },
+              { option: 'ثلاثة دفعات', value: 'three-installments', imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+              { option: 'مخصص', value: 'custom', imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+
+            ].map(({ option, value, imgSrc }, index) => (
+              <label key={index} className="payment-option">
                 <input
                   type="radio"
                   name="PaymentMethod"
-                  value={option}
-                  checked={formData.PaymentMethod === option}
+                  value={value}
+                  checked={formData.PaymentMethod === value}
                   onChange={handleFormChange}
                   className="hidden"
                 />
-                <span className={`text-xl ${formData.PaymentMethod === option ? 'text-white' : 'text-teal-800'}`}>
-                  {option}
-                </span>
-                {icon}
+                <div className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${formData.PaymentMethod === value ? 'border-[#1a4d4f]' : 'border-[#e0e0e0]'}`}>
+                  <span className="text-xl">{option}</span>
+{imgSrc}
+                </div>
               </label>
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+
+        {/* Payment Amount Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ كامل</label>
             <input
@@ -645,10 +659,8 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
               name="Total"
               value={formData.Total}
               onChange={handleFormChange}
-              disabled={isSubmitting}
-              className={`border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right ${
-                isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
-              }`}
+              placeholder="أدخل المبلغ الكامل"
+              className="w-full p-3 border border-gray-300 rounded-md text-right"
             />
             {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
           </div>
@@ -659,23 +671,25 @@ export default function AddAvailableForm({ clients, homemaids, orderId, onCancel
               name="Paid"
               value={formData.Paid}
               onChange={handleFormChange}
-              disabled={isSubmitting}
-              className={`border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right ${
-                isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
-              }`}
+              placeholder="أدخل المبلغ المدفوع"
+              className="w-full p-3 border border-gray-300 rounded-md text-right"
             />
             {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ المتبقي</label>
             <input
-              type="text"
-              value={`${formData.Remaining.toFixed(2)} SR`}
+              type="number"
+              name="Remaining"
+              value={formData.Remaining}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
             />
           </div>
         </div>
+
+    
+    
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
           {[
             { id: 'orderDocument', label: 'ملف سند الأمر' },
