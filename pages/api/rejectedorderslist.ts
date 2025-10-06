@@ -147,7 +147,7 @@ export default async function handler(
                 {
                   HomeMaid: {
                     Name: {
-                      contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
+                      contains:   searchTerm ? (searchTerm as string).toLowerCase() : "",
                     },
                   },
                 },

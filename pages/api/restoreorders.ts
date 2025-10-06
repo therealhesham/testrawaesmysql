@@ -17,11 +17,12 @@ export default async function handler(
     const updatedOrder = await prisma.neworder.update({
       where: { id: Number(id) },
       data: {
-        bookingstatus: "حجز جديد", // Update the booking status for the order
+        bookingstatus: "new_order", // Update the booking status for the order
         ReasonOfRejection: "", // Update the reason of rejection
-        HomeMaid: {
-          connect: { id: Number(homeMaidId) }, // Connect the HomeMaid by its id
-        },
+        HomemaidId: Number(homeMaidId),
+          //   HomeMaid: {
+          //   connect: { id: Number(homeMaidId) }, // Connect the HomeMaid by its id
+          // },
       },
     });
 
