@@ -15,6 +15,8 @@ export default function Dashboard() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [contractType, setContractType] = useState('recruitment');
+  const [recruitmentCount, setRecruitmentCount] = useState(0);
+  const [rentalCount, setRentalCount] = useState(0);
   const pageSize = 10;
 
   async function fetchData(page = 1) {
@@ -33,8 +35,26 @@ export default function Dashboard() {
     }
   }
 
+  async function fetchCounts() {
+    try {
+      const [recruitmentRes, rentalRes] = await Promise.all([
+        fetch(`/api/endedorders?page=1&typeOfContract=recruitment`),
+        fetch(`/api/endedorders?page=1&typeOfContract=rental`)
+      ]);
+      
+      const recruitmentData = await recruitmentRes.json();
+      const rentalData = await rentalRes.json();
+      
+      setRecruitmentCount(recruitmentData.totalCount || 0);
+      setRentalCount(rentalData.totalCount || 0);
+    } catch (error) {
+      console.error('Error fetching counts:', error);
+    }
+  }
+
   useEffect(() => {
     fetchData();
+    fetchCounts();
   }, [contractType]);
 
   const handlePageChange = (page: number) => {
@@ -200,7 +220,7 @@ export default function Dashboard() {
                       contractType === 'recruitment' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات الاستقدام <span className="text-xs align-super">{totalCount}</span>
+                    طلبات الاستقدام <span className="text-xs align-super">{recruitmentCount}</span>
                   </a>
                   <a
                     href="#"
@@ -212,7 +232,7 @@ export default function Dashboard() {
                       contractType === 'rental' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات التأجير <span className="text-xs align-super">{totalCount}</span>
+                    طلبات التأجير <span className="text-xs align-super">{rentalCount}</span>
                   </a>
                 </div>
                 <div className="flex gap-2">

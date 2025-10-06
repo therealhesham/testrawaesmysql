@@ -286,8 +286,8 @@ export default function Home() {
         <EmailForm title="تعديل بريد الكتروني" defaultEmail="ahmed@gmail.com" defaultDepartment="الاستقدام" defaultUsername="احمد الحربي" />
       </section>
       <section>
-        <DeleteEmailModal />
-      </section>
+        {/* <DeleteEmailModal /> */}
+      </section>6
     </main>
   );
 }

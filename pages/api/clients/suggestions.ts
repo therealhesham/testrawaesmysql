@@ -1,65 +1,68 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { PrismaClient } from "@prisma/client";
+import { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method === "GET") {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  try {
     const { q } = req.query;
-
-    if (!q || (q as string).length < 1) {
-      return res.status(200).json({ suggestions: [] });
+    
+    if (!q || typeof q !== 'string') {
+      return res.status(400).json({ message: 'Query parameter is required' });
     }
 
-    try {
-      const query = (q as string).toLowerCase();
-      
-      // البحث في أسماء العملاء
-      const clients = await prisma.client.findMany({
-        where: {
-          OR: [
-            {
-              fullname: {
-                contains: query,
-                // mode: 'insensitive',
-              },
-            },
-            {
-              phonenumber: {
-                contains: query,
-                // mode: 'insensitive',
-              },
-            },
-          ],
-        },
-        select: {
-          id: true,
-          city:true,
-          fullname: true,
-          phonenumber: true,
-        },
-        take: 10,
-      });
-
-      const suggestions = clients.map(client => ({
-        id: client.id,
-        city: client.city,
-        fullname: client.fullname,
-        phonenumber: client.phonenumber,
-      }));
-
-      res.status(200).json({ suggestions });
-    } catch (error) {
-      console.error("Error fetching client suggestions:", error);
-      res.status(500).json({ error: "Error fetching client suggestions" });
-    } finally {
-      await prisma.$disconnect();
+    const searchTerm = q.trim();
+    
+    if (searchTerm.length < 2) {
+      return res.status(400).json({ message: 'Search term must be at least 2 characters' });
     }
-  } else {
-    res.setHeader("Allow", ["GET"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+
+    // Search clients by name or phone number
+    const clients = await prisma.client.findMany({
+      where: {
+        OR: [
+          {
+            fullname: {
+              contains: searchTerm
+            }
+          },
+          {
+            phonenumber: {
+              contains: searchTerm
+            }
+          }
+        ]
+      },
+      select: {
+        id: true,
+        fullname: true,
+        phonenumber: true,
+        city: true,
+        nationalId: true
+      },
+      take: 10,
+      orderBy: {
+        fullname: 'asc'
+      }
+    });
+
+    const suggestions = clients.map(client => ({
+      id: client.id,
+      fullname: client.fullname,
+      phonenumber: client.phonenumber,
+      city: client.city,
+      nationalId: client.nationalId
+    }));
+
+    res.status(200).json({ suggestions });
+  } catch (error) {
+    console.error('Error searching clients:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 }

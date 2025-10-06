@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { id: "desc" },
         where: {
           ...filters,
-          bookingstatus: { in: ["delivered"] },
+          bookingstatus: { in: ["received"] },
         },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const totalCount = await prisma.neworder.count({
         where: {
           ...filters,
-          bookingstatus: { in: ["delivered"] },
+          bookingstatus: { in: ["received"] },
         },
       });
 

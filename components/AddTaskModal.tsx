@@ -51,7 +51,6 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
     repeatTime: '00:00'
   });
 
-  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showRepeatDetails, setShowRepeatDetails] = useState(false);
   const [users, setUsers] = useState<Array<{id: number, username: string}>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -92,10 +91,6 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
     }
   };
 
-  const handlePrioritySelect = (priority: string) => {
-    setFormData(prev => ({ ...prev, priority }));
-    setShowPriorityDropdown(false);
-  };
 
   const handleRepeatTypeChange = (repeatType: string) => {
     setFormData(prev => ({ ...prev, repeatType: repeatType as any }));
@@ -231,7 +226,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
           </div>
 
           {/* Form Row */}
-          <div className="form-row grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="form-row grid grid-cols-1 md:grid-cols-3 gap-4 ">
             <div className="form-group">
               <label className="block text-sm font-medium text-gray-700 mb-2">الشخص المسؤول</label>
               <div className="custom-select bg-gray-50 border border-gray-300 rounded-md p-3 flex justify-between items-center min-h-[44px] cursor-pointer">
@@ -253,13 +248,13 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                     </option>
                   ))}
                 </select>
-                <DropdownIcon className="w-4 h-4 text-gray-600 transform rotate-90" />
+                {/* <DropdownIcon className="w-4 h-4 text-gray-600 transform rotate-90" /> */}
               </div>
             </div>
 
             <div className="form-group">
               <label className="block text-sm font-medium text-gray-700 mb-2">الموعد النهائي</label>
-              <div className="custom-select bg-gray-50 border border-gray-300 rounded-md p-3 flex justify-between items-center min-h-[44px]">
+              <div className="custom-select bg-gray-50 border border-gray-300 rounded-md  flex justify-between items-center ">
                 <input
                   type="date"
                   name="deadline"
@@ -269,53 +264,30 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                   dir="rtl"
                   required
                 />
-                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {/* <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                </svg> */}
               </div>
             </div>
 
-            <div className="form-group relative">
+            <div className="form-group">
               <label className="block text-sm font-medium text-gray-700 mb-2">درجة الأهمية</label>
-              <div 
-                className="custom-select bg-gray-50 border border-gray-300 rounded-md p-3 flex justify-between items-center min-h-[44px] cursor-pointer"
-                onClick={() => setShowPriorityDropdown(!showPriorityDropdown)}
-              >
-                <span className="text-right text-gray-600 text-sm">{formData.priority || 'حدد درجة الأهمية'}</span>
+              <div className="form-input-container bg-gray-50 border border-gray-300 rounded-md p-3 min-h-[44px] flex items-center">
+                <select
+                  name="priority"
+                  value={formData.priority}
+                  onChange={handleInputChange}
+                  className="w-full border-none outline-none bg-transparent text-right text-gray-600 text-sm"
+                  dir="rtl"
+                  required
+                >
+                  <option value="">حدد درجة الأهمية</option>
+                  <option value="عالية الأهمية">عالية الأهمية</option>
+                  <option value="متوسط الأهمية">متوسط الأهمية</option>
+                  <option value="منخفض الأهمية">منخفض الأهمية</option>
+                </select>
                 <DropdownIcon className="w-4 h-4 text-gray-600 transform rotate-90" />
               </div>
-              
-              {showPriorityDropdown && (
-                <div className="priority-dropdown absolute top-full right-0 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 z-20 overflow-hidden">
-                  <div 
-                    className="priority-item high flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                    onClick={() => handlePrioritySelect('عالية الأهمية')}
-                  >
-                    <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <span className="text-sm text-gray-700">عالية الأهمية</span>
-                  </div>
-                  <div 
-                    className="priority-item medium flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                    onClick={() => handlePrioritySelect('متوسط الأهمية')}
-                  >
-                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <span className="text-sm text-gray-700">متوسط الأهمية</span>
-                  </div>
-                  <div 
-                    className="priority-item low flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handlePrioritySelect('منخفض الأهمية')}
-                  >
-                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <span className="text-sm text-gray-700">منخفض الأهمية</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 

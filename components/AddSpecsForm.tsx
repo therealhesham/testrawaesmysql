@@ -55,11 +55,12 @@ interface HomemaidSuggestion {
 interface AddSpecsFormProps {
   clients: Client[];
   orderId?: string;
+  preSelectedClient?: Client | null;
   onCancel: () => void;
   onSuccess: () => void;
 }
 
-export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: AddSpecsFormProps) {
+export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCancel, onSuccess }: AddSpecsFormProps) {
   const [formData, setFormData] = useState<FormData>({
     clientID: '',
     ClientName: '',
@@ -143,6 +144,18 @@ export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: 
       fetchOrder();
     }
   }, [orderId, clients]);
+
+  // Handle pre-selected client
+  useEffect(() => {
+    if (preSelectedClient) {
+      setFormData((prev) => ({
+        ...prev,
+        clientID: preSelectedClient.id,
+        ClientName: preSelectedClient.fullname,
+        PhoneNumber: preSelectedClient.phonenumber,
+      }));
+    }
+  }, [preSelectedClient]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
     const files = e.target.files;
@@ -559,9 +572,11 @@ export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: 
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
           <div className="flex gap-[56px] justify-center flex-wrap">
             {[
-              { option: 'كاش', value: 'cash', imgSrc: '/page/be6f92ac-eb1d-4570-ac77-f05056f74d10/images/2204_32259.svg' },
-              { option: 'دفعتين', value: 'two-installments', imgSrc: '/page/be6f92ac-eb1d-4570-ac77-f05056f74d10/images/2204_32253.svg' },
-              { option: 'ثلاثة دفعات', value: 'three-installments', imgSrc: '/page/be6f92ac-eb1d-4570-ac77-f05056f74d10/images/2204_32246.svg' },
+              { option: 'كاش', value: 'cash', imgSrc: <CashIcon className="w-6 h-6" /> },
+              { option: 'دفعتين', value: 'two-installments', imgSrc: <CreditCardIcon className="w-6 h-6" /> },
+              { option: 'ثلاثة دفعات', value: 'three-installments', imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+              { option: 'مخصص', value: 'custom', imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+
             ].map(({ option, value, imgSrc }, index) => (
               <label key={index} className="payment-option">
                 <input
@@ -573,8 +588,8 @@ export default function AddSpecsForm({ clients, orderId, onCancel, onSuccess }: 
                   className="hidden"
                 />
                 <div className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${formData.PaymentMethod === value ? 'border-[#1a4d4f]' : 'border-[#e0e0e0]'}`}>
-                  <span>{option}</span>
-                  <img src={imgSrc} alt="" />
+                  <span className="text-xl">{option}</span>
+{imgSrc}
                 </div>
               </label>
             ))}

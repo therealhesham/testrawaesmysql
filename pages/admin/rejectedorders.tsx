@@ -290,7 +290,7 @@ const router = useRouter();
       "جواز السفر",
       "العمر",
     ];
-    const tableRows = exportedData.map(row => [
+    const tableRows = exportedData?.map(row => [
       row.id,
       row.client?.fullname || "غير متوفر",
       row.client?.phonenumber || "غير متوفر",
@@ -314,7 +314,7 @@ const router = useRouter();
   };
 
   const exportToExcel = () => {
-    const worksheetData = exportedData.map(row => ({
+    const worksheetData = exportedData?.map(row => ({
       "رقم الطلب": row.id,
       "اسم العميل": row.client?.fullname || "غير متوفر",
       "رقم العميل": row.client?.phonenumber || "غير متوفر",
@@ -343,7 +343,7 @@ const router = useRouter();
     newOrdersList(currentPage);
   }, [currentPage, ageFilter, nationalityFilter, formData.searchTerm]);
 
-  const clientOptions = clients.map(client => ({
+  const clientOptions = clients?.map(client => ({
     value: client.id,
     label: client.fullname,
   }));
@@ -356,7 +356,7 @@ const router = useRouter();
     { value: "51-60", label: "51-60 سنة" },
   ];
 
-  const nationalityOptions = offices.map(office => ({
+  const nationalityOptions = offices?.map(office => ({
     value: office.Country,
     label: office.Country,
   }));
@@ -501,7 +501,7 @@ const router = useRouter();
           {isLoading ? (
             <div className="text-center">جارٍ التحميل...</div>
           ) : (
-            <table className="w-full text-right text-md">
+            <table className="w-full text-right text-sm">
               <thead className="bg-teal-900 text-white">
                 <tr>
                   <th className="p-4 flex justify-center self-center">استعادة</th>
@@ -516,27 +516,23 @@ const router = useRouter();
                 </tr>
               </thead>
               <tbody>
-                {newOrders.map((row, index) => (
+                {newOrders?.map((row, index) => (
                   <>
-                    <tr key={index} className="bg-gray-50">
-   
-
+                    <tr key={index} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
                       <td className="p-4 cursor-pointer text-center" onClick={() => confirmAccept(row.id)}>
-                       <div> 
-                          <span>
-                            <FaRecycle className='align-middle' />
-                            </span>
-                            نعم
-                      </div>
+                        <div className="flex items-center justify-center gap-2 text-teal-600 hover:text-teal-800"> 
+                          <FaRecycle className='w-4 h-4' />
+                          <span className="text-sm">استعادة</span>
+                        </div>
                       </td>
-                      <td className="gap-0 p-4 text-center">{row.Passportnumber}</td>
-                      <td className="p-4 text-center">{row.HomeMaid?.office?.Country}</td>
-                      <td className="p-4 text-center">{row.HomeMaid?.Name}</td>
-                      <td className="p-4">{row.HomeMaid?.id}</td>
-                      <td className="p-4">{row.client?.nationalId}</td>
-                      <td className="p-4">{row.client?.phonenumber}</td>
-                      <td className="p-4">{row.client?.fullname}</td>
-                      <td className="p-4 pl-6 cursor-pointer" onClick={() => handleOrderClick(row.id)}>{row.id}</td>
+                      <td className="p-4 text-xs text-gray-800 text-center">{row.Passportnumber || 'غير متوفر'}</td>
+                      <td className="p-4 text-xs text-gray-800 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                      <td className="p-4 text-xs text-gray-800 text-center">{row.HomeMaid?.Name || 'غير متوفر'}</td>
+                      <td className="p-4 text-xs text-gray-800 text-right">{row.HomeMaid?.id || 'غير متوفر'}</td>
+                      <td className="p-4 text-xs text-gray-800 text-right">{row.client?.nationalId || 'غير متوفر'}</td>
+                      <td className="p-4 text-xs text-gray-800 text-right">{row.client?.phonenumber || 'غير متوفر'}</td>
+                      <td className="p-4 text-xs text-gray-800 text-right">{row.client?.fullname || 'غير متوفر'}</td>
+                      <td className="p-4 pl-6 text-xs text-gray-800 text-right cursor-pointer hover:text-teal-600" onClick={() => handleOrderClick(row.id)}>#{row.id}</td>
                     </tr>
                     
                   </>

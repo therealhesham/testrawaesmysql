@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, ChevronDown, CheckCircle } from 'lucide-react';
 
 interface AddClientModalProps {
@@ -7,6 +7,7 @@ interface AddClientModalProps {
 }
 
 const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
+
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullname: '',
@@ -19,10 +20,27 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
     nationality: '',
     gender: '',
     profession: '',
-    visaFile: null as File | null,
+    visaFile: '', // Store URL instead of File
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [nationalities, setNationalities] = useState<any[]>([]);
+  const [fileUploaded, setFileUploaded] = useState({
+    visaFile: false,
+  });
+  const [errors, setErrors] = useState<any>({});
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+const fetchNationalities = async () => {
+  const response = await fetch('/api/nationalities');
+  const data = await response.json();
+  setNationalities(data.nationalities);
+};
+
+  useEffect(() => {
+    fetchNationalities();
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -31,9 +49,62 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setFormData((prev) => ({ ...prev, visaFile: file }));
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      setErrors((prev: any) => ({ ...prev, visaFile: 'لم يتم اختيار ملف' }));
+      setFileUploaded((prev: any) => ({ ...prev, visaFile: false }));
+      return;
+    }
+
+    const file = files[0];
+    if (!allowedFileTypes.includes(file.type)) {
+      setErrors((prev: any) => ({ ...prev, visaFile: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+      setFileUploaded((prev: any) => ({ ...prev, visaFile: false }));
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/upload-presigned-url/visaFile`);
+      if (!res.ok) {
+        throw new Error('فشل في الحصول على رابط الرفع');
+      }
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('فشل في رفع الملف');
+      }
+
+      setFormData((prev: any) => ({ ...prev, visaFile: filePath }));
+      setErrors((prev: any) => ({ ...prev, visaFile: '' }));
+      setFileUploaded((prev: any) => ({ ...prev, visaFile: true }));
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      setErrors((prev: any) => ({ ...prev, visaFile: error.message || 'حدث خطأ أثناء رفع الملف' }));
+      setFileUploaded((prev: any) => ({ ...prev, visaFile: false }));
+    }
+  };
+
+  const handleButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    } else {
+      console.error('File input reference is not defined');
+      setErrors((prev: any) => ({ ...prev, visaFile: 'خطأ في تحديد حقل الملف' }));
+    }
   };
 
   const handleSubmit = async () => {
@@ -49,6 +120,11 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
           nationalId: formData.nationalId,
           city: formData.city,
           clientSource: formData.clientSource,
+          visaFile: formData.visaFile, // Now contains URL
+          visaNumber: formData.visaNumber,
+          nationality: formData.nationality,
+          gender: formData.gender,
+          profession: formData.profession,
         }),
       });
       if (!response.ok) {
@@ -66,8 +142,10 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
         nationality: '',
         gender: '',
         profession: '',
-        visaFile: null,
+        visaFile: '',
       });
+      setFileUploaded({ visaFile: false });
+      setErrors({});
       setStep(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
@@ -135,7 +213,7 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                   placeholder="ادخل هوية العميل"
                   value={formData.nationalId}
                   onChange={handleInputChange}
-                  className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark"
+                  className="w-full bg-background-light border border-border-color rounded-md py-2  text-sm text-text-dark"
                 />
               </div>
               <div className="space-y-2">
@@ -146,7 +224,7 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark appearance-none"
+                    className="w-full bg-background-light border border-border-color rounded-md py-2 text-sm text-text-dark appearance-none"
                   >
                     <option value="">اختر المدينة</option>
                     <option value="الرياض">الرياض</option>
@@ -166,7 +244,7 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     name="clientSource"
                     value={formData.clientSource}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark appearance-none"
+                    className="w-full bg-background-light border border-border-color rounded-md py-2 text-sm text-text-dark appearance-none"
                   >
                     <option value="">اختر مصدر العميل</option>
                     <option value="تسويق">تسويق</option>
@@ -253,11 +331,12 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     name="nationality"
                     value={formData.nationality}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark appearance-none"
+                    className="w-full bg-background-light border border-border-color rounded-md py-2  text-sm text-text-dark appearance-none"
                   >
                     <option value="">اختر الجنسية</option>
-                    <option value="فلبيني">فلبيني</option>
-                    <option value="هندي">هندي</option>
+                    {nationalities.map((nationality) => (
+                      <option key={nationality.id} value={nationality.value}>{nationality.value as string}</option>
+                    ))}
                     {/* Add more nationalities as needed */}
                   </select>
                   {/* <ChevronDown
@@ -276,7 +355,7 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                       checked={formData.gender === 'male'}
                       onChange={handleInputChange}
                       className="text-primary-dark"
-                    />
+                    />  
                     ذكر
                   </label>
                   <label className="flex items-center gap-2">
@@ -300,38 +379,54 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
                     name="profession"
                     value={formData.profession}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark appearance-none"
+                    className="w-full bg-background-light border border-border-color rounded-md py-2  text-sm text-text-dark appearance-none"
                   >
                     <option value="">اختر المهنة</option>
                     <option value="عاملة منزلية">عاملة منزلية</option>
                     <option value="سائق">سائق</option>
                     {/* Add more professions as needed */}
                   </select>
-                  {/* <ChevronDown
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  /> */}
                 </div>
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <label htmlFor="visaFile" className="block text-sm font-medium text-text-dark">ملف التأشيرة</label>
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="visaFile"
-                    className="bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark cursor-pointer"
-                  >
-                    اختيار ملف
-                  </label>
+                <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
+                  <span className="text-gray-500 text-sm pr-2">
+                    {fileUploaded.visaFile ? (
+                      <a
+                        href={formData.visaFile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-800 hover:underline"
+                      >
+                        فتح الملف
+                      </a>
+                    ) : (
+                      'إرفاق ملف التأشيرة'
+                    )}
+                  </span>
                   <input
                     type="file"
                     id="visaFile"
-                    name="visaFile"
-                    onChange={handleFileChange}
+                    ref={fileInputRef}
                     className="hidden"
+                    accept="application/pdf,image/jpeg,image/png"
+                    onChange={handleFileChange}
                   />
-                  <span className="text-sm text-text-muted">
-                    {formData.visaFile ? formData.visaFile.name : 'ارفاق ملف التأشيرة'}
-                  </span>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    className={`px-3 py-1 rounded text-sm transition duration-200 ${
+                      loading 
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                        : 'bg-teal-900 text-white hover:bg-teal-800'
+                    }`}
+                    onClick={handleButtonClick}
+                  >
+                    اختيار ملف
+                  </button>
                 </div>
+                {errors.visaFile && <p className="text-red-500 text-xs mt-1">{errors.visaFile}</p>}
               </div>
             </div>
             <div className="flex justify-between">

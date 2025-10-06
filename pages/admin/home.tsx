@@ -58,10 +58,10 @@ function getDate(date) {
 }
 
 // --- Tab Components (Remain unchanged) ---
-const NewOrdersTab = ({ orders, count }) => (
+const NewOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
@@ -77,10 +77,10 @@ const NewOrdersTab = ({ orders, count }) => (
   </div>
 );
 
-const CurrentOrdersTab = ({ orders, count }) => (
+const CurrentOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب تحت الإجراء #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الحالة: {order.status ?? "غير محدد"}</p>
@@ -96,10 +96,10 @@ const CurrentOrdersTab = ({ orders, count }) => (
   </div>
 );
 
-const EndedOrdersTab = ({ orders, count }) => (
+const EndedOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب مكتمل #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
@@ -115,10 +115,10 @@ const EndedOrdersTab = ({ orders, count }) => (
   </div>
 );
 
-const CancelledOrdersTab = ({ orders, count }) => (
+const CancelledOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order.cancelReason ?? "غير محدد"}</p>
@@ -134,10 +134,10 @@ const CancelledOrdersTab = ({ orders, count }) => (
   </div>
 );
 
-const InternalArrivalsTab = ({ arrivals, count }) => (
+const InternalArrivalsTab = ({ arrivals, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {arrivals.slice(0, 3).map((arrival) => (
-      <div key={arrival.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={arrival.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/arrivals')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{arrival.id}</p>
           <p className="item-subtitle text-xs text-gray-600">من: {arrival.ArrivalCity}</p>
@@ -153,10 +153,10 @@ const InternalArrivalsTab = ({ arrivals, count }) => (
   </div>
 );
 
-const InternalDeparturesTab = ({ departures, count }) => (
+const InternalDeparturesTab = ({ departures, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {departures.slice(0, 3).map((departure) => (
-      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/deparatures')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مغادرة داخلية #{departure.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العاملة: {departure.Order.HomeMaid.Name ?? "غير محدد"}</p>
@@ -173,10 +173,10 @@ const InternalDeparturesTab = ({ departures, count }) => (
   </div>
 );
 
-const ExternalDeparturesTab = ({ departures, count }) => (
+const ExternalDeparturesTab = ({ departures, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {departures.slice(0, 3).map((departure) => (
-      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/deparaturesfromsaudi')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مغادرة خارجية #{departure.id}</p>
           <p className="item-subtitle text-xs text-gray-600">إلى: {departure.ArrivalOutSaudiCity ?? "غير محدد"}</p>
@@ -192,10 +192,10 @@ const ExternalDeparturesTab = ({ departures, count }) => (
   </div>
 );
 
-const HousingTab = ({ housing, count }) => (
+const HousingTab = ({ housing, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {housing.slice(0, 3).map((item) => (
-      <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/housedarrivals')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">تسكين #{item.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {item.Order.Name}</p>
@@ -211,10 +211,10 @@ const HousingTab = ({ housing, count }) => (
   </div>
 );
 
-const CheckedTableTab = ({ housing, count }) => (
+const CheckedTableTab = ({ housing, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {housing.slice(0, 3).map((item) => (
-      <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/checkedtable')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">إعاشة #{item.id}</p>
           <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p>
@@ -230,10 +230,10 @@ const CheckedTableTab = ({ housing, count }) => (
   </div>
 );
 
-const SessionsTab = ({ sessions, count }) => (
+const SessionsTab = ({ sessions, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {sessions.slice(0, 3).map((session) => (
-      <div key={session.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={session.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/sessions')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">جلسة #{session.id}</p>
           <p className="item-subtitle text-xs text-gray-600">النوع: {session.reason ?? "غير محدد"}</p>
@@ -249,10 +249,10 @@ const SessionsTab = ({ sessions, count }) => (
   </div>
 );
 
-const WorkersTab = ({ workers, count }) => (
+const WorkersTab = ({ workers, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {workers.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/fulllist')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
@@ -268,10 +268,10 @@ const WorkersTab = ({ workers, count }) => (
   </div>
 );
 
-const BookedListTab = ({ booked, count }) => (
+const BookedListTab = ({ booked, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {booked.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/bookedlist')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {worker.ClientName ?? "غير محدد"}</p>
@@ -287,10 +287,10 @@ const BookedListTab = ({ booked, count }) => (
   </div>
 );
 
-const AvailableListTab = ({ available, count }) => (
+const AvailableListTab = ({ available, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {available.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/availablelist')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
@@ -306,10 +306,10 @@ const AvailableListTab = ({ available, count }) => (
   </div>
 );
 
-const RelationsTab = ({ relations, count }) => (
+const RelationsTab = ({ relations, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {relations.slice(0, 3).map((relation) => (
-      <div key={relation.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={relation.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/clients')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عميل #{relation.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {relation.fullname}</p>
@@ -325,10 +325,10 @@ const RelationsTab = ({ relations, count }) => (
   </div>
 );
 
-const SponsorshipTransfersTab = ({ transfers, count }) => (
+const SponsorshipTransfersTab = ({ transfers, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {transfers.slice(0, 3).map((transfer) => (
-      <div key={transfer.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={transfer.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/transfersponsorship')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">نقل كفالة #{transfer.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العامل: {transfer.WorkerName ?? "غير محدد"}</p>
@@ -344,10 +344,10 @@ const SponsorshipTransfersTab = ({ transfers, count }) => (
   </div>
 );
 
-const ForeignOfficesTab = ({ offices, count }) => (
+const ForeignOfficesTab = ({ offices, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {offices.slice(0, 3).map((office) => (
-      <div key={office.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50">
+      <div key={office.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/offices')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مكتب خارجي #{office.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {office.office ?? "غير محدد"}</p>
@@ -401,6 +401,11 @@ export default function Home({
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
   const [currentWeek, setCurrentWeek] = useState(0); // Week offset from start of month
+
+  // Navigation handler for item clicks
+  const handleItemClick = (path) => {
+    router.push(path);
+  };
   const days = ['س', 'م', 'ت', 'و', 'ث', 'ج', 'س'];
   const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
   const getDaysInMonth = (monthIndex, year) => {
@@ -779,7 +784,11 @@ export default function Home({
           isOpen: true,
           type: 'success',
           title: 'تم تحديث المهمة بنجاح',
-          message: isCompleted ? 'تم تحديد المهمة كمكتملة' : 'تم تحديث حالة المهمة'
+          message: isCompleted 
+            ? 'تم اعتماد المهمة كمكتملة نهائياً' 
+            : completionDate 
+              ? 'تم تحديث تاريخ الانتهاء' 
+              : 'تم تحديث حالة المهمة'
         });
       } else {
         setAlertModal({
@@ -955,7 +964,7 @@ export default function Home({
                         <div 
                           key={`task-${taskIndex}`}
                           className="text-xs font-light px-1 py-0.5 rounded bg-red-100 text-red-600 cursor-pointer hover:bg-red-200"
-                          title={`مهمة: ${task.Title} - ${task.description}${task.assignedBy ? ` (مُسندة من: ${task.assignedBy})` : ''}`}
+                          title={`مهمة: ${task.Title} - ${task.description}${task.assignedBy && task.assignedBy !== user?.id ? ` (أسندها: ${task.assignedByUser?.username || `المستخدم #${task.assignedBy}`})` : ''}`}
                         >
                           {task.Title.length > 8 ? task.Title.substring(0, 8) + '...' : task.Title}
                         </div>
@@ -1084,7 +1093,13 @@ export default function Home({
                   onClick={() => setTasksSectionState("sentTasks")}
                   className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "sentTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user.id).length}</span>
+                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length}</span>
+                </button>
+                <button
+                  onClick={() => setTasksSectionState("completedTasks")}
+                  className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "completedTasks" ? "bg-teal-50 text-teal-700" : ""}`}
+                >
+                  مهام مكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length}</span>
                 </button>
               </nav>
             </div>
@@ -1116,6 +1131,31 @@ export default function Home({
                             </span>
                           )}
                         </div>
+                        
+                        {/* Show who assigned the task prominently */}
+                        {task.assignedBy && task.assignedBy !== user.id ? (
+                          <div className="flex items-center gap-1 mb-2">
+                            <span className="text-sm font-medium text-blue-700">مُسندة من:</span>
+                            <span className="text-sm font-semibold text-blue-800 bg-blue-50 px-2 py-1 rounded">
+                              {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
+                            </span>
+                          </div>
+                        ) : task.assignedBy === user.id ? (
+                          <div className="flex items-center gap-1 mb-2">
+                            <span className="text-sm font-medium text-green-700">مهمة ذاتية:</span>
+                            <span className="text-sm font-semibold text-green-800 bg-green-50 px-2 py-1 rounded">
+                              أنشأتها لنفسك
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 mb-2">
+                            <span className="text-sm font-medium text-gray-700">مُسندة من:</span>
+                            <span className="text-sm font-semibold text-gray-800 bg-gray-50 px-2 py-1 rounded">
+                              غير محدد
+                            </span>
+                          </div>
+                        )}
+                        
                         <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>الموعد: {getDate(task.taskDeadline)}</span>
@@ -1123,19 +1163,16 @@ export default function Home({
                             <span>الوقت: {task.repeatTime}</span>
                           )}
                         </div>
-                        {task.assignedBy && task.assignedBy !== user.id && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            مُسندة من: {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
-                          </p>
-                        )}
                         {task.completionDate && (
-                          <p className="text-xs text-green-600 mt-1">
-                            تاريخ الانتهاء: {getDate(task.completionDate)}
+                          <p className="text-xs text-orange-600 mt-1">
+                            تاريخ الانتهاء من جانبي: {getDate(task.completionDate)}
                           </p>
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className="text-sm text-teal-600">غير مكتمل</span>
+                        <span className={`text-sm ${task.completionDate ? 'text-orange-600' : 'text-gray-600'}`}>
+                          {task.completionDate ? 'انتهيت من المهمة' : 'لم أنته بعد'}
+                        </span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1143,7 +1180,7 @@ export default function Home({
                           }}
                           className="px-3 py-1 text-xs bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
                         >
-                          تحديد انتهى
+                          {task.completionDate ? 'تعديل تاريخ الانتهاء' : 'تحديد انتهيت'}
                         </button>
                       </div>
                     </div>
@@ -1164,7 +1201,7 @@ export default function Home({
                 )}
                 {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length === 0 && (
                   <div className="text-center py-8">
-                    <span className="text-sm text-gray-500">لا توجد مهام غير مكتملة</span>
+                    <span className="text-sm text-gray-500">لا توجد مهام</span>
                   </div>
                 )}
               </ul>
@@ -1173,7 +1210,7 @@ export default function Home({
             {/* Sent Tasks Tab */}
             {tasksSectionState === "sentTasks" && (
               <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-                {clientTasks.filter(task => task.assignedBy === user.id).slice(0, 3).map((task, index) => (
+                {clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).slice(0, 3).map((task, index) => (
                   <li 
                     key={index} 
                     className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
@@ -1209,6 +1246,117 @@ export default function Home({
                         </p>
                         {task.completionDate && (
                           <p className="text-xs text-blue-600 mt-1">
+                            انتهى من جانبه في: {getDate(task.completionDate)}
+                          </p>
+                        )}
+                        {task.completionNotes && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            ملاحظات: {task.completionNotes}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`text-sm ${
+                          task.completionDate 
+                            ? 'text-blue-600' 
+                            : 'text-gray-600'
+                        }`}>
+                          {task.completionDate ? 'انتهى من جانبه' : 'لم ينته بعد'}
+                        </span>
+                        {task.completionDate ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTaskUpdate(task.id, true, task.completionDate, task.completionNotes);
+                            }}
+                            className="px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors"
+                          >
+                            اعتماد كمكتمل
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTaskCompletionClick(task);
+                            }}
+                            className="px-3 py-1 text-xs bg-teal-100 text-teal-700 hover:bg-teal-200 rounded-lg transition-colors"
+                          >
+                            عرض التفاصيل
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+                {clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length > 3 && (
+                  <div className="text-center py-2">
+                    <button 
+                      onClick={() => handleMoreTasksClick(
+                        clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted), 
+                        'المهام المرسلة'
+                      )}
+                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
+                    >
+                      عرض المزيد ({clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length - 3} مهمة إضافية)
+                    </button>
+                  </div>
+                )}
+                {clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length === 0 && (
+                  <div className="text-center py-8">
+                    <span className="text-sm text-gray-500">لا توجد مهام مرسلة</span>
+                  </div>
+                )}
+              </ul>
+            )}
+
+            {/* Completed Tasks Tab */}
+            {tasksSectionState === "completedTasks" && (
+              <ul className={`${Style["tajawal-medium"]} space-y-4`}>
+                {clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).slice(0, 3).map((task, index) => (
+                  <li 
+                    key={index} 
+                    className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          {task.priority && (
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
+                              task.priority === 'متوسط الأهمية' ? 'bg-yellow-100 text-yellow-600' :
+                              'bg-green-100 text-green-600'
+                            }`}>
+                              {task.priority}
+                            </span>
+                          )}
+                          {task.isRepeating && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-600">
+                              متكررة
+                            </span>
+                          )}
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-600">
+                            مكتملة
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <span>الموعد: {getDate(task.taskDeadline)}</span>
+                          {task.repeatTime && (
+                            <span>الوقت: {task.repeatTime}</span>
+                          )}
+                        </div>
+                        {task.assignedBy === user.id ? (
+                          <p className="text-xs text-green-600 mt-1">
+                            مُرسلة إلى: {task.user?.username || `المستخدم #${task.userId}`}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-blue-600 mt-1">
+                            مُسندة من: {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
+                          </p>
+                        )}
+                        {task.completionDate && (
+                          <p className="text-xs text-green-600 mt-1">
                             تاريخ الانتهاء: {getDate(task.completionDate)}
                           </p>
                         )}
@@ -1219,38 +1367,36 @@ export default function Home({
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className={`text-sm ${task.isCompleted ? 'text-green-600' : 'text-yellow-600'}`}>
-                          {task.isCompleted ? 'مكتمل' : 'غير مكتمل'}
-                        </span>
+                        <span className="text-sm text-green-600 font-medium">مكتملة</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleTaskCompletionClick(task);
+                            handleTaskClick(task);
                           }}
-                          className="px-3 py-1 text-xs bg-teal-100 text-teal-700 hover:bg-teal-200 rounded-lg transition-colors"
+                          className="px-3 py-1 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
                         >
-                          تحديث الحالة
+                          عرض التفاصيل
                         </button>
                       </div>
                     </div>
                   </li>
                 ))}
-                {clientTasks.filter(task => task.assignedBy === user.id).length > 3 && (
+                {clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length > 3 && (
                   <div className="text-center py-2">
                     <button 
                       onClick={() => handleMoreTasksClick(
-                        clientTasks.filter(task => task.assignedBy === user.id), 
-                        'المهام المرسلة'
+                        clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)), 
+                        'المهام المكتملة'
                       )}
                       className="text-sm text-teal-600 hover:text-teal-800 font-medium"
                     >
-                      عرض المزيد ({clientTasks.filter(task => task.assignedBy === user.id).length - 3} مهمة إضافية)
+                      عرض المزيد ({clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length - 3} مهمة إضافية)
                     </button>
                   </div>
                 )}
-                {clientTasks.filter(task => task.assignedBy === user.id).length === 0 && (
+                {clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length === 0 && (
                   <div className="text-center py-8">
-                    <span className="text-sm text-gray-500">لا توجد مهام مرسلة</span>
+                    <span className="text-sm text-gray-500">لا توجد مهام مكتملة</span>
                   </div>
                 )}
               </ul>
@@ -1307,10 +1453,10 @@ export default function Home({
               عرض الكل
             </a>
           </header>
-          {ordersSectionState === "newOrders" && <NewOrdersTab orders={newOrders} count={newOrdersLength} />}
-          {ordersSectionState === "currentOrders" && <CurrentOrdersTab orders={currentOrders} count={currentOrdersLength} />}
-          {ordersSectionState === "endedOrders" && <EndedOrdersTab orders={endedOrders} count={finished} />}
-          {ordersSectionState === "cancelledOrders" && <CancelledOrdersTab orders={cancelledOrders} count={cancelledorders} />}
+          {ordersSectionState === "newOrders" && <NewOrdersTab orders={newOrders} count={newOrdersLength} onItemClick={handleItemClick} />}
+          {ordersSectionState === "currentOrders" && <CurrentOrdersTab orders={currentOrders} count={currentOrdersLength} onItemClick={handleItemClick} />}
+          {ordersSectionState === "endedOrders" && <EndedOrdersTab orders={endedOrders} count={finished} onItemClick={handleItemClick} />}
+          {ordersSectionState === "cancelledOrders" && <CancelledOrdersTab orders={cancelledOrders} count={cancelledorders} onItemClick={handleItemClick} />}
         </section>
 
         {/* Arrivals and Departures Section */}
@@ -1354,9 +1500,9 @@ export default function Home({
               عرض الكل
             </a>
           </header>
-          {arrivalsSectionState === "internalArrivals" && <InternalArrivalsTab arrivals={internalArrivals} count={arrivalsLength} />}
-          {arrivalsSectionState === "internalDeparatures" && <InternalDeparturesTab departures={internalDeparatures} count={deparaturesLength} />}
-          {arrivalsSectionState === "externalDeparatures" && <ExternalDeparturesTab departures={externalDeparatures} count={externaldeparaturesLength} />}
+          {arrivalsSectionState === "internalArrivals" && <InternalArrivalsTab arrivals={internalArrivals} count={arrivalsLength} onItemClick={handleItemClick} />}
+          {arrivalsSectionState === "internalDeparatures" && <InternalDeparturesTab departures={internalDeparatures} count={deparaturesLength} onItemClick={handleItemClick} />}
+          {arrivalsSectionState === "externalDeparatures" && <ExternalDeparturesTab departures={externalDeparatures} count={externaldeparaturesLength} onItemClick={handleItemClick} />}
         </section>
 
         {/* Housing Section */}
@@ -1400,9 +1546,9 @@ export default function Home({
               عرض الكل
             </a>
           </header>
-          {housingSectionState === "housing" && <HousingTab housing={housed} count={housed.length} />}
-          {housingSectionState === "checkedTable" && <CheckedTableTab housing={housed} count={housed.length} />}
-          {housingSectionState === "sessions" && <SessionsTab sessions={sessions} count={sessionsLength} />}
+          {housingSectionState === "housing" && <HousingTab housing={housed} count={housed.length} onItemClick={handleItemClick} />}
+          {housingSectionState === "checkedTable" && <CheckedTableTab housing={housed} count={housed.length} onItemClick={handleItemClick} />}
+          {housingSectionState === "sessions" && <SessionsTab sessions={sessions} count={sessionsLength} onItemClick={handleItemClick} />}
         </section>
 
         {/* Workers Section */}
@@ -1446,9 +1592,9 @@ export default function Home({
               عرض الكل
             </a>
           </header>
-          {workersSectionState === "workers" && <WorkersTab workers={fullList} count={homeMaidsLength} />}
-          {workersSectionState === "bookedlist" && <BookedListTab booked={bookedList} count={bookedList.length} />}
-          {workersSectionState === "availablelist" && <AvailableListTab available={availableList} count={availableList.length} />}
+          {workersSectionState === "workers" && <WorkersTab workers={fullList} count={homeMaidsLength} onItemClick={handleItemClick} />}
+          {workersSectionState === "bookedlist" && <BookedListTab booked={bookedList} count={bookedList.length} onItemClick={handleItemClick} />}
+          {workersSectionState === "availablelist" && <AvailableListTab available={availableList} count={availableList.length} onItemClick={handleItemClick} />}
         </section>
 
         {/* Public Relations Section */}
@@ -1492,9 +1638,9 @@ export default function Home({
               عرض الكل
             </a>
           </header>
-          {relationsSectionState === "relations" && <RelationsTab relations={relations} count={clientsCount} />}
-          {relationsSectionState === "sponsorship-transfers" && <SponsorshipTransfersTab transfers={transferSponsorships} count={transferSponsorshipsLength} />}
-          {relationsSectionState === "foreign-offices" && <ForeignOfficesTab offices={foreignOffices} count={officesCount} />}
+          {relationsSectionState === "relations" && <RelationsTab relations={relations} count={clientsCount} onItemClick={handleItemClick} />}
+          {relationsSectionState === "sponsorship-transfers" && <SponsorshipTransfersTab transfers={transferSponsorships} count={transferSponsorshipsLength} onItemClick={handleItemClick} />}
+          {relationsSectionState === "foreign-offices" && <ForeignOfficesTab offices={foreignOffices} count={officesCount} onItemClick={handleItemClick} />}
         </section>
 
         {/* Task Modal */}
@@ -1609,6 +1755,33 @@ export default function Home({
                             </span>
                           )}
                         </div>
+                        
+                        {/* Show who assigned the task prominently for My Tasks */}
+                        {moreTasksModal.title === 'مهامي' && (
+                          task.assignedBy && task.assignedBy !== user.id ? (
+                            <div className="flex items-center gap-1 mb-2">
+                              <span className="text-sm font-medium text-blue-700">مُسندة من:</span>
+                              <span className="text-sm font-semibold text-blue-800 bg-blue-50 px-2 py-1 rounded">
+                                {task.assignedByUser?.username || `المستخدم #${task.assignedBy}`}
+                              </span>
+                            </div>
+                          ) : task.assignedBy === user.id ? (
+                            <div className="flex items-center gap-1 mb-2">
+                              <span className="text-sm font-medium text-green-700">مهمة ذاتية:</span>
+                              <span className="text-sm font-semibold text-green-800 bg-green-50 px-2 py-1 rounded">
+                                أنشأتها لنفسك
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 mb-2">
+                              <span className="text-sm font-medium text-gray-700">مُسندة من:</span>
+                              <span className="text-sm font-semibold text-gray-800 bg-gray-50 px-2 py-1 rounded">
+                                غير محدد
+                              </span>
+                            </div>
+                          )
+                        )}
+                        
                         <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>الموعد: {getDate(task.taskDeadline)}</span>
@@ -1668,6 +1841,7 @@ export default function Home({
           onClose={() => setTaskCompletionModal({ isOpen: false, task: null })}
           task={taskCompletionModal.task}
           onTaskUpdate={handleTaskUpdate}
+          currentUser={user}
         />
       </div>
     </Layout>
@@ -1748,22 +1922,22 @@ export async function getServerSideProps(context) {
       foreignOfficesRes,
       tasksRes,
     ] = await Promise.all([
-      fetchDataFromApi(`http://localhost:3005/api/neworderlistprisma/1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`http://localhost:3005/api/endedorders/`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`http://localhost:3005/api/arrivals`),
-      fetchDataFromApi(`http://localhost:3005/api/deparatures`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`http://localhost:3005/api/confirmhousinginformation`),
-      fetchDataFromApi(`http://localhost:3005/api/sessions`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/clients`),
-      fetchDataFromApi(`http://localhost:3005/api/transfersponsorships`),
-      fetchDataFromApi(`http://localhost:3005/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
+      fetchDataFromApi(`http://localhost:3000/api/neworderlistprisma/1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`http://localhost:3000/api/endedorders/`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`http://localhost:3000/api/arrivals`),
+      fetchDataFromApi(`http://localhost:3000/api/deparatures`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`http://localhost:3000/api/confirmhousinginformation`),
+      fetchDataFromApi(`http://localhost:3000/api/sessions`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/clients`),
+      fetchDataFromApi(`http://localhost:3000/api/transfersponsorships`),
+      fetchDataFromApi(`http://localhost:3000/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/bookedlist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/availablelist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`http://localhost:3000/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)

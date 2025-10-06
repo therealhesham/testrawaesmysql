@@ -1,3 +1,12 @@
+
+/*
+الحالات المختلفة التي يتم التعامل معها
+medicalCheck
+travelPermit
+foreignLaborApproval
+saudiEmbassyApproval
+*/
+
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';

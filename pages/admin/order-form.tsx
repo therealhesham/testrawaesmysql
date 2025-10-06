@@ -9,6 +9,7 @@ interface Client {
   id: string;
   fullname: string;
   phonenumber: string;
+  city?: string;
 }
 
 interface Homemaid {
@@ -20,10 +21,11 @@ interface Homemaid {
 
 export default function OrderFormPage() {
   const router = useRouter();
-  const { type, orderId } = router.query;
+  const { type, orderId, clientId, clientName, clientPhone, clientCity } = router.query;
   const [clients, setClients] = useState<Client[]>([]);
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [preSelectedClient, setPreSelectedClient] = useState<Client | null>(null);
 
   const fetchClients = async () => {
     try {
@@ -51,6 +53,19 @@ export default function OrderFormPage() {
     };
     fetchData();
   }, []);
+
+  // Handle pre-selected client from URL parameters
+  useEffect(() => {
+    if (clientId && clientName && clientPhone) {
+      const preSelectedClientData: Client = {
+        id: clientId as string,
+        fullname: clientName as string,
+        phonenumber: clientPhone as string,
+        city: clientCity as string || ''
+      };
+      setPreSelectedClient(preSelectedClientData);
+    }
+  }, [clientId, clientName, clientPhone, clientCity]);
 
   const handleCancel = () => {
     router.back(); // Or router.push('/admin/dashboard')
@@ -80,6 +95,7 @@ export default function OrderFormPage() {
             clients={clients}
             homemaids={homemaids}
             orderId={orderId as string}
+            preSelectedClient={preSelectedClient}
             onCancel={handleCancel}
             onSuccess={handleSuccess}
           />
@@ -88,6 +104,7 @@ export default function OrderFormPage() {
           <AddSpecsForm
             clients={clients}
             orderId={orderId as string}
+            preSelectedClient={preSelectedClient}
             onCancel={handleCancel}
             onSuccess={handleSuccess}
           />
@@ -97,14 +114,16 @@ export default function OrderFormPage() {
   );
 }
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: { req: any }) {
   try {
     const cookieHeader = req.headers.cookie;
-    let cookies = {};
+    let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: string) => {
         const [key, value] = cookie.trim().split("=");
-        cookies[key] = decodeURIComponent(value);
+        if (key && value) {
+          cookies[key] = decodeURIComponent(value);
+        }
       });
     }
 
@@ -116,13 +135,13 @@ export async function getServerSideProps({ req }) {
 
     const { jwtDecode } = await import('jwt-decode');
     const { default: prisma } = await import('pages/api/globalprisma');
-    const token = jwtDecode(cookies.authToken);
+    const token: any = jwtDecode(cookies.authToken);
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
 
-    const hasPermission = findUser && findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"];
+    const hasPermission = findUser && (findUser.role?.permissions as any)?.["إدارة الطلبات"]?.["عرض"];
 
     if (!hasPermission) {
       return {
