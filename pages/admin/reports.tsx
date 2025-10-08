@@ -91,8 +91,22 @@ async function fetchReportsData() {
   }
 }
 
+
+const fetchDataFromReportsOrders = async () => {
+  const response = await fetch('/api/reports/orders');
+  const data = await response.json();
+  return data;
+}
+const fetchDataFromReportsSources = async () => {
+  const response = await fetch('/api/reports/sources');
+  const data = await response.json();
+  return data;
+}
+
   useEffect(() => {
     fetchReportsData();
+    fetchDataFromReportsOrders();
+    fetchDataFromReportsSources();
   }, []);
 
   useEffect(() => {
@@ -127,6 +141,7 @@ async function fetchReportsData() {
                 fill: true,
                 tension: 0.4
               }]
+  
             },
             options: {
               responsive: true,

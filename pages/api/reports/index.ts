@@ -22,7 +22,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         
         // احصائيات العاملات حسب الجنسية - Workers by nationality
         const workersNationalityStats = await getWorkersNationalityStatistics();
-        
+                                    
         // احصائيات التسكين - Housing Statistics
         const housingStats = await getHousingStatistics();
         
