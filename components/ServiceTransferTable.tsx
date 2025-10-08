@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { Plus, FileText, Search, ChevronDown } from 'lucide-react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface Transfer {
   id: number;
@@ -25,7 +28,7 @@ export default function ServiceTransferTable({
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [stageFilter, setStageFilter] = useState<string>('');
-const [data,setData]=useState([])
+  const [data,setData]=useState<any[]>([])
   const exportedData = async ()=>{
 const data = await fetch('/api/Export/transfersponserships');
 const res = await data.json();
@@ -57,6 +60,96 @@ useEffect(()=>{exportedData()},[])
       setError('فشل تحميل البيانات');
       setLoading(false);
     }
+  };
+
+  // Export to Excel using xlsx (similar logic to neworders)
+  const exportToExcel = () => {
+    if (!data || data.length === 0) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+
+    const worksheetData = data.map((row: any, index: number) => ({
+      '#': row.id ?? index + 1,
+      'اسم العاملة': row.HomeMaid?.Name || '-',
+      'رقم الجواز': row.HomeMaid?.Passportnumber || '-',
+      'العميل الحالي': row.OldClient?.fullname || '-',
+      'العميل الجديد': row.NewClient?.fullname || '-',
+      'حالة الطلب': row.ExperimentRate || 'غير محدد',
+      'المرحلة الحالية': row.transferStage || '-',
+      'تاريخ النقل': row.TransferingDate || '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(worksheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'نقل_الخدمات');
+    XLSX.writeFile(wb, 'service_transfers.xlsx');
+  };
+
+  // Export to PDF using jsPDF + autotable (matching neworders styling)
+  const exportToPDF = async () => {
+    if (!data || data.length === 0) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+
+    const doc = new jsPDF('landscape');
+
+    // Try to load Amiri font (used across project for Arabic)
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (response.ok) {
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        // Buffer may be available in the environment as in other files
+        const fontBase64 = typeof Buffer !== 'undefined'
+          ? Buffer.from(fontBytes).toString('base64')
+          : btoa(String.fromCharCode(...fontBytes));
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri');
+      }
+    } catch (err) {
+      // ignore font loading error and continue with default font
+      console.error('Error loading Amiri font for PDF export', err);
+    }
+
+    const tableColumn = [
+      '#',
+      'اسم العاملة',
+      'رقم الجواز',
+      'العميل الحالي',
+      'العميل الجديد',
+      'حالة الطلب',
+      'المرحلة الحالية',
+      'تاريخ النقل',
+    ];
+
+    const tableRows = data.map((row: any, index: number) => [
+      row.id ?? index + 1,
+      row.HomeMaid?.Name || '-',
+      row.HomeMaid?.Passportnumber || '-',
+      row.OldClient?.fullname || '-',
+      row.NewClient?.fullname || '-',
+      row.ExperimentRate || 'غير محدد',
+      row.transferStage || '-',
+      row.TransferingDate || '-',
+    ]);
+
+    // @ts-ignore - types for autoTable come from jspdf-autotable
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: { halign: 'right', font: doc.getFont().fontName || undefined },
+      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      margin: { top: 20, right: 10, left: 10 },
+      didDrawPage: (dataArg: any) => {
+        const page = doc.getCurrentPageInfo().pageNumber;
+        doc.text(`صفحة ${page}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 10);
+      },
+    });
+
+    doc.save('service_transfers.pdf');
   };
 
   const handleResetFilters = () => {
@@ -124,11 +217,11 @@ useEffect(()=>{exportedData()},[])
           </button>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1 bg-teal-900 text-white text-md px-2.5 py-1 rounded-md">
+          <button onClick={exportToExcel} className="flex items-center gap-1 bg-teal-900 text-white text-md px-2.5 py-1 rounded-md">
             <FileExcelOutlined className="w-4 h-4" />
             <span>Excel</span>
           </button>
-          <button className="flex items-center gap-1 bg-teal-900 text-white text-md px-2.5 py-1 rounded-md">
+          <button onClick={exportToPDF} className="flex items-center gap-1 bg-teal-900 text-white text-md px-2.5 py-1 rounded-md">
             <FileText className="w-4 h-4" />
             <span>PDF</span>
           </button>

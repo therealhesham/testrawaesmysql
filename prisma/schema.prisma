@@ -508,6 +508,13 @@ guaranteeStatus               String?  @db.VarChar(100)
 }
 
 
+model minimumm {
+  id                    Int       @id @default(autoincrement())
+  amount                 Decimal? 
+  createdAt             DateTime  @default(now())
+
+}
+
 model transferSponsorShips{
 
   id                    Int       @id @default(autoincrement())
