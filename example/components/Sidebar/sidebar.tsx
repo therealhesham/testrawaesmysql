@@ -101,7 +101,7 @@ const menuItems: MenuItem[] = [
     ],
   },
   { id: 6, label: "الاشعارات", icon: Bell, link: "/admin/notifications" },
-  { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reports" },
+  { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reportsconverted" },
   { id: 8, label: "القوالب", icon: TemplateIcon, link: "/admin/templates" },
   {
     id: 9,
