@@ -221,6 +221,7 @@ export default function AddTransactionForm({ transactionId, onBack }: AddTransac
       const response = await fetch(`/api/clients/suggestions?q=${encodeURIComponent(searchTerm)}`);
       if (response.ok) {
         const data = await response.json();
+        console.log(data);
         setNewClientSuggestions(data.suggestions || []);
         setShowNewClientDropdown(true);
       } else {

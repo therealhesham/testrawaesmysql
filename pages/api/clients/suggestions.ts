@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         city: true,
         nationalId: true
       },
-      take: 10,
+      // take: 10,
       orderBy: {
         fullname: 'asc'
       }
@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       city: client.city,
       nationalId: client.nationalId
     }));
-
+console.log(suggestions);
     res.status(200).json({ suggestions });
   } catch (error) {
     console.error('Error searching clients:', error);

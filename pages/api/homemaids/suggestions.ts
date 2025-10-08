@@ -25,8 +25,8 @@ export default async function handler(
             // mode: 'insensitive',
           },
         },
-        select: {
-          id: true,
+        select: {phone: true,
+          id: true,Passportnumber: true,
           Name: true,
           office: {
             select: {
@@ -41,6 +41,7 @@ export default async function handler(
       const suggestions = homemaids.map(homemaid => ({
         id: homemaid.id,
         Name: homemaid.Name,
+        Passportnumber: homemaid.Passportnumber,
         Country: homemaid.office?.Country || '',
         religion: homemaid.Religion || '',
       }));

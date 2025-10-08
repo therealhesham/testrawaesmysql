@@ -1445,7 +1445,7 @@ export default function Home({
                   : ordersSectionState === "endedOrders"
                   ? router.push("/admin/endedorders")
                   : ordersSectionState === "cancelledOrders"
-                  ? router.push("/admin/cancelledorders")
+                  ? router.push("/admin/rejectedorders")
                   : null;
               }}
               className="view-all-btn cursor-pointer bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-teal-700 hover:to-teal-900 transition-all duration-300"
