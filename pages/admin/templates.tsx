@@ -9,7 +9,7 @@ import Style from 'styles/Home.module.css';
 
 // Dynamically import ReactQuill with SSR disabled
 const ReactQuill = dynamic(() => import('react-quill'), {
-  ssr: false, // Disable SSR for ReactQuill
+  ssr: false,
 });
 import 'react-quill/dist/quill.snow.css';
 
@@ -22,6 +22,11 @@ interface Template {
   defaultValues?: { [key: string]: string };
 }
 
+interface Notification {
+  message: string;
+  type: 'success' | 'error';
+}
+
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -30,12 +35,20 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [editorContent, setEditorContent] = useState('');
   const [dynamicFieldValues, setDynamicFieldValues] = useState<{ [key: string]: string }>({});
+  const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
   // Function to extract dynamic fields from content
   const extractDynamicFields = (content: string): string[] => {
     const regex = /\{([^}]+)\}/g;
     const matches = content.match(regex) || [];
     return matches.map((field) => field.replace(/[\{\}]/g, ''));
+  };
+
+  // Show notification modal
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000); // Auto-close after 3 seconds
   };
 
   // Fetch templates on mount
@@ -55,7 +68,6 @@ export default function Home() {
         }
       } catch (error) {
         console.error('Failed to fetch templates:', error);
-        // Fallback to a dummy template for testing
         const dummyTemplate = {
           id: 1,
           title: 'قالب اختبار',
@@ -72,6 +84,18 @@ export default function Home() {
     };
     fetchTemplates();
   }, []);
+
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const showAddTemplateModal = () => {
     setIsEditMode(false);
@@ -95,7 +119,6 @@ export default function Home() {
   const handleTemplateSelect = (template: Template) => {
     setSelectedTemplate(template);
     setEditorContent(template.content);
-    // Load default values if they exist, otherwise use empty values
     setDynamicFieldValues(template.defaultValues || {});
   };
 
@@ -108,7 +131,7 @@ export default function Home() {
     const dynamicFields = extractDynamicFields(content);
 
     if (!title || !content) {
-      alert('يرجى ملء جميع الحقول المطلوبة');
+      showNotification('يرجى ملء جميع الحقول المطلوبة', 'error');
       return;
     }
 
@@ -122,7 +145,6 @@ export default function Home() {
             : { title, content, type, dynamicFields, defaultValues: dynamicFieldValues }
         ),
       });
-
       if (res.ok) {
         const updatedTemplate = await res.json();
         if (isEditMode) {
@@ -135,14 +157,15 @@ export default function Home() {
           setSelectedTemplate(updatedTemplate);
         }
         hideAddTemplateModal();
-        e.currentTarget.reset();
+        // e.currentTarget.reset();
         setDynamicFieldValues({});
+        showNotification(`تم ${isEditMode ? 'تحديث' : 'إضافة'} القالب بنجاح`, 'success');
       } else {
-        alert(`فشل في ${isEditMode ? 'تحديث' : 'إضافة'} القالب`);
+        showNotification(`فشل في ${isEditMode ? 'تحديث' : 'إضافة'} القالب`, 'error');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('حدث خطأ');
+      showNotification('حدث خطأ', 'error');
     }
   };
 
@@ -156,7 +179,6 @@ export default function Home() {
 
   const handleSaveDefaults = async () => {
     if (!selectedTemplate) return;
-
     try {
       const res = await fetch('/api/templates', {
         method: 'PUT',
@@ -167,74 +189,71 @@ export default function Home() {
           content: selectedTemplate.content,
           type: selectedTemplate.type,
           dynamicFields: selectedTemplate.dynamicFields,
-          defaultValues: dynamicFieldValues
+          defaultValues: dynamicFieldValues,
         }),
       });
-
       if (res.ok) {
         const updatedTemplate = await res.json();
         setTemplates((prev) =>
           prev.map((t) => (t.id === updatedTemplate.id ? updatedTemplate : t))
         );
         setSelectedTemplate(updatedTemplate);
-        alert('تم حفظ القيم الافتراضية بنجاح');
+        showNotification('تم حفظ القيم الافتراضية بنجاح', 'success');
       } else {
-        alert('فشل في حفظ القيم الافتراضية');
+        showNotification('فشل في حفظ القيم الافتراضية', 'error');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('حدث خطأ في حفظ القيم الافتراضية');
+      showNotification('حدث خطأ في حفظ القيم الافتراضية', 'error');
     }
   };
 
   const handleExportToPDF = async () => {
     if (!selectedTemplate) return;
-
-    // Clean content and replace dynamic fields
     let pdfContent = selectedTemplate.content;
     selectedTemplate.dynamicFields?.forEach((field) => {
       pdfContent = pdfContent.replace(`{${field}}`, dynamicFieldValues[field] || '');
     });
-
-    // Remove HTML tags
     const div = document.createElement('div');
     div.innerHTML = pdfContent;
     pdfContent = div.textContent || div.innerText || '';
-
-    // Create PDF
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
     });
-
     try {
-      // Fetch Amiri font
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
       const fontBytes = new Uint8Array(fontBuffer);
       const fontBase64 = Buffer.from(fontBytes).toString('base64');
-
-      // Add Amiri font to jsPDF
       doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       doc.setFont('Amiri', 'normal');
     } catch (error) {
       console.error('Error loading Amiri font:', error);
-      alert('خطأ في تحميل الخط العربي');
+      showNotification('خطأ في تحميل الخط العربي', 'error');
       return;
     }
-
-    // Set font size and RTL
     doc.setFontSize(12);
     doc.setLanguage('ar');
-
-    // Split text to fit within page width
     const textLines = doc.splitTextToSize(pdfContent, 180);
     doc.text(textLines, 190, 10, { align: 'right' });
-
-    // Save PDF
+    if (logoImage) {
+      try {
+        const imgWidth = 50;
+        const imgHeight = 20;
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const x = 10;
+        const y = pageHeight - imgHeight - 10;
+        doc.addImage(logoImage, 'PNG', x, y, imgWidth, imgHeight);
+      } catch (error) {
+        console.error('Error adding logo to PDF:', error);
+        showNotification('خطأ في إضافة الشعار إلى PDF', 'error');
+      }
+    }
     doc.save(`${selectedTemplate.title}.pdf`);
   };
 
@@ -268,9 +287,7 @@ export default function Home() {
               <span>إضافة قالب</span>
             </button>
           </section>
-
           <section className="flex gap-8 w-[900px]">
-            {/* Template Content Area */}
             <div className="flex-1 bg-gray-100 border border-gray-300 rounded-lg p-6 flex flex-col gap-6">
               {selectedTemplate ? (
                 <>
@@ -288,19 +305,17 @@ export default function Home() {
                       <FileText className="w-4 h-4" />
                       <span>PDF</span>
                     </button>
-                    <button
+                    {/* <button
                       onClick={handleSaveDefaults}
                       className="flex items-center gap-1 bg-green-600 text-white px-4 py-1 rounded text-sm hover:bg-green-700"
                     >
                       <span>حفظ القيم الافتراضية</span>
-                    </button>
+                    </button> */}
                   </div>
-
                   <div
                     className="bg-gray-50 border border-gray-300 rounded-lg p-8 flex flex-col gap-8 flex-1"
                     dangerouslySetInnerHTML={{ __html: renderContentWithDynamicFields(selectedTemplate.content) }}
                   />
-
                   <div className="flex justify-between gap-5 mt-auto">
                     <div className="flex-1 text-right text-base text-black">
                       <span>التاريخ:</span>
@@ -311,17 +326,27 @@ export default function Home() {
                       <hr className="border-gray-300 mt-1.5" />
                     </div>
                   </div>
-
                   <div className="border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center gap-2 text-gray-500 text-sm bg-gray-50">
                     <Upload className="w-6 h-6" />
                     <span>اضغط هنا لرفع الشعار</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="mt-2 text-sm"
+                    />
+                    {logoImage && (
+                      <img
+                        src={logoImage}
+                        alt="Uploaded Logo"
+                        className="mt-2 max-w-[100px] max-h-[50px]"
+                      />
+                    )}
                   </div>
-
-                  {/* Dynamic Fields Input */}
-                  {selectedTemplate?.dynamicFields?.length > 0 && (
+                  {Array.isArray(selectedTemplate?.dynamicFields) && selectedTemplate.dynamicFields.length > 0 && (
                     <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mt-4">
-                      <h3 className="text-lg font-normal text-gray-800 text-right mb-4">الحقول </h3>
-                      {selectedTemplate?.dynamicFields?.map((field) => (
+                      <h3 className="text-lg font-normal text-gray-800 text-right mb-4">الحقول</h3>
+                      {selectedTemplate.dynamicFields.map((field) => (
                         <div key={field} className="flex flex-col gap-2 mb-4">
                           <label htmlFor={`dynamic-${field}`} className="text-base text-gray-800 text-right">
                             {field}
@@ -347,8 +372,6 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            {/* Template Sidebar */}
             <aside className="w-56 bg-gray-100 border border-gray-300 rounded-lg p-6">
               <h2 className="text-xl font-normal text-gray-500 text-right mb-8">أنواع القوالب</h2>
               <ul className="flex flex-col gap-8">
@@ -374,7 +397,6 @@ export default function Home() {
             </aside>
           </section>
         </main>
-
         {/* Add/Edit Template Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -405,7 +427,6 @@ export default function Home() {
                         placeholder="ادخل عنوان القالب"
                       />
                     </div>
-
                     <div className="bg-gray-50 border border-gray-300 rounded-md shadow-sm">
                       <ReactQuill
                         theme="snow"
@@ -425,7 +446,6 @@ export default function Home() {
                         placeholder="ادخل محتوى القالب هنا..."
                       />
                     </div>
-
                     <div className="flex justify-center gap-4 mt-10 max-[768px]:flex-col">
                       <button
                         type="button"
@@ -444,6 +464,18 @@ export default function Home() {
                   </form>
                 </div>
               </section>
+            </div>
+          </div>
+        )}
+        {/* Notification Modal */}
+        {notification && (
+          <div className="fixed top-4 right-4 z-50">
+            <div
+              className={`rounded-lg p-4 shadow-lg ${
+                notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+              } text-white text-sm`}
+            >
+              <p>{notification.message}</p>
             </div>
           </div>
         )}
