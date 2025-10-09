@@ -600,7 +600,7 @@ deparatureHousingDate  DateTime?
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  homeMaid_id       Int       @unique
+  homeMaid_id       Int?       @unique
   Reason         String?   @db.VarChar(100)
   employee       String?   @db.VarChar(100)
   isActive        Boolean? @default(true)
@@ -613,7 +613,7 @@ deparatureHousingDate  DateTime?
   location_id     Int?
     location          inHouseLocation?  @relation(fields: [location_id], references: [id])
 isHasEntitlements     Boolean? @default(true)
-  Order          homemaid  @relation(fields: [homeMaid_id], references: [id])
+  Order          homemaid?  @relation(fields: [homeMaid_id], references: [id])
 }
 
 model CheckIn {
