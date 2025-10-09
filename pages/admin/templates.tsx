@@ -318,10 +318,10 @@ export default function Home() {
                   </div>
 
                   {/* Dynamic Fields Input */}
-                  {selectedTemplate.dynamicFields?.length > 0 && (
+                  {selectedTemplate?.dynamicFields?.length > 0 && (
                     <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mt-4">
                       <h3 className="text-lg font-normal text-gray-800 text-right mb-4">الحقول </h3>
-                      {selectedTemplate.dynamicFields.map((field) => (
+                      {selectedTemplate?.dynamicFields?.map((field) => (
                         <div key={field} className="flex flex-col gap-2 mb-4">
                           <label htmlFor={`dynamic-${field}`} className="text-base text-gray-800 text-right">
                             {field}
