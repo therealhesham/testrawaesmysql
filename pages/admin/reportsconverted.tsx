@@ -33,7 +33,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapTopology, setMapTopology] = useState<any>(null);
-  const [Highcharts, setHighcharts] = useState<any>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
   // Region mapping
@@ -501,7 +500,7 @@ export default function Home() {
           font-family: 'Tajawal', sans-serif;
         }
         #map-container {
-          height: 500px;
+          height: 400px;
           min-width: 310px;
           max-width: 800px;
           margin: 0 auto;
@@ -541,7 +540,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Row 2 - Highcharts Map */}
+        {/* Row 2 - Highcharts Map and Monthly Orders */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
@@ -557,12 +556,12 @@ export default function Home() {
               <div className="loading">جاري تحميل الخريطة...</div>
             )}
           </div>
-          <div className="bg-white rounded-xl p-6  shadow-sm">
+          <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
               <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">شهري</span>
               <h3 className="text-base font-semibold text-gray-800">الطلبات الشهرية</h3>
             </div>
-            <div className="relative h-64">
+            <div className="relative h-[400px]">
               <Bar data={barChart1Data} options={commonOptions} />
             </div>
           </div>
