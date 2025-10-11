@@ -86,7 +86,7 @@ export default async function handler(
       notes: notes || "", // Using the new notes field from schema
       orderDocument: orderDocument || "",
       contract: contract || "",
-      bookingstatus: "new_order",
+      bookingstatus: "pending_external_office",
       clientID: clientID ? Number(clientID) : null,
     };
 

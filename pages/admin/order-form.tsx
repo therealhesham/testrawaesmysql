@@ -72,7 +72,7 @@ export default function OrderFormPage() {
   };
 
   const handleSuccess = () => {
-    router.push('/admin/neworders'); // Refresh will happen via useEffect in Dashboard
+    router.push('/admin/currentorderstest'); // Refresh will happen via useEffect in Dashboard
   };
 
   if (isLoading) {
