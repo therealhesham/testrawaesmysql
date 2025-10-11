@@ -2002,7 +2002,7 @@ export async function getServerSideProps(context) {
       fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3000/api/tasks/${user.id}`), // Fetch tasks for the user
+      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)
