@@ -528,7 +528,10 @@ autoFocus
     a.click();
     window.URL.revokeObjectURL(url);
   };
-
+useEffect(() => {
+  const filteredOrders = filterOrders();
+  setSortedOrders(filteredOrders);
+}, [formData.searchTerm, ageFilter, nationalityFilter, allOrders]);
   // Client-side authentication check
   useEffect(() => {
     const checkAuth = async () => {
