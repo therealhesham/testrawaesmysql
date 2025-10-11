@@ -58,7 +58,7 @@ export default async function handler(
         HomemaidIdCopy: HomemaidId,
         ExperienceYears:ExperienceYears+"",
         Nationality,
-        bookingstatus: "new_order",
+        bookingstatus: "pending_external_office",
         Passportnumber,
         PaymentMethod,
         // externalOfficeStatus,
