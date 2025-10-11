@@ -155,6 +155,35 @@ const Customers = ({ hasPermission }: Props) => {
     fetchClients(currentPage); // إعادة تحميل البيانات
   };
 
+  // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
+  const translateBookingStatus = (status: string) => {
+    const statusTranslations: { [key: string]: string } = {
+      'pending': 'قيد الانتظار',
+      'external_office_approved': 'موافقة المكتب الخارجي',
+      'pending_external_office': 'في انتظار المكتب الخارجي',
+      'medical_check_passed': 'تم اجتياز الفحص الطبي',
+      'pending_medical_check': 'في انتظار الفحص الطبي',
+      'foreign_labor_approved': 'موافقة وزارة العمل الأجنبية',
+      'pending_foreign_labor': 'في انتظار وزارة العمل الأجنبية',
+      'agency_paid': 'تم دفع الوكالة',
+      'pending_agency_payment': 'في انتظار دفع الوكالة',
+      'embassy_approved': 'موافقة السفارة السعودية',
+      'pending_embassy': 'في انتظار السفارة السعودية',
+      'visa_issued': 'تم إصدار التأشيرة',
+      'pending_visa': 'في انتظار إصدار التأشيرة',
+      'travel_permit_issued': 'تم إصدار تصريح السفر',
+      'pending_travel_permit': 'في انتظار تصريح السفر',
+      'received': 'تم الاستلام',
+      'pending_receipt': 'في انتظار الاستلام',
+      'cancelled': 'ملغي',
+      'rejected': 'مرفوض',
+      'delivered': 'تم التسليم',
+      'new_order': 'طلب جديد',
+      'new_orders': 'طلبات جديدة'
+    };
+    
+    return statusTranslations[status] || status;
+  };
 
 
   // دالة تصدير PDF
@@ -290,7 +319,7 @@ const Customers = ({ hasPermission }: Props) => {
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => (window.location.href = '/admin/home')}
-                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
+                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
                     >
                       العودة إلى الرئيسية
                     </button>
@@ -305,7 +334,7 @@ const Customers = ({ hasPermission }: Props) => {
                 <section className="flex justify-between items-center mb-6">
                   <h1 className="text-3xl font-normal text-text-dark">قائمة العملاء</h1>
                   <button
-                    className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
+                    className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
                     onClick={() => setIsModalOpen(true)}
                   >
                     <span>إضافة عميل</span>
@@ -321,15 +350,15 @@ const Customers = ({ hasPermission }: Props) => {
                         placeholder="بحث"
                         value={filters.fullname}
                         onChange={(e) => handleFilterChange('fullname', e.target.value)}
-                        className="w-full bg-background-light border border-border-color rounded-md py-2 pr-10 pl-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+                        className="w-full bg-background-light border border-border-color rounded-md py-2 pr-10 pl-4 text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
                       />
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
                     </div>
-                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-sm text-text-muted cursor-pointer">
+                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-md text-text-muted cursor-pointer">
                       <select
                         value={filters.city}
                         onChange={(e) => handleFilterChange('city', e.target.value)}
-                        className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
+                        className="bg-transparent w-full text-md text-text-muted focus:outline-none border-none"
                       >
                         <option value="all">كل المدن</option>
                         {cities.map((city) => (
@@ -339,12 +368,12 @@ const Customers = ({ hasPermission }: Props) => {
                         ))}
                       </select>
                     </div>
-                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-sm text-text-muted cursor-pointer">
+                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-md text-text-muted cursor-pointer">
                       <input
                         type="date"
                         value={filters.date}
                         onChange={(e) => handleFilterChange('date', e.target.value)}
-                        className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
+                        className="bg-transparent w-full text-md text-text-muted focus:outline-none border-none"
                       />
                       {/* <Calendar className="mr-2 w-4 h-4" /> */}
                     </div>
@@ -357,7 +386,7 @@ const Customers = ({ hasPermission }: Props) => {
                     />
                     <button
                       onClick={handleResetFilters}
-                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
+                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
                     >
                       إعادة ضبط
                     </button>
@@ -381,7 +410,7 @@ const Customers = ({ hasPermission }: Props) => {
                 </section>
 
 <section className="bg-text-light border border-border-color rounded-md overflow-x-auto">
-  <table className="w-full text-sm font-medium ">
+  <table className="w-full text-md font-medium ">
     <thead>
       <tr className="bg-teal-800 text-white">
         {visibleColumns.id && <th className="text-nowrap text-center p-4 w-[8%]">الرقم</th>}
@@ -422,8 +451,8 @@ const Customers = ({ hasPermission }: Props) => {
               {visibleColumns.ordersCount && <td className="text-nowrap text-center p-4">{client._count.orders}</td>}
               {visibleColumns.lastOrderDate && (
                 <td className="text-nowrap text-center p-4">
-                  {client.orders[0]?.createdat
-                    ? new Date(client.orders[0]?.createdat).toLocaleDateString()
+                  {client.orders[client.orders.length - 1]?.createdAt
+                    ? new Date(client.orders[client.orders.length - 1]?.createdAt).toLocaleDateString()
                     : '-'}
                 </td>
               )}
@@ -466,7 +495,7 @@ const Customers = ({ hasPermission }: Props) => {
                 <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
                   <table className="w-full border border-border-color rounded-md">
                     <thead>
-                      <tr className="bg-teal-800 text-white text-sm font-medium">
+                      <tr className="bg-teal-800 text-white text-md font-medium">
                         <th className="text-nowrap text-center p-4">رقم الطلب</th>
                         <th className="text-nowrap text-center p-4">اسم العامل</th>
                         <th className="text-nowrap text-center p-4">حالة الحجز</th>
@@ -485,9 +514,9 @@ const Customers = ({ hasPermission }: Props) => {
                           <tr key={order.id} className="bg-background-light text-text-dark text-md">
                             <td className="text-nowrap text-center p-4">#{order.id}</td>
                             <td className="text-nowrap text-center p-4">{order.HomeMaid?.Name || '-'}</td>
-                            <td className="text-nowrap text-center p-4">{order.bookingstatus || '-'}</td>
+                            <td className="text-nowrap text-center p-4">{  translateBookingStatus(order.bookingstatus) || '-'}</td>
                             <td className="text-nowrap text-center p-4">
-                              {order.createdat ? new Date(order.createdat).toLocaleDateString() : '-'}
+                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}
                             </td>
                           </tr>
                         ))

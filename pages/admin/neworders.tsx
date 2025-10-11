@@ -157,10 +157,11 @@ function PrePopupmodal({ hidden, setHidden, setActivePopup }: { hidden: boolean;
           <div className="relative client-search-container">
             <input
               type="text"
+autoFocus
               value={clientSearchTerm}
               onChange={handleClientSearchChange}
               onBlur={handleClientInputBlur}
-              onFocus={() => clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
+              // onFocus={() => clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
               placeholder="ابحث عن العميل بالاسم أو رقم الهاتف"
               className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
             />

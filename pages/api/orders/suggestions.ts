@@ -16,16 +16,33 @@ export default async function handler(
 
     try {
       const query = (q as string).toLowerCase();
-      
-      // البحث في أرقام الطلبات
+
+      // البحث في أرقام الطلبات وأسماء HomeMaid معًا
       const orderIds = await prisma.neworder.findMany({
         where: {
-          id: {
-            equals: isNaN(Number(query)) ? -1 : Number(query),
-          },
+          OR: [
+            {
+              id: {
+                equals: isNaN(Number(query)) ? -1 : Number(query),
+              },
+            },
+            {
+              HomeMaid: {
+                Name: {
+                  contains: query,
+                  // mode: "insensitive", // لجعل البحث غير حساس لحالة الأحرف
+                },
+              },
+            },
+          ],
         },
         select: {
           id: true,
+          HomeMaid: {
+            select: {
+              Name: true,
+            },
+          },
         },
         take: 10,
       });
@@ -38,22 +55,27 @@ export default async function handler(
           },
         },
         select: {
-          id: true,
+          id: true,HomeMaid:{
+            select: {
+              Name: true,
+            },
+          },
         },
         take: 10,
       });
 
       // دمج النتائج وإزالة التكرار
       const suggestions = new Set<string>();
-      
+
       orderIds.forEach(item => {
         if (item.id) {
-          suggestions.add(item.id.toString());
+          suggestions.add(`${item.id.toString()} - ${item.HomeMaid?.Name}`);
         }
       });
-      
+
       orderIdsContaining.forEach(item => {
         if (item.id && item.id.toString().includes(query)) {
+          suggestions.add(`${item.id.toString()} - ${item.HomeMaid?.Name}`);
           suggestions.add(item.id.toString());
         }
       });

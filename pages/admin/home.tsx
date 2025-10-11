@@ -489,10 +489,38 @@ export default function Home({
   // Initialize tasks from server-side props
   React.useEffect(() => {
     console.log('Initializing tasks from server:', tasks);
+    console.log('Tasks type:', typeof tasks, 'Is array:', Array.isArray(tasks));
     if (tasks && Array.isArray(tasks)) {
+      console.log('Setting clientTasks with', tasks.length, 'tasks');
       setClientTasks(tasks);
+      
+      // Debug: Log first few tasks to see their structure
+      if (tasks.length > 0) {
+        console.log('Sample task structure:', tasks[0]);
+        console.log('Task deadline type:', typeof tasks[0]?.taskDeadline);
+        console.log('Task deadline value:', tasks[0]?.taskDeadline);
+        
+        // Check if taskDeadline is a valid date
+        const sampleTask = tasks[0];
+        if (sampleTask.taskDeadline) {
+          const deadlineDate = new Date(sampleTask.taskDeadline);
+          console.log('Parsed deadline date:', deadlineDate);
+          console.log('Is valid date:', !isNaN(deadlineDate.getTime()));
+          console.log('Date month:', deadlineDate.getMonth());
+          console.log('Date day:', deadlineDate.getDate());
+          console.log('Date year:', deadlineDate.getFullYear());
+        }
+      }
+    } else {
+      console.log('No tasks found or tasks is not an array');
     }
   }, [tasks]);
+
+  // Function to remove HTML tags from text
+  const stripHtmlTags = (html) => {
+    if (!html) return '';
+    return html.replace(/<[^>]*>/g, '').trim();
+  };
 
   const getNextMonth = () => {
     let month = monthIndex;
@@ -556,12 +584,41 @@ export default function Home({
   };
 
   const getTasksForDay = (day) => {
-    return clientTasks.filter((task) => {
+    // Debug: Log all tasks and their dates
+    if (day === 1) { // Only log for first day to avoid spam
+      console.log('=== TASKS DEBUG ===');
+      console.log('Current month:', monthIndex, 'Current year:', year);
+      console.log('Total clientTasks:', clientTasks.length);
+      console.log('All tasks:', clientTasks.map(task => ({
+        id: task.id,
+        title: task.Title,
+        deadline: task.taskDeadline,
+        isCompleted: task.isCompleted,
+        parsedDate: new Date(task.taskDeadline)
+      })));
+    }
+    
+    const filteredTasks = clientTasks.filter((task) => {
       const taskDate = new Date(task.taskDeadline);
       const taskMonth = taskDate.getMonth();
       const taskDay = taskDate.getDate();
-      return taskMonth === monthIndex && taskDay === day && !task.isCompleted;
+      const taskYear = taskDate.getFullYear();
+      const matches = taskMonth === monthIndex && taskDay === day && !task.isCompleted;
+      
+      // Debug logging for each task
+      if (day === 1) { // Only log for first day to avoid spam
+        console.log(`Task ${task.id}: deadline=${task.taskDeadline}, parsed=${taskDate}, month=${taskMonth}, day=${taskDay}, year=${taskYear}, matches=${matches}`);
+      }
+      
+      return matches;
     });
+    
+    // Debug logging
+    if (filteredTasks.length > 0) {
+      console.log(`Found ${filteredTasks.length} tasks for day ${day} in month ${monthIndex}`);
+    }
+    
+    return filteredTasks;
   };
 
   // Get arrivals for a specific day
@@ -634,7 +691,7 @@ export default function Home({
       if (tasksForDay.length > 0) {
         message += `المهام (${tasksForDay.length}):\n`;
         tasksForDay.forEach(task => {
-          message += `• ${task.Title} - ${task.description}\n`;
+          message += `• ${stripHtmlTags(task.Title)} - ${stripHtmlTags(task.description)}\n`;
         });
         message += '\n';
       }
@@ -927,6 +984,14 @@ export default function Home({
                 const hasSessions = getSessionsForDay(date).length > 0;
                 
                 const tasksForDay = getTasksForDay(date);
+                
+                // Debug logging for calendar rendering
+                if (date === 1) { // Log only for first day of month to avoid spam
+                  console.log('Calendar debug - Date:', date, 'Month:', monthIndex, 'Year:', year);
+                  console.log('ClientTasks length:', clientTasks.length);
+                  console.log('HasTasks for day', date, ':', hasTasks);
+                  console.log('TasksForDay length:', tasksForDay.length);
+                }
                 const eventsForDay = getEventsForDay(date);
                 const arrivalsForDay = getArrivalsForDay(date);
                 const departuresForDay = getDeparturesForDay(date);
@@ -947,26 +1012,26 @@ export default function Home({
                 return (
                   <div 
                     key={date} 
-                    className={`flex items-center p-1.5 border-b border-gray-100 gap-2 ${
+                    className={`flex items-center p-1.5  border-b border-gray-100 gap-2 ${
                       isToday ? 'bg-teal-50' : ''
                     }`}
                     onClick={() => handleDayClick(date)}
                   >
-                    <div className="flex flex-col items-center text-xs text-center w-12">
+                    <div className="flex flex-col items-center text-xs  text-center w-12">
                       <span className="font-normal text-xs">{dayName}</span>
                       <span className={`font-light text-xs ${isToday ? 'text-teal-800 font-semibold' : ''}`}>
                         {date}
                       </span>
                     </div>
-                    <div className="flex gap-1 flex-wrap pr-2 border-r border-gray-100 min-h-5 flex-1">
+                    <div className="flex gap-1 flex-wrap pr-2 border-r border-gray-100 min-h-[50px] flex-1">
                       {/* Tasks */}
                       {hasTasks && tasksForDay.map((task, taskIndex) => (
                         <div 
                           key={`task-${taskIndex}`}
-                          className="text-xs font-light px-1 py-0.5 rounded bg-red-100 text-red-600 cursor-pointer hover:bg-red-200"
-                          title={`مهمة: ${task.Title} - ${task.description}${task.assignedBy && task.assignedBy !== user?.id ? ` (أسندها: ${task.assignedByUser?.username || `المستخدم #${task.assignedBy}`})` : ''}`}
+                          className="text-md font-light px-1 py-0.5 rounded bg-red-100 text-red-600 cursor-pointer hover:bg-red-200"
+                          title={`مهمة: ${stripHtmlTags(task.Title)} - ${stripHtmlTags(task.description)}${task.assignedBy && task.assignedBy !== user?.id ? ` (أسندها: ${task.assignedByUser?.username || `المستخدم #${task.assignedBy}`})` : ''}`}
                         >
-                          {task.Title.length > 8 ? task.Title.substring(0, 8) + '...' : task.Title}
+                          {stripHtmlTags(task.Title).length > 8 ? stripHtmlTags(task.Title).substring(0, 8) + '...' : stripHtmlTags(task.Title)}
                         </div>
                       ))}
                       
@@ -1115,7 +1180,7 @@ export default function Home({
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          <p className="text-lg font-medium text-gray-900">{stripHtmlTags(task.Title)}</p>
                           {task.priority && (
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
@@ -1156,7 +1221,7 @@ export default function Home({
                           </div>
                         )}
                         
-                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <p className="text-sm text-gray-600">{stripHtmlTags(task.description)}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>الموعد: {getDate(task.taskDeadline)}</span>
                           {task.repeatTime && (
@@ -1218,7 +1283,7 @@ export default function Home({
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          <p className="text-lg font-medium text-gray-900">{stripHtmlTags(task.Title)}</p>
                           {task.priority && (
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
@@ -1234,7 +1299,7 @@ export default function Home({
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <p className="text-sm text-gray-600">{stripHtmlTags(task.description)}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>الموعد: {getDate(task.taskDeadline)}</span>
                           {task.repeatTime && (
@@ -1320,7 +1385,7 @@ export default function Home({
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          <p className="text-lg font-medium text-gray-900">{stripHtmlTags(task.Title)}</p>
                           {task.priority && (
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
@@ -1339,7 +1404,7 @@ export default function Home({
                             مكتملة
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <p className="text-sm text-gray-600">{stripHtmlTags(task.description)}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>الموعد: {getDate(task.taskDeadline)}</span>
                           {task.repeatTime && (
@@ -1668,11 +1733,11 @@ export default function Home({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">عنوان المهمة</label>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">{taskDetailsModal.task.Title}</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">{stripHtmlTags(taskDetailsModal.task.Title)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">الوصف</label>
-                  <p className="mt-1 text-gray-600" dangerouslySetInnerHTML={{ __html: taskDetailsModal.task.description }}></p>
+                  <p className="mt-1 text-gray-600">{stripHtmlTags(taskDetailsModal.task.description)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">الموعد النهائي</label>
@@ -1739,7 +1804,7 @@ export default function Home({
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-lg font-medium text-gray-900">{task.Title}</p>
+                          <p className="text-lg font-medium text-gray-900">{stripHtmlTags(task.Title)}</p>
                           {task.priority && (
                             <span className={`text-xs px-2 py-1 rounded-full ${
                               task.priority === 'عالية الأهمية' ? 'bg-red-100 text-red-600' :
@@ -1782,7 +1847,7 @@ export default function Home({
                           )
                         )}
                         
-                        <p className="text-sm text-gray-600" dangerouslySetInnerHTML={{ __html: task.description }}></p>
+                        <p className="text-sm text-gray-600">{stripHtmlTags(task.description)}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>الموعد: {getDate(task.taskDeadline)}</span>
                           {task.repeatTime && (
@@ -1937,7 +2002,7 @@ export async function getServerSideProps(context) {
       fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
+      fetchDataFromApi(`http://localhost:3000/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)
@@ -1951,6 +2016,16 @@ export async function getServerSideProps(context) {
       { title: "Arrival: Person 4", date: "2025-12-25" },
       { title: "Arrival: Person 5", date: "2025-11-30" },
     ];
+
+    // Debug: Log tasks data from API
+    console.log('Tasks API response:', tasksRes);
+    console.log('Tasks type:', typeof tasksRes, 'Is array:', Array.isArray(tasksRes));
+    if (tasksRes && Array.isArray(tasksRes)) {
+      console.log('Tasks count:', tasksRes.length);
+      if (tasksRes.length > 0) {
+        console.log('Sample task from API:', tasksRes[0]);
+      }
+    }
 
     // Process and structure the data for props
     const propsData = {

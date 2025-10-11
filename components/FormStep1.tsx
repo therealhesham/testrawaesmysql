@@ -1,9 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 export default function FormStep1({ onNext, id, setId, data, getData }) {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const warrantyInfo = useMemo(() => {
+    if (!data?.KingdomentryDate) {
+      return { status: 'غير متوفر', date: '' };
+    }
+
+    const entryDate = new Date(data?.KingdomentryDate);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate.getTime() - entryDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // تحويل الفرق إلى أيام
+
+    const status = diffDays > 90 ? 'منتهي' : 'ساري';
+    const formattedDate = entryDate.toLocaleDateString(); // تنسيق التاريخ بالتقويم الهجري أو حسب الحاجة
+
+    return { status, date: formattedDate, remainingDays: diffDays  };
+  }, [data?.KingdomentryDate]);
+
 
   const searchOrders = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -117,7 +133,7 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                   >
-                    <div className="font-medium text-md">طلب #{suggestion}</div>
+                    <div className="font-medium text-md">Order Number #{suggestion} - Name: {data?.Order?.HomeMaid?.Name}</div>
                   </div>
                 ))}
               </div>
@@ -198,15 +214,19 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
         </div>
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 flex flex-col gap-2">
-            <label htmlFor="warranty-status" className="text-xs text-gray-500 text-right font-inter">حالة الضمان</label>
-            <input 
-              type="text" 
-              id="warranty-status" 
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
-              placeholder="حالة الضمان" 
-              value={data?.Order?.HomeMaid?.guaranteeStatus || ""} 
-              readOnly 
-            />
+            
+      {/* حقل حالة الضمان */}
+      <label htmlFor="warranty-status" className="text-xs text-gray-500 text-right font-inter">
+        حالة الضمان
+      </label>
+      <input
+        type="text"
+        id="warranty-status"
+        className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
+        placeholder="حالة الضمان"
+        value={`${warrantyInfo.status}${warrantyInfo.date ? ` - ${warrantyInfo.date}` : ''}`}
+        readOnly
+      />
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="remaining-period" className="text-xs text-gray-500 text-right font-inter">المدة المتبقية</label>
@@ -215,7 +235,7 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
               id="remaining-period" 
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
               placeholder="المدة المتبقية" 
-              value={data?.Order?.HomeMaid?.GuaranteeDurationEnd || ""} 
+              value={warrantyInfo.remainingDays || ""} 
               readOnly 
             />
           </div>
