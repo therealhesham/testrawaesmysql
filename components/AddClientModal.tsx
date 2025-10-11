@@ -226,7 +226,23 @@ const fetchNationalities = async () => {
                     onChange={handleInputChange}
                     className="w-full bg-background-light border border-border-color rounded-md py-2 text-sm text-text-dark appearance-none"
                   >
+    <option value="">اختر المدينة</option>
+    <option value="Ar Riyāḍ">الرياض</option>
+    <option value="Makkah al Mukarramah">مكة المكرمة</option>
+    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
+    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
+    <option value="Asīr">عسير</option>
+    <option value="Tabūk">تبوك</option>
+    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
+    <option value="Jazan">جازان</option>
+    <option value="Najrān">نجران</option>
+    <option value="Al Bāḩah">الباحة</option>
+    <option value="Al Jawf">الجوف</option>
+    <option value="Al Qaşīm">القصيم</option>
+    <option value="Ḩa'il">حائل</option>
+
                     <option value="">اختر المدينة</option>
+                    
                     <option value="الرياض">الرياض</option>
                     <option value="جدة">جدة</option>
                     {/* Add more cities as needed */}

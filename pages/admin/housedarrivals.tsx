@@ -1388,11 +1388,11 @@ export default function Home({ user }: { user: any }) {
                                 <div className="text-md text-gray-600">الجنسية: {worker.nationality}</div>
                                 <div className="text-md text-gray-500">رقم الجواز: {worker.passportNumber}</div>
                                 <div className="text-md text-gray-500">العمر: {worker.age} سنة</div>
-                                {worker.hasOrders && (
+                                {/* {worker.hasOrders && (
                                   <div className="text-md text-green-600 mt-1">
                                     ✓ لديها طلبات ({worker.orders?.length || 0}) - {worker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
                                   </div>
-                                )}
+                                )} */}
                               </div>
                             ))}
                           </div>
