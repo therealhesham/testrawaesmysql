@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'lib/prisma';
 import ColumnSelector from '../../components/ColumnSelector';
+import { useRouter } from 'next/router';
 
 interface Order {
   id: number;
@@ -37,7 +38,6 @@ interface Client {
 interface Props {
   hasPermission: boolean; // إضافة خاصية hasPermission
 }
-
 const Customers = ({ hasPermission }: Props) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
@@ -84,6 +84,7 @@ const Customers = ({ hasPermission }: Props) => {
     { key: 'notes', label: 'ملاحظات' },
     { key: 'view', label: 'عرض' }
   ];
+const router = useRouter();
 
   const fetchCities = async () => {
     try {
@@ -443,7 +444,7 @@ const Customers = ({ hasPermission }: Props) => {
         clients.map((client) => (
           <React.Fragment key={client.id}>
             <tr className="bg-background-light text-text-dark text-md">
-              {visibleColumns.id && <td className="text-nowrap text-center p-4">#{client.id}</td>}
+              {visibleColumns.id && <td className="text-nowrap text-center p-4" onClick={() => router.push(`/admin/clientdetails?id=${client.id}`)}>#{client.id}</td>}
               {visibleColumns.fullname && <td className="text-nowrap text-center p-4">{client.fullname}</td>}
               {visibleColumns.phonenumber && <td className="text-nowrap text-center p-4">{client.phonenumber}</td>}
               {visibleColumns.nationalId && <td className="text-nowrap text-center p-4">{client.nationalId}</td>}

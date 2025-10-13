@@ -49,7 +49,7 @@ function HomeMaidInfo() {
 
   // تصدير PDF
   const handleExportPDF = () => {
-    router.push(`/admin/homemaidinfo?id=${id}&type=pdf`);
+    router.push(`/admin/homemaidinfo?id=${id}`);
   };
 
   // جلب البيانات
@@ -277,7 +277,8 @@ function HomeMaidInfo() {
               <thead>
                 <tr className="bg-teal-600 text-white">
                   <th className="border border-gray-300 p-3 text-right">التاريخ</th>
-                  <th className="border border-gray-300 p-3 text-right">الأنشطة</th>
+                  <th className="border border-gray-300 p-3 text-right">الحالة</th>
+                  <th className="border border-gray-300 p-3 text-right">التفاصيل</th>
                   <th className="border border-gray-300 p-3 text-right">السبب</th>
                 </tr>
               </thead>
@@ -286,6 +287,7 @@ function HomeMaidInfo() {
                   formData.logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 p-3 text-right">{getDate(log.createdAt)}</td>
+                      <td className="border border-gray-300 p-3 text-right">{log.Status || "غير متوفر"}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.Details || "غير متوفر"}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.reason || "غير متوفر"}</td>
                     </tr>

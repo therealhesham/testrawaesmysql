@@ -1,7 +1,8 @@
 import CollapsibleSection from 'components/CollapsibleSection';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Layout from 'example/containers/Layout';
 import { useRouter } from 'next/router';
+import React from 'react';
 
 interface ClientInfo {
   id: string;
@@ -34,8 +35,198 @@ interface Notification {
   type: 'success' | 'error';
 }
 
+const VisaModal = React.memo(
+  ({
+    isHidden,
+    setIsHidden,
+    visaInfo,
+    setVisaInfo,
+    fetchVisas,
+    setNotification,
+    clientId,
+  }: {
+    isHidden: boolean;
+    setIsHidden: (isHidden: boolean) => void;
+    visaInfo: any;
+    setVisaInfo: (visaInfo: any) => void;
+    fetchVisas: () => void;
+    setNotification: (notification: { message: string; type: 'success' | 'error' } | null) => void;
+    clientId: string;
+  }) => {
+    const visaNumberRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+      if (!isHidden && visaNumberRef.current) {
+        visaNumberRef.current.focus();
+      }
+    }, [isHidden]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      setVisaInfo({ ...visaInfo, [e.target.name]: e.target.value });
+    };
+
+    const addVisaData = async () => {
+      if (!visaInfo.visaNumber || !visaInfo.gender || !visaInfo.nationality) {
+        setNotification({ message: 'يرجى ملء جميع الحقول المطلوبة', type: 'error' });
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/visadata`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...visaInfo,
+            clientID: clientId,
+          }),
+        });
+        if (response.ok) {
+          setNotification({ message: 'تم إضافة التأشيرة بنجاح', type: 'success' });
+          setIsHidden(true);
+          fetchVisas();
+          setVisaInfo({
+            visaNumber: '',
+            gender: '',
+            profession: '',
+            visaFile: '',
+            nationality: '',
+          });
+        } else {
+          throw new Error('فشل في إضافة التأشيرة');
+        }
+      } catch (error) {
+        console.error(error);
+        setNotification({ message: 'فشل في إضافة التأشيرة', type: 'error' });
+      }
+    };
+
+    return (
+      <div
+        className={`fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex items-center justify-center transition-opacity duration-300 ${
+          isHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+      >
+        <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+          <h2 className="text-xl font-semibold text-teal-800 mb-4 text-center">
+            إضافة تأشيرة
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                رقم التأشيرة <span className="text-red-500">*</span>
+              </label>
+              <input
+                ref={visaNumberRef}
+                type="text"
+                name="visaNumber"
+                value={visaInfo.visaNumber}
+                placeholder="أدخل رقم التأشيرة"
+                onChange={handleInputChange}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                الجنس <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="gender"
+                value={visaInfo.gender}
+                onChange={handleInputChange}
+                className="w-full  border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                required
+              >
+                <option value="">اختر الجنس</option>
+                <option value="male">ذكر</option>
+                <option value="female">أنثى</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">المهنة</label>
+              <input
+                type="text"
+                name="profession"
+                value={visaInfo.profession}
+                placeholder="أدخل المهنة"
+                onChange={handleInputChange}
+                className="w-full  border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                الجنسية <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="nationality"
+                value={visaInfo.nationality}
+                onChange={handleInputChange}
+                className="w-full  border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                required
+              >
+                <option value="">اختر الجنسية</option>
+                <option value="philippines">فلبين</option>
+                <option value="indonesia">إندونيسيا</option>
+                <option value="kenya">كينيا</option>
+                <option value="india">الهند</option>
+                <option value="bangladesh">بنغلاديش</option>
+                <option value="other">أخرى</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">الملف</label>
+              <input
+                type="file"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const addFile = await fetch(`/api/upload-presigned-url/visaFile`, {
+                      method: 'GET',
+                    });
+                    const { url, filePath } = await addFile.json();
+                    const uploadRes = await fetch(url, {
+                      method: 'PUT',
+                      body: file,
+                      headers: {
+                        'Content-Type': file.type,
+                        'x-amz-acl': 'public-read',
+                      },
+                    });
+                    
+                    if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+                    setVisaInfo({ ...visaInfo, visaFile: filePath });
+                    setNotification({ message: 'تم رفع الملف بنجاح', type: 'success' });
+                  } catch (error) {
+                    console.error(error);
+                    setNotification({ message: 'فشل في رفع الملف', type: 'error' });
+                  }
+                }}
+                className="w-full  border border-gray-300 rounded-md"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsHidden(true)}
+                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition"
+              >
+                إغلاق
+              </button>
+              <button
+                onClick={addVisaData}
+                className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition"
+              >
+                إضافة
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
+
 export default function Home() {
-  const router = useRouter();
   const [isHidden, setIsHidden] = useState(true);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [clientInfo, setClientInfo] = useState<ClientInfo>({
@@ -55,6 +246,8 @@ export default function Home() {
   const [visas, setVisas] = useState<VisaData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const router = useRouter();
 
   const fetchClientInfo = async () => {
     if (!router.query.id) return;
@@ -83,22 +276,9 @@ export default function Home() {
     }
   };
 
-  // const fetchOrders = async () => {
-  //   if (!router.query.id) return;
-  //   try {
-  //     const response = await fetch(`/api/ordersbyclientid?clientID=${router.query.id}`);
-  //     const data = await response.json();
-  //     setOrders(data);
-  //   } catch (error) {
-  //     console.error(error);
-  //     setNotification({ message: 'فشل في جلب بيانات الطلبات', type: 'error' });
-  //   }
-  // };
-
   useEffect(() => {
     fetchClientInfo();
     fetchVisas();
-    // fetchOrders();
   }, [router.query.id]);
 
   const updateClientInfo = async (e: React.FormEvent) => {
@@ -156,176 +336,6 @@ export default function Home() {
     );
   }
 
-  function VisaModal({
-    isHidden,
-    setIsHidden,
-  }: {
-    isHidden: boolean;
-    setIsHidden: (isHidden: boolean) => void;
-  }) {
-    const addVisaData = async () => {
-      if (!visaInfo.visaNumber || !visaInfo.gender || !visaInfo.nationality) {
-        setNotification({ message: 'يرجى ملء جميع الحقول المطلوبة', type: 'error' });
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/visadata`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...visaInfo,
-            clientID: router.query.id,
-          }),
-        });
-        if (response.ok) {
-          setNotification({ message: 'تم إضافة التأشيرة بنجاح', type: 'success' });
-          setIsHidden(true);
-          fetchVisas();
-          setVisaInfo({
-            visaNumber: '',
-            gender: '',
-            profession: '',
-            visaFile: '',
-            nationality: '',
-          });
-        } else {
-          throw new Error('فشل في إضافة التأشيرة');
-        }
-      } catch (error) {
-        console.error(error);
-        setNotification({ message: 'فشل في إضافة التأشيرة', type: 'error' });
-      }
-    };
-
-    return (
-      <div
-        className={`fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex items-center justify-center transition-opacity duration-300 ${
-          isHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        }`}
-      >
-        <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-          <h2 className="text-xl font-semibold text-teal-800 mb-4 text-center">
-            إضافة تأشيرة
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                رقم التأشيرة <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={visaInfo.visaNumber}
-                placeholder="أدخل رقم التأشيرة"
-                onChange={(e) =>
-                  setVisaInfo({ ...visaInfo, visaNumber: e.target.value })
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                الجنس <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={visaInfo.gender}
-                onChange={(e) =>
-                  setVisaInfo({ ...visaInfo, gender: e.target.value })
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                required
-              >
-                <option value="">اختر الجنس</option>
-                <option value="male">ذكر</option>
-                <option value="female">أنثى</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">المهنة</label>
-              <input
-                type="text"
-                value={visaInfo.profession}
-                placeholder="أدخل المهنة"
-                onChange={(e) =>
-                  setVisaInfo({ ...visaInfo, profession: e.target.value })
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                الجنسية <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={visaInfo.nationality}
-                onChange={(e) =>
-                  setVisaInfo({ ...visaInfo, nationality: e.target.value })
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                required
-              >
-                <option value="">اختر الجنسية</option>
-                <option value="philippines">فلبين</option>
-                <option value="indonesia">إندونيسيا</option>
-                <option value="kenya">كينيا</option>
-                <option value="india">الهند</option>
-                <option value="bangladesh">بنغلاديش</option>
-                <option value="other">أخرى</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">الملف</label>
-              <input
-                type="file"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  try {
-                    const addFile = await fetch(
-                      `/api/upload-presigned-url/visaFile`,
-                      { method: 'GET' }
-                    );
-                    const { url, filePath } = await addFile.json();
-                    const uploadRes = await fetch(url, {
-                      method: 'PUT',
-                      body: file,
-                      headers: {
-                        'Content-Type': file.type,
-                        'x-amz-acl': 'public-read',
-                      },
-                    });
-                    if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-                    setVisaInfo({ ...visaInfo, visaFile: filePath });
-                    setNotification({ message: 'تم رفع الملف بنجاح', type: 'success' });
-                  } catch (error) {
-                    console.error(error);
-                    setNotification({ message: 'فشل في رفع الملف', type: 'error' });
-                  }
-                }}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsHidden(true)}
-                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition"
-              >
-                إغلاق
-              </button>
-              <button
-                onClick={addVisaData}
-                className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition"
-              >
-                إضافة
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 p-6">
@@ -334,7 +344,15 @@ export default function Home() {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-teal-800"></div>
           </div>
         )}
-        <VisaModal isHidden={isHidden} setIsHidden={setIsHidden} />
+        <VisaModal
+          isHidden={isHidden}
+          setIsHidden={setIsHidden}
+          visaInfo={visaInfo}
+          setVisaInfo={setVisaInfo}
+          fetchVisas={fetchVisas}
+          setNotification={setNotification}
+          clientId={router.query.id as string}
+        />
         {notification && (
           <NotificationModal
             message={notification.message}
@@ -344,14 +362,10 @@ export default function Home() {
         )}
 
         <div className="max-w-7xl mx-auto">
-          {/* <h1 className="text-3xl md:text-4xl font-bold text-teal-800 text-center mb-8">
-            وصل للاستقدام
-          </h1> */}
           <p className="text-right text-xl text-gray-600 mb-8">
             رقم العميل: {clientInfo.id}
           </p>
 
-          {/* Personal Information Form */}
           <div className="bg-white rounded-lg p-6 mb-6 shadow-md">
             <h2 className="text-xl md:text-2xl font-semibold text-teal-800 text-center mb-6">
               المعلومات الشخصية
@@ -415,7 +429,6 @@ export default function Home() {
             </form>
           </div>
 
-          {/* Visa Data Section */}
           <CollapsibleSection title="بيانات التأشيرة">
             <div className="flex flex-col gap-4">
               <button
@@ -472,12 +485,15 @@ export default function Home() {
             </div>
           </CollapsibleSection>
 
-          {/* Orders Section */}
           <CollapsibleSection title="الطلبات">
             <div className="flex flex-col gap-4">
               <button
                 className="mx-auto bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
-                onClick={() => router.push(`/admin/order-form?type=add-available&clientId=${router.query.id}&clientName=${clientInfo.fullname}&clientPhone=${clientInfo.phonenumber}&clientCity=${clientInfo.city}`)}
+                onClick={() =>
+                  router.push(
+                    `/admin/order-form?type=add-available&clientId=${router.query.id}&clientName=${clientInfo.fullname}&clientPhone=${clientInfo.phonenumber}&clientCity=${clientInfo.city}`
+                  )
+                }
               >
                 إضافة طلب
               </button>
@@ -514,7 +530,6 @@ export default function Home() {
             </div>
           </CollapsibleSection>
 
-          {/* Financial Data Section */}
           <CollapsibleSection title="البيانات المالية">
             <div className="flex flex-col gap-4">
               <button
