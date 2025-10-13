@@ -727,7 +727,7 @@ export default function Table() {
                     <tr key={item.id} className="border-b hover:bg-gray-50">
                       {visibleColumns.includes('id') && (
                         <td
-                          onClick={() => router.push("./neworder/" + item.homemaidId)}
+                          onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
                           className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
                         >
                           {item.id}

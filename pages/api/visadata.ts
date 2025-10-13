@@ -9,7 +9,7 @@ if(req.method === 'POST'){
     data: { visaNumber, gender, profession, visaFile, nationality },
   });
   const client = await prisma.client.update({
-    where: { id: clientID },
+    where: { id: Number(clientID) },
     data: { visa: { connect: { id: visa.id } } },
   });
   res.status(200).json(visa);
