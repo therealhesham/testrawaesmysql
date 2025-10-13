@@ -21,7 +21,7 @@ interface Homemaid {
 
 export default function OrderFormPage() {
   const router = useRouter();
-  const { type, orderId, clientId, clientName, clientPhone, clientCity } = router.query;
+  const { type, orderId, clientId, clientName, clientPhone, clientCity,homemaidId } = router.query;
   const [clients, setClients] = useState<Client[]>([]);
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,6 +93,7 @@ export default function OrderFormPage() {
         {type === 'add-available' && (
           <AddAvailableForm
             clients={clients}
+            homemaidId={homemaidId as string}
             homemaids={homemaids}
             orderId={orderId as string}
             preSelectedClient={preSelectedClient}

@@ -166,10 +166,10 @@ export default function Subsistence() {
                   </button>
                 </div>
                 <div className="flex gap-[6px]">
-                  <button className="flex items-center gap-1 bg-[#1a4d4f] text-white px-[10px] py-[5px] rounded-[3px] text-[10px] hover:bg-[#14595b]">
+                  <button className="flex items-center gap-1 bg-[#1a4d4f] text-white px-[10px] py-[5px] rounded-[3px] text-md hover:bg-[#14595b]">
                     PDF
                   </button>
-                  <button className="flex items-center gap-1 bg-[#1a4d4f] text-white px-[10px] py-[5px] rounded-[3px] text-[10px] hover:bg-[#14595b]">
+                  <button className="flex items-center gap-1 bg-[#1a4d4f] text-white px-[10px] py-[5px] rounded-[3px] text-md hover:bg-[#14595b]">
                     Excel
                   </button>
                 </div>
@@ -214,7 +214,7 @@ export default function Subsistence() {
               <nav className="flex gap-[5px]">
                 <a
                   href="#"
-                  className="border border-[#e0e0e0] rounded-[2px] min-w-[18px] h-[18px] flex items-center justify-center px-2 text-[10px] text-[#1f2937] bg-[#f7f8fa] hover:bg-gray-200"
+                  className="border border-[#e0e0e0] rounded-[2px] min-w-[18px] h-[18px] flex items-center justify-center px-2 text-md text-[#1f2937] bg-[#f7f8fa] hover:bg-gray-200"
                 >
                   التالي
                 </a>
@@ -238,7 +238,7 @@ export default function Subsistence() {
                 </a>
                 <a
                   href="#"
-                  className="border border-[#e0e0e0] rounded-[2px] min-w-[18px] h-[18px] flex items-center justify-center px-2 text-[10px] text-[#1f2937] bg-[#f7f8fa] hover:bg-gray-200"
+                  className="border border-[#e0e0e0] rounded-[2px] min-w-[18px] h-[18px] flex items-center justify-center px-2 text-md text-[#1f2937] bg-[#f7f8fa] hover:bg-gray-200"
                 >
                   السابق
                 </a>
