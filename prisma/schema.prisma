@@ -52,6 +52,15 @@ model homemaid {
   displayOrder      Int        @default(0) // Added field for display order
   transferSponsorShips transferSponsorShips?
   isExternal          Boolean? @default(false)
+sewingLevel String? @db.VarChar(100)
+cleaningLevel String? @db.VarChar(100)
+cookingLevel String? @db.VarChar(100)
+washingLevel String? @db.VarChar(100)
+ironingLevel String? @db.VarChar(100)
+childcareLevel String? @db.VarChar(100)
+elderlycareLevel String? @db.VarChar(100)
+laundryLevel String? @db.VarChar(100)
+
 }
 model reports{
 
@@ -245,6 +254,8 @@ notes_date        DateTime?
   accountStatements ClientAccountStatement[]
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
   notes String? @db.VarChar(255)
+
+  visa visa[]
 }
 
 
@@ -365,7 +376,22 @@ notes String?
   isContractEnded Boolean? @default(false)
   clientAccountStatement ClientAccountStatement[]
 }
+model visa {
+id Int @id @default(autoincrement())
+visaNumber String? @db.VarChar(255)
+gender String? @db.VarChar(255)
+profession String? @db.VarChar(255)
+visaFile String? @db.VarChar(255)
+nationality String? @db.VarChar(255)
+clientID Int?
+client Client? @relation(fields: [clientID], references: [id])
+createdAt DateTime? @default(now())
+updatedAt DateTime? @updatedAt
 
+
+
+
+}
 
 model Payment{
 id Int @id @default(autoincrement())
