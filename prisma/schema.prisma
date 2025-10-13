@@ -253,11 +253,17 @@ notes_date        DateTime?
   OldSponsorTransfers transferSponsorShips? @relation("OldSponsor")
   accountStatements ClientAccountStatement[]
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
-  notes String? @db.VarChar(255)
-
+  notes notes[]
   visa visa[]
 }
-
+model notes{
+  id Int @id @default(autoincrement())
+  notes String? @db.VarChar(255)
+  clientID Int?
+  client Client? @relation(fields: [clientID], references: [id])
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
 
 
 model cashLogs{

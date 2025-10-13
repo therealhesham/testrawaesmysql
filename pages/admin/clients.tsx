@@ -31,7 +31,7 @@ interface Client {
   createdat: string | null;
   orders: Order[];
   _count: { orders: number };
-  notes: string | null;
+  notes: any[];
   notes_date: string | null;
 }
 
@@ -69,6 +69,22 @@ const Customers = ({ hasPermission }: Props) => {
     notes: true,
     view: true
   });
+    const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
+const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null);
 
   // Column definitions for the reusable component
   const columnDefinitions = [
@@ -308,7 +324,7 @@ const router = useRouter();
 
   return (
     <Layout>
-      <div className={`max-w-6xl mx-auto bg-primary-light min-h-screen ${Style["tajawal-regular"]}`}>
+      <div className={`w-full mx-auto bg-primary-light min-h-screen ${Style["tajawal-regular"]}`}>
         <div className="flex flex-col">
           <main className="flex-grow p-6 sm:p-8 overflow-y-auto">
             {/* مودال عدم الصلاحية */}
@@ -361,12 +377,28 @@ const router = useRouter();
                         onChange={(e) => handleFilterChange('city', e.target.value)}
                         className="bg-transparent w-full text-md text-text-muted focus:outline-none border-none"
                       >
-                        <option value="all">كل المدن</option>
+
+                         <option value="all">كل المدن</option>
+                         <option value="Ar Riyāḍ">الرياض</option>
+                         <option value="Makkah al Mukarramah">مكة المكرمة</option>
+                         <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
+                         <option value="Ash Sharqīyah">المنطقة الشرقية</option>
+                         <option value="Asīr">عسير</option>
+                         <option value="Tabūk">تبوك</option>
+                         <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
+                         <option value="Jazan">جازان</option>
+                         <option value="Najrān">نجران</option>
+                         <option value="Al Bāḩah">الباحة</option>
+                         <option value="Al Jawf">الجوف</option>
+                         <option value="Al Qaşīm">القصيم</option>
+                         <option value="Ḩa'il">حائل</option>
+                        
+                        {/* <option value="all">كل المدن</option>
                         {cities.map((city) => (
                           <option key={city} value={city}>
                             {city}
                           </option>
-                        ))}
+                        ))} */}
                       </select>
                     </div>
                     <div className="flex items-center bg-background-light border border-border-color rounded-md text-md text-text-muted cursor-pointer">
@@ -410,7 +442,7 @@ const router = useRouter();
                   </div>
                 </section>
 
-<section className="bg-text-light border border-border-color rounded-md overflow-x-auto">
+<section className="bg-text-light  rounded-md  w-full">
   <table className="w-full text-md font-medium ">
     <thead>
       <tr className="bg-teal-800 text-white">
@@ -448,7 +480,7 @@ const router = useRouter();
               {visibleColumns.fullname && <td className="text-nowrap text-center p-4">{client.fullname}</td>}
               {visibleColumns.phonenumber && <td className="text-nowrap text-center p-4">{client.phonenumber}</td>}
               {visibleColumns.nationalId && <td className="text-nowrap text-center p-4">{client.nationalId}</td>}
-              {visibleColumns.city && <td className="text-nowrap text-center p-4">{client.city}</td>}
+              {visibleColumns.city && <td className="text-nowrap text-center p-4">{arabicRegionMap[client.city as keyof typeof arabicRegionMap]}</td>}
               {visibleColumns.ordersCount && <td className="text-nowrap text-center p-4">{client._count.orders}</td>}
               {visibleColumns.lastOrderDate && (
                 <td className="text-nowrap text-center p-4">
@@ -485,7 +517,15 @@ const router = useRouter();
               )}
               {visibleColumns.view && (
                 <td className="text-nowrap text-center p-4">
-                  <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10">
+                  <button className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10" onClick={
+                       
+                    () => {if(expandedNotesId === client.id){
+                      setExpandedNotesId(null);
+                    }else{
+                      setExpandedNotesId(client.id);
+                    }
+                    }
+}>
                     <DownloadIcon className="w-4 h-4" />
                   </button>
                 </td>
@@ -527,6 +567,42 @@ const router = useRouter();
                 </td>
               </tr>
             )}
+
+
+
+{expandedNotesId === client.id && (
+              <tr>
+                <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
+                  <table className="w-full border border-border-color rounded-md">
+                    <thead>
+                      <tr className="bg-teal-800 text-white text-md font-medium">
+                        <th className="text-nowrap text-center p-4">ملاحظات</th>
+                        <th className="text-nowrap text-center p-4">تاريخ الإنشاء</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {client.notes.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="p-4 text-center text-text-dark">
+                            لا توجد ملاحظات
+                          </td>
+                        </tr>
+                      ) : (
+                        client.notes.map((n) => (
+                          <tr key={n.id} className="bg-background-light text-text-dark text-md">
+                            <td className="text-nowrap text-center p-4">{n.notes || '-'}</td>
+                            <td className="text-nowrap text-center p-4">
+                              {n.createdAt ? new Date(n.createdAt).toLocaleDateString() : '-'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            )}
+
           </React.Fragment>
         ))
       )}
