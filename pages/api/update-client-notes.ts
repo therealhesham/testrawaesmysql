@@ -30,11 +30,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // تحديث ملاحظات العميل
-    const updatedClient = await prisma.client.update({
-      where: { id: parseInt(clientId) },
+    const updatedClient = await prisma.notes.create({
+      // where: { id: parseInt(clientId) },
       data: {
         notes: notes,
-        notes_date: new Date(notesDate)
+        clientID: parseInt(clientId),
+        
       }
     });
 
