@@ -149,7 +149,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
       row.Order?.HomeMaid?.id || "-",
       row.OrderId || "-",
       row.HomemaidName || "-",
-      row.SponsorName || "-",
+      row.Order?.HomeMaid?.Client[0]?.fullname || "-",
       row.Order?.HomeMaid?.office?.Country || "-",
       row.PassportNumber || "-",
       row.externalReason || "-",
@@ -177,7 +177,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
       "رقم العاملة": row.Order?.HomeMaid?.id || "-",
       "رقم الطلب": row.OrderId || "-",
       "اسم العاملة": row.HomemaidName || "-",
-      "اسم العميل": row.SponsorName || "-",
+      "اسم العميل": row.Order?.HomeMaid?.Client[0]?.fullname || "-",
       "الجنسية": row.Order?.HomeMaid?.office?.Country || "-",
       "رقم الجواز": row.PassportNumber || "-",
       "من": row.externaldeparatureCity || "-",
@@ -302,16 +302,16 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
                 >
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.id || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.OrderId || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.HomemaidName || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.SponsorName || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Name || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Client[0]?.fullname || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.PassportNumber || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Passportnumber || "-"}</td>
                   {/* <td className="py-3 px-2 border-t border-gray-200">{row.ArrivalCity || "-"}</td> */}
                   <td
                     className="py-3 px-2 border-t border-gray-200"
                     // dangerouslySetInnerHTML={{ __html: row.reason || "-" }}
                   >
-                    {row.reason || "-"}
+                    {row.externalReason || "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.externalArrivalCity || "-"}</td>
 
