@@ -738,7 +738,7 @@ export default function Home({ user }: { user: any }) {
     console.log('Initial useEffect triggered');
     fetchLocations();
     fetchHomemaids();
-    fetchCounts();
+    // fetchCounts();
     fetchWorkers();
   }, []); // Only run once on mount
 
@@ -1769,7 +1769,7 @@ export default function Home({ user }: { user: any }) {
                 onClick={() => closeModal('workerDeparture')}
               >
                 <div
-                  className="bg-white rounded-lg p-6 w-full max-w-lg shadow-card"
+                  className="bg-gray-100 rounded-lg p-6 w-full max-w-lg shadow-card"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-5">
@@ -1838,7 +1838,7 @@ export default function Home({ user }: { user: any }) {
                       <button
                         type="button"
                         onClick={() => closeModal('workerDeparture')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
+                        className="bg-gray-500 text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>

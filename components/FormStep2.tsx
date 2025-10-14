@@ -82,19 +82,34 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+
+
+
+      
+//صفحة المغادرة الداخلية
+//   internaldeparatureCity  String? @db.VarChar(191) 
+//   internaldeparatureDate DateTime?
+//   internaldeparatureTime   String?
+//       internalArrivalCity String?
+// internalArrivalCityDate          DateTime?
+//  internalArrivalCityTime           String?  @db.VarChar(30)
+//  internalTicketFile              String?   @db.VarChar(255)
+
+// alert(data?.Order?.id)
       const postData = await fetch('/api/updatehomemaidarrivalprisma', {
+        
         method: 'POST',
         body: JSON.stringify({
           Orderid: data?.Order?.id, // Use correct field from data
           id: data?.id, // Assuming data has an id field
           ArrivalCity: formData.ArrivalCity,
-          finaldestination: formData.finaldestination,
+          // finaldestination: formData.finaldestination,
           internalReason: formData.internalReason,
           notes: formData.notes,
           deparatureTime: formData.deparatureTime,
-          finalDestinationDate: formData.finalDestinationDate,
-          finalDestinationTime: formData.finalDestinationTime,
-          deparatureDate: formData.deparatureDate,
+          // finalDestinationDate: formData.finalDestinationDate,
+          // finalDestinationTime: formData.finalDestinationTime,
+          // deparatureDate: formData.deparatureDate,
           // الحقول الجديدة للمغادرة الداخلية
           internaldeparatureCity: formData.ArrivalCity, // مدينة المغادرة = من
           internaldeparatureDate: formData.deparatureDate, // تاريخ المغادرة = تاريخ المغادرة

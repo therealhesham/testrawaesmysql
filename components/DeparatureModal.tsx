@@ -6,8 +6,9 @@ export default function DepartureModal({ currentStep, onNext, onPrevious, onClos
   const [id, setId] = useState("");
   const [data, setData] = useState<any>(null);
 
-  const getData = async () => {
-    const getByID = await fetch(`/api/getdatafordeparatures?id=${id}`).then(res => res.json());
+  const getData = async (s) => {
+    // alert(id)
+    const getByID = await fetch(`/api/getdatafordeparatures?id=${s}`).then(res => res.json());
     // console.log(getByID.data)
     setData(getByID.data);
   };

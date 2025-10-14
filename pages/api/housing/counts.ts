@@ -12,16 +12,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Count for recruitment contract type
       prisma.housing.count({
         where: {
-          homemaid: {
-            contracttype: 'recruitment'
+        deparatureHousingDate: null // Only housed workers
+,
+          HomeMaid: {
+            NewOrder: {
+              some: {
+                typeOfContract: 'recruitment'
+              }
+            }
           },
-          deparatureHousingDate: null // Only housed workers
         }
       }),
       // Count for rental contract type  
       prisma.housing.count({
         where: {
-          homemaid: {
+          HomeMaid: {
             contracttype: 'rental'
           },
           deparatureHousingDate: null // Only housed workers
