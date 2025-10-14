@@ -22,6 +22,57 @@ const [formData, setFormData] = useState({
   notes: ''
 });
 
+
+const [uploadError, setUploadError] = useState('');
+const [fileUploaded, setFileUploaded] = useState(false);
+const [internalTicketFile, setInternalTicketFile] = useState<string>('');
+// دالة رفع ملف التذكرة
+  const handleTicketFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      setUploadError('لم يتم اختيار ملف');
+      setFileUploaded(false);
+      return;
+    }
+
+    const file = files[0];
+    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    
+    if (!allowedFileTypes.includes(file.type)) {
+      setUploadError('نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)');
+      setFileUploaded(false);
+      return;
+    }
+
+    try {
+      setUploadError('');
+      const res = await fetch(`/api/upload-presigned-url/internalTicketFile`);
+      if (!res.ok) {
+        throw new Error('فشل في الحصول على رابط الرفع');
+      }
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (uploadRes.ok) {
+        setInternalTicketFile(filePath);
+        setFileUploaded(true);
+        setUploadError('');
+      } else {
+        throw new Error('فشل في رفع الملف');
+      }
+    } catch (error: any) {
+      setUploadError(error.message || 'حدث خطأ أثناء رفع الملف');
+      setFileUploaded(false);
+    }
+  };
+
 const [showAlert, setShowAlert] = useState(false);
 const [alertType, setAlertType] = useState<'success' | 'error'>('success');
 const [alertMessage, setAlertMessage] = useState('');
@@ -34,6 +85,7 @@ const [alertMessage, setAlertMessage] = useState('');
           Orderid: data?.Order?.id, // Use correct field from data
           id: data?.id, // Assuming data has an id field
           externalReason: formData.externalReason,
+          externalTicketFile: internalTicketFile,
           notes: formData.notes,
           externaldeparatureDate: formData.externaldeparatureDate,
           externaldeparatureCity: formData.externaldeparatureCity,
@@ -90,7 +142,7 @@ const [alertMessage, setAlertMessage] = useState('');
             <input 
               type="text" 
               id="departure-reason" 
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md" 
               value={formData.externalReason} 
               onChange={(e) => setFormData({ ...formData, externalReason: e.target.value })} 
               placeholder="سبب المغادرة" 
@@ -101,7 +153,7 @@ const [alertMessage, setAlertMessage] = useState('');
             <input 
               type="text" 
               id="departure-from" 
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md" 
               value={formData.externaldeparatureCity} 
               onChange={(e) => setFormData({ ...formData, externaldeparatureCity: e.target.value })} 
               placeholder="وجهة المغادرة" 
@@ -114,7 +166,7 @@ const [alertMessage, setAlertMessage] = useState('');
             <input 
               type="text" 
               id="arrival-destination" 
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md" 
               placeholder="وجهة الوصول" 
               value={formData.externalArrivalCity} 
               onChange={(e) => setFormData({ ...formData, externalArrivalCity: e.target.value })} 
@@ -126,12 +178,11 @@ const [alertMessage, setAlertMessage] = useState('');
               <input 
                 type="date" 
                 id="departure-date" 
-                className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md w-full" 
+                className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md w-full" 
                 placeholder="ادخل تاريخ ووقت المغادرة"  
               value={formData.externaldeparatureDate} 
               onChange={(e) => setFormData({ ...formData, externaldeparatureDate: e.target.value })}
               />
-              <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
             </div>
           </div>
         </div>
@@ -141,7 +192,7 @@ const [alertMessage, setAlertMessage] = useState('');
             <input 
               type="time" 
               id="departure-time" 
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md" 
               value={formData.externaldeparatureTime} 
               onChange={(e) => setFormData({ ...formData, externaldeparatureTime: e.target.value })} 
             />
@@ -151,7 +202,7 @@ const [alertMessage, setAlertMessage] = useState('');
             <input 
               type="time" 
               id="arrival-time" 
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
+              className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md" 
               value={formData.externalArrivalCityTime} 
               onChange={(e) => setFormData({ ...formData, externalArrivalCityTime: e.target.value })} 
             />
@@ -164,20 +215,26 @@ const [alertMessage, setAlertMessage] = useState('');
               <input 
                 type="date" 
                 id="arrival-date" 
-                className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md w-full" 
+                className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md w-full" 
                 placeholder="ادخل تاريخ ووقت الوصول"  
               value={formData.externalArrivalCityDate} 
               onChange={(e) => setFormData({ ...formData, externalArrivalCityDate: e.target.value })}
               />
-              <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+              {/* <Calendar className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" /> */}
             </div>
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="ticket-upload" className="text-xs text-gray-500 text-right font-inter">ارفاق التذكرة</label>
             <div className="flex items-center justify-between bg-gray-50 border border-gray-300 rounded p-1 pl-3">
-              <span className="text-md text-gray-500 font-tajawal">ارفاق ملف التذكرة</span>
+              <span className="text-md text-gray-500 font-tajawal">{fileUploaded ? 'تم رفع الملف بنجاح' : 'ارفاق ملف التذكرة'}</span>
               <label htmlFor="ticket-upload-btn" className="bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded cursor-pointer">اختيار ملف</label>
-              <input type="file" id="ticket-upload-btn" className="hidden" />
+              <input
+              placeholder={fileUploaded ? 'تم رفع الملف بنجاح' : 'ارفاق ملف التذكرة'}
+                type="file"
+                id="ticket-upload-btn"
+                className="hidden"
+                onChange={handleTicketFileChange}
+              />
             </div>
           </div>
         </div>
@@ -185,7 +242,7 @@ const [alertMessage, setAlertMessage] = useState('');
           <label htmlFor="additional-notes" className="text-xs text-gray-500 text-right font-inter">ملاحظات اضافية</label>
           <textarea 
             id="additional-notes" 
-            className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md min-h-[60px] resize-y" 
+            className="bg-gray-50 border border-gray-300 rounded text-gray-800 text-md min-h-[60px] resize-y" 
             placeholder="ملاحظات اضافية" 
             value={formData.notes} 
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

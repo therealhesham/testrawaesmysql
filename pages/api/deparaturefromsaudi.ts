@@ -84,7 +84,7 @@ export default async function handler(
               Name: true,
               HomemaidId: true,
               HomeMaid: {
-                include: { office: { select: { Country: true } } },
+                include: { office: { select: { Country: true } },Client:{select:{fullname:true}} },
               },
             },
           },

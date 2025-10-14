@@ -100,7 +100,7 @@ const CustomDatePicker: React.FC<{
         onClick={() => setIsOpen(!isOpen)}
         className="w-full bg-gradient-to-r from-gray-50 to-white border-2 border-gray-200 rounded-lg py-3 pl-12 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 hover:border-gray-300 shadow-sm text-right"
       >
-        {value ? new Date(value).toLocaleDateString('ar-SA') : placeholder}
+        {value ? new Date(value).toLocaleDateString() : placeholder}
       </button>
       
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -167,7 +167,7 @@ const CustomDatePicker: React.FC<{
           {/* Footer */}
           <div className="bg-gray-50 p-3 border-t border-gray-200">
             <div className="flex justify-between items-center text-xs text-gray-600">
-              <span>اليوم: {new Date().toLocaleDateString('ar-SA')}</span>
+              <span>اليوم: {new Date().toLocaleDateString()}</span>
               <button
                 onClick={() => {
                   const today = new Date();

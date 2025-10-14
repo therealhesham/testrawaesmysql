@@ -67,7 +67,7 @@ export default async function handler(
       profileStatus,
       Orderid,
       EmbassySealing,
-      
+externalTicketFile,      
       // BookinDate,internalReason,
       bookingstatus,
       DeliveryFile,
@@ -136,7 +136,7 @@ export default async function handler(
       HomemaIdnumber,
       DeliveryDate: validDeliveryDate,
       notes: Notes,
-      ticketFile,
+      ticketFile,externalTicketFile,
       externalOfficeStatus,
       externalmusanadcontractfile,
       additionalfiles,
