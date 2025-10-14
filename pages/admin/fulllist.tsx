@@ -697,7 +697,7 @@ export default function Table() {
               </div>
             </div>
 
-            <table className="min-w-full text-md text-left">
+            <table className="min-w-full text-md text-left min-h-96">
               <thead className="bg-teal-800">
                 <tr className="text-white">
                   {visibleColumns.includes('id') && <th className="px-4 py-2 text-center">الرقم</th>}
@@ -789,8 +789,7 @@ export default function Table() {
 
             {totalPages > 1 && renderPagination()}
             {loading && (
-              <div className="flex justify-center mt-4">
-                <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
+ <div className="flex justify-center mt-4 w-full h-16">               <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
               </div>
             )}
           </div>

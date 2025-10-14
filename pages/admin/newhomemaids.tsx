@@ -30,6 +30,14 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     experienceYears: '',
     salary: '',
     officeName: '',
+
+cookingLevel:"",
+washingLevel:"",
+ironingLevel:"",
+cleaningLevel:"",
+sewingLevel:"",
+childcareLevel:"",
+elderlycareLevel:"",
     skills: {
       washing: '',
       ironing: '',
@@ -173,8 +181,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     if (formData.age) {
       const ageDate = new Date(formData.age);
       const age = today.getFullYear() - ageDate.getFullYear();
-      if (age < 18 || age > 100) {
-        newErrors.age = 'العمر يجب أن يكون بين 18 و100 سنة';
+      if (age < 14 || age > 100) {
+        newErrors.age = 'العمر يجب أن يكون بين 14 و100 سنة';
       }
     }
 
@@ -197,10 +205,6 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       newErrors.experienceYears = 'سنوات الخبرة يجب أن تكون رقمًا غير سالب';
     }
 
-    const skillsSelected = Object.values(formData.skills).some((value) => value !== '');
-    if (!skillsSelected) {
-      newErrors.skills = 'يجب اختيار مستوى لمهارة واحدة على الأقل';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -589,7 +593,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                     </div>
                   </div>
                 </fieldset>
-                <fieldset>
+                {/* <fieldset>
                   <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[
@@ -606,7 +610,11 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                         <select
                           id={`skill-${skill.id}`}
                           value={formData.skills[skill.id as keyof typeof formData.skills]}
-                          onChange={(e) => handleSkillChange(skill.id, e.target.value)}
+                          onChange={(e) => 
+                            
+                            handleSkillChange(skill.id, e.target.value)
+                          
+                          }
                           className={`border ${errors[`skill-${skill.id}`] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
                         >
                           <option value="" disabled>اختر المستوى</option>
@@ -619,6 +627,163 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                       </div>
                     ))}
                     {errors.skills && <p className="text-red-500 text-xs mt-1 col-span-full">{errors.skills}</p>}
+                  </div>
+                </fieldset> */}
+
+
+
+
+<fieldset>
+                  <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                   
+                      <div  className="flex flex-col">
+                        <label htmlFor='cookingLevel' className="text-gray-500 text-sm mb-1">الطبخ</label>
+                        <select
+                          id='cookingLevel'
+                          value={formData.cookingLevel}
+                          onChange={handleChange}
+                          className={`border ${errors['cookingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        >
+                          <option value="" disabled>اختر المستوى</option>
+                          <option value="trained_no_experience">مدربة بدون خبرة</option>
+                          <option value="good">جيد</option>
+                          <option value="very_good">جيد جدا</option>
+                          <option value="excellent">ممتاز</option>
+                        </select>
+                        {errors['cookingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cookingLevel']}</p>}
+                      </div>
+
+
+      <div  className="flex flex-col">
+                              <label htmlFor='washingLevel' className="text-gray-500 text-sm mb-1">الغسيل</label>
+                              <select
+                                id='washingLevel'
+                                value={formData.washingLevel}
+                                onChange={handleChange}
+                                className={`border ${errors['washingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                              >
+                                <option value="" disabled>اختر المستوى</option>
+                                <option value="trained_no_experience">مدربة بدون خبرة</option>
+                                <option value="good">جيد</option>
+                                <option value="very_good">جيد جدا</option>
+                                <option value="excellent">ممتاز</option>
+                              </select>
+                              {errors['washingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['washingLevel']}</p>}
+                            </div>
+
+
+      <div  className="flex flex-col">
+                              <label htmlFor='ironingLevel' className="text-gray-500 text-sm mb-1">الكوي</label>
+                              <select
+                                id='ironingLevel'
+                                value={formData.ironingLevel}
+                                onChange={handleChange}
+                                className={`border ${errors['ironingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                              >
+                                <option value="" disabled>اختر المستوى</option>
+                                <option value="trained_no_experience">مدربة بدون خبرة</option>
+                                <option value="good">جيد</option>
+                                <option value="very_good">جيد جدا</option>
+                                <option value="excellent">ممتاز</option>
+                              </select>
+                              {errors['ironingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['ironingLevel']}</p>}
+                            </div>
+
+
+
+
+
+
+
+      <div  className="flex flex-col">
+                              <label htmlFor='cleaningLevel' className="text-gray-500 text-sm mb-1">التنظيف</label>
+                              <select
+                                id='cleaningLevel'
+                                value={formData.cleaningLevel}
+                                onChange={handleChange}
+                                className={`border ${errors['cleaningLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                              >
+                                <option value="" disabled>اختر المستوى</option>
+                                <option value="trained_no_experience">مدربة بدون خبرة</option>
+                                <option value="good">جيد</option>
+                                <option value="very_good">جيد جدا</option>
+                                <option value="excellent">ممتاز</option>
+                              </select>
+                              {errors['cleaningLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cleaningLevel']}</p>}
+                            </div>
+
+
+      <div  className="flex flex-col">
+                              <label htmlFor='sewingLevel' className="text-gray-500 text-sm mb-1">الخياطة</label>
+                              <select
+                                id='sewingLevel'
+                                value={formData.sewingLevel}
+                                onChange={handleChange}
+                                className={`border ${errors['sewingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                              >
+                                <option value="" disabled>اختر المستوى</option>
+                                <option value="trained_no_experience">مدربة بدون خبرة</option>
+                                <option value="good">جيد</option>
+                                <option value="very_good">جيد جدا</option>
+                                <option value="excellent">ممتاز</option>
+                              </select>
+                              {errors['sewingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['sewingLevel']}</p>}
+                            </div>
+
+
+      <div  className="flex flex-col">
+                              <label htmlFor='elderlycareLevel' className="text-gray-500 text-sm mb-1">رعاية كبار السن</label>
+                              <select
+                                id='elderlycareLevel'
+                                value={formData.elderlycareLevel}
+                                onChange={handleChange}
+                                className={`border ${errors['elderlycareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                              >
+                                <option value="" disabled>اختر المستوى</option>
+                                <option value="trained_no_experience">مدربة بدون خبرة</option>
+                                <option value="good">جيد</option>
+                                <option value="very_good">جيد جدا</option>
+                                <option value="excellent">ممتاز</option>
+                              </select>
+                              {errors['elderlycareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['elderlycareLevel']}</p>}
+                            </div>
+                  
+
+
+
+
+
+
+
+
+      <div  className="flex flex-col">
+                              <label htmlFor='childcareLevel' className="text-gray-500 text-sm mb-1">العناية بالأطفال</label>
+                              <select
+                                id='childcareLevel'
+                                value={formData.childcareLevel}
+                                onChange={handleChange}
+                                className={`border ${errors['childcareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                              >
+                                <option value="" disabled>اختر المستوى</option>
+                                <option value="trained_no_experience">مدربة بدون خبرة</option>
+                                <option value="good">جيد</option>
+                                <option value="very_good">جيد جدا</option>
+                                <option value="excellent">ممتاز</option>
+                              </select>
+                              {errors['childcareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['childcareLevel']}</p>}
+                            </div>
+
+
+
+
+
+
+
+
+
+
+
                   </div>
                 </fieldset>
                 <fieldset>
@@ -667,8 +832,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                         <div className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center">
                           <span className="text-gray-500 text-sm pr-2">
                             {fileUploaded[file.id] ? (
-                              <a
-                                href={formData[file.id as keyof typeof formData]}
+                              <a                                href={formData[file.id as keyof typeof formData]}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-teal-800 hover:underline"
@@ -722,6 +886,13 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                         experienceYears: '',
                         salary: '',
                         officeName: '',
+                        cookingLevel: '',
+                        washingLevel: '',
+                        ironingLevel: '',
+                        cleaningLevel: '',
+                        sewingLevel: '',
+                        childcareLevel: '',
+                        elderlycareLevel: '',
                         skills: {
                           washing: '',
                           ironing: '',

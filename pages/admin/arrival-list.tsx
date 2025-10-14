@@ -59,6 +59,7 @@ interface ApiResponse {
 }
 
 const transformData = (data: any[]): TableRow[] => {
+  const currentDate = new Date(); // التاريخ الحالي
   return data.map((item) => ({
     workerId: String(item.Order?.HomeMaid?.id || 'غير محدد'),
     orderId: String(item.OrderId || 'غير محدد'),
@@ -68,7 +69,7 @@ const transformData = (data: any[]): TableRow[] => {
     passport: item.Order?.HomeMaid?.Passportnumber || 'غير محدد',
     from: item.deparatureCityCountry || 'غير محدد',
     to: item.arrivalSaudiAirport || 'غير محدد',
-    status: item.DeliveryDate ? 'وصلت' : 'لم تصل',
+    status: item.KingdomentryDate && new Date(item.KingdomentryDate) <= currentDate ? 'وصلت' : 'لم تصل',
     arrivalDate: item.KingdomentryDate
       ? new Date(item.KingdomentryDate).toLocaleString('ar-EG', {
           dateStyle: 'short',
@@ -77,7 +78,6 @@ const transformData = (data: any[]): TableRow[] => {
       : 'غير محدد',
   }));
 };
-
 const fetchData = async (
   page = 1,
   filters: {
@@ -434,31 +434,31 @@ const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: str
           {data.map((row, index) => (
             <tr key={index} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
               {visibleColumns.includes('workerId') && (
-                <td className="p-4 text-right pr-6">{row.workerId}</td>
+                <td className="p-4 text-center pr-6">{row.workerId}</td>
               )}
               {visibleColumns.includes('orderId') && (
-                <td className="p-4 text-right">{row.orderId}</td>
+                <td className="p-4 text-center">{row.orderId}</td>
               )}
               {visibleColumns.includes('workerName') && (
-                <td className="p-4 text-right">{row.workerName}</td>
+                <td className="p-4 text-center">{row.workerName}</td>
               )}
               {visibleColumns.includes('clientName') && (
-                <td className="p-4 text-right">{row.clientName}</td>
+                <td className="p-4 text-center">{row.clientName}</td>
               )}
               {visibleColumns.includes('nationality') && (
-                <td className="p-4 text-right">{row.nationality}</td>
+                <td className="p-4 text-center">{row.nationality}</td>
               )}
               {visibleColumns.includes('passport') && (
-                <td className="p-4 text-right">{row.passport}</td>
+                <td className="p-4 text-center">{row.passport}</td>
               )}
               {visibleColumns.includes('from') && (
-                <td className="p-4 text-right">{row.from}</td>
+                <td className="p-4 text-center">{row.from}</td>
               )}
               {visibleColumns.includes('to') && (
-                <td className="p-4 text-right">{row.to}</td>
+                <td className="p-4 text-center">{row.to}</td>
               )}
               {visibleColumns.includes('status') && (
-                <td className="p-4 text-right">
+                <td className="p-4 text-center">
                   <span className="text-black">{row.status}</span>
                 </td>
               )}

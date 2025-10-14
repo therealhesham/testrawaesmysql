@@ -13,8 +13,30 @@ function HomeMaidInfo() {
     const currentDate = new Date(date);
     return `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
   };
+const translateExperience = (field: string) => {
+  switch (field) {
+    case "trained_no_experience":
+      return "مدرب بدون خبرة";
+  case "good":
+    return "جيد";
+  case "very_good":
+    return "جيد جدا";
+  case "excellent":
+    return "ممتاز";
 
-  // حالة البيانات مع إصلاح أسماء الحقول
+case "beginner":
+  return "مبتدئ";
+case "intermediate":
+  return "متوسط";
+case "advanced":
+  return "متقدم";
+case "expert":
+  return "خبير";
+  }
+}
+  
+  
+// حالة البيانات مع إصلاح أسماء الحقول
   const [formData, setFormData] = useState({
     name: "",
     religion: "",
@@ -28,13 +50,13 @@ function HomeMaidInfo() {
     arabicLanguageLevel: "",
     englishLanguageLevel: "",
     experience: "",
-    washing: "",
-    ironing: "",
-    cleaning: "",
-    cooking: "",
-    sewing: "",
-    childcare: "",
-    elderlyCare: "",
+    washingLevel: "",
+    ironingLevel: "",
+    cleaningLevel: "",
+    cookingLevel: "",
+    sewingLevel: "",
+    childcareLevel: "",
+    elderlycareLevel: "",
     officeName: "",
     salary: "",
     logs: [],
@@ -74,15 +96,16 @@ function HomeMaidInfo() {
             arabicLanguageLevel: data.ArabicLanguageLeveL || "",
             englishLanguageLevel: data.EnglishLanguageLevel || "",
             experience: data.Experience || "",
-            washing: data.Washing || "",
-            ironing: data.Ironing || "",
-            cleaning: data.Cleaning || "",
-            cooking: data.Cooking || "",
-            sewing: data.Sewing || "",
-            childcare: data.Childcare || "",
-            elderlyCare: data.ElderlyCare || "",
+            washingLevel: data.washingLevel || "",
+            experienceYears: data.ExperienceYears || "",
+            ironingLevel: data.ironingLevel || "",
+            cleaningLevel: data.cleaningLevel || "",
+            cookingLevel: data.cookingLevel || "",
+            sewingLevel: data.sewingLevel || "",
+            childcareLevel: data.childcareLevel || "",
+            elderlycareLevel: data.elderlycareLevel || "",
             officeName: data.office?.office || "",
-            salary: data.salary || "",
+            salary: data.Salary || "",
             logs: data.logs || [],
           });
         } catch (error) {
@@ -99,21 +122,21 @@ function HomeMaidInfo() {
   return (
     <Layout>
       <div className="p-6 bg-gray-50 min-h-screen font-tajawal">
-        {loading && <div className="text-center text-teal-600">جارٍ التحميل...</div>}
+        {loading && <div className="text-center text-teal-800">جارٍ التحميل...</div>}
         {error && <div className="text-center text-red-500 mb-4">{error}</div>}
 
-        <h1 className="text-3xl font-bold text-teal-700 mb-8 text-right">المعلومات الشخصية</h1>
+        <h1 className="text-3xl font-bold text-teal-800 mb-8 text-right">المعلومات الشخصية</h1>
 
         {/* الأزرار */}
         <div className="flex justify-end gap-4 mb-6">
           <button
-            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
+            className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition"
             onClick={() => router.push(`/admin/order-form?type=add-available&id=${id}`)}
           >
             حجز
           </button>
           <button
-            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
+            className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition"
             onClick={handleExportPDF}
           >
             <FaFilePdf /> PDF
@@ -122,7 +145,7 @@ function HomeMaidInfo() {
 
         {/* المعلومات الشخصية */}
         <section className="mb-8">
-          <p className="text-xl font-semibold text-teal-600 mb-4 text-right">المعلومات الشخصية</p>
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">المعلومات الشخصية</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { label: "الاسم", name: "name", value: formData.name },
@@ -153,7 +176,7 @@ function HomeMaidInfo() {
 
         {/* التعليم */}
         <section className="mb-8">
-          <p className="text-xl font-semibold text-teal-600 mb-4 text-right">التعليم</p>
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">التعليم</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { label: "التعليم", name: "education", value: formData.education },
@@ -185,7 +208,7 @@ function HomeMaidInfo() {
 
   {/* التعليم */}
         <section className="mb-8">
-          <p className="text-xl font-semibold text-teal-600 mb-4 text-right">الخبرة</p>
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">الخبرة</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               { label: "الخبرة", name: "experience", value: formData.experience },
@@ -222,23 +245,23 @@ function HomeMaidInfo() {
 
         {/* المهارات */}
         <section className="mb-8">
-          <p className="text-xl font-semibold text-teal-600 mb-4 text-right">المهارات</p>
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">المهارات</p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
-              { label: "الغسيل", name: "washing", value: formData.washing },
-              { label: "الكوي", name: "ironing", value: formData.ironing },
-              { label: "التنظيف", name: "cleaning", value: formData.cleaning },
-              { label: "الطبخ", name: "cooking", value: formData.cooking },
-              { label: "الخياطة", name: "sewing", value: formData.sewing },
-              { label: "العناية بالأطفال", name: "childcare", value: formData.childcare },
-              { label: "رعاية كبار السن", name: "elderlyCare", value: formData.elderlyCare },
+              { label: "الغسيل", name: "washing", value: formData.washingLevel },
+              { label: "الكوي", name: "ironing", value: formData.ironingLevel },
+              { label: "التنظيف", name: "cleaning", value: formData.cleaningLevel },
+              { label: "الطبخ", name: "cooking", value: formData.cookingLevel },
+              { label: "الخياطة", name: "sewing", value: formData.sewingLevel },
+              { label: "العناية بالأطفال", name: "childcare", value: formData.childcareLevel },
+              { label: "رعاية كبار السن", name: "elderlyCare", value: formData.elderlycareLevel },
             ].map((field) => (
               <div key={field.name}>
                 <label className="block text-gray-700 text-right mb-1">{field.label}</label>
                 <input
                   type="text"
                   name={field.name}
-                  value={field.value || ""}
+                  value={translateExperience(field.value) || ""}
                   onChange={handleChange}
                   className="w-full bg-gray-100 border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200"
                 />
@@ -249,7 +272,7 @@ function HomeMaidInfo() {
 
         {/* اسم المكتب والراتب */}
         <section className="mb-8">
-          <p className="text-xl font-semibold text-teal-600 mb-4 text-right">اسم المكتب</p>
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">اسم المكتب</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
               { label: "اسم المكتب", name: "officeName", value: formData.officeName },
@@ -271,11 +294,11 @@ function HomeMaidInfo() {
 
         {/* سجل الأنشطة */}
         <section>
-          <p className="text-xl font-semibold text-teal-600 mb-4 text-right">سجل الأنشطة</p>
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">سجل الأنشطة</p>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse bg-white shadow-md rounded-lg">
               <thead>
-                <tr className="bg-teal-600 text-white">
+                <tr className="bg-teal-800 text-white">
                   <th className="border border-gray-300 p-3 text-right">التاريخ</th>
                   <th className="border border-gray-300 p-3 text-right">الحالة</th>
                   <th className="border border-gray-300 p-3 text-right">التفاصيل</th>

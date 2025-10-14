@@ -30,6 +30,7 @@ interface ApiOrderData {
 }
 
 interface FormData {
+  typeOfContract:string,
   City:string;
   clientID: string;
   HomemaidId: string;
@@ -60,6 +61,7 @@ export default function AddAvailableForm({ clients, homemaids, orderId, preSelec
     HomemaidId: '',
     ClientName: '',
     City: '',
+    typeOfContract:"recruitment",
     PhoneNumber: '',
     Nationalitycopy: '',
     Religion: '',

@@ -54,13 +54,13 @@ export default async function handler(
             gte: isNaN(Number(query)) ? 0 : Number(query),
           },
         },
-        select: {
-          id: true,HomeMaid:{
-            select: {
-              Name: true,
-            },
-          },
-        },
+include:{
+  HomeMaid:{
+    select:{
+      Name:true,
+    },
+  },
+},
         take: 10,
       });
 
@@ -81,7 +81,7 @@ export default async function handler(
       });
 
       const suggestionsArray = Array.from(suggestions).slice(0, 10);
-
+console.log(suggestionsArray);
       res.status(200).json({ suggestions: suggestionsArray });
     } catch (error) {
       console.error("Error fetching order suggestions:", error);

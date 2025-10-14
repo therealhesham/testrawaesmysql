@@ -124,6 +124,7 @@ export default async function handler(
     const validInternalDeparatureDate = internaldeparatureDate
       ? new Date(internaldeparatureDate).toISOString()
       : null;
+console.log(internalReason)
 
     const ss = {
       finaldestination,
@@ -138,6 +139,7 @@ export default async function handler(
       externalOfficeStatus,
       externalmusanadcontractfile,
       additionalfiles,
+      internalReason,
       externalmusanedContract: validexternalmusanedContract,
       MusanadDuration,
       ExternalDateLinking: validExternalDateLinking,
@@ -148,6 +150,7 @@ export default async function handler(
       GuaranteeDurationEnd: validGuaranteeDurationEnd,
       // الحقول الجديدة للمغادرة الداخلية
       internaldeparatureCity,
+      internalArrivalCityDate:validInternalArrivalCityDate,
       internalArrivalCity,
       internalTicketFile,
     };

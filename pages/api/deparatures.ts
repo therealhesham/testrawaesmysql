@@ -19,7 +19,7 @@ export default async function handler(
     if (SponsorName)
       filters.SponsorName = {
         contains: (SponsorName as string).toLowerCase(),
-        mode: "insensitive",
+        // mode: "insensitive",
       };
     if (PassportNumber)
       filters.PassportNumber = {
@@ -84,7 +84,8 @@ export default async function handler(
               Name: true,
               HomemaidId: true,
               HomeMaid: {
-                include: { office: { select: { Country: true } } },
+
+                include: { office: { select: { Country: true } },Client:{select:{fullname:true}} },
               },
             },
           },
@@ -96,10 +97,12 @@ export default async function handler(
           SponsorPhoneNumber: true,
           createdAt:true,
           updatedAt:true,
+          internalReason: true,
           HomemaidName: true,
           id: true,
           // الحقول الجديدة للمغادرة الداخلية
           internaldeparatureCity: true,
+        
           internalArrivalCity: true,
           internalArrivalCityDate: true,
           internalArrivalCityTime: true,

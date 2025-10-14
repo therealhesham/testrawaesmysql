@@ -26,6 +26,14 @@ export default function Table() {
     DepartureDate: true,
     DepartureTime: true,
   });
+function getDate(date) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
+
+
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -511,10 +519,10 @@ export default function Table() {
                   data.map((item) => (
                     <tr key={item.id} className="border-b hover:bg-gray-50">
                       <td
-                        onClick={() => router.push("./neworder/" + item.homemaidId)}
+                        onClick={() => router.push("/admin/homemaidinfo?id=" + item.HomeMaid?.id)}
                         className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
                       >
-                        {item.id}
+                        {item.HomeMaid?.id}
                       </td>
                       <td className="px-4 py-2 text-center text-gray-600">
                         {item?.HomeMaid?.Name}
@@ -535,10 +543,10 @@ export default function Table() {
                         {item?.HomeMaid?.Passportnumber}
                       </td>
                       <td className="px-4  py-2 text-center text-gray-600">
-                        {item?.HomeMaid?.PassportStart}
+                        {getDate(item?.HomeMaid?.PassportStart)}
                       </td>
                       <td className="px-4  py-2 text-center text-gray-600">
-                        {item?.HomeMaid?.PassportEnd}
+                        {getDate(item?.HomeMaid?.PassportEnd)}
                       </td>
                       <td className="px-4 py-2 text-center text-gray-600">
                         {item?.HomeMaid?.office?.office}
@@ -593,7 +601,7 @@ export default function Table() {
                     value={formData.Orderid}
                     onChange={handleFormChange}
                     placeholder="أدخل رقم الطلب"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -608,7 +616,7 @@ export default function Table() {
                     value={formData.SponsorName}
                     onChange={handleFormChange}
                     placeholder="أدخل اسم الكفيل"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -622,7 +630,7 @@ export default function Table() {
                     value={formData.SponsorIdnumber}
                     onChange={handleFormChange}
                     placeholder=" هوية العميل"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -638,7 +646,7 @@ export default function Table() {
                     value={formData.HomemaidName}
                     onChange={handleFormChange}
                     placeholder="مدينة العاملة"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -655,7 +663,7 @@ export default function Table() {
                     value={formData.HomemaidName}
                     onChange={handleFormChange}
                     placeholder="اسم العاملة"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -672,7 +680,7 @@ export default function Table() {
                     value={formData.PassportNumber}
                     onChange={handleFormChange}
                     placeholder="أدخل رقم الجواز"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -689,7 +697,7 @@ export default function Table() {
                     value={formData.Nationality}
                     onChange={handleFormChange}
                     placeholder="جنسية العاملة"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -706,7 +714,7 @@ export default function Table() {
                     value={formData.GuaranteeStatus}
                     onChange={handleFormChange}
                     placeholder="حالة الضمان"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
              
@@ -723,7 +731,7 @@ export default function Table() {
                     value={formData.GuaranteeDurationEnd}
                     onChange={handleFormChange}
                     placeholder="المدة المتبقية"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                     required
                   />
                 </div>
@@ -789,7 +797,7 @@ export default function Table() {
                     placeholder="سبب المغادرة"
                     value={formData.reason}
                     onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
 
@@ -805,7 +813,7 @@ export default function Table() {
                     placeholder="وجهة المغادرة"
                     value={formData.ArrivalCity}
                     onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
 
@@ -822,7 +830,7 @@ export default function Table() {
                     placeholder="وجهة الوصول"
                     value={formData.finaldestination}
                     onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
 
@@ -839,7 +847,7 @@ export default function Table() {
                     name="deparatureDate"
                     value={formData.deparatureDate}
                     onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
 
@@ -854,7 +862,7 @@ export default function Table() {
                     name="deparatureDate"
                     value={formData.ArrivalDate}
                     onChange={handleFormChange}
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
 
@@ -868,7 +876,7 @@ export default function Table() {
                     name="ticketFile"
                     onChange={handleFormChange}
                     accept=".pdf,.jpg,.png"
-                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   />
                 </div>
               </div>

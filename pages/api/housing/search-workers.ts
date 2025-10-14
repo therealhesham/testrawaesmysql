@@ -85,7 +85,7 @@ export default async function handler(
       })) || [],
       hasOrders: homemaid.NewOrder && homemaid.NewOrder.length > 0
     }));
-
+console.log(formattedHomemaids);
     res.status(200).json({
       success: true,
       homemaids: formattedHomemaids,

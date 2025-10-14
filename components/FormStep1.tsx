@@ -62,11 +62,13 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+
+
     setId(suggestion);
     setShowSuggestions(false);
     // Auto-fetch data when order is selected
     setTimeout(() => {
-      getData();
+      getData(suggestion);
     }, 100);
   };
 

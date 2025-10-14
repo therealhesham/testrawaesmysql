@@ -17,6 +17,7 @@ interface DepartureData {
   ArrivalCity?: string;
   finaldestination?: string;
   reason?: string;
+  internalReason?:string,
   deparatureDate?: string;
   // الحقول الجديدة للمغادرة الداخلية
   internaldeparatureCity?: string;
@@ -309,7 +310,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
         </button>
       </div>
 
-      <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm space-y-6">
+      <div className="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-sm space-y-6 w-full">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
@@ -394,7 +395,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
           </div>
         </div>
 
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-hidden w-full">
           <table className="w-full text-md text-center text-gray-700">
             <thead className="bg-teal-800 text-white font-medium">
               <tr>
@@ -417,19 +418,21 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
                   key={index}
                   className={index % 2 === 0 ? "bg-gray-50" : "bg-gray-50"}
                 >
+
+           
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.id || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.OrderId || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.HomemaidName || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.SponsorName || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Name|| "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Client[0]?.fullname || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.PassportNumber || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Passportnumber || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.internaldeparatureCity || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.internalArrivalCity || "-"}</td>
                   <td
                     className="py-3 px-2 border-t border-gray-200"
                     // dangerouslySetInnerHTML={{ __html: row.reason || "-" }}
                   >
-                    {row.reason || "-"}
+                    {row.internalReason || "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
                     {row.internaldeparatureDate ? new Date(row.internaldeparatureDate).toLocaleDateString() : "-"}

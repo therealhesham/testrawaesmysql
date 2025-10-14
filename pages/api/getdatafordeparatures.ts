@@ -10,7 +10,7 @@ export default async function handler(
   if (req.method === "GET") {
     try {
       const { id } = req.query;
-      
+      console.log(id)
       // التحقق من وجود id
       if (!id || typeof id !== 'string') {
         return res.status(400).json({ 
@@ -29,10 +29,9 @@ export default async function handler(
 
       console.log("Searching for Order ID:", orderId);
 
-      // استعلام محسن يشمل جميع الحقول المطلوبة
       const data = await prisma.arrivallist.findFirst({
         where: { 
-          OrderId: orderId 
+          Order: {id: orderId}
         },
         select: {
           id: true,
@@ -90,15 +89,15 @@ export default async function handler(
       });
 
       // التحقق من وجود البيانات
-      if (!data) {
-        return res.status(404).json({ 
-          error: "Order not found",
-          message: "الطلب غير موجود",
-          data: null
-        });
-      }
+      // if (!data) {
+      //   return res.status(404).json({ 
+      //     error: "Order not found",
+      //     message: "الطلب غير موجود",
+      //     data: null
+      //   });
+      // }
 
-      console.log("Found data for Order ID:", orderId);
+      console.log("Found data for Order ID:", data);
       
       res.status(200).json({
         data: data,
