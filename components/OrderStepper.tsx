@@ -6,6 +6,7 @@ import { FaPassport, FaStethoscope } from 'react-icons/fa';
 
 interface OrderStepperProps {
   status: string;
+  onStepClick?: (stepIndex: number) => void;
 }
 
 const steps = [
@@ -42,7 +43,7 @@ const statusToStepMap: { [key: string]: number } = {
   cancelled: -1,
 };
 
-export default function OrderStepper({ status }: OrderStepperProps) {
+export default function OrderStepper({ status, onStepClick }: OrderStepperProps) {
   const activeStep = statusToStepMap[status] ?? 0;
 
   if (status === 'cancelled') {
@@ -60,7 +61,10 @@ export default function OrderStepper({ status }: OrderStepperProps) {
       <div className="flex no-wrap justify-center gap-5">
         {steps.map((step, index) => (
           <div key={index} className="flex items-start">
-            <div className="flex flex-col items-center w-24 text-center">
+            <div 
+              className="flex flex-col items-center w-24 text-center cursor-pointer"
+              onClick={() => onStepClick?.(index)}
+            >
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center border ${
                   index < activeStep
@@ -68,11 +72,11 @@ export default function OrderStepper({ status }: OrderStepperProps) {
                     : index === activeStep
                     ? 'bg-teal-600 border-teal-600 text-white'
                     : 'border-teal-800 text-teal-800'
-                } text-sm`}
+                } text-sm hover:scale-110 transition-transform`}
               >
                 {step.icon ? step.icon : index + 1}
               </div>
-              <p className="text-xs mt-2 text-gray-900">{step.label}</p>
+              <p className="text-xs mt-2 text-gray-900 hover:text-teal-800 transition-colors">{step.label}</p>
             </div>
             {index < steps.length - 1 && (
               <div
