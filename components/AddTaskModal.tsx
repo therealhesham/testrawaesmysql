@@ -286,7 +286,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                   <option value="متوسط الأهمية">متوسط الأهمية</option>
                   <option value="منخفض الأهمية">منخفض الأهمية</option>
                 </select>
-                <DropdownIcon className="w-4 h-4 text-gray-600 transform rotate-90" />
+                {/* <DropdownIcon className="w-4 h-4 text-gray-600 transform rotate-90" /> */}
               </div>
             </div>
           </div>

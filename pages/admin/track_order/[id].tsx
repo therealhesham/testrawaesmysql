@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
 import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
+import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
@@ -80,6 +81,14 @@ export default function TrackOrder() {
     message: '',
   });
 
+  const [showErrorModal, setShowErrorModal] = useState({
+    isOpen: false,
+    title: 'حدث خطأ',
+    message: '',
+  });
+
+  const [currentStep, setCurrentStep] = useState(0);
+
   useEffect(() => {
     if (id) {
       fetchOrderData();
@@ -97,7 +106,11 @@ export default function TrackOrder() {
       setError(null);
     } catch (error: any) {
       console.error('Error fetching order:', error);
-      setError(error.message);
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ في جلب البيانات',
+        message: error.message || 'حدث خطأ غير متوقع',
+      });
     } finally {
       setLoading(false);
     }
@@ -111,7 +124,11 @@ export default function TrackOrder() {
       setHomemaids(data.data); // Store homemaids for autocomplete
     } catch (error: any) {
       console.error('Error fetching homemaids:', error);
-      setError('حدث خطأ أثناء جلب بيانات العاملات');
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ في جلب بيانات العاملات',
+        message: 'حدث خطأ أثناء جلب بيانات العاملات',
+      });
     }
   };
 
@@ -153,7 +170,11 @@ export default function TrackOrder() {
           await fetchOrderData();
         } catch (error: any) {
           console.error('Error updating status:', error);
-          setError(error);
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في تحديث الحالة',
+            message: error.message || 'حدث خطأ أثناء تحديث الحالة',
+          });
         } finally {
           setUpdating(false);
         }
@@ -182,7 +203,11 @@ export default function TrackOrder() {
           await fetchOrderData();
         } catch (error: any) {
           console.error('Error saving edits:', error);
-          setError('حدث خطأ أثناء حفظ التعديلات');
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في حفظ التعديلات',
+            message: error.message || 'حدث خطأ أثناء حفظ التعديلات',
+          });
         } finally {
           setUpdating(false);
         }
@@ -211,7 +236,11 @@ export default function TrackOrder() {
           router.push('/admin/neworders');
         } catch (error: any) {
           console.error('Error cancelling contract:', error);
-          setError('حدث خطأ أثناء إلغاء العقد');
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في إلغاء العقد',
+            message: error.message || 'حدث خطأ أثناء إلغاء العقد',
+          });
         } finally {
           setUpdating(false);
         }
@@ -298,7 +327,11 @@ export default function TrackOrder() {
       });
     } catch (error: any) {
       console.error('Error changing homemaid:', error);
-      setError('حدث خطأ أثناء تغيير العاملة');
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ في تغيير العاملة',
+        message: error.message || 'حدث خطأ أثناء تغيير العاملة',
+      });
     } finally {
       setUpdating(false);
     }
@@ -310,11 +343,42 @@ export default function TrackOrder() {
     label: homemaid.Name,
   }));
 
+  // Handle step click to scroll to corresponding section
+  const handleStepClick = (stepIndex: number) => {
+    setCurrentStep(stepIndex);
+    
+    // Map step indices to section IDs
+    const stepToSectionMap: { [key: number]: string } = {
+      0: 'office-link-info',
+      1: 'external-office-info', 
+      2: 'external-office-approval',
+      3: 'medical-check',
+      4: 'foreign-labor-approval',
+      5: 'agency-payment',
+      6: 'saudi-embassy-approval',
+      7: 'visa-issuance',
+      8: 'travel-permit',
+      9: 'destinations',
+      10: 'receipt'
+    };
+
+    const sectionId = stepToSectionMap[stepIndex];
+    if (sectionId) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen font-tajawal" dir="rtl">
-          جاري التحميل...
+        <div className="min-h-screen font-tajawal flex justify-center items-center" dir="rtl">
+          <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-900"></div>
+                    <span className="mr-2 text-teal-900">جاري التحميل...</span>
+                  </div>
         </div>
       </Layout>
     );
@@ -419,7 +483,7 @@ export default function TrackOrder() {
             </div>
           </div>
 
-          <OrderStepper status={orderData.bookingStatus} />
+          <OrderStepper status={orderData.bookingStatus} onStepClick={handleStepClick} />
 
           <InfoCard
             title="معلومات العميل"
@@ -453,6 +517,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="office-link-info"
             title="1- الربط مع إدارة المكاتب"
             data={[
               { label: 'هوية العميل', value: orderData.officeLinkInfo.nationalId },
@@ -466,6 +531,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="external-office-info"
             title="2- المكتب الخارجي"
             data={[
               { label: 'اسم المكتب الخارجي', value: orderData.externalOfficeInfo.officeName },
@@ -478,6 +544,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="external-office-approval"
             title="3- موافقة المكتب الخارجي"
             data={[
               {
@@ -506,6 +573,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="medical-check"
             title="4- الفحص الطبي"
             data={[
               {
@@ -534,6 +602,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="foreign-labor-approval"
             title="5- موافقة وزارة العمل الأجنبية"
             data={[
               {
@@ -562,6 +631,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="agency-payment"
             title="6- دفع الوكالة"
             data={[
               {
@@ -590,6 +660,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="saudi-embassy-approval"
             title="7- موافقة السفارة السعودية"
             data={[
               {
@@ -618,6 +689,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="visa-issuance"
             title="8- إصدار التأشيرة"
             data={[
               {
@@ -646,6 +718,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="travel-permit"
             title="9- تصريح السفر"
             data={[
               {
@@ -674,6 +747,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="destinations"
             title="10- الوجهات"
             data={[
               { label: 'مدينة المغادرة', value: orderData.destinations.departureCity },
@@ -757,7 +831,11 @@ export default function TrackOrder() {
                             });
                           } catch (error: any) {
                             console.error('Error uploading file:', error);
-                            setError('حدث خطأ أثناء رفع الملف');
+                            setShowErrorModal({
+                              isOpen: true,
+                              title: 'خطأ في رفع الملف',
+                              message: error.message || 'حدث خطأ أثناء رفع الملف',
+                            });
                           } finally {
                             setUpdating(false);
                           }
@@ -780,6 +858,7 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="receipt"
             title="11- الاستلام"
             data={[
               {
@@ -982,7 +1061,11 @@ export default function TrackOrder() {
                             });
                           } catch (error: any) {
                             console.error('Error uploading file:', error);
-                            setError('حدث خطأ أثناء رفع الملف');
+                            setShowErrorModal({
+                              isOpen: true,
+                              title: 'خطأ في رفع الملف',
+                              message: error.message || 'حدث خطأ أثناء رفع الملف',
+                            });
                           } finally {
                             setUpdating(false);
                           }
@@ -1009,6 +1092,12 @@ export default function TrackOrder() {
         {/* Modals */}
         <ConfirmModal />
         <AlertModal />
+        <ErrorModal 
+          isOpen={showErrorModal.isOpen}
+          title={showErrorModal.title}
+          message={showErrorModal.message}
+          onClose={() => setShowErrorModal({ ...showErrorModal, isOpen: false })}
+        />
 
         {/* Modal: Change Homemaid */}
         {showChangeHomemaidModal && (

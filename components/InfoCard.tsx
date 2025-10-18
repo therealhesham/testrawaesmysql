@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
 
 interface InfoCardProps {
+  id?: string;
   title: string;
   data: { label: string; value: string | JSX.Element }[];
   gridCols?: number;
@@ -11,7 +12,7 @@ interface InfoCardProps {
   onSave?: (updatedData: Record<string, string>) => void;
 }
 
-export default function InfoCard({ title, data, gridCols = 1, actions = [], editable = false, onSave }: InfoCardProps) {
+export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave }: InfoCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>(
     data.reduce((acc, item) => {
@@ -89,7 +90,7 @@ export default function InfoCard({ title, data, gridCols = 1, actions = [], edit
   };
 
   return (
-    <section className="bg-gray-100  rounded-md p-6 mb-6">
+    <section id={id} className="bg-gray-100  rounded-md p-6 mb-6">
       <h3 className="text-2xl font-normal text-center mb-6">{title}</h3>
       {errors.global && <div className="text-red-600 text-sm mb-4 text-right">{errors.global}</div>}
       <div className={`grid grid-cols-${gridCols} gap-4`}>
