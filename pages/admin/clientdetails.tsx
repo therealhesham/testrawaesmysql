@@ -96,7 +96,7 @@ const VisaModal = React.memo(
       return Object.keys(newErrors).length === 0;
     };
 
-    
+      
     const saveVisaData = async () => {
       if (!validateForm()) {
         setNotification({ message: 'يرجى تصحيح الأخطاء في النموذج', type: 'error' });
@@ -440,6 +440,30 @@ export default function Home() {
     return statusTranslations[status] || status;
   };
 
+
+
+
+const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
+
+  const translateCity = (city: string) => {
+    return arabicRegionMap[city as keyof typeof arabicRegionMap];
+  }
+
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 p-6">
@@ -521,7 +545,7 @@ export default function Home() {
                   <input
                     type="text"
                     className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    value={clientInfo.city}
+                    value={translateCity(clientInfo.city)}
                     readOnly
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, city: e.target.value })
