@@ -303,7 +303,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                 className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
               />
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
+            {/* <label className="flex items-center gap-2 cursor-pointer">
               <span className="text-sm text-gray-700">تفعيل</span>
               <input
                 type="checkbox"
@@ -312,7 +312,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                 onChange={handleInputChange}
                 className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
               />
-            </label>
+            </label> */}
           </div>
 
           {/* Repeat Options */}
