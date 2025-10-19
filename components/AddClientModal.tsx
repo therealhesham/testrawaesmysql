@@ -4,10 +4,10 @@ import { X, ChevronDown, CheckCircle } from 'lucide-react';
 interface AddClientModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
-const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
-
+const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullname: '',
@@ -20,33 +20,104 @@ const AddClientModal = ({ isOpen, onClose }: AddClientModalProps) => {
     nationality: '',
     gender: '',
     profession: '',
-    visaFile: '', // Store URL instead of File
+    visaFile: '',
   });
+  const [errors, setErrors] = useState<any>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [nationalities, setNationalities] = useState<any[]>([]);
   const [fileUploaded, setFileUploaded] = useState({
     visaFile: false,
   });
-  const [errors, setErrors] = useState<any>({});
-  
+  const [visaFileName, setVisaFileName] = useState(''); // Store file name
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-const fetchNationalities = async () => {
-  const response = await fetch('/api/nationalities');
-  const data = await response.json();
-  setNationalities(data.nationalities);
-};
+
+  const fetchNationalities = async () => {
+    const response = await fetch('/api/nationalities');
+    const data = await response.json();
+    setNationalities(data.nationalities);
+  };
 
   useEffect(() => {
     fetchNationalities();
   }, []);
+
+  const validateStep1 = () => {
+    const newErrors: any = {};
+    const nameRegex = /^[\u0600-\u06FF\s]+$/; // Arabic letters and spaces only
+    const phoneRegex = /^\d{9}$/; // 10 digits for Saudi phone numbers
+
+    if (!formData.fullname) {
+      newErrors.fullname = 'الاسم مطلوب';
+    } else if (!nameRegex.test(formData.fullname)) {
+      newErrors.fullname = 'الاسم يجب أن يحتوي على حروف عربية فقط';
+    } else if (formData.fullname.length < 3) {
+      newErrors.fullname = 'الاسم يجب أن يكون 3 أحرف على الأقل';
+    }
+
+    if (!formData.phonenumber) {
+      newErrors.phonenumber = 'رقم الهاتف مطلوب';
+    } else if (!phoneRegex.test(formData.phonenumber)) {
+      newErrors.phonenumber = 'رقم الهاتف يجب أن يكون 9 أرقام';
+    }
+
+    if (!formData.nationalId) {
+      newErrors.nationalId = 'رقم الهوية مطلوب';
+    }
+
+    if (!formData.city) {
+      newErrors.city = 'المدينة مطلوبة';
+    }
+
+    if (!formData.clientSource) {
+      newErrors.clientSource = 'مصدر العميل مطلوب';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors: any = {};
+    const visaNumberRegex = /^\d{1,10}$/; // at least 1 digit and at most 10 digits
+
+    if (!formData.visaNumber) {
+      newErrors.visaNumber = 'رقم التأشيرة مطلوب';
+    } else if (!visaNumberRegex.test(formData.visaNumber)) {
+      newErrors.visaNumber = 'رقم التأشيرة يجب أن يكون على الأكثر 1 أرقام';
+    } 
+
+
+
+    if (!formData.nationality) {
+      newErrors.nationality = 'الجنسية مطلوبة';
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = 'الجنس مطلوب';
+    }
+
+    if (!formData.profession) {
+      newErrors.profession = 'المهنة مطلوبة';
+    }
+
+    if (!formData.visaFile) {
+      newErrors.visaFile = 'ملف التأشيرة مطلوب';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error for the field when user starts typing
+    setErrors((prev: any) => ({ ...prev, [name]: '' }));
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,6 +125,7 @@ const fetchNationalities = async () => {
     if (!files || files.length === 0) {
       setErrors((prev: any) => ({ ...prev, visaFile: 'لم يتم اختيار ملف' }));
       setFileUploaded((prev: any) => ({ ...prev, visaFile: false }));
+      setVisaFileName('');
       return;
     }
 
@@ -61,6 +133,7 @@ const fetchNationalities = async () => {
     if (!allowedFileTypes.includes(file.type)) {
       setErrors((prev: any) => ({ ...prev, visaFile: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
       setFileUploaded((prev: any) => ({ ...prev, visaFile: false }));
+      setVisaFileName('');
       return;
     }
 
@@ -87,6 +160,7 @@ const fetchNationalities = async () => {
       setFormData((prev: any) => ({ ...prev, visaFile: filePath }));
       setErrors((prev: any) => ({ ...prev, visaFile: '' }));
       setFileUploaded((prev: any) => ({ ...prev, visaFile: true }));
+      setVisaFileName(file.name); // Store the file name
 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -95,6 +169,7 @@ const fetchNationalities = async () => {
       console.error('Error uploading file:', error);
       setErrors((prev: any) => ({ ...prev, visaFile: error.message || 'حدث خطأ أثناء رفع الملف' }));
       setFileUploaded((prev: any) => ({ ...prev, visaFile: false }));
+      setVisaFileName('');
     }
   };
 
@@ -108,6 +183,13 @@ const fetchNationalities = async () => {
   };
 
   const handleSubmit = async () => {
+    if (formData.hasVisa === 'yes' && !validateStep2()) {
+      return;
+    }
+    if (!validateStep1()) {
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -120,7 +202,7 @@ const fetchNationalities = async () => {
           nationalId: formData.nationalId,
           city: formData.city,
           clientSource: formData.clientSource,
-          visaFile: formData.visaFile, // Now contains URL
+          visaFile: formData.visaFile,
           visaNumber: formData.visaNumber,
           nationality: formData.nationality,
           gender: formData.gender,
@@ -146,7 +228,9 @@ const fetchNationalities = async () => {
       });
       setFileUploaded({ visaFile: false });
       setErrors({});
+      setVisaFileName('');
       setStep(1);
+      onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ غير متوقع');
     } finally {
@@ -189,8 +273,9 @@ const fetchNationalities = async () => {
                   placeholder="ادخل اسم العميل"
                   value={formData.fullname}
                   onChange={handleInputChange}
-                  className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark"
+                  className={`w-full bg-background-light border ${errors.fullname ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
+                {errors.fullname && <p className="text-red-500 text-xs mt-1">{errors.fullname}</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="phonenumber" className="block text-sm font-medium text-text-dark">الرقم</label>
@@ -201,8 +286,9 @@ const fetchNationalities = async () => {
                   placeholder="ادخل رقم العميل"
                   value={formData.phonenumber}
                   onChange={handleInputChange}
-                  className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark"
+                  className={`w-full bg-background-light border ${errors.phonenumber ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
+                {errors.phonenumber && <p className="text-red-500 text-xs mt-1">{errors.phonenumber}</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="nationalId" className="block text-sm font-medium text-text-dark">الهوية</label>
@@ -213,8 +299,9 @@ const fetchNationalities = async () => {
                   placeholder="ادخل هوية العميل"
                   value={formData.nationalId}
                   onChange={handleInputChange}
-                  className="w-full bg-background-light border border-border-color rounded-md py-2  text-sm text-text-dark"
+                  className={`w-full bg-background-light border ${errors.nationalId ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
+                {errors.nationalId && <p className="text-red-500 text-xs mt-1">{errors.nationalId}</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="city" className="block text-sm font-medium text-text-dark">المدينة</label>
@@ -224,33 +311,25 @@ const fetchNationalities = async () => {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2 text-sm text-text-dark appearance-none"
+                    className={`w-full bg-background-light border ${errors.city ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
                   >
-    <option value="">اختر المدينة</option>
-    <option value="Ar Riyāḍ">الرياض</option>
-    <option value="Makkah al Mukarramah">مكة المكرمة</option>
-    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
-    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
-    <option value="Asīr">عسير</option>
-    <option value="Tabūk">تبوك</option>
-    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
-    <option value="Jazan">جازان</option>
-    <option value="Najrān">نجران</option>
-    <option value="Al Bāḩah">الباحة</option>
-    <option value="Al Jawf">الجوف</option>
-    <option value="Al Qaşīm">القصيم</option>
-    <option value="Ḩa'il">حائل</option>
-
                     <option value="">اختر المدينة</option>
-                    
-                    <option value="الرياض">الرياض</option>
-                    <option value="جدة">جدة</option>
-                    {/* Add more cities as needed */}
+                    <option value="Ar Riyāḍ">الرياض</option>
+                    <option value="Makkah al Mukarramah">مكة المكرمة</option>
+                    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
+                    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
+                    <option value="Asīr">عسير</option>
+                    <option value="Tabūk">تبوك</option>
+                    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
+                    <option value="Jazan">جازان</option>
+                    <option value="Najrān">نجران</option>
+                    <option value="Al Bāḩah">الباحة</option>
+                    <option value="Al Jawf">الجوف</option>
+                    <option value="Al Qaşīm">القصيم</option>
+                    <option value="Ḩa'il">حائل</option>
                   </select>
-                  {/* <ChevronDown
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  /> */}
                 </div>
+                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="clientSource" className="block text-sm font-medium text-text-dark">مصدر العميل</label>
@@ -260,17 +339,14 @@ const fetchNationalities = async () => {
                     name="clientSource"
                     value={formData.clientSource}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2 text-sm text-text-dark appearance-none"
+                    className={`w-full bg-background-light border ${errors.clientSource ? 'border-red-500' : 'border-border-color'} rounded-md py-2 text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر مصدر العميل</option>
                     <option value="تسويق">تسويق</option>
                     <option value="إعلان">إعلان</option>
-                    {/* Add more sources as needed */}
                   </select>
-                  {/* <ChevronDown
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  /> */}
                 </div>
+                {errors.clientSource && <p className="text-red-500 text-xs mt-1">{errors.clientSource}</p>}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-text-dark">هل لدى العميل تأشيرة؟</label>
@@ -304,7 +380,11 @@ const fetchNationalities = async () => {
               <button
                 type="button"
                 className="bg-primary-dark text-text-light px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90"
-                onClick={() => formData.hasVisa === 'yes' ? setStep(2) : handleSubmit()}
+                onClick={() => {
+                  if (validateStep1()) {
+                    formData.hasVisa === 'yes' ? setStep(2) : handleSubmit();
+                  }
+                }}
                 disabled={loading}
               >
                 {formData.hasVisa === 'yes' ? 'التالي' : 'حفظ'}
@@ -336,8 +416,9 @@ const fetchNationalities = async () => {
                   placeholder="ادخل رقم التأشيرة"
                   value={formData.visaNumber}
                   onChange={handleInputChange}
-                  className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark"
+                  className={`w-full bg-background-light border ${errors.visaNumber ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
+                {errors.visaNumber && <p className="text-red-500 text-xs mt-1">{errors.visaNumber}</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="nationality" className="block text-sm font-medium text-text-dark">الجنسية</label>
@@ -347,18 +428,15 @@ const fetchNationalities = async () => {
                     name="nationality"
                     value={formData.nationality}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2  text-sm text-text-dark appearance-none"
+                    className={`w-full bg-background-light border ${errors.nationality ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر الجنسية</option>
                     {nationalities.map((nationality) => (
                       <option key={nationality.id} value={nationality.value}>{nationality.value as string}</option>
                     ))}
-                    {/* Add more nationalities as needed */}
                   </select>
-                  {/* <ChevronDown
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
-                  /> */}
                 </div>
+                {errors.nationality && <p className="text-red-500 text-xs mt-1">{errors.nationality}</p>}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-text-dark">الجنس</label>
@@ -371,7 +449,7 @@ const fetchNationalities = async () => {
                       checked={formData.gender === 'male'}
                       onChange={handleInputChange}
                       className="text-primary-dark"
-                    />  
+                    />
                     ذكر
                   </label>
                   <label className="flex items-center gap-2">
@@ -386,6 +464,7 @@ const fetchNationalities = async () => {
                     أنثى
                   </label>
                 </div>
+                {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
               </div>
               <div className="space-y-2">
                 <label htmlFor="profession" className="block text-sm font-medium text-text-dark">المهنة</label>
@@ -395,19 +474,19 @@ const fetchNationalities = async () => {
                     name="profession"
                     value={formData.profession}
                     onChange={handleInputChange}
-                    className="w-full bg-background-light border border-border-color rounded-md py-2  text-sm text-text-dark appearance-none"
+                    className={`w-full bg-background-light border ${errors.profession ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر المهنة</option>
                     <option value="عاملة منزلية">عاملة منزلية</option>
                     <option value="سائق">سائق</option>
-                    {/* Add more professions as needed */}
                   </select>
                 </div>
+                {errors.profession && <p className="text-red-500 text-xs mt-1">{errors.profession}</p>}
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <label htmlFor="visaFile" className="block text-sm font-medium text-text-dark">ملف التأشيرة</label>
                 <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
-                  <span className="text-gray-500 text-sm pr-2">
+                  <span className="text-gray-500 text-sm pr-2 truncate">
                     {fileUploaded.visaFile ? (
                       <a
                         href={formData.visaFile}
@@ -415,7 +494,7 @@ const fetchNationalities = async () => {
                         rel="noopener noreferrer"
                         className="text-teal-800 hover:underline"
                       >
-                        فتح الملف
+                        {visaFileName}
                       </a>
                     ) : (
                       'إرفاق ملف التأشيرة'
