@@ -44,16 +44,21 @@ const VisaModal = React.memo(
     fetchVisas,
     setNotification,
     clientId,
+    isEditMode = false,
+    visaId,
   }: {
     isHidden: boolean;
     setIsHidden: (isHidden: boolean) => void;
-    visaInfo: any;
-    setVisaInfo: (visaInfo: any) => void;
+    visaInfo: VisaData;
+    setVisaInfo: (visaInfo: VisaData) => void;
     fetchVisas: () => void;
-    setNotification: (notification: { message: string; type: 'success' | 'error' } | null) => void;
+    setNotification: (notification: Notification | null) => void;
     clientId: string;
+    isEditMode?: boolean;
+    visaId?: number;
   }) => {
     const visaNumberRef = useRef<HTMLInputElement>(null);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     useEffect(() => {
       if (!isHidden && visaNumberRef.current) {
@@ -63,40 +68,77 @@ const VisaModal = React.memo(
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setVisaInfo({ ...visaInfo, [e.target.name]: e.target.value });
+      setErrors((prev) => ({ ...prev, [e.target.name]: '' }));
     };
 
-    const addVisaData = async () => {
-      if (!visaInfo.visaNumber || !visaInfo.gender || !visaInfo.nationality) {
-        setNotification({ message: 'يرجى ملء جميع الحقول المطلوبة', type: 'error' });
+    const validateForm = () => {
+      const newErrors: { [key: string]: string } = {};
+
+      if (!visaInfo.visaNumber) {
+        newErrors.visaNumber = 'رقم التأشيرة مطلوب';
+      } else if (!/^\d+$/.test(visaInfo.visaNumber)) {
+        newErrors.visaNumber = 'رقم التأشيرة يجب أن يحتوي على أرقام فقط';
+      }
+
+      if (!visaInfo.gender) {
+        newErrors.gender = 'الجنس مطلوب';
+      }
+
+      if (!visaInfo.nationality) {
+        newErrors.nationality = 'الجنسية مطلوبة';
+      }
+
+      if (visaInfo.profession && !/^[\u0600-\u06FFa-zA-Z\s]+$/.test(visaInfo.profession)) {
+        newErrors.profession = 'المهنة يجب أن تحتوي على أحرف فقط';
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    
+    const saveVisaData = async () => {
+      if (!validateForm()) {
+        setNotification({ message: 'يرجى تصحيح الأخطاء في النموذج', type: 'error' });
         return;
       }
 
       try {
-        const response = await fetch(`/api/visadata`, {
-          method: 'POST',
+        const response = await fetch(`/api/visadata${isEditMode ? `` : ''}`, {
+          method: isEditMode ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...visaInfo,
             clientID: clientId,
           }),
         });
+
         if (response.ok) {
-          setNotification({ message: 'تم إضافة التأشيرة بنجاح', type: 'success' });
+          setNotification({
+            message: isEditMode ? 'تم تحديث التأشيرة بنجاح' : 'تم إضافة التأشيرة بنجاح',
+            type: 'success',
+          });
           setIsHidden(true);
           fetchVisas();
           setVisaInfo({
+            id: 0,
             visaNumber: '',
             gender: '',
             profession: '',
             visaFile: '',
             nationality: '',
+            createdAt: '',
           });
+          setErrors({});
         } else {
-          throw new Error('فشل في إضافة التأشيرة');
+          throw new Error(isEditMode ? 'فشل في تحديث التأشيرة' : 'فشل في إضافة التأشيرة');
         }
       } catch (error) {
         console.error(error);
-        setNotification({ message: 'فشل في إضافة التأشيرة', type: 'error' });
+        setNotification({
+          message: isEditMode ? 'فشل في تحديث التأشيرة' : 'فشل في إضافة التأشيرة',
+          type: 'error',
+        });
       }
     };
 
@@ -108,7 +150,7 @@ const VisaModal = React.memo(
       >
         <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
           <h2 className="text-xl font-semibold text-teal-800 mb-4 text-center">
-            إضافة تأشيرة
+            {isEditMode ? 'تعديل تأشيرة' : 'إضافة تأشيرة'}
           </h2>
           <div className="space-y-4">
             <div>
@@ -122,9 +164,14 @@ const VisaModal = React.memo(
                 value={visaInfo.visaNumber}
                 placeholder="أدخل رقم التأشيرة"
                 onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                  errors.visaNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
                 required
               />
+              {errors.visaNumber && (
+                <p className="text-red-500 text-sm mt-1">{errors.visaNumber}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">
@@ -134,13 +181,18 @@ const VisaModal = React.memo(
                 name="gender"
                 value={visaInfo.gender}
                 onChange={handleInputChange}
-                className="w-full  border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className={`w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                  errors.gender ? 'border-red-500' : 'border-gray-300'
+                }`}
                 required
               >
                 <option value="">اختر الجنس</option>
                 <option value="male">ذكر</option>
                 <option value="female">أنثى</option>
               </select>
+              {errors.gender && (
+                <p className="text-red-500 text-sm mt-1">{errors.gender}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">المهنة</label>
@@ -150,8 +202,13 @@ const VisaModal = React.memo(
                 value={visaInfo.profession}
                 placeholder="أدخل المهنة"
                 onChange={handleInputChange}
-                className="w-full  border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className={`w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                  errors.profession ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {errors.profession && (
+                <p className="text-red-500 text-sm mt-1">{errors.profession}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">
@@ -161,7 +218,9 @@ const VisaModal = React.memo(
                 name="nationality"
                 value={visaInfo.nationality}
                 onChange={handleInputChange}
-                className="w-full  border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className={`w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                  errors.nationality ? 'border-red-500' : 'border-gray-300'
+                }`}
                 required
               >
                 <option value="">اختر الجنسية</option>
@@ -172,6 +231,9 @@ const VisaModal = React.memo(
                 <option value="bangladesh">بنغلاديش</option>
                 <option value="other">أخرى</option>
               </select>
+              {errors.nationality && (
+                <p className="text-red-500 text-sm mt-1">{errors.nationality}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">الملف</label>
@@ -193,7 +255,7 @@ const VisaModal = React.memo(
                         'x-amz-acl': 'public-read',
                       },
                     });
-                    
+
                     if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
                     setVisaInfo({ ...visaInfo, visaFile: filePath });
                     setNotification({ message: 'تم رفع الملف بنجاح', type: 'success' });
@@ -202,7 +264,7 @@ const VisaModal = React.memo(
                     setNotification({ message: 'فشل في رفع الملف', type: 'error' });
                   }
                 }}
-                className="w-full  border border-gray-300 rounded-md"
+                className="w-full border border-gray-300 rounded-md"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -213,10 +275,10 @@ const VisaModal = React.memo(
                 إغلاق
               </button>
               <button
-                onClick={addVisaData}
+                onClick={saveVisaData}
                 className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition"
               >
-                إضافة
+                {isEditMode ? 'حفظ التعديلات' : 'إضافة'}
               </button>
             </div>
           </div>
@@ -236,16 +298,19 @@ export default function Home() {
     nationalId: '',
     city: '',
   });
-  const [visaInfo, setVisaInfo] = useState({
+  const [visaInfo, setVisaInfo] = useState<VisaData>({
+    id: 0,
     visaNumber: '',
     gender: '',
     profession: '',
     visaFile: '',
     nationality: '',
+    createdAt: '',
   });
   const [visas, setVisas] = useState<VisaData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [editingVisaId, setEditingVisaId] = useState<number | null>(null);
 
   const router = useRouter();
 
@@ -256,6 +321,7 @@ export default function Home() {
       const response = await fetch(`/api/clientinfo?id=${router.query.id}`);
       const data = await response.json();
       setClientInfo(data);
+      setOrders(data.orders);
     } catch (error) {
       console.error(error);
       setNotification({ message: 'فشل في جلب بيانات العميل', type: 'error' });
@@ -276,6 +342,12 @@ export default function Home() {
     }
   };
 
+  const handleEditVisa = (visa: VisaData) => {
+    setVisaInfo(visa);
+    setEditingVisaId(visa.id);
+    setIsHidden(false);
+  };
+
   useEffect(() => {
     fetchClientInfo();
     fetchVisas();
@@ -291,6 +363,7 @@ export default function Home() {
       });
       if (response.ok) {
         setNotification({ message: 'تم تحديث بيانات العميل بنجاح', type: 'success' });
+        fetchClientInfo();
       } else {
         throw new Error('فشل في تحديث البيانات');
       }
@@ -336,6 +409,37 @@ export default function Home() {
     );
   }
 
+
+    // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
+  const translateBookingStatus = (status: string) => {
+    const statusTranslations: { [key: string]: string } = {
+      'pending': 'قيد الانتظار',
+      'external_office_approved': 'موافقة المكتب الخارجي',
+      'pending_external_office': 'في انتظار المكتب الخارجي',
+      'medical_check_passed': 'تم اجتياز الفحص الطبي',
+      'pending_medical_check': 'في انتظار الفحص الطبي',
+      'foreign_labor_approved': 'موافقة وزارة العمل الأجنبية',
+      'pending_foreign_labor': 'في انتظار وزارة العمل الأجنبية',
+      'agency_paid': 'تم دفع الوكالة',
+      'pending_agency_payment': 'في انتظار دفع الوكالة',
+      'embassy_approved': 'موافقة السفارة السعودية',
+      'pending_embassy': 'في انتظار السفارة السعودية',
+      'visa_issued': 'تم إصدار التأشيرة',
+      'pending_visa': 'في انتظار إصدار التأشيرة',
+      'travel_permit_issued': 'تم إصدار تصريح السفر',
+      'pending_travel_permit': 'في انتظار تصريح السفر',
+      'received': 'تم الاستلام',
+      'pending_receipt': 'في انتظار الاستلام',
+      'cancelled': 'ملغي',
+      'rejected': 'مرفوض',
+      'delivered': 'تم التسليم',
+      'new_order': 'طلب جديد',
+      'new_orders': 'طلبات جديدة'
+    };
+    
+    return statusTranslations[status] || status;
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 p-6">
@@ -352,6 +456,8 @@ export default function Home() {
           fetchVisas={fetchVisas}
           setNotification={setNotification}
           clientId={router.query.id as string}
+          isEditMode={editingVisaId !== null}
+          visaId={editingVisaId || undefined}
         />
         {notification && (
           <NotificationModal
@@ -381,6 +487,7 @@ export default function Home() {
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, fullname: e.target.value })
                     }
+                    readOnly
                     required
                   />
                 </div>
@@ -405,6 +512,7 @@ export default function Home() {
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, nationalId: e.target.value })
                     }
+                    readOnly
                     required
                   />
                 </div>
@@ -414,6 +522,7 @@ export default function Home() {
                     type="text"
                     className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
                     value={clientInfo.city}
+                    readOnly
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, city: e.target.value })
                     }
@@ -433,7 +542,19 @@ export default function Home() {
             <div className="flex flex-col gap-4">
               <button
                 className="mx-auto bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
-                onClick={() => setIsHidden(false)}
+                onClick={() => {
+                  setVisaInfo({
+                    id: 0,
+                    visaNumber: '',
+                    gender: '',
+                    profession: '',
+                    visaFile: '',
+                    nationality: '',
+                    createdAt: '',
+                  });
+                  setEditingVisaId(null);
+                  setIsHidden(false);
+                }}
               >
                 إضافة تأشيرة
               </button>
@@ -441,23 +562,24 @@ export default function Home() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-right border-collapse">
                     <thead>
-                      <tr className="bg-teal-100">
-                        <th className="p-3 border">رقم التأشيرة</th>
-                        <th className="p-3 border">الجنس</th>
-                        <th className="p-3 border">المهنة</th>
-                        <th className="p-3 border">الجنسية</th>
-                        <th className="p-3 border">تاريخ الإنشاء</th>
-                        <th className="p-3 border">الملف</th>
+                      <tr className="bg-teal-800 text-white text-center">
+                        <th className="p-3 border text-center">رقم التأشيرة</th>
+                        <th className="p-3 border text-center">الجنس</th>
+                        <th className="p-3 border text-center">المهنة</th>
+                        <th className="p-3 border text-center">الجنسية</th>
+                        <th className="p-3 border text-center">تاريخ الإنشاء</th>
+                        <th className="p-3 border text-center">الملف</th>
+                        <th className="p-3 border text-center">إجراءات</th>
                       </tr>
                     </thead>
                     <tbody>
                       {visas.map((visa) => (
-                        <tr key={visa.id} className="hover:bg-gray-50">
-                          <td className="p-3 border">{visa.visaNumber}</td>
-                          <td className="p-3 border">{visa.gender}</td>
-                          <td className="p-3 border">{visa.profession}</td>
-                          <td className="p-3 border">{visa.nationality}</td>
-                          <td className="p-3 border">
+                        <tr key={visa.id} className="hover:bg-gray-50 text-center">
+                          <td className="p-3 border text-center">{visa.visaNumber}</td>
+                          <td className="p-3 border text-center">{visa.gender}</td>
+                          <td className="p-3 border text-center">{visa.profession}</td>
+                          <td className="p-3 border text-center">{visa.nationality}</td>
+                          <td className="p-3 border text-center">
                             {new Date(visa.createdAt).toLocaleDateString('ar-SA')}
                           </td>
                           <td className="p-3 border">
@@ -473,6 +595,14 @@ export default function Home() {
                             ) : (
                               '-'
                             )}
+                          </td>
+                          <td className="p-3 border">
+                            <button
+                              onClick={() => handleEditVisa(visa)}
+                              className="text-teal-600 hover:underline"
+                            >
+                              تعديل
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -501,23 +631,23 @@ export default function Home() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-right border-collapse">
                     <thead>
-                      <tr className="bg-teal-100">
-                        <th className="p-3 border">رقم الطلب</th>
-                        <th className="p-3 border">اسم العميل</th>
-                        <th className="p-3 border">رقم الهاتف</th>
-                        <th className="p-3 border">حالة الحجز</th>
-                        <th className="p-3 border">تاريخ الإنشاء</th>
+                      <tr className="bg-teal-800 text-white text-center">
+                        <th className="p-3 border text-center">رقم الطلب</th>
+                        <th className="p-3 border text-center">اسم العميل</th>
+                        <th className="p-3 border text-center">رقم الهاتف</th>
+                        <th className="p-3 border text-center">حالة الحجز</th>
+                        <th className="p-3 border text-center">تاريخ الإنشاء</th>
                       </tr>
                     </thead>
                     <tbody>
                       {orders.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50">
-                          <td className="p-3 border">{order.id}</td>
-                          <td className="p-3 border">{order.ClientName}</td>
-                          <td className="p-3 border">{order.PhoneNumber}</td>
-                          <td className="p-3 border">{order.bookingstatus}</td>
-                          <td className="p-3 border">
-                            {new Date(order.createdAt).toLocaleDateString('ar-SA')}
+                        <tr key={order.id} className="hover:bg-gray-50 text-center">
+                          <td className="p-3 border text-center">{order.id}</td>
+                          <td className="p-3 border text-center">{order.ClientName}</td>
+                          <td className="p-3 border text-center">{order.PhoneNumber}</td>
+                          <td className="p-3 border text-center">{translateBookingStatus(order.bookingstatus)}</td>
+                          <td className="p-3 border text-center">
+                            {new Date(order.createdAt).toLocaleDateString()}
                           </td>
                         </tr>
                       ))}

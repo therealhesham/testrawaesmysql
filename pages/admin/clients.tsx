@@ -18,7 +18,7 @@ import { useRouter } from 'next/router';
 interface Order {
   id: number;
   bookingstatus: string | null;
-  createdat: string | null;
+  createdAt: string | null;
   HomeMaid: { id: number; Name: string | null } | null;
 }
 
@@ -202,7 +202,17 @@ const router = useRouter();
     return statusTranslations[status] || status;
   };
 
+const [fullDataForExport, setFullDataForExport] = useState<any[]>([]);
+  const fullDataForPDF = async () => {
+const daa = await fetch('/api/clientsexport');
+const data = await daa.json();
+setFullDataForExport(data.data);
 
+
+  }
+useEffect(() => {
+  fullDataForPDF();
+}, []);
   // دالة تصدير PDF
   const exportToPDF = async () => {
     const doc = new jsPDF();
@@ -223,27 +233,29 @@ const router = useRouter();
       // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
       doc.setFont('helvetica', 'normal');
     }
-
-    doc.setLanguage('ar');
+// doc.setR2L(false);
+// const dataClients = 
+doc.setLanguage('ar');
     doc.setFontSize(16);
-    doc.text("قائمة العملاء", 200, 10, { align: 'center' });
+    doc.text("قائمة العملاء", 200, 10, { align: 'right', maxWidth: 200 });
 
     // إنشاء أعمدة الجدول بناء على الأعمدة المرئية
     const tableColumn: string[] = [];
     const columnKeys: string[] = [];
-    
-    if (visibleColumns.id) { tableColumn.push("الرقم"); columnKeys.push("id"); }
-    if (visibleColumns.fullname) { tableColumn.push("الاسم"); columnKeys.push("fullname"); }
-    if (visibleColumns.phonenumber) { tableColumn.push("رقم الجوال"); columnKeys.push("phonenumber"); }
-    if (visibleColumns.nationalId) { tableColumn.push("الهوية"); columnKeys.push("nationalId"); }
-    if (visibleColumns.city) { tableColumn.push("المدينة"); columnKeys.push("city"); }
-    if (visibleColumns.ordersCount) { tableColumn.push("عدد الطلبات"); columnKeys.push("ordersCount"); }
-    if (visibleColumns.lastOrderDate) { tableColumn.push("تاريخ آخر طلب"); columnKeys.push("lastOrderDate"); }
+
     if (visibleColumns.remainingAmount) { tableColumn.push("المبلغ المتبقي"); columnKeys.push("remainingAmount"); }
+    
+    if (visibleColumns.lastOrderDate) { tableColumn.push("تاريخ آخر طلب"); columnKeys.push("lastOrderDate"); }
+    if (visibleColumns.ordersCount) { tableColumn.push("عدد الطلبات"); columnKeys.push("ordersCount"); }
+    if (visibleColumns.city) { tableColumn.push("المدينة"); columnKeys.push("city"); }
+    if (visibleColumns.nationalId) { tableColumn.push("الهوية"); columnKeys.push("nationalId"); }
+    if (visibleColumns.phonenumber) { tableColumn.push("رقم الجوال"); columnKeys.push("phonenumber"); }
+    if (visibleColumns.fullname) { tableColumn.push("الاسم"); columnKeys.push("fullname"); }
+    if (visibleColumns.id) { tableColumn.push("الرقم"); columnKeys.push("id"); }
 
     const tableRows: any[] = [];
 
-    clients.forEach((client) => {
+    fullDataForExport.forEach((client) => {
       const clientData: string[] = [];
       
       columnKeys.forEach((key) => {
@@ -267,7 +279,7 @@ const router = useRouter();
             clientData.push(client._count.orders.toString());
             break;
           case "lastOrderDate":
-              clientData.push(client.orders[0]?.createdat ? new Date(client.orders[0]?.createdat).toLocaleDateString() : '-');
+              clientData.push(client.orders[0]?.createdAt ? new Date(client.orders[0]?.createdAt).toLocaleDateString() : '-');
             break;
           case "remainingAmount":
             clientData.push('-');
@@ -285,19 +297,20 @@ const router = useRouter();
       body: tableRows,
       styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
       headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
-      margin: { top: 30 },
+      bodyStyles: { minCellWidth: 20 },
+      margin: { top: 30 , right: 10, left: 10},width: 100,height: 100,cellWidth: 100,
       didDrawPage: () => {
         doc.setFontSize(10);
         doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
       },
     });
 
-    doc.save('clients.pdf');
+    doc.save('بيانات عملاء الاستقدام.pdf');
   };
 
   // دالة تصدير Excel
   const exportToExcel = () => {
-    const worksheetData = clients.map((client) => {
+    const worksheetData = fullDataForExport.map((client) => {
       const clientData: any = {};
       
       if (visibleColumns.id) clientData['الرقم'] = client.id;
@@ -307,8 +320,8 @@ const router = useRouter();
       if (visibleColumns.city) clientData['المدينة'] = client.city || '-';
       if (visibleColumns.ordersCount) clientData['عدد الطلبات'] = client._count.orders;
       if (visibleColumns.lastOrderDate) {
-        clientData['تاريخ آخر طلب'] = client.orders[0]?.createdat
-          ? new Date(client.orders[0]?.createdat).toLocaleDateString()
+        clientData['تاريخ آخر طلب'] = client.orders[0]?.createdAt
+          ? new Date(client.orders[0]?.createdAt).toLocaleDateString()
           : '-';
       }
       if (visibleColumns.remainingAmount) clientData['المبلغ المتبقي'] = '-';
@@ -318,7 +331,14 @@ const router = useRouter();
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Clients');
+    //from right to left
+    worksheet['!cols'] = [
+      { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
+      { wch: 20 }, { wch: 15 }, { wch: 10 }
+    ];
+    XLSX.utils.sheet_add_aoa(worksheet, [['الرقم', 'الاسم', 'رقم الجوال', 'الهوية', 'المدينة', 'عدد الطلبات', 'تاريخ آخر طلب', 'المبلغ المتبقي']], { origin: 'A1' ,direction: 'rtl'});
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Clients', { origin: 'A1' ,direction: 'rtl'});
     XLSX.writeFile(workbook, 'clients.xlsx');
   };
 
@@ -476,7 +496,7 @@ const router = useRouter();
         clients.map((client) => (
           <React.Fragment key={client.id}>
             <tr className="bg-background-light text-text-dark text-md">
-              {visibleColumns.id && <td className="text-nowrap text-center p-4" onClick={() => router.push(`/admin/clientdetails?id=${client.id}`)}>#{client.id}</td>}
+              {visibleColumns.id && <td className="text-nowrap text-center p-4 cursor-pointer " onClick={() => router.push(`/admin/clientdetails?id=${client.id}`)}>#{client.id}</td>}
               {visibleColumns.fullname && <td className="text-nowrap text-center p-4">{client.fullname}</td>}
               {visibleColumns.phonenumber && <td className="text-nowrap text-center p-4">{client.phonenumber}</td>}
               {visibleColumns.nationalId && <td className="text-nowrap text-center p-4">{client.nationalId}</td>}
@@ -651,7 +671,7 @@ const router = useRouter();
             )}
           </main>
         </div>
-        <AddClientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+        <AddClientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchClients}/>
         {selectedClient && (
           <AddNotesModal
             isOpen={isNotesModalOpen}

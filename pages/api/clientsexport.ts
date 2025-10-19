@@ -19,13 +19,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       select: {
         id: true,
         fullname: true,
+        nationalId: true,
+        city: true,
         email: true,
         phonenumber: true,
         createdAt: true,
+
         _count: { select: { orders: true } },
         orders: {
-          orderBy: { id: "desc" },
-          include: { HomeMaid: true },
+          orderBy: { id: "desc" },select:{
+            id: true,
+            createdAt: true,
+            HomeMaid: {
+              select: {
+                id: true,
+                Name: true,
+              },
+            },
+          },
+          // include: { HomeMaid: true },
         },
       },
     });
