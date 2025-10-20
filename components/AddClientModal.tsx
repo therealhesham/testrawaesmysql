@@ -46,7 +46,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
 
   const validateStep1 = () => {
     const newErrors: any = {};
-    const nameRegex = /^[\u0600-\u06FF\s]+$/; // Arabic letters and spaces only
+    const nameRegex = /^[a-zA-Z\s\u0600-\u06FF]+$/; // Arabic letters and english letters only
     const phoneRegex = /^\d{9}$/; // 10 digits for Saudi phone numbers
 
     if (!formData.fullname) {
