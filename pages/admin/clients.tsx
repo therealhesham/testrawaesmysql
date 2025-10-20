@@ -606,7 +606,7 @@ const Customers = ({ hasPermission }: Props) => {
                                       ) : (
                                         client.orders.map((order) => (
                                           <tr key={order.id} className="bg-background-light text-text-dark text-md">
-                                            <td className="text-nowrap text-center p-4">#{order.id}</td>
+                                            <td className="text-nowrap text-center cursor-pointer p-4" onClick={()=>router.push(`admin/track_order/${order.id}`)}>#{order.id}</td>
                                             <td className="text-nowrap text-center p-4">{order.HomeMaid?.Name || '-'}</td>
                                             <td className="text-nowrap text-center p-4">{translateBookingStatus(order.bookingstatus) || '-'}</td>
                                             <td className="text-nowrap text-center p-4">
