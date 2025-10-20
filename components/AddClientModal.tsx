@@ -277,19 +277,44 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                 />
                 {errors.fullname && <p className="text-red-500 text-xs mt-1">{errors.fullname}</p>}
               </div>
-              <div className="space-y-2">
-                <label htmlFor="phonenumber" className="block text-sm font-medium text-text-dark">الرقم</label>
-                <input
-                  type="text"
-                  id="phonenumber"
-                  name="phonenumber"
-                  placeholder="ادخل رقم العميل"
-                  value={formData.phonenumber}
-                  onChange={handleInputChange}
-                  className={`w-full bg-background-light border ${errors.phonenumber ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
-                />
-                {errors.phonenumber && <p className="text-red-500 text-xs mt-1">{errors.phonenumber}</p>}
-              </div>
+<div className="space-y-2">
+  <label
+    htmlFor="phonenumber"
+    className="block text-sm font-medium text-text-dark"
+  >
+    الرقم
+  </label>
+
+  <div className="flex items-center">
+    <input
+      type="text"
+      id="phonenumber"
+      name="phonenumber"
+      placeholder="5XXXXXXXX"
+      value={formData.phonenumber}
+      onChange={(e) => {
+        const value = e.target.value.replace(/\D/g, ""); // يمنع غير الأرقام
+        if (value.startsWith("5") || value === "") {
+          handleInputChange({
+            target: { name: "phonenumber", value },
+          });
+        }
+      }}
+      className={`w-full bg-background-light border ${
+        errors.phonenumber ? "border-red-500" : "border-border-color"
+      } rounded-r-md py-2 px-4 text-sm text-text-dark focus:outline-none`}
+    />
+    <span className="bg-gray-50 border border-r-0 border-border-color rounded-l-md py-2 px-3 text-sm text-gray-600 select-none">
+      966+
+    </span>
+
+  </div>
+
+  {errors.phonenumber && (
+    <p className="text-red-500 text-xs mt-1">{errors.phonenumber}</p>
+  )}
+</div>
+
               <div className="space-y-2">
                 <label htmlFor="nationalId" className="block text-sm font-medium text-text-dark">الهوية</label>
                 <input
