@@ -493,7 +493,7 @@ const arabicRegionMap: { [key: string]: string } = {
 
         <div className="max-w-7xl mx-auto">
           <p className="text-right text-xl text-gray-600 mb-8">
-            رقم العميل: {clientInfo.id}
+            رقم العميل: <span className="text-teal-800 font-bold">{clientInfo.id}</span>
           </p>
 
           <div className="bg-white rounded-lg p-6 mb-6 shadow-md">
@@ -542,15 +542,28 @@ const arabicRegionMap: { [key: string]: string } = {
                 </div>
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">المدينة</label>
-                  <input
-                    type="text"
+                  <select
                     className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    value={translateCity(clientInfo.city)}
-                    readOnly
+                    value={clientInfo.city}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, city: e.target.value })
                     }
-                  />
+                    required
+                  >
+                    <option value="Ar Riyāḍ">الرياض</option>
+                    <option value="Makkah al Mukarramah">مكة المكرمة</option>
+                    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
+                    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
+                    <option value="Asīr">عسير</option>
+                    <option value="Tabūk">تبوك</option>
+                    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
+                    <option value="Jazan">جازان</option>
+                    <option value="Najrān">نجران</option>
+                    <option value="Al Bāḩah">الباحة</option>
+                    <option value="Al Jawf">الجوف</option>
+                    <option value="Al Qaşīm">القصيم</option>
+                    <option value="Ḩa'il">حائل</option>
+                  </select>
                 </div>
               </div>
               <button
