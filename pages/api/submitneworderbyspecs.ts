@@ -105,6 +105,19 @@ export default async function handler(
     });
 
 
+     await prisma.arrivallist.create({
+      data: {
+        // OrderId:id,
+        // SponsorName,
+        // HomemaidName,
+        // PassportNumber,
+
+
+        Order: { connect: { id:result.id } },
+      },
+    });
+
+
     try{
     // Log the action if user is authenticated
     if (userId) {

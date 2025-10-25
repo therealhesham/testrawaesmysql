@@ -44,10 +44,10 @@ export default async function handler(
         Order: { connect: { id } },
       },
     });
-    eventBus.emit('ACTION', {
-        type: 'تأكيد طلب ' + waiter.id,
-        userId: Number(token.id),
-      });   
+    // eventBus.emit('ACTION', {
+    //     type: 'تأكيد طلب ' + waiter.id,
+    //     userId: Number(token.id),
+    //   });   
     // Return the updated order with the newly created arrival
     res.status(200).json(waiter);
   } catch (error) {

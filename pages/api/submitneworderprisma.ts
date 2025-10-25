@@ -77,6 +77,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         HomeMaid: { connect: { id: HomemaidId } },
       },
     });
+    await prisma.arrivallist.create({
+      data: {
+        // OrderId:id,
+        // SponsorName,
+        // HomemaidName,
+        // PassportNumber,
+
+
+        Order: { connect: { id:result.id } },
+      },
+    });
 
     // ✅ أرسل الاستجابة للمستخدم بسرعة
     res.status(200).json(result);
