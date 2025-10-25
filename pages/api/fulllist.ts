@@ -1,5 +1,9 @@
+
+import '../../lib/loggers';
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import { jwtDecode } from "jwt-decode";
+import eventBus from "lib/eventBus";
 
 const prisma = new PrismaClient();
 
@@ -149,6 +153,28 @@ export default async function handler(
           }
         : { office: "", Country: "" },
     }));
+try {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  const referer = req.headers.referer
+  const token = jwtDecode(cookies.authToken);
+  eventBus.emit('ACTION', {
+    type: "عرض قائمة العاملات",
+    beneficiary: "homemaid",
+    pageRoute: referer,
+    actionType: "view",
+    userId: Number((token as any).id),
+  });
+} catch (error) {
+  console.error("Error emitting event:", error);
+}
+
 
     // Send the filtered, paginated, and formatted data as the response
     res.status(200).json({

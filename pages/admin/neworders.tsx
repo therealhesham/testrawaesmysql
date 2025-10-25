@@ -2,7 +2,7 @@ import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
-import { ArrowDown, Plus, Search, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowDown, Plus, Search, X, ChevronUp, ChevronDown, User } from 'lucide-react';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Select from 'react-select';
@@ -36,6 +36,14 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ hasPermission, initialData }: DashboardProps) {
+
+  const [userName, setUserName] = useState('');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const decoded = jwtDecode(token);
+    setUserName(decoded.username);
+  }, []);
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const [allOrders] = useState(initialData?.newOrders || []);
   const [clients] = useState(initialData?.clients || []);
@@ -425,8 +433,150 @@ autoFocus
     setCurrentPage(1);
   };
 
+// Export to PDF
+// const exportToPDF = async () => {
+//   console.log('exporting PDF');
+//   let dataToExport = exportedData;
+//   if (searchTerm || actionFilter) {
+//     dataToExport = await fetchFilteredLogs();
+//   }
+//   const doc = new jsPDF({ orientation: 'landscape' });
+//   const pageWidth = doc.internal.pageSize.width;
+//   const pageHeight = doc.internal.pageSize.height;
+
+//   // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+//   const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+//   const logoBuffer = await logo.arrayBuffer();
+//   const logoBytes = new Uint8Array(logoBuffer);
+//   const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+//   // 🔷 تحميل خط أميري
+//   try {
+//     const response = await fetch('/fonts/Amiri-Regular.ttf');
+//     if (!response.ok) throw new Error('Failed to fetch font');
+//     const fontBuffer = await response.arrayBuffer();
+//     const fontBytes = new Uint8Array(fontBuffer);
+//     const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+//     doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+//     doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+//     doc.setFont('Amiri', 'normal');
+//   } catch (error) {
+//     console.error('Error loading Amiri font:', error);
+//     return;
+//   }
+
+//   doc.setLanguage('ar');
+//   doc.setFontSize(12);
+//   doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
+
+//   const headers = [['اسم المستخدم', 'تاريخ التحديث', 'تاريخ الإنشاء', 'الإجراء', 'رقم السجل']];
+//   const body = dataToExport?.map((row: any) => [
+//     row.user?.username || 'غير متوفر',
+//     row.updatedAt ? new Date(row.updatedAt).toISOString().split('T')[0] : 'غير متوفر',
+//     row.createdAt ? new Date(row.createdAt).toISOString().split('T')[0] : 'غير متوفر',
+//     row.action || 'غير متوفر',
+//     row.id || 'غير متوفر',
+//   ]);
+
+//   doc.autoTable({
+//     head: headers,
+//     body: body,
+//     styles: {
+//       font: 'Amiri',
+//       halign: 'right',
+//       fontSize: 10,
+//       cellPadding: 2,
+//       textColor: [0, 0, 0],
+//     },
+//     headStyles: {
+//       fillColor: [0, 105, 92],
+//       textColor: [255, 255, 255],
+//       halign: 'center',
+//     },
+//     margin: { top: 42, right: 10, left: 10 },
+
+//     // ✅ هنا بنضيف اللوجو والبيانات في كل صفحة
+//     didDrawPage: (data) => {
+//       const pageHeight = doc.internal.pageSize.height;
+//       const pageWidth = doc.internal.pageSize.width;
+
+//       // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+//       doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+//       // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+//       if (doc.getCurrentPageInfo().pageNumber === 1) {
+//         doc.setFontSize(12);
+//         doc.setFont('Amiri', 'normal');
+//         doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
+//       }
+
+//       // 🔸 الفوتر
+//       doc.setFontSize(10);
+//       doc.setFont('Amiri', 'normal');
+
+//       doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+//       const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+//       doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+//       const dateText =
+//         "التاريخ: " +
+//         new Date().toLocaleDateString('ar-EG', {
+//           day: 'numeric',
+//           month: 'short',
+//           year: 'numeric',
+//         }) +
+//         "  الساعة: " +
+//         new Date().toLocaleTimeString('ar-EG', {
+//           hour: '2-digit',
+//           minute: '2-digit',
+//         });
+//       doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+//     },
+
+//     didParseCell: (data) => {
+//       data.cell.styles.halign = 'right';
+//     },
+//   });
+
+//   doc.save('system_logs.pdf');
+// };
+  
+
+
+const fetchFilteredDataExporting = async () => {
+  const query = new URLSearchParams({
+    perPage: "1000",
+    ...(formData.searchTerm && { search: formData.searchTerm }),
+    ...(ageFilter && { age: ageFilter }),
+    ...(nationalityFilter && { nationality: nationalityFilter }),
+  }).toString();
+  const res = await fetch(`/api/neworders?${query}`);
+  
+  if (!res.ok) throw new Error("Failed to fetch data");
+  const data = await res.json();
+  return data.data;
+};
+
   const exportToPDF = async () => {
-    const doc = new jsPDF();
+  
+  
+    let dataToExport = exportedData;
+    
+  const doc = new jsPDF({orientation: 'landscape'});
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  if (formData.searchTerm || ageFilter || nationalityFilter) {
+    dataToExport = await fetchFilteredDataExporting();
+  }
+
+  // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+  
     try {
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
@@ -444,28 +594,27 @@ autoFocus
     }
     doc.setLanguage('ar');
     doc.setFontSize(12);
-    doc.text('الطلبات الجديدة', 200, 10, { align: 'right' });
     const tableColumn = [
-      'رقم الطلب',
-      'اسم العميل',
-      'رقم العميل',
-      'هوية العميل',
-      'رقم العاملة',
-      'اسم العاملة',
-      'الجنسية',
-      'جواز السفر',
       'العمر',
+      'جواز السفر',
+      'الجنسية',
+      'اسم العاملة',
+      'رقم العاملة',
+      'هوية العميل',
+      'رقم العميل',
+      'اسم العميل',
+      'رقم الطلب',
     ];
     const tableRows = exportedData.map((row: any) => [
-      row.id || 'غير متوفر',
-      row.client?.fullname || 'غير متوفر',
-      row.client?.phonenumber || 'غير متوفر',
-      row.client?.nationalId || 'غير متوفر',
-      row.HomeMaid?.id || 'غير متوفر',
-      row.HomeMaid?.Name || 'غير متوفر',
-      row.HomeMaid?.office?.Country || 'غير متوفر',
-      row.Passportnumber || 'غير متوفر',
       row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
+      row.Passportnumber || 'غير متوفر',
+      row.HomeMaid?.office?.Country || 'غير متوفر',
+      row.HomeMaid?.Name || 'غير متوفر',
+      row.HomeMaid?.id || 'غير متوفر',
+      row.client?.nationalId || 'غير متوفر',
+      row.client?.phonenumber || 'غير متوفر',
+      row.client?.fullname || 'غير متوفر',
+      row.id || 'غير متوفر',
     ]);
     doc.autoTable({
       head: [tableColumn],
@@ -478,11 +627,51 @@ autoFocus
         textColor: [0, 0, 0],
       },
       headStyles: {
-        fillColor: [0, 105, 92],
+        fillColor: [26, 77, 79],
         textColor: [255, 255, 255],
         halign: 'right',
       },
-      margin: { top: 20, right: 10, left: 10 },
+      margin: { top: 39, right: 10, left: 10 },
+
+
+       didDrawPage: (data) => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+      if (doc.getCurrentPageInfo().pageNumber === 1) {
+        doc.setFontSize(12);
+        doc.setFont('Amiri', 'normal');
+        doc.text('الطلبات الجديدة', pageWidth / 2, 20, { align: 'right' });
+      }
+
+      // 🔸 الفوتر
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+
       didParseCell: (data: any) => {
         data.cell.styles.halign = 'right';
       },
@@ -581,6 +770,8 @@ useEffect(() => {
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
+      // alert(page);
+      
       setCurrentPage(page);
     }
   };
@@ -597,7 +788,7 @@ useEffect(() => {
       pages.push(
         <a
           key={i}
-          href="#"
+          // href="#"
           onClick={() => handlePageChange(i)}
           className={`px-2 py-1 border rounded text-sm ${
             i === currentPage
@@ -761,10 +952,10 @@ useEffect(() => {
             <table className="w-full text-right text-sm" dir='ltr'>
               <thead className="bg-teal-900 text-white">
                 <tr>
-                  <th className="p-4 pr-6">الإجراءات</th>
-                  <th className="p-4">عرض</th>
+                  <th className="l pr-6 text-center">الإجراءات</th>
+                  <th className="p-4 text-center">عرض</th>
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('age')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>العمر</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
@@ -772,7 +963,7 @@ useEffect(() => {
                     </div>
                   </th>
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('passport')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>جواز السفر</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
@@ -780,23 +971,35 @@ useEffect(() => {
                     </div>
                   </th>
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('nationality')}>
-                    <div className="flex items-center gap-1">
-                      <span>الجنسية</span>
+                    <div className="flex items-center gap-1 text-center">
+                        <span>الجنسية</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
                       )}
                     </div>
                   </th>
-                  <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('maidName')}>
-                    <div className="flex items-center gap-1">
-                      <span>اسم العاملة</span>
+
+
+
+
+
+
+                  <th className="p-4 cursor-pointer hover:bg-teal-800 " onClick={() => handleSort('maidName')}>
+                    <div className="flex items-center gap-1 text-center">
+                        <span>اسم العاملة</span>
                       {sortField  && (
-                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
+                        sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
                       )}
                     </div>
                   </th>
+
+
+
+
+
+
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('maidId')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>رقم العاملة</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
@@ -804,7 +1007,7 @@ useEffect(() => {
                     </div>
                   </th>
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientId')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>هوية العميل</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>  
@@ -812,7 +1015,7 @@ useEffect(() => {
                     </div>
                   </th>
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientPhone')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>رقم العميل</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
@@ -820,7 +1023,7 @@ useEffect(() => {
                     </div>
                   </th>
                   <th className="p-4 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('clientName')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>اسم العميل</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
@@ -828,7 +1031,7 @@ useEffect(() => {
                     </div>
                   </th>
                   <th className="p-4 pl-6 cursor-pointer hover:bg-teal-800" onClick={() => handleSort('id')}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-center">
                       <span>رقم الطلب</span>
                       {sortField  && (
                         sortDirection  ? <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span> : <span><ChevronUp className="w-4 h-4" />  <ChevronDown className="w-4 h-4" /></span>
@@ -837,105 +1040,107 @@ useEffect(() => {
                   </th>
                 </tr>
               </thead>
-              <tbody>
-                {sortedOrders.map((row, index) => (
-                  <>
-                    <tr key={index} className="bg-gray-50">
-                      <td className="p-4 pr-6">
-                        <button
-                          className="p-1 cursor-pointer"
-                          onClick={(e) => handleOpenMenu(e, index)}
-                        >
-                          <MoreHorizontal />
-                        </button>
-                         {menuPosition && menuPosition.row === index && (
-                           <div
-                             className="fixed w-40 bg-gray-100 border border-gray-200 rounded shadow-lg z-50"
-                             style={{
-                               top: menuPosition.y,
-                               left: menuPosition.x,
-                             }}
-                           >
-                            <button
-                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-                              onClick={() => {
-                                setSelectedOrderId(row?.id);
-                                openPopup("popup-confirm-accept");
-                                setMenuPosition(null);
-                              }}
-                            >
-                              قبول الطلب
-                            </button>
-                            <button
-                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-                              onClick={() => {
-                                setSelectedOrderId(row?.id);
-                                openPopup("popup-confirm-reject");
-                                setMenuPosition(null);
-                              }}
-                            >
-                              رفض الطلب
-                            </button>
-                            <button
-                              className="block w-full text-right px-4 py-2 hover:bg-gray-100"
-                              onClick={() => {
-                                const editPage = row.isAvailable ? 'add-available' : 'add-specs';
-                                router.push(`/admin/order-form?type=${editPage}&orderId=${row.id}`);
-                                setMenuPosition(null);
-                              }}
-                            >
-                              تعديل
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4 cursor-pointer">
-                        <ArrowDown onClick={() => toggleDetails(index)} />
-                      </td>
-                      <td className="p-4">{row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth)}</td>
-                      <td className="p-4">{row.Passportnumber || 'غير متوفر'}</td>
-                      <td className="p-4">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                      <td className="p-4">{row.HomeMaid?.Name || 'غير متوفر'}</td>
-                      <td className="p-4">{row.HomeMaid?.id || 'غير متوفر'}</td>
-                      <td className="p-4">{row.client?.nationalId || 'غير متوفر'}</td>
-                      <td className="p-4">{row.client?.phonenumber || 'غير متوفر'}</td>
-                      <td className="p-4">{row.client?.fullname || 'غير متوفر'}</td>
-                      <td className="p-4 pl-6 cursor-pointer" onClick={() => handleOrderClick(row.id)}>
-                        #{row.id}
-                      </td>
-                    </tr>
-                    {detailsRow === index && (
-                      
-                      
-                      <tr className="bg-white">
-                        <td colSpan={11} className="p-0">
-                          <div className="p-4">
-                            <div className="border border-gray-300 rounded">
-                              <div className="grid grid-cols-5 bg-gray-100 font-bold text-base p-3 border-b border-gray-300">
-                                <span>العملية</span>
-                                <span>التاريخ</span>
-                                <span>المستخدم</span>
-                                <span>الوصف</span>
-                                <span>السبب</span>
-                              </div>
-                               {row.HomeMaid?.logs.length > 0 && (row.HomeMaid?.logs.map((log: any) => (
-                                 <div key={log.id || Math.random()} className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
-                                   <span>{log.Status || "غير متوفر"}</span>
-                                   <span>{log.createdAt ? new Date(log.createdAt).toLocaleString() : "غير متوفر"}</span>
-                                   <span>{log.user?.username || "غير متوفر"}</span>
-                                   <span>{log.Details || "غير متوفر"}</span>
-                                   <span>{log.reason || "غير متوفر"}</span>
-                                 </div>
-                               )))}
-                             
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                ))}
-              </tbody>
+
+<tbody>
+  {newOrders.map((row, index) => (
+    <>
+      <tr key={index} className="bg-gray-50">
+        <td className="p-4 pr-6">
+          <button
+            className="p-1 cursor-pointer"
+            onClick={(e) => handleOpenMenu(e, index)}
+          >
+            <MoreHorizontal />
+          </button>
+          {menuPosition && menuPosition.row === index && (
+            <div
+              className="fixed w-40 bg-gray-100 border border-gray-200 rounded shadow-lg z-50 text-center"
+              style={{
+                top: menuPosition.y,
+                left: menuPosition.x,
+              }}
+            >
+              <button
+                className="block w-full text-center px-4 py-2 hover:bg-gray-100"
+                onClick={() => {
+                  setSelectedOrderId(row?.id);
+                  openPopup("popup-confirm-accept");
+                  setMenuPosition(null);
+                }}
+              >
+                قبول الطلب
+              </button>
+              <button
+                className="block w-full text-center px-4 py-2 hover:bg-gray-100"
+                onClick={() => {
+                  setSelectedOrderId(row?.id);
+                  openPopup("popup-confirm-reject");
+                  setMenuPosition(null);
+                }}
+              >
+                رفض الطلب
+              </button>
+              <button
+                className="block w-full text-center px-4 py-2 hover:bg-gray-100"
+                onClick={() => {
+                  const editPage = row.isAvailable ? 'add-available' : 'add-specs';
+                  router.push(`/admin/order-form?type=${editPage}&orderId=${row.id}`);
+                  setMenuPosition(null);
+                }}
+              >
+                تعديل
+              </button>
+            </div>
+          )}
+        </td>
+        <td className={`p-4 ${row.HomeMaid?.logs.length > 0 ? 'cursor-pointer' : ''}`}>
+          <ChevronDown onClick={() =>  row.HomeMaid?.logs.length > 0 ? toggleDetails(index) : null}  color={row.HomeMaid?.logs.length > 0 ? 'black' : 'gray'} />
+        </td>
+        <td className="p-4 text-center">{row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth)}</td>
+        <td className="p-4 text-center">{row.Passportnumber || 'غير متوفر'}</td>
+        <td className="p-4 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+        <td className="p-4 text-center">{row.HomeMaid?.Name || 'غير متوفر'}</td>
+        <td className="p-4 text-center">{row.HomeMaid?.id || 'غير متوفر'}</td>
+        <td className="p-4 text-center">{row.client?.nationalId || 'غير متوفر'}</td>
+        <td className="p-4 text-center">{row.client?.phonenumber || 'غير متوفر'}</td>
+        <td className="p-4 text-center">{row.client?.fullname || 'غير متوفر'}</td>
+        <td className="p-4 text-center cursor-pointer" onClick={() => handleOrderClick(row.id)}>
+          #{row.id}
+        </td>
+      </tr>
+      {detailsRow === index && (
+        <tr className="bg-white">
+          <td colSpan={11} className="p-0">
+            <div className="p-4">
+              <div className="border border-gray-300 rounded">
+                <div className="grid grid-cols-5 bg-gray-100 font-bold text-base p-3 border-b border-gray-300 ">
+                  <span>العملية</span>
+                  <span>التاريخ</span>
+                  <span>المستخدم</span>
+                  <span>الوصف</span>
+                  <span>السبب</span>
+                </div>
+                {row.HomeMaid?.logs.length > 0 && (
+                  row.HomeMaid?.logs.map((log: any) => (
+                    <div key={log.id || Math.random()} className="grid grid-cols-5 p-3 text-gray-500 text-sm items-center">
+                      <span>{log.Status || "غير متوفر"}</span>
+                      <span>{log.createdAt ? new Date(log.createdAt).toLocaleString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : "غير متوفر"}</span>
+                      <span>{log.user?.username || "غير متوفر"}</span>
+                      <span>{log.Details || "غير متوفر"}</span>
+                      <span>{log.reason || "غير متوفر"}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  ))}
+</tbody>
+
+
             </table>
           )}
         </div>

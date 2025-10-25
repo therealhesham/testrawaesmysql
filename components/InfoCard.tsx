@@ -1,18 +1,20 @@
 // components/InfoCard.tsx
 import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
+import VisaSelector from './VisaSelector';
 
 interface InfoCardProps {
   id?: string;
   title: string;
-  data: { label: string; value: string | JSX.Element }[];
+  data: { label: string; value: string | JSX.Element; fieldType?: 'visa' }[];
   gridCols?: number;
   actions?: { label: string; type: 'primary' | 'secondary'; onClick: () => void; disabled?: boolean }[];
   editable?: boolean;
   onSave?: (updatedData: Record<string, string>) => void;
+  clientID?: number;
 }
 
-export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave }: InfoCardProps) {
+export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID }: InfoCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>(
     data.reduce((acc, item) => {
@@ -30,10 +32,30 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   const [isSaving, setIsSaving] = useState(false);
 
   const validateInput = (key: string, value: string): string | null => {
-    // تم إزالة فحص صيغة التاريخ
-    return null;
-  };
+  // Check if the key is related to a date field
+  if (key.includes('تاريخ') && value) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    const inputDate = new Date(value);
 
+    // Ensure the date is not in the past
+    if (inputDate < today) {
+      return 'لا يمكن اختيار تاريخ في الماضي';
+    }
+
+    // Optional: Ensure the date format is valid (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return 'صيغة التاريخ غير صالحة (يجب أن تكون YYYY-MM-DD)';
+    }
+  }
+
+  // For time fields (optional validation for time format)
+  if (key.includes('_time') && value && !/^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+    return 'صيغة الوقت غير صالحة (يجب أن تكون HH:MM أو HH:MM:SS)';
+  }
+
+  return null;
+};
   const handleInputChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
     const error = validateInput(key, value);
@@ -131,6 +153,17 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                     {errors[`${item.label}_date`] || errors[`${item.label}_time`]}
                   </span>
                 )}
+              </div>
+            ) : editable && editMode && item.fieldType === 'visa' ? (
+              <div className="flex flex-col">
+                <VisaSelector
+                  value={formData[item.label] || ''}
+                  onChange={(value) => handleInputChange(item.label, value)}
+                  clientID={clientID || 0}
+                  placeholder="ابحث عن رقم التأشيرة"
+                  className="border border-gray-300 rounded-md p-2 text-base text-right"
+                  error={errors[item.label]}
+                />
               </div>
             ) : editable && editMode ? (
               <div className="flex flex-col">

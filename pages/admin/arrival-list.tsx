@@ -71,10 +71,7 @@ const transformData = (data: any[]): TableRow[] => {
     to: item.arrivalSaudiAirport || 'غير محدد',
     status: item.KingdomentryDate && new Date(item.KingdomentryDate) <= currentDate ? 'وصلت' : 'لم تصل',
     arrivalDate: item.KingdomentryDate
-      ? new Date(item.KingdomentryDate).toLocaleString('ar-EG', {
-          dateStyle: 'short',
-          timeStyle: 'short',
-        }).replace(',', '<br>')
+      ? new Date(item.KingdomentryDate).toISOString().split('T')[0]//yyyy-mm-dd
       : 'غير محدد',
   }));
 };
@@ -133,6 +130,9 @@ const fetchData = async (
   }
 };
 
+
+
+
 const fetchCities = async (setCities: (cities: string[]) => void) => {
   try {
     const response = await fetch('/api/arrivals?perPage=1000', {
@@ -151,7 +151,6 @@ const fetchCities = async (setCities: (cities: string[]) => void) => {
     setCities(['كل المدن']);
   }
 };
-
 const ColumnSelector = ({
   visibleColumns,
   setVisibleColumns,
@@ -213,12 +212,17 @@ const Controls = ({
   visibleColumns,
   setVisibleColumns,
   data,
+  exportToExcel,
+  exportToPDF
 }: {
   setFilters: (filters: any) => void;
   visibleColumns: string[];
   setVisibleColumns: (columns: string[]) => void;
   data: TableRow[];
+  exportToExcel: () => void;
+  exportToPDF: () => void;
 }) => {
+
   const [cities, setCities] = useState<string[]>(['كل المدن']);
   const [selectedCity, setSelectedCity] = useState('كل المدن');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -228,21 +232,6 @@ const Controls = ({
     fetchCities(setCities);
   }, []);
 
-  useEffect(() => {
-    const arrivals = async () => {
-      try {
-        const response = await fetch('/api/Export/arrivals');
-        if (!response.ok) throw new Error('فشل جلب بيانات التصدير');
-        const jsonify = await response.json();
-        const transformedData = transformData(jsonify.data);
-        setExportedData(transformedData);
-      } catch (error) {
-        console.error('Error fetching arrivals:', error);
-        setExportedData([]);
-      }
-    };
-    arrivals();
-  }, []);
 
   const handleCityChange = (city: string) => {
     setSelectedCity(city);
@@ -251,81 +240,15 @@ const Controls = ({
       ArrivalCity: city === 'كل المدن' ? '' : city,
     }));
   };
+const handleDateChange = (date: Date | null) => {
+  setSelectedDate(date);
+  setFilters((prev: any) => ({
+    ...prev,
+    KingdomentryDate: date ? date: '',
+  }));
+};
 
-  const handleDateChange = (date: Date | null) => {
-    setSelectedDate(date);
-    setFilters((prev: any) => ({
-      ...prev,
-      KingdomentryDate: date ? date.toISOString().split('T')[0] : '',
-    }));
-  };
 
-  const exportToExcel = () => {
-    const columnMap: { [key: string]: string } = {
-      workerId: 'رقم العاملة',
-      orderId: 'رقم الطلب',
-      workerName: 'اسم العاملة',
-      clientName: 'اسم العميل',
-      nationality: 'الجنسية',
-      passport: 'رقم الجواز',
-      from: 'من',
-      to: 'إلى',
-      status: 'حالة الوصول',
-      arrivalDate: 'تاريخ الوصول',
-    };
-
-    const filteredData = exportedData.map((row) =>
-      visibleColumns.reduce((obj, col) => {
-        obj[columnMap[col]] = row[col as keyof TableRow];
-        return obj;
-      }, {} as Record<string, string>)
-    );
-
-    const worksheet = XLSX.utils.json_to_sheet(filteredData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Arrivals');
-    XLSX.writeFile(workbook, 'arrivals.xlsx');
-  };
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const columnMap: { [key: string]: string } = {
-      workerId: 'رقم العاملة',
-      orderId: 'رقم الطلب',
-      workerName: 'اسم العاملة',
-      clientName: 'اسم العميل',
-      nationality: 'الجنسية',
-      passport: 'رقم الجواز',
-      from: 'من',
-      to: 'إلى',
-      status: 'حالة الوصول',
-      arrivalDate: 'تاريخ الوصول',
-    };
-
-    doc.addFont('/fonts/Amiri-Regular.ttf', 'Amiri', 'normal');
-    doc.setFont('Amiri');
-    doc.setFontSize(16);
-    doc.text('قائمة الوصول', 200, 10, { align: 'center' });
-
-    const tableColumns = visibleColumns.map((col) => columnMap[col]);
-    const tableRows = exportedData.map((row) =>
-      visibleColumns.map((col) => row[col as keyof TableRow] || '')
-    );
-
-    (doc as any).autoTable({
-      head: [tableColumns],
-      body: tableRows,
-      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
-      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
-      margin: { top: 30 },
-      didDrawPage: () => {
-        doc.setFontSize(10);
-        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
-      },
-    });
-
-    doc.save('arrivals.pdf');
-  };
 
   return (
     <div className="flex flex-col justify-between mb-6 gap-4">
@@ -355,13 +278,14 @@ const Controls = ({
           </select>
         </div>
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500 text-md">
-          <DatePicker
-            selected={selectedDate}
-            onChange={handleDateChange}
-            dateFormat="yyyy-MM-dd"
-            placeholderText="اختر تاريخ"
-            className="bg-transparent border-none text-right"
-          />
+          
+<input
+type="date"
+value={selectedDate}
+          onChange={(e) => handleDateChange(e.target.value)}
+          className="bg-transparent border-none"
+        />
+
         </div>
         <ColumnSelector visibleColumns={visibleColumns} setVisibleColumns={setVisibleColumns} />
         <button
@@ -384,7 +308,7 @@ const Controls = ({
         <button
           className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded-md disabled:opacity-50"
           onClick={exportToExcel}
-          disabled={exportedData.length === 0}
+          // disabled={exportedData.length === 0}
         >
           <FileExcelOutlined className="w-4 h-4" />
           <span>Excel</span>
@@ -392,7 +316,7 @@ const Controls = ({
         <button
           className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded-md disabled:opacity-50"
           onClick={exportToPDF}
-          disabled={exportedData.length === 0}
+          // disabled={exportedData.length === 0}
         >
           <FilePdfOutlined className="w-4 h-4" />
           <span>PDF</span>
@@ -608,8 +532,56 @@ export default function Home({ hasPermission }) {
     'status',
     'arrivalDate',
   ]);
+  useEffect(() => {
+    const arrivals = async () => {
+      try {
+        const response = await fetch('/api/Export/arrivals');
+        if (!response.ok) throw new Error('فشل جلب بيانات التصدير');
+        const jsonify = await response.json();
+        const transformedData = transformData(jsonify.data);
+        setExportedData(transformedData);
+      } catch (error) {
+        console.error('Error fetching arrivals:', error);
+        setExportedData([]);
+      }
+    };
+    arrivals();
+  }, []);
+
+    const [exportedData, setExportedData] = useState<TableRow[]>([]);
   const isFetchingRef = useRef(false);
   const router = useRouter();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   useEffect(() => {
     if (hasPermission) {
@@ -622,9 +594,200 @@ export default function Home({ hasPermission }) {
     router.push('/admin/home');
   };
 
+  const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const decoded = jwtDecode(token);
+  const userName = decoded.username;
+  setUserName(userName);
+}, []);
+
+
+const fetchFilteredDataExporting = async () => {
+  const query = new URLSearchParams({
+    perPage: '1000',
+    ...(filters.search && { search: filters.search }),
+    ...(filters.age && { age: filters.age }),
+    ...(filters.ArrivalCity && { ArrivalCity: filters.ArrivalCity }),
+    ...(filters.KingdomentryDate && { KingdomentryDate: filters.KingdomentryDate }),
+  }).toString();
+
+  const res = await fetch(`/api/arrivals?${query}`);
+  if (!res.ok) throw new Error('فشل جلب البيانات');
+  const data = await res.json();
+  const transformData = (data: any[]): TableRow[] => {
+  const currentDate = new Date(); // التاريخ الحالي
+  return data.map((item) => ({
+    workerId: String(item.Order?.HomeMaid?.id || 'غير محدد'),
+    orderId: String(item.OrderId || 'غير محدد'),
+    workerName: item.HomemaidName || item.Order?.HomeMaid?.Name || 'غير محدد',
+    clientName: item.Order?.ClientName || 'غير متوفر',
+    nationality: item.Order?.HomeMaid?.office?.Country || 'غير محدد',
+    passport: item.Order?.HomeMaid?.Passportnumber || 'غير محدد',
+    from: item.deparatureCityCountry || 'غير محدد',
+    to: item.arrivalSaudiAirport || 'غير محدد',
+    status: item.KingdomentryDate && new Date(item.KingdomentryDate) <= currentDate ? 'وصلت' : 'لم تصل',
+    arrivalDate: item.KingdomentryDate
+      ? new Date(item.KingdomentryDate).toISOString().split('T')[0]//yyyy-mm-dd
+      : 'غير محدد',
+  }));
+};
+    const transformed = transformData(data.data); 
+
+  setExportedData(transformed);
+  return transformed;
+
+};
+
+const exportToPDF = async() => {
+  let dataToExport = exportedData;
+  if (filters.search || filters.age || filters.ArrivalCity || filters.KingdomentryDate) {
+    // console.log('fetching filtered data');
+    dataToExport = await fetchFilteredDataExporting();
+  }
+
+
+  const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+
+const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+    doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25); // تغيير مكان الشعار ليصبح في اليسار
+  // 🗺️ خريطة الأعمدة بالعربي
+  const columnMap = {
+    workerId: 'رقم العاملة',
+    orderId: 'رقم الطلب',
+    workerName: 'اسم العاملة',
+    clientName: 'اسم العميل',
+    nationality: 'الجنسية',
+    passport: 'رقم الجواز',
+    from: 'من',
+    to: 'إلى',
+    status: 'حالة الوصول',
+    arrivalDate: 'تاريخ الوصول',
+  };
+
+  // 🔤 الخط العربي
+  doc.addFont('/fonts/Amiri-Regular.ttf', 'Amiri', 'normal');
+  doc.setFont('Amiri');
+  doc.setFontSize(16);
+
+  // 🏷️ العنوان
+  doc.text('قائمة الوصول', 150, 20, { align: 'right' });
+
+  // 📊 الأعمدة والصفوف (معكوسة)
+  const tableColumns = [...visibleColumns.map((col) => columnMap[col])].reverse(); // ✅ عكس الأعمدة
+  const tableRows = dataToExport.map((row) =>
+    [...visibleColumns.map((col) => row[col] || '')].reverse() // ✅ عكس البيانات أيضًا
+  );
+
+  // 📋 إنشاء الجدول بخيارات العرض المتقدمة
+  (doc as any).autoTable({
+    head: [tableColumns],
+    body: tableRows,
+    styles: {
+      font: 'Amiri',
+      halign: 'center',
+      fontSize: 10,
+      overflow: 'hidden', // ✅ النص الطويل يظهر بنقط (...)
+      cellWidth: 'auto',
+      cellPadding: 2,
+    },
+    headStyles: {
+      fillColor: [26, 77, 79],
+      textColor: [255, 255, 255],
+      halign: 'center',
+      overflow: 'hidden',
+    },
+    columnStyles: {
+      // ✅ نفس الإعدادات على كل الأعمدة
+      0: { cellWidth: 'auto', overflow: 'hidden' },
+      1: { cellWidth: 'auto', overflow: 'hidden' },
+      2: { cellWidth: 'auto', overflow: 'hidden' },
+      3: { cellWidth: 'auto', overflow: 'hidden' },
+      4: { cellWidth: 'auto', overflow: 'hidden' },
+      5: { cellWidth: 'auto', overflow: 'hidden' },
+      6: { cellWidth: 'auto', overflow: 'hidden' },
+      7: { cellWidth: 'auto', overflow: 'hidden' },
+      8: { cellWidth: 'auto', overflow: 'hidden' },
+      9: { cellWidth: 'auto', overflow: 'hidden' },
+    },
+      margin: { top: 40, right: 10, left: 10 },
+    // margin: { top: 30, right: 10, left: 10 },
+    direction: 'rtl', // ✅ مهم جدًا علشان الجدول يبقى عربي بالكامل
+    didParseCell: (data) => {
+      data.cell.styles.halign = 'center';
+    },
+    
+   didDrawPage: (data) => {
+  const pageHeight = doc.internal.pageSize.height;
+  const pageWidth = doc.internal.pageSize.width;
+
+  doc.setFontSize(10);
+  doc.setFont('Amiri');
+
+  // 👈 الاسم (على اليسار)
+  doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+  // 👉 التاريخ (على اليمين)
+  const dateText = "التاريخ: " + new Date().toLocaleDateString('ar-EG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }) + "  الساعة: " + new Date().toLocaleTimeString('ar-EG', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+
+  // 🔢 رقم الصفحة (في المنتصف)
+  const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
+  doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+},
+
+  });
+  doc.setFontSize(8);
+  // 💾 حفظ الملف
+  doc.save('قائمة_الوصول.pdf');
+};
+
+
+const exportToExcel = async () => {
+    let dataToExport = exportedData;
+    if (filters.search || filters.age || filters.ArrivalCity || filters.KingdomentryDate) {
+      dataToExport = await fetchFilteredDataExporting();
+    }
+    const columnMap: { [key: string]: string } = {
+      workerId: 'رقم العاملة',
+      orderId: 'رقم الطلب',
+      workerName: 'اسم العاملة',
+      clientName: 'اسم العميل',
+      nationality: 'الجنسية',
+      passport: 'رقم الجواز',
+      from: 'من',
+      to: 'إلى',
+      status: 'حالة الوصول',
+      arrivalDate: 'تاريخ الوصول',
+    };
+
+    const filteredData = dataToExport.map((row) =>
+      visibleColumns.reduce((obj, col) => {
+        obj[columnMap[col]] = row[col as keyof TableRow];
+        return obj;
+      }, {} as Record<string, string>)
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Arrivals');
+    XLSX.writeFile(workbook, 'arrivals.xlsx');
+  };
+
   return (
     <Layout>
-      <div className={`font-tajawal  text-gray-800 min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
+      <div className={`font-tajawal w-full text-gray-800 min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
         <Head>
           <title>قائمة الوصول</title>
           
@@ -634,12 +797,15 @@ export default function Home({ hasPermission }) {
             {hasPermission ? (
               <>
                 <h1 className="text-3xl font-normal text-black mb-6 text-right">قائمة الوصول</h1>
-                <Controls
-                  setFilters={setFilters}
-                  visibleColumns={visibleColumns}
-                  setVisibleColumns={setVisibleColumns}
-                  data={data}
-                />
+           <Controls
+  setFilters={setFilters}
+  visibleColumns={visibleColumns}
+  setVisibleColumns={setVisibleColumns}
+  data={data}
+  exportToExcel={exportToExcel}
+  exportToPDF={exportToPDF}
+/>
+
                 {loading ? (
                   <div className="text-center">جاري التحميل...</div>
                 ) : data.length === 0 ? (

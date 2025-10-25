@@ -247,3 +247,25 @@
     flex-direction: column;
   }
 }
+
+/* Home.module.css */
+.quill-rtl .ql-editor {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Amiri', 'Tajawal', sans-serif;
+}
+
+.quill-rtl .ql-editor p,
+.quill-rtl .ql-editor h1,
+.quill-rtl .ql-editor h2,
+.quill-rtl .ql-editor h3,
+.quill-rtl .ql-editor h4,
+.quill-rtl .ql-editor h5 {
+  direction: rtl;
+  text-align: right;
+}
+
+/* لضمان أن شريط الأدوات يبقى من اليسار إلى اليمين إذا لزم الأمر */
+.quill-rtl .ql-toolbar {
+  direction: ltr;
+}

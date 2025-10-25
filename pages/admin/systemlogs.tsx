@@ -17,10 +17,17 @@ export default function SystemLogs() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [pageSize] = useState(10);
+  const [pageSize,setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [exportedData, setExportedData] = useState([]);
+const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const decoded = jwtDecode(token);
+  const userName = decoded.username;
+  setUserName(userName);
+}, []);
 
   // Fetch logs from API
   const fetchLogs = async (page = 1) => {
@@ -31,6 +38,7 @@ export default function SystemLogs() {
           searchTerm: searchTerm || '',
           action: actionFilter || '',
           page,
+          pageSize: pageSize.toString(),
         },
       });
       const logsData = Array.isArray(response.data) ? response.data : response.data.logs || [];
@@ -48,7 +56,11 @@ export default function SystemLogs() {
   // Fetch data for export
   const fetchExportLogs = async () => {
     try {
-      const response = await axios.get('/api/systemlogs', {});
+      const response = await axios.get('/api/systemlogs', {
+        params: {
+          pageSize: "10000",
+        },
+      });
       const logsData = Array.isArray(response.data) ? response.data : response.data.logs || [];
       setExportedData(logsData);
     } catch (error) {
@@ -56,67 +68,134 @@ export default function SystemLogs() {
       setExportedData([]);
     }
   };
+const fetchFilteredLogs = async () => {
+  const res = await axios.get(`/api/systemlogs`, {
+    params: {
+      pageSize: "10000",
+      searchTerm: searchTerm || '',
+      action: actionFilter || '',
+    },
+  });
+  if (res.status !== 200) throw new Error("Failed to fetch data");
+  // const data = await res.json();
+  
+  // نحدّث الستيت لو حابب تظل البيانات في الواجهة
+  setExportedData(res.data.logs);
+  // لكن الأهم: نرجعها علشان نستخدمها فورًا
+  return res.data.logs;
+};
+  
 
-  // Export to PDF
-  const exportToPDF = async () => {
-    const doc = new jsPDF();
 
-    // Fetch the Amiri font dynamically
-    try {
-      const response = await fetch('/fonts/Amiri-Regular.ttf');
-      if (!response.ok) throw new Error('Failed to fetch font');
-      const fontBuffer = await response.arrayBuffer();
-      const fontBytes = new Uint8Array(fontBuffer);
-      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+// Export to PDF
+const exportToPDF = async () => {
+  console.log('exporting PDF');
+  let dataToExport = exportedData;
+  if (searchTerm || actionFilter) {
+    dataToExport = await fetchFilteredLogs();
+  }
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
 
-      // Add the font to jsPDF
-      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+  // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+  // 🔷 تحميل خط أميري
+  try {
+    const response = await fetch('/fonts/Amiri-Regular.ttf');
+    if (!response.ok) throw new Error('Failed to fetch font');
+    const fontBuffer = await response.arrayBuffer();
+    const fontBytes = new Uint8Array(fontBuffer);
+    const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+    doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri', 'normal');
+  } catch (error) {
+    console.error('Error loading Amiri font:', error);
+    return;
+  }
+
+  doc.setLanguage('ar');
+  doc.setFontSize(12);
+  doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
+
+  const headers = [['اسم المستخدم', 'تاريخ التحديث', 'تاريخ الإنشاء', 'الإجراء', 'رقم السجل']];
+  const body = dataToExport?.map((row: any) => [
+    row.user?.username || 'غير متوفر',
+    row.updatedAt ? new Date(row.updatedAt).toISOString().split('T')[0] : 'غير متوفر',
+    row.createdAt ? new Date(row.createdAt).toISOString().split('T')[0] : 'غير متوفر',
+    row.action || 'غير متوفر',
+    row.id || 'غير متوفر',
+  ]);
+
+  doc.autoTable({
+    head: headers,
+    body: body,
+    styles: {
+      font: 'Amiri',
+      halign: 'right',
+      fontSize: 10,
+      cellPadding: 2,
+      textColor: [0, 0, 0],
+    },
+    headStyles: {
+      fillColor: [0, 105, 92],
+      textColor: [255, 255, 255],
+      halign: 'center',
+    },
+    margin: { top: 42, right: 10, left: 10 },
+
+    // ✅ هنا بنضيف اللوجو والبيانات في كل صفحة
+    didDrawPage: (data) => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+      if (doc.getCurrentPageInfo().pageNumber === 1) {
+        doc.setFontSize(12);
+        doc.setFont('Amiri', 'normal');
+        doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
+      }
+
+      // 🔸 الفوتر
+      doc.setFontSize(10);
       doc.setFont('Amiri', 'normal');
-    } catch (error) {
-      console.error('Error loading Amiri font:', error);
-      return; // Optionally show an error to the user
-    }
 
-    // Set language and direction
-    doc.setLanguage('ar');
-    doc.setFontSize(12);
-    doc.text('سجل النظام', 200, 10, { align: 'right' });
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
 
-    const tableColumn = ['رقم السجل', 'الإجراء', 'تاريخ الإنشاء', 'تاريخ التحديث', 'اسم المستخدم'];
-    const tableRows = Array.isArray(exportedData)
-      ? exportedData.map(row => [
-          row.id || 'غير متوفر',
-          row.action || 'غير متوفر',
-          row.createdAt ? new Date(row.createdAt).toLocaleString() : 'غير متوفر',
-          row.updatedAt ? new Date(row.updatedAt).toLocaleString() : 'غير متوفر',
-          row.user?.username || 'غير متوفر',
-        ])
-      : [];
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      styles: {
-        font: 'Amiri',
-        halign: 'right',
-        fontSize: 10,
-        cellPadding: 2,
-        textColor: [0, 0, 0],
-      },
-      headStyles: {
-        fillColor: [0, 105, 92],
-        textColor: [255, 255, 255],
-        halign: 'right',
-      },
-      margin: { top: 20, right: 10, left: 10 },
-      didParseCell: (data) => {
-        data.cell.styles.halign = 'right';
-      },
-    });
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
 
-    doc.save('system_logs.pdf');
-  };
+    didParseCell: (data) => {
+      data.cell.styles.halign = 'right';
+    },
+  });
+
+  doc.save('system_logs.pdf');
+};
 
   // Export to Excel
   const exportToExcel = () => {
@@ -124,8 +203,8 @@ export default function SystemLogs() {
       ? exportedData.map(row => ({
           'رقم السجل': row.id || 'غير متوفر',
           'الإجراء': row.action || 'غير متوفر',
-          'تاريخ الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleString() : 'غير متوفر',
-          'تاريخ التحديث': row.updatedAt ? new Date(row.updatedAt).toLocaleString() : 'غير متوفر',
+          'تاريخ الإنشاء': row.createdAt ? new Date(row.createdAt).toISOString().split('T')[0] : 'غير متوفر',
+          'تاريخ التحديث': row.updatedAt ? new Date(row.updatedAt).toISOString().split('T')[0] : 'غير متوفر',
           'اسم المستخدم': row.user?.username || 'غير متوفر',
         }))
       : [];
@@ -148,6 +227,10 @@ export default function SystemLogs() {
   // Action filter options
   const actionOptions = [
     { value: '', label: 'كل الإجراءات' },
+    { value: 'view', label: 'عرض' },
+    { value: 'create', label: 'إنشاء' },
+    { value: 'update', label: 'تحديث' },
+    { value: 'delete', label: 'حذف' },
     // Add more actions as needed
   ];
 
@@ -324,12 +407,12 @@ export default function SystemLogs() {
                         <td className="p-4">{log.action || 'غير متوفر'}</td>
                         <td className="p-4">
                           {log.createdAt
-                            ? new Date(log.createdAt).toLocaleString()
+                            ? new Date(log.createdAt).toISOString().split('T')[0]
                             : 'غير متوفر'}
                         </td>
                         <td className="p-4">
                           {log.updatedAt
-                            ? new Date(log.updatedAt).toLocaleString()
+                            ? new Date(log.updatedAt).toISOString().split('T')[0]
                             : 'غير متوفر'}
                         </td>
                         <td className="p-4">{log.user?.username || 'غير متوفر'}</td>

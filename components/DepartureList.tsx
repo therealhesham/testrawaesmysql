@@ -1,5 +1,6 @@
 import { CalendarFilled, FileExcelOutlined, FilePdfOutlined } from "@ant-design/icons";
 import { ArrowSmDownIcon, PlusIcon } from "@heroicons/react/outline";
+import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import { ArrowDownLeft, Search } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import AlertModal from './AlertModal';
+import { useRouter } from "next/router";
 
 interface DepartureData {
   OrderId?: string;
@@ -47,7 +49,7 @@ interface DepartureListProps {
 export default function DepartureList({ onOpenModal, refreshTrigger }: DepartureListProps) {
   const [departures, setDepartures] = useState<DepartureData[]>([]);
   const [page, setPage] = useState(1);
-  const [perPage] = useState(8);
+  const [perPage] = useState<number>(10);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [nationality, setNationality] = useState("");
@@ -70,7 +72,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
         ...(filters.nationality && filters.nationality !== "كل الجنسيات" && {
           nationality: filters.nationality,
         }),
-        ...(filters.selectedDate && { deparatureDate: filters.selectedDate }),
+        ...(filters.selectedDate && { deparatureDate: new Date(filters.selectedDate).toISOString() }),
       }).toString();
 
       const res = await fetch(`/api/deparatures?${query}`);
@@ -117,6 +119,13 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
       setExportedData([]);
     }
   };
+const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token') || '';
+  const decoded = jwtDecode(token);
+  const userName = decoded.username || '';
+  setUserName(userName || '');
+}, []);
   useEffect(() => {
     fetchDepartures(page, { searchTerm, nationality, selectedDate });
   
@@ -134,10 +143,10 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
     fetchExportedData();
     const fetchOffices = async () => {
       try {
-        const response = await axios.get("/api/offices");
-        setNationalities(response.data.countriesfinder || [{ id: "all", Country: "كل الجنسيات" }]);
+        const response = await axios.get("/api/nationalities");
+        setNationalities(response.data.nationalities || [{ id: "all", Country: "كل الجنسيات" }]);
       } catch (error) {
-        console.error("Error fetching offices:", error);
+        console.error("Error fetching nationalities:", error);
         setNationalities([{ id: "all", Country: "كل الجنسيات" }]);
       }
     };
@@ -191,103 +200,164 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
     setPage(1);
   };
 
-  const exportToPDF = async () => {
-    if (!exportedData || exportedData.length === 0) {
-      setAlertType('warning');
-      setAlertMessage('لا توجد بيانات للتصدير');
-      setShowAlert(true);
-      return;
-    }
-    
-    const doc = new jsPDF();
-    
-    try {
-      // تحميل خط Amiri بشكل صحيح
-      const response = await fetch('/fonts/Amiri-Regular.ttf');
-      if (!response.ok) throw new Error('Failed to fetch font');
-      const fontBuffer = await response.arrayBuffer();
-      const fontBytes = new Uint8Array(fontBuffer);
-      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+const fetchFilteredDataExporting = async () => {
+  const query = new URLSearchParams({
+    perPage: "1000",
+    ...(searchTerm && { search: searchTerm }),
+    ...(nationality && nationality !== "كل الجنسيات" && {
+      nationality: nationality,
+    }),
+    ...(selectedDate && { deparatureDate: selectedDate }),
+  }).toString();
 
-      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+  const res = await fetch(`/api/deparatures?${query}`);
+  if (!res.ok) throw new Error("Failed to fetch data");
+  const data = await res.json();
+
+  // نحدّث الستيت لو حابب تظل البيانات في الواجهة
+  setExportedData(data.data);
+  // لكن الأهم: نرجعها علشان نستخدمها فورًا
+  return data.data;
+};
+  
+const exportToPDF = async () => {
+  let dataToExport = exportedData;
+  if (searchTerm || nationality || selectedDate) {
+    dataToExport = await fetchFilteredDataExporting();
+  }
+
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.width;
+  try {
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+    doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+    // 🖋️ تحميل خط Amiri
+    const response = await fetch('/fonts/Amiri-Regular.ttf');
+    if (!response.ok) throw new Error('Failed to fetch font');
+    const fontBuffer = await response.arrayBuffer();
+    const fontBytes = new Uint8Array(fontBuffer);
+    const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+    doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri', 'normal');
+  } catch (error) {
+    console.error('Error loading Amiri font:', error);
+    doc.setFont('helvetica', 'normal'); // fallback
+  }
+
+  // 🏷️ العنوان
+  doc.setLanguage('ar');
+  doc.setFontSize(16);
+  
+  doc.text('قائمة المغادرة الداخلية', 150, 20, { align: 'right' });
+
+  // 📋 الأعمدة والصفوف
+  const tableColumn = [
+    "تاريخ الوصول",
+    "تاريخ المغادرة",
+    "سبب المغادرة",
+    "الى",
+    "من",
+    "رقم الجواز",
+    "الجنسية",
+    "اسم العميل",
+    "اسم العاملة",
+    "رقم الطلب",
+    "رقم العاملة",
+  ];
+
+  const tableRows = dataToExport?.map((row) => [
+    row.internalArrivalCityDate
+      ? new Date(row.internalArrivalCityDate).toISOString().split('T')[0]//yyyy-mm-dd
+      : "-",
+    row.internaldeparatureDate
+      ? new Date(row.internaldeparatureDate).toISOString().split('T')[0]//yyyy-mm-dd
+      : "-",
+    row.internalReason || "-",
+    row.internalArrivalCity || "-",
+    row.internaldeparatureCity || "-",
+    row.Order?.HomeMaid?.Passportnumber || "-",
+    row.Order?.HomeMaid?.office?.Country || "-",
+    row.Order?.client?.fullname || "-",
+    row.Order?.HomeMaid?.Name || "-",
+    row.OrderId || "-",
+    row.Order?.HomeMaid?.id || "-",
+  ]);
+
+  // 📄 الجدول مع الفوتر المخصص
+  doc.autoTable({
+    head: [tableColumn],
+    body: tableRows,
+    styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
+    headStyles: { fillColor: [26, 77, 79], textColor: [255, 255, 255] },
+    margin: { top: 45, right: 10, left: 10 },
+
+    didDrawPage: () => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      doc.setFontSize(10);
       doc.setFont('Amiri', 'normal');
-    } catch (error) {
-      console.error('Error loading Amiri font:', error);
-      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
-      doc.setFont('helvetica', 'normal');
+
+      // 👈 الاسم (يسار)
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      // 🔢 رقم الصفحة (وسط)
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // 👉 التاريخ (يمين)
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+  });
+
+  // 💾 حفظ الملف
+  doc.save("قائمة_المغادرة.pdf");
+};
+
+  const exportToExcel = async () => {
+    let dataToExport = exportedData;
+    if (searchTerm || nationality || selectedDate) {
+      dataToExport = await fetchFilteredDataExporting();
     }
-
-    doc.setLanguage('ar');
-    doc.setFontSize(16);
-    doc.text('قائمة المغادرة الداخلية', 200, 10, { align: 'center' });
-
-    const tableColumn = [
-      "تاريخ الوصول",
-      "تاريخ المغادرة",
-      "سبب المغادرة",
-      "الى",
-      "من",
-      "رقم الجواز",
-      "الجنسية",
-      "اسم العميل",
-      "اسم العاملة",
-      "رقم الطلب",
-      "رقم العاملة",
-    ];
-
-    const tableRows = exportedData?.map((row) => [
-      row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toLocaleDateString() : "-",
-      row.internaldeparatureDate ? new Date(row.internaldeparatureDate).toLocaleDateString() : "-",
-      row.reason || "-",
-      row.internalArrivalCity || "-",
-      row.internaldeparatureCity || "-",
-      row.PassportNumber || "-",
-      row.Order?.HomeMaid?.office?.Country || "-",
-      row.SponsorName || "-",
-      row.HomemaidName || "-",
-      row.OrderId || "-",
-      row.Order?.HomeMaid?.id || "-",
-    ]);
-
-    (doc as any).autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
-      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
-      margin: { top: 30 },
-      didDrawPage: () => {
-        doc.setFontSize(10);
-        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
-      },
-    });
-
-    doc.save("قائمة_المغادرة.pdf");
-  };
-
-  const exportToExcel = () => {
-    if (!exportedData || exportedData.length === 0) {
+    if (!dataToExport || dataToExport.length === 0) {
       setAlertType('warning');
       setAlertMessage('لا توجد بيانات للتصدير');
       setShowAlert(true);
       return;
     }
     
-    const worksheetData = exportedData?.map((row) => ({
+    const worksheetData = dataToExport?.map((row) => ({
       "رقم العاملة": row.Order?.HomeMaid?.id || "-",
       "رقم الطلب": row.OrderId || "-",
-      "اسم العاملة": row.HomemaidName || "-",
-      "اسم العميل": row.SponsorName || "-",
+      "اسم العاملة": row.Order?.HomeMaid?.Name || "-",
+      "اسم العميل": row.Order?.client?.fullname || "-",
       "الجنسية": row.Order?.HomeMaid?.office?.Country || "-",
-      "رقم الجواز": row.PassportNumber || "-",
+      "رقم الجواز": row.Order?.HomeMaid?.Passportnumber || "-",
       "من": row.internaldeparatureCity || "-",
       "الى": row.internalArrivalCity || "-",
-      "سبب المغادرة": row.reason || "-",
+      "سبب المغادرة": row.internalReason || "-",
       "تاريخ المغادرة": row.internaldeparatureDate
-        ? new Date(row.internaldeparatureDate).toLocaleDateString()
+        ? new Date(row.internaldeparatureDate).toISOString().split('T')[0]//yyyy-mm-dd
         : "-",
       "تاريخ الوصول": row.internalArrivalCityDate
-        ? new Date(row.internalArrivalCityDate).toLocaleDateString()
+        ? new Date(row.internalArrivalCityDate).toISOString().split('T')[0]//yyyy-mm-dd
         : "-",
     }));
 
@@ -296,7 +366,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
     XLSX.utils.book_append_sheet(workbook, worksheet, "المغادرة");
     XLSX.writeFile(workbook, "قائمة_المغادرة.xlsx");
   };
-
+const router = useRouter();
   return (
     <section id="departure-list" className="mb-10">
       <div className="flex justify-between items-center mb-8">
@@ -420,10 +490,10 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
                 >
 
            
-                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.id || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.OrderId || "-"}</td>
+                  <td className="py-3 px-2 border-t cursor-pointer border-gray-200" onClick={() => router.push(`/admin/homemaidinfo?id=${row.Order?.HomeMaid?.id}`)}>{row.Order?.HomeMaid?.id || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200 cursor-pointer" onClick={() => router.push(`/admin/track_order/${row.OrderId}`)}>{row.OrderId || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Name|| "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Client[0]?.fullname || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.client?.fullname || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Passportnumber || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.internaldeparatureCity || "-"}</td>
@@ -435,10 +505,10 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
                     {row.internalReason || "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
-                    {row.internaldeparatureDate ? new Date(row.internaldeparatureDate).toLocaleDateString() : "-"}
+                    {row.internaldeparatureDate ? new Date(row.internaldeparatureDate).toISOString().split('T')[0] : "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
-                    {row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toLocaleDateString() : "-"}
+                    {row.internalArrivalCityDate ? new Date(row.internalArrivalCityDate).toISOString().split('T')[0]: "-"}
                   </td>
                 </tr>
               ))}

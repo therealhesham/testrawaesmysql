@@ -17,6 +17,8 @@ console.log(id)
         include: {
           client: {
             select: {
+              id: true,
+              nationalId:true,
               fullname: true,
               phonenumber: true,
               email: true,
@@ -69,6 +71,7 @@ console.log(id)
         orderId: order.id,
         bookingStatus: order.bookingstatus,
         clientInfo: {
+          id: order.client?.id.toString() || 'N/A',
           name: order.client?.fullname || 'N/A',
           phone: order.client?.phonenumber || 'N/A',
           email: order.client?.email || 'N/A',
@@ -86,7 +89,7 @@ console.log(id)
           applicationTime: order.createdAt?.toISOString().split('T')[1]?.split('.')[0] || 'N/A',
         },
         officeLinkInfo: {
-          nationalId: order.nationalId || 'N/A',
+          nationalId: order.client?.nationalId|| 'N/A',
           visaNumber: order.arrivals[0]?.visaNumber || 'N/A',
           internalMusanedContract: order.arrivals[0]?.InternalmusanedContract || 'N/A',
           musanedDate: order.arrivals[0]?.DateOfApplication ? (order.arrivals[0].DateOfApplication as Date).toISOString().split('T')[0] : 'N/A',
@@ -152,11 +155,15 @@ const cookieHeader = req.headers.cookie;
     const token = jwtDecode(cookies.authToken) as any;
 
     eventBus.emit('ACTION', {
-        type: 'عرض صفحة تتبع طلب ' + order.id,
-        userId: Number(token.id),
+         type: "تعديل صفحة تتبع طلب " + order.id,
+    beneficiary: "order",
+    pageRoute: req.headers.referer,
+    actionType: "update",
+    userId: Number((token as any).id),
+    BeneficiaryId: Number(id),
       });
       console.log('Emitted ACTION event for order:', order.id);
-      return res.status(200).json(orderData);
+      return res.status(200).json(orderData);  
     } catch (error) {
       console.error('Error fetching order:', error);
       return res.status(500).json({ error: 'Internal server error' });
@@ -275,6 +282,27 @@ const cookieHeader = req.headers.cookie;
 
         console.log('Updated Order:', updatedOrder);
         console.log('Updated Arrivals:', updatedArrivals);
+const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+    console.log(cookies.authToken)
+    const token = jwtDecode(cookies.authToken) as any;
+
+    eventBus.emit('ACTION', {
+        type: 'تعديل صفحة تتبع طلب ' + order.id,
+        beneficiary: "order",
+        pageRoute: req.headers.referer,
+        actionType: "update",
+        userId: Number(token.id),
+        BeneficiaryId: Number(id),
+      });
+
+
 
         return res.status(200).json({ message: 'Status updated successfully' });
       }
@@ -287,6 +315,8 @@ const cookieHeader = req.headers.cookie;
 
         switch (section) {
           case 'homemaidInfo':
+
+          console.log('order.HomemaidId:', order.HomemaidId);
   if (!order.HomemaidId) {
     return res.status(400).json({ error: 'No Homemaid associated with this order' });
   }
@@ -398,11 +428,38 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
     }
     console.log(cookies.authToken)
     const token = jwtDecode(cookies.authToken) as any;
-
+    const referer = req.headers.referer
     eventBus.emit('ACTION', {
-        type: 'تعديل طلب ' + updatedOrder.id,
-        userId: Number(token.id),
+
+
+
+ type: "تعديل طلب " + updatedOrder.id,
+    beneficiary: "homemaid",
+    pageRoute: referer,
+    actionType: "view",
+    userId: Number((token as any).id),
+
+
+
+
+// action: 'تعديل طلب ' + updatedOrder.id,
+BeneficiaryId: Number(id),
+
+
+
+        // type: 'تعديل طلب ' + updatedOrder.id,
+        // userId: Number(token.id),
+        // actionType: 'تعديل',
+        // action: 'تعديل طلب ' + updatedOrder.id,
+        // beneficiary: 'order',
+        // pageRoute: referer,
+        // BeneficiaryId: Number(id),
       });   
+
+
+
+
+      
 // console.log("event")
         return res.status(200).json({ message: 'Section updated successfully' });
       }

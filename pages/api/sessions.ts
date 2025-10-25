@@ -4,8 +4,8 @@ import jwt from "jsonwebtoken";
 export default async function handler(req, res) {
   if (req.method === "POST") {
     const { reason, idnumber, date, time, result } = req.body;
-
     try {
+      console.log(req.body)
       // Check if a session exists with the same idnumber and date
       const existingSession = await prisma.session.findFirst({
         where: {
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
             date: new Date(date).toISOString(),
             time: time || "00:00",
             result,
-            updatedAt: new Date(),
+            // updatedAt: new Date(),
           },
           include: { user: true },
         });

@@ -1,6 +1,10 @@
+import '../../lib/loggers';
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
 import jwt from "jsonwebtoken";
+import { jwtDecode } from "jwt-decode";
+import eventBus from "lib/eventBus";
 
 export default async function handler(
   req: NextApiRequest,
@@ -136,7 +140,7 @@ externalTicketFile,
       HomemaIdnumber,
       DeliveryDate: validDeliveryDate,
       notes: Notes,
-      ticketFile,externalTicketFile,
+      externalTicketFile,
       externalOfficeStatus,
       externalmusanadcontractfile,
       additionalfiles,
@@ -154,10 +158,10 @@ externalTicketFile,
     const dataToUpdate = excludeEmptyFields(ss);
 
     // Prisma update queries
-    await prisma.neworder.update({
-      where: { id: Orderid },
-      data: { bookingstatus },
-    });
+    // await prisma.neworder.update({
+    //   where: { id: Orderid },
+    //   data: { bookingstatus },
+    // });
 
 
     console.log("Data to update:", {id,Orderid}); // Log the final data to be updated
@@ -165,7 +169,46 @@ externalTicketFile,
       include: { Order: { include: { HomeMaid: true } } },
       where: { id :id},
       data: dataToUpdate,
+
+
+
     });
+
+
+
+
+try {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  const referer = req.headers.referer
+  const token = jwtDecode(cookies.authToken);
+  eventBus.emit('ACTION', {
+    type: "تحديث بيانات المغادرة الخارجية للطلب رقم " + createarrivallist.Order?.id,
+    beneficiary: "homemaid",
+    pageRoute: referer,
+    actionType: "update",
+    BeneficiaryId: createarrivallist.Order?.id || null,
+    userId: Number((token as any).id),
+  });
+} catch (error) {
+  console.error("Error emitting event:", error);
+}
+
+
+
+
+
+
+
+
+
+
 
     try {
       const token = req.cookies?.authToken;

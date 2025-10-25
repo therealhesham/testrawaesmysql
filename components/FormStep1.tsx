@@ -6,8 +6,15 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
   const [isSearching, setIsSearching] = useState(false);
   const warrantyInfo = useMemo(() => {
     if (!data?.KingdomentryDate) {
-      return { status: 'غير متوفر', date: '' };
+      return { status: 'لم يدخل المملكة', date: '' };
     }
+
+
+
+
+
+
+
 
     const entryDate = new Date(data?.KingdomentryDate);
     const currentDate = new Date();
@@ -30,9 +37,11 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
     
     setIsSearching(true);
     try {
+      setSuggestions([]);
       const response = await fetch(`/api/orders/suggestions?q=${encodeURIComponent(searchTerm)}`);
       if (response.ok) {
         const data = await response.json();
+        console.log(data);
         setSuggestions(data.suggestions || []);
         setShowSuggestions(true);
       } else {
@@ -92,6 +101,25 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
+
+
+
   return (
     <section id="form-step1">
       <h2 className="text-2xl font-normal text-black text-right mb-12">تسجيل مغادرة</h2>
@@ -118,7 +146,7 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
               onBlur={handleInputBlur}
               onFocus={() => id.length >= 1 && setShowSuggestions(true)}
               value={id}
-              placeholder="ابحث برقم الطلب أو اسم العميل أو اسم العاملة" 
+              placeholder="ابحث برقم الطلب أو اسم العاملة" 
             />
             {isSearching && (
               <div className="absolute right-3 top-3">
@@ -135,7 +163,9 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                   >
-                    <div className="font-medium text-md">Order Number #{suggestion} - Name: {data?.Order?.HomeMaid?.Name}</div>
+                    <div className="font-medium flex flex-col text-md"><span className="text-gray-500">رقم الطلب #{suggestion} </span> 
+                       {/* <span className="text-gray-500"> - اسم العاملة:     {data?.Order?.HomeMaid?.Name}</span> */}
+                       </div>
                   </div>
                 ))}
               </div>
@@ -174,7 +204,7 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
               id="customer-city" 
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md" 
               placeholder="مدينة العميل" 
-              value={data?.Order?.client?.city || ""} 
+              value={arabicRegionMap[data?.Order?.client?.city]as string || ""} 
               readOnly 
             />
           </div>
@@ -243,13 +273,16 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
           </div>
         </div>
         <div className="flex justify-center mt-6">
-          <button
-            type="button"
-            onClick={onNext}
-            className="w-28 py-2 bg-teal-800 text-white text-base rounded font-inter"
-          >
-            التالي
-          </button>
+   <button
+  type="button"
+  onClick={onNext}
+  disabled={!data?.Order} // الزر يتعطل إذا لم تكن البيانات موجودة
+  className={`w-28 py-2 text-base rounded font-inter 
+    ${!data?.Order ? 'bg-gray-400 cursor-not-allowed' : 'bg-teal-800 text-white'}`}
+>
+  التالي
+</button>
+
         </div>
       </form>
     </section>

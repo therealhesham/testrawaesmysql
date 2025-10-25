@@ -8,6 +8,9 @@ import { PlusOutlined } from "@ant-design/icons";
 import Modal from "react-modal";
 import { jwtDecode } from "jwt-decode";
 import prisma from "lib/prisma";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
@@ -94,6 +97,21 @@ function getDate(date) {
     return currentDate.toISOString().split("T")[0];
   }
 
+const [exportedData, setExportedData] = useState([]);
+  const fetchExportedData = async () => {
+    const response = await fetch("/api/Export/bookedlist", {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "get",
+    });
+    const data = await response.json();
+    setExportedData(data.data);
+  };
+  useEffect(() => {
+    fetchExportedData();
+  }, []);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -374,6 +392,106 @@ function getDate(date) {
     },
   };
 
+
+
+   const exportToPDF = async () => {
+    if (!exportedData || exportedData.length === 0) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+    const doc = new jsPDF({orientation: 'landscape'});
+    
+    try {
+      // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text('قائمة العاملات المحجوزة', 200, 10, { align: 'right' });
+
+    const tableColumn = [
+"المكتب",
+      "نهاية الجواز",
+      "بداية الجواز",
+      "رقم جواز السفر",
+      "اسم العميل",
+      "الحالة الاجتماعية",
+      "الجنسية",
+      "رقم الجوال",
+      "اسم العاملة",
+      "رقم الطلب",
+    ];
+
+    const tableRows = exportedData?.map((row) => [
+row.HomeMaid?.office?.office || "-",
+      getDate(row.HomeMaid?.PassportEnd) || "-",
+
+      getDate(row.HomeMaid?.PassportEnd) || "-",
+      row.HomeMaid?.Passportnumber || "-",
+  row?.client?.fullname || "-",
+             row.HomeMaid?.maritalstatus || "-",
+
+      row.HomeMaid?.office?.Country || "-",
+      row.HomeMaid?.phone || "-",
+      
+            row.HomeMaid?.Name || "-",
+
+      row.HomeMaid?.id || "-",
+    ]);
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
+      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      margin: { top: 30 },
+      didDrawPage: () => {
+        doc.setFontSize(10);
+        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
+      },
+    });
+
+    doc.save("قائمة_العاملات_المحجوزة.pdf");
+  };
+
+  const exportToExcel = () => {
+    if (!exportedData || exportedData.length === 0) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+    
+    const worksheetData = exportedData?.map((row) => ({
+      "رقم العاملة": row.HomeMaid?.id || "-",
+      "اسم العاملة": row.HomeMaid?.Name || "-",
+      "جوال  العاملة" : row.HomeMaid?.phone || "-",
+      "الجنسية": row.HomeMaid?.office?.Country || "-",
+      "الحالة الاجتماعية": row.HomeMaid?.maritalstatus || "-",
+      "اسم العميل": row?.client?.fullname || "-",
+      "رقم الجواز": row.HomeMaid?.Passportnumber || "-",
+      "بداية الجواز": getDate(row.HomeMaid?.PassportStart) || "-",
+      "نهاية الجواز": getDate(row.HomeMaid?.PassportEnd) || "-",
+      "المكتب": row.HomeMaid?.office?.office || "-",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "العاملات_المحجوزة");
+    XLSX.writeFile(workbook, "قائمة_العاملات_المحجوزة.xlsx");
+  };
+
   return (
     <Layout>
       <div className={`container mx-auto p-4 ${Style["almarai-regular"]}`}>
@@ -473,12 +591,13 @@ function getDate(date) {
                 <button
                   className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
                   title="تصدير إلى Excel"
+                  onClick={exportToExcel}
                 >
                   <FaFileExcel className="text-white" />
                   <span className="text-white">Excel</span>
                 </button>
                 <button
-                  onClick={() => alert("سيتم إضافة وظيفة تصدير PDF لاحقًا")}
+                  onClick={exportToPDF}
                   className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
                   title="تصدير إلى PDF"
                 >
@@ -537,7 +656,7 @@ function getDate(date) {
                         {item?.HomeMaid?.maritalstatus}
                       </td>
                       <td className="px-4 py-2 text-center text-gray-600">
-                        {item?.ClientName}
+                        {item?.client?.fullname}
                       </td>
                       <td className="px-4 py-2 text-center text-gray-600">
                         {item?.HomeMaid?.Passportnumber}

@@ -66,7 +66,7 @@ include:{
 
       // دمج النتائج وإزالة التكرار
       const suggestions = new Set<string>();
-
+// console.log(suggestions);
       orderIds.forEach(item => {
         if (item.id) {
           suggestions.add(`${item.id.toString()} - ${item.HomeMaid?.Name}`);
@@ -76,7 +76,7 @@ include:{
       orderIdsContaining.forEach(item => {
         if (item.id && item.id.toString().includes(query)) {
           suggestions.add(`${item.id.toString()} - ${item.HomeMaid?.Name}`);
-          suggestions.add(item.id.toString());
+          // suggestions.add(item.id.toString());
         }
       });
 

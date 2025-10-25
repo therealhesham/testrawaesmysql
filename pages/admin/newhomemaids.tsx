@@ -6,6 +6,7 @@ import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
+import jsPDF from 'jspdf';
 
 interface Props {
   error?: string;
@@ -13,6 +14,10 @@ interface Props {
 
 const AddWorkerForm: React.FC<Props> = ({ error }) => {
   const [offices, setOffices] = useState<Array<{ office: string }>>([]);
+  const [fileNames, setFileNames] = useState<{ [key: string]: string }>({
+  travelTicket: '',
+  passportcopy: '',
+});
   const [formData, setFormData] = useState({
     name: '',
     religion: '',
@@ -30,14 +35,13 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     experienceYears: '',
     salary: '',
     officeName: '',
-
-cookingLevel:"",
-washingLevel:"",
-ironingLevel:"",
-cleaningLevel:"",
-sewingLevel:"",
-childcareLevel:"",
-elderlycareLevel:"",
+    cookingLevel: '',
+    washingLevel: '',
+    ironingLevel: '',
+    cleaningLevel: '',
+    sewingLevel: '',
+    childcareLevel: '',
+    elderlycareLevel: '',
     skills: {
       washing: '',
       ironing: '',
@@ -81,56 +85,59 @@ elderlycareLevel:"",
 
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) {
-      setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-      return;
+ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
+  const files = e.target.files;
+  if (!files || files.length === 0) {
+    setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
+    setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev) => ({ ...prev, [fileId]: '' }));
+    return;
+  }
+
+  const file = files[0];
+  if (!allowedFileTypes.includes(file.type)) {
+    setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+    setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev) => ({ ...prev, [fileId]: '' }));
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+    if (!res.ok) {
+      throw new Error('فشل في الحصول على رابط الرفع');
+    }
+    const { url, filePath } = await res.json();
+
+    const uploadRes = await fetch(url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+        'x-amz-acl': 'public-read',
+      },
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error('فشل في رفع الملف');
     }
 
-    const file = files[0];
-    if (!allowedFileTypes.includes(file.type)) {
-      setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-      return;
+    setFormData((prev) => ({ ...prev, [fileId]: filePath }));
+    setErrors((prev) => ({ ...prev, [fileId]: '' }));
+    setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
+    setFileNames((prev) => ({ ...prev, [fileId]: file.name })); // تخزين اسم الملف
+
+    const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
+    if (ref && ref.current) {
+      ref.current.value = '';
     }
-
-    try {
-      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
-      if (!res.ok) {
-        throw new Error('فشل في الحصول على رابط الرفع');
-      }
-      const { url, filePath } = await res.json();
-
-      const uploadRes = await fetch(url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-          'x-amz-acl': 'public-read',
-        },
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('فشل في رفع الملف');
-      }
-
-      setFormData((prev) => ({ ...prev, [fileId]: filePath }));
-      setErrors((prev) => ({ ...prev, [fileId]: '' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
-
-      const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
-      if (ref && ref.current) {
-        ref.current.value = '';
-      }
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
-      setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-    }
-  };
-
+  } catch (error: any) {
+    console.error('Error uploading file:', error);
+    setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
+    setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev) => ({ ...prev, [fileId]: '' }));
+  }
+};
   const handleButtonClick = (fileId: string) => {
     const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
     if (ref && ref.current) {
@@ -139,6 +146,54 @@ elderlycareLevel:"",
       console.error(`Reference for ${fileId} is not defined or has no current value`);
       setErrors((prev) => ({ ...prev, [fileId]: 'خطأ في تحديد حقل الملف' }));
     }
+  };
+
+  const generatePDF = async () => {
+    const doc = new jsPDF();
+    try {
+          // تحميل خط Amiri بشكل صحيح
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      setModalMessage('خطأ في تحميل الخط العربي');
+      setShowErrorModal(true);
+      return;
+    }
+    doc.setFontSize(12);
+    
+    doc.text('بيانات العاملة', 190, 10, { align: 'right' });
+    doc.text(`الاسم: ${formData.name}`, 190, 20, { align: 'right' });
+    doc.text(`الجنسية: ${formData.nationality}`, 190, 30, { align: 'right' });
+    doc.text(`الديانة: ${formData.religion}`, 190, 40, { align: 'right' });
+    doc.text(`الحالة الاجتماعية: ${formData.maritalStatus}`, 190, 50, { align: 'right' });
+    doc.text(`تاريخ الميلاد: ${formData.age}`, 190, 60, { align: 'right' });
+    doc.text(`رقم الجواز: ${formData.passport}`, 190, 70, { align: 'right' });
+    doc.text(`رقم الجوال: ${formData.mobile}`, 190, 80, { align: 'right' });
+    doc.text(`بداية الجواز: ${formData.passportStart}`, 190, 90, { align: 'right' });
+    doc.text(`نهاية الجواز: ${formData.passportEnd}`, 190, 100, { align: 'right' });
+    doc.text(`مستوى التعليم: ${formData.educationLevel}`, 190, 110, { align: 'right' });
+    doc.text(`اللغة العربية: ${formData.arabicLevel}`, 190, 120, { align: 'right' });
+    doc.text(`اللغة الإنجليزية: ${formData.englishLevel}`, 190, 130, { align: 'right' });
+    doc.text(`الخبرة: ${formData.experienceField}`, 190, 140, { align: 'right' });
+    doc.text(`سنوات الخبرة: ${formData.experienceYears}`, 190, 150, { align: 'right' });
+    doc.text(`الراتب: ${formData.salary}`, 190, 160, { align: 'right' });
+    doc.text(`اسم المكتب: ${formData.officeName}`, 190, 170, { align: 'right' });
+    doc.text(`مهارات الطبخ: ${formData.cookingLevel}`, 190, 180, { align: 'right' });
+    doc.text(`مهارات الغسيل: ${formData.washingLevel}`, 190, 190, { align: 'right' });
+    doc.text(`مهارات الكوي: ${formData.ironingLevel}`, 190, 200, { align: 'right' });
+    doc.text(`مهارات التنظيف: ${formData.cleaningLevel}`, 190, 210, { align: 'right' });
+    doc.text(`مهارات الخياطة: ${formData.sewingLevel}`, 190, 220, { align: 'right' });
+    doc.text(`مهارات العناية بالأطفال: ${formData.childcareLevel}`, 190, 230, { align: 'right' });
+    doc.text(`مهارات رعاية كبار السن: ${formData.elderlycareLevel}`, 190, 240, { align: 'right' });
+
+    doc.save('worker_details.pdf');
   };
 
   const validateForm = () => {
@@ -158,6 +213,13 @@ elderlycareLevel:"",
       { id: 'educationLevel', label: 'مستوى التعليم' },
       { id: 'officeName', label: 'اسم المكتب' },
       { id: 'salary', label: 'الراتب' },
+      { id: 'cookingLevel', label: 'الطبخ' },
+      { id: 'washingLevel', label: 'الغسيل' },
+      { id: 'ironingLevel', label: 'الكوي' },
+      { id: 'cleaningLevel', label: 'التنظيف' },
+      { id: 'sewingLevel', label: 'الخياطة' },
+      { id: 'childcareLevel', label: 'العناية بالأطفال' },
+      { id: 'elderlycareLevel', label: 'رعاية كبار السن' },
     ];
 
     requiredFields.forEach((field) => {
@@ -170,19 +232,31 @@ elderlycareLevel:"",
       newErrors.name = 'الاسم يجب أن يحتوي على حروف فقط وأكثر من حرفين';
     }
 
-    if (formData.mobile && !/^\d{7,15}$/.test(formData.mobile)) {
-      newErrors.mobile = 'رقم الجوال يجب أن يحتوي على 7-15 رقمًا';
+    if (formData.nationality && !/^[a-zA-Z\s\u0600-\u06FF]+$/.test(formData.nationality)) {
+      newErrors.nationality = 'الجنسية يجب أن تحتوي على حروف فقط';
     }
 
-    if (formData.passport && !/^[a-zA-Z0-9]{6,20}$/.test(formData.passport)) {
-      newErrors.passport = 'رقم جواز السفر يجب أن يكون بين 6-20 حرفًا ورقمًا';
+    if (formData.passport) {
+      if (!/^[a-zA-Z0-9]{6,20}$/.test(formData.passport)) {
+        newErrors.passport = 'رقم جواز السفر يجب أن يكون بين 6-20 حرفًا ورقمًا';
+      } else if (!/[a-zA-Z]/.test(formData.passport) || !/[0-9]/.test(formData.passport)) {
+        newErrors.passport = 'رقم جواز السفر يجب أن يحتوي على حروف وأرقام';
+      }
+    }
+
+    if (formData.mobile && !/^\d{10,15}$/.test(formData.mobile)) {
+      newErrors.mobile = 'رقم الجوال يجب أن يحتوي على 10-15 رقمًا';
     }
 
     if (formData.age) {
       const ageDate = new Date(formData.age);
-      const age = today.getFullYear() - ageDate.getFullYear();
-      if (age < 14 || age > 100) {
-        newErrors.age = 'العمر يجب أن يكون بين 14 و100 سنة';
+      let age = today.getFullYear() - ageDate.getFullYear();
+      const monthDiff = today.getMonth() - ageDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < ageDate.getDate())) {
+        age--;
+      }
+      if (age < 16 || age > 100) {
+        newErrors.age = 'العمر يجب أن يكون بين 16 و100 سنة';
       }
     }
 
@@ -204,7 +278,6 @@ elderlycareLevel:"",
     if (formData.experienceYears && (isNaN(Number(formData.experienceYears)) || Number(formData.experienceYears) < 0)) {
       newErrors.experienceYears = 'سنوات الخبرة يجب أن تكون رقمًا غير سالب';
     }
-
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -257,6 +330,13 @@ elderlycareLevel:"",
         experienceYears: '',
         salary: '',
         officeName: '',
+        cookingLevel: '',
+        washingLevel: '',
+        ironingLevel: '',
+        cleaningLevel: '',
+        sewingLevel: '',
+        childcareLevel: '',
+        elderlycareLevel: '',
         skills: {
           washing: '',
           ironing: '',
@@ -312,7 +392,7 @@ elderlycareLevel:"",
             </div>
           </div>
         )}
-        
+   
         {/* Success Modal */}
         {showSuccessModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -390,6 +470,71 @@ elderlycareLevel:"",
               </div>
             </section>
             <div className="bg-white border border-gray-300 rounded-lg shadow-sm p-6">
+<div className="flex justify-end gap-4">
+             <button
+  type="button"
+  className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md"
+  onClick={() => {
+    setFormData({
+      name: '',
+      religion: '',
+      nationality: '',
+      maritalStatus: '',
+      age: '',
+      passport: '',
+      mobile: '',
+      passportStart: '',
+      passportEnd: '',
+      educationLevel: '',
+      arabicLevel: '',
+      englishLevel: '',
+      experienceField: '',
+      experienceYears: '',
+      salary: '',
+      officeName: '',
+      cookingLevel: '',
+      washingLevel: '',
+      ironingLevel: '',
+      cleaningLevel: '',
+      sewingLevel: '',
+      childcareLevel: '',
+      elderlycareLevel: '',
+      skills: {
+        washing: '',
+        ironing: '',
+        cleaning: '',
+        cooking: '',
+        sewing: '',
+        childcare: '',
+        elderlycare: '',
+      },
+      travelTicket: '',
+      passportcopy: '',
+    });
+    setFileUploaded({
+      travelTicket: false,
+      passportcopy: false,
+    });
+    setFileNames({
+      travelTicket: '',
+      passportcopy: '',
+    });
+    if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
+    if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
+    setErrors({});
+  }}
+>
+  إعادة ضبط
+</button>
+                  <button
+                    type="button"
+                    className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md"
+                    onClick={handleSubmit}
+                  >
+                    إضافة العاملة
+                  </button>
+                </div>     
+
               <form className="space-y-6" dir="rtl" onSubmit={(e) => e.preventDefault()}>
                 <fieldset>
                   <legend className="text-2xl font-normal text-center text-black mb-6">المعلومات الشخصية</legend>
@@ -449,7 +594,7 @@ elderlycareLevel:"",
                       {errors.maritalStatus && <p className="text-red-500 text-xs mt-1">{errors.maritalStatus}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="age" className="text-gray-500 text-sm mb-1">العمر</label>
+                      <label htmlFor="age" className="text-gray-500 text-sm mb-1">تاريخ الميلاد</label>
                       <input
                         type="date"
                         id="age"
@@ -593,197 +738,121 @@ elderlycareLevel:"",
                     </div>
                   </div>
                 </fieldset>
-                {/* <fieldset>
+                <fieldset>
                   <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[
-                      { id: 'washing', label: 'الغسيل' },
-                      { id: 'ironing', label: 'الكوي' },
-                      { id: 'cleaning', label: 'التنظيف' },
-                      { id: 'cooking', label: 'الطبخ' },
-                      { id: 'sewing', label: 'الخياطة' },
-                      { id: 'childcare', label: 'العناية بالأطفال' },
-                      { id: 'elderlycare', label: 'رعاية كبار السن' },
-                    ].map((skill) => (
-                      <div key={skill.id} className="flex flex-col">
-                        <label htmlFor={`skill-${skill.id}`} className="text-gray-500 text-sm mb-1">{skill.label}</label>
-                        <select
-                          id={`skill-${skill.id}`}
-                          value={formData.skills[skill.id as keyof typeof formData.skills]}
-                          onChange={(e) => 
-                            
-                            handleSkillChange(skill.id, e.target.value)
-                          
-                          }
-                          className={`border ${errors[`skill-${skill.id}`] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                        >
-                          <option value="" disabled>اختر المستوى</option>
-                          <option value="trained_no_experience">مدربة بدون خبرة</option>
-                          <option value="good">جيد</option>
-                          <option value="very_good">جيد جدا</option>
-                          <option value="excellent">ممتاز</option>
-                        </select>
-                        {errors[`skill-${skill.id}`] && <p className="text-red-500 text-xs mt-1">{errors[`skill-${skill.id}`]}</p>}
-                      </div>
-                    ))}
-                    {errors.skills && <p className="text-red-500 text-xs mt-1 col-span-full">{errors.skills}</p>}
-                  </div>
-                </fieldset> */}
-
-
-
-
-<fieldset>
-                  <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                   
-                      <div  className="flex flex-col">
-                        <label htmlFor='cookingLevel' className="text-gray-500 text-sm mb-1">الطبخ</label>
-                        <select
-                          id='cookingLevel'
-                          value={formData.cookingLevel}
-                          onChange={handleChange}
-                          className={`border ${errors['cookingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                        >
-                          <option value="" disabled>اختر المستوى</option>
-                          <option value="trained_no_experience">مدربة بدون خبرة</option>
-                          <option value="good">جيد</option>
-                          <option value="very_good">جيد جدا</option>
-                          <option value="excellent">ممتاز</option>
-                        </select>
-                        {errors['cookingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cookingLevel']}</p>}
-                      </div>
-
-
-      <div  className="flex flex-col">
-                              <label htmlFor='washingLevel' className="text-gray-500 text-sm mb-1">الغسيل</label>
-                              <select
-                                id='washingLevel'
-                                value={formData.washingLevel}
-                                onChange={handleChange}
-                                className={`border ${errors['washingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                              >
-                                <option value="" disabled>اختر المستوى</option>
-                                <option value="trained_no_experience">مدربة بدون خبرة</option>
-                                <option value="good">جيد</option>
-                                <option value="very_good">جيد جدا</option>
-                                <option value="excellent">ممتاز</option>
-                              </select>
-                              {errors['washingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['washingLevel']}</p>}
-                            </div>
-
-
-      <div  className="flex flex-col">
-                              <label htmlFor='ironingLevel' className="text-gray-500 text-sm mb-1">الكوي</label>
-                              <select
-                                id='ironingLevel'
-                                value={formData.ironingLevel}
-                                onChange={handleChange}
-                                className={`border ${errors['ironingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                              >
-                                <option value="" disabled>اختر المستوى</option>
-                                <option value="trained_no_experience">مدربة بدون خبرة</option>
-                                <option value="good">جيد</option>
-                                <option value="very_good">جيد جدا</option>
-                                <option value="excellent">ممتاز</option>
-                              </select>
-                              {errors['ironingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['ironingLevel']}</p>}
-                            </div>
-
-
-
-
-
-
-
-      <div  className="flex flex-col">
-                              <label htmlFor='cleaningLevel' className="text-gray-500 text-sm mb-1">التنظيف</label>
-                              <select
-                                id='cleaningLevel'
-                                value={formData.cleaningLevel}
-                                onChange={handleChange}
-                                className={`border ${errors['cleaningLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                              >
-                                <option value="" disabled>اختر المستوى</option>
-                                <option value="trained_no_experience">مدربة بدون خبرة</option>
-                                <option value="good">جيد</option>
-                                <option value="very_good">جيد جدا</option>
-                                <option value="excellent">ممتاز</option>
-                              </select>
-                              {errors['cleaningLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cleaningLevel']}</p>}
-                            </div>
-
-
-      <div  className="flex flex-col">
-                              <label htmlFor='sewingLevel' className="text-gray-500 text-sm mb-1">الخياطة</label>
-                              <select
-                                id='sewingLevel'
-                                value={formData.sewingLevel}
-                                onChange={handleChange}
-                                className={`border ${errors['sewingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                              >
-                                <option value="" disabled>اختر المستوى</option>
-                                <option value="trained_no_experience">مدربة بدون خبرة</option>
-                                <option value="good">جيد</option>
-                                <option value="very_good">جيد جدا</option>
-                                <option value="excellent">ممتاز</option>
-                              </select>
-                              {errors['sewingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['sewingLevel']}</p>}
-                            </div>
-
-
-      <div  className="flex flex-col">
-                              <label htmlFor='elderlycareLevel' className="text-gray-500 text-sm mb-1">رعاية كبار السن</label>
-                              <select
-                                id='elderlycareLevel'
-                                value={formData.elderlycareLevel}
-                                onChange={handleChange}
-                                className={`border ${errors['elderlycareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                              >
-                                <option value="" disabled>اختر المستوى</option>
-                                <option value="trained_no_experience">مدربة بدون خبرة</option>
-                                <option value="good">جيد</option>
-                                <option value="very_good">جيد جدا</option>
-                                <option value="excellent">ممتاز</option>
-                              </select>
-                              {errors['elderlycareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['elderlycareLevel']}</p>}
-                            </div>
-                  
-
-
-
-
-
-
-
-
-      <div  className="flex flex-col">
-                              <label htmlFor='childcareLevel' className="text-gray-500 text-sm mb-1">العناية بالأطفال</label>
-                              <select
-                                id='childcareLevel'
-                                value={formData.childcareLevel}
-                                onChange={handleChange}
-                                className={`border ${errors['childcareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                              >
-                                <option value="" disabled>اختر المستوى</option>
-                                <option value="trained_no_experience">مدربة بدون خبرة</option>
-                                <option value="good">جيد</option>
-                                <option value="very_good">جيد جدا</option>
-                                <option value="excellent">ممتاز</option>
-                              </select>
-                              {errors['childcareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['childcareLevel']}</p>}
-                            </div>
-
-
-
-
-
-
-
-
-
-
-
+                    <div className="flex flex-col">
+                      <label htmlFor='cookingLevel' className="text-gray-500 text-sm mb-1">الطبخ</label>
+                      <select
+                        id='cookingLevel'
+                        value={formData.cookingLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['cookingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['cookingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cookingLevel']}</p>}
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor='washingLevel' className="text-gray-500 text-sm mb-1">الغسيل</label>
+                      <select
+                        id='washingLevel'
+                        value={formData.washingLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['washingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['washingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['washingLevel']}</p>}
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor='ironingLevel' className="text-gray-500 text-sm mb-1">الكوي</label>
+                      <select
+                        id='ironingLevel'
+                        value={formData.ironingLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['ironingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['ironingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['ironingLevel']}</p>}
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor='cleaningLevel' className="text-gray-500 text-sm mb-1">التنظيف</label>
+                      <select
+                        id='cleaningLevel'
+                        value={formData.cleaningLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['cleaningLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['cleaningLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cleaningLevel']}</p>}
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor='sewingLevel' className="text-gray-500 text-sm mb-1">الخياطة</label>
+                      <select
+                        id='sewingLevel'
+                        value={formData.sewingLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['sewingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['sewingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['sewingLevel']}</p>}
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor='elderlycareLevel' className="text-gray-500 text-sm mb-1">رعاية كبار السن</label>
+                      <select
+                        id='elderlycareLevel'
+                        value={formData.elderlycareLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['elderlycareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['elderlycareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['elderlycareLevel']}</p>}
+                    </div>
+                    <div className="flex flex-col">
+                      <label htmlFor='childcareLevel' className="text-gray-500 text-sm mb-1">العناية بالأطفال</label>
+                      <select
+                        id='childcareLevel'
+                        value={formData.childcareLevel}
+                        onChange={handleChange}
+                        className={`border ${errors['childcareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                      >
+                        <option value="" disabled>اختر المستوى</option>
+                        <option value="trained_no_experience">مدربة بدون خبرة</option>
+                        <option value="good">جيد</option>
+                        <option value="very_good">جيد جدا</option>
+                        <option value="excellent">ممتاز</option>
+                      </select>
+                      {errors['childcareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['childcareLevel']}</p>}
+                    </div>
                   </div>
                 </fieldset>
                 <fieldset>
@@ -820,110 +889,45 @@ elderlycareLevel:"",
                     </div>
                   </div>
                 </fieldset>
-                <fieldset>
-                  <legend className="text-2xl font-normal text-center text-black mb-6">الملفات</legend>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[
-                      { id: 'travelTicket', label: 'تذكرة السفر' },
-                      { id: 'passportcopy', label: 'جواز السفر' },
-                    ].map((file) => (
-                      <div key={file.id} className="flex flex-col">
-                        <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">{file.label}</label>
-                        <div className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center">
-                          <span className="text-gray-500 text-sm pr-2">
-                            {fileUploaded[file.id] ? (
-                              <a                                href={formData[file.id as keyof typeof formData]}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-teal-800 hover:underline"
-                              >
-                                فتح الملف
-                              </a>
-                            ) : (
-                              'إرفاق ملف'
-                            )}
-                          </span>
-                          <input
-                            type="file"
-                            id={file.id}
-                            ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
-                            className="hidden"
-                            accept="application/pdf,image/jpeg,image/png"
-                            onChange={(e) => handleFileChange(e, file.id)}
-                          />
-                          <button
-                            type="button"
-                            className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs hover:bg-teal-900 disabled:opacity-50"
-                            onClick={() => handleButtonClick(file.id)}
-                          >
-                            اختيار ملف
-                          </button>
-                        </div>
-                        {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </fieldset>
-                <div className="flex justify-end gap-4">
-                  <button
-                    type="button"
-                    className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md"
-                    onClick={() => {
-                      setFormData({
-                        name: '',
-                        religion: '',
-                        nationality: '',
-                        maritalStatus: '',
-                        age: '',
-                        passport: '',
-                        mobile: '',
-                        passportStart: '',
-                        passportEnd: '',
-                        educationLevel: '',
-                        arabicLevel: '',
-                        englishLevel: '',
-                        experienceField: '',
-                        experienceYears: '',
-                        salary: '',
-                        officeName: '',
-                        cookingLevel: '',
-                        washingLevel: '',
-                        ironingLevel: '',
-                        cleaningLevel: '',
-                        sewingLevel: '',
-                        childcareLevel: '',
-                        elderlycareLevel: '',
-                        skills: {
-                          washing: '',
-                          ironing: '',
-                          cleaning: '',
-                          cooking: '',
-                          sewing: '',
-                          childcare: '',
-                          elderlycare: '',
-                        },
-                        travelTicket: '',
-                        passportcopy: '',
-                      });
-                      setFileUploaded({
-                        travelTicket: false,
-                        passportcopy: false,
-                      });
-                      if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
-                      if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
-                      setErrors({});
-                    }}
-                  >
-                    إعادة ضبط
-                  </button>
-                  <button
-                    type="button"
-                    className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md"
-                    onClick={handleSubmit}
-                  >
-                    إضافة العاملة
-                  </button>
-                </div>
+          <fieldset>
+  <legend className="text-2xl font-normal text-center text-black mb-6">الملفات</legend>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {[
+      { id: 'travelTicket', label: 'تذكرة السفر' },
+      { id: 'passportcopy', label: 'جواز السفر' },
+    ].map((file) => (
+      <div key={file.id} className="flex flex-col">
+        <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">{file.label}</label>
+        <div className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center">
+          <span className="text-gray-500 text-sm pr-2 truncate max-w-[200px]">
+            {fileNames[file.id] ? (
+              <span className="text-teal-800">{fileNames[file.id]}</span>
+            ) : (
+              'إرفاق ملف'
+            )}
+          </span>
+          <input
+            type="file"
+            id={file.id}
+            ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
+            className="hidden"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => handleFileChange(e, file.id)}
+          />
+          <button
+            type="button"
+            className="bg-teal-800 text-white px-3 py-1 rounded-md text-xs hover:bg-teal-900 disabled:opacity-50"
+            onClick={() => handleButtonClick(file.id)}
+          >
+            اختيار ملف
+          </button>
+        </div>
+        {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
+      </div>
+    ))}
+  </div>
+</fieldset>
+                
               </form>
             </div>
           </main>

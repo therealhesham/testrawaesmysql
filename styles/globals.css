@@ -67,6 +67,58 @@ a {
   button {
     display: none; /* Hide the button when printing */
   }
+
+  /* Worker info page specific print styles */
+  .bg-gray-50 {
+    background-color: white !important;
+  }
+
+  .p-6 {
+    padding: 0 !important;
+  }
+
+  .mb-8 {
+    margin-bottom: 16px !important;
+  }
+
+  .mb-6 {
+    margin-bottom: 12px !important;
+  }
+
+  .mb-4 {
+    margin-bottom: 8px !important;
+  }
+
+  .grid {
+    display: block !important;
+  }
+
+  .grid > div {
+    display: block !important;
+    margin-bottom: 8px;
+  }
+
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #000 !important;
+    padding: 4px !important;
+  }
+
+  .shadow-md {
+    box-shadow: none !important;
+  }
+
+  .rounded-lg {
+    border-radius: 0 !important;
+  }
 }
 /* end of print*/
 .step-number {

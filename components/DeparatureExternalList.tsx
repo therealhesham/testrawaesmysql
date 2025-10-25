@@ -5,10 +5,13 @@ import { ArrowDownLeft, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FaToggleOn } from "react-icons/fa";
 import jsPDF from "jspdf";
+import { jwtDecode } from "jwt-decode";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { debounce } from "lodash";
 import AlertModal from './AlertModal';
+import { useRouter } from "next/router";
+import { Query } from "react-query";
 
 interface DepartureExternalListProps {
   onOpenModal: () => void;
@@ -17,18 +20,24 @@ interface DepartureExternalListProps {
 export default function DepartureExternalList({ onOpenModal }: DepartureExternalListProps) {
   const [departures, setDepartures] = useState<any[]>([]);
   const [page, setPage] = useState(1);
-  const [perPage] = useState(8);
+  const [perPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [nationality, setNationality] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [nationalities, setNationalities] = useState<any[]>(["كل الجنسيات"]);
+  const [nationalities, setNationalities] = useState([]);
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning'>('success');
   const [alertMessage, setAlertMessage] = useState('');
 
-
+const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const decoded = jwtDecode(token);
+  const userName = decoded.username;
+  setUserName(userName);
+}, []);
   
   const fetchDepartures = async (pageNumber: number, filters: any = {}) => {
     try {
@@ -64,20 +73,31 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
   };
   useEffect(() => {
     fetchDepartures(page, { searchTerm, nationality, selectedDate });
-  
+    const fetchNationalities = async () => {
+      try {
+        const response = await axios.get("/api/nationalities");
+        
+        setNationalities(response.data.nationalities || [{ id: "all", Country: "كل الجنسيات" }]);
+      console.log(response.data.nationalities);
+      } catch (error) {
+        console.error("Error fetching nationalities:", error);
+        // setNationalities([{ id: "all", Country: "كل الجنسيات" }]);
+      }
+    };
+    fetchNationalities();
   }, [page, searchTerm, nationality, selectedDate]);
 
   useEffect(() => {
     fetchExportedData();
-    const fetchOffices = async () => {
-      try {
-        const response = await axios.get("/api/offices");
-        setNationalities(response.data.countriesfinder);
-      } catch (error) {
-        console.error("Error fetching offices:", error);
-      }
-    };
-    fetchOffices();
+    // const fetchOffices = async () => {
+    //   try {
+    //     const response = await axios.get("/api/offices");
+    //     setNationalities(response.data.countriesfinder);
+    //   } catch (error) {
+    //     console.error("Error fetching offices:", error);
+    //   }
+    // };
+    // fetchOffices();
   }, []);
 
   const handleSearch =(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,87 +121,146 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
     setSelectedDate("");
     setPage(1);
   };
+const fetchFilteredDataExporting = async () => {
+  const query = new URLSearchParams({
+    perPage: "1000",
+    ...(searchTerm && { search: searchTerm }),
+    ...(nationality && nationality !== "كل الجنسيات" && {
+      nationality: nationality,
+    }),
+    ...(selectedDate && { deparatureDate: selectedDate }),
+  }).toString();
 
-  const exportToPDF = async () => {
-    if (!exportedData || exportedData.length === 0) {
-      setAlertType('warning');
-      setAlertMessage('لا توجد بيانات للتصدير');
-      setShowAlert(true);
-      return;
-    }
+  const res = await fetch(`/api/deparaturefromsaudi?${query}`);
+  if (!res.ok) throw new Error("Failed to fetch data");
+  const data = await res.json();
 
-    const doc = new jsPDF();
-    
-    try {
-      // تحميل خط Amiri بشكل صحيح
-      const response = await fetch('/fonts/Amiri-Regular.ttf');
-      if (!response.ok) throw new Error('Failed to fetch font');
-      const fontBuffer = await response.arrayBuffer();
-      const fontBytes = new Uint8Array(fontBuffer);
-      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+  // نحدّث الستيت لو حابب تظل البيانات في الواجهة
+  setExportedData(data.data);
+  // لكن الأهم: نرجعها علشان نستخدمها فورًا
+  return data.data;
+};
 
-      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-      doc.setFont('Amiri', 'normal');
-    } catch (error) {
-      console.error('Error loading Amiri font:', error);
-      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
-      doc.setFont('helvetica', 'normal');
-    }
+const exportToPDF = async () => {
+  let dataToExport = exportedData;
 
-    doc.setLanguage('ar');
-    doc.setFontSize(16);
-    doc.text('قائمة المغادرة الخارجية', 200, 10, { align: 'center' });
+  if (searchTerm || nationality || selectedDate) {
+    // نستنى البيانات الجديدة قبل إنشاء الـ PDF
+    dataToExport = await fetchFilteredDataExporting();
+  }
 
-    const tableColumn = [
-      "رقم العاملة",
-      "رقم الطلب", 
-      "اسم العاملة",
-      "اسم العميل",
-      "الجنسية",
-      "رقم الجواز",
-      "سبب المغادرة",
-      "جهة الوصول",
-      "تاريخ المغادرة",
-    ];
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.width;
 
-    const tableRows = exportedData.map((row) => [
+  try {
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+    doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+    const response = await fetch('/fonts/Amiri-Regular.ttf');
+    if (!response.ok) throw new Error('Failed to fetch font');
+    const fontBuffer = await response.arrayBuffer();
+    const fontBytes = new Uint8Array(fontBuffer);
+    const fontBase64 = Buffer.from(fontBytes).toString('base64');
+    doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri', 'normal');
+  } catch (error) {
+    console.error('Error loading Amiri font:', error);
+    doc.setFont('helvetica', 'normal');
+  }
+
+  doc.setLanguage('ar');
+  doc.setFontSize(16);
+  doc.text('قائمة المغادرة الخارجية', 150, 20, { align: 'right' });
+
+  const tableColumn = [
+    "رقم العاملة",
+    "رقم الطلب",
+    "اسم العاملة",
+    "اسم العميل",
+    "الجنسية",
+    "رقم الجواز",
+    "سبب المغادرة",
+    "جهة الوصول",
+    "تاريخ المغادرة",
+  ].reverse();
+
+  const tableRows = dataToExport.map((row) =>
+    [
       row.Order?.HomeMaid?.id || "-",
       row.OrderId || "-",
-      row.HomemaidName || "-",
-      row.Order?.HomeMaid?.Client[0]?.fullname || "-",
+      row.Order?.HomeMaid?.Name || "-",
+      row.Order?.client?.fullname || "-",
       row.Order?.HomeMaid?.office?.Country || "-",
-      row.PassportNumber || "-",
+      row.Order?.HomeMaid?.Passportnumber || "-",
       row.externalReason || "-",
       row.externalArrivalCity || "-",
-      row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-",
-    ]);
+      row.externaldeparatureDate
+        ? new Date(row.externaldeparatureDate).toISOString().split('T')[0]//yyyy-mm-dd
+        : "-",
+    ].reverse()
+  );
 
-    (doc as any).autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
-      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
-      margin: { top: 30 },
-      didDrawPage: () => {
-        doc.setFontSize(10);
-        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
-      },
-    });
+  doc.autoTable({
+    head: [tableColumn],
+    body: tableRows,
+    styles: { font: 'Amiri', halign: 'center', fontSize: 10 },
+    headStyles: { fillColor: [26, 77, 79], textColor: [255, 255, 255] },
+    margin: { top: 45, right: 10, left: 10 },
+    direction: 'rtl',
 
-    doc.save('قائمة_المغادرة_الخارجية.pdf');
-  };
+    didDrawPage: () => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
 
-  const exportToExcel = () => {
-    const worksheetData = exportedData.map((row) => ({
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+  });
+
+  doc.save('قائمة_المغادرة_الخارجية.pdf');
+};
+
+  const exportToExcel = async () => {
+
+      let dataToExport = exportedData;
+
+  if (searchTerm || nationality || selectedDate) {
+    // نستنى البيانات الجديدة قبل إنشاء الـ PDF
+    dataToExport = await fetchFilteredDataExporting();
+  }
+
+    const worksheetData = dataToExport.map((row) => ({
       "رقم العاملة": row.Order?.HomeMaid?.id || "-",
       "رقم الطلب": row.OrderId || "-",
-      "اسم العاملة": row.HomemaidName || "-",
-      "اسم العميل": row.Order?.HomeMaid?.Client[0]?.fullname || "-",
+      "اسم العاملة": row.Order?.HomeMaid?.Name || "-",
+      "اسم العميل": row.Order?.HomeMaid?.Client?.fullname || "-",
       "الجنسية": row.Order?.HomeMaid?.office?.Country || "-",
-      "رقم الجواز": row.PassportNumber || "-",
-      "من": row.externaldeparatureCity || "-",
-      "الى": row.externalArrivalCity || "-",
+      "رقم الجواز": row.Order?.HomeMaid?.Passportnumber || "-",
+      "جهة المغادرة": row.externaldeparatureCity || "-",
+      "جهة الوصول": row.externalArrivalCity || "-",
       "سبب المغادرة": row.externalReason || "-",
       "تاريخ المغادرة": row.externaldeparatureDate
         ? new Date(row.externaldeparatureDate).toLocaleDateString()
@@ -194,11 +273,11 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "المغادرة");
-    XLSX.writeFile(workbook, "قائمة_المغادرة.xlsx");
+    XLSX.writeFile(workbook, "قائمة_المغادرة الخارجية.xlsx");
   };
-
+const router = useRouter();
   return (
-    <section id="departure-list" className="mb-10">
+    <section id="departure-list" className="mb-10 w-full px-4">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-semibold text-gray-800">قائمة المغادرة الخارجية</h1>
         <button
@@ -281,7 +360,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
           <table className="w-full text-md text-center text-gray-700">
             <thead className="bg-teal-800 text-white font-medium">
               <tr>
-                <th className="py-3 px-2">رقم العاملة</th>
+                <th className="py-3 px-2 ">رقم العاملة</th>
                 <th className="py-3 px-2">رقم الطلب</th>
                 <th className="py-3 px-2">اسم العاملة</th>
                 <th className="py-3 px-2">اسم العميل</th>
@@ -289,7 +368,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
                 <th className="py-3 px-2">رقم الجواز</th>
                 {/* <th className="py-3 px-2">من</th> */}
                 <th className="py-3 px-2">سبب المغادرة</th>
-                <th className="py-3 px-2">وجهة المغادرة </th>
+                <th className="py-3 px-2">وجهة الوصول </th>
                 <th className="py-3 px-2">تاريخ المغادرة</th>
                 <th className="py-3 px-2">حالة العقد</th>
               </tr>
@@ -300,10 +379,10 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
                   key={index}
                   className={index % 2 === 0 ? "bg-gray-100" : "bg-gray-100"}
                 >
-                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.id || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.OrderId || "-"}</td>
+                  <td className="py-3 px-2 cursor-pointer border-t border-gray-200" onClick={() => router.push(`/admin/homemaidinfo?id=${row.Order?.HomeMaid?.id}`)}>{row.Order?.HomeMaid?.id || "-"}</td>
+                  <td className="py-3 px-2 cursor-pointer border-t border-gray-200" onClick={() => router.push(`/admin/track_order/${row.OrderId}`)}>{row.OrderId || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Name || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Client[0]?.fullname || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{row.Order?.client?.fullname || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Passportnumber || "-"}</td>
                   {/* <td className="py-3 px-2 border-t border-gray-200">{row.ArrivalCity || "-"}</td> */}
@@ -316,7 +395,7 @@ export default function DepartureExternalList({ onOpenModal }: DepartureExternal
                   <td className="py-3 px-2 border-t border-gray-200">{row.externalArrivalCity || "-"}</td>
 
                   <td className="py-3 px-2 border-t border-gray-200">
-                    {row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toLocaleDateString() : "-"}
+                    {row.externaldeparatureDate ? new Date(row.externaldeparatureDate).toISOString().split('T')[0]: "-"}
                   </td>
                   <td className="py-3 px-2 border-t border-gray-200">
                     {row.Order?.isContractEnded === "منتهي" ? "منتهي" : "مفعل"}

@@ -1,5 +1,10 @@
+import '../../lib/loggers';
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import { parse, isValid } from "date-fns";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 const prisma = new PrismaClient();
 
@@ -10,7 +15,18 @@ export default async function handler(
   if (req.method === "GET") {
     const { SponsorName, age, PassportNumber, page, OrderId,search, perPage, nationality, deparatureDate } =
       req.query;
+const tryParseDate = (input: string): Date | null => {
+  const formats = ["yyyy-MM-dd", "dd-MM-yyyy", "dd MMM yyyy"];
 
+  for (const format of formats) {
+    const parsed = parse(input, format, new Date());
+    if (isValid(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
     const pageSize = parseInt(perPage as string, 10) || 10;
     const pageNumber = parseInt(page as string, 10) || 1;
 
@@ -58,29 +74,45 @@ export default async function handler(
           },
         },
       };
-    if (deparatureDate)
-      filters.internaldeparatureDate = {
-        equals: new Date(deparatureDate as string),
-      };
+      try{
+//  const parsedDate = tryParseDate(deparatureDate as string);
+if (deparatureDate) {
+  const parsed = new Date(deparatureDate as string);
+  if (!isNaN(parsed.getTime())) {
+    const startOfDay = new Date(parsed);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(parsed);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    filters.internaldeparatureDate = {
+      gte: startOfDay,
+      lte: endOfDay,
+      not: null,
+    };
+  }
+} else {
+  // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
+  filters.internaldeparatureDate = { not: null };
+}
+
+} catch (error) {
+  console.error("Error parsing date:", error);
+}
+
 
     try {
       const totalRecords = await prisma.arrivallist.count({
-        where: {
-          ...filters,
-          internaldeparatureDate: { not: null },
-        },
+        where: filters,
       });
       const totalPages = Math.ceil(totalRecords / pageSize);
 
       const homemaids = await prisma.arrivallist.findMany({
-        where: {
-          ...filters,
-          internaldeparatureDate: { not: null },
-        },
+        where:filters,
         select: {
           Sponsor: true,
           Order: {
-            select: {
+            select: {client:true,
               Name: true,
               HomemaidId: true,
               HomeMaid: {
@@ -111,6 +143,28 @@ export default async function handler(
         take: pageSize,
         orderBy: { id: "desc" },
       });
+
+      try {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  const referer = req.headers.referer
+  const token = jwtDecode(cookies.authToken);
+  eventBus.emit('ACTION', {
+    type: "عرض قائمة المغادرات ",
+    beneficiary: "deparatures",
+    pageRoute: referer,
+    actionType: "view",
+    userId: Number((token as any).id),
+  });
+} catch (error) {
+  console.error("Error emitting event:", error);
+}
 
       res.status(200).json({
         data: homemaids,

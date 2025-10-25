@@ -25,12 +25,14 @@ export default async function handler(req, res) {
     case 'PUT':
       try {
         const { username, phonenumber, idnumber, password, roleId } = req.body;
+        console.log(idnumber)
+        
         const user = await prisma.user.update({
           where: { id: parseInt(id) },
           data: {
             username,
             phonenumber,
-            idnumber,
+            idnumber:Number(idnumber),
             password,
             roleId: roleId ? parseInt(roleId) : null  ,
             updatedAt: new Date(),
@@ -50,6 +52,7 @@ export default async function handler(req, res) {
         });
         res.status(204).end();
       } catch (error) {
+        console.log(error)
         res.status(500).json({ error: 'Failed to delete user' });
       }
       break;

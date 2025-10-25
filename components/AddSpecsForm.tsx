@@ -82,6 +82,12 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
     orderDocument: false,
     contract: false,
   });
+  // أضف هذا state بعد باقي الـ states الموجودة
+// أضف هذا السطر مع باقي الـ useState
+const [fileNames, setFileNames] = useState({
+  orderDocument: '',
+  contract: '',
+});
   const [fileUploading, setFileUploading] = useState({
     orderDocument: false,
     contract: false,
@@ -102,6 +108,61 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
   };
 
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+  // Validation functions
+  const validatePhoneNumber = (phone: string): string => {
+    // const phoneRegex = /^(\+?966|0)?5[0-9]{8}$/;
+    if (!phone) return 'رقم الهاتف مطلوب';
+    // if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+      // return 'رقم الهاتف غير صحيح (يجب أن يبدأ بـ 05)';
+    // }
+    return '';
+  };
+
+  const validateAge = (age: number): string => {
+    if (age < 18 || age > 70) {
+      return 'العمر يجب أن يكون بين 18 و70 سنة';
+    }
+    return '';
+  };
+
+  const validateExperience = (experience: number): string => {
+    if (experience < 0 || experience > 50) {
+      return 'سنوات الخبرة يجب أن تكون بين 0 و50 سنة';
+    }
+    return '';
+  };
+
+  const validateAmount = (amount: number): string => {
+    if (amount < 0) {
+      return 'المبلغ لا يمكن أن يكون سالبًا';
+    }
+    if (amount > 100000) {
+      return 'المبلغ الإجمالي لا يتجاوز 100,000 ريال';
+    }
+    return '';
+  };
+
+  const validateNationality = (nationality: string): string => {
+    if (!nationality || nationality.trim().length < 2) {
+      return 'الجنسية مطلوبة (2 أحرف على الأقل)';
+    }
+    return '';
+  };
+
+  const validateReligion = (religion: string): string => {
+    if (!religion || religion.trim().length < 2) {
+      return 'الديانة مطلوبة (2 أحرف على الأقل)';
+    }
+    return '';
+  };
+
+  const validateFileUploaded = (fileId: string): string => {
+    if (!fileUploaded[fileId as keyof typeof fileUploaded]) {
+      return `${fileId === 'orderDocument' ? 'ملف سند الأمر' : 'ملف العقد'} مطلوب`;
+    }
+    return '';
+  };
 
   useEffect(() => {
     if (orderId) {
@@ -152,75 +213,89 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
         ...prev,
         clientID: preSelectedClient.id,
         ClientName: preSelectedClient.fullname,
+        city:preSelectedClient?.city || '',
         PhoneNumber: preSelectedClient.phonenumber,
       }));
     }
   }, [preSelectedClient]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) {
-      setErrors((prev: any) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
-      setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
-      return;
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
+  const files = e.target.files;
+  if (!files || files.length === 0) {
+    setErrors((prev: any) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
+    setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev: any) => ({ ...prev, [fileId]: '' })); // إضافة هذا السطر
+    return;
+  }
+
+  const file = files[0];
+  
+  // حفظ اسم الملف فوراً
+  setFileNames((prev: any) => ({ ...prev, [fileId]: file.name }));
+  
+  // File size validation (max 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    setErrors((prev: any) => ({ ...prev, [fileId]: 'حجم الملف يجب أن يكون أقل من 10 ميجابايت' }));
+    setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev: any) => ({ ...prev, [fileId]: '' })); // إضافة هذا السطر
+    return;
+  }
+
+  if (!allowedFileTypes.includes(file.type)) {
+    setErrors((prev: any) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+    setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev: any) => ({ ...prev, [fileId]: '' })); // إضافة هذا السطر
+    return;
+  }
+
+  // باقي الكود كما هو...
+  setFileUploading((prev: any) => ({ ...prev, [fileId]: true }));
+  setErrors((prev: any) => ({ ...prev, [fileId]: '' }));
+
+  try {
+    const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+    if (!res.ok) {
+      throw new Error('فشل في الحصول على رابط الرفع');
+    }
+    const { url, filePath } = await res.json();
+
+    const uploadRes = await fetch(url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+        'x-amz-acl': 'public-read',
+      },
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error('فشل في رفع الملف');
     }
 
-    const file = files[0];
-    if (!allowedFileTypes.includes(file.type)) {
-      setErrors((prev: any) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
-      setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
-      return;
+    setFormData((prev: any) => ({ ...prev, [fileId]: filePath }));
+    setFileUploaded((prev: any) => ({ ...prev, [fileId]: true }));
+    
+    // Show success message
+    const fileLabels = {
+      orderDocument: 'ملف سند الأمر',
+      contract: 'ملف العقد'
+    };
+    setUploadSuccessMessage(`${fileLabels[fileId as keyof typeof fileLabels]} تم رفعه بنجاح`);
+    setShowUploadSuccessModal(true);
+
+    const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
+    if (ref && ref.current) {
+      ref.current.value = '';
     }
-
-    // Start upload indicator
-    setFileUploading((prev: any) => ({ ...prev, [fileId]: true }));
-    setErrors((prev: any) => ({ ...prev, [fileId]: '' }));
-
-    try {
-      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
-      if (!res.ok) {
-        throw new Error('فشل في الحصول على رابط الرفع');
-      }
-      const { url, filePath } = await res.json();
-
-      const uploadRes = await fetch(url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-          'x-amz-acl': 'public-read',
-        },
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('فشل في رفع الملف');
-      }
-
-      setFormData((prev: any) => ({ ...prev, [fileId]: filePath }));
-      setFileUploaded((prev: any) => ({ ...prev, [fileId]: true }));
-      
-      // Show success message
-      const fileLabels = {
-        orderDocument: 'ملف سند الأمر',
-        contract: 'ملف العقد'
-      };
-      setUploadSuccessMessage(`${fileLabels[fileId as keyof typeof fileLabels]} تم رفعه بنجاح`);
-      setShowUploadSuccessModal(true);
-
-      const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
-      if (ref && ref.current) {
-        ref.current.value = '';
-      }
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      setErrors((prev: any) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
-      setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
-    } finally {
-      // Stop upload indicator
-      setFileUploading((prev: any) => ({ ...prev, [fileId]: false }));
-    }
-  };
-
+  } catch (error: any) {
+    console.error('Error uploading file:', error);
+    setErrors((prev: any) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
+    setFileUploaded((prev: any) => ({ ...prev, [fileId]: false }));
+    setFileNames((prev: any) => ({ ...prev, [fileId]: '' })); // إضافة هذا السطر
+  } finally {
+    setFileUploading((prev: any) => ({ ...prev, [fileId]: false }));
+  }
+};
   const handleButtonClick = (fileId: string) => {
     // Same as in AddAvailableForm
     const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
@@ -246,37 +321,71 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
     });
   };
 
-  // Function to fetch homemaid suggestions
-  const fetchSuggestions = async () => {
-    if (!formData.ExperienceYears || !formData.Nationalitycopy || !formData.Religion) {
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-    try {
-      const response = await fetch(
-        `/api/suggest-homemaids?experience=${encodeURIComponent(formData.ExperienceYears)}&nationality=${encodeURIComponent(formData.Nationalitycopy)}&religion=${encodeURIComponent(formData.Religion)}&age=${formData.age}`
-      );
-      const data = await response.json();
+const handleInputChangeWithValidation = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target;
+  
+  setFormData((prev) => {
+    let updatedFormData = { ...prev, [name]: value };
+    
+    // Handle numeric fields properly
+    if (name === 'age' || name === 'ExperienceYears' || name === 'Total' || name === 'Paid') {
+      const numValue = parseFloat(value) || 0;
+      updatedFormData = { ...updatedFormData, [name]: numValue };
       
-      if (data.success) {
-        if (data.suggestions.length > 0) {
-          setSuggestions(data.suggestions);
-          setShowSuggestionModal(true);
-        } else {
-          setModalMessage(data.message || 'لم يتم العثور على عاملات تطابق المواصفات المطلوبة');
-          setShowErrorModal(true);
-        }
+      // Update remaining if needed
+      if (name === 'Total' || name === 'Paid') {
+        const total = name === 'Total' ? numValue : (parseFloat(prev.Total as any) || 0);
+        const paid = name === 'Paid' ? numValue : (parseFloat(prev.Paid as any) || 0);
+        updatedFormData.Remaining = total - paid;
       }
-    } catch (error) {
-      console.error('Error fetching suggestions:', error);
-      setModalMessage('حدث خطأ أثناء البحث عن العاملات');
-      setShowErrorModal(true);
-    } finally {
-      setIsLoadingSuggestions(false);
     }
-  };
+    
+    return updatedFormData;
+  });
+  
+  // Clear specific field error on change
+  setErrors((prev: any) => {
+    const newErrors = { ...prev };
+    delete newErrors[name];
+    return newErrors;
+  });
+};
+// Function to fetch homemaid suggestions - النسخة الأصلية المُصححة
+const fetchSuggestions = async () => {
+  // تحويل للقيم الصحيحة للـ validation
+  const experience = parseInt(formData.ExperienceYears as any) || 0;
+  const age = parseInt(formData.age as any) || 0;
+  
+  if (!experience || !formData.Nationalitycopy?.trim() || !formData.Religion?.trim()) {
+    setModalMessage('يرجى ملء سنوات الخبرة والجنسية والديانة أولاً');
+    setShowErrorModal(true);
+    return;
+  }
 
+  setIsLoadingSuggestions(true);
+  try {
+    const response = await fetch(
+      `/api/suggest-homemaids?experience=${experience}&nationality=${encodeURIComponent(formData.Nationalitycopy.trim())}&religion=${encodeURIComponent(formData.Religion.trim())}&age=${age}`
+    );
+    const data = await response.json();
+    
+    if (data.success) {
+      if (data.suggestions.length > 0) {
+        setSuggestions(data.suggestions);
+        setShowSuggestionModal(true);
+      } else {
+        setModalMessage(data.message || 'لم يتم العثور على عاملات تطابق المواصفات المطلوبة');
+        setShowErrorModal(true);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching suggestions:', error);
+    setModalMessage('حدث خطأ أثناء البحث عن العاملات');
+    setShowErrorModal(true);
+  } finally {
+    setIsLoadingSuggestions(false);
+  }
+};
   // Function to handle suggestion acceptance
   const handleAcceptSuggestion = (suggestion: HomemaidSuggestion) => {
     setFormData((prev) => ({
@@ -308,7 +417,15 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
         clientID: selectedOption.value,
         ClientName: selectedClient?.fullname || '',
         PhoneNumber: selectedClient?.phonenumber || '',
+        city: selectedClient?.city || '',
       }));
+      // Clear client-related errors
+      setErrors((prev: any) => {
+        const newErrors = { ...prev };
+        delete newErrors.clientID;
+        delete newErrors.PhoneNumber;
+        return newErrors;
+      });
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -321,23 +438,75 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
 
   const validateForm = () => {
     const newErrors: any = {};
-    const requiredFields = [
-      { id: 'clientID', label: 'اسم العميل' },
-    ];
 
-    requiredFields.forEach((field) => {
-      if (!formData[field.id as keyof FormData]) {
-        newErrors[field.id] = `${field.label} مطلوب`;
-      }
-    });
-
-    // Allow zero amounts - only validate if they are numbers
-    if (formData.Total && isNaN(Number(formData.Total))) {
-      newErrors.Total = 'المبلغ كامل يجب أن يكون رقمًا صحيحًا';
+    // Client validation
+    if (!formData.clientID) {
+      newErrors.clientID = 'اسم العميل مطلوب';
     }
 
-    if (formData.Paid && isNaN(Number(formData.Paid))) {
-      newErrors.Paid = 'المبلغ المدفوع يجب أن يكون رقمًا صحيحًا';
+    // Phone validation (even though readonly, validate it)
+    const phoneError = validatePhoneNumber(formData.PhoneNumber);
+    if (phoneError) {
+      newErrors.PhoneNumber = phoneError;
+    }
+
+    // Age validation
+    if (formData.age === 0) {
+      newErrors.age = 'العمر مطلوب';
+    } else {
+      const ageError = validateAge(formData.age);
+      if (ageError) {
+        newErrors.age = ageError;
+      }
+    }
+
+    // Experience validation
+    if (formData.ExperienceYears === 0) {
+      newErrors.ExperienceYears = 'سنوات الخبرة مطلوبة';
+    } else {
+      const expError = validateExperience(formData.ExperienceYears);
+      if (expError) {
+        newErrors.ExperienceYears = expError;
+      }
+    }
+
+    // Nationality validation
+    const natError = validateNationality(formData.Nationalitycopy);
+    if (natError) {
+      newErrors.Nationalitycopy = natError;
+    }
+
+    // Religion validation
+    const relError = validateReligion(formData.Religion);
+    if (relError) {
+      newErrors.Religion = relError;
+    }
+
+    // Payment amounts validation
+    const totalError = validateAmount(formData.Total);
+    if (totalError) {
+      newErrors.Total = totalError;
+    }
+
+    const paidError = validateAmount(formData.Paid);
+    if (paidError) {
+      newErrors.Paid = paidError;
+    }
+
+    // File uploads validation
+    if (!fileUploaded.orderDocument) {
+      newErrors.orderDocument = 'ملف سند الأمر مطلوب';
+    }
+    if (!fileUploaded.contract) {
+      newErrors.contract = 'ملف العقد مطلوب';
+    }
+
+    // If no homemaid selected, specs are required
+    if (!formData.selectedHomemaidId) {
+      if (!formData.Nationalitycopy) newErrors.Nationalitycopy = 'الجنسية مطلوبة';
+      if (!formData.Religion) newErrors.Religion = 'الديانة مطلوبة';
+      if (formData.ExperienceYears === 0) newErrors.ExperienceYears = 'سنوات الخبرة مطلوبة';
+      if (formData.age === 0) newErrors.age = 'العمر مطلوب';
     }
 
     setErrors(newErrors);
@@ -418,6 +587,25 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
 
   const selectedClientOption = clientOptions.find(option => option.label === formData.ClientName);
 
+  // Helper function to get input className with error styling
+  const getInputClassName = (fieldName: string) => {
+    return `bg-gray-50 border ${errors[fieldName] ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-colors duration-200`;
+  };
+const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
@@ -437,21 +625,26 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
               onChange={handleClientSelect}
               value={selectedClientOption || null}
               placeholder="اختر عميل"
-              className="text-right"
+              className={`text-right ${errors.clientID ? 'border-red-500' : ''}`}
               styles={{
-                control: (base) => ({
+                control: (base, state) => ({
                   ...base,
                   backgroundColor: '#F9FAFB',
-                  borderColor: '#D1D5DB',
+                  borderColor: state.isFocused 
+                    ? '#14b8a6' 
+                    : errors.clientID 
+                    ? '#ef4444' 
+                    : '#D1D5DB',
                   padding: '0.5rem',
                   textAlign: 'right',
+                  boxShadow: state.isFocused ? '0 0 0 1px #14b8a6' : 'none',
                 }),
                 menu: (base) => ({ ...base, textAlign: 'right' }),
                 singleValue: (base) => ({ ...base, textAlign: 'right' }),
                 placeholder: (base) => ({ ...base, textAlign: 'right' }),
               }}
             />
-            {errors.clientID && <p className="text-red-500 text-xs mt-1">{errors.clientID}</p>}
+            {errors.clientID && <p className="text-red-500 text-md mt-1">{errors.clientID}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">رقم العميل</label>
@@ -460,38 +653,55 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
               name="PhoneNumber"
               value={formData.PhoneNumber}
               readOnly
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={getInputClassName('PhoneNumber')}
             />
+            {errors.PhoneNumber && <p className="text-red-500 text-md mt-1">{errors.PhoneNumber}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">مدينة العميل</label>
-            <input
+
+
+                  <input
+              type="text"
+              name="city"
+              placeholder="مدينة العميل"
+              value={arabicRegionMap[formData?.city as keyof typeof arabicRegionMap] || formData?.city || ''}
+              readOnly
+              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+            />
+            {/* <input
               type="text"
               placeholder="مدينة العميل"
               className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
-            />
+            /> */}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">العمر</label>
             <input
               type="number"
               name="age"
-              value={formData.age}
-              onChange={handleFormChange}
+              value={formData.age || ''}
+              onChange={handleInputChangeWithValidation}
               placeholder="اختر العمر"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              min="18"
+              max="70"
+              className={getInputClassName('age')}
             />
+            {errors.age && <p className="text-red-500 text-md mt-1">{errors.age}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">سنوات الخبرة</label>
             <input
               type="number"
               name="ExperienceYears"
-              value={formData.ExperienceYears}
-              onChange={handleFormChange}
+              value={formData.ExperienceYears || ''}
+              onChange={handleInputChangeWithValidation}
               placeholder="اختر سنوات الخبرة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              min="0"
+              max="50"
+              className={getInputClassName('ExperienceYears')}
             />
+            {errors.ExperienceYears && <p className="text-red-500 text-md mt-1">{errors.ExperienceYears}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">جنسية العاملة المطلوبة</label>
@@ -499,10 +709,11 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
               type="text"
               name="Nationalitycopy"
               value={formData.Nationalitycopy}
-              onChange={handleFormChange}
+              onChange={handleInputChangeWithValidation}
               placeholder="اختر جنسية العاملة المطلوبة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={getInputClassName('Nationalitycopy')}
             />
+            {errors.Nationalitycopy && <p className="text-red-500 text-md mt-1">{errors.Nationalitycopy}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">الديانة</label>
@@ -510,10 +721,11 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
               type="text"
               name="Religion"
               value={formData.Religion}
-              onChange={handleFormChange}
+              onChange={handleInputChangeWithValidation}
               placeholder="اختر الديانة"
-              className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
+              className={getInputClassName('Religion')}
             />
+            {errors.Religion && <p className="text-red-500 text-md mt-1">{errors.Religion}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">ملاحظات إضافية</label>
@@ -526,47 +738,23 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
               className="bg-gray-50 border border-gray-300 rounded p-3 text-base text-gray-500 text-right"
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-base"> &nbsp;  </label>
+<div className="flex flex-col gap-2">
+  <label className="text-base"> &nbsp;  </label>
 
-            <button
-              type="button"
-              onClick={fetchSuggestions}
-              disabled={isLoadingSuggestions || !formData.ExperienceYears || !formData.Nationalitycopy || !formData.Religion}
-              className={`bg-teal-800 text-white px-4 py-2 rounded w-full sm:w-auto hover:bg-teal-700 transition duration-200 ${
-                isLoadingSuggestions || !formData.ExperienceYears || !formData.Nationalitycopy || !formData.Religion
-                  ? 'opacity-50 cursor-not-allowed'
-                  : ''
-              }`}
-            >
-              {isLoadingSuggestions ? 'جاري البحث...' : 'اقترح عاملة مناسبة'}
-            </button>
-            {formData.selectedHomemaidId && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center justify-between">
-                <p className="text-sm">
-                  ✓ تم اختيار عاملة مناسبة - سيتم إرسال الطلب مع العاملة المحددة
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      selectedHomemaidId: undefined,
-                      // Reset homemaid-specific fields to original values
-                      Nationalitycopy: '',
-                      Religion: '',
-                      ExperienceYears: 0,
-                      age: 0,
-                    }));
-                  }}
-                  className="text-red-600 hover:text-red-800 ml-2"
-                  title="إزالة الاختيار"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
+  <button
+    type="button"
+    onClick={fetchSuggestions}
+    disabled={isLoadingSuggestions}
+    className={`bg-teal-800 text-white px-4 py-2 rounded w-full sm:w-auto hover:bg-teal-700 transition duration-200 ${
+      isLoadingSuggestions 
+        ? 'opacity-50 cursor-not-allowed' 
+        : 'hover:bg-teal-700'
+    }`}
+  >
+    {isLoadingSuggestions ? 'جاري البحث...' : 'اقترح عاملة مناسبة'}
+  </button>
+  {/* باقي الكود زي ما هو */}
+</div>
         </div>
         <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
@@ -587,7 +775,7 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
                   onChange={handleFormChange}
                   className="hidden"
                 />
-                <div className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${formData.PaymentMethod === value ? 'border-[#1a4d4f]' : 'border-[#e0e0e0]'}`}>
+                <div className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${formData.PaymentMethod === value ? 'border-[#1a4d4f] bg-teal-800 text-white' : 'border-[#e0e0e0]'}`}>
                   <span className="text-xl">{option}</span>
 {imgSrc}
                 </div>
@@ -601,22 +789,29 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
             <input
               type="number"
               name="Total"
-              value={formData.Total}
-              onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Total ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
+              value={formData.Total || ''}
+              onChange={handleInputChangeWithValidation}
+              min="0"
+              step="0.01"
+              className={getInputClassName('Total')}
+              placeholder="0.00"
             />
-            {errors.Total && <p className="text-red-500 text-xs mt-1">{errors.Total}</p>}
+            {errors.Total && <p className="text-red-500 text-md mt-1">{errors.Total}</p>}
           </div>
           <div className="flex flex-col gap-2 "> 
             <label className="text-base">المبلغ المدفوع</label>
             <input
               type="number"
               name="Paid"
-              value={formData.Paid}
-              onChange={handleFormChange}
-              className={`bg-gray-50 border ${errors.Paid ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-base text-gray-500 text-right`}
+              value={formData.Paid || ''}
+              onChange={handleInputChangeWithValidation}
+              min="0"
+              max={formData.Total}
+              step="0.01"
+              className={getInputClassName('Paid')}
+              placeholder="0.00"
             />
-            {errors.Paid && <p className="text-red-500 text-xs mt-1">{errors.Paid}</p>}
+            {errors.Paid && <p className="text-red-500 text-md mt-1">{errors.Paid}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">المبلغ المتبقي</label>
@@ -628,65 +823,125 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
             />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {[
-            { id: 'orderDocument', label: 'ملف سند الأمر' },
-            { id: 'contract', label: 'ملف العقد' },
-          ].map((file) => (
-            <div key={file.id} className="flex flex-col gap-2">
-              <label htmlFor={file.id} className="text-base">{file.label}</label>
-              <div className="file-upload-display border border-gray-300 rounded p-2 flex justify-between items-center">
-                <span className="text-gray-500 text-sm pr-2">
-                  {(fileUploaded as any)[file.id] ? (
+<div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+  {[
+    { id: 'orderDocument', label: 'ملف سند الأمر' },
+    { id: 'contract', label: 'ملف العقد' },
+  ].map((file) => {
+    const isUploaded = (fileUploaded as any)[file.id];
+    const fileName = (fileNames as any)[file.id];
+    const fileUrl = formData[file.id as keyof FormData] as string;
+
+    return (
+      <div key={file.id} className="flex flex-col gap-2">
+        <label htmlFor={file.id} className="text-base">{file.label}</label>
+        <div className={`file-upload-display border ${errors[file.id] ? 'border-red-500' : 'border-gray-300'} rounded p-3 flex flex-col gap-2 transition-colors duration-200`}>
+          
+          {/* عرض اسم الملف */}
+          <div className="flex justify-between items-center">
+            {isUploaded && fileName ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-md">
+                    <p className="font-medium text-gray-800 truncate max-w-[200px]" title={fileName}>
+                      {fileName}
+                    </p>
                     <a
-                      href={formData[file.id as keyof FormData] as string}
+                      href={fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-teal-800 hover:underline"
+                      className="text-teal-600 hover:underline text-md"
                     >
                       فتح الملف
                     </a>
-                  ) : (
-                    'إرفاق ملف'
-                  )}
-                </span>
-                <input
-                  type="file"
-                  id={file.id}
-                  ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
-                  className="hidden"
-                  accept="application/pdf,image/jpeg,image/png"
-                  onChange={(e) => handleFileChange(e, file.id)}
-                />
+                  </div>
+                </div>
                 <button
                   type="button"
-                  className={`px-3 py-1 rounded text-sm transition duration-200 ${
-                    (fileUploading as any)[file.id]
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-teal-900 text-white hover:bg-teal-800'
-                  }`}
-                  onClick={() => handleButtonClick(file.id)}
-                  disabled={(fileUploading as any)[file.id]}
+                  onClick={() => {
+                    // وظيفة إزالة الملف
+                    setFileUploaded((prev: any) => ({ ...prev, [file.id]: false }));
+                    setFileNames((prev: any) => ({ ...prev, [file.id]: '' }));
+                    setFormData((prev: any) => ({ ...prev, [file.id]: '' }));
+                    setErrors((prev: any) => ({ ...prev, [file.id]: '' }));
+                    
+                    // مسح من input
+                    const ref = fileInputRefs[file.id as keyof typeof fileInputRefs];
+                    if (ref && ref.current) {
+                      ref.current.value = '';
+                    }
+                  }}
+                  className="text-red-500 hover:text-red-700 text-md"
                 >
-                  {(fileUploading as any)[file.id] ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      جاري الرفع...
-                    </span>
-                  ) : (
-                    'اختيار ملف'
-                  )}
+                  <X className="w-4 h-4" />
                 </button>
-              </div>
-              {(errors as any)[file.id] && <p className="text-red-500 text-xs mt-1">{(errors as any)[file.id]}</p>}
-            </div>
-          ))}
+              </>
+            ) : (
+              <span className="text-gray-500 text-md">
+                {errors[file.id] ? errors[file.id] : 'لم يتم اختيار ملف'}
+              </span>
+            )}
+          </div>
+
+          {/* زر اختيار الملف */}
+          <input
+            type="file"
+            id={file.id}
+            ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
+            className="hidden"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => handleFileChange(e, file.id)}
+          />
+          <button
+            type="button"
+            className={`w-full px-3 py-2 rounded text-md transition duration-200 flex items-center justify-center gap-2 ${
+              (fileUploading as any)[file.id]
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-teal-900 text-white hover:bg-teal-800'
+            }`}
+            onClick={() => handleButtonClick(file.id)}
+            disabled={(fileUploading as any)[file.id]}
+          >
+            {(fileUploading as any)[file.id] ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                جاري الرفع...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                {isUploaded ? 'تغيير الملف' : 'اختيار ملف'}
+              </>
+            )}
+          </button>
         </div>
+        {(!isUploaded && !errors[file.id]) && (
+          <p className="text-md text-gray-500 text-right mt-1">
+            يُفضل PDF أو صورة (أقل من 10 ميجابايت)
+          </p>
+        )}
+      </div>
+    );
+  })}
+</div>
         <div className="flex gap-6 flex-col sm:flex-row">
-          <button type="submit" className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200">حفظ</button>
+          <button 
+            type="submit" 
+            className="bg-teal-900 text-white px-4 py-2 rounded w-full sm:w-40 hover:bg-teal-800 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            // disabled={Object.keys(errors).length > 0}
+          >
+            حفظ
+          </button>
           <button type="button" onClick={onCancel} className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-4 py-2 rounded w-full sm:w-40 hover:bg-gray-200 transition duration-200">إلغاء</button>
         </div>
       </form>
@@ -712,12 +967,12 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
                 }`}>
                   <div className="text-center mb-3">
                     {index === 0 && (
-                      <div className="bg-green-600 text-white text-xs px-2 py-1 rounded-full inline-block mb-2">
+                      <div className="bg-green-600 text-white text-md px-2 py-1 rounded-full inline-block mb-2">
                         الأكثر مناسبة
                       </div>
                     )}
                     {index === 1 && (
-                      <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full inline-block mb-2">
+                      <div className="bg-blue-600 text-white text-md px-2 py-1 rounded-full inline-block mb-2">
                         مناسبة جداً
                       </div>
                     )}
@@ -731,12 +986,12 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
                     <h4 className="font-semibold text-lg">{suggestion.name}</h4>
                     <p className="text-gray-600">رقم الجواز: {suggestion.passportNumber}</p>
                     {suggestion.relevanceScore !== undefined && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-md text-gray-500 mt-1">
                         نقاط التطابق: {suggestion.relevanceScore}
                       </p>
                     )}
                   </div>
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-2 text-md">
                     <div className="flex justify-between">
                       <span className="font-medium">الجنسية:</span>
                       <span>{suggestion.nationality}</span>

@@ -8,6 +8,7 @@ export default async function handler(req, res) {
       homeMaidId,
       profileStatus,
       deparatureCity,
+      typeOfContract,
       arrivalCity,
       deparatureDate,
       houseentrydate,
@@ -177,12 +178,13 @@ export default async function handler(req, res) {
     }
 
   } else if (req.method === "GET") {
-       
+       // تأكد من استقبال contractType وتمريره للـ query
+const { contractType, page = 1, pageSize = 10000 } = req.query; 
     try {
       const housing = await prisma.housedworker.findMany({
         where: {
-          
-          deparatureHousingDate: null,
+          Order:{NewOrder:{ some:{typeOfContract:contractType as string}}},
+          deparatureHousingDate: null
         },
 
       });

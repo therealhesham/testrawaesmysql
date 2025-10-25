@@ -60,8 +60,9 @@ export default async function handler(req, res) {
     case "POST":
       try {
         const { amount, transaction_type, Month, Year, userId } = req.body;
+        console.log(req.body)
         const existingCash = await prisma.cash.findFirst({
-          where: { Month: Month.toString(), Year: Year, transaction_type },
+          where: { Month: Month.toString(), Year: Year.toString(), transaction_type },
         });
         if (existingCash) {
           return res.status(400).json({
@@ -73,7 +74,7 @@ export default async function handler(req, res) {
             amount: parseFloat(amount),
             transaction_type,
             Month: Month.toString(),
-            Year,
+            Year: Year.toString(),
           },
         });
 try {
@@ -112,11 +113,12 @@ ${amount}
     case "PUT":
       try {
         const { id, amount, transaction_type, Month, Year, userId } = req.body;
+        console.log(req.body)
         if (!id) {
           return res.status(400).json({ error: "ID is required" });
         }
         const existingCash = await prisma.cash.findFirst({
-          where: { Month: Month.toString(), Year: Year, transaction_type },
+          where: { Month: Month.toString(), Year: Year.toString(), transaction_type },
         });
         const updatedCash = await prisma.cash.update({
           where: { id: parseInt(id) },
@@ -124,7 +126,7 @@ ${amount}
             amount: amount ? parseFloat(amount) : undefined,
             transaction_type,
             Month,
-            Year,
+            Year: Year.toString(),
           },
         });
 try {
