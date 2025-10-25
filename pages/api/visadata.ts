@@ -15,6 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           clientID: Number(clientID),
         },
       });
+      console.log("visa", visa);
       res.status(200).json(visa);
     } catch (error) {
       console.error(error);
@@ -28,7 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const visas = await prisma.visa.findMany({
         where: { clientID: Number(clientID) },
       });
-      res.status(200).json(visas);
+      console.log("visas", visas);
+      res.status(200).json({data: visas});
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Failed to fetch visas' });

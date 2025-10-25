@@ -5,7 +5,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { Name, age, Passportnumber, id, Nationality, page, SponsorName, OrderId } = req.query;
+  const { Name, age, PassportNumber, id, Nationality, page, SponsorName, OrderId } = req.query;
   console.log("Query Parameters:", req.query);
 
   const pageSize = 10;
@@ -28,9 +28,13 @@ export default async function handler(
       };
     }
   }
-  if (Passportnumber) filters.Passportnumber = { contains: String(Passportnumber).toLowerCase(), mode: "insensitive" };
-  if (Nationality) filters.Nationalitycopy = { contains: String(Nationality).toLowerCase(), mode: "insensitive" };
-  if (SponsorName) filters.ClientName = { contains: String(SponsorName).toLowerCase(), mode: "insensitive" };
+  if (PassportNumber) 
+    filters.HomeMaid = {
+      Passportnumber: { contains: String(PassportNumber).toLowerCase()},
+    };
+    // filters.Passportnumber = { contains: String(Passportnumber).toLowerCase()};
+  if (Nationality) filters.Nationalitycopy = { contains: String(Nationality).toLowerCase() };
+  if (SponsorName) filters.ClientName = { contains: String(SponsorName).toLowerCase()};
   if (OrderId) filters.id = Number(OrderId);
 
   console.log("Filters:", filters);
@@ -50,6 +54,7 @@ export default async function handler(
     const totalPages = Math.ceil(totalRecords / pageSize);
 
     const booked = await prisma.neworder.findMany({
+
       where: {
         ...filters,
         HomemaidId: { gt: 0 },
@@ -60,7 +65,7 @@ export default async function handler(
         },
       },
       orderBy: { id: "desc" },
-      include: { HomeMaid: { include: { office: true } } },
+      include: { HomeMaid: { include: { office: true } },client:true},
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,
     });

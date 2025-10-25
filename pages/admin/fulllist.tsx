@@ -9,7 +9,7 @@ import Modal from "react-modal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
-
+import { jwtDecode } from "jwt-decode";
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
 
@@ -459,49 +459,69 @@ export default function Table() {
       </div>
     );
   };
+const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const decoded = jwtDecode(token);
+  const userName = decoded.username;
+  setUserName(userName);
+}, []);
+const exportToPDF = async () => {
+  //image logo
+    const doc = new jsPDF({ orientation: 'landscape' }); // 🔄 جعلها عرضية لو تحب
+    const pageWidth = doc.internal.pageSize.width;
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+  doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+  try {
+    setExportMessage('جاري تحميل جميع البيانات للتصدير...');
+    setExportType('loading');
+    setShowExportModal(true);
 
-  const exportToPDF = async () => {
+    const exportData = await fetchExportData();
+    console.log('Export data for PDF:', exportData);
+
+    // 🖋️ تحميل الخط العربي Amiri
     try {
-      setExportMessage('جاري تحميل جميع البيانات للتصدير...');
-      setExportType('loading');
-      setShowExportModal(true);
-      
-      const exportData = await fetchExportData();
-      console.log('Export data for PDF:', exportData);
-      const doc = new jsPDF();
-      
-      try {
-        const response = await fetch('/fonts/Amiri-Regular.ttf');
-        if (!response.ok) throw new Error('Failed to fetch font');
-        const fontBuffer = await response.arrayBuffer();
-        const fontBytes = new Uint8Array(fontBuffer);
-        const fontBase64 = Buffer.from(fontBytes).toString('base64');
-        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
-        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-        doc.setFont('Amiri', 'normal');
-      } catch (error) {
-        console.error('Error loading Amiri font:', error);
-        setExportMessage('خطأ في تحميل الخط العربي');
-        setExportType('error');
-        return;
-      }
-      
-      doc.setLanguage('ar');
-      doc.setFontSize(12);
-      doc.text('قائمة العاملات', 200, 10, { align: 'right' });
-      const tableColumn = [
-        'الرقم',
-        'الاسم',
-        'رقم الجوال',
-        'الجنسية',
-        'الحالة الاجتماعية',
-        'العمر',
-        'رقم جواز السفر',
-        'بداية الجواز',
-        'نهاية الجواز',
-        'المكتب',
-      ];
-      const tableRows = exportData.map(row => [
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      setExportMessage('خطأ في تحميل الخط العربي');
+      setExportType('error');
+      return;
+    }
+
+    // 🏷️ العنوان
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text('قائمة العاملات', 150, 20, { align: 'right' });
+
+    // 📋 الأعمدة (معكوسة للاتجاه العربي)
+    const tableColumn = [
+      'الرقم',
+      'الاسم',
+      'رقم الجوال',
+      'الجنسية',
+      'الحالة الاجتماعية',
+      'العمر',
+      'رقم جواز السفر',
+      'بداية الجواز',
+      'نهاية الجواز',
+      'المكتب',
+    ].reverse(); // ✅ عكس ترتيب الأعمدة
+//hidden id column
+    // 📊 الصفوف (معكوسة بنفس الترتيب)
+    const tableRows = exportData.map(row =>
+      [
         row.id || 'غير متوفر',
         row.Name || 'غير متوفر',
         row.phone || 'غير متوفر',
@@ -512,36 +532,90 @@ export default function Table() {
         row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
         row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
         row?.office?.office || 'غير متوفر',
-      ]);
-      doc.autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        styles: {
-          font: 'Amiri',
-          halign: 'right',
-          fontSize: 10,
-          cellPadding: 2,
-          textColor: [0, 0, 0],
-        },
-        headStyles: {
-          fillColor: [0, 105, 92],
-          textColor: [255, 255, 255],
-          halign: 'right',
-        },
-        margin: { top: 20, right: 10, left: 10 },
-        didParseCell: (data: any) => {
-          data.cell.styles.halign = 'right';
-        },
-      });
-      doc.save('homemaids_list.pdf');
-      setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى PDF`);
-      setExportType('success');
-    } catch (error) {
-      console.error('Error exporting PDF:', error);
-      setExportMessage('حدث خطأ أثناء تصدير PDF');
-      setExportType('error');
-    }
-  };
+      ].reverse() // ✅ عكس القيم داخل كل صف
+    );
+
+    // 📄 الجدول مع إعداد الاتجاه والفوتر
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: {
+        font: 'Amiri',
+        halign: 'center',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [26, 77, 79],
+        textColor: [255, 255, 255],
+        halign: 'center',
+      },
+
+      columnStyles: {
+        0: { cellWidth: 'auto', overflow: 'hidden' },
+        1: { cellWidth: 'auto', overflow: 'hidden ' },
+        2: { cellWidth: 'auto', overflow: 'hidden' },
+        3: { cellWidth: 'auto', overflow: 'hidden' },
+        4: { cellWidth: 'auto', overflow: 'hidden' },
+        5: { cellWidth: 'auto', overflow: 'hidden' },
+        6: { cellWidth: 'auto', overflow: 'hidden' },
+        7: { cellWidth: 'auto', overflow: 'hidden' },
+        8: { cellWidth: 'auto', overflow: 'hidden' },
+        9: { cellWidth: 'auto', overflow: 'hidden' },
+        10: { cellWidth: 'auto', overflow: 'hidden' },
+      },
+
+
+      margin: { top: 45, right: 10, left: 10 },
+      direction: 'rtl', // ✅ مهم جدًا لعرض الجدول من اليمين لليسار
+      didParseCell: (data) => {
+        data.cell.styles.halign = 'center';
+      },
+
+      // ⚙️ فوتر في كل صفحة
+      didDrawPage: () => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        // 👈 اسم المستخدم في اليسار
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        // 🔢 رقم الصفحة في المنتصف
+        const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        // 👉 التاريخ والوقت في اليمين
+        const dateText =
+          "التاريخ: " +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          "  الساعة: " +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+      },
+    });
+
+    // 💾 حفظ الملف
+    doc.save('قائمة_العاملات.pdf');
+
+    setExportMessage(`تم تصدير ${exportData.length} سجل بنجاح إلى PDF`);
+    setExportType('success');
+  } catch (error) {
+    console.error('Error exporting PDF:', error);
+    setExportMessage('حدث خطأ أثناء تصدير PDF');
+    setExportType('error');
+  }
+};
 
   const exportToExcel = async () => {
     try {

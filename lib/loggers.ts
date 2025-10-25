@@ -6,11 +6,16 @@ if (!(eventBus as any).__loggersInitialized) {
     try {
       await prisma.systemUserLogs.create({
         data: {
+          beneficiary: data.beneficiary,
+          pageRoute: data.pageRoute,
+          BeneficiaryId: data.BeneficiaryId,
+          actionType: data.actionType,
           action: data.type,
           userId: data.userId,
         },
       });
-
+      
+      console.log("data",data)
 
 
 

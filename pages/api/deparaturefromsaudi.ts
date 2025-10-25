@@ -1,6 +1,8 @@
+import '../../lib/loggers';
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
 import { jwtDecode } from "jwt-decode";
+import eventBus from "lib/eventBus";
 const prisma = new PrismaClient();
 
 export default async function handler(
@@ -10,7 +12,7 @@ export default async function handler(
   if (req.method === "GET") {
     const { SponsorName, age, PassportNumber, page, OrderId,search, perPage, nationality, deparatureDate } =
       req.query;
-
+console.log(req.query);
     const pageSize = parseInt(perPage as string, 10) || 10;
     const pageNumber = parseInt(page as string, 10) || 1;
 
@@ -58,32 +60,41 @@ export default async function handler(
           },
         },
       };
-    if (deparatureDate)
-      filters.externaldeparatureDate = {
-        equals: new Date(deparatureDate as string),
-      };
+ if (deparatureDate) {
+  const parsed = new Date(deparatureDate as string);
+  if (!isNaN(parsed.getTime())) {
+    const startOfDay = new Date(parsed);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(parsed);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    filters.externaldeparatureDate = {
+      gte: startOfDay,
+      lte: endOfDay,
+      not: null,
+    };
+  }
+} else {
+  // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
+  filters.externaldeparatureDate = { not: null };
+}
 
     try {
       const totalRecords = await prisma.arrivallist.count({
-        where: {
-          ...filters,
-          externaldeparatureDate: { not: null },
-        },
+        where: filters,
       });
       const totalPages = Math.ceil(totalRecords / pageSize);
 
       const homemaids = await prisma.arrivallist.findMany({
-        where: {
-          ...filters,
-           externaldeparatureDate: { not: null },
-        },
+        where: filters,
         select: {
           Sponsor: true,
           Order: {
             select: {isContractEnded: true,
-              Name: true,
+              Name: true,client:true,
               HomemaidId: true,
-              HomeMaid: {
+              HomeMaid: { 
                 include: { office: { select: { Country: true } },Client:{select:{fullname:true}} },
               },
             },
@@ -93,8 +104,8 @@ export default async function handler(
           PassportNumber: true,
           externaldeparatureDate: true,
           externaldeparatureTime: true,
-          SponsorPhoneNumber: true,
-          HomemaidName: true,
+          // SponsorPhoneNumber: true,
+          // HomemaidName: true,
           id: true,
         externaldeparatureCity: true,
         externalArrivalCity: true,
@@ -109,7 +120,7 @@ export default async function handler(
         take: pageSize,
         orderBy: { id: "desc" },
       });
-
+console.log(homemaids);
       res.status(200).json({
         data: homemaids,
         totalPages,
@@ -145,6 +156,31 @@ export default async function handler(
         },
       });
 
+
+      try {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  const referer = req.headers.referer
+  const token = jwtDecode(cookies.authToken);
+  eventBus.emit('ACTION', {
+    type: "اضافة عاملة للمغادرة الخارجية",
+    beneficiary: "homemaid",
+    pageRoute: referer,
+    actionType: "create",
+    BeneficiaryId: newRecord.id || null,
+    userId: Number((token as any).id),
+  });
+} catch (error) {
+  console.error("Error emitting event:", error);
+}
+
+
       res.status(201).json({ message: "Record created successfully", data: newRecord });
     } catch (error) {
       console.error("Error creating record:", error);
@@ -160,49 +196,49 @@ export default async function handler(
 
 
 
-export async function getServerSideProps ({ req }) {
-  try {
-    console.log("sss")
-    // 🔹 Extract cookies
-    const cookieHeader = req.headers.cookie;
-    let cookies: { [key: string]: string } = {};
-    if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        cookies[key] = decodeURIComponent(value);
-      });
-    }
+// export async function getServerSideProps ({ req }) {
+//   try {
+//     console.log("sss")
+//     // 🔹 Extract cookies
+//     const cookieHeader = req.headers.cookie;
+//     let cookies: { [key: string]: string } = {};
+//     if (cookieHeader) {
+//       cookieHeader.split(";").forEach((cookie) => {
+//         const [key, value] = cookie.trim().split("=");
+//         cookies[key] = decodeURIComponent(value);
+//       });
+//     }
 
-    // 🔹 Check for authToken
-    if (!cookies.authToken) {
-      return {
-        redirect: { destination: "/admin/login", permanent: false },
-      };
-    }
+//     // 🔹 Check for authToken
+//     if (!cookies.authToken) {
+//       return {
+//         redirect: { destination: "/admin/login", permanent: false },
+//       };
+//     }
 
-    // 🔹 Decode JWT
-    const token = jwtDecode(cookies.authToken);
+//     // 🔹 Decode JWT
+//     const token = jwtDecode(cookies.authToken);
 
-    // 🔹 Fetch user & role with Prisma
-    const findUser = await prisma.user.findUnique({
-      where: { id: token.id },
-      include: { role: true },
-    });
-console.log(findUser.role?.permissions?.["إدارة الطلبات"])
-    if (
-      !findUser ||
-      !findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"]
-    ) {
-      return {
-        redirect: { destination: "/admin/home", permanent: false }, // or show 403
-      };
-    }
+//     // 🔹 Fetch user & role with Prisma
+//     const findUser = await prisma.user.findUnique({
+//       where: { id: token.id },
+//       include: { role: true },
+//     });
+// console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+//     if (
+//       !findUser ||
+//       !findUser.role?.permissions?.["إدارة الوصول و المغادرة"]?.["عرض"]
+//     ) {
+//       return {
+//         redirect: { destination: "/admin/home", permanent: false }, // or show 403
+//       };
+//     }
 
-    return { props: {} };
-  } catch (err) {
-    console.error("Authorization error:", err);
-    return {
-      redirect: { destination: "/admin/home", permanent: false },
-    };
-  }
-};
+//     return { props: {} };
+//   } catch (err) {
+//     console.error("Authorization error:", err);
+//     return {
+//       redirect: { destination: "/admin/home", permanent: false },
+//     };
+//   }
+// };

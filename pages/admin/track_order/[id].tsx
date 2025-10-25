@@ -521,12 +521,13 @@ export default function TrackOrder() {
             title="1- الربط مع إدارة المكاتب"
             data={[
               { label: 'هوية العميل', value: orderData.officeLinkInfo.nationalId },
-              { label: 'رقم التأشيرة', value: orderData.officeLinkInfo.visaNumber },
+              { label: 'رقم التأشيرة', value: orderData.officeLinkInfo.visaNumber, fieldType: 'visa' },
               { label: 'رقم عقد إدارة المكاتب', value: orderData.officeLinkInfo.internalMusanedContract },
               { label: 'تاريخ مساند', value: orderData.officeLinkInfo.musanedDate },
             ]}
             gridCols={3}
             editable={true}
+            clientID={orderData.clientInfo?.id}
             onSave={(updatedData) => handleSaveEdits('officeLinkInfo', updatedData)}
           />
 
@@ -757,7 +758,7 @@ export default function TrackOrder() {
                 value: (
                   <div className="flex items-center justify-end gap-2">
                     <span>{orderData.destinations.departureDateTime}</span>
-                    <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" />
+                    {/* <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" /> */}
                   </div>
                 ),
               },
@@ -766,7 +767,7 @@ export default function TrackOrder() {
                 value: (
                   <div className="flex items-center justify-end gap-2">
                     <span>{orderData.destinations.arrivalDateTime}</span>
-                    <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" />
+                    {/* <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" /> */}
                   </div>
                 ),
               },

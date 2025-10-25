@@ -95,14 +95,14 @@ const[is,setId]=useState("")
             </div>
           )}
           {showSuggestions && filteredClients.length > 0 && (
-            <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto">
+            <ul className="relativeabsolute z-[1000] w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto">
               {filteredClients.map((client) => (
                 <li
                   key={client.id}
                   onClick={() => handleClientSelect(client)}
                   className="p-2 hover:bg-gray-100 cursor-pointer text-right"
                 >
-                  {client.fullname} ({client.phonenumber})
+                  {client.fullname} ({client.id})
                 </li>
               ))}
             </ul>

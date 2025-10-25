@@ -78,7 +78,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // contractFile is already a filePath from DigitalOcean Spaces
       contractFilePath = formData.contractFile;
     }
-
+const checkOrderByHomemaid = await prisma.neworder.findFirst({
+  where: {
+    HomemaidId: parseInt(formData.workerId) || null,
+  },
+});
+if (checkOrderByHomemaid) {
+  return res.status(400).json({ message: 'العاملة محجوزة بالفعل' });
+}
     // Create new order
     const newOrder = await prisma.neworder.create({
       data: {
@@ -87,7 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientID: client.id,
         HomemaidId: parseInt(formData.workerId) || null,
         typeOfContract: "rental",
-        bookingstatus: 'new_order', // Default status, adjust as needed
+        bookingstatus: 'pending_external_office', // Default status, adjust as needed
         contract: contractFilePath, // Save the contract file path
         createdAt: new Date(),
         updatedAt: new Date(),

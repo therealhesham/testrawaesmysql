@@ -8,7 +8,15 @@ import { DocumentTextIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends } from 'react-icons/fa';
 import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
+import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { useRouter } from 'next/router';
 // Interfaces
+// import "";
+import ExcelJS from 'exceljs';
+import { FileTextFilled } from '@ant-design/icons';
+
 interface HousedWorker {
   id: number;
   homeMaid_id: number;
@@ -55,15 +63,18 @@ interface Homemaid {
   id: number;
   Name: string;
 }
+
 // ActionDropdown Component
 const ActionDropdown: React.FC<{
+  homemaid_id: number;
   id: number;
   name: string;
   onEdit: (id: number, name: string) => void;
   onDeparture: (id: number, name: string) => void;
-  onAddSession: () => void;
-}> = ({ id, name, onEdit, onDeparture, onAddSession }) => {
+  openModal: (modalName: string) => void;onAddSession: (id: number) => void;onAddNotes: (id: number) => void;
+}> = ({ homemaid_id, id, name, onEdit, onDeparture, openModal, onAddSession, onAddNotes }) => {
   const [isOpen, setIsOpen] = useState(false);
+  // أضف هذا state في بداية الكومبوننت
   const dropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -106,29 +117,74 @@ const ActionDropdown: React.FC<{
           </button>
           <button
             onClick={() => {
-              onAddSession();
+
+              onAddSession(homemaid_id);
               setIsOpen(false);
+              // openModal('sessionModal');
             }}
             className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
           >
             <FaUserFriends />
             اضافة جلسة
           </button>
+
+
+<button
+            onClick={() => {
+
+              onAddNotes(id);
+              setIsOpen(false);
+              // openModal('sessionModal');
+            }}
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
+          >
+            <FileTextFilled className="w-5 h-5" />
+            اضافة ملاحظات
+          </button>
+
+
+
+          
         </div>
       )}
     </div>
   );
 };
 export default function Home({ user }: { user: any }) {
+
+
+
+
+
+
+//  اضافة جلسة modal
+const [userName, setUserName] = useState('');
+useEffect(()=>{
+
+const token = localStorage.getItem('token');
+const decoded = jwtDecode(token);
+// const time = decoded.exp;
+setUserName(decoded.username);
+// console.log(decoded);  
+},[])
+
+
+
+
+
+  const router = useRouter();
   const [modals, setModals] = useState({
     addResidence: false,
     editWorker: false,
     workerDeparture: false,
+    session: false,
     newHousing: false,
     columnVisibility: false,
+    notesModal: false,
     notification: false,
     amountModal: false,
     workerTypeSelection: false,
+    sessionModal:false,
     housingForm: false,
     internalWorkerModal: false,
   });
@@ -159,6 +215,12 @@ export default function Home({ user }: { user: any }) {
   });
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+  const [validationErrors, setValidationErrors] = useState({
+    location: false,
+    reason: false,
+    internalLocation: false,
+    internalReason: false,
+  });
   const [columnVisibility, setColumnVisibility] = useState({
     id: true,
     Name: true,
@@ -171,6 +233,8 @@ export default function Home({ user }: { user: any }) {
     deliveryDate: true,
     duration: true,
     employee: true,
+    entitlements: true,
+    notes: true,
     actions: true,
     deparatureReason: true,
   });
@@ -183,6 +247,7 @@ export default function Home({ user }: { user: any }) {
     deparatureDate: '',
     houseentrydate: '',
     deliveryDate: '',
+    notes: '',
     StartingDate: '',
     location: '',
     DeparatureTime: '',
@@ -235,6 +300,9 @@ export default function Home({ user }: { user: any }) {
     reason: '',
     details: '',
   });
+  const [notesForm, setNotesForm] = useState({
+    notes: '',
+  });
   // Helper function to get contract type in Arabic
   const getContractTypeInArabic = (typeOfContract: string) => {
     switch (typeOfContract) {
@@ -243,7 +311,7 @@ export default function Home({ user }: { user: any }) {
       case 'rental':
         return 'تأجير';
       default:
-        return 'غير محدد';
+        return 'غير محدد';  
     }
   };
   // Open/close modals
@@ -255,6 +323,15 @@ export default function Home({ user }: { user: any }) {
     if (modalName !== 'notification') {
       setSelectedWorkerId(null);
       setSelectedWorkerName('');
+    }
+    if (modalName === 'sessionModal') {
+      setSelectedWorkerId(null);
+      setSelectedWorkerName('');
+    }
+    if (modalName === 'notesModal') {
+      setNotesForm({
+        notes: '',
+      });
     }
     // Clear worker selection when closing housing form
     if (modalName === 'housingForm') {
@@ -332,7 +409,33 @@ export default function Home({ user }: { user: any }) {
       setIsSearching(false);
     }
   };
-  
+  const handleAddSession = (homemaid_id: number) => {
+  setSelectedWorkerId(homemaid_id); // <-- نخزن الـ id
+  openModal('sessionModal');     // <-- نفتح المودال
+};  
+  const handleAddNotes = (homemaid_id: number) => {
+  setSelectedWorkerId(homemaid_id); // <-- نخزن الـ id
+  openModal('notesModal');     // <-- نفتح المودال
+};  
+  const postnotes = async () => {
+    try {
+      // alert(selectedWorkerId);
+      // alert(notesForm.notes);
+      const response = await axios.post('/api/addnotes', {
+        notes: notesForm.notes,
+        homemaid_id: selectedWorkerId,
+      });
+      showNotification('تم إضافة الملاحظة بنجاح');
+      closeModal('notesModal');
+      // fetchWorkers();
+    }
+    catch (error) {
+      showNotification('خطأ في إضافة الملاحظة', 'error');
+    }
+    finally {
+      closeModal('notesModal');
+    }
+  }
   // Search external workers - similar to musanad_finacial
   const searchExternalWorkers = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -359,103 +462,112 @@ export default function Home({ user }: { user: any }) {
     }
   };
   // Fetch counts from server-side API
-  const fetchCounts = async () => {
-    try {
-      console.log('Fetching counts from server-side API');
-      
-      const response = await axios.get('/api/housing/counts');
-      
-      if (response.data.success) {
-        setTabCounts({
-          recruitment: response.data.counts.recruitment || 0,
-          rental: response.data.counts.rental || 0
-        });
-        
-        console.log('Server-side counts loaded:', response.data.counts);
-      } else {
-        console.error('Server returned error:', response.data.message);
-        setTabCounts({
-          recruitment: 0,
-          rental: 0
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching counts from server:', error);
+const fetchCounts = async () => {
+  try {
+    console.log('Fetching counts for housingStatus:', housingStatus);
+    const response = await axios.get('/api/housing/counts', {
+      params: { status: housingStatus },
+    });
+    if (response.data.success) {
       setTabCounts({
-        recruitment: 0,
-        rental: 0
+        recruitment: response.data.counts.recruitment || 0,
+        rental: response.data.counts.rental || 0,
       });
+      console.log('Counts loaded:', response.data.counts);
+    } else {
+      console.error('Server returned error:', response.data.message);
+      setTabCounts({ recruitment: 0, rental: 0 });
     }
-  };
+  } catch (error) {
+    console.error('Error fetching counts:', error);
+    setTabCounts({ recruitment: 0, rental: 0 });
+  }
+};
 
-  // Fetch workers based on contract type and housing status
-  const fetchWorkers = async () => {
-    try {
-      const contractType = activeTab; // recruitment or rental
-      const status = housingStatus; // housed or departed
-      
-      console.log(`Fetching workers - contractType: ${contractType}, status: ${status}`);
-      
-      let apiEndpoint = '';
-      if (status === 'housed') {
-        apiEndpoint = '/api/confirmhousinginformation';
-      } else {
-        apiEndpoint = '/api/housingdeparature';
-      }
-      
-      const response = await axios.get(apiEndpoint, {
-        params: {
-          ...filters,
-          page,
-          sortKey,
-          sortDirection,
-          contractType: contractType,
-        },
-      });
-      
-      console.log('Workers response:', response.data);
-      console.log('Workers data:', response.data.housing);
-      console.log('Total count from API:', response.data.totalCount);
-      
-      if (status === 'housed') {
-        setHousedWorkers(response.data.housing);
-        setTotalCount(response.data.totalCount);
-      } else {
+const fetchWorkers = async () => {
+  try {
+    const contractType = activeTab; // recruitment or rental
+    const status = housingStatus; // housed or departed
+    console.log(`Fetching workers - contractType: ${contractType}, status: ${status}`);
+    let apiEndpoint = status === 'housed' ? '/api/confirmhousinginformation' : '/api/housingdeparature';
+    const response = await axios.get(apiEndpoint, {
+      params: {
+        ...filters,
+        page,
+        sortKey,
+        sortDirection,
+        contractType: contractType,
+      },
+    });
+    console.log('Workers response:', response.data);
+    if (status === 'housed') {
+      setHousedWorkers(response.data.housing);
+      setTotalCount(response.data.totalCount);
+    } else {
       setDepartedWorkers(response.data.housing);
       setDepartedTotalCount(response.data.totalCount);
-      }
-      
-      setTabCounts(prev => ({ ...prev, [contractType]: response.data.totalCount }));
-      console.log(`Updated tabCounts ${contractType}:`, response.data.totalCount);
-    } catch (error) {
-      console.error('Error fetching workers:', error);
-      showNotification('خطأ في جلب بيانات العاملات', 'error');
     }
-  };
+    // تحديث tabCounts للـ contractType الحالي
+    setTabCounts((prev) => ({
+      ...prev,
+      [contractType]: response.data.totalCount,
+    }));
+    // جلب الكونت للـ contractType الآخر
+    const otherContractType = contractType === 'recruitment' ? 'rental' : 'recruitment';
+    const otherResponse = await axios.get(apiEndpoint, {
+      params: {
+        ...filters,
+        page: 1,
+        contractType: otherContractType,
+      },
+    });
+    setTabCounts((prev) => ({
+      ...prev,
+      [otherContractType]: otherResponse.data.totalCount,
+    }));
+  } catch (error) {
+    console.error('Error fetching workers:', error);
+    showNotification('خطأ في جلب بيانات العاملات', 'error');
+  }
+};
   // Fetch housed workers for exporting
-  const fetchHousedforExporting = async () => {
-    try {
-      const response = await axios.get('/api/Export/housedarrivals', {
-        responseType: 'blob',
-      });
-      return response.data;
-    } catch (error) {
-      showNotification('خطأ في جلب بيانات التسكين للتصدير', 'error');
-      throw error;
-    }
-  };
+// Fetch housed workers for exporting
+const fetchHousedforExporting = async () => {
+  try {
+    const response = await axios.get('/api/Export/housedarrivals', {
+      params: {
+        contractType: activeTab, // إضافة contractType
+        page: 1,
+        pageSize: 10000 // لجلب كل البيانات
+      },
+      responseType: 'blob',
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Export error:', error);
+    showNotification('خطأ في جلب بيانات التسكين للتصدير', 'error');
+    throw error;
+  }
+};
   // Fetch departed workers for exporting
-  const fetchDepartedHousedforExporting = async () => {
-    try {
-      const response = await axios.get('/api/Export/departedhoused', {
-        responseType: 'blob',
-      });
-      return response.data;
-    } catch (error) {
-      showNotification('خطأ في جلب بيانات العاملات اللي غادرن للتصدير', 'error');
-      throw error;
-    }
-  };
+// Fetch departed workers for exporting
+const fetchDepartedHousedforExporting = async () => {
+  try {
+    const response = await axios.get('/api/Export/departedhoused', {
+      params: {
+        contractType: activeTab, // إضافة contractType
+        page: 1,
+        pageSize: 10000 // لجلب كل البيانات
+      },
+      responseType: 'blob',
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Export error:', error);
+    showNotification('خطأ في جلب بيانات العاملات اللي غادرن للتصدير', 'error');
+    throw error;
+  }
+};
   // Update housed worker
   const updateHousedWorker = async (workerId: number, data: EditWorkerForm) => {
     try {
@@ -497,36 +609,51 @@ export default function Home({ user }: { user: any }) {
     }
   };
   // Handle export
-  const handleExport = async (format: 'xlsx' | 'pdf') => {
-    try {
-      let data;
-      if (housingStatus === 'housed') {
-        data = await fetchHousedforExporting();
-      } else {
-        data = await fetchDepartedHousedforExporting();
-      }
-      // Create a URL for the file blob and trigger download
-      const url = window.URL.createObjectURL(new Blob([data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute(
-        'download',
-        `${activeTab}_${housingStatus}_${format}_${new Date().toISOString()}.${format}`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      showNotification(
-        `تم تصدير الملف بصيغة ${format === 'xlsx' ? 'Excel' : 'PDF'} بنجاح`
-      );
-    } catch (error) {
-      showNotification(
-        `خطأ في تصدير الملف بصيغة ${format === 'xlsx' ? 'Excel' : 'PDF'}`,
-        'error'
-      );
-    }
-  };
+// Handle export with better error handling
+// const handleExport = async (format: 'xlsx' | 'pdf') => {
+//   try {
+//     console.log('Starting export:', { activeTab, housingStatus, format });
+    
+//     let data;
+//     if (housingStatus === 'housed') {
+//       data = await fetchHousedforExporting();
+//     } else {
+//       data = await fetchDepartedHousedforExporting();
+//     }
+
+//     // Check if data is valid
+//     if (!data || data.size === 0) {
+//       showNotification('لا توجد بيانات للتصدير', 'error');
+//       return;
+//     }
+
+//     // Create filename with proper Arabic support
+//     const statusText = housingStatus === 'housed' ? 'مسكونين' : 'مغادرين';
+//     const contractText = activeTab === 'recruitment' ? 'استقدام' : 'تاجير';
+//     const date = new Date().toISOString().split('T')[0];
+//     const filename = `${contractText}_${statusText}_${format}_${date}.${format}`;
+
+//     // Create download
+//     const url = window.URL.createObjectURL(new Blob([data]));
+//     const link = document.createElement('a');
+//     link.href = url;
+//     link.setAttribute('download', filename);
+//     document.body.appendChild(link);
+//     link.click();
+//     document.body.removeChild(link);
+//     window.URL.revokeObjectURL(url);
+
+//     showNotification(
+//       `تم تصدير ${format === 'xlsx' ? 'Excel' : 'PDF'} بنجاح (${filename})`
+//     );
+//   } catch (error: any) {
+//     console.error('Export failed:', error);
+//     const errorMsg = error.response?.data?.message || 
+//                     error.message || 
+//                     `خطأ في تصدير الملف بصيغة ${format === 'xlsx' ? 'Excel' : 'PDF'}`;
+//     showNotification(errorMsg, 'error');
+//   }
+// };
   // Handle edit worker modal opening
   const handleEditWorker = (id: number, name: string) => {
     const worker = (housingStatus === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
@@ -559,6 +686,29 @@ export default function Home({ user }: { user: any }) {
     });
     openModal('workerDeparture');
   };
+
+const [sessionForm, setSessionForm] = useState({
+  reason: '',
+  date: '',
+  time: '',
+  result: '',
+});
+const handleSessionSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    const response = await axios.post('/api/sessions', {
+      reason: sessionForm.reason,
+      date: sessionForm.date,
+      time: sessionForm.time,
+      result: sessionForm.result,
+      idnumber: selectedWorkerId,
+    });
+    showNotification(response.data.message);
+    closeModal('sessionModal');
+  } catch (error: any) {
+    showNotification(error.response?.data?.error || 'خطأ في جلسة العاملة', 'error');
+  }
+};  
   // Handle form submission for newHousing
   const handlenewHousingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -566,6 +716,20 @@ export default function Home({ user }: { user: any }) {
     // Validate that a worker is selected
     if (!selectedWorker || !selectedWorker.id) {
       showNotification('يرجى اختيار عاملة أولاً', 'error');
+      return;
+    }
+
+    // Validate housing selection
+    if (!formData.location || formData.location === '') {
+      setValidationErrors(prev => ({ ...prev, location: true }));
+      showNotification('يرجى اختيار السكن', 'error');
+      return;
+    }
+
+    // Validate housing reason
+    if (!formData.reason || formData.reason === '') {
+      setValidationErrors(prev => ({ ...prev, reason: true }));
+      showNotification('يرجى اختيار سبب التسكين', 'error');
       return;
     }
    
@@ -576,6 +740,7 @@ export default function Home({ user }: { user: any }) {
       });
       showNotification(response.data.message);
       closeModal('housingForm');
+      setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false });
       setFormData({
         homeMaidId: '',
         profileStatus: '',
@@ -640,6 +805,20 @@ export default function Home({ user }: { user: any }) {
   const handleInternalWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate housing selection
+    if (!internalWorkerForm.housing || internalWorkerForm.housing === '') {
+      setValidationErrors(prev => ({ ...prev, internalLocation: true }));
+      showNotification('يرجى اختيار السكن', 'error');
+      return;
+    }
+
+    // Validate housing reason
+    if (!internalWorkerForm.reason || internalWorkerForm.reason === '') {
+      setValidationErrors(prev => ({ ...prev, internalReason: true }));
+      showNotification('يرجى اختيار سبب التسكين', 'error');
+      return;
+    }
+    
     try {
       const formData = selectedExternalWorker ? {
         ...internalWorkerForm,
@@ -657,6 +836,7 @@ export default function Home({ user }: { user: any }) {
       const response = await axios.post('/api/confirmhousinginformation', formData);
       showNotification(response.data.message);
       closeModal('internalWorkerModal');
+      setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false });
       setInternalWorkerForm({
         workerId: '',
         workerName: '',
@@ -738,14 +918,240 @@ export default function Home({ user }: { user: any }) {
     console.log('Initial useEffect triggered');
     fetchLocations();
     fetchHomemaids();
-    // fetchCounts();
+    fetchCounts();
     fetchWorkers();
   }, []); // Only run once on mount
+const [isExporting, setIsExporting] = useState(false);
+const [exportHousedWorkers, setExportHousedWorkers] = useState([]);
+async function fetchData() {
+    const response = await axios.get(`/api/confirmhousinginformation?contractType=${activeTab}&format=${format}&size=10000`);
+    const data = response.data;
+    console.log('Export data:', data);
+    setExportHousedWorkers(data.housing);
 
+}
+//حل مشكلة اختيار الاعمدة
+useEffect(() => {
+
+fetchData();
+
+},[]);
+
+function getDate(date: string) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
+const exportToPDF = async () => {
+  setIsExporting(true);
+  const doc = new jsPDF({ orientation: "landscape" });
+  const pageWidth = doc.internal.pageSize.width;
+
+  // 🖼️ إضافة الشعار
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+  doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+  // 🖋️ تحميل الخط العربي
+  try {
+    const response = await fetch('/fonts/Amiri-Regular.ttf');
+    if (!response.ok) throw new Error('Failed to fetch font');
+    const fontBuffer = await response.arrayBuffer();
+    const fontBytes = new Uint8Array(fontBuffer);
+    const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+    doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri', 'normal');
+  } catch (error) {
+    console.error('Error loading Amiri font:', error);
+    return;
+  }
+
+  // 🏷️ العنوان
+  doc.setFontSize(16);
+  doc.text('عاملات في السكن', 150, 20, { align: 'right' });
+
+  // ⏰ التاريخ أعلى الصفحة
+  doc.setFontSize(8);
+  // 📋 الأعمدة والصفوف
+  const tableColumn = [
+    'ملاحظات',
+    'لديها مستحقات',
+    'الموظف',
+    'مدة السكن',
+    'تاريخ التسكين',
+    'سبب التسكين',
+    'السكن',
+    'رقم الجواز',
+    'الجنسية',
+    'رقم الجوال',
+    'الاسم',
+  ];
+
+  const tableRows = Array.isArray(exportHousedWorkers)
+    ? exportHousedWorkers.map((row) => [
+        row?.Details ?? 'غير متوفر',
+        row.isHasEntitlements ?? 'غير متوفر',
+        row?.employee ?? 'غير متوفر',
+        row?.Duration ?? 'غير متوفر',
+        housingStatus === 'housed'
+          ? getDate(row.houseentrydate)
+          : getDate(row.deparatureDate) ?? 'غير متوفر',
+        housingStatus === 'housed'
+          ? row.Reason
+          : row.deparatureReason ?? 'غير متوفر',
+        locations.find((loc) => loc.id === row.location_id)?.location ?? 'غير متوفر',
+        row.Order?.Passportnumber ?? 'غير متوفر',
+        row.Order?.office?.Country ?? 'غير متوفر',
+        row.Order?.phone ?? 'غير متوفر',
+        row.Order?.Name ?? 'غير متوفر',
+      ])
+    : [];
+
+  // 🧾 الجدول
+  doc.autoTable({
+    head: [tableColumn],
+    body: tableRows,
+    styles: {
+      font: 'Amiri',
+      halign: 'right',
+      fontSize: 10,
+      cellPadding: 2,
+      textColor: [0, 0, 0],
+      overflow: 'hidden',
+    },
+    headStyles: {
+      fillColor: [26, 77, 79],
+      textColor: [255, 255, 255],
+      halign: 'right',
+      overflow: 'hidden',
+    },
+    columnStyles: {
+      0: { cellWidth: 'auto', overflow: 'hidden' },
+      1: { cellWidth: 'auto', overflow: 'hidden' },
+      2: { cellWidth: 'auto', overflow: 'hidden' },
+      3: { cellWidth: 'auto', overflow: 'hidden' },
+      4: { cellWidth: 'auto', overflow: 'hidden' },
+      5: { cellWidth: 'auto', overflow: 'hidden' },
+      6: { cellWidth: 'auto', overflow: 'hidden' },
+      7: { cellWidth: 'auto', overflow: 'hidden' },
+      8: { cellWidth: 'auto', overflow: 'hidden' },
+      9: { cellWidth: 'auto', overflow: 'hidden' },
+      10: { cellWidth: 'auto', overflow: 'hidden' },
+    },
+    margin: { top: 40, right: 10, left: 10 },
+    didParseCell: (data) => {
+      data.cell.styles.halign = 'center';
+    },
+
+    // ⚙️ هنا نضيف الفوتر في كل صفحة
+    didDrawPage: () => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      // 👈 الاسم (يسار)
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      // 🔢 رقم الصفحة (وسط)
+      const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // 👉 التاريخ (يمين)
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+  });
+
+  // 💾 حفظ الملف
+  doc.save('عاملات في السكن.pdf');
+  setIsExporting(false);
+};
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    setIsExporting(true);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('عاملات في السكن', { properties: { defaultColWidth: 20 } });
+
+    worksheet.columns = [
+      { header: 'اسم العاملة', key: 'name', width: 15 },
+      { header: 'رقم الجوال', key: 'phone', width: 15 },
+      { header: 'الجنسية', key: 'nationality', width: 15 },
+      { header: 'رقم الجواز', key: 'Passportnumber', width: 15 },
+      { header: 'السكن', key: 'location', width: 15 },
+      { header: 'سبب التسكين', key: 'Reason', width: 15 },
+      { header: 'تاريخ التسكين', key: 'houseentrydate', width: 15 },
+      { header: 'مدة السكن', key: 'Duration', width: 15 },
+      { header: 'الموظف', key: 'employee', width: 15 },
+      { header: 'لديها مستحقات', key: 'isHasEntitlements', width: 15 },
+      { header: 'ملاحظات', key: 'Details', width: 15 },
+    ];
+
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+   
+    Array.isArray(exportHousedWorkers) &&
+      exportHousedWorkers.forEach((row: any) => {
+        worksheet.addRow({
+          name: row.Order?.Name || 'غير متوفر',
+          phone: row.Order?.phone || 'غير متوفر',
+          nationality: row.Order?.office?.Country || 'غير متوفر',
+          Passportnumber: row.Order?. Passportnumber || 'غير متوفر',
+          Housing: locations.find((loc) => loc.id === row.location_id)?.location || 'غير متوفر',
+          Reason: housingStatus === 'housed' ? row.Reason : row.deparatureReason || 'غير متوفر',
+          Date: housingStatus === 'housed' ? getDate(row.houseentrydate) : getDate(row.deparatureDate) || 'غير متوفر',
+          Duration: calculateDuration(row.houseentrydate) || 'غير متوفر',
+          Employee: row.employee || 'غير متوفر',
+          HasEntitlements: row.isHasEntitlements || 'غير متوفر',
+          Notes: row.Details || 'غير متوفر',
+        }).alignment = { horizontal: 'right' };
+      });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'عاملات في السكن.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+  const [entitlementsCost, setEntitlementsCost] = useState(0);
+  const [entitlementReason, setEntitlementReason] = useState('');
+const handleEntitlementsSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  try {
+    const response = await axios.post('/api/entitlemnthousedarrivalspage', { id: selectedWorker?.id, entitlementsCost: Number(entitlementsCost), entitlementReason });
+    showNotification('تم تسجيل المستحقات بنجاح');
+    closeModal('amountModal');
+  } catch (error: any) {
+    showNotification(error.response?.data?.error || 'خطأ في تسجيل المستحقات', 'error');
+    closeModal('amountModal');
+  }
+};      
   // Fetch data when filters or tabs change
   useEffect(() => {
     console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab, housingStatus });
     fetchWorkers();
+    fetchCounts();
   }, [page, sortKey, sortDirection, filters, activeTab, housingStatus]);
   // Close search results when clicking outside - similar to musanad_finacial
   useEffect(() => {
@@ -796,7 +1202,7 @@ export default function Home({ user }: { user: any }) {
                 const color =
                   progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
-                  <div key={location.id} className="bg-white border border-gray-300 rounded-md p-3 text-right">
+                  <div key={location.id} className="bg-gray-100 border border-gray-300 rounded-md p-3 text-right">
                     <h3 className="text-md font-normal mb-1">{location.location}</h3>
                     <p className="text-md font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
                     <div className="flex justify-between text-md mb-2">
@@ -954,45 +1360,58 @@ export default function Home({ user }: { user: any }) {
                     اعادة ضبط
                   </button>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleExport('pdf')}
-                    className="flex items-center gap-1 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
-                  >
-                    <FileText className="w-5 h-5" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => handleExport('xlsx')}
-                    className="flex items-center gap-1 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
-                  >
-                    <DocumentTextIcon className="w-5 h-5" />
-                    Excel
-                  </button>
-                </div>
+             <div className="flex gap-2">
+  <button
+    onClick={() => exportToPDF()}
+    // disabled={isExporting}
+    className={`flex items-center gap-1 ${
+      isExporting 
+        ? 'bg-gray-400 cursor-not-allowed' 
+        : 'bg-teal-800 hover:bg-teal-900'
+    } text-white text-md py-2 px-4 rounded-md disabled:opacity-50`}
+  >
+   
+        <FileText className="w-5 h-5" />
+        PDF
+  </button>
+  
+  <button
+    onClick={() => exportToExcel()}
+    // disabled={isExporting}
+    className={`flex items-center gap-1 ${
+      isExporting 
+        ? 'bg-gray-400 cursor-not-allowed' 
+        : 'bg-teal-800 hover:bg-teal-900'
+    } text-white text-md py-2 px-4 rounded-md disabled:opacity-50`}
+  >
+        {/* <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> */}
+        <DocumentTextIcon className="w-5 h-5" />
+        Excel
+  </button>
+</div>
               </div>
               <div className="">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-teal-800 text-white">
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                      {columnVisibility.id && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
+                      {columnVisibility.Name && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
+                      {columnVisibility.phone && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
+                      {columnVisibility.Nationalitycopy && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
+                      {columnVisibility.Passportnumber && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
+                      {columnVisibility.location && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>}
+                      {columnVisibility.Reason && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
-                      </th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                      </th>}
+                      {columnVisibility.houseentrydate && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'تاريخ التسكين' : 'تاريخ المغادرة'}
-                      </th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>
-                      <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">اجراءات</th>
+                      </th>}
+                      {columnVisibility.deliveryDate && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>}
+                      {columnVisibility.duration && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>}
+                      {columnVisibility.employee && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>}
+                      {columnVisibility.entitlements && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>}
+                      {columnVisibility.notes && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>}
+                      {columnVisibility.actions && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">اجراءات</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1007,37 +1426,42 @@ export default function Home({ user }: { user: any }) {
                         <tr
                           className="bg-gray-50 text-nowrap border-b border-gray-300 hover:bg-gray-100 transition-colors"
                         >
-                          <td className="py-4 px-4 text-right text-md">#{worker.id}</td>
-                          <td className="py-4 px-4 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>
-                          <td className="py-4 px-4 text-right text-md">{worker.Order?.phone || ''}</td>
-                          <td className="py-4 px-4 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>
-                          <td className="py-4 px-4 text-right text-md">{worker.Order?.Passportnumber || ''}</td>
-                          <td className="py-4 px-4 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>
-                          <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.id && <td className="py-4 px-4 text-right cursor-pointer text-md" onClick={()=>router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</td>}
+                          {columnVisibility.Name && <td className="py-4 px-4 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>}
+                          {columnVisibility.phone && <td className="py-4 px-4 text-right text-md">{worker.Order?.phone || ''}</td>}
+                          {columnVisibility.Nationalitycopy && <td className="py-4 px-4 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>}
+                          {columnVisibility.Passportnumber && <td className="py-4 px-4 text-right text-md">{worker.Order?.Passportnumber || ''}</td>}
+                          {columnVisibility.location && <td className="py-4 px-4 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
+                          {columnVisibility.Reason && <td className="py-4 px-4 text-right text-md">
                             {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
-                          </td>
-                          <td className="py-4 px-4 text-right text-md">
+                          </td>}
+                          {columnVisibility.houseentrydate && <td className="py-4 px-4 text-right text-md">
                             {housingStatus === 'housed' 
                               ? (worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد')
                               : (worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد')
                             }
-                          </td>
-                          <td className="py-4 px-4 text-right text-md">
+                          </td>}
+                          {columnVisibility.deliveryDate && <td className="py-4 px-4 text-right text-md">
                             {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
-                          </td>
-                          <td className={`py-4 px-4 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
+                          </td>}
+                          {columnVisibility.duration && <td className={`py-4 px-4 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
                             {calculateDuration(worker.houseentrydate)}
-                          </td>
-                          <td className="py-4 px-4 text-right text-md">{worker.employee}</td>
-                          <td className="py-4 px-4 text-center">
+                          </td>}
+                          {columnVisibility.employee && <td className="py-4 px-4 text-right text-md">{worker.employee}</td>}
+                          {columnVisibility.entitlements && <td className="py-4 px-4 text-center">
                             <button
-                              onClick={() => openModal('amountModal')}
+                              onClick={() => {
+                                setSelectedWorkerId(worker.id);
+                                setEntitlementsCost(worker.entitlementsCost || 0);
+                                setEntitlementReason(worker.entitlementReason || '');
+                                openModal('amountModal');
+                              }}
                               className="text-teal-800 hover:text-teal-600"
                             >
-                              نعم
+                              {worker.entitlementsCost >0 ? 'نعم' : 'لا'}
                             </button>
-                          </td>
-                          <td className="py-4 px-4 text-center">
+                          </td>}
+                          {columnVisibility.notes && <td className="py-4 px-4 text-center">
                             <button
                               onClick={() => toggleRowExpansion(worker.id)}
                               className="flex items-center justify-center gap-2 text-teal-800 hover:text-teal-600 transition-colors"
@@ -1049,20 +1473,22 @@ export default function Home({ user }: { user: any }) {
                                 <span className="text-md">▼</span>
                               )}
                             </button>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <ActionDropdown
+                          </td>}
+                          {columnVisibility.actions && <td className="py-4 px-4 text-center">
+                            <ActionDropdown homemaid_id={worker.homeMaid_id}
+                              onAddSession={handleAddSession}
+                              onAddNotes={handleAddNotes}
                               id={worker.id}
                               name={worker.Order?.Name || ''}
                               onEdit={handleEditWorker}
                               onDeparture={handleWorkerDeparture}
-                              onAddSession={() => openModal('newHousing')}
+                              openModal={openModal}
                             />
-                          </td>
+                          </td>}
                         </tr>
                         {expandedRows.has(worker.id) && (
                           <tr>
-                            <td colSpan={15} className="p-0">
+                            <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="p-0">
                               <div className="bg-gray-100 border-l-4 border-teal-500 p-4">
                                 <h4 className="text-lg font-semibold text-gray-800 mb-3">تفاصيل إضافية</h4>
                                 <div className="overflow-x-auto">
@@ -1101,7 +1527,7 @@ export default function Home({ user }: { user: any }) {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={15} className="py-8 text-center text-gray-500">
+                        <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="py-8 text-center text-gray-500">
                           لا توجد بيانات متاحة
                         </td>
                       </tr>
@@ -1215,6 +1641,59 @@ export default function Home({ user }: { user: any }) {
                 </div>
               </div>
             )}
+            {/* Notes Modal */}
+   {modals.notesModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center   items-center z-50 "
+                onClick={() => closeModal('notesModal')}
+              >
+                <div
+                  className="bg-gray-200 rounded-lg p-6 justify-between    shadow-card  w-[600px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-5  ">
+                    <h2 className="text-xl font-bold text-textDark">اضافة ملاحظات</h2>
+                    <button onClick={() => closeModal('notesModal')} className="text-textMuted text-2xl">
+                      &times;
+                    </button>
+                  </div>
+                  <form
+                    
+                  >
+                    <div className="grid grid-cols-2 gap-2 " >
+                    <div className="mb-4 ">
+                      <label htmlFor="notes" className="block text-md mb-2 text-textDark">
+                        الملاحظة
+                      </label>
+                      <input
+                        type="text"
+                        id="notes"
+                        placeholder="ادخل الملاحظة"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        value={notesForm.notes}
+                        onChange={(e) => setNotesForm({ ...notesForm, notes: e.target.value })}
+                      />
+                    </div>
+                  
+                    </div>
+                    <div className="flex justify-end gap-4 col-span-2">
+                      <button
+                        type="button"
+                        onClick={() => closeModal('notesModal')}
+                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
+                      >
+                        الغاء
+                      </button>
+                      <button  onClick={() => postnotes()} className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                        حفظ
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+
             {/* Column Visibility Modal */}
             {modals.columnVisibility && (
               <div
@@ -1257,6 +1736,8 @@ export default function Home({ user }: { user: any }) {
                                 deliveryDate: 'تاريخ التسليم',
                                 duration: 'مدة السكن',
                                 employee: 'الموظف',
+                                entitlements: 'لديها مستحقات',
+                                notes: 'ملاحظات',
                                 deparatureReason: 'سبب المغادرة',
                                 actions: 'اجراءات',
                               }[column]
@@ -1269,7 +1750,7 @@ export default function Home({ user }: { user: any }) {
                       <button
                         type="button"
                         onClick={() => closeModal('columnVisibility')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
+                        className="bg-gray-600 text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
@@ -1413,10 +1894,10 @@ export default function Home({ user }: { user: any }) {
                             <div className="text-md text-green-700">#{selectedWorker.id} - {selectedWorker.name}</div>
                             <div className="text-md text-green-600">الجنسية: {selectedWorker.nationality}</div>
                             <div className="text-md text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
-                            <div className="text-md text-green-600">العمر: {selectedWorker.age} سنة</div>
+                            {/* <div className="text-md text-green-600">العمر: {selectedWorker.age} سنة</div> */}
                             {selectedWorker.hasOrders && (
                               <div className="text-md text-green-600 font-medium">
-                                ✓ لديها {selectedWorker.orders?.length || 0} طلب - {selectedWorker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
+                                {/* ✓ لديها {selectedWorker.orders?.length || 0} طلب - {selectedWorker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'} */}
                               </div>
                             )}
                           </div>
@@ -1461,8 +1942,13 @@ export default function Home({ user }: { user: any }) {
                         <div className="relative">
                           <select
                             value={formData.location}
-                            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
+                            onChange={(e) => {
+                              setFormData({ ...formData, location: e.target.value });
+                              setValidationErrors(prev => ({ ...prev, location: false }));
+                            }}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                              validationErrors.location ? 'border-red-500' : 'border-gray-300'
+                            }`}
                           >
                             <option value="">اختر السكن</option>
                             {locations.map((loc) => (
@@ -1518,8 +2004,13 @@ export default function Home({ user }: { user: any }) {
                         <div className="relative">
                           <select
                             value={formData.reason}
-                            onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
+                            onChange={(e) => {
+                              setFormData({ ...formData, reason: e.target.value });
+                              setValidationErrors(prev => ({ ...prev, reason: false }));
+                            }}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                              validationErrors.reason ? 'border-red-500' : 'border-gray-300'
+                            }`}
                           >
                             <option value="">اختر سبب التسكين</option>
                             <option value="انتظار الترحيل">انتظار الترحيل</option>
@@ -1850,6 +2341,81 @@ export default function Home({ user }: { user: any }) {
                 </div>
               </div>
             )}
+
+{/* id         Int       @id @default(autoincrement())
+  reason     String    @db.VarChar(191)
+  date       DateTime?   
+  result     String?   
+  idnumber   Int      
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+  time       String?
+  user       homemaid? @relation(fields: [idnumber], references: [id])  */}
+
+            {/* session modal */}
+            {modals.sessionModal && (<div>
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('sessionModal')}
+              >
+                <div
+                  className="bg-gray-200 rounded-lg p-6 w-full max-w-lg shadow-card"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 className="text-xl font-bold text-textDark">جلسة</h2>
+                  <form onSubmit={handleSessionSubmit} className="space-y-4">
+                    <div className="mb-4">
+                      <label className="block text-md mb-2 text-textDark">سبب الجلسة</label>
+                      <input
+                        type="text"
+                        value={sessionForm.reason}
+                        onChange={(e) => setSessionForm({ ...sessionForm, reason: e.target.value })}
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-md mb-2 text-textDark">تاريخ الجلسة</label>
+                      <input
+                        type="date"
+                        value={sessionForm.date}
+                        onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-md mb-2 text-textDark">وقت الجلسة</label>
+                      <input
+                        type="time"
+                        value={sessionForm.time}
+                        onChange={(e) => setSessionForm({ ...sessionForm, time: e.target.value })}
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-md mb-2 text-textDark">المحضر</label>
+                      <textarea
+                        value={sessionForm.result}
+                        onChange={(e) => setSessionForm({ ...sessionForm, result: e.target.value })}
+                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                      />
+                    </div>
+                    <div className="flex justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => closeModal('sessionModal')}
+                        className="bg-gray-500 text-white py-2 px-4 rounded-md text-md"
+                      >
+                        الغاء
+                      </button>
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                        حفظ
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            )}
             {/* Amount Modal */}
             {modals.amountModal && (
               <div
@@ -1869,15 +2435,19 @@ export default function Home({ user }: { user: any }) {
                       &times;
                     </button>
                   </div>
-                  <form className="space-y-6">
+                  <form className="space-y-6" onSubmit={handleEntitlementsSubmit}>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <label className="block text-md text-gray-600 mb-2">المبلغ المستحق</label>
                         <input
-                          type="text"
-                          value="2000 ريال"
+                          type="number"
+                          // value="2000 ريال"
+                          value={entitlementsCost}
+                          onChange={(e) => setEntitlementsCost(e.target.value)}
+                          
                           className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base"
-                          readOnly
+                          // readOnly
+                          // disabled={!selectedWorker || !selectedWorker.id}
                         />
                       </div>
                       <div>
@@ -1886,6 +2456,9 @@ export default function Home({ user }: { user: any }) {
                           type="text"
                           placeholder="سبب المبلغ المستحق"
                           className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base"
+                          value={entitlementReason}
+                          onChange={(e) => setEntitlementReason(e.target.value)}
+                          disabled={!selectedWorker || !selectedWorker.id}
                         />
                       </div>
                     </div>
@@ -2091,8 +2664,13 @@ export default function Home({ user }: { user: any }) {
                         <div className="relative">
                           <select
                             value={internalWorkerForm.housing}
-                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, housing: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
+                            onChange={(e) => {
+                              setInternalWorkerForm({ ...internalWorkerForm, housing: e.target.value });
+                              setValidationErrors(prev => ({ ...prev, internalLocation: false }));
+                            }}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                              validationErrors.internalLocation ? 'border-red-500' : 'border-gray-300'
+                            }`}
                           >
                             <option value="">اختر السكن</option>
                             {locations.map((loc) => (
@@ -2151,8 +2729,13 @@ export default function Home({ user }: { user: any }) {
                         <div className="relative">
                           <select
                             value={internalWorkerForm.reason}
-                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, reason: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md appearance-none pr-8"
+                            onChange={(e) => {
+                              setInternalWorkerForm({ ...internalWorkerForm, reason: e.target.value });
+                              setValidationErrors(prev => ({ ...prev, internalReason: false }));
+                            }}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                              validationErrors.internalReason ? 'border-red-500' : 'border-gray-300'
+                            }`}
                           >
                             <option value="">اختر سبب التسكين</option>
                             <option value="عدم استلام الكفيل العاملة">عدم استلام الكفيل العاملة</option>

@@ -30,6 +30,7 @@ interface Notification {
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +38,8 @@ export default function Home() {
   const [dynamicFieldValues, setDynamicFieldValues] = useState<{ [key: string]: string }>({});
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [dateValue, setDateValue] = useState('');
+  const [signatureValue, setSignatureValue] = useState('');
 
   // Function to extract dynamic fields from content
   const extractDynamicFields = (content: string): string[] => {
@@ -48,7 +51,7 @@ export default function Home() {
   // Show notification modal
   const showNotification = (message: string, type: 'success' | 'error') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000); // Auto-close after 3 seconds
+    setTimeout(() => setNotification(null), 3000);
   };
 
   // Fetch templates on mount
@@ -116,10 +119,22 @@ export default function Home() {
     setDynamicFieldValues({});
   };
 
+  const showPdfModal = () => {
+    setIsPdfModalOpen(true);
+  };
+
+  const hidePdfModal = () => {
+    setIsPdfModalOpen(false);
+    setDateValue('');
+    setSignatureValue('');
+  };
+
   const handleTemplateSelect = (template: Template) => {
     setSelectedTemplate(template);
     setEditorContent(template.content);
     setDynamicFieldValues(template.defaultValues || {});
+    setDateValue('');
+    setSignatureValue('');
   };
 
   const handleAddTemplate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -157,7 +172,6 @@ export default function Home() {
           setSelectedTemplate(updatedTemplate);
         }
         hideAddTemplateModal();
-        // e.currentTarget.reset();
         setDynamicFieldValues({});
         showNotification(`تم ${isEditMode ? 'تحديث' : 'إضافة'} القالب بنجاح`, 'success');
       } else {
@@ -214,9 +228,11 @@ export default function Home() {
     selectedTemplate.dynamicFields?.forEach((field) => {
       pdfContent = pdfContent.replace(`{${field}}`, dynamicFieldValues[field] || '');
     });
+
     const div = document.createElement('div');
     div.innerHTML = pdfContent;
     pdfContent = div.textContent || div.innerText || '';
+
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -236,25 +252,36 @@ export default function Home() {
       showNotification('خطأ في تحميل الخط العربي', 'error');
       return;
     }
-    doc.setFontSize(12);
-    doc.setLanguage('ar');
-    const textLines = doc.splitTextToSize(pdfContent, 180);
-    doc.text(textLines, 190, 10, { align: 'right' });
+
+    // Add logo at top right if available
     if (logoImage) {
       try {
-        const imgWidth = 50;
-        const imgHeight = 20;
-        const pageHeight = doc.internal.pageSize.height;
-        const pageWidth = doc.internal.pageSize.width;
-        const x = 10;
-        const y = pageHeight - imgHeight - 10;
+        const imgWidth = 40;
+        const imgHeight = 30;
+        const x = doc.internal.pageSize.width - imgWidth - 10;
+        const y = 10;
         doc.addImage(logoImage, 'PNG', x, y, imgWidth, imgHeight);
       } catch (error) {
         console.error('Error adding logo to PDF:', error);
         showNotification('خطأ في إضافة الشعار إلى PDF', 'error');
       }
     }
+
+    // Add main content
+    doc.setFontSize(12);
+    doc.setLanguage('ar');
+    const textLines = doc.splitTextToSize(pdfContent, 180);
+    doc.text(textLines, 190, 50, { align: 'right' });
+
+    // Add signature and date at the bottom
+    const pageHeight = doc.internal.pageSize.height;
+    const bottomMargin = 20; // Margin from the bottom
+    const lineHeight = 10; // Space between signature and date
+    doc.text(`التوقيع: ${signatureValue || '__________'}`, 190, pageHeight - bottomMargin - lineHeight, { align: 'right' });
+    doc.text(`التاريخ: ${dateValue || '__________'}`, 190, pageHeight - bottomMargin, { align: 'right' });
+
     doc.save(`${selectedTemplate.title}.pdf`);
+    hidePdfModal();
   };
 
   if (loading) {
@@ -274,9 +301,9 @@ export default function Home() {
       </Head>
       <div
         dir="rtl"
-        className={`min-h-screen flex justify-center items-start max-w-7xl mx-auto p-4 ${Style['tajawal-medium']}`}
+        className={`min-h-screen flex justify-center items-start max-w-full mx-auto pt-2 ${Style['tajawal-medium']}`}
       >
-        <main className="w-full flex flex-col gap-6">
+        <div className="w-full flex flex-col gap-6 mx-auto">
           <section className="flex justify-between items-center">
             <h1 className="text-3xl font-normal text-black">إدارة القوالب</h1>
             <button
@@ -287,8 +314,8 @@ export default function Home() {
               <span>إضافة قالب</span>
             </button>
           </section>
-          <section className="flex gap-8 w-[900px]">
-            <div className="flex-1 bg-gray-100 border border-gray-300 rounded-lg p-6 flex flex-col gap-6">
+          <section className="flex gap-8 w-[900px] mx-auto">
+            <div className="flex-1 bg-gray-100 w-[900px] border border-gray-300 rounded-lg p-6 flex flex-col gap-6">
               {selectedTemplate ? (
                 <>
                   <div className="flex gap-4">
@@ -299,50 +326,49 @@ export default function Home() {
                       تعديل
                     </button>
                     <button
-                      onClick={handleExportToPDF}
+                      onClick={showPdfModal}
                       className="flex items-center gap-1 bg-teal-800 text-white px-4 py-1 rounded text-sm hover:bg-teal-900"
                     >
                       <FileText className="w-4 h-4" />
                       <span>PDF</span>
                     </button>
-                    {/* <button
-                      onClick={handleSaveDefaults}
-                      className="flex items-center gap-1 bg-green-600 text-white px-4 py-1 rounded text-sm hover:bg-green-700"
-                    >
-                      <span>حفظ القيم الافتراضية</span>
-                    </button> */}
                   </div>
+
+                  {/* Logo upload section */}
+                  <div className="flex justify-end">
+                    <div className="w-48">
+                      <label className="block cursor-pointer">
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 flex flex-col items-center gap-2 text-gray-500 text-sm bg-gray-50 hover:bg-gray-100 transition-colors">
+                          {logoImage ? (
+                            <img
+                              src={logoImage}
+                              alt="Logo"
+                              className="max-w-full max-h-20 object-contain"
+                            />
+                          ) : (
+                            <>
+                              <Upload className="w-5 h-5" />
+                              <span className="text-xs">رفع الشعار</span>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Content preview */}
                   <div
-                    className="bg-gray-50 border border-gray-300 rounded-lg p-8 flex flex-col gap-8 flex-1"
+                    className="bg-white border border-gray-300 rounded-lg p-8 flex flex-col gap-8 flex-1 min-h-[400px]"
                     dangerouslySetInnerHTML={{ __html: renderContentWithDynamicFields(selectedTemplate.content) }}
                   />
-                  <div className="flex justify-between gap-5 mt-auto">
-                    <div className="flex-1 text-right text-base text-black">
-                      <span>التاريخ:</span>
-                      <hr className="border-gray-300 mt-1.5" />
-                    </div>
-                    <div className="flex-1 text-right text-base text-black">
-                      <span>التوقيع:</span>
-                      <hr className="border-gray-300 mt-1.5" />
-                    </div>
-                  </div>
-                  <div className="border-dashed border-gray-300 rounded-lg p-5 flex flex-col items-center gap-2 text-gray-500 text-sm bg-gray-50">
-                    <Upload className="w-6 h-6" />
-                    <span>اضغط هنا لرفع الشعار</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="mt-2 text-sm"
-                    />
-                    {logoImage && (
-                      <img
-                        src={logoImage}
-                        alt="Uploaded Logo"
-                        className="mt-2 max-w-[100px] max-h-[50px]"
-                      />
-                    )}
-                  </div>
+
+                  {/* Dynamic fields */}
                   {Array.isArray(selectedTemplate?.dynamicFields) && selectedTemplate.dynamicFields.length > 0 && (
                     <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mt-4">
                       <h3 className="text-lg font-normal text-gray-800 text-right mb-4">الحقول</h3>
@@ -396,7 +422,7 @@ export default function Home() {
               </ul>
             </aside>
           </section>
-        </main>
+        </div>
         {/* Add/Edit Template Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -427,23 +453,25 @@ export default function Home() {
                         placeholder="ادخل عنوان القالب"
                       />
                     </div>
-                    <div className="bg-gray-50 border border-gray-300 rounded-md shadow-sm">
+                    <div className="quill-wrapper bg-gray-50 border border-gray-300 rounded-md overflow-hidden">
                       <ReactQuill
                         theme="snow"
                         value={editorContent}
                         onChange={setEditorContent}
                         modules={{
                           toolbar: [
-                            [{ header: [1, 2, 3, false] }],
+                            [{ header: [1, 2, 3, 4, 5] }],
                             ['bold', 'italic', 'underline', 'strike'],
-                            [{ list: 'ordered' }, { list: 'bullet' }],
-                            [{ align: [] }],
+                            [{ list: 'ordered' }, { list: 'bullet' }, { list: 'check' }],
+                            [{ align: ['center', 'right', 'justify'] }],
                             ['link', 'image'],
                             ['clean'],
                           ],
                         }}
-                        className="min-h-[225px] text-gray-500 text-base leading-relaxed"
-                        placeholder="ادخل محتوى القالب هنا..."
+                        style={{ direction: 'ltr', alignContent: 'left' }}
+                        preserveWhitespace={true}
+                        className="h-[400px] text-gray-800 text-base leading-relaxed"
+                        placeholder="اكتب هنا محتوى القالب..."
                       />
                     </div>
                     <div className="flex justify-center gap-4 mt-10 max-[768px]:flex-col">
@@ -462,6 +490,70 @@ export default function Home() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
+        {/* PDF Confirmation Modal */}
+        {isPdfModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-gray-100 rounded-lg w-11/12 max-w-[500px] p-5 relative">
+              <span
+                onClick={hidePdfModal}
+                className="absolute top-2 right-5 text-2xl cursor-pointer text-gray-800"
+              >
+                &times;
+              </span>
+              <section className="w-full">
+                <div className="bg-gray-100 p-6 rounded-lg">
+                  <h2 className="text-2xl font-normal text-black text-right mb-6">
+                    إدخال التاريخ والتوقيع
+                  </h2>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="pdf-date" className="text-base text-gray-800 text-right">
+                        التاريخ
+                      </label>
+                      <input
+                        type="text"
+                        id="pdf-date"
+                        value={dateValue}
+                        onChange={(e) => setDateValue(e.target.value)}
+                        className="bg-gray-50 border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 placeholder-gray-500 w-full"
+                        placeholder="أدخل التاريخ"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="pdf-signature" className="text-base text-gray-800 text-right">
+                        التوقيع
+                      </label>
+                      <input
+                        type="text"
+                        id="pdf-signature"
+                        value={signatureValue}
+                        onChange={(e) => setSignatureValue(e.target.value)}
+                        className="bg-gray-50 border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 placeholder-gray-500 w-full"
+                        placeholder="أدخل التوقيع"
+                      />
+                    </div>
+                    <div className="flex justify-center gap-4 mt-6">
+                      <button
+                        type="button"
+                        onClick={hidePdfModal}
+                        className="border border-teal-800 text-gray-800 px-10 py-1.5 rounded text-base min-w-[116px] hover:bg-gray-200"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportToPDF}
+                        className="bg-teal-800 text-white px-10 py-1.5 rounded text-base min-w-[116px] hover:bg-teal-900"
+                      >
+                        تأكيد وتصدير
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>

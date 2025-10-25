@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react'; // أضف useCallback
 import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
 import { Search, ChevronDown, X } from 'lucide-react';
@@ -10,40 +10,44 @@ import prisma from 'pages/api/globalprisma';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
+import Head from 'next/head';
 
 interface DashboardProps {
   hasPermission: boolean;
   redirectTo?: string;
-  recruitmentData: any[]; // Recruitment orders data
-  rentalData: any[]; // Rental orders data
+  recruitmentData: any[]; // Recruitment orders data for initial page
+  rentalData: any[]; // Rental orders data for initial page
   initialCounts: {
-    totalCount: number;
-    totalPages: number;
-    recruitment: number;
-    rental: number;
+    totalCount: number; // Total count for the default contract type (recruitment)
+    totalPages: number; // Total pages for the default contract type (recruitment)
+    recruitment: number; // Total recruitment count
+    rental: number; // Total rental count
   };
   initialOffices: any[];
   initialNationalities: any[];
   lastUpdated: string;
 }
 
-export default function Dashboard({ 
-  hasPermission: initialHasPermission, 
-  redirectTo, 
-  recruitmentData, 
+export default function Dashboard({
+  hasPermission: initialHasPermission,
+  redirectTo,
+  recruitmentData,
   rentalData,
-  initialCounts, 
-  initialOffices, 
+  initialCounts,
+  initialOffices,
   initialNationalities,
-  lastUpdated 
+  lastUpdated
 }: DashboardProps) {
   const router = useRouter();
   const [hasPermission, setHasPermission] = useState(initialHasPermission);
-  // Set initial data based on contract type
+
+  // Initial data based on the default contract type ("recruitment")
   const [data, setData] = useState(recruitmentData || []);
+
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(initialCounts?.totalCount || 0);
-  const [totalPages, setTotalPages] = useState(initialCounts?.totalPages || 1);
+  const [totalCount, setTotalCount] = useState(initialCounts?.recruitment || 0); // Start with recruitment total
+  const [totalPages, setTotalPages] = useState(Math.ceil((initialCounts?.recruitment || 0) / 10)); // Calculate initial total pages based on recruitment count
+
   const [contractType, setContractType] = useState('recruitment');
   const [recruitmentCount, setRecruitmentCount] = useState(initialCounts?.recruitment || 0);
   const [rentalCount, setRentalCount] = useState(initialCounts?.rental || 0);
@@ -74,63 +78,6 @@ export default function Dashboard({
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-useEffect(() => {
-  const checkAuthAndPermissions = async () => {
-    if (typeof window !== 'undefined') {
-      setIsCheckingAuth(true);
-      
-      const cookieHeader = localStorage.getItem('token');
-      const authToken = cookieHeader;
-      const decoder = jwtDecode(authToken || '')
-      if(!decoder)return router.push("/admin/login");
-      // alert(authToken)
-      if (!authToken) {
-        setHasPermission(false);
-        setIsPermissionModalOpen(true);
-        setIsCheckingAuth(false);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/verify-permissions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        });
-
-        if (!response.ok) {
-          alert("Permission API error:" + response.status + " " + response.statusText);
-          console.error("Permission API error:", response.status, response.statusText);
-          setHasPermission(false);
-          setIsPermissionModalOpen(true);
-          return;
-        }
-
-        const result = await response.json();
-        console.log("Permission check result:", result);
-        
-        if (result.hasPermission) {
-          setHasPermission(true);
-          setIsPermissionModalOpen(false);
-        } else {
-          console.log("Permission denied:", result.error);
-          setHasPermission(false);
-          setIsPermissionModalOpen(true);
-        }
-      } catch (error) {
-        console.error('Authentication error:', error);
-        setHasPermission(false);
-        setIsPermissionModalOpen(true);
-      } finally {
-        setIsCheckingAuth(false);
-      }
-    }
-  };
-
-  checkAuthAndPermissions();
-}, []);
   // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string) => {
     const statusTranslations: { [key: string]: string } = {
@@ -157,7 +104,7 @@ useEffect(() => {
       'new_order': 'طلب جديد',
       'new_orders': 'طلبات جديدة'
     };
-    
+
     return statusTranslations[status] || status;
   };
 
@@ -187,17 +134,19 @@ useEffect(() => {
       'طلب جديد': 'new_order',
       'طلبات جديدة': 'new_orders'
     };
-    
+
     return reverseTranslations[arabicStatus] || arabicStatus;
   };
 
   const pageSize = 10;
 
-
   // Fetch data with filters
-  async function fetchData(page = 1) {
-    if (!hasPermission) return;
-    
+  const fetchData = useCallback(async (page = 1) => {
+    if (!hasPermission) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const queryParams = new URLSearchParams({
@@ -213,7 +162,7 @@ useEffect(() => {
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const { homemaids, totalCount, totalPages, recruitment, rental } = await res.json();
       setData(Array.isArray(homemaids) ? homemaids : []);
       setTotalCount(totalCount || 0);
@@ -229,30 +178,76 @@ useEffect(() => {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [hasPermission, contractType, searchTerm, nationality, office, status]); // Dependencies for useCallback
 
-  // Handle contract type change
   useEffect(() => {
-    if (!searchTerm && !nationality && !office && !status) {
-      // Use pre-loaded data if no filters
-      if (contractType === 'recruitment') {
-        setData(recruitmentData || []);
-        setCurrentPage(1);
-      } else if (contractType === 'rental') {
-        setData(rentalData || []);
-        setCurrentPage(1);
+    const checkAuthAndPermissions = async () => {
+      if (typeof window !== 'undefined') {
+        setIsCheckingAuth(true);
+
+        const authToken = localStorage.getItem('token');
+        const decoder = authToken ? jwtDecode(authToken) : null;
+
+        if (!decoder) {
+          setHasPermission(false);
+          setIsPermissionModalOpen(true);
+          setIsCheckingAuth(false);
+          router.push("/admin/login"); // Redirect to login if no token or invalid
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/verify-permissions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({}),
+          });
+
+          if (!response.ok) {
+            console.error("Permission API error:", response.status, response.statusText);
+            setHasPermission(false);
+            setIsPermissionModalOpen(true);
+            setIsCheckingAuth(false);
+            return;
+          }
+
+          const result = await response.json();
+
+          if (result.hasPermission) {
+            setHasPermission(true);
+            setIsPermissionModalOpen(false);
+          } else {
+            setHasPermission(false);
+            setIsPermissionModalOpen(true);
+          }
+        } catch (error) {
+          console.error('Authentication error:', error);
+          setHasPermission(false);
+          setIsPermissionModalOpen(true);
+        } finally {
+          setIsCheckingAuth(false);
+        }
       }
-    } else {
-      // Fetch filtered data
-      if (hasPermission) {
-        fetchData();
-      }
+    };
+
+    checkAuthAndPermissions();
+  }, []); // Run only once on mount
+
+  // Effect to refetch data when contract type or filters change
+  useEffect(() => {
+    if (hasPermission && !isCheckingAuth) {
+      // Reset page to 1 when filters or contract type change
+      setCurrentPage(1);
+      fetchData(1);
     }
-  }, [contractType, searchTerm, nationality, office, status, hasPermission, recruitmentData, rentalData]);
+  }, [contractType, searchTerm, nationality, office, status, hasPermission, isCheckingAuth, fetchData]);
+
 
   // Export to PDF
   const exportToPDF = async () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "landscape" });
 
     try {
       const response = await fetch('/fonts/Amiri-Regular.ttf');
@@ -270,8 +265,8 @@ useEffect(() => {
     }
 
     doc.setLanguage('ar');
-    doc.setFontSize(12);
-    doc.text('طلبات تحت الإجراء', 200, 10, { align: 'right' });
+    doc.setFontSize(16);
+    doc.text("طلبات تحت الإجراء", 400, 10, { align: 'right', maxWidth: 700 });
 
     const tableColumn = [
       'رقم الطلب',
@@ -288,18 +283,18 @@ useEffect(() => {
     ];
     const tableRows = Array.isArray(data)
       ? data.map(row => [
-          row.id || 'غير متوفر',
-          row.client?.fullname || 'غير متوفر',
-          row.client?.phonenumber || 'غير متوفر',
-          row.client?.nationalId || 'غير متوفر',
-          row.HomeMaid?.id || 'غير متوفر',
-          row.HomeMaid?.Name || 'غير متوفر',
-          row.HomeMaid?.office?.Country || 'غير متوفر',
-          row.HomeMaid?.Passportnumber || 'غير متوفر',
-          row.arrivals?.InternalmusanedContract || 'غير متوفر',
-          row.HomeMaid?.office?.office || 'غير متوفر',
-          translateBookingStatus(row.bookingstatus) || 'غير متوفر',
-        ])
+        row.id || 'غير متوفر',
+        row.client?.fullname || 'غير متوفر',
+        row.client?.phonenumber || 'غير متوفر',
+        row.client?.nationalId || 'غير متوفر',
+        row.HomeMaid?.id || 'غير متوفر',
+        row.HomeMaid?.Name || 'غير متوفر',
+        row.HomeMaid?.office?.Country || 'غير متوفر',
+        row.HomeMaid?.Passportnumber || 'غير متوفر',
+        row.arrivals?.InternalmusanedContract || 'غير متوفر',
+        row.HomeMaid?.office?.office || 'غير متوفر',
+        translateBookingStatus(row.bookingstatus) || 'غير متوفر',
+      ])
       : [];
 
     doc.autoTable({
@@ -347,6 +342,19 @@ useEffect(() => {
 
     worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
     worksheet.getRow(1).alignment = { horizontal: 'right' };
+    worksheet.columns = [
+      { header: 'رقم الطلب', key: 'id', width: 10 },
+      { header: 'اسم العميل', key: 'clientName', width: 20 },
+      { header: 'جوال العميل', key: 'clientPhone', width: 15 },
+      { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
+      { header: 'رقم العاملة', key: 'maidId', width: 15 },
+      { header: 'اسم العاملة', key: 'maidName', width: 20 },
+      { header: 'الجنسية', key: 'nationality', width: 15 },
+      { header: 'رقم جواز السفر', key: 'passport', width: 15 },
+      { header: 'رقم عقد مساند', key: 'contract', width: 20 },
+      { header: 'اسم المكتب الخارجي', key: 'office', width: 15 },
+      { header: 'حالة الطلب', key: 'status', width: 10 }
+    ];
 
     Array.isArray(data) &&
       data.forEach(row => {
@@ -377,6 +385,7 @@ useEffect(() => {
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
       fetchData(page);
     }
   };
@@ -386,7 +395,8 @@ useEffect(() => {
     setNationality('');
     setOffice('');
     setStatus('');
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page
+    // fetchData(1); // Fetch data with reset filters for page 1
   };
 
   const handleOpenModal = () => {
@@ -395,19 +405,17 @@ useEffect(() => {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    // Optionally refetch data if a new rental order might affect the list
+    fetchData(currentPage);
   };
 
   const handlePermissionModalClose = () => {
     setIsPermissionModalOpen(false);
-    // Check if there's a stored authToken
-    const authToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('authToken='));
-    
+    const authToken = localStorage.getItem('token'); // Check localStorage for token
     if (!authToken) {
       router.push("/admin/login");
     } else {
-      router.push("/admin/home");
+      router.push("/admin/home"); // Or a dashboard where they have access
     }
   };
 
@@ -463,9 +471,12 @@ useEffect(() => {
       </Layout>
     );
   }
-
   return (
     <Layout>
+<Head>
+  <title>طلبات تحت الإجراء</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</Head>
       <section id="dashboard" className={`flex flex-row mx-auto min-h-screen ${Style["tajawal-regular"]}`} dir="rtl">
         <div className="flex-1 flex flex-col w-full">
           <main className="p-6 md:p-8">
@@ -476,25 +487,27 @@ useEffect(() => {
               <div className="flex justify-between items-start border-b border-gray-300 mb-6 flex-col sm:flex-row gap-4">
                 <div className="flex gap-10">
                   <a
-                    href="#"
+                    // href="#"
                     onClick={(e) => {
                       e.preventDefault();
                       setContractType('recruitment');
+                      setCurrentPage(1); // Reset page when changing contract type
                     }}
-                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
-                      contractType === 'recruitment' ? 'border-b-2 border-black' : ''
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
+                      contractType === 'recruitment' ? 'border-b-2 border-black font-bold' : ''
                     }`}
                   >
                     طلبات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
                   </a>
                   <a
-                    href="#"
+                    // href="#"
                     onClick={(e) => {
                       e.preventDefault();
                       setContractType('rental');
+                      setCurrentPage(1); // Reset page when changing contract type
                     }}
-                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 ${
-                      contractType === 'rental' ? 'border-b-2 border-black' : ''
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
+                      contractType === 'rental' ? 'border-b-2 border-black font-bold' : ''
                     }`}
                   >
                     طلبات التأجير <span className="text-md align-super">{rentalCount}</span>
@@ -594,46 +607,46 @@ useEffect(() => {
                     <span className="mr-2 text-teal-900">جاري التحميل...</span>
                   </div>
                 ) : (
-                <table className="w-full border-collapse min-w-[1000px] text-right">
-                  <thead>
-                    <tr className="bg-teal-900">
-                      {[
-                        'رقم الطلب',
-                        'اسم العميل',
-                        'جوال العميل',
-                        'هوية العميل',
-                        'رقم العاملة',
-                        'اسم العاملة',
-                        'الجنسية',
-                        'رقم جواز السفر',
-                        'رقم عقد مساند',
-                        'اسم المكتب الخارجي',
-                        'حالة الطلب',
-                      ].map((header) => (
-                        <th key={header} className="text-white text-md font-normal p-4 text-right">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <table className="w-full border-collapse min-w-[1000px] text-right">
+                    <thead>
+                      <tr className="bg-teal-900">
+                        {[
+                          'رقم الطلب',
+                          'اسم العميل',
+                          'جوال العميل',
+                          'هوية العميل',
+                          'رقم العاملة',
+                          'اسم العاملة',
+                          'الجنسية',
+                          'رقم جواز السفر',
+                          'رقم عقد مساند',
+                          'اسم المكتب الخارجي',
+                          'حالة الطلب',
+                        ].map((header) => (
+                          <th key={header} className="text-white text-md font-normal p-4 text-right">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
                       {data.length > 0 ? (
                         data.map((booking) => (
-                      <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
-                          #{booking.id}
-                        </td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
+                          <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
+                            <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
+                              #{booking.id}
+                            </td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
                             <td className="p-4 text-md text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.arrivals?.InternalmusanedContract || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
-                      </tr>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
+                            <td className="p-4 text-md text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
+                          </tr>
                         ))
                       ) : (
                         <tr>
@@ -642,8 +655,8 @@ useEffect(() => {
                           </td>
                         </tr>
                       )}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
                 )}
               </div>
               <div className="flex justify-between items-center mt-6 flex-col sm:flex-row gap-4">
@@ -658,7 +671,7 @@ useEffect(() => {
                       handlePageChange(currentPage - 1);
                     }}
                     className={`px-2.5 py-1 border rounded text-md ${
-                      currentPage === 1 ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
+                      currentPage === 1 || isLoading ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
                     السابق
@@ -671,7 +684,7 @@ useEffect(() => {
                       handlePageChange(currentPage + 1);
                     }}
                     className={`px-2.5 py-1 border rounded text-md ${
-                      currentPage === totalPages ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
+                      currentPage === totalPages || isLoading ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
                     التالي
@@ -731,12 +744,14 @@ useEffect(() => {
   );
 }
 
+// Keep getStaticProps for initial load, fetching only the first page
 export async function getStaticProps() {
+  const pageSize = 10; // Define page size for getStaticProps
+
   try {
-    // Fetch initial data for ISR
     const currentTime = new Date().toISOString();
-    
-    // Fetch recruitment orders (page 1)
+
+    // Fetch initial recruitment orders (first page)
     const recruitmentOrders = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
       select: {
@@ -769,10 +784,10 @@ export async function getStaticProps() {
           },
         },
       },
-      take: 10, // First page
+      take: pageSize, // Take only for the first page
     });
 
-    // Fetch rental orders (page 1)
+    // Fetch initial rental orders (first page)
     const rentalOrders = await prisma.neworder.findMany({
       orderBy: { id: "desc" },
       select: {
@@ -805,7 +820,7 @@ export async function getStaticProps() {
           },
         },
       },
-      take: 10, // First page
+      take: pageSize, // Take only for the first page
     });
 
     // Fetch offices and nationalities
@@ -826,7 +841,7 @@ export async function getStaticProps() {
       Country: country
     }));
 
-    // Count orders by type
+    // Count *all* orders by type (for total counts, not just first page)
     const recruitmentCount = await prisma.neworder.count({
       where: {
         typeOfContract: "recruitment",
@@ -849,24 +864,18 @@ export async function getStaticProps() {
       },
     });
 
-    const totalCount = await prisma.neworder.count({
-      where: {
-        NOT: {
-          bookingstatus: {
-            in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-          },
-        },
-      },
-    });
+    // The initial totalCount and totalPages should reflect the default view (recruitment)
+    const initialTotalCount = recruitmentCount;
+    const initialTotalPages = Math.ceil(initialTotalCount / pageSize);
 
     return {
       props: {
-        hasPermission: true, // We'll handle auth on client-side for ISR
-        recruitmentData: recruitmentOrders, // Recruitment orders page 1
-        rentalData: rentalOrders, // Rental orders page 1
+        hasPermission: true,
+        recruitmentData: recruitmentOrders,
+        rentalData: rentalOrders,
         initialCounts: {
-          totalCount,
-          totalPages: Math.ceil(totalCount / 10),
+          totalCount: initialTotalCount,
+          totalPages: initialTotalPages,
           recruitment: recruitmentCount,
           rental: rentalCount,
         },
@@ -874,23 +883,22 @@ export async function getStaticProps() {
         initialNationalities: uniqueCountries,
         lastUpdated: currentTime,
       },
-      // Revalidate every 30 seconds
-      revalidate: 30,
+      revalidate: 30, // Revalidate every 30 seconds
     };
   } catch (err) {
     console.error("ISR data fetching error:", err);
-      return {
-        props: {
-          hasPermission: false,
-          redirectTo: "/admin/home",
-          recruitmentData: [],
-          rentalData: [],
-          initialCounts: { totalCount: 0, totalPages: 1, recruitment: 0, rental: 0 },
-          initialOffices: [],
-          initialNationalities: [],
-          lastUpdated: new Date().toISOString(),
-        },
-        revalidate: 30,
-      };
+    return {
+      props: {
+        hasPermission: false,
+        redirectTo: "/admin/home",
+        recruitmentData: [],
+        rentalData: [],
+        initialCounts: { totalCount: 0, totalPages: 1, recruitment: 0, rental: 0 },
+        initialOffices: [],
+        initialNationalities: [],
+        lastUpdated: new Date().toISOString(),
+      },
+      revalidate: 30,
+    };
   }
 }

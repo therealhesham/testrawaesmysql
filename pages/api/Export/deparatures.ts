@@ -16,7 +16,7 @@ export default async function handler(
       select: {
         Order: {
           select: {
-            Name: true,
+            Name: true,client:true,
             ClientName: true,
             HomeMaid: {
               select: { Name: true, Passportnumber: true, id: true, office: true, age: true },
@@ -26,6 +26,7 @@ export default async function handler(
           },
         },
         OrderId: true,
+        internalReason: true,
         SponsorName: true,
         PassportNumber: true,
         KingdomentryDate: true,

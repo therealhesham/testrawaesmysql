@@ -16,10 +16,11 @@ export default async function handler(
       select: {
         Order: {
           select: {
+            client:true,
             Name: true,
             ClientName: true,
             HomeMaid: {
-              select: { Name: true, Passportnumber: true, id: true, office: true, age: true },
+              select: { Name: true, Passportnumber: true, id: true, office: {select:{Country:true}}, age: true },
             },
             clientphonenumber: true,
             id: true,

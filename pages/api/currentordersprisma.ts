@@ -72,11 +72,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           { clientphonenumber: { contains: searchTerm as string } },
         ];
       }
-console.log(filters)
       const homemaids = await prisma.neworder.findMany({
         orderBy: { id: "desc" },
         select:{arrivals:{select:{InternalmusanedContract:true}},
-
+bookingstatus:true,id:true,
           client:{select:{fullname:true,
             phonenumber:true,
             nationalId:true,
@@ -138,21 +137,27 @@ console.log(filters)
 
 
 
-const cookieHeader = req.headers.cookie;
-    let cookies: { [key: string]: string } = {};
-    if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        cookies[key] = decodeURIComponent(value);
-      });
-    }
-    console.log(cookies.authToken)
-    const token = jwtDecode(cookies.authToken);
-
-    eventBus.emit('ACTION', {
-        type: ' عرض صفحة طلبات تحت الاجراء ',
-        userId: Number(token.id),
-      });
+try {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  const referer = req.headers.referer
+  const token = jwtDecode(cookies.authToken);
+  eventBus.emit('ACTION', {
+    type: "عرض قائمة الطلبات الحالية ",
+    beneficiary: "homemaid",
+    pageRoute: referer,
+    actionType: "view",
+    userId: Number((token as any).id),
+  });
+} catch (error) {
+  console.error("Error emitting event:", error);
+}
 
 
       return res.status(200).json({

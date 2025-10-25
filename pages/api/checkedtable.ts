@@ -9,7 +9,12 @@ export default async function handler(
     if (req.method === "GET") {
       const startDate = (req.query.startDate as string)?.trim() || "";
       const endDate = (req.query.endDate as string)?.trim() || "";
-      const search = (req.query.search as string)?.trim() || "";
+const rawSearch = req.query.search;
+const search =
+  rawSearch && rawSearch !== "undefined" && rawSearch !== "null"
+    ? (rawSearch as string).trim()
+    : "";
+
       const searchPattern = `%${search}%`;
 
       if (!startDate || !endDate) {
@@ -36,6 +41,7 @@ export default async function handler(
         `
         SELECT 
           hw.id,
+          h.id as homemaid_id,
           h.Name AS Name,
           hw.employee,
           hw.houseentrydate,
@@ -65,6 +71,7 @@ export default async function handler(
         if (!workersMap.has(workerId)) {
           workersMap.set(workerId, {
             id: workerId,
+            homemaid_id: row.homemaid_id,
             Name: row.Name,
             employee: row.employee,
             houseentrydate: row.houseentrydate,

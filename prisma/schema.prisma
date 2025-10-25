@@ -280,12 +280,15 @@ model cashLogs{
 
 model systemUserLogs{
   id            Int       @id @default(autoincrement()) 
-
-action String
+actionType String? @db.VarChar(255)
+beneficiary String? @db.VarChar(255)
+action String? @db.VarChar(255)
+BeneficiaryId Int?
+pageRoute String? @db.VarChar(255)
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
 userId Int
-  user          User?     @relation(fields: [userId], references: [id])
+  user          User?     @relation(fields: [userId], references: [id],onDelete: Cascade)
 
   
 }
@@ -300,7 +303,7 @@ model logs{
   
   userId        String?
   homemaidId  Int?
-  user          User?     @relation(fields: [userId], references: [username])
+  user          User?     @relation(fields: [userId], references: [username],onDelete: Cascade)
   homemaid      homemaid? @relation(fields: [homemaidId], references: [id])
 }
 model Session {
@@ -381,7 +384,9 @@ notes String?
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
   isContractEnded Boolean? @default(false)
   clientAccountStatement ClientAccountStatement[]
+  // visa visa?
 }
+
 model visa {
 id Int @id @default(autoincrement())
 visaNumber String? @db.VarChar(255)
@@ -393,8 +398,8 @@ clientID Int?
 client Client? @relation(fields: [clientID], references: [id])
 createdAt DateTime? @default(now())
 updatedAt DateTime? @updatedAt
-
-
+// orderID Int @unique
+// order neworder? @relation(fields: [orderID], references: [id])
 
 
 }
@@ -471,7 +476,7 @@ externaldeparatureCity  String? @db.VarChar(191)
 externalArrivalCityDate          DateTime?
  externalArrivalCityTime           String?  @db.VarChar(30)
 
-
+externalTicketFile              String?   @db.VarChar(255)
 //////
 
 
@@ -645,6 +650,8 @@ deparatureHousingDate  DateTime?
   location_id     Int?
     location          inHouseLocation?  @relation(fields: [location_id], references: [id])
 isHasEntitlements     Boolean? @default(true)
+entitlementsCost     Decimal?
+entitlementReason   String?
   Order          homemaid?  @relation(fields: [homeMaid_id], references: [id])
 }
 

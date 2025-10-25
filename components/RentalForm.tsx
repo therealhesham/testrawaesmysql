@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { CashIcon } from '@heroicons/react/outline';
-import { Calendar, CreditCard, Wallet, CheckCircle, X } from 'lucide-react';
+import { Calendar, CreditCard, Wallet, CheckCircle, X, AlertCircle } from 'lucide-react';
 import Style from 'styles/Home.module.css';
 
 interface FormData {
@@ -13,11 +13,26 @@ interface FormData {
   contractDuration: string;
   contractStartDate: string;
   contractEndDate: string;
-  contractFile: string | null; // Changed to string to store filePath
+  contractFile: string | null;
   paymentMethod: string;
   totalAmount: string;
   paidAmount: string;
   remainingAmount: string;
+}
+
+interface ValidationErrors {
+  customerName?: string;
+  phoneNumber?: string;
+  nationalId?: string;
+  customerCity?: string;
+  workerId?: string;
+  contractDuration?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  contractFile?: string;
+  totalAmount?: string;
+  paidAmount?: string;
+  form?: string;
 }
 
 interface Homemaid {
@@ -43,21 +58,175 @@ export default function RentalForm() {
     paidAmount: '',
     remainingAmount: '',
   });
+  
+  // Validation states
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
+  
   const [isLoading, setIsLoading] = useState(false);
   const [homemaidSearchTerm, setHomemaidSearchTerm] = useState('');
   const [homemaidSuggestions, setHomemaidSuggestions] = useState<any[]>([]);
   const [showHomemaidSuggestions, setShowHomemaidSuggestions] = useState(false);
   const [isSearchingHomemaids, setIsSearchingHomemaids] = useState(false);
-  const [file, setFile] = useState<File | null>(null); // Store the selected file
-  const [isUploadingFile, setIsUploadingFile] = useState(false); // Track file upload status
-  const [isProcessingFile, setIsProcessingFile] = useState(false); // Track file processing status
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
   
   // Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
 
-  // Helper: Upload contract to DigitalOcean Spaces using presigned URL
+  // Validation functions
+  const validatePhoneNumber = (phone: string): string | null => {
+    const phoneRegex = /^5[0-9]{8}$/; // Saudi mobile number pattern
+    // if (!phone.trim()) return 'رقم الجوال مطلوب';
+    // if (!phoneRegex.test(phone)) return 'رقم الجوال غير صحيح (يجب أن يبدأ بـ 5 ويكون 9 أرقام)';
+    return null;
+  };
+
+  const validateNationalId = (nationalId: string): string | null => {
+    // if (!nationalId.trim()) return 'الرقم الوطني مطلوب';
+    // if (!/^\d{10}$/.test(nationalId)) return 'الرقم الوطني يجب أن يكون 10 أرقام';
+    return null;
+  };
+
+  const validateCustomerName = (name: string): string | null => {
+    if (!name.trim()) return 'اسم العميل مطلوب';
+    if (name.trim().length < 2) return 'اسم العميل قصير جداً';
+    if (!/^[^\d]+$/.test(name.trim())) return 'اسم العميل يجب أن يحتوي على أحرف فقط';
+    return null;
+  };
+
+  const validateContractDuration = (duration: string): string | null => {
+    if (!duration.trim()) return 'مدة العقد مطلوبة';
+    const num = parseInt(duration);
+    if (isNaN(num) || num <= 0) return 'مدة العقد يجب أن تكون رقم موجب';
+    return null;
+  };
+
+  const validateDates = (startDate: string, endDate: string): { startError: string | null; endError: string | null } => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    let startError = null;
+    let endError = null;
+    
+    if (!startDate) {
+      startError = 'تاريخ بداية العقد مطلوب';
+    } else if (start < today) {
+      startError = 'تاريخ بداية العقد يجب أن يكون اليوم أو مستقبلاً';
+    }
+    
+    if (!endDate) {
+      endError = 'تاريخ نهاية العقد مطلوب';
+    } else if (startDate && end <= start) {
+      endError = 'تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية';
+    } else if (end < today) {
+      endError = 'تاريخ نهاية العقد يجب أن يكون اليوم أو مستقبلاً';
+    }
+    
+    return { startError, endError };
+  };
+
+  const validateWorkerId = (workerId: string): string | null => {
+    if (!workerId.trim()) return 'عاملة مطلوبة';
+    return null;
+  };
+
+  const validateContractFile = (contractFile: string | null): string | null => {
+    if (!contractFile) return 'ملف العقد مطلوب';
+    return null;
+  };
+
+  const validateAmounts = (total: string, paid: string): { totalError: string | null; paidError: string | null } => {
+    let totalError = null;
+    let paidError = null;
+    
+    const totalNum = parseFloat(total);
+    const paidNum = parseFloat(paid);
+    
+    if (total && (isNaN(totalNum) || totalNum <= 0)) {
+      totalError = 'المبلغ الكلي يجب أن يكون رقم موجب';
+    }
+    
+    if (paid && (isNaN(paidNum) || paidNum < 0)) {
+      paidError = 'المبلغ المدفوع يجب أن يكون رقم موجب أو صفر';
+    }
+    
+    if (total && paid && paidNum > totalNum) {
+      paidError = 'المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الكلي';
+    }
+    
+    return { totalError, paidError };
+  };
+
+  // Validate single field
+  const validateField = (name: string, value: string): string | null => {
+    switch (name) {
+      case 'customerName':
+        return validateCustomerName(value);
+      case 'phoneNumber':
+        return validatePhoneNumber(value);
+      case 'nationalId':
+        return validateNationalId(value);
+      case 'contractDuration':
+        return validateContractDuration(value);
+      case 'workerId':
+        return validateWorkerId(value);
+      default:
+        return null;
+    }
+  };
+
+  // Validate entire form
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {};
+    
+    // Required fields validation
+    newErrors.customerName = validateCustomerName(formData.customerName);
+    newErrors.phoneNumber = validatePhoneNumber(formData.phoneNumber);
+    newErrors.nationalId = validateNationalId(formData.nationalId);
+    newErrors.workerId = validateWorkerId(formData.workerId);
+    newErrors.contractDuration = validateContractDuration(formData.contractDuration);
+    newErrors.contractFile = validateContractFile(formData.contractFile);
+    
+    // Date validation
+    const { startError, endError } = validateDates(formData.contractStartDate, formData.contractEndDate);
+    if (startError) newErrors.contractStartDate = startError;
+    if (endError) newErrors.contractEndDate = endError;
+    
+    // Amount validation
+    const { totalError, paidError } = validateAmounts(formData.totalAmount, formData.paidAmount);
+    if (totalError) newErrors.totalAmount = totalError;
+    if (paidError) newErrors.paidAmount = paidError;
+    
+    setErrors(newErrors);
+    
+    // Check if there are any errors
+    return Object.values(newErrors).every(error => !error);
+  };
+
+  // Helper: Upload contract file
   const uploadContractFile = async (selectedFile: File, idHint?: string): Promise<string> => {
     setIsUploadingFile(true);
     try {
@@ -87,7 +256,7 @@ export default function RentalForm() {
     }
   };
 
-  // Fetch client data if clientId exists
+  // Fetch client data
   useEffect(() => {
     if (clientId) {
       const fetchClient = async () => {
@@ -120,7 +289,7 @@ export default function RentalForm() {
     }
   }, [clientId]);
 
-  // Auto search functions for homemaids - supports both name and ID search
+  // Search homemaids
   const searchHomemaids = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       setHomemaidSuggestions([]);
@@ -130,15 +299,12 @@ export default function RentalForm() {
     
     setIsSearchingHomemaids(true);
     try {
-      // Check if search term is a number (ID search)
       const isId = searchTerm.match(/^\d+$/);
       
       let response;
       if (isId) {
-        // Search by ID using the existing API
         response = await fetch(`/api/getallhomemaids?id=${searchTerm}`);
       } else {
-        // Search by name using the suggestions API
         response = await fetch(`/api/homemaids/suggestions?q=${encodeURIComponent(searchTerm)}`);
       }
       
@@ -147,7 +313,6 @@ export default function RentalForm() {
         let suggestions = [];
         
         if (isId) {
-          // Transform data from getallhomemaids API
           if (data.data && data.data.length > 0) {
             suggestions = data.data.map((homemaid: any) => ({
               id: homemaid.id,
@@ -157,14 +322,12 @@ export default function RentalForm() {
             }));
           }
         } else {
-          // Use suggestions from homemaids/suggestions API
           suggestions = data.suggestions || [];
         }
         
         setHomemaidSuggestions(suggestions);
         setShowHomemaidSuggestions(true);
       } else {
-        console.error('Error searching homemaids');
         setHomemaidSuggestions([]);
         setShowHomemaidSuggestions(false);
       }
@@ -177,7 +340,6 @@ export default function RentalForm() {
     }
   };
 
-  // Handle homemaid search input change
   const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setHomemaidSearchTerm(value);
@@ -187,10 +349,11 @@ export default function RentalForm() {
     } else {
       setHomemaidSuggestions([]);
       setShowHomemaidSuggestions(false);
+      setFormData(prev => ({ ...prev, workerId: '' }));
+      setErrors(prev => ({ ...prev, workerId: validateWorkerId('') }));
     }
   };
 
-  // Handle homemaid suggestion click
   const handleHomemaidSuggestionClick = (homemaid: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -198,16 +361,16 @@ export default function RentalForm() {
     }));
     setHomemaidSearchTerm(homemaid.Name);
     setShowHomemaidSuggestions(false);
+    setErrors(prev => ({ ...prev, workerId: null }));
+    setTouched(prev => ({ ...prev, workerId: true }));
   };
 
-  // Handle input blur for suggestions
   const handleHomemaidInputBlur = () => {
     setTimeout(() => {
       setShowHomemaidSuggestions(false);
     }, 200);
   };
 
-  // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -221,7 +384,6 @@ export default function RentalForm() {
     };
   }, []);
 
-  // Modal functions
   const closeModal = () => {
     setShowSuccessModal(false);
     setShowErrorModal(false);
@@ -230,29 +392,50 @@ export default function RentalForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
+    const fieldName = id.replace('-', '');
+    
     setFormData((prev) => {
-      const newData = { ...prev, [id.replace('-', '')]: value };
-      if (id === 'totalAmount' || id === 'paidAmount') {
+      const newData = { ...prev, [fieldName]: value };
+      
+      // Auto-calculate remaining amount
+      if (fieldName === 'totalAmount' || fieldName === 'paidAmount') {
         const total = parseFloat(newData.totalAmount) || 0;
         const paid = parseFloat(newData.paidAmount) || 0;
         newData.remainingAmount = (total - paid).toFixed(2);
       }
-      if (id === 'contractEndDate' && newData.contractStartDate && value < newData.contractStartDate) {
+      
+      // Date validation
+      if (fieldName === 'contractEndDate' && newData.contractStartDate && value < newData.contractStartDate) {
         setModalMessage('تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية');
         setShowErrorModal(true);
         return prev;
       }
+      
       return newData;
     });
+    
+    // Clear error on change
+    setErrors(prev => ({ ...prev, [fieldName]: null }));
+    setTouched(prev => ({ ...prev, [fieldName]: true }));
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
     if (!selectedFile) return;
 
+    // Validate file type
     if (selectedFile.type !== 'application/pdf') {
       setModalMessage('الرجاء اختيار ملف PDF فقط');
       setShowErrorModal(true);
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setModalMessage('حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)');
+      setShowErrorModal(true);
+      e.target.value = '';
       return;
     }
 
@@ -261,32 +444,39 @@ export default function RentalForm() {
     try {
       const uploadedPath = await uploadContractFile(selectedFile);
       setFormData((prev) => ({ ...prev, contractFile: uploadedPath }));
+      setErrors(prev => ({ ...prev, contractFile: null }));
+      setTouched(prev => ({ ...prev, contractFile: true }));
       setModalMessage('تم رفع الملف بنجاح');
       setShowSuccessModal(true);
     } catch (err: any) {
       console.error('Error uploading contract file:', err);
       setModalMessage(err?.message || 'حدث خطأ أثناء رفع الملف');
       setShowErrorModal(true);
+      setFile(null);
     } finally {
       setIsProcessingFile(false);
+      // Reset file input
+      const fileInput = e.target as HTMLInputElement;
+      fileInput.value = '';
     }
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.workerId) {
-      setModalMessage('يرجى اختيار عاملة');
+    
+    if (!validateForm()) {
+      setModalMessage('يرجى تصحيح الأخطاء الموجودة في النموذج');
       setShowErrorModal(true);
+     
       return;
     }
+
     setIsLoading(true);
 
     try {
       let finalClientId = clientId;
       let contractFileUrl: string | null = formData.contractFile;
 
-      // Create new client if newClient is true
       if (newClient === 'true') {
         const clientData = {
           fullname: formData.customerName,
@@ -307,7 +497,6 @@ export default function RentalForm() {
         finalClientId = clientResult.client.id;
       }
 
-      // Fallback: if user selected a file but it wasn't uploaded yet, upload now once
       if (!contractFileUrl && file) {
         const idHint = (typeof finalClientId === 'string' && finalClientId) || undefined;
         try {
@@ -317,7 +506,6 @@ export default function RentalForm() {
         }
       }
 
-      // Submit form data with the file URL
       const response = await fetch('/api/rentalform', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -329,7 +517,7 @@ export default function RentalForm() {
       });
 
       if (response.ok) {
-        // Clear form data after successful submission
+        // Reset form
         setFormData({
           customerName: '',
           phoneNumber: '',
@@ -347,6 +535,8 @@ export default function RentalForm() {
         });
         setHomemaidSearchTerm('');
         setFile(null);
+        setErrors({});
+        setTouched({});
         
         setModalMessage('تم إنشاء طلب التأجير بنجاح!');
         setShowSuccessModal(true);
@@ -366,8 +556,22 @@ export default function RentalForm() {
     }
   };
 
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.homemaid-search-container')) {
+        setShowHomemaidSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="">
       <h2 className="text-2xl font-semibold text-right mb-6">
         {newClient ? 'طلب تأجير جديد' : 'طلب تأجير'}
       </h2>
@@ -383,35 +587,74 @@ export default function RentalForm() {
               id="customerName"
               value={formData.customerName}
               onChange={handleInputChange}
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              onBlur={(e) => {
+                const error = validateCustomerName(e.target.value);
+                setErrors(prev => ({ ...prev, customerName: error }));
+                setTouched(prev => ({ ...prev, customerName: true }));
+              }}
+              className={`bg-gray-50 border ${errors.customerName ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
               disabled={!!clientId}
               required
             />
+            {touched.customerName && errors.customerName && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.customerName}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2">
             <label htmlFor="phoneNumber" className="text-base text-right">رقم الجوال</label>
             <input
-              type="text"
+              type="tel"
               id="phoneNumber"
               value={formData.phoneNumber}
               onChange={handleInputChange}
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              onBlur={(e) => {
+                const error = validatePhoneNumber(e.target.value);
+                setErrors(prev => ({ ...prev, phoneNumber: error }));
+                setTouched(prev => ({ ...prev, phoneNumber: true }));
+              }}
+              className={`bg-gray-50 border ${errors.phoneNumber ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
               disabled={!!clientId}
+              placeholder="500000000"
               required
             />
+            {touched.phoneNumber && errors.phoneNumber && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.phoneNumber}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2">
-            <label htmlFor="customerCity" className="text-base text-right">مدينة العميل</label>
+            <label htmlFor="nationalId" className="text-base text-right">الرقم الوطني</label>
             <input
               type="text"
-              id="customerCity"
-              value={formData.customerCity}
+              id="nationalId"
+              value={formData.nationalId}
               onChange={handleInputChange}
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              onBlur={(e) => {
+                const error = validateNationalId(e.target.value);
+                setErrors(prev => ({ ...prev, nationalId: error }));
+                setTouched(prev => ({ ...prev, nationalId: true }));
+              }}
+              className={`bg-gray-50 border ${errors.nationalId ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
               disabled={!!clientId}
+              placeholder="1234567890"
+              maxLength={10}
               required
             />
+            {touched.nationalId && errors.nationalId && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.nationalId}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2 relative homemaid-search-container">
             <label htmlFor="workerSearch" className="text-base text-right">اسم أو رقم العاملة</label>
             <input
@@ -422,7 +665,7 @@ export default function RentalForm() {
               onBlur={handleHomemaidInputBlur}
               onFocus={() => homemaidSearchTerm.length >= 1 && setShowHomemaidSuggestions(true)}
               placeholder="ابحث بالاسم أو الرقم"
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              className={`bg-gray-50 border ${errors.workerId ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right pr-10 transition-colors`}
               required
             />
             {isSearchingHomemaids && (
@@ -431,7 +674,6 @@ export default function RentalForm() {
               </div>
             )}
             
-            {/* Homemaid Search Results Dropdown */}
             {showHomemaidSuggestions && homemaidSuggestions.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                 {homemaidSuggestions.map((homemaid, index) => (
@@ -446,25 +688,42 @@ export default function RentalForm() {
                 ))}
               </div>
             )}
-            <input
-              type="hidden"
-              id="workerId"
-              value={formData.workerId}
-              onChange={handleInputChange}
-            />
+            
+            {touched.workerId && errors.workerId && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.workerId}</span>
+              </div>
+            )}
+            
+            <input type="hidden" id="workerId" value={formData.workerId} />
           </div>
+
           <div className="flex flex-col gap-2">
-            <label htmlFor="contractDuration" className="text-base text-right">مدة العقد</label>
+            <label htmlFor="contractDuration" className="text-base text-right">مدة العقد (أشهر)</label>
             <input
-              type="text"
+              type="number"
               id="contractDuration"
               value={formData.contractDuration}
               onChange={handleInputChange}
-              placeholder="ادخل مدة العقد"
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              onBlur={(e) => {
+                const error = validateContractDuration(e.target.value);
+                setErrors(prev => ({ ...prev, contractDuration: error }));
+                setTouched(prev => ({ ...prev, contractDuration: true }));
+              }}
+              className={`bg-gray-50 border ${errors.contractDuration ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
+              min="1"
+              placeholder="6"
               required
             />
+            {touched.contractDuration && errors.contractDuration && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.contractDuration}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2">
             <label htmlFor="contractStartDate" className="text-base text-right">تاريخ بداية العقد</label>
             <div className="relative">
@@ -473,12 +732,23 @@ export default function RentalForm() {
                 id="contractStartDate"
                 value={formData.contractStartDate}
                 onChange={handleInputChange}
-                className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right w-full"
+                onBlur={(e) => {
+                  const { startError } = validateDates(e.target.value, formData.contractEndDate);
+                  setErrors(prev => ({ ...prev, contractStartDate: startError }));
+                  setTouched(prev => ({ ...prev, contractStartDate: true }));
+                }}
+                className={`bg-gray-50 border ${errors.contractStartDate ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right w-full transition-colors`}
                 required
               />
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
             </div>
+            {touched.contractStartDate && errors.contractStartDate && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.contractStartDate}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2">
             <label htmlFor="contractEndDate" className="text-base text-right">تاريخ نهاية العقد</label>
             <div className="relative">
@@ -487,59 +757,95 @@ export default function RentalForm() {
                 id="contractEndDate"
                 value={formData.contractEndDate}
                 onChange={handleInputChange}
-                className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right w-full"
+                onBlur={(e) => {
+                  const { endError } = validateDates(formData.contractStartDate, e.target.value);
+                  setErrors(prev => ({ ...prev, contractEndDate: endError }));
+                  setTouched(prev => ({ ...prev, contractEndDate: true }));
+                }}
+                className={`bg-gray-50 border ${errors.contractEndDate ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right w-full transition-colors`}
                 required
               />
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
             </div>
+            {touched.contractEndDate && errors.contractEndDate && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.contractEndDate}</span>
+              </div>
+            )}
           </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="contractFile" className="text-base text-right">ملف العقد</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="file"
-                id="contractFile"
-                onChange={handleFileChange}
-                accept="application/pdf"
-                className="hidden"
-                disabled={isUploadingFile || isProcessingFile}
-              />
-                 {formData.contractFile ? (
-            <a
-              href={formData.contractFile}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mr-2 text-sm text-teal-800 hover:underline"
-            >
-              تصفح الملف
-            </a>
-          ) : (
-            file && (
-              <span className="mr-2 text-sm">
-                {isProcessingFile ? 'جاري معالجة الملف...' : file.name}
-              </span>
-            )
-          )}
-              <label
-                htmlFor="contractFile"
-                className={`bg-teal-800 text-white px-3 py-1 rounded-md text-sm cursor-pointer flex items-center gap-2 ${
-                  (isUploadingFile || isProcessingFile) ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {(isUploadingFile || isProcessingFile) && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                )}
-                {isProcessingFile ? 'جاري المعالجة...' : isUploadingFile ? 'جاري الرفع...' : 'اختيار ملف'}
-              </label>
-       
-            </div>
-          </div>
+
+<div className="flex flex-col gap-2">
+  <label htmlFor="contractFile" className="text-base text-right">ملف العقد</label>
+  <div className={`relative ${errors.contractFile ? 'border-red-300' : 'border-gray-200'} border-2 rounded-md p-3 bg-gray-50 focus-within:border-teal-500 transition-colors`}>
+    <input
+      type="file"
+      id="contractFile"
+      onChange={handleFileChange}
+      accept="application/pdf"
+      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      disabled={isUploadingFile || isProcessingFile}
+    />
+    <div className="flex items-center justify-between">
+      <div className="flex-1 min-w-0">
+        {formData.contractFile ? (
+          <span className="text-sm text-gray-700 truncate block">📄 {formData.contractFile.split('/').pop()}</span>
+        ) : file ? (
+          <span className={`text-sm ${errors.contractFile ? 'text-red-600' : 'text-gray-700'} truncate block`}>
+            📄 {file.name}
+          </span>
+        ) : (
+          <span className="text-sm text-gray-500">لم يتم اختيار ملف</span>
+        )}
+        {isProcessingFile && (
+          <span className="text-xs text-teal-600 block mt-1">جاري معالجة الملف...</span>
+        )}
+        {isUploadingFile && (
+          <span className="text-xs text-teal-600 block mt-1">جاري رفع الملف...</span>
+        )}
+      </div>
+      <button
+        type="button"
+        disabled={isUploadingFile || isProcessingFile}
+        className={`ml-2 px-3 py-1 rounded-md text-sm font-medium flex items-center gap-1 transition-colors ${
+          isUploadingFile || isProcessingFile
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : 'bg-teal-600 text-white hover:bg-teal-700'
+        }`}
+      >
+        {(isUploadingFile || isProcessingFile) && (
+          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+        )}
+        اختر ملف
+      </button>
+    </div>
+  </div>
+  {touched.contractFile && errors.contractFile && (
+    <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+      <AlertCircle className="w-4 h-4" />
+      <span>{errors.contractFile}</span>
+    </div>
+  )}
+  {formData.contractFile && (
+    <a
+      href={formData.contractFile}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-xs text-teal-600 hover:underline mt-1 block"
+    >
+      عرض الملف
+    </a>
+  )}
+</div>
         </div>
+
         <div className="flex flex-col gap-4">
           <label className="text-base text-right">طريقة الدفع المختارة</label>
           <div className="flex flex-col items-center gap-4">
             <div className="flex gap-14">
-              <div className="flex items-center justify-center w-60 h-12 border-2 border-teal-800 rounded-lg bg-gray-50 cursor-pointer">
+              <div 
+                onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'cash' }))}
+                className={`flex ${formData.paymentMethod === 'cash' ? 'border-teal-800 bg-teal-800 text-white' : 'border-gray-300 bg-gray-50 text-gray-600'} items-center justify-center w-60 h-12 border-2 rounded-lg bg-gray-50 cursor-pointer`}
+              >
                 <input
                   type="radio"
                   id="paymentMethodCash"
@@ -551,16 +857,19 @@ export default function RentalForm() {
                 />
                 <label
                   htmlFor="paymentMethodCash"
-                  className={`flex items-center justify-center gap-2 text-lg cursor-pointer ${
-                    formData.paymentMethod === 'cash' ? 'text-teal-800 font-bold' : 'text-gray-600'
+                  className={`flex items-center justify-center gap-2 text-lg cursor-pointer w-full h-full p-3 ${
+                    formData.paymentMethod === 'cash' ? 'text-white font-bold' : 'text-gray-600'
                   }`}
-                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'cash' }))}
                 >
-                  <CashIcon className="w-6 h-6" />
+                  <CashIcon className={`w-6 h-6 ${formData.paymentMethod === 'cash' ? 'text-white' : 'text-gray-600'}`} />
                   <span>كاش</span>
                 </label>
               </div>
-              <div className="flex items-center justify-center w-60 h-12 border-2 border-teal-800 rounded-lg bg-gray-50 cursor-pointer">
+
+              <div 
+                onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'two-installments' }))}
+                className={`flex items-center justify-center w-60 h-12 border-2 border-teal-800 rounded-lg bg-gray-50 cursor-pointer ${formData.paymentMethod === 'two-installments' ? 'border-teal-800 bg-teal-800 text-white' : 'border-gray-300 bg-gray-50 text-gray-600'}`}
+              >
                 <input
                   type="radio"
                   id="paymentMethodTwo"
@@ -572,16 +881,19 @@ export default function RentalForm() {
                 />
                 <label
                   htmlFor="paymentMethodTwo"
-                  className={`flex items-center justify-center gap-2 text-lg cursor-pointer ${
-                    formData.paymentMethod === 'two-installments' ? 'text-teal-800 font-bold' : 'text-gray-600'
+                  className={`flex items-center justify-center gap-2 text-lg cursor-pointer w-full h-full p-3 ${
+                    formData.paymentMethod === 'two-installments' ? 'text-white font-bold' : 'text-gray-600'
                   }`}
-                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'two-installments' }))}
                 >
-                  <CreditCard className="w-6 h-6" />
+                  <CreditCard className={`w-6 h-6 ${formData.paymentMethod === 'two-installments' ? 'text-white' : 'text-gray-600'}`} />
                   <span>دفعتين</span>
                 </label>
               </div>
-              <div className="flex items-center justify-center w-60 h-12 border-2 border-teal-800 rounded-lg bg-gray-50 cursor-pointer">
+
+              <div
+                onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'three-installments' }))}
+                className={`flex items-center justify-center w-60 h-12 border-2 border-teal-800 rounded-lg bg-gray-50 cursor-pointer ${formData.paymentMethod === 'three-installments' ? 'border-teal-800 bg-teal-800 text-white' : 'border-gray-300 bg-gray-50 text-gray-600'}`}
+              >
                 <input
                   type="radio"
                   id="paymentMethodThree"
@@ -593,18 +905,18 @@ export default function RentalForm() {
                 />
                 <label
                   htmlFor="paymentMethodThree"
-                  className={`flex items-center justify-center gap-2 text-lg cursor-pointer ${
-                    formData.paymentMethod === 'three-installments' ? 'text-teal-800 font-bold' : 'text-gray-600'
+                  className={`flex items-center justify-center gap-2 text-lg cursor-pointer w-full h-full p-3 ${
+                    formData.paymentMethod === 'three-installments' ? 'text-white font-bold' : 'text-gray-600'
                   }`}
-                  onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: 'three-installments' }))}
                 >
-                  <Wallet className="w-6 h-6" />
+                  <Wallet className={`w-6 h-6 ${formData.paymentMethod === 'three-installments' ? 'text-white' : 'text-gray-600'}`} />
                   <span>ثلاثة دفعات</span>
                 </label>
               </div>
             </div>
           </div>
         </div>
+
         <div className="grid grid-cols-3 gap-8">
           <div className="flex flex-col gap-2">
             <label htmlFor="totalAmount" className="text-base text-right">المبلغ كامل</label>
@@ -613,12 +925,24 @@ export default function RentalForm() {
               id="totalAmount"
               value={formData.totalAmount}
               onChange={handleInputChange}
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              onBlur={(e) => {
+                const { totalError } = validateAmounts(e.target.value, formData.paidAmount);
+                setErrors(prev => ({ ...prev, totalAmount: totalError }));
+                setTouched(prev => ({ ...prev, totalAmount: true }));
+              }}
+              className={`bg-gray-50 border ${errors.totalAmount ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
               min="0"
               step="0.01"
-              placeholder="أدخل المبلغ الكلي (اختياري)"
+              placeholder="0.00"
             />
+            {touched.totalAmount && errors.totalAmount && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.totalAmount}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2">
             <label htmlFor="paidAmount" className="text-base text-right">المبلغ المدفوع</label>
             <input
@@ -626,12 +950,24 @@ export default function RentalForm() {
               id="paidAmount"
               value={formData.paidAmount}
               onChange={handleInputChange}
-              className="bg-gray-50 border border-gray-200 rounded-md p-3 text-base text-right"
+              onBlur={(e) => {
+                const { paidError } = validateAmounts(formData.totalAmount, e.target.value);
+                setErrors(prev => ({ ...prev, paidAmount: paidError }));
+                setTouched(prev => ({ ...prev, paidAmount: true }));
+              }}
+              className={`bg-gray-50 border ${errors.paidAmount ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
               min="0"
               step="0.01"
-              placeholder="أدخل المبلغ المدفوع (اختياري)"
+              placeholder="0.00"
             />
+            {touched.paidAmount && errors.paidAmount && (
+              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.paidAmount}</span>
+              </div>
+            )}
           </div>
+
           <div className="flex flex-col gap-2">
             <label htmlFor="remainingAmount" className="text-base text-right">المبلغ المتبقي</label>
             <input
@@ -639,25 +975,32 @@ export default function RentalForm() {
               id="remainingAmount"
               value={formData.remainingAmount}
               readOnly
-              className="bg-gray-100 border border-gray-200 rounded-md p-3 text-base text-right"
-              placeholder="سيتم حسابه تلقائيًا (اختياري)"
+              className="bg-gray-100 border border-gray-200 rounded-md p-3 text-base text-right bg-opacity-50"
+              placeholder="سيتم حسابه تلقائيًا"
             />
           </div>
         </div>
+
         <div className="flex justify-center gap-6 pt-10">
           <button
             type="submit"
-            disabled={isLoading}
-            className={`bg-teal-800 text-white px-4 py-2 rounded-md text-sm ${
-              isLoading ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            // disabled={isLoading || Object.keys(errors).some(key => errors[key as keyof ValidationErrors])}
+            className={`bg-teal-800 text-white px-6 py-3 rounded-md text-sm font-medium flex items-center gap-2 `}
           >
-            {isLoading ? 'جاري الحفظ...' : 'حفظ'}
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                جاري الحفظ...
+              </>
+            ) : (
+              'حفظ الطلب'
+            )}
           </button>
           <button
             type="button"
             onClick={() => router.push('/admin/requests')}
-            className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-sm"
+            className="border-2 border-teal-800 text-teal-800 px-6 py-3 rounded-md text-sm font-medium hover:bg-teal-50 transition-colors"
+            disabled={isLoading}
           >
             إلغاء
           </button>
@@ -666,20 +1009,22 @@ export default function RentalForm() {
       
       {/* Success Modal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center relative">
             <button
-              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
               onClick={closeModal}
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="flex items-center justify-center mb-4">
-              <CheckCircle className="w-12 h-12 text-green-500" />
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
+              <p className="text-green-700 text-lg font-semibold">{modalMessage}</p>
             </div>
-            <p className="text-green-600 text-lg font-medium">{modalMessage}</p>
             <button
-              className="bg-green-500 text-white px-4 py-2 rounded mt-4 hover:bg-green-600 transition duration-200"
+              className="w-full bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors"
               onClick={closeModal}
             >
               موافق
@@ -690,20 +1035,22 @@ export default function RentalForm() {
 
       {/* Error Modal */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center relative">
             <button
-              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
               onClick={closeModal}
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="flex items-center justify-center mb-4">
-              <X className="w-12 h-12 text-red-500" />
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <X className="w-10 h-10 text-red-500" />
+              </div>
+              <p className="text-red-700 text-lg font-semibold">{modalMessage}</p>
             </div>
-            <p className="text-red-600 text-lg font-medium">{modalMessage}</p>
             <button
-              className="bg-red-500 text-white px-4 py-2 rounded mt-4 hover:bg-red-600 transition duration-200"
+              className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
               onClick={closeModal}
             >
               موافق

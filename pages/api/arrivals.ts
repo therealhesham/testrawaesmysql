@@ -1,8 +1,9 @@
+import '../../lib/loggers';
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
 import eventBus from "lib/eventBus";
 import { jwtDecode } from "jwt-decode";
-
+// import '../../lib/loggers';
 const prisma = new PrismaClient();
 
 export default async function handler(
@@ -39,18 +40,46 @@ export default async function handler(
     filters.Order = { HomeMaid: { age: { equals: parseInt(age as string, 10) } } };
   if (ArrivalCity)
     filters.arrivalSaudiAirport = { contains: (ArrivalCity as string).toLowerCase() };
-  if (KingdomentryDate)
-    filters.KingdomentryDate = {
-      gte: new Date(KingdomentryDate as string),
-      lte: new Date(new Date(KingdomentryDate as string).setHours(23, 59, 59, 999)),
+
+   if (KingdomentryDate) {
+  const parsed = new Date(KingdomentryDate as string);
+  if (!isNaN(parsed.getTime())) {
+    const startOfDay = new Date(parsed);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(parsed);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    filters. KingdomentryDate = {
+      gte: startOfDay,
+      lte: endOfDay,
+      not: null,
     };
+  }
+} else {
+  // لو مفيش فلترة على التاريخ، نحط بس not null عشان البيانات تكون منطقية
+  filters.KingdomentryDate = { not: null };
+}
+//  if (KingdomentryDate && KingdomentryDate !== '') {
+//   const inputDate = new Date(KingdomentryDate as string);
+//   if (!isNaN(inputDate.getTime())) {
+//     const startOfDay = new Date(inputDate.setHours(0, 0, 0, 0)).toISOString();
+//     const endOfDay = new Date(inputDate.setHours(23, 59, 59, 999)).toISOString();
+//     filters.KingdomentryDate = {
+//       gte: startOfDay,
+//       lte: endOfDay,
+//     };
+//   } else {
+//     console.error('Invalid date format for KingdomentryDate:', KingdomentryDate);
+//   }
+// }
 
   try {
     // Get total count of records matching the filters
     const totalRecords = await prisma.arrivallist.count({
       where: {
         ...filters,
-        KingdomentryDate: { not: null },
+        // KingdomentryDate: { not: null },
         Order: { isNot: null }, // تأكد من وجود Order مرتبط
       },
     });
@@ -62,7 +91,7 @@ export default async function handler(
     const homemaids = await prisma.arrivallist.findMany({
       where: {
         ...filters,
-        KingdomentryDate: { not: null },
+        // KingdomentryDate: { not: null },
         Order: { isNot: null }, // تأكد من وجود Order مرتبط
       },
       select: {
@@ -105,10 +134,14 @@ export default async function handler(
     });
 
 
-
-
+const referer = req.headers.referer;
+console.log(referer)
        eventBus.emit('ACTION', {
-           type: "عرض قائمة الوصول صفحة رقم" + page,
+           type: "عرض قائمة الوصول " ,
+           actionType: "view",
+           beneficiary: "homemaid",
+           pageRoute: referer,
+          //  BeneficiaryId: homemaids.id,
            userId: Number((token as any).id),
          });  
    

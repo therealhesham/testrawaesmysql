@@ -9,7 +9,11 @@ import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import Layout from 'example/containers/Layout';
 import * as XLSX from 'xlsx';
+
 import jsPDF from 'jspdf';
+// import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
 import html2canvas from 'html2canvas';
 
 const UserManagement = () => {
@@ -20,6 +24,16 @@ const UserManagement = () => {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState('success'); // 'success' or 'error'
+
+const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  // if (!token) return;
+  if (!token) return;
+    const decoded = jwtDecode(token);
+  const userName = decoded.username;
+  setUserName(userName);
+}, []);
 
   // State for data
   const [users, setUsers] = useState([]);
@@ -49,7 +63,7 @@ const UserManagement = () => {
       const response = await axios.get('/api/users', {
         params: { search: searchTerm, role: roleFilter, page: currentPage, limit: 8 },
       });
-      setUsers(response.data);
+      setUsers(response.data.data);
       setTotalPages(Math.ceil(response.headers['x-total-count'] / 8) || 1);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -67,6 +81,24 @@ const UserManagement = () => {
       showNotification('حدث خطأ أثناء جلب الأدوار. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Initial data fetch
   useEffect(() => {
@@ -122,6 +154,154 @@ const UserManagement = () => {
     }
   };
 
+
+
+
+const fetchFilteredLogs = async () => {
+  const res = await axios.get(`/api/users`, {
+    params: {
+    },
+  });
+  if (res.status !== 200) throw new Error("Failed to fetch data");
+  // const data = await res.json();
+  
+  // نحدّث الستيت لو حابب تظل البيانات في الواجهة
+  setUsers(res.data.data);
+  // لكن الأهم: نرجعها علشان نستخدمها فورًا
+  return res.data.data;
+};
+  
+
+
+// Export to PDF
+const handleExportPDF = async () => {
+  console.log('exporting PDF');
+  let dataToExport = users;
+  if (searchTerm || roleFilter) {
+    dataToExport = await fetchFilteredLogs();
+  }
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+
+  // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+  // 🔷 تحميل خط أميري
+  try {
+    const response = await fetch('/fonts/Amiri-Regular.ttf');
+    if (!response.ok) throw new Error('Failed to fetch font');
+    const fontBuffer = await response.arrayBuffer();
+    const fontBytes = new Uint8Array(fontBuffer);
+    const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+    doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri', 'normal');
+  } catch (error) {
+    console.error('Error loading Amiri font:', error);
+    return;
+  }
+  doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+  doc.setLanguage('ar');
+  doc.setFontSize(12);
+  doc.text('إدارة المستخدمين', pageWidth / 2, 20, { align: 'right' });
+
+  const headers = [['اسم المستخدم', 'رقم الهوية', 'رقم الجوال', 'المسمى الوظيفي', 'تاريخ الإنشاء']];
+  const body = dataToExport?.map((row: any) => [
+    row.username || 'غير متوفر',
+    row.idnumber || 'غير متوفر',
+    row.phonenumber || 'غير متوفر',
+    row.role?.name || 'غير متوفر',
+    row.createdAt ? new Date(row.createdAt).toISOString().split('T')[0] : 'غير متوفر',
+  ]);
+
+  doc.autoTable({
+    head: headers,
+    body: body,
+    styles: {
+      font: 'Amiri',
+      halign: 'right',
+      fontSize: 10,
+      cellPadding: 2,
+      textColor: [0, 0, 0],
+    },
+    headStyles: {
+      fillColor: [26, 77, 79],
+      textColor: [255, 255, 255],
+      halign: 'center',
+    },
+    margin: { top: 42, right: 10, left: 10 },
+
+    // ✅ هنا بنضيف اللوجو والبيانات في كل صفحة
+    didDrawPage: (data) => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+      if (doc.getCurrentPageInfo().pageNumber === 1) {
+        doc.setFontSize(12);
+        doc.setFont('Amiri', 'normal');
+        doc.text('إدارة المستخدمين', pageWidth / 2, 20, { align: 'right' });
+      }
+
+      // 🔸 الفوتر
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+
+    didParseCell: (data) => {
+      data.cell.styles.halign = 'right';
+    },
+  });
+
+  doc.save('users.pdf');
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   // Export to Excel
   const handleExportExcel = () => {
     try {
@@ -142,52 +322,6 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       showNotification('حدث خطأ أثناء تصدير Excel. يرجى المحاولة مرة أخرى.', 'error');
-    }
-  };
-
-  // Export to PDF
-  const handleExportPDF = async () => {
-    const table = tableRef.current;
-    if (!table) {
-      console.error('Table reference is null or undefined');
-      showNotification('فشل في تصدير PDF: لا يمكن العثور على الجدول', 'error');
-      return;
-    }
-
-    try {
-      table.scrollIntoView({ behavior: 'smooth' });
-      const canvas = await html2canvas(table, {
-        scale: 2,
-        useCORS: true,
-        logging: true,
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const imgWidth = 190;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const pageHeight = 295;
-      let heightLeft = imgHeight;
-      let position = 10;
-
-      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-      while (heightLeft > pageHeight) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save('Users.pdf');
-      showNotification('تم تصدير الملف بصيغة PDF بنجاح.');
-    } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      showNotification('حدث خطأ أثناء تصدير PDF. يرجى المحاولة مرة أخرى.', 'error');
     }
   };
 
@@ -225,7 +359,7 @@ const UserManagement = () => {
                   Excel
                 </button>
                 <button
-                  onClick={handleExportPDF}
+                  onClick={() => handleExportPDF()}
                   className="flex items-center gap-2 bg-teal-800 text-white px-3 py-2 rounded-md text-xs hover:bg-teal-700"
                 >
                   <FilePdfFilled />
@@ -325,7 +459,8 @@ const UserManagement = () => {
             </div>
             <div className="flex justify-between items-center pt-12">
               <p className="text-base text-black">
-                عرض {(currentPage - 1) * 8 + 1}-{Math.min(currentPage * 8, users.length)} من {users.length} نتيجة
+     عرض {(currentPage - 1) * 8 + 1}-{Math.min(currentPage * 8, users.length)} من {users.length} نتيجة
+
               </p>
               <nav className="flex gap-1">
                 <button
@@ -390,7 +525,7 @@ const UserManagement = () => {
                   <select
                     value={newUser.roleId}
                     onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className=" border border-gray-300 rounded text-right"
                   >
                     <option value="">اختر الدور</option>
                     {roles.map((role) => (
@@ -467,7 +602,7 @@ const UserManagement = () => {
                   <select
                     value={newUser.roleId}
                     onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className=" border border-gray-300 rounded text-right"
                   >
                     <option value="">اختر الدور</option>
                     {roles.map((role) => (
