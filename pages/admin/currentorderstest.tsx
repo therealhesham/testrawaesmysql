@@ -41,6 +41,7 @@ export default function Dashboard({
   const router = useRouter();
   const [hasPermission, setHasPermission] = useState(initialHasPermission);
 
+  const [userName, setUserName] = useState('');
   // Initial data based on the default contract type ("recruitment")
   const [data, setData] = useState(recruitmentData || []);
 
@@ -179,12 +180,16 @@ export default function Dashboard({
       setIsLoading(false);
     }
   }, [hasPermission, contractType, searchTerm, nationality, office, status]); // Dependencies for useCallback
-
+useEffect(() => {
+  const authToken = localStorage.getItem('token');
+  const decoder = authToken ? jwtDecode(authToken) : null;
+  setUserName(decoder?.username || '');
+}, [userName]);
   useEffect(() => {
     const checkAuthAndPermissions = async () => {
       if (typeof window !== 'undefined') {
         setIsCheckingAuth(true);
-
+        
         const authToken = localStorage.getItem('token');
         const decoder = authToken ? jwtDecode(authToken) : null;
 
@@ -244,12 +249,41 @@ export default function Dashboard({
     }
   }, [contractType, searchTerm, nationality, office, status, hasPermission, isCheckingAuth, fetchData]);
 
+const exportedData = async ()=>{
 
+  const query = new URLSearchParams({
+    perPage: "1000",
+    ...(searchTerm && { search: searchTerm }),
+    ...(nationality && { Nationalitycopy: nationality }),
+    ...(office && { officeName: office }),
+    ...(status && { bookingstatus: translateBookingStatusToEnglish(status) }),
+  }).toString();
+  const res = await fetch(`/api/currentordersprisma?${query}`);
+  if (!res.ok) throw new Error("Failed to fetch data");
+  const data = await res.json();
+  // return contr data.data;
+  if(contractType === 'recruitment'){
+    return data.homemaids;
+  } else if(contractType === 'rental') {
+    return data.homemaids;
+  } else {
+    return data.homemaids;
+  }
+}
   // Export to PDF
   const exportToPDF = async () => {
+    let dataToExport = await exportedData();
     const doc = new jsPDF({ orientation: "landscape" });
-
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+  // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+  
     try {
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
@@ -269,31 +303,31 @@ export default function Dashboard({
     doc.text("طلبات تحت الإجراء", 400, 10, { align: 'right', maxWidth: 700 });
 
     const tableColumn = [
-      'رقم الطلب',
-      'اسم العميل',
-      'جوال العميل',
-      'هوية العميل',
-      'رقم العاملة',
-      'اسم العاملة',
-      'الجنسية',
-      'رقم جواز السفر',
-      'رقم عقد مساند',
-      'اسم المكتب الخارجي',
       'حالة الطلب',
+      'اسم المكتب الخارجي',
+      'رقم عقد مساند',
+      'رقم جواز السفر',
+      'الجنسية',
+      'اسم العاملة',
+      'رقم العاملة',
+      'هوية العميل',
+      'جوال العميل',
+      'اسم العميل',
+      'رقم الطلب',
     ];
-    const tableRows = Array.isArray(data)
-      ? data.map(row => [
-        row.id || 'غير متوفر',
-        row.client?.fullname || 'غير متوفر',
-        row.client?.phonenumber || 'غير متوفر',
-        row.client?.nationalId || 'غير متوفر',
-        row.HomeMaid?.id || 'غير متوفر',
-        row.HomeMaid?.Name || 'غير متوفر',
-        row.HomeMaid?.office?.Country || 'غير متوفر',
-        row.HomeMaid?.Passportnumber || 'غير متوفر',
-        row.arrivals?.InternalmusanedContract || 'غير متوفر',
-        row.HomeMaid?.office?.office || 'غير متوفر',
+    const tableRows = Array.isArray(dataToExport)
+      ? dataToExport.map(row => [
         translateBookingStatus(row.bookingstatus) || 'غير متوفر',
+        row.HomeMaid?.office?.office || 'غير متوفر',
+        row.arrivals?.InternalmusanedContract || 'غير متوفر',
+        row.HomeMaid?.Passportnumber || 'غير متوفر',
+        row.HomeMaid?.office?.Country || 'غير متوفر',
+        row.HomeMaid?.Name || 'غير متوفر',
+        row.HomeMaid?.id || 'غير متوفر',
+        row.client?.nationalId || 'غير متوفر',
+        row.client?.phonenumber || 'غير متوفر',
+        row.client?.fullname || 'غير متوفر',
+        row.id || 'غير متوفر',
       ])
       : [];
 
@@ -312,17 +346,73 @@ export default function Dashboard({
         textColor: [255, 255, 255],
         halign: 'right',
       },
-      margin: { top: 20, right: 10, left: 10 },
+      columnStyles: {
+        0: { cellWidth: 'auto', overflow: 'hidden' },
+        1: { cellWidth: 'auto', overflow: 'hidden' },
+        2: { cellWidth: 'auto', overflow: 'hidden' },
+        3: { cellWidth: 'auto', overflow: 'hidden' },
+        4: { cellWidth: 'auto', overflow: 'hidden' },
+        5: { cellWidth: 'auto', overflow: 'hidden' },
+        6: { cellWidth: 'auto', overflow: 'hidden' },
+        7: { cellWidth: 'auto', overflow: 'hidden' },
+        8: { cellWidth: 'auto', overflow: 'hidden' },
+        9: { cellWidth: 'auto', overflow: 'hidden' },
+        10: { cellWidth: 'auto', overflow: 'hidden' },
+11: { cellWidth: 'auto', overflow: 'hidden' },
+
+      }
+      ,
+      margin: { top: 40, right: 10, left: 10 },
+ 
+    didDrawPage: (data) => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+      if (doc.getCurrentPageInfo().pageNumber === 1) {
+        doc.setFontSize(12);
+        doc.setFont('Amiri', 'normal');
+        doc.text('الطلبات الجديدة', pageWidth / 2, 20, { align: 'right' });
+      }
+
+      // 🔸 الفوتر
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
       didParseCell: (data: any) => {
         data.cell.styles.halign = 'right';
       },
     });
+ 
 
     doc.save('current_orders.pdf');
   };
 
   // Export to Excel
   const exportToExcel = async () => {
+    let dataToExport = await exportedData();
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('طلبات تحت الإجراء', { properties: { defaultColWidth: 20 } });
 
@@ -356,8 +446,8 @@ export default function Dashboard({
       { header: 'حالة الطلب', key: 'status', width: 10 }
     ];
 
-    Array.isArray(data) &&
-      data.forEach(row => {
+    Array.isArray(dataToExport) &&
+      dataToExport.forEach(row => {
         worksheet.addRow({
           id: row.id || 'غير متوفر',
           clientName: row.client?.fullname || 'غير متوفر',
