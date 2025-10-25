@@ -364,7 +364,7 @@ const exportedData = async ()=>{
       ,
       margin: { top: 40, right: 10, left: 10 },
  
-    didDrawPage: (data) => {
+    didDrawPage: (data: any) => {
       const pageHeight = doc.internal.pageSize.height;
       const pageWidth = doc.internal.pageSize.width;
 
@@ -375,7 +375,7 @@ const exportedData = async ()=>{
       if (doc.getCurrentPageInfo().pageNumber === 1) {
         doc.setFontSize(12);
         doc.setFont('Amiri', 'normal');
-        doc.text('الطلبات الجديدة', pageWidth / 2, 20, { align: 'right' });
+        doc.text('طلبات تحت الإجراء', pageWidth / 2, 20, { align: 'right' });
       }
 
       // 🔸 الفوتر

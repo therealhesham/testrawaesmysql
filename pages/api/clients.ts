@@ -79,9 +79,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const page = parseInt(req.query.page as string) || 1;
-      const pageSize = 10;
+      const pageSize = parseInt(req.query.pageSize as string, 10) || 10;
       const skip = (page - 1) * pageSize;
-
+      
       const totalClients = await prisma.client.count({
         where: { ...filters },
       });

@@ -55,6 +55,12 @@ const Customers = ({ hasPermission }: Props) => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [userName, setUserName] = useState('');
+  useEffect(() => {
+    const authToken = localStorage.getItem('token');
+    const decoder = authToken ? jwtDecode(authToken) : null;
+    setUserName(decoder?.username || '');
+  }, [userName]);
   const [expandedClientId, setExpandedClientId] = useState<number | null>(null);
   const [filters, setFilters] = useState({
     fullname: '',
@@ -247,10 +253,29 @@ const Customers = ({ hasPermission }: Props) => {
     fullDataForPDF();
   }, []);
 
+  const exportedData = async () => {
+    const query = new URLSearchParams({
+      page: "1",
+      pageSize: "10000000",
+    }).toString();
+    const response = await fetch(`/api/clients?${query}`);
+    if (!response.ok) throw new Error("Failed to fetch data");
+    const data = await response.json();
+    return data.data;
+  }
+
   const exportToPDF = async () => {
-    const doc = new jsPDF();
-    
+    let dataToExport = await exportedData();
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
     try {
+    
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+    // doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
@@ -267,12 +292,12 @@ const Customers = ({ hasPermission }: Props) => {
 
     doc.setLanguage('ar');
     doc.setFontSize(16);
-    doc.text("قائمة العملاء", 200, 10, { align: 'right', maxWidth: 200 });
+    // doc.text("قائمة العملاء", pageWidth / 2, 20, { align: 'right' });
 
     const tableColumn: string[] = [];
     const columnKeys: string[] = [];
 
-    if (visibleColumns.remainingAmount) { tableColumn.push("المبلغ المتبقي"); columnKeys.push("remainingAmount"); }
+    // if (visibleColumns.remainingAmount) { tableColumn.push("المبلغ المتبقي"); columnKeys.push("remainingAmount"); }
     if (visibleColumns.lastOrderDate) { tableColumn.push("تاريخ آخر طلب"); columnKeys.push("lastOrderDate"); }
     if (visibleColumns.ordersCount) { tableColumn.push("عدد الطلبات"); columnKeys.push("ordersCount"); }
     if (visibleColumns.city) { tableColumn.push("المدينة"); columnKeys.push("city"); }
@@ -283,7 +308,7 @@ const Customers = ({ hasPermission }: Props) => {
 
     const tableRows: any[] = [];
 
-    fullDataForExport.forEach((client) => {
+    dataToExport.forEach((client: any) => {
       const clientData: string[] = [];
       
       columnKeys.forEach((key) => {
@@ -301,7 +326,7 @@ const Customers = ({ hasPermission }: Props) => {
             clientData.push(client.nationalId || '-');
             break;
           case "city":
-            clientData.push(client.city || '-');
+            clientData.push(arabicRegionMap[client.city as keyof typeof arabicRegionMap] || '-');
             break;
           case "ordersCount":
             clientData.push(client._count.orders.toString());
@@ -309,9 +334,9 @@ const Customers = ({ hasPermission }: Props) => {
           case "lastOrderDate":
             clientData.push(client.orders[0]?.createdAt ? new Date(client.orders[0]?.createdAt).toLocaleDateString() : '-');
             break;
-          case "remainingAmount":
-            clientData.push('-');
-            break;
+          // case "remainingAmount":
+          //   clientData.push('-');
+          //   break;
           default:
             clientData.push('-');
         }
@@ -320,24 +345,64 @@ const Customers = ({ hasPermission }: Props) => {
       tableRows.push(clientData);
     });
 
+        const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
     (doc as any).autoTable({
       head: [tableColumn],
       body: tableRows,
       styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
-      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
+      headStyles: { fillColor: [26, 77, 79], textColor: [255, 255, 255] },
       bodyStyles: { minCellWidth: 20 },
-      margin: { top: 30, right: 10, left: 10 },
-      didDrawPage: () => {
-        doc.setFontSize(10);
-        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
-      },
+      margin: { top: 40, right: 10, left: 10 },
+          didDrawPage: (data: any) => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+        doc.text('قائمة العملاء', pageWidth / 2, 20, { align: 'right' });
+
+      // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+      if (doc.getCurrentPageInfo().pageNumber === 1) {
+        doc.setFontSize(12);
+        doc.setFont('Amiri', 'normal');
+      }
+
+      // 🔸 الفوتر
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+
     });
 
     doc.save('بيانات عملاء الاستقدام.pdf');
   };
 
-  const exportToExcel = () => {
-    const worksheetData = fullDataForExport.map((client) => {
+  const exportToExcel = async() => {
+    let dataToExport = await exportedData();
+    const worksheetData = dataToExport.map((client: any) => {
       const clientData: any = {};
       
       if (visibleColumns.id) clientData['الرقم'] = client.id;
@@ -351,7 +416,7 @@ const Customers = ({ hasPermission }: Props) => {
           ? new Date(client.orders[0]?.createdAt).toLocaleDateString()
           : '-';
       }
-      if (visibleColumns.remainingAmount) clientData['المبلغ المتبقي'] = '-';
+      // if (visibleColumns.remainingAmount) clientData['المبلغ المتبقي'] = '-';
       
       return clientData;
     });
@@ -363,9 +428,9 @@ const Customers = ({ hasPermission }: Props) => {
       { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
       { wch: 20 }, { wch: 15 }, { wch: 10 }
     ];
-    XLSX.utils.sheet_add_aoa(worksheet, [['الرقم', 'الاسم', 'رقم الجوال', 'الهوية', 'المدينة', 'عدد الطلبات', 'تاريخ آخر طلب', 'المبلغ المتبقي']], { origin: 'A1', direction: 'rtl' });
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Clients', { origin: 'A1', direction: 'rtl' });
-    XLSX.writeFile(workbook, 'clients.xlsx');
+    XLSX.utils.sheet_add_aoa(worksheet, [['الرقم', 'الاسم', 'رقم الجوال', 'الهوية', 'المدينة', 'عدد الطلبات', 'تاريخ آخر طلب']], { origin: 'A1', direction: 'rtl' });
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'قائمة العملاء');
+    XLSX.writeFile(workbook, 'قائمة العملاء.xlsx');
   };
 
   return (
@@ -606,7 +671,7 @@ const Customers = ({ hasPermission }: Props) => {
                                       ) : (
                                         client.orders.map((order) => (
                                           <tr key={order.id} className="bg-background-light text-text-dark text-md">
-                                            <td className="text-nowrap text-center cursor-pointer p-4" onClick={()=>router.push(`admin/track_order/${order.id}`)}>#{order.id}</td>
+                                            <td className="text-nowrap text-center cursor-pointer p-4" onClick={()=>router.push(`/admin/track_order/${order.id}`)}>#{order.id}</td>
                                             <td className="text-nowrap text-center p-4">{order.HomeMaid?.Name || '-'}</td>
                                             <td className="text-nowrap text-center p-4">{translateBookingStatus(order.bookingstatus) || '-'}</td>
                                             <td className="text-nowrap text-center p-4">
