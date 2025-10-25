@@ -104,6 +104,25 @@ if (checkOrderByHomemaid) {
       },
     });
 
+try {
+     await prisma.arrivallist.create({
+      data: {
+        // OrderId:id,
+        // SponsorName,
+        // HomemaidName,
+        // PassportNumber,
+
+
+        Order: { connect: { id:newOrder.id } },
+      },
+    });
+  
+} catch (error) {
+console.log(error)
+await prisma.neworder.delete({where:{id:newOrder.id}})  
+}
+
+
     // Create payment record (only if paidAmount is provided and greater than 0)
     if (formData.paidAmount && parseFloat(formData.paidAmount) > 0) {
       await prisma.payment.create({
