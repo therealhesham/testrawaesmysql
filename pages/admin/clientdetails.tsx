@@ -335,7 +335,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/visadata?clientID=${router.query.id}`);
       const data = await response.json();
-      setVisas(data);
+      setVisas(data.data);
     } catch (error) {
       console.error(error);
       setNotification({ message: 'فشل في جلب بيانات التأشيرات', type: 'error' });
@@ -530,13 +530,13 @@ const arabicRegionMap: { [key: string]: string } = {
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">رقم الهوية</label>
                   <input
-                    type="text"
+                    type="number"
                     className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
                     value={clientInfo.nationalId}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, nationalId: e.target.value })
                     }
-                    readOnly
+                    // readOnly
                     required
                   />
                 </div>
@@ -617,7 +617,7 @@ const arabicRegionMap: { [key: string]: string } = {
                           <td className="p-3 border text-center">{visa.profession}</td>
                           <td className="p-3 border text-center">{visa.nationality}</td>
                           <td className="p-3 border text-center">
-                            {new Date(visa.createdAt).toLocaleDateString('ar-SA')}
+                            {new Date(visa.createdAt).toLocale()}
                           </td>
                           <td className="p-3 border">
                             {visa.visaFile ? (
