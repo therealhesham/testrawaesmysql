@@ -96,7 +96,7 @@ console.log(id)
         },
         externalOfficeInfo: {
           officeName: order.HomeMaid?.officeName || 'N/A',
-          country: order.arrivals[0]?.office || 'N/A',
+          country: order.HomeMaid?.office?.Country || 'N/A',
           externalMusanedContract: order.arrivals[0]?.externalmusanedContract || 'N/A',
         },
         externalOfficeApproval: {
