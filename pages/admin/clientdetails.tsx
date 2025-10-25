@@ -617,7 +617,11 @@ const arabicRegionMap: { [key: string]: string } = {
                           <td className="p-3 border text-center">{visa.profession}</td>
                           <td className="p-3 border text-center">{visa.nationality}</td>
                           <td className="p-3 border text-center">
-                            {new Date(visa.createdAt).toLocale()}
+                            {new Date(visa.createdAt).toLocaleDateString('ar-EG', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </td>
                           <td className="p-3 border">
                             {visa.visaFile ? (
