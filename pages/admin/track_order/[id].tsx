@@ -327,6 +327,7 @@ export default function TrackOrder() {
       });
     } catch (error: any) {
       console.error('Error changing homemaid:', error);
+      setShowChangeHomemaidModal(false);
       setShowErrorModal({
         isOpen: true,
         title: 'خطأ في تغيير العاملة',
