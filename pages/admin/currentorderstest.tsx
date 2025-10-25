@@ -256,6 +256,7 @@ const exportedData = async ()=>{
     ...(searchTerm && { search: searchTerm }),
     ...(nationality && { Nationalitycopy: nationality }),
     ...(office && { officeName: office }),
+    ...(contractType && {typeOfContract:contractType}),
     ...(status && { bookingstatus: translateBookingStatusToEnglish(status) }),
   }).toString();
   const res = await fetch(`/api/currentordersprisma?${query}`);
@@ -342,8 +343,9 @@ const exportedData = async ()=>{
         textColor: [0, 0, 0],
       },
       headStyles: {
-        fillColor: [0, 105, 92],
+        fillColor: [26, 77, 79],
         textColor: [255, 255, 255],
+        overflow:'hidden',
         halign: 'right',
       },
       columnStyles: {
@@ -699,7 +701,7 @@ const exportedData = async ()=>{
                 ) : (
                   <table className="w-full border-collapse min-w-[1000px] text-right">
                     <thead>
-                      <tr className="bg-teal-900">
+                      <tr className="bg-teal-900 ">
                         {[
                           'رقم الطلب',
                           'اسم العميل',
@@ -713,7 +715,8 @@ const exportedData = async ()=>{
                           'اسم المكتب الخارجي',
                           'حالة الطلب',
                         ].map((header) => (
-                          <th key={header} className="text-white text-md font-normal p-4 text-right">
+                          <th key={header} className="text-white text-md font-normal p-4 text-right  whitespace-nowrap
+">
                             {header}
                           </th>
                         ))}

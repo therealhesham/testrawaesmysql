@@ -490,7 +490,7 @@ export default function TrackOrder() {
             title="معلومات العميل"
             data={[
               { label: 'اسم العميل', value: orderData.clientInfo.name },
-              { label: 'رقم العميل', value: orderData.clientInfo.phone },
+              { label: 'رقم الهاتف', value: orderData.clientInfo.phone },
               { label: 'البريد الإلكتروني', value: orderData.clientInfo.email },
               { label: 'رقم الطلب', value: orderData.orderId },
             ]}
