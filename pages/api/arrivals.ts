@@ -75,6 +75,8 @@ export default async function handler(
 // }
 
   try {
+    console.time("TOTAL");
+console.time("DB_COUNT");
     // Get total count of records matching the filters
     const totalRecords = await prisma.arrivallist.count({
       where: {
@@ -86,7 +88,9 @@ export default async function handler(
 
     // Calculate total pages
     const totalPages = Math.ceil(totalRecords / pageSize);
+console.timeEnd("DB_COUNT");
 
+console.time("DB_FETCH");
     // Fetch data with the filters and pagination
     const homemaids = await prisma.arrivallist.findMany({
       where: {
@@ -132,7 +136,8 @@ export default async function handler(
       take: pageSize,
       orderBy: { id: "desc" },
     });
-
+console.timeEnd("DB_FETCH");
+console.timeEnd("TOTAL");
 
 const referer = req.headers.referer;
 console.log(referer)
