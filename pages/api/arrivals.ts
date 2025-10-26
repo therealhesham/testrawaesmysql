@@ -75,8 +75,6 @@ export default async function handler(
 // }
 
   try {
-    console.time("TOTAL");
-console.time("DB_COUNT");
     // Get total count of records matching the filters
     const totalRecords = await prisma.arrivallist.count({
       where: {
@@ -88,9 +86,7 @@ console.time("DB_COUNT");
 
     // Calculate total pages
     const totalPages = Math.ceil(totalRecords / pageSize);
-console.timeEnd("DB_COUNT");
 
-console.time("DB_FETCH");
     // Fetch data with the filters and pagination
     const homemaids = await prisma.arrivallist.findMany({
       where: {
@@ -136,12 +132,17 @@ console.time("DB_FETCH");
       take: pageSize,
       orderBy: { id: "desc" },
     });
-console.timeEnd("DB_FETCH");
-console.timeEnd("TOTAL");
+
 
 const referer = req.headers.referer;
 console.log(referer)
-       eventBus.emit('ACTION', {
+      
+    res.status(200).json({
+
+      data: homemaids,
+      totalPages,
+    });
+     eventBus.emit('ACTION', {
            type: "عرض قائمة الوصول " ,
            actionType: "view",
            beneficiary: "homemaid",
@@ -150,11 +151,6 @@ console.log(referer)
            userId: Number((token as any).id),
          });  
    
-    res.status(200).json({
-
-      data: homemaids,
-      totalPages,
-    });
   } catch (error) {
     console.error("Error fetching data:", error);
     res.status(500).json({ error: "Error fetching data" });
