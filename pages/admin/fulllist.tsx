@@ -806,7 +806,7 @@ const exportToPDF = async () => {
                       {visibleColumns.includes('id') && (
                         <td
                           onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
-                          className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
+                          className="px-4 py-2 text-lg  text-center text-teal-800 cursor-pointer hover:underline"
                         >
                           {item.id}
                         </td>
@@ -855,7 +855,7 @@ const exportToPDF = async () => {
                         </td>
                       )}
                       {visibleColumns.includes('office') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
+                        <td className="px-4 py-2 text-center overflow-hidden text-gray-600">
                           {item?.office?.office}
                         </td>
                       )}
