@@ -474,7 +474,7 @@ const exportToPDF = async () => {
   const logoBuffer = await logo.arrayBuffer();
   const logoBytes = new Uint8Array(logoBuffer);
   const logoBase64 = Buffer.from(logoBytes).toString('base64');
-  doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+  // doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
   try {
     setExportMessage('جاري تحميل جميع البيانات للتصدير...');
     setExportType('loading');
@@ -550,6 +550,7 @@ const exportToPDF = async () => {
         fillColor: [26, 77, 79],
         textColor: [255, 255, 255],
         halign: 'center',
+        overflow:"hidden"
       },
 
       columnStyles: {
@@ -587,6 +588,9 @@ const exportToPDF = async () => {
         // 🔢 رقم الصفحة في المنتصف
         const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
         doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+ doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
 
         // 👉 التاريخ والوقت في اليمين
         const dateText =
