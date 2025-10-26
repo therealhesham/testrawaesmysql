@@ -34,10 +34,17 @@ export default async function handler(
     };
     // filters.Passportnumber = { contains: String(Passportnumber).toLowerCase()};
   if (Nationality) filters.Nationalitycopy = { contains: String(Nationality).toLowerCase() };
-  if (SponsorName) filters.ClientName = { contains: String(SponsorName).toLowerCase()};
-  if (OrderId) filters.id = Number(OrderId);
+  if (SponsorName) {
+  filters.OR = [
+    { client: { fullname: {contains: String(SponsorName).toLowerCase()} } },
+    {HomeMaid:{Name:{contains: String(SponsorName).toLowerCase()}}}
+    // { SponsorName: { contains: String(SponsorName).toLowerCase() } },
+  ];
+}
 
-  console.log("Filters:", filters);
+  if (OrderId) filters.HomeMaid ={id:Number(OrderId)};
+
+  console.log(filters);
 
   try {
     const totalRecords = await prisma.neworder.count({

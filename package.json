@@ -39,7 +39,7 @@
     "dayjs": "^1.11.11",
     "fast-sort": "^3.4.0",
     "filter-obj": "^6.1.0",
-    "formidable": "^3.5.4",
+    "formidable": "^3.2.3",
     "formik": "^2.2.10",
     "framer-motion": "^4.1.17",
     "heroicons": "^1.0.2",

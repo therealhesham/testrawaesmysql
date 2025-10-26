@@ -29,6 +29,9 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "HomeMaidId is required" });
     }
 
+
+
+
     const object = {
       houseentrydate: houseentrydate
         ? new Date(houseentrydate).toISOString()
@@ -63,6 +66,33 @@ export default async function handler(req: any, res: any) {
       const search = await prisma.housedworker.findFirst({
         where: { homeMaid_id: homeMaidId },
       });
+// const count = await prisma.inHouseLocation.findFirst({where:{id:Number(req.body.location)}})
+if (req.body.location) {
+  const locationId = Number(req.body.location);
+
+  const locationData = await prisma.inHouseLocation.findUnique({
+    where: { id: locationId },
+    select: { quantity: true },
+  });
+
+  if (!locationData) {
+    return res.status(400).json({ error: "الموقع المحدد غير موجود" });
+  }
+
+  const currentCount = await prisma.housedworker.count({
+    where: {
+      location_id: locationId,
+      deparatureHousingDate: null, // لسه ساكنة
+    },
+  });
+
+  if (currentCount >= locationData.quantity) {
+    return res.status(400).json({
+      error: `السكن ممتلئ (${currentCount}/${locationData.quantity})، لا يمكن تسكين عاملة جديدة.`,
+    });
+  }
+}
+
 
       if (search) {
         return res

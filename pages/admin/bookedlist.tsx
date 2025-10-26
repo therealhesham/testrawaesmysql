@@ -112,6 +112,15 @@ const [exportedData, setExportedData] = useState([]);
   useEffect(() => {
     fetchExportedData();
   }, []);
+
+  const [userName, setUserName] = useState('');
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  const decoded = jwtDecode(token);
+  const userName = decoded.username;
+  setUserName(userName);
+}, []);
+
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -393,87 +402,183 @@ const [exportedData, setExportedData] = useState([]);
   };
 
 
+const fetchExportData =async()=>{
 
-   const exportToPDF = async () => {
-    if (!exportedData || exportedData.length === 0) {
-      alert('لا توجد بيانات للتصدير');
-      return;
-    }
-    const doc = new jsPDF({orientation: 'landscape'});
-    
-    try {
-      // تحميل خط Amiri بشكل صحيح
-      const response = await fetch('/fonts/Amiri-Regular.ttf');
-      if (!response.ok) throw new Error('Failed to fetch font');
-      const fontBuffer = await response.arrayBuffer();
-      const fontBytes = new Uint8Array(fontBuffer);
-      const fontBase64 = Buffer.from(fontBytes).toString('base64');
-
-      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-      doc.setFont('Amiri', 'normal');
-    } catch (error) {
-      console.error('Error loading Amiri font:', error);
-      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
-      doc.setFont('helvetica', 'normal');
-    }
-
-    doc.setLanguage('ar');
-    doc.setFontSize(16);
-    doc.text('قائمة العاملات المحجوزة', 200, 10, { align: 'right' });
-
-    const tableColumn = [
-"المكتب",
-      "نهاية الجواز",
-      "بداية الجواز",
-      "رقم جواز السفر",
-      "اسم العميل",
-      "الحالة الاجتماعية",
-      "الجنسية",
-      "رقم الجوال",
-      "اسم العاملة",
-      "رقم الطلب",
-    ];
-
-    const tableRows = exportedData?.map((row) => [
-row.HomeMaid?.office?.office || "-",
-      getDate(row.HomeMaid?.PassportEnd) || "-",
-
-      getDate(row.HomeMaid?.PassportEnd) || "-",
-      row.HomeMaid?.Passportnumber || "-",
-  row?.client?.fullname || "-",
-             row.HomeMaid?.maritalstatus || "-",
-
-      row.HomeMaid?.office?.Country || "-",
-      row.HomeMaid?.phone || "-",
-      
-            row.HomeMaid?.Name || "-",
-
-      row.HomeMaid?.id || "-",
-    ]);
-
-    (doc as any).autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
-      headStyles: { fillColor: [0, 105, 92], textColor: [255, 255, 255] },
-      margin: { top: 30 },
-      didDrawPage: () => {
-        doc.setFontSize(10);
-        doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, 10, doc.internal.pageSize.height - 10);
-      },
+ const queryParams = new URLSearchParams({
+      age: filters.age || "",
+      PassportNumber: filters.PassportNumber || "",
+      SponsorName: filters.SponsorName || "",
+      OrderId: filters.OrderId || "",
+      page: "1",
+      perPage: "10000",
     });
 
-    doc.save("قائمة_العاملات_المحجوزة.pdf");
-  };
+    const response = await fetch(`/api/bookedlist?${queryParams}`, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "get",
+    });
+const data = await response.json();
 
-  const exportToExcel = () => {
-    if (!exportedData || exportedData.length === 0) {
-      alert('لا توجد بيانات للتصدير');
-      return;
-    }
-    
-    const worksheetData = exportedData?.map((row) => ({
+return data.data
+
+}
+const exportToPDF = async () => {
+ let exportData = []
+  exportData =await fetchExportData();
+
+
+
+  
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+  try {
+    const response = await fetch('/fonts/Amiri-Regular.ttf');
+    if (!response.ok) throw new Error('Failed to fetch font');
+    const fontBuffer = await response.arrayBuffer();
+    const fontBytes = new Uint8Array(fontBuffer);
+    const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+    doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+    doc.setFont('Amiri', 'normal');
+  } catch (error) {
+    console.error('Error loading Amiri font:', error);
+    doc.setFont('helvetica', 'normal');
+  }
+
+  doc.setLanguage('ar');
+  doc.setFontSize(18);
+
+  // 🟢 توسيط الهيدر (العنوان)
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const title = 'قائمة العاملات المحجوزة';
+  const textWidth = doc.getTextWidth(title);
+  const textX = (pageWidth - textWidth) / 2;
+  doc.text(title, textX, 15);
+
+  const tableColumn = [
+    "المكتب",
+    "نهاية الجواز",
+    "بداية الجواز",
+    "رقم جواز السفر",
+    "اسم العميل",
+    "الحالة الاجتماعية",
+    "الجنسية",
+    "رقم الجوال",
+    "اسم العاملة",
+    "رقم الطلب",
+  ];
+
+  const tableRows = exportData.map((row) => [
+    row.HomeMaid?.office?.office || "-",
+    getDate(row.HomeMaid?.PassportEnd) || "-",
+    getDate(row.HomeMaid?.PassportStart) || "-",
+    row.HomeMaid?.Passportnumber || "-",
+    row?.client?.fullname || "-",
+    row.HomeMaid?.maritalstatus || "-",
+    row.HomeMaid?.office?.Country || "-",
+    row.HomeMaid?.phone || "-",
+    row.HomeMaid?.Name || "-",
+    row.HomeMaid?.id || "-",
+  ]);
+
+  // 🟢 حساب عرض الجدول وتوسيطه
+  const columnCount = tableColumn.length;
+  const pageWidthInPoints = doc.internal.pageSize.getWidth(); // عرض الصفحة
+  const margin = 10; // الهامش من الجانبين
+  const tableWidth = pageWidthInPoints - 2 * margin; // عرض الجدول مع الهوامش
+  const startX = (pageWidthInPoints - tableWidth) / 2; // نقطة البداية لتوسيط الجدول
+
+  // 🟢 إعداد الجدول مع التوسيط
+  (doc as any).autoTable({
+    head: [tableColumn],
+    body: tableRows,
+    startX: startX, // توسيط الجدول أفقيًا
+    tableWidth: tableWidth, // تحديد عرض الجدول
+    margin: { top: 40, left: margin, right: margin }, // هامش علوي وجوانب
+    styles: {
+      font: 'Amiri',
+      halign: 'center', // توسيط النص أفقيًا
+      valign: 'middle', // توسيط النص عموديًا
+      fontSize: 9,
+      overflow: 'ellipsize',
+      cellWidth: 'auto',
+      cellPadding: 2, // إضافة حشوة داخلية للخلايا
+      textColor: [0, 0, 0],
+    },
+    headStyles: {
+      fillColor: [26, 77, 79],
+      textColor: [255, 255, 255],
+      halign: 'center', // توسيط رأس الجدول أفقيًا
+      valign: 'middle', // توسيط رأس الجدول عموديًا
+      fontSize: 10,
+    },
+    columnStyles: {
+      // يمكنك تخصيص أعمدة معينة إذا لزم الأمر
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 'auto' },
+      3: { cellWidth: 'auto' },
+      4: { cellWidth: 'auto' },
+      5: { cellWidth: 'auto' },
+      6: { cellWidth: 'auto' },
+      7: { cellWidth: 'auto' },
+      8: { cellWidth: 'auto' },
+      9: { cellWidth: 'auto' },
+    },
+
+
+
+
+    didDrawPage: () => {
+const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        // 👈 اسم المستخدم في اليسار
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        // 🔢 رقم الصفحة في المنتصف
+        const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+ doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+
+        // 👉 التاريخ والوقت في اليمين
+        const dateText =
+          "التاريخ: " +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          "  الساعة: " +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });    },
+  });
+
+  doc.save('قائمة_العاملات_المحجوزة.pdf');
+};
+
+
+  const exportToExcel =async () => {
+ 
+    let exportdata = []
+exportdata = await fetchExportData()
+    const worksheetData = exportdata?.map((row) => ({
       "رقم العاملة": row.HomeMaid?.id || "-",
       "اسم العاملة": row.HomeMaid?.Name || "-",
       "جوال  العاملة" : row.HomeMaid?.phone || "-",

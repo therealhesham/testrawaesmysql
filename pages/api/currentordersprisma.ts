@@ -47,6 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (clientphonenumber) filters.clientphonenumber = { contains: clientphonenumber };
       if (HomemaidId) filters.HomemaidId = { equals: Number(HomemaidId) };
 
+
       if (age) {
         const ageNum = parseInt(age as string, 10);
         if (!isNaN(ageNum)) {
@@ -69,9 +70,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (searchTerm) {
         filters.OR = [
+          { HomeMaid:{Name:{contains:searchTerm}}  },
           { ClientName: { contains: searchTerm as string } },
           { Passportnumber: { contains: searchTerm as string } },
           { clientphonenumber: { contains: searchTerm as string } },
+          {}
         ];
       }
 

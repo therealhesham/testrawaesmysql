@@ -14,7 +14,8 @@ export default async function handler(req, res) {
           quantity: true, // Total capacity
           housedWorkers: {
             where: {
-              isActive: true, // Only count active housed workers
+              deparatureHousingDate:null
+              // isActive: true, // Only count active housed workers
             },
             select: {
               id: true,
