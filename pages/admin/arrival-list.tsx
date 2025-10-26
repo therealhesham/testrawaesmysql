@@ -532,21 +532,21 @@ export default function Home({ hasPermission }) {
     'status',
     'arrivalDate',
   ]);
-  useEffect(() => {
-    const arrivals = async () => {
-      try {
-        const response = await fetch('/api/Export/arrivals');
-        if (!response.ok) throw new Error('فشل جلب بيانات التصدير');
-        const jsonify = await response.json();
-        const transformedData = transformData(jsonify.data);
-        setExportedData(transformedData);
-      } catch (error) {
-        console.error('Error fetching arrivals:', error);
-        setExportedData([]);
-      }
-    };
-    arrivals();
-  }, []);
+  // useEffect(() => {
+  //   const arrivals = async () => {
+  //     try {
+  //       const response = await fetch('/api/Export/arrivals');
+  //       if (!response.ok) throw new Error('فشل جلب بيانات التصدير');
+  //       const jsonify = await response.json();
+  //       const transformedData = transformData(jsonify.data);
+  //       setExportedData(transformedData);
+  //     } catch (error) {
+  //       console.error('Error fetching arrivals:', error);
+  //       setExportedData([]);
+  //     }
+  //   };
+  //   arrivals();
+  // }, []);
 
     const [exportedData, setExportedData] = useState<TableRow[]>([]);
   const isFetchingRef = useRef(false);
