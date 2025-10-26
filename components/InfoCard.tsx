@@ -44,15 +44,15 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
     }
 
     // Optional: Ensure the date format is valid (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return 'صيغة التاريخ غير صالحة (يجب أن تكون YYYY-MM-DD)';
-    }
+    // if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    //   return 'صيغة التاريخ غير صالحة (يجب أن تكون YYYY-MM-DD)';
+    // }
   }
 
   // For time fields (optional validation for time format)
-  if (key.includes('_time') && value && !/^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
-    return 'صيغة الوقت غير صالحة (يجب أن تكون HH:MM أو HH:MM:SS)';
-  }
+  // if (key.includes('_time') && value && !/^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+  //   return 'صيغة الوقت غير صالحة (يجب أن تكون HH:MM أو HH:MM:SS)';
+  // }
 
   return null;
 };
