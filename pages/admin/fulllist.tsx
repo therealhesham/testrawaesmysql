@@ -806,56 +806,56 @@ const exportToPDF = async () => {
                       {visibleColumns.includes('id') && (
                         <td
                           onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
-                          className="px-4 py-2 text-lg  text-center text-teal-800 whitepace-nowrap cursor-pointer hover:underline"
+                          className="px-4 py-2 text-lg  text-center text-teal-800 cursor-pointer hover:underline"
                         >
                           {item.id}
                         </td>
                       )}
                       {visibleColumns.includes('Name') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item.Name}
                         </td>
                       )}
                       {visibleColumns.includes('phone') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item.phone}
                         </td>
                       )}
                       {visibleColumns.includes('Country') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item?.office?.Country}
                         </td>
                       )}
                       {visibleColumns.includes('maritalstatus') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item.maritalstatus}
                         </td>
                       )}
                       {visibleColumns.includes('dateofbirth') && (
                         <td 
-                          className="px-4 py-2 text-center text-gray-600 cursor-help whitepace-nowrap" 
+                          className="px-4 py-2 text-center text-gray-600 cursor-help" 
                           title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}
                         >
                           {calculateAge(item.dateofbirth)} سنة
                         </td>
                       )}
                       {visibleColumns.includes('Passportnumber') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item.Passportnumber}
                         </td>
                       )}
                       {visibleColumns.includes('PassportStart') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item.PassportStart ? getDate(item.PassportStart) : ""}
                         </td>
                       )}
                       {visibleColumns.includes('PassportEnd') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center text-gray-600">
                           {item.PassportEnd ? getDate(item.PassportEnd) : ""}
                         </td>
                       )}
                       {visibleColumns.includes('office') && (
-                        <td className="px-4 py-2 text-center text-gray-600 whitepace-nowrap">
+                        <td className="px-4 py-2 text-center  text-gray-600">
                           {item?.office?.office}
                         </td>
                       )}
