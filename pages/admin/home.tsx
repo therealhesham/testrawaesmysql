@@ -30,8 +30,10 @@ import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
 import AlertModal from "../../components/AlertModal";
+// prisma
 import AddTaskModal from "../../components/AddTaskModal";
 import TaskCompletionModal from "../../components/TaskCompletionModal";
+import prisma from "lib/prisma";
 
 // --- Helper Functions (Moved outside component for reusability on server) ---
 const calculateRemainingDays = (eventDate) => {
@@ -137,12 +139,12 @@ const CancelledOrdersTab = ({ orders, count, onItemClick }) => (
 const InternalArrivalsTab = ({ arrivals, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {arrivals.slice(0, 3).map((arrival) => (
-      <div key={arrival.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/arrivals')}>
+      <div key={arrival.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/arrival-list')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{arrival.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">من: {arrival.ArrivalCity}</p>
+          <p className="item-subtitle text-xs text-gray-600">من: {arrival.deparatureCityCountry}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الوصول: {getDate(arrival.createdAt)} <FieldTimeOutlined />
+            تاريخ الوصول: {getDate(arrival.KingdomentryDate)} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -384,17 +386,18 @@ export default function Home({
   foreignOffices,
   tasks,
   events,
+  transferSponsorshipsLength,
   // Counts fetched on server
   newOrdersLength,
+  housedCount,
   currentOrdersLength,
   finished,
   cancelledorders,
   arrivalsLength,
   deparaturesLength,
-  externaldeparaturesLength,
+  externaldeparaturesLength,userforbutton,
   homeMaidsLength,
   officesCount,
-  transferSponsorshipsLength,
   sessionsLength,
   clientsCount,
 }) {
@@ -1134,6 +1137,7 @@ export default function Home({
           <div className="bg-white rounded-xl shadow-lg p-6 transform hover:scale-105 transition duration-300 md:col-span-2">
             <div className="flex justify-between items-center mb-4">
               <h2 className={`${Style["tajawal-medium"]} text-2xl font-semibold text-gray-800`}>المهام اليومية</h2>
+              {userforbutton && ( 
               <button
                 onClick={() => setIsModalOpen(true)}
                 className={`bg-teal-800 text-white flex flex-row items-center px-4 py-2 rounded-lg ${Style["tajawal-medium"]}`}
@@ -1143,6 +1147,7 @@ export default function Home({
                   إضافة مهمة
                 </span>
               </button>
+              )}
             </div>
             
             {/* Tasks Tabs */}
@@ -1580,13 +1585,13 @@ export default function Home({
                   onClick={() => setHousingSectionState("housing")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "housing" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
+                  التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housedCount}</span>
                 </a>
                 <a
                   onClick={() => setHousingSectionState("checkedTable")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "checkedTable" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
-                  الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housed.length}</span>
+                  الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housedCount}</span>
                 </a>
                 <a
                   onClick={() => setHousingSectionState("sessions")}
@@ -1927,10 +1932,19 @@ export async function getServerSideProps(context) {
         },
       };
     }
-
+let userforbutton = false;
     const user = jwt.verify(req.cookies.authToken, "rawaesecret");
     console.log('User from token:', user);
-
+    const role = await prisma.user.findUnique({
+      where: {
+        id: Number(user?.id),
+      },
+    });
+    if(role?.roleId == 1) {
+      userforbutton = true;
+    } else {
+      userforbutton = false;
+    }
     // Helper function to fetch data from API
     const fetchDataFromApi = async (url) => {
       try {
@@ -1960,7 +1974,7 @@ export async function getServerSideProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`http://localhost:3000/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -1979,7 +1993,8 @@ export async function getServerSideProps(context) {
       externalDeparaturesRes,
       housedRes,
       sessionsRes,
-      relationsRes,
+      relationsRes
+      ,
       transferSponsorshipsRes,
       fullListRes,
       bookedListRes,
@@ -1987,22 +2002,22 @@ export async function getServerSideProps(context) {
       foreignOfficesRes,
       tasksRes,
     ] = await Promise.all([
-      fetchDataFromApi(`http://localhost:3005/api/neworderlistprisma/1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`http://localhost:3005/api/endedorders/`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`http://localhost:3005/api/arrivals`),
-      fetchDataFromApi(`http://localhost:3005/api/deparatures`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`http://localhost:3005/api/confirmhousinginformation`),
-      fetchDataFromApi(`http://localhost:3005/api/sessions`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/clients`),
-      fetchDataFromApi(`http://localhost:3005/api/transfersponsorships`),
-      fetchDataFromApi(`http://localhost:3005/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
+      fetchDataFromApi(`http://localhost:3000/api/neworderlistprisma/1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`http://localhost:3000/api/endedorders/`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`http://localhost:3000/api/deparatures`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/housed`),
+      fetchDataFromApi(`http://localhost:3000/api/sessions`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/clients`),
+      fetchDataFromApi(`http://localhost:3000/api/transfersponsorships`),
+      fetchDataFromApi(`http://localhost:3000/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/bookedlist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/availablelist?page=1`),
+      fetchDataFromApi(`http://localhost:3000/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`http://localhost:3000/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)
@@ -2026,10 +2041,21 @@ export async function getServerSideProps(context) {
         console.log('Sample task from API:', tasksRes[0]);
       }
     }
-
+console.log(arrivalsRes)
     // Process and structure the data for props
+ 
+ 
+  
+      const housedCount = await prisma.housedworker.count({
+        where: {
+          deparatureHousingDate: null,
+        },
+    });
+    console.log(housedCount)
     const propsData = {
+ housedCount: housedCount,
       user,
+      userforbutton,
       // Data
       newOrders: newOrdersRes?.data || [],
       currentOrders: currentOrdersRes?.data || [],
@@ -2038,7 +2064,7 @@ export async function getServerSideProps(context) {
       internalArrivals: arrivalsRes?.data || [],
       internalDeparatures: internalDeparaturesRes?.data || [],
       externalDeparatures: externalDeparaturesRes?.data || [],
-      housed: housedRes?.housing || [],
+      housed: housedRes?.housed || [],
       sessions: sessionsRes?.sessions || [],
       relations: relationsRes?.data || [],
       transferSponsorships: transferSponsorshipsRes || [],
@@ -2048,17 +2074,19 @@ export async function getServerSideProps(context) {
       foreignOffices: foreignOfficesRes?.data || [],
       tasks: tasksRes || [], // Assuming the API returns an array of tasks
       events,
+      
+      
       // Counts (using fetched data or falling back to initial counts)
-      newOrdersLength: newOrdersRes?.data?.length || counts.neworderCount,
+      newOrdersLength: counts.neworderCount,
       currentOrdersLength: currentOrdersRes?.totalCount || 0,
       finished: endedOrdersRes?.homemaids?.length || counts.finished,
       cancelledorders: cancelledOrdersRes?.data?.length || counts.cancelledorders,
-      arrivalsLength: arrivalsRes?.data?.length || counts.arrivals,
+      arrivalsLength:  arrivalsRes.arrivalsCount,
       deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
       externaldeparaturesLength: externalDeparaturesRes?.data?.length || 0,
       homeMaidsLength: fullListRes?.totalRecords || counts.workers,
       officesCount: foreignOfficesRes?.dataCount || 0,
-      transferSponsorshipsLength: transferSponsorshipsRes?.length || counts.transferSponsorships,
+      transferSponsorshipsLength:  0,
       sessionsLength: sessionsRes?.totalResults || 0,
       clientsCount: relationsRes?.dataCount || 0,
     };

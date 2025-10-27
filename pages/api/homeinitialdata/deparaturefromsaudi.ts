@@ -6,31 +6,43 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+
+
+
+//   externaldeparatureCity  String? @db.VarChar(191) 
+//   externaldeparatureDate DateTime?
+//   externaldeparatureTime   String?
+//       externalArrivalCity String?
+// externalArrivalCityDate          DateTime?
+//  externalArrivalCityTime           String?  @db.VarChar(30)
+
+// externalTicketFile              String?   @db.VarChar(255)
+
   try {
       const deparaturesCount = await prisma.arrivallist.count({
       where: {
-        DeparatureFromSaudiDate: { not: null },
+        externaldeparatureDate: { not: null },
       }});
     const deparatures = await prisma.arrivallist.findMany({
       where: {
-        DeparatureFromSaudiDate: { not: null },
+        externaldeparatureDate: { not: null },
       },
            select: {
         Order: { select: { Name: true ,HomemaidId: true,HomeMaid:true} },
         OrderId: true,
-ArrivalOutSaudiCity:true,        
+externalArrivalCity:true,        
         SponsorName: true,
         // createdAt:true,
-        DeparatureFromSaudiDate:true,
+        externaldeparatureDate:true,
         PassportNumber: true,
-        deparatureDate: true,
-        deparatureTime: true,
+        // deparatureDate: true,
+        externaldeparatureTime: true,
         SponsorPhoneNumber: true,
         HomemaidName: true,
         id: true,
       },
       take: 3, 
-      orderBy: { id: "desc" },
+      orderBy: { externaldeparatureDate: "desc" },
     });
     res.status(200).json({data:deparatures,deparaturesCount});
   } catch (error) {

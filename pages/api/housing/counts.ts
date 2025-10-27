@@ -10,11 +10,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get counts for both contract types
     const [recruitmentCount, rentalCount] = await Promise.all([
       // Count for recruitment contract type
-      prisma.housing.count({
+      prisma.housedworker.count({
         where: {
         deparatureHousingDate: null // Only housed workers
 ,
-          HomeMaid: {
+          Order: {
             NewOrder: {
               some: {
                 typeOfContract: 'recruitment'
@@ -24,10 +24,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }),
       // Count for rental contract type  
-      prisma.housing.count({
+      prisma.housedworker.count({
         where: {
-          HomeMaid: {
-            contracttype: 'rental'
+          Order: {
+            NewOrder: {
+              some: {
+                typeOfContract: 'rental'
+              }
+            }
           },
           deparatureHousingDate: null // Only housed workers
         }
