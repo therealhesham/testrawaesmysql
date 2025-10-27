@@ -65,7 +65,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('/api/usersfortask');
       if (response.ok) {
         const userData = await response.json();
         setUsers(userData.map((user: any) => ({
