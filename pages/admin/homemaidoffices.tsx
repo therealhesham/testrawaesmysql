@@ -293,10 +293,10 @@ export default function Table() {
                     {item.Passportnumber}
                   </td>
                   <td className="p-3 text-md text-gray-700 text-center">
-                    {item?.PassportStart ? item?.PassportStart : null}
+                    {item?.PassportStart ? getDate(item?.PassportStart) : null}
                   </td>
                   <td className="p-3 text-md text-gray-700 text-center">
-                    {item?.PassportEnd ? item?.PassportEnd : null}
+                    {item?.PassportEnd ? getDate(item?.PassportEnd) : null}
                   </td>
 
                   <td className="p-3 text-md text-gray-700 text-center">
@@ -313,7 +313,7 @@ export default function Table() {
                         "text-[#EFF7F9]  bg-teal-900  text-lg py-2 px-4 rounded-md transition-all duration-300"
                       }
                       onClick={() => {
-                        const url = "/admin/cvdetails/" + item.id;
+                        const url = "/admin/homemaidinfo?id=" + item.id;
                         window.open(url, "_blank"); // Open in new window
                       }}
                     >
