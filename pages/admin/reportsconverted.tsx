@@ -29,7 +29,9 @@ export default function Home() {
   const lightColor = '#a8e0e0';
 
   // State for real data from APIs
+
   const [reportsData, setReportsData] = useState<any>(null);
+  const [inLocationsData, setInLocationsData] = useState<any>(null);
   const [housedWorkerData, setHousedWorkerData] = useState<any>(null);
   const [ordersData, setOrdersData] = useState<any>(null);
   const [governmentalData, setGovernmentalData] = useState<any>(null);
@@ -54,6 +56,16 @@ const fetchHousedWorkerData = async () => {
     setHousedWorkerData(data);
   } catch (error) {
     console.error('Error fetching housed worker data:', error);
+  }
+};
+
+const fetchInLocationsData = async () => {
+  try {
+    const response = await fetch('/api/reports/inlocations');
+    const data = await response.json();
+    setInLocationsData(data);
+  } catch (error) {
+    console.error('Error fetching in locations data:', error);
   }
 };
   // Region mapping
@@ -92,6 +104,7 @@ const fetchHousedWorkerData = async () => {
   // Fetch data from all APIs
   useEffect(() => {
     fetchHousedWorkerData();
+    fetchInLocationsData();
     const fetchAllData = async () => {
       try {
         setLoading(true);
@@ -247,6 +260,92 @@ const fetchHousedWorkerData = async () => {
     initMap();
   }, [mapData]);
 
+
+
+const inLocationBarChartData = {
+  labels: inLocationsData?.map((item: any) => item.location) || [],
+  datasets: [
+    {
+      label: 'نسبة الإشغال (%)',
+      data: inLocationsData?.map((item: any) => item.occupancyPercentage) || [],
+      backgroundColor: primaryColor,
+      borderColor: primaryColor,
+      borderWidth: 1,
+    },
+  ],
+};
+const inLocationBarChartOptions = {
+  responsive: true,
+  scales: {
+    y: {
+      beginAtZero: true,
+      max: 100,
+      title: {
+        display: true,
+        text: 'نسبة الإشغال (%)',
+        font: { family: '"Tajawal", sans-serif', size: 14 },
+      },
+    },
+    x: {
+      grid: { display: false },
+      title: {
+        display: true,
+        text: 'الموقع',
+        font: { family: '"Tajawal", sans-serif', size: 14 },
+      },
+    },
+  },
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: true,
+      position: 'top' as const,
+      labels: {
+        font: {
+          family: '"Tajawal", sans-serif',
+          size: 14,
+        },
+      },
+    },
+    tooltip: {
+      enabled: true,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleFont: { family: '"Tajawal", sans-serif' },
+      bodyFont: { family: '"Tajawal", sans-serif' },
+      callbacks: {
+        label: (context: any) => {
+          const index = context.dataIndex;
+          const item = inLocationsData[index];
+          return [
+            `نسبة الإشغال: ${item.occupancyPercentage}%`,
+            `عدد العاملين: ${item.housedWorkersCount}`,
+            `السعة الإجمالية: ${item.quantity}`,
+          ];
+        },
+      },
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      max: 100, // النسبة مابين 0 و100
+      title: {
+        display: true,
+        text: 'نسبة الإشغال (%)',
+        font: { family: '"Tajawal", sans-serif', size: 14 },
+      },
+    },
+    x: {
+      grid: { display: false },
+      title: {
+        display: true,
+        text: 'الموقع',
+        font: { family: '"Tajawal", sans-serif', size: 14 },
+      },
+    },
+  },
+};
+  
   // Chart Data
   // Donut Chart 1 - Order Status Distribution
   const donutChart1Data = {
@@ -872,6 +971,22 @@ const miniDonutData = reasons.map((reason) => {
         )}
       </div>
     ))}
+  </div>
+</div>
+
+<div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+  <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+    <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">إعاشة</span>
+    <h3 className="text-base font-semibold text-gray-800">إحصائيات الإعاشة</h3>
+  </div>
+  <div className="relative h-64">
+    {inLocationsData?.length > 0 ? (
+      <Bar data={inLocationBarChartData} options={inLocationBarChartOptions} />
+    ) : (
+      <div className="text-center text-gray-500">
+        لا توجد بيانات إعاشة متاحة. تحقق من قاعدة البيانات أو الاتصال بالـ API.
+      </div>
+    )}
   </div>
 </div>
           {/* Row 6 */}
