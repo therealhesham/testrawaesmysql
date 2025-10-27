@@ -1,20 +1,106 @@
 import prisma from "lib/prisma";
 import { NextApiRequest, NextApiResponse } from "next";
+import { subDays, subMonths, eachDayOfInterval, eachMonthOfInterval, format } from "date-fns"; // إضافة مكتبة date-fns للتعامل مع التواريخ
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'POST') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
+    // استخراج معايير البحث
+    const { period, startDate, endDate } = req.method === 'POST' ? req.body : req.query;
+
+    // تحديد نطاق زمني
+    let dateFilter: { gte?: Date; lte?: Date } = {};
+    let timeSeriesData: { labels: string[]; data: number[] } = { labels: [], data: [] };
+
+    if (period === 'week') {
+      dateFilter.gte = subDays(new Date(), 7);
+      dateFilter.lte = new Date();
+      // بيانات يومية للأسبوع
+      const days = eachDayOfInterval({ start: dateFilter.gte, end: dateFilter.lte });
+      timeSeriesData.labels = days.map((day) => format(day, 'yyyy-MM-dd'));
+      timeSeriesData.data = await Promise.all(
+        days.map(async (day) => {
+          const nextDay = subDays(day, -1);
+          return prisma.neworder.count({
+            where: {
+              createdAt: {
+                gte: day,
+                lt: nextDay,
+              },
+            },
+          });
+        })
+      );
+    } else if (period === 'month') {
+      dateFilter.gte = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      dateFilter.lte = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+      // بيانات يومية للشهر
+      const days = eachDayOfInterval({ start: dateFilter.gte, end: dateFilter.lte });
+      timeSeriesData.labels = days.map((day) => format(day, 'yyyy-MM-dd'));
+      timeSeriesData.data = await Promise.all(
+        days.map(async (day) => {
+          const nextDay = subDays(day, -1);
+          return prisma.neworder.count({
+            where: {
+              createdAt: {
+                gte: day,
+                lt: nextDay,
+              },
+            },
+          });
+        })
+      );
+    } else if (period === 'custom' && startDate && endDate) {
+      dateFilter.gte = new Date(startDate as string);
+      dateFilter.lte = new Date(endDate as string);
+      // بيانات يومية للنطاق المخصص
+      const days = eachDayOfInterval({ start: dateFilter.gte, end: dateFilter.lte });
+      timeSeriesData.labels = days.map((day) => format(day, 'yyyy-MM-dd'));
+      timeSeriesData.data = await Promise.all(
+        days.map(async (day) => {
+          const nextDay = subDays(day, -1);
+          return prisma.neworder.count({
+            where: {
+              createdAt: {
+                gte: day,
+                lt: nextDay,
+              },
+            },
+          });
+        })
+      );
+    } else {
+      // السنة الحالية (افتراضي)
+      dateFilter.gte = new Date(new Date().getFullYear(), 0, 1);
+      dateFilter.lte = new Date(new Date().getFullYear() + 1, 0, 1);
+      const months = eachMonthOfInterval({ start: dateFilter.gte, end: dateFilter.lte });
+      timeSeriesData.labels = months.map((month) => format(month, 'MMMM'));
+      timeSeriesData.data = await Promise.all(
+        months.map(async (month, i) => {
+          return prisma.neworder.count({
+            where: {
+              createdAt: {
+                gte: month,
+                lt: new Date(new Date().getFullYear(), i + 1, 1),
+              },
+            },
+          });
+        })
+      );
+    }
+
     // إحصائيات الطلبات الأساسية
     const in_progress = await prisma.neworder.count({
       where: {
         bookingstatus: {
           not: {
             in: ["new_order", "new_orders", "delivered", "in_progress", "received", "cancelled", "rejected"],
-          }
-        }
+          },
+        },
+        createdAt: dateFilter,
       },
     });
 
@@ -22,7 +108,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         bookingstatus: {
           in: ["new_order", "new_orders"],
-        }
+        },
+        createdAt: dateFilter,
       },
     });
 
@@ -30,7 +117,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         bookingstatus: {
           in: ["received"],
-        }
+        },
+        createdAt: dateFilter,
       },
     });
 
@@ -38,31 +126,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         bookingstatus: {
           in: ["cancelled"],
-        }
-      },
-    });
-
-    const thisWeekOrders = await prisma.neworder.count({
-      where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        }
-      },
-    });
-
-    // الطلبات حسب الشهر للسنة الحالية
-    const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const ordersPerMonthsAlongYear = [];
-    for (let i = 0; i < 12; i++) {
-      ordersPerMonthsAlongYear.push(await prisma.neworder.count({
-        where: {
-          createdAt: {
-            gte: new Date(new Date().getFullYear(), i, 1),
-            lt: new Date(new Date().getFullYear(), i + 1, 1),
-          }
         },
-      }));
-    }
+        createdAt: dateFilter,
+      },
+    });
 
     // إحصائيات الحد الأدنى للأجور
     const year = new Date().getFullYear();
@@ -87,18 +154,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // إحصائيات الحكومية للطلبات
-    const governmentalStats = await getGovernmentalOrderStats();
 
-    res.status(200).json({ 
-      in_progress, 
-      new_order, 
-      delivered, 
-      cancelled, 
-      thisWeekOrders, 
-      minimummPerMonths, 
-      ordersPerMonthsAlongYear,
-      governmental: governmentalStats
+//احصائيات المدن\المصادر
+const SourcesStats = await prisma.client.groupBy({
+  by: ['Source'],
+  _count: {
+    id: true
+  },
+  where: {
+    Source: {
+      not: null
+    }
+  }
+});
+    // إحصائيات الحكومية
+    const governmentalStats = await getGovernmentalOrderStats(dateFilter);
+
+    res.status(200).json({
+      in_progress,
+      new_order,
+      delivered,
+      cancelled,
+      thisWeekOrders: period === 'week' ? await prisma.neworder.count({ where: { createdAt: dateFilter } }) : 0,
+      minimummPerMonths,
+      timeSeriesData, // استبدال ordersPerMonthsAlongYear
+      governmental: governmentalStats,
+      SourcesStats,
     });
   } catch (error) {
     console.error('Error in orders API:', error);
@@ -106,48 +187,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// إحصائيات الحكومية للطلبات
-async function getGovernmentalOrderStats() {
+// دالة getGovernmentalOrderStats (بدون تغيير)
+async function getGovernmentalOrderStats(dateFilter: { gte?: Date; lte?: Date }) {
   try {
-    // الطلبات حسب الحالة الحكومية
     const ordersWithGovernmentalStatus = await prisma.neworder.findMany({
       select: {
         id: true,
         foreignLaborApproval: true,
         travelPermit: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
+      where: {
+        createdAt: dateFilter,
+      },
     });
 
-    // تجميع الإحصائيات
     const stats = {
       totalOrders: ordersWithGovernmentalStatus.length,
-      withForeignLaborApproval: ordersWithGovernmentalStatus.filter(order => order.foreignLaborApproval).length,
-      withTravelPermit: ordersWithGovernmentalStatus.filter(order => order.travelPermit).length,
-      completedGovernmental: ordersWithGovernmentalStatus.filter(order => 
-        order.foreignLaborApproval && order.travelPermit
+      withForeignLaborApproval: ordersWithGovernmentalStatus.filter((order) => order.foreignLaborApproval).length,
+      withTravelPermit: ordersWithGovernmentalStatus.filter((order) => order.travelPermit).length,
+      completedGovernmental: ordersWithGovernmentalStatus.filter(
+        (order) => order.foreignLaborApproval && order.travelPermit
       ).length,
-      pendingGovernmental: ordersWithGovernmentalStatus.filter(order => 
-        !order.foreignLaborApproval || !order.travelPermit
-      ).length
+      pendingGovernmental: ordersWithGovernmentalStatus.filter(
+        (order) => !order.foreignLaborApproval || !order.travelPermit
+      ).length,
     };
 
-    // إحصائيات حسب الشهر
     const monthlyGovernmentalStats: { [key: string]: any } = {};
-    
-    ordersWithGovernmentalStatus.forEach(order => {
+
+    ordersWithGovernmentalStatus.forEach((order) => {
       if (order.createdAt) {
         const month = order.createdAt.toISOString().substring(0, 7);
         if (!monthlyGovernmentalStats[month]) {
           monthlyGovernmentalStats[month] = {
             total: 0,
             completed: 0,
-            pending: 0
+            pending: 0,
           };
         }
-        
+
         monthlyGovernmentalStats[month].total++;
-        
         if (order.foreignLaborApproval && order.travelPermit) {
           monthlyGovernmentalStats[month].completed++;
         } else {
@@ -158,7 +238,7 @@ async function getGovernmentalOrderStats() {
 
     return {
       ...stats,
-      monthlyStats: monthlyGovernmentalStats
+      monthlyStats: monthlyGovernmentalStats,
     };
   } catch (error) {
     console.error('Error getting governmental stats:', error);
@@ -168,14 +248,7 @@ async function getGovernmentalOrderStats() {
       withTravelPermit: 0,
       completedGovernmental: 0,
       pendingGovernmental: 0,
-      monthlyStats: {}
+      monthlyStats: {},
     };
   }
 }
-
-
-
-
-
-
-

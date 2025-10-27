@@ -5,6 +5,9 @@ import { Chart, LineController, BarController, DoughnutController, CategoryScale
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import 'tailwindcss/tailwind.css';
 import Layout from 'example/containers/Layout';
+import { format } from 'date-fns';
+import Skeleton, { SkeletonTheme } from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 
 // Dynamically import Highcharts components (SSR-safe)
 const HighchartsReact = dynamic(() => import('highcharts-react-official'), { ssr: false });
@@ -27,14 +30,32 @@ export default function Home() {
 
   // State for real data from APIs
   const [reportsData, setReportsData] = useState<any>(null);
+  const [housedWorkerData, setHousedWorkerData] = useState<any>(null);
   const [ordersData, setOrdersData] = useState<any>(null);
   const [governmentalData, setGovernmentalData] = useState<any>(null);
   const [clientsData, setClientsData] = useState<any>(null);
+  const [tasksData, setTasksData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapTopology, setMapTopology] = useState<any>(null);
   const [mapError, setMapError] = useState<string | null>(null);
-
+  // States for dynamic period selection
+  const [period, setPeriod] = useState<string>('year');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+const fetchHousedWorkerData = async () => {
+  try {
+    const response = await fetch('/api/reports/housedworker', {
+      method: period === 'custom' ? 'POST' : 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      body: period === 'custom' ? JSON.stringify({ period, startDate, endDate }) : undefined,
+    });
+    const data = await response.json();
+    setHousedWorkerData(data);
+  } catch (error) {
+    console.error('Error fetching housed worker data:', error);
+  }
+};
   // Region mapping
   const regionMap: { [key: string]: string } = {
     'Ar Riyāḍ': 'sa-ri',
@@ -70,30 +91,43 @@ export default function Home() {
 
   // Fetch data from all APIs
   useEffect(() => {
+    fetchHousedWorkerData();
     const fetchAllData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch from /api/reports (reports/index.ts)
+
+        // تحديد معايير البحث
+        const requestBody = period === 'custom' ? { period, startDate, endDate } : { period };
+
+        // Fetch tasks data
+        const tasksResponse = await fetch('/api/reports/tasks', {
+          method: period === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: period === 'custom' ? JSON.stringify(requestBody) : undefined,
+        });
+        const tasks = await tasksResponse.json();
+        setTasksData(tasks);
+
+        // Fetch other APIs
+        const ordersResponse = await fetch('/api/reports/orders', {
+          method: period === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: period === 'custom' ? JSON.stringify(requestBody) : undefined,
+        });
+        const orders = await ordersResponse.json();
+        setOrdersData(orders);
+
         const reportsResponse = await fetch('/api/reports');
         const reports = await reportsResponse.json();
         setReportsData(reports);
 
-        // Fetch from /api/reports/orders (reports/orders.ts)
-        const ordersResponse = await fetch('/api/reports/orders');
-        const orders = await ordersResponse.json();
-        setOrdersData(orders);
-
-        // Fetch from /api/reports/governmental (reports/governmental.ts)
         const governmentalResponse = await fetch('/api/reports/governmental');
         const governmental = await governmentalResponse.json();
         setGovernmentalData(governmental);
 
-        // Fetch from /api/report/clients (report/clients.ts)
         const clientsResponse = await fetch('/api/report/clients');
         const clients = await clientsResponse.json();
         setClientsData(clients);
-
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -102,9 +136,9 @@ export default function Home() {
     };
 
     fetchAllData();
-  }, []);
+  }, [period, startDate, endDate]);
 
-  // Prepare map data from real data (from reports/index.ts - citiesSources.byCity)
+  // Prepare map data
   const mapData = reportsData?.citiesSources?.byCity
     ?.map((item: any) => {
       const eng = item.city;
@@ -126,8 +160,6 @@ export default function Home() {
     const initMap = async () => {
       try {
         const loadHighcharts = async () => {
-          if (typeof window === 'undefined') return;
-
           if (!window.Highcharts) {
             await new Promise<void>((resolve) => {
               const script = document.createElement('script');
@@ -175,7 +207,7 @@ export default function Home() {
                 useHTML: true,
               },
               series: [{
-                 data: mapData,
+                data: mapData,
                 joinBy: ['hc-key', 'hc-key'],
                 name: 'عدد العملاء',
                 nullColor: '#14B8A6',
@@ -215,21 +247,8 @@ export default function Home() {
     initMap();
   }, [mapData]);
 
-  // =============== Chart Data from Real APIs ===============
-  
-  // Line Chart 1 - Orders by Month (from ordersData - ordersPerMonthsAlongYear)
-  const lineChart1Data = {
-    labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
-    datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear?.slice(0, 6) || [0, 0, 0, 0, 0, 0],
-      borderColor: primaryColor,
-      backgroundColor: 'rgba(45, 122, 122, 0.1)',
-      tension: 0.4,
-      fill: true
-    }],
-  };
-
-  // Donut Chart 1 - Order Status Distribution (from ordersData)
+  // Chart Data
+  // Donut Chart 1 - Order Status Distribution
   const donutChart1Data = {
     labels: ['جديد', 'قيد التنفيذ', 'مكتمل', 'ملغي'],
     datasets: [{
@@ -243,30 +262,116 @@ export default function Home() {
     }],
   };
 
-  // Bar Chart 1 - Monthly Orders (from ordersData)
-  const barChart1Data = {
-    labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+  // Line Chart 1 - Orders by Period (Dynamic)
+  const lineChart1Data = {
+    labels:
+      period === 'year'
+        ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+        : ordersData?.timeSeriesData?.labels?.map((label: string) => {
+            if (period === 'week' || period === 'month' || period === 'custom') {
+              return new Date(label).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' });
+            }
+            return label;
+          }) || [],
     datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear?.slice(0, 6) || [0, 0, 0, 0, 0, 0],
-      backgroundColor: primaryColor
+      data: ordersData?.timeSeriesData?.data || Array(period === 'year' ? 12 : 7).fill(0),
+      borderColor: primaryColor,
+      backgroundColor: 'rgba(45, 122, 122, 0.1)',
+      tension: 0.4,
+      fill: true,
     }],
   };
 
-  // Bar Chart 2 - Quarterly Orders (calculated from monthly data)
-  const barChart2Data = {
-    labels: ['الربع 1', 'الربع 2', 'الربع 3', 'الربع 4'],
+  // Donut Chart 4 - Sources Distribution
+  const donutChart4Data = {
+    labels: ordersData?.SourcesStats?.map((item: any) => item.Source) || ['تويتر', 'فيسبوك', 'أخرى'],
     datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear ? [
-        (ordersData.ordersPerMonthsAlongYear[0] || 0) + (ordersData.ordersPerMonthsAlongYear[1] || 0) + (ordersData.ordersPerMonthsAlongYear[2] || 0),
-        (ordersData.ordersPerMonthsAlongYear[3] || 0) + (ordersData.ordersPerMonthsAlongYear[4] || 0) + (ordersData.ordersPerMonthsAlongYear[5] || 0),
-        (ordersData.ordersPerMonthsAlongYear[6] || 0) + (ordersData.ordersPerMonthsAlongYear[7] || 0) + (ordersData.ordersPerMonthsAlongYear[8] || 0),
-        (ordersData.ordersPerMonthsAlongYear[9] || 0) + (ordersData.ordersPerMonthsAlongYear[10] || 0) + (ordersData.ordersPerMonthsAlongYear[11] || 0)
-      ] : [0, 0, 0, 0],
-      backgroundColor: primaryColor
+      data: ordersData?.SourcesStats?.map((item: any) => item._count.id) || [0, 0, 0],
+      backgroundColor: [primaryColor, secondaryColor, tertiaryColor, lightColor],
     }],
   };
 
-  // Donut Chart 2 - Clients with/without Receivables (from reportsData - clientsReceivables)
+// Bar Chart 2 - Tasks by Completion Status (Dual-Column)
+
+// Bar Chart 2 - Tasks by Completion Status (Dual-Column)
+const barChart2Data = {
+  labels: tasksData?.timeSeriesData?.labels?.length > 0
+    ? tasksData.timeSeriesData.labels
+    : ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
+  datasets: [
+    {
+      label: 'المهام المكتملة',
+      data: tasksData?.timeSeriesData?.completedData?.length > 0
+        ? tasksData.timeSeriesData.completedData
+        : Array(12).fill(0),
+      backgroundColor: primaryColor,
+      borderColor: primaryColor,
+      borderWidth: 1,
+    },
+    {
+      label: 'المهام غير المكتملة',
+      data: tasksData?.timeSeriesData?.incompleteData?.length > 0
+        ? tasksData.timeSeriesData.incompleteData
+        : Array(12).fill(0),
+      backgroundColor: secondaryColor,
+      borderColor: secondaryColor,
+      borderWidth: 1,
+    },
+  ],
+};
+
+const barChart2Options = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: true,
+      position: 'top' as const,
+      labels: {
+        font: {
+          family: '"Tajawal", sans-serif',
+          size: 14,
+        },
+      },
+    },
+    tooltip: {
+      enabled: true,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleFont: { family: '"Tajawal", sans-serif' },
+      bodyFont: { family: '"Tajawal", sans-serif' },
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      title: {
+        display: true,
+        text: 'عدد المهام',
+        font: { family: '"Tajawal", sans-serif', size: 14 },
+      },
+    },
+    x: {
+      grid: { display: false },
+      title: {
+        display: true,
+        text: 'الأشهر',
+        font: { family: '"Tajawal", sans-serif', size: 14 },
+      },
+    },
+  },
+};
+
+
+  // Donut Chart - Tasks Priority Distribution
+  const donutChartTasksPriorityData = {
+    labels: tasksData?.priorityStats?.map((item: any) => item.priority || 'غير محدد') || ['غير محدد'],
+    datasets: [{
+      data: tasksData?.priorityStats?.map((item: any) => item.count) || [0],
+      backgroundColor: [primaryColor, secondaryColor, tertiaryColor, lightColor],
+    }],
+  };
+
+  // Donut Chart 2 - Clients with/without Receivables
   const donutChart2Data = {
     labels: ['لديهم مستحقات', 'بدون مستحقات'],
     datasets: [{
@@ -278,81 +383,51 @@ export default function Home() {
     }],
   };
 
-  // Bar Chart 3 - Annual Orders (from ordersData)
+  // Bar Chart 3 - Annual Orders
   const barChart3Data = {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear || Array(12).fill(0),
+      data: ordersData?.timeSeriesData?.data || Array(12).fill(0),
       backgroundColor: primaryColor
     }],
   };
 
-  // Mini Donut Charts - KPIs (from various data sources)
-  const miniDonutData = [
-    // معدل التحويل (من الطلبات المكتملة)
-    {
-      datasets: [{
-        data: [
-          Math.round(((ordersData?.delivered || 0) / Math.max(ordersData?.new_order + ordersData?.delivered || 1, 1)) * 100),
-          100 - Math.round(((ordersData?.delivered || 0) / Math.max(ordersData?.new_order + ordersData?.delivered || 1, 1)) * 100)
-        ],
-        backgroundColor: [primaryColor, '#e8f4f4'],
-        borderWidth: 0
-      }]
-    },
-    // رضا العملاء (تقدير من التقارير)
-    {
-      datasets: [{
-        data: [85, 15],
-        backgroundColor: [primaryColor, '#e8f4f4'],
-        borderWidth: 0
-      }]
-    },
-    // الإنتاجية (من المهام المكتملة - reportsData.tasks)
-    {
-      datasets: [{
-        data: [
-          Math.round(((reportsData?.tasks?.completed || 0) / Math.max(reportsData?.tasks?.total || 1, 1)) * 100),
-          100 - Math.round(((reportsData?.tasks?.completed || 0) / Math.max(reportsData?.tasks?.total || 1, 1)) * 100)
-        ],
-        backgroundColor: [primaryColor, '#e8f4f4'],
-        borderWidth: 0
-      }]
-    },
-    // الجودة (تقدير)
-    {
-      datasets: [{
-        data: [92, 8],
-        backgroundColor: [primaryColor, '#e8f4f4'],
-        borderWidth: 0
-      }]
-    },
-    // الكفاءة (من البيانات الحكومية - governmentalData)
-    {
-      datasets: [{
-        data: [
-          Math.round(((governmentalData?.governmentalOrders?.completed || 0) / Math.max(governmentalData?.governmentalOrders?.total || 1, 1)) * 100),
-          100 - Math.round(((governmentalData?.governmentalOrders?.completed || 0) / Math.max(governmentalData?.governmentalOrders?.total || 1, 1)) * 100)
-        ],
-        backgroundColor: [primaryColor, '#e8f4f4'],
-        borderWidth: 0
-      }]
-    },
-    // الربحية (تقدير)
-    {
-      datasets: [{
-        data: [78, 22],
-        backgroundColor: [primaryColor, '#e8f4f4'],
-        borderWidth: 0
-      }]
-    }
-  ];
+const reasons = [
+  'نقل كفالة',
+  'مشكلة مكتب العمل',
+  'انتظار الترحيل',
+  'رفض العامل لنقل الكفالة',
+  'هروب العاملة',
+  'رفض العامل للسفر',
+];
 
-  // Line Chart 2 - Trends (from ordersData)
+// إعداد البيانات للـ mini donut charts
+const miniDonutData = reasons.map((reason) => {
+  const reasonData = housedWorkerData?.nationalityStats?.[reason] || {};
+  const total = housedWorkerData?.total || 1;
+  const nationalities = Object.keys(reasonData);
+  const colors = [primaryColor, secondaryColor, tertiaryColor, lightColor]; // ألوان مختلفة للجنسيات
+
+  return {
+    reason,
+    datasets: nationalities.map((country, i) => ({
+      label: country,
+      data: [reasonData[country]?.count || 0, total - (reasonData[country]?.count || 0)],
+      backgroundColor: [colors[i % colors.length], '#e8f4f4'],
+      borderWidth: 0,
+    })),
+    data: nationalities.map((country) => ({
+      country,
+      count: reasonData[country]?.count || 0,
+      percentage: reasonData[country]?.percentage || 0,
+    })),
+  };
+});
+  // Line Chart 2 - Trends
   const lineChart2Data = {
     labels: Array.from({ length: 12 }, (_, i) => `الشهر ${i + 1}`),
     datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear || Array(12).fill(0),
+      data: ordersData?.timeSeriesData?.data || Array(12).fill(0),
       borderColor: primaryColor,
       backgroundColor: 'rgba(45, 122, 122, 0.1)',
       tension: 0.4,
@@ -360,7 +435,7 @@ export default function Home() {
     }],
   };
 
-  // Team Performance (from tasks data - reportsData.tasks)
+  // Team Performance
   const teamData = [85, 92, 78, 88, 95, 82];
   const barChart4Data = {
     labels: ['الفريق 1', 'الفريق 2', 'الفريق 3', 'الفريق 4', 'الفريق 5', 'الفريق 6'],
@@ -378,51 +453,51 @@ export default function Home() {
     }],
   };
 
-  // Grouped Bar Data (from ordersData)
+  // Grouped Bar Data
   const groupedBarData = Array.from({ length: 3 }, () => ({
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [
       { label: '2023', data: Array.from({ length: 12 }, () => Math.floor(Math.random() * 50) + 30), backgroundColor: primaryColor },
-      { label: '2024', data: ordersData?.ordersPerMonthsAlongYear || Array(12).fill(0), backgroundColor: secondaryColor },
+      { label: '2024', data: ordersData?.timeSeriesData?.data || Array(12).fill(0), backgroundColor: secondaryColor },
       { label: '2025', data: Array.from({ length: 12 }, () => Math.floor(Math.random() * 50) + 50), backgroundColor: tertiaryColor },
     ],
   }));
 
-  // Line Chart 3 & 4 - Forecasts (from ordersData)
+  // Line Chart 3 & 4 - Forecasts
   const lineChart34Data = Array.from({ length: 2 }, () => ({
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [
-      { label: 'الفعلي', data: ordersData?.ordersPerMonthsAlongYear || Array(12).fill(0), borderColor: primaryColor, tension: 0.4 },
+      { label: 'الفعلي', data: ordersData?.timeSeriesData?.data || Array(12).fill(0), borderColor: primaryColor, tension: 0.4 },
       { label: 'المتوقع', data: Array.from({ length: 12 }, () => Math.floor(Math.random() * 40) + 70), borderColor: secondaryColor, borderDash: [5, 5], tension: 0.4 },
     ],
   }));
 
-  // Bar Chart 6 - Performance Overview (from ordersData)
+  // Bar Chart 6 - Performance Overview
   const barChart6Data = {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس'],
     datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear?.slice(0, 8) || [0, 0, 0, 0, 0, 0, 0, 0],
+      data: ordersData?.timeSeriesData?.data?.slice(0, 8) || [0, 0, 0, 0, 0, 0, 0, 0],
       backgroundColor: primaryColor
     }],
   };
 
-  // Donut Chart 3 - Task Completion (from reportsData.tasks)
+  // Donut Chart 3 - Task Completion
   const donutChart3Data = {
-    labels: ['مكتمل', 'قيد التنفيذ'],
+    labels: ['مكتمل', 'غير مكتمل'],
     datasets: [{
       data: [
-        reportsData?.tasks?.completed || 0,
-        reportsData?.tasks?.incomplete || 0
+        tasksData?.completed || 0,
+        tasksData?.incomplete || 0
       ],
       backgroundColor: [primaryColor, lightColor]
     }],
   };
 
-  // Bar Chart 7 - Final Report (from ordersData)
+  // Bar Chart 7 - Final Report
   const barChart7Data = {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [{
-      data: ordersData?.ordersPerMonthsAlongYear || Array(12).fill(0),
+      data: ordersData?.timeSeriesData?.data || Array(12).fill(0),
       backgroundColor: primaryColor
     }],
   };
@@ -468,13 +543,115 @@ export default function Home() {
     plugins: { legend: { position: 'bottom' as const } },
   };
 
+  // Skeleton component for charts
+  const ChartSkeleton = () => (
+    <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+          <Skeleton width={80} height={20} />
+          <Skeleton width={150} height={20} />
+        </div>
+        <Skeleton height={256} />
+      </div>
+    </SkeletonTheme>
+  );
+
+  // Skeleton component for map
+  const MapSkeleton = () => (
+    <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+          <Skeleton width={80} height={20} />
+          <Skeleton width={150} height={20} />
+        </div>
+        <Skeleton height={400} />
+      </div>
+    </SkeletonTheme>
+  );
+
+  // Skeleton component for KPI section
+  const KPISkeleton = () => (
+    <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+          <Skeleton width={80} height={20} />
+          <Skeleton width={150} height={20} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+          {Array(6)
+            .fill(0)
+            .map((_, index) => (
+              <div key={index} className="text-center">
+                <Skeleton circle height={128} width={128} className="mx-auto mb-2" />
+                <Skeleton width={100} height={16} className="mx-auto" />
+                <Skeleton width={50} height={20} className="mx-auto" />
+              </div>
+            ))}
+        </div>
+      </div>
+    </SkeletonTheme>
+  );
+
+  // Loading state with skeleton UI
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen p-5 flex items-center justify-center" dir="rtl">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-800 mx-auto"></div>
-            <p className="mt-4 text-lg text-gray-600">جاري تحميل البيانات...</p>
+        <div className="min-h-screen p-5" dir="rtl">
+          <div className="max-w-7xl mx-auto">
+            {/* Row 1: Two charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </div>
+            {/* Row 2: Map and chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <MapSkeleton />
+              <ChartSkeleton />
+            </div>
+            {/* Row 3: Two charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </div>
+            {/* Row 3.5: Tasks Priority Distribution */}
+            <ChartSkeleton />
+            {/* Row 4: Single chart */}
+            <ChartSkeleton />
+            {/* Row 5: KPI section */}
+            <KPISkeleton />
+            {/* Row 6: Single chart */}
+            <ChartSkeleton />
+            {/* Row 7: Two charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </div>
+            {/* Row 8-10: Grouped bar charts */}
+            {Array(3)
+              .fill(0)
+              .map((_, index) => (
+                <ChartSkeleton key={index} />
+              ))}
+            {/* Row 11-12: Forecast charts */}
+            <ChartSkeleton />
+            <ChartSkeleton />
+            {/* Row 13: Performance overview */}
+            <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <Skeleton width={80} height={20} />
+                <Skeleton width={150} height={20} />
+              </div>
+              <div className="flex flex-col md:flex-row gap-8 items-center">
+                <div className="flex-2 w-full md:w-2/3">
+                  <Skeleton height={256} />
+                </div>
+                <div className="flex-1 w-full md:w-1/3 text-center">
+                  <Skeleton circle height={200} width={200} className="mx-auto" />
+                </div>
+              </div>
+            </div>
+            {/* Row 14: Final report */}
+            <ChartSkeleton />
           </div>
         </div>
       </Layout>
@@ -483,235 +660,320 @@ export default function Home() {
 
   return (
     <Layout>
-    <div className="min-h-screen p-5" dir="rtl">
-      <Head>
-        <title>التقارير</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description" content="لوحة تحليلات بيانية" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
-        <script src="https://code.highcharts.com/maps/highmaps.js"></script>
-        <script src="https://code.highcharts.com/maps/modules/exporting.js"></script>
-      </Head>
+      <div className="min-h-screen p-5" dir="rtl">
+        <Head>
+          <title>التقارير</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <meta name="description" content="لوحة تحليلات بيانية" />
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
+          <script src="https://code.highcharts.com/maps/highmaps.js"></script>
+          <script src="https://code.highcharts.com/maps/modules/exporting.js"></script>
+        </Head>
 
-      <style jsx global>{`
-        body {
-          font-family: 'Tajawal', sans-serif;
-        }
-        #map-container {
-          height: 400px;
-          min-width: 310px;
-          max-width: 800px;
-          margin: 0 auto;
-        }
-        .loading {
-          margin-top: 10em;
-          text-align: center;
-          color: gray;
-        }
-        .error {
-          margin-top: 10em;
-          text-align: center;
-          color: red;
-        }
-      `}</style>
+        <style jsx global>{`
+          body {
+            font-family: 'Tajawal', sans-serif;
+          }
+          #map-container {
+            height: 400px;
+            min-width: 310px;
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          .loading {
+            margin-top: 10em;
+            text-align: center;
+            color: gray;
+          }
+          .error {
+            margin-top: 10em;
+            text-align: center;
+            color: red;
+          }
+        `}</style>
 
-      <div className="max-w-7xl mx-auto">
-        {/* Row 1 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تحليلات</span>
-              <h3 className="text-base font-semibold text-gray-800">معدل النمو الشهري</h3>
-            </div>
-            <div className="relative h-64">
-              <Line data={lineChart1Data} options={commonOptions} />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">إحصائيات</span>
-              <h3 className="text-base font-semibold text-gray-800">توزيع حالات الطلبات</h3>
-            </div>
-            <div className="relative h-64">
-              <Doughnut data={donutChart1Data} options={donutOptions} />
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2 - Highcharts Map and Monthly Orders */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">جغرافي</span>
-              <h3 className="text-base font-semibold text-gray-800">التوزيع الجغرافي للعملاء</h3>
-            </div>
-            <p className="text-gray-600 text-sm mb-5">
-              خريطة تفاعلية بسيطة للمملكة العربية السعودية توضح عدد العملاء حسب المنطقة. الألوان تشير إلى كثافة العملاء.
-            </p>
-            {mapLoaded ? (
-              <div id="map-container"></div>
-            ) : (
-              <div className="loading">جاري تحميل الخريطة...</div>
-            )}
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">شهري</span>
-              <h3 className="text-base font-semibold text-gray-800">الطلبات الشهرية</h3>
-            </div>
-            <div className="relative h-[400px]">
-              <Bar data={barChart1Data} options={commonOptions} />
-            </div>
-          </div>
-        </div>
-
-        {/* باقي الصفوف كما هي (Rows 3 to 14) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
-              <h3 className="text-base font-semibold text-gray-800">الطلبات الفصلية</h3>
-            </div>
-            <div className="relative h-64">
-              <Bar data={barChart2Data} options={commonOptions} />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">نسب</span>
-              <h3 className="text-base font-semibold text-gray-800">توزيع المستحقات</h3>
-            </div>
-            <div className="relative h-64">
-              <Doughnut data={donutChart2Data} options={donutOptions} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تحليل سنوي</span>
-            <h3 className="text-base font-semibold text-gray-800">الطلبات حسب الشهر</h3>
-          </div>
-          <div className="relative h-80">
-            <Bar data={barChart3Data} options={commonOptions} />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">توزيع</span>
-            <h3 className="text-base font-semibold text-gray-800">مؤشرات الأداء الرئيسية</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            {['معدل التحويل', 'رضا العملاء', 'الإنتاجية', 'الجودة', 'الكفاءة', 'الربحية'].map(
-              (label, index) => (
-                <div key={index} className="text-center">
-                  <div className="w-32 h-32 mx-auto mb-2">
-                    <Doughnut data={miniDonutData[index]} options={miniDonutOptions} />
-                  </div>
-                  <div className="text-sm text-gray-500">{label}</div>
-                  <div className="text-lg font-bold text-gray-800">{miniDonutData[index].datasets[0].data[0]}%</div>
+        <div className="max-w-7xl mx-auto">
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 bg-white rounded-xl">
+            <div className="bg-white p-6">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2">
+                <div className="flex items-center gap-4">
+                  <select
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                    className="bg-teal-800 text-white px-3 py-1 rounded text-sm"
+                  >
+                    <option value="week">أسبوعي</option>
+                    <option value="month">شهري</option>
+                    <option value="year">سنوي</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                  {period === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                    </div>
+                  )}
                 </div>
-              )
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">اتجاه</span>
-            <h3 className="text-base font-semibold text-gray-800">تحليل الاتجاهات الزمنية</h3>
-          </div>
-          <div className="relative h-80">
-            <Line data={lineChart2Data} options={commonOptions} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
-              <h3 className="text-base font-semibold text-gray-800">أداء الفريق - النصف الأول</h3>
-            </div>
-            <div className="relative h-64">
-              <Bar data={barChart4Data} options={{ ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }} />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
-              <h3 className="text-base font-semibold text-gray-800">أداء الفريق - النصف الثاني</h3>
-            </div>
-            <div className="relative h-64">
-              <Bar data={barChart5Data} options={{ ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }} />
-            </div>
-          </div>
-        </div>
-
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-xl p-6 shadow-sm mb-5">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تفصيلي</span>
-              <h3 className="text-base font-semibold text-gray-800">تحليل شامل - المجموعة {i}</h3>
-            </div>
-            <div className="relative h-96">
-              <Bar data={groupedBarData[i - 1]} options={groupedBarOptions} />
-            </div>
-          </div>
-        ))}
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تنبؤات</span>
-            <h3 className="text-base font-semibold text-gray-800">التوقعات المستقبلية</h3>
-          </div>
-          <div className="relative h-80">
-            <Line data={lineChart34Data[0]} options={lineChart34Options} />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
-            <h3 className="text-base font-semibold text-gray-800">مقارنة الأداء السنوي</h3>
-          </div>
-          <div className="relative h-80">
-            <Line data={lineChart34Data[1]} options={lineChart34Options} />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">ملخص</span>
-            <h3 className="text-base font-semibold text-gray-800">نظرة عامة على الأداء</h3>
-          </div>
-          <div className="flex flex-col md:flex-row gap-8 items-center">
-            <div className="flex-2 w-full md:w-2/3">
+                <h3 className="text-base font-semibold text-gray-800">إحصائيات الطلبات</h3>
+              </div>
               <div className="relative h-64">
-                <Bar data={barChart6Data} options={commonOptions} />
+                <Doughnut data={donutChart1Data} options={donutOptions} />
               </div>
             </div>
-            <div className="flex-1 w-full md:w-1/3 text-center">
-              <div className="max-w-xs mx-auto">
-                <Doughnut data={donutChart3Data} options={donutChart3Options} />
+            <div className="bg-white p-6">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2">
+                <div className="flex items-center gap-4">
+                  <select
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                    className="bg-teal-800 text-white px-3 py-1 rounded text-sm"
+                  >
+                    <option value="week">أسبوعي</option>
+                    <option value="month">شهري</option>
+                    <option value="year">سنوي</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                  {period === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                    </div>
+                  )}
+                </div>
+                <h3 className="text-base font-semibold text-gray-800">
+                  {period === 'week' ? 'معدل النمو الأسبوعي' : period === 'month' ? 'معدل النمو اليومي' : period === 'custom' ? 'معدل النمو للفترة' : 'معدل النمو الشهري'}
+                </h3>
+              </div>
+              <div className="relative h-64">
+                <Line data={lineChart1Data} options={commonOptions} />
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-            <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">نهائي</span>
-            <h3 className="text-base font-semibold text-gray-800">التقرير النهائي</h3>
+          {/* Row 2 - Highcharts Map and Sources Distribution */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">جغرافي</span>
+                <h3 className="text-base font-semibold text-gray-800">إحصائيات المدن\المصادر</h3>
+              </div>
+              <p className="text-gray-600 text-sm mb-5">
+                خريطة تفاعلية بسيطة للمملكة العربية السعودية توضح عدد العملاء حسب المنطقة. الألوان تشير إلى كثافة العملاء.
+              </p>
+              {mapLoaded ? (
+                <div id="map-container"></div>
+              ) : (
+                <div className="loading">جاري تحميل الخريطة...</div>
+              )}
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مصادر</span>
+                <h3 className="text-base font-semibold text-gray-800">توزيع العملاء حسب المصدر</h3>
+              </div>
+              <div className="relative h-[500px]">
+                <Bar data={donutChart4Data} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }} />
+              </div>
+            </div>
           </div>
-          <div className="relative h-80">
-            <Bar data={barChart7Data} options={commonOptions} />
+
+          {/* Row 3 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <h3 className="text-base font-semibold text-gray-800">توزيع المستحقات</h3>
+              </div>
+              <div className="relative h-64">
+                <Doughnut data={donutChart2Data} options={donutOptions} />
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <h3 className="text-base font-semibold text-gray-800">احصائيات المهام</h3>
+              </div>
+             <div className="bg-white rounded-xl p-6 shadow-sm">
+  <div className="relative h-64">
+    {tasksData?.timeSeriesData?.labels?.length > 0 ? (
+      <Bar data={barChart2Data} options={barChart2Options} />
+    ) : (
+      <div className="text-center text-gray-500">
+        لا توجد بيانات مهام متاحة لهذه الفترة. تحقق من قاعدة البيانات أو الفترة الزمنية.
+      </div>
+    )}
+  </div>
+</div>
+            </div>
+          </div>
+
+
+          {/* Row 4 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تحليل سنوي</span>
+              <h3 className="text-base font-semibold text-gray-800">الطلبات حسب الشهر</h3>
+            </div>
+            <div className="relative h-80">
+              <Bar data={barChart3Data} options={commonOptions} />
+            </div>
+          </div>
+
+     <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+  <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+    <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">توزيع</span>
+    <h3 className="text-base font-semibold text-gray-800">إحصائيات التسكين حسب الجنسية</h3>
+  </div>
+  <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+    {miniDonutData.map((item, index) => (
+      <div key={index} className="text-center">
+        <div className="w-32 h-32 mx-auto mb-2">
+          <Doughnut
+            data={{ labels: item.data.map((d) => d.country), datasets: item.datasets }}
+            options={{
+              ...miniDonutOptions,
+              plugins: {
+                ...miniDonutOptions.plugins,
+                legend: { display: true, position: 'bottom', labels: { font: { family: '"Tajawal", sans-serif' } } },
+              },
+            }}
+          />
+        </div>
+        <div className="text-sm text-gray-500 font-semibold">{item.reason}</div>
+        {item.data.length > 0 ? (
+          item.data.map((d, i) => (
+            <div key={i} className="text-sm text-gray-800">
+              {d.country}: {d.percentage}% ({d.count})
+            </div>
+          ))
+        ) : (
+          <div className="text-sm text-gray-500">لا توجد بيانات</div>
+        )}
+      </div>
+    ))}
+  </div>
+</div>
+          {/* Row 6 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">اتجاه</span>
+              <h3 className="text-base font-semibold text-gray-800">تحليل الاتجاهات الزمنية</h3>
+            </div>
+            <div className="relative h-80">
+              <Line data={lineChart2Data} options={commonOptions} />
+            </div>
+          </div>
+
+          {/* Row 7 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
+                <h3 className="text-base font-semibold text-gray-800">أداء الفريق - النصف الأول</h3>
+              </div>
+              <div className="relative h-64">
+                <Bar data={barChart4Data} options={{ ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }} />
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
+                <h3 className="text-base font-semibold text-gray-800">أداء الفريق - النصف الثاني</h3>
+              </div>
+              <div className="relative h-64">
+                <Bar data={barChart5Data} options={{ ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Rows 8-10 */}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-xl p-6 shadow-sm mb-5">
+              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تفصيلي</span>
+                <h3 className="text-base font-semibold text-gray-800">تحليل شامل - المجموعة {i}</h3>
+              </div>
+              <div className="relative h-96">
+                <Bar data={groupedBarData[i - 1]} options={groupedBarOptions} />
+              </div>
+            </div>
+          ))}
+
+          {/* Row 11 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تنبؤات</span>
+              <h3 className="text-base font-semibold text-gray-800">التوقعات المستقبلية</h3>
+            </div>
+            <div className="relative h-80">
+              <Line data={lineChart34Data[0]} options={lineChart34Options} />
+            </div>
+          </div>
+
+          {/* Row 12 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
+              <h3 className="text-base font-semibold text-gray-800">مقارنة الأداء السنوي</h3>
+            </div>
+            <div className="relative h-80">
+              <Line data={lineChart34Data[1]} options={lineChart34Options} />
+            </div>
+          </div>
+
+          {/* Row 13 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">ملخص</span>
+              <h3 className="text-base font-semibold text-gray-800">نظرة عامة على الأداء</h3>
+            </div>
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+              <div className="flex-2 w-full md:w-2/3">
+                <div className="relative h-64">
+                  <Bar data={barChart6Data} options={commonOptions} />
+                </div>
+              </div>
+              <div className="flex-1 w-full md:w-1/3 text-center">
+                <div className="max-w-xs mx-auto">
+                  <Doughnut data={donutChart3Data} options={donutChart3Options} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 14 */}
+          <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">نهائي</span>
+              <h3 className="text-base font-semibold text-gray-800">التقرير النهائي</h3>
+            </div>
+            <div className="relative h-80">
+              <Bar data={barChart7Data} options={commonOptions} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </Layout>
   );
 }
