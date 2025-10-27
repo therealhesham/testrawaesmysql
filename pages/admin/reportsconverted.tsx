@@ -797,7 +797,7 @@ export default function Home() {
                   <select
                     value={period}
                     onChange={(e) => setPeriod(e.target.value)}
-                    className="bg-teal-800 text-white px-3 py-1 rounded text-sm"
+                    className="bg-white text-black  py-1 rounded text-sm"
                   >
                     <option value="week">أسبوعي</option>
                     <option value="month">شهري</option>
@@ -841,7 +841,7 @@ export default function Home() {
                   <select
                     value={period}
                     onChange={(e) => setPeriod(e.target.value)}
-                    className="bg-teal-800 text-white px-3 py-1 rounded text-sm"
+                    className="bg-white text-black py-1 rounded text-sm"
                   >
                     <option value="week">أسبوعي</option>
                     <option value="month">شهري</option>
@@ -921,7 +921,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="relative h-[500px]">
-                <Bar data={donutChart4Data} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }} />
+                <Bar data={donutChart4Data} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 50 } } }} />
               </div>
             </div>
           </div>

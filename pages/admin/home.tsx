@@ -181,9 +181,9 @@ const ExternalDeparturesTab = ({ departures, count, onItemClick }) => (
       <div key={departure.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/deparaturesfromsaudi')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مغادرة خارجية #{departure.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">إلى: {departure.ArrivalOutSaudiCity ?? "غير محدد"}</p>
+          <p className="item-subtitle text-xs text-gray-600">إلى: {departure.externalArrivalCity ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ المغادرة: {departure.DeparatureFromSaudiDate ? getDate(departure.DeparatureFromSaudiDate) : null} <FieldTimeOutlined />
+            تاريخ المغادرة: {departure.externalArrivalCityDate ? getDate(departure.externalArrivalCityDate) : null} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -254,7 +254,7 @@ const SessionsTab = ({ sessions, count, onItemClick }) => (
 const WorkersTab = ({ workers, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {workers.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/fulllist')}>
+      <div  key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
@@ -273,7 +273,7 @@ const WorkersTab = ({ workers, count, onItemClick }) => (
 const BookedListTab = ({ booked, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {booked.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/bookedlist')}>
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {worker.ClientName ?? "غير محدد"}</p>
@@ -292,7 +292,7 @@ const BookedListTab = ({ booked, count, onItemClick }) => (
 const AvailableListTab = ({ available, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {available.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/availablelist')}>
+      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
@@ -311,7 +311,7 @@ const AvailableListTab = ({ available, count, onItemClick }) => (
 const RelationsTab = ({ relations, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {relations.slice(0, 3).map((relation) => (
-      <div key={relation.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/clients')}>
+      <div key={relation.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/clientdetails?id=' + relation.id)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">عميل #{relation.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {relation.fullname}</p>
@@ -349,7 +349,7 @@ const SponsorshipTransfersTab = ({ transfers, count, onItemClick }) => (
 const ForeignOfficesTab = ({ offices, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {offices.slice(0, 3).map((office) => (
-      <div key={office.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/offices')}>
+      <div key={office.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidoffices?office=' + office.office)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">مكتب خارجي #{office.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {office.office ?? "غير محدد"}</p>
@@ -1629,19 +1629,19 @@ export default function Home({
               <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
                 <a
                   onClick={() => setWorkersSectionState("workers")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex cursor-pointer items-center gap-2 py-2 px-3 cursor-pointer rounded-lg transition-colors duration-200 ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{homeMaidsLength}</span>
                 </a>
                 <a
                   onClick={() => setWorkersSectionState("bookedlist")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 cursor-pointer flex items-center cursor-pointer gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات المحجوزة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{bookedList.length}</span>
                 </a>
                 <a
                   onClick={() => setWorkersSectionState("availablelist")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 cursor-pointer flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات المتاحة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{availableList.length}</span>
                 </a>
@@ -1675,19 +1675,19 @@ export default function Home({
               <nav className="info-card-tabs flex gap-6 border-b border-gray-100 pb-3">
                 <a
                   onClick={() => setRelationsSectionState("relations")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-sm font-medium text-gray-600 cursor-pointer hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientsCount}</span>
                 </a>
                 <a
                   onClick={() => setRelationsSectionState("sponsorship-transfers")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-sm font-medium text-gray-600 cursor-pointer hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{transferSponsorshipsLength}</span>
                 </a>
                 <a
                   onClick={() => setRelationsSectionState("foreign-offices")}
-                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
+                  className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 cursor-pointer flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{officesCount}</span>
                 </a>
@@ -1982,6 +1982,11 @@ let userforbutton = false;
       console.error("Error fetching initial counts:", error);
     }
 
+    const countDeparaturesfromsaudi = await prisma.arrivallist.count({
+      where: {
+        externaldeparatureDate: { not: null },
+      },
+    });
     // 2. Fetch all detailed data
     const [
       newOrdersRes,
@@ -2083,7 +2088,7 @@ console.log(arrivalsRes)
       cancelledorders: cancelledOrdersRes?.data?.length || counts.cancelledorders,
       arrivalsLength:  arrivalsRes.arrivalsCount,
       deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
-      externaldeparaturesLength: externalDeparaturesRes?.data?.length || 0,
+      externaldeparaturesLength: countDeparaturesfromsaudi || 0,
       homeMaidsLength: fullListRes?.totalRecords || counts.workers,
       officesCount: foreignOfficesRes?.dataCount || 0,
       transferSponsorshipsLength:  0,
