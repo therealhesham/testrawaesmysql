@@ -634,7 +634,7 @@ const fetchFilteredDataExporting = async () => {
       margin: { top: 39, right: 10, left: 10 },
 
 
-       didDrawPage: (data) => {
+       didDrawPage: (data: any) => {
       const pageHeight = doc.internal.pageSize.height;
       const pageWidth = doc.internal.pageSize.width;
 
