@@ -4,11 +4,11 @@ import { useRouter } from 'next/router';
 import { FaBars, FaTimes, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { BellIcon } from '@heroicons/react/solid';
 import { jwtDecode } from 'jwt-decode';
-
+import DOMPurify from 'dompurify';
 const DesktopNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [counts, setCounts] = useState({ all: 0, read: 0, unread: 0 });
   const [userName, setUserName] = useState('');
   const router = useRouter();
@@ -18,7 +18,7 @@ const DesktopNavbar = () => {
       const token = localStorage.getItem('token');
       if (token) {
         const decoded = jwtDecode(token);
-        setUserName(decoded.username || '');
+        setUserName(decoded.username as string || '');
       }
     } catch (error) {
       console.error('Error decoding token:', error);
@@ -113,7 +113,7 @@ const DesktopNavbar = () => {
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="text-md font-semibold text-gray-900">{n.message}</p>
+                            <p className="text-md font-semibold text-gray-900" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.message) }}></p>
                             <p className="text-xs text-gray-500">
                               منذ {new Date(n.createdAt).toLocaleDateString()}
                             </p>
