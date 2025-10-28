@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/ar";
 import Layout from "example/containers/Layout";
-
+import DOMPurify from "dompurify";
 dayjs.extend(relativeTime);
 dayjs.locale("ar");
 
@@ -72,7 +72,7 @@ export default function NotificationsPage() {
               className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:bg-gray-50"
             >
               <div className="flex flex-col gap-2">
-                <p className="text-sm font-semibold text-gray-900">{n.message}</p>
+                <p className="text-sm font-semibold text-gray-900" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.message) }}></p>
                 <p className="text-xs text-gray-500 flex items-center gap-2">
                   منذ {dayjs(n.createdAt).fromNow()} <FieldTimeOutlined />
                 </p>
