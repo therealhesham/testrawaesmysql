@@ -35,8 +35,17 @@ export default function ServiceTransferTable({
   onEditTransaction: (id: number) => void;
 }) {
   const router = useRouter();
-  const user = jwtDecode<any>(localStorage.getItem('token') || '');
-  const userName = user.username || '';
+  // const user = jwtDecode<any>(localStorage.getItem('token') || '');
+  // const userName = user.username || '';
+  const [userName, setUserName] = useState<string>('');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const decoded = jwtDecode<any>(token);
+    const userName = decoded.username || '';
+    setUserName(userName);
+  }, []);
+  
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [allData, setAllData] = useState<Transfer[]>([]); // للتصدير
   const [pagination, setPagination] = useState<Pagination | null>(null);
