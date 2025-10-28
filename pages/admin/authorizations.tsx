@@ -704,39 +704,39 @@ const handleExportPDF = async () => {
 
 export default UserManagement;
 
-// export async function getServerSideProps({ req }) {
-//   try {
-//     const cookieHeader = req.headers.cookie;
-//     let cookies: { [key: string]: string } = {};
-//     if (cookieHeader) {
-//       cookieHeader.split(';').forEach((cookie) => {
-//         const [key, value] = cookie.trim().split('=');
-//         cookies[key] = decodeURIComponent(value);
-//       });
-//     }
+export async function getServerSideProps({ req }) {
+  try {
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(';').forEach((cookie) => {
+        const [key, value] = cookie.trim().split('=');
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
 
-//     if (!cookies.authToken) {
-//       return {
-//         redirect: { destination: '/admin/login', permanent: false },
-//       };
-//     }
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: '/admin/login', permanent: false },
+      };
+    }
 
-//     const token = jwtDecode(cookies.authToken);
-//     const findUser = await prisma.user.findUnique({
-//       where: { id: token.id },
-//       include: { role: true },
-//     });
-//     if (!findUser || !findUser.role?.permissions?.['إدارة السمتخدمين']?.['عرض']) {
-//       return {
-//         redirect: { destination: '/admin/home', permanent: false },
-//       };
-//     }
+    const token = jwtDecode(cookies.authToken);
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+    if (!findUser || !findUser.role?.permissions?.['إدارة المستخدمين']?.['إضافة']) {
+      return {
+        redirect: { destination: '/admin/home', permanent: false },
+      };
+    }
 
-//     return { props: {} };
-//   } catch (err) {
-//     console.error('Authorization error:', err);
-//     return {
-//       redirect: { destination: '/admin/home', permanent: false },
-//     };
-//   }
-// };
+    return { props: {} };
+  } catch (err) {
+    console.error('Authorization error:', err);
+    return {
+      redirect: { destination: '/admin/home', permanent: false },
+    };
+  }
+};

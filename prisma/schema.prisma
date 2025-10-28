@@ -559,11 +559,12 @@ model transferSponsorShips{
 HomeMaid        homemaid @relation(references: [id],fields: [HomeMaidId])
 NewClientId        Int @unique
 NewClient        Client @relation("NewSponsor", references: [id],fields: [NewClientId])
-
+EntryDate DateTime?
 OldClientId        Int @unique
 OldClient        Client @relation("OldSponsor", references: [id],fields: [OldClientId])
 Cost              Decimal?  
 Paid              Decimal?
+ExperimentDuration  String?
 ExperimentStart   DateTime?
 ExperimentEnd   DateTime?
 ContractDate DateTime?
@@ -572,7 +573,7 @@ Notes         String?
 WorkDuration String?
 NationalID     String?
 TransferingDate   String?
-
+  TransferOperationNumber String?
 file        String?
 transferStage   String?
   createdAt       DateTime  @default(now())

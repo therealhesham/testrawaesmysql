@@ -6,14 +6,16 @@ import { motion, AnimatePresence } from 'framer-motion'; // For animations
 import Style from 'styles/Home.module.css';
 import { CheckCircleFilled, FileExcelFilled, FilePdfFilled } from '@ant-design/icons';
 import Layout from 'example/containers/Layout';
-
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'pages/api/globalprisma';
+import { useRouter } from 'next/router';
 const PermissionsManagement = () => {
   // State for modals
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // To store the action to confirm
-
+  const router = useRouter();
   // State for data
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState(null);
@@ -456,8 +458,6 @@ const PermissionsManagement = () => {
 
 export default PermissionsManagement;
 
-/*
-// Optional: Uncomment if you need server-side authentication
 export async function getServerSideProps({ req }) {
   try {
     const cookieHeader = req.headers.cookie;
@@ -483,7 +483,7 @@ export async function getServerSideProps({ req }) {
 
     if (
       !findUser ||
-      !findUser.role?.permissions?.['إدارة المستخدمين']?.['تعديل']
+      !findUser.role?.permissions?.['إدارة المستخدمين']?.['إضافة']
     ) {
       return {
         redirect: { destination: '/admin/home', permanent: false },
@@ -498,4 +498,3 @@ export async function getServerSideProps({ req }) {
     };
   }
 }
-*/

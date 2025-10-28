@@ -11,7 +11,7 @@ export default async function handler(
     const offices = await prisma.offices.findMany({include:{_count:true}});
     const countries = await prisma.offices.findMany({
 distinct: ['Country'],
-select:{Country:true,id:true}
+select:{Country:true,id:true,phoneNumber:true}
     });
     res.status(200).json({ offices, countries });
   } catch (error) {

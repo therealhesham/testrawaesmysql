@@ -8,42 +8,84 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   switch (method) {
     // استرجاع قائمة معاملات نقل الكفالة أو معاملة محددة
-    case 'GET':
+case 'GET':
       try {
-        const { id } = req.query;
+        const { id, page = '1', limit = '10', statusFilter, stageFilter,searchTerm } = req.query;
 
+        const pageNum = parseInt(page as string, 10);
+        const limitNum = parseInt(limit as string, 10);
+        const skip = (pageNum - 1) * limitNum;
+
+
+
+        // إذا كان في id → جلب معاملة واحدة (بدون pagination)
         if (id) {
-          // استرجاع معاملة معينة بناءً على ID
           const transfer = await prisma.transferSponsorShips.findUnique({
             where: { id: Number(id) },
             include: {
-              HomeMaid: true,
-              NewClient: { select: { fullname: true, phonenumber: true, nationalId: true } },
-              OldClient: { select: { fullname: true, phonenumber: true, nationalId: true } },
+              HomeMaid: { select: { Name: true, Passportnumber: true, Nationalitycopy: true } },
+              NewClient: { select: { fullname: true, phonenumber: true, nationalId: true, city: true } },
+              OldClient: { select: { fullname: true, phonenumber: true, nationalId: true, city: true } },
             },
           });
 
           if (!transfer) {
             return res.status(404).json({ error: 'معاملة نقل الكفالة غير موجودة' });
           }
-
           return res.status(200).json(transfer);
         }
 
-        const transfers = await prisma.transferSponsorShips.findMany({
-          include: {
-            HomeMaid: { select: { Name: true, Passportnumber: true, Nationalitycopy: true } },
-            NewClient: { select: { fullname: true, phonenumber: true } },
-            OldClient: { select: { fullname: true, phonenumber: true } },
+        // بناء الفلاتر
+        const where: any = {};
+        if (statusFilter) {
+          where.ExperimentRate = statusFilter;
+        }
+        if (stageFilter) {
+          where.TransferingDate = stageFilter;
+        }
+if(searchTerm) {//or
+  where.OR = [
+    { TransferOperationNumber: { contains: searchTerm as string } },
+    { NewClient: { fullname: { contains: searchTerm as string } } },
+    {HomeMaid: { Name: { contains: searchTerm as string } } },
+    {NationalID: { contains: searchTerm as string } },
+    { OldClient: { fullname: { contains: searchTerm as string } } },
+  ];
+}
+        // جلب البيانات مع Pagination
+        const [transfers, total] = await Promise.all([
+          prisma.transferSponsorShips.findMany({
+            where,
+            include: {
+              HomeMaid: { select: { Name: true, Passportnumber: true, Nationalitycopy: true } },
+              NewClient: { select: { fullname: true, phonenumber: true, city: true } },
+              OldClient: { select: { fullname: true, phonenumber: true, city: true } },
+            },
+            orderBy: { id: 'desc' },
+            skip,
+            take: limitNum,
+          }),
+          prisma.transferSponsorShips.count({ where }),
+        ]);
+
+        const totalPages = Math.ceil(total / limitNum);
+
+        return res.status(200).json({
+          transfers,
+          pagination: {
+            total,
+            totalPages,
+            currentPage: pageNum,
+            limit: limitNum,
+            hasNext: pageNum < totalPages,
+            hasPrev: pageNum > 1,
           },
         });
-
-        return res.status(200).json(transfers);
+        // ...
       } catch (error) {
         console.error('خطأ في استرجاع معاملات نقل الكفالة:', error);
         return res.status(500).json({ error: 'حدث خطأ في السيرفر' });
       }
-
     // إنشاء معاملة نقل كفالة جديدة
     case 'POST':
       try {
@@ -59,12 +101,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ExperimentRate,
           Notes,
           NationalID,
-transferStage,
+transferStage,ExperimentDuration,
 WorkDuration,
+EntryDate,
           TransferingDate,
           file,
+          TransferOperationNumber
         } = req.body;
-
+console.log(req.body)
         // التحقق من الحقول المطلوبة
         if (!HomeMaidId || !NewClientId || !OldClientId) {
           return res.status(400).json({ error: 'معرف العاملة، العميل الجديد، والعميل القديم مطلوبين' });
@@ -81,8 +125,10 @@ WorkDuration,
             ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : null,
             ExperimentRate,
             Notes,
+            TransferOperationNumber:TransferOperationNumber?TransferOperationNumber:null,
           ContractDate,
-
+          EntryDate: EntryDate ? new Date(EntryDate) : null,
+          ExperimentDuration: ExperimentDuration ? ExperimentDuration : null,
           WorkDuration, 
             transferStage,
             NationalID,
@@ -91,8 +137,8 @@ WorkDuration,
           },
           include: {
             HomeMaid: { select: { Name: true, Passportnumber: true } },
-            NewClient: { select: { fullname: true } },
-            OldClient: { select: { fullname: true } },
+            NewClient: { select: { fullname: true ,city:true,phonenumber:true} },
+            OldClient: { select: { fullname: true ,city:true,phonenumber:true} },
           },
         });
 
@@ -105,6 +151,7 @@ WorkDuration,
     // تعديل معاملة نقل كفالة
     case 'PUT':
       try {
+        console.log(req.body)
         const { id } = req.query;
         const {
           HomeMaidId,
@@ -112,8 +159,10 @@ WorkDuration,
           OldClientId,
           Cost,
           ContractDate,
+          ExperimentDuration,
           WorkDuration,
           Paid,
+          TransferOperationNumber,
           ExperimentStart,
           ExperimentEnd,
           ExperimentRate,
@@ -121,16 +170,18 @@ WorkDuration,
           NationalID,
           TransferingDate,
           file,
-          transferStage
+          transferStage,
+          EntryDate
         } = req.body;
 
         if (!id) {
           return res.status(400).json({ error: 'معرف المعاملة مطلوب' });
         }
-console.log(req.body)
+console.log("update",req.body)
         const transfer = await prisma.transferSponsorShips.update({
           where: { id: Number(id) },
           data: {
+            TransferOperationNumber:TransferOperationNumber?TransferOperationNumber:null,
             HomeMaidId: HomeMaidId ? Number(HomeMaidId) : undefined,
             NewClientId: NewClientId ? Number(NewClientId) : undefined,
             OldClientId: OldClientId ? Number(OldClientId) : undefined,
@@ -140,12 +191,14 @@ console.log(req.body)
             ExperimentEnd: ExperimentEnd ? new Date(ExperimentEnd) : undefined,
             ExperimentRate,
           ContractDate:ContractDate?new Date(ContractDate):undefined,
+          ExperimentDuration: ExperimentDuration ? ExperimentDuration : undefined,
 WorkDuration,
             Notes,
             transferStage,
             NationalID,
             TransferingDate,
             file,
+            EntryDate: EntryDate ? new Date(EntryDate) : undefined,
           },
           include: {
             HomeMaid: { select: { Name: true, Passportnumber: true } },

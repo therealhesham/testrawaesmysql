@@ -91,7 +91,7 @@ export default function ExternalOffices() {
   const [newOffice, setNewOffice] = useState({
     Officename: "",
     Location: "",
-    phonenumber: 0,
+    phonenumber: null,
     booked: 0,
     people: [],
   });
@@ -188,7 +188,9 @@ const [countries,setCountries]=useState([])
   };
 
   const handleOpenModal = () => {
+    setIsAddOfficeModalOpen(false);
     setIsModalOpen(true);
+
   };
 
   const handleCloseModal = () => {
@@ -196,6 +198,7 @@ const [countries,setCountries]=useState([])
   };
 
   const handleOpenFailedModal = () => {
+    setIsAddOfficeModalOpen(false);
     setIsFailedModalOpen(true);
   };
 
@@ -257,7 +260,7 @@ const [countries,setCountries]=useState([])
                   name="country"
                   value={newOffice.country}
                   onChange={handleInputChange}
-                  className="p-2 border border-gray-300 rounded-lg"
+                  className=" border border-gray-300 rounded-lg"
                 >
                   <option value="">اختر دولة المكتب</option>
                   {countries.map((country) => (
@@ -342,8 +345,9 @@ const [countries,setCountries]=useState([])
               className="p-6 rounded-lg shadow-md hover:shadow-xl bg-gray-50 flex flex-wrap items-center gap-3 flex-col min-h-[230px] min-w-[230px] transition-all cursor-pointer"
             >
               <h2 className="text-xl font-semibold">{office.office}</h2>
-              <p className="text-gray-600">{office.Country}</p>
-              <p className="text-gray-600">{office?._count?.HomeMaid}</p>
+              <p className="text-gray-600"> <span className="text-gray-600">الدولة:</span> {office.Country}</p>
+              <p className="text-gray-600"> <span className="text-gray-600">الهاتف:</span>  {office.phoneNumber}</p>
+              <p className="text-gray-600"> <span className="text-gray-600">عدد العاملات:</span> {office?._count?.HomeMaid}</p>
             </div>
           ))}
         </div>
