@@ -257,7 +257,7 @@ const Sidebar = (props) => {
         {!toggleCollapse ? (
           <div className="flex flex-col items-center gap-3">
             <img
-              src={"/images/favicon.ico"}
+              src={image ? image : "/images/favicon.ico"}
               alt="Profile"
               className="rounded-full w-20 h-20 object-cover ring-2 ring-teal-400/50 transition-all duration-300"
             />
