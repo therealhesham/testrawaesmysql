@@ -146,7 +146,7 @@ const menuItems: MenuItem[] = [
       { id: 92, label: "ادارة المحاسبين", link: "/admin/send_message_to_office" },
       { id: 93, label: "سجل العمليات", link: "/admin/systemlogs" },
       { id: 94, label: "إدارة المستخدمين", link: "/admin/authorizations" },
-
+      { id: 98, label: "الملف الشخصي", link: "/admin/personal_page" },
     ],
   },
 ];
