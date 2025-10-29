@@ -23,7 +23,7 @@ export default function Login() {
       const res = await axios.post("/api/login", { id, password });
       localStorage.setItem("token", res.data);
       if (res.status === 200) {
-        router.push("/admin/home");
+        router.push("/admin/personal_page");
       }
     } catch (err) {
       setError(err.response?.data?.message || "error");
