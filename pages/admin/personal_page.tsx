@@ -6,6 +6,7 @@ import { GetServerSidePropsContext } from 'next';
 import { jwtDecode } from 'jwt-decode';
 import AddProfessionModal from '../../components/AddProfessionModal';
 import prisma from 'lib/prisma';
+import Layout from 'example/containers/Layout';
 interface UserData {
   id: string;
   jobTitle: string;
@@ -152,6 +153,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
   };
 
   return (
+    <Layout>
     <div className={`${Styles['tajawal-regular']} min-h-screen bg-gray-100 p-8`} dir="rtl">
       <main className="max-w-5xl mx-auto">
 
@@ -381,6 +383,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
         />
       </main>
     </div>
+  </Layout>
   );
 }
 
