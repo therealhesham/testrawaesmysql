@@ -1918,33 +1918,9 @@ export default function Home({
   );
 }
 
-// --- Server-Side Data Fetching ---
-export async function getServerSideProps(context) {
-  const { req } = context;
-
+// --- Static Generation ---
+export async function getStaticProps() {
   try {
-    const isAuthenticated = req.cookies.authToken ? true : false;
-    if (!isAuthenticated) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-let userforbutton = false;
-    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
-    console.log('User from token:', user);
-    const role = await prisma.user.findUnique({
-      where: {
-        id: Number(user?.id),
-      },
-    });
-    if(role?.roleId == 1) {
-      userforbutton = true;
-    } else {
-      userforbutton = false;
-    }
     // Helper function to fetch data from API
     const fetchDataFromApi = async (url) => {
       try {
@@ -1957,7 +1933,7 @@ let userforbutton = false;
         return await response.json();
       } catch (error) {
         console.error(`Error fetching from ${url}:`, error);
-        return null; // or return a default value/structure
+        return null;
       }
     };
 
@@ -1987,7 +1963,8 @@ let userforbutton = false;
         externaldeparatureDate: { not: null },
       },
     });
-    // 2. Fetch all detailed data
+
+    // 2. Fetch all detailed data (user-specific tasks are skipped in SSG)
     const [
       newOrdersRes,
       currentOrdersRes,
@@ -1998,14 +1975,12 @@ let userforbutton = false;
       externalDeparaturesRes,
       housedRes,
       sessionsRes,
-      relationsRes
-      ,
+      relationsRes,
       transferSponsorshipsRes,
       fullListRes,
       bookedListRes,
       availableListRes,
       foreignOfficesRes,
-      tasksRes,
     ] = await Promise.all([
       fetchDataFromApi(`http://localhost:3005/api/neworderlistprisma/1`),
       fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/currentordersprisma`),
@@ -2022,7 +1997,6 @@ let userforbutton = false;
       fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)
@@ -2037,30 +2011,16 @@ let userforbutton = false;
       { title: "Arrival: Person 5", date: "2025-11-30" },
     ];
 
-    // Debug: Log tasks data from API
-    console.log('Tasks API response:', tasksRes);
-    console.log('Tasks type:', typeof tasksRes, 'Is array:', Array.isArray(tasksRes));
-    if (tasksRes && Array.isArray(tasksRes)) {
-      console.log('Tasks count:', tasksRes.length);
-      if (tasksRes.length > 0) {
-        console.log('Sample task from API:', tasksRes[0]);
-      }
-    }
-console.log(arrivalsRes)
-    // Process and structure the data for props
- 
- 
-  
-      const housedCount = await prisma.housedworker.count({
-        where: {
-          deparatureHousingDate: null,
-        },
+    const housedCount = await prisma.housedworker.count({
+      where: {
+        deparatureHousingDate: null,
+      },
     });
-    console.log(housedCount)
+
     const propsData = {
- housedCount: housedCount,
-      user,
-      userforbutton,
+      housedCount,
+      user: null,
+      userforbutton: false,
       // Data
       newOrders: newOrdersRes?.data || [],
       currentOrders: currentOrdersRes?.data || [],
@@ -2077,35 +2037,65 @@ console.log(arrivalsRes)
       bookedList: bookedListRes?.data || [],
       availableList: availableListRes?.data || [],
       foreignOffices: foreignOfficesRes?.data || [],
-      tasks: tasksRes || [], // Assuming the API returns an array of tasks
+      tasks: [],
       events,
-      
-      
       // Counts (using fetched data or falling back to initial counts)
       newOrdersLength: counts.neworderCount,
       currentOrdersLength: currentOrdersRes?.totalCount || 0,
       finished: endedOrdersRes?.homemaids?.length || counts.finished,
       cancelledorders: cancelledOrdersRes?.data?.length || counts.cancelledorders,
-      arrivalsLength:  arrivalsRes.arrivalsCount,
+      arrivalsLength: arrivalsRes?.arrivalsCount,
       deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
       externaldeparaturesLength: countDeparaturesfromsaudi || 0,
       homeMaidsLength: fullListRes?.totalRecords || counts.workers,
       officesCount: foreignOfficesRes?.dataCount || 0,
-      transferSponsorshipsLength:  0,
+      transferSponsorshipsLength: 0,
       sessionsLength: sessionsRes?.totalResults || 0,
       clientsCount: relationsRes?.dataCount || 0,
     };
 
     return {
       props: propsData,
+      revalidate: 60, // ISR: re-generate at most once per minute
     };
   } catch (error) {
-    console.log("Error in getServerSideProps:", error);
+    console.log("Error in getStaticProps:", error);
     return {
-      redirect: {
-        destination: "/admin/login",
-        permanent: false,
+      props: {
+        user: null,
+        userforbutton: false,
+        newOrders: [],
+        currentOrders: [],
+        endedOrders: [],
+        cancelledOrders: [],
+        internalArrivals: [],
+        internalDeparatures: [],
+        externalDeparatures: [],
+        housed: [],
+        sessions: [],
+        relations: [],
+        transferSponsorships: [],
+        fullList: [],
+        bookedList: [],
+        availableList: [],
+        foreignOffices: [],
+        tasks: [],
+        events: [],
+        newOrdersLength: 0,
+        currentOrdersLength: 0,
+        finished: 0,
+        cancelledorders: 0,
+        arrivalsLength: 0,
+        deparaturesLength: 0,
+        externaldeparaturesLength: 0,
+        homeMaidsLength: 0,
+        officesCount: 0,
+        transferSponsorshipsLength: 0,
+        sessionsLength: 0,
+        clientsCount: 0,
+        housedCount: 0,
       },
+      revalidate: 60,
     };
   }
 }
