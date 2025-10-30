@@ -25,7 +25,6 @@ import {
 } from "react-icons/fa";
 import { useState, useRef } from "react";
 import { useRouter } from "next/router";
-import jwt from "jsonwebtoken";
 import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
@@ -367,7 +366,6 @@ const ForeignOfficesTab = ({ offices, count, onItemClick }) => (
 
 // --- Main Home Component ---
 export default function Home({
-  user,
   // Data fetched on server
   newOrders,
   currentOrders,
@@ -384,7 +382,6 @@ export default function Home({
   relations,
   transferSponsorships,
   foreignOffices,
-  tasks,
   events,
   transferSponsorshipsLength,
   // Counts fetched on server
@@ -395,7 +392,7 @@ export default function Home({
   cancelledorders,
   arrivalsLength,
   deparaturesLength,
-  externaldeparaturesLength,userforbutton,
+  externaldeparaturesLength,
   homeMaidsLength,
   officesCount,
   sessionsLength,
@@ -404,6 +401,11 @@ export default function Home({
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonthYear());
   const [currentWeek, setCurrentWeek] = useState(0); // Week offset from start of month
+  
+  // Client-side state for user and authentication
+  const [user, setUser] = useState(null);
+  const [userforbutton, setUserforbutton] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Navigation handler for item clicks
   const handleItemClick = (path) => {
@@ -461,6 +463,43 @@ export default function Home({
   const [newTask, setNewTask] = useState({ title: '', description: '', taskDeadline: '' });
   const [clientTasks, setClientTasks] = useState([]);
   const [randomNamesFound, setRandomNamesFound] = useState([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  
+  // Client-side authentication and user fetching
+  React.useEffect(() => {
+    const authenticateAndFetchUser = async () => {
+      try {
+        // Fetch user info from API (which reads HttpOnly cookie server-side)
+        const response = await fetch('/api/auth/me');
+        
+        if (!response.ok) {
+          // If unauthorized, redirect to login
+          if (response.status === 401) {
+            router.push('/admin/login');
+            return;
+          }
+          throw new Error('Failed to fetch user');
+        }
+        
+        const data = await response.json();
+        
+        if (data.user) {
+          setUser(data.user);
+          setIsAuthenticated(true);
+          
+          // Set userforbutton based on role from token
+          setUserforbutton(data.user.role === 1);
+        } else {
+          router.push('/admin/login');
+        }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        router.push('/admin/login');
+      }
+    };
+    
+    authenticateAndFetchUser();
+  }, [router]);
   
   // State for task details modal
   const [taskDetailsModal, setTaskDetailsModal] = useState({
@@ -489,35 +528,63 @@ export default function Home({
     message: ''
   });
 
-  // Initialize tasks from server-side props
+  // Fetch tasks client-side when user is authenticated
   React.useEffect(() => {
-    console.log('Initializing tasks from server:', tasks);
-    console.log('Tasks type:', typeof tasks, 'Is array:', Array.isArray(tasks));
-    if (tasks && Array.isArray(tasks)) {
-      console.log('Setting clientTasks with', tasks.length, 'tasks');
-      setClientTasks(tasks);
-      
-      // Debug: Log first few tasks to see their structure
-      if (tasks.length > 0) {
-        console.log('Sample task structure:', tasks[0]);
-        console.log('Task deadline type:', typeof tasks[0]?.taskDeadline);
-        console.log('Task deadline value:', tasks[0]?.taskDeadline);
-        
-        // Check if taskDeadline is a valid date
-        const sampleTask = tasks[0];
-        if (sampleTask.taskDeadline) {
-          const deadlineDate = new Date(sampleTask.taskDeadline);
-          console.log('Parsed deadline date:', deadlineDate);
-          console.log('Is valid date:', !isNaN(deadlineDate.getTime()));
-          console.log('Date month:', deadlineDate.getMonth());
-          console.log('Date day:', deadlineDate.getDate());
-          console.log('Date year:', deadlineDate.getFullYear());
-        }
+    const fetchTasks = async () => {
+      if (!user || !user.id) {
+        setIsLoadingTasks(false);
+        return;
       }
-    } else {
-      console.log('No tasks found or tasks is not an array');
-    }
-  }, [tasks]);
+      
+      try {
+        setIsLoadingTasks(true);
+        console.log('Fetching tasks for user:', user.id);
+        const response = await fetch(`/api/tasks/${user.id}`);
+        
+        if (response.ok) {
+          const tasksData = await response.json();
+          console.log('Tasks fetched:', tasksData);
+          console.log('Tasks type:', typeof tasksData, 'Is array:', Array.isArray(tasksData));
+          
+          if (tasksData && Array.isArray(tasksData)) {
+            console.log('Setting clientTasks with', tasksData.length, 'tasks');
+            setClientTasks(tasksData);
+            
+            // Debug: Log first few tasks to see their structure
+            if (tasksData.length > 0) {
+              console.log('Sample task structure:', tasksData[0]);
+              console.log('Task deadline type:', typeof tasksData[0]?.taskDeadline);
+              console.log('Task deadline value:', tasksData[0]?.taskDeadline);
+              
+              // Check if taskDeadline is a valid date
+              const sampleTask = tasksData[0];
+              if (sampleTask.taskDeadline) {
+                const deadlineDate = new Date(sampleTask.taskDeadline);
+                console.log('Parsed deadline date:', deadlineDate);
+                console.log('Is valid date:', !isNaN(deadlineDate.getTime()));
+                console.log('Date month:', deadlineDate.getMonth());
+                console.log('Date day:', deadlineDate.getDate());
+                console.log('Date year:', deadlineDate.getFullYear());
+              }
+            }
+          } else {
+            console.log('No tasks found or tasks is not an array');
+            setClientTasks([]);
+          }
+        } else {
+          console.error('Failed to fetch tasks:', response.status, response.statusText);
+          setClientTasks([]);
+        }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        setClientTasks([]);
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+    
+    fetchTasks();
+  }, [user]);
 
   // Function to remove HTML tags from text
   const stripHtmlTags = (html) => {
@@ -757,6 +824,15 @@ export default function Home({
   // Function to handle adding a new task (client-side API call)
   const handleAddTask = async (taskData) => {
     if (taskData.title && taskData.description && taskData.deadline) {
+      if (!user?.id) {
+        setAlertModal({
+          isOpen: true,
+          type: 'error',
+          title: 'خطأ',
+          message: 'يجب تسجيل الدخول أولاً'
+        });
+        return;
+      }
       try {
         console.log('Creating task for user:', user.id);
         const response = await fetch(`/api/tasks/add-with-random-search`, {
@@ -898,6 +974,20 @@ export default function Home({
       task: task
     });
   };
+
+  // Show loading state while authenticating or fetching user
+  if (!isAuthenticated || !user) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">جاري التحميل...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -1157,19 +1247,19 @@ export default function Home({
                   onClick={() => setTasksSectionState("myTasks")}
                   className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "myTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  مهامي <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length}</span>
+                  مهامي <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => !task.isCompleted && task.userId === user?.id).length}</span>
                 </button>
                 <button
                   onClick={() => setTasksSectionState("sentTasks")}
                   className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "sentTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length}</span>
+                  مهام مرسلة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.assignedBy === user?.id && !task.isCompleted).length}</span>
                 </button>
                 <button
                   onClick={() => setTasksSectionState("completedTasks")}
                   className={`text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${tasksSectionState === "completedTasks" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  مهام مكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length}</span>
+                  مهام مكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientTasks.filter(task => task.isCompleted && (task.userId === user?.id || task.assignedBy === user?.id)).length}</span>
                 </button>
               </nav>
             </div>
@@ -1177,7 +1267,14 @@ export default function Home({
             {/* My Tasks Tab */}
             {tasksSectionState === "myTasks" && (
               <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).slice(0, 3).map((task, index) => (
+                {isLoadingTasks ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+                    <span className="text-sm text-gray-500 mt-2 block">جاري تحميل المهام...</span>
+                  </div>
+                ) : (
+                  <>
+                    {clientTasks.filter(task => !task.isCompleted && task.userId === user?.id).slice(0, 3).map((task, index) => (
                   <li 
                     key={index} 
                     className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
@@ -1255,24 +1352,26 @@ export default function Home({
                       </div>
                     </div>
                   </li>
-                ))}
-                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length > 3 && (
-                  <div className="text-center py-2">
-                    <button 
-                      onClick={() => handleMoreTasksClick(
-                        clientTasks.filter(task => !task.isCompleted && task.userId === user.id), 
-                        'مهامي'
-                      )}
-                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
-                    >
-                      عرض المزيد ({clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length - 3} مهمة إضافية)
-                    </button>
-                  </div>
-                )}
-                {clientTasks.filter(task => !task.isCompleted && task.userId === user.id).length === 0 && (
-                  <div className="text-center py-8">
-                    <span className="text-sm text-gray-500">لا توجد مهام</span>
-                  </div>
+                    ))}
+                    {clientTasks.filter(task => !task.isCompleted && task.userId === user?.id).length > 3 && (
+                      <div className="text-center py-2">
+                        <button 
+                          onClick={() => handleMoreTasksClick(
+                            clientTasks.filter(task => !task.isCompleted && task.userId === user?.id), 
+                            'مهامي'
+                          )}
+                          className="text-sm text-teal-600 hover:text-teal-800 font-medium"
+                        >
+                          عرض المزيد ({clientTasks.filter(task => !task.isCompleted && task.userId === user?.id).length - 3} مهمة إضافية)
+                        </button>
+                      </div>
+                    )}
+                    {clientTasks.filter(task => !task.isCompleted && task.userId === user?.id).length === 0 && (
+                      <div className="text-center py-8">
+                        <span className="text-sm text-gray-500">لا توجد مهام</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </ul>
             )}
@@ -1280,7 +1379,14 @@ export default function Home({
             {/* Sent Tasks Tab */}
             {tasksSectionState === "sentTasks" && (
               <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-                {clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).slice(0, 3).map((task, index) => (
+                {isLoadingTasks ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+                    <span className="text-sm text-gray-500 mt-2 block">جاري تحميل المهام...</span>
+                  </div>
+                ) : (
+                  <>
+                    {clientTasks.filter(task => task.assignedBy === user?.id && !task.isCompleted).slice(0, 3).map((task, index) => (
                   <li 
                     key={index} 
                     className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
@@ -1357,24 +1463,26 @@ export default function Home({
                       </div>
                     </div>
                   </li>
-                ))}
-                {clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length > 3 && (
-                  <div className="text-center py-2">
-                    <button 
-                      onClick={() => handleMoreTasksClick(
-                        clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted), 
-                        'المهام المرسلة'
-                      )}
-                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
-                    >
-                      عرض المزيد ({clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length - 3} مهمة إضافية)
-                    </button>
-                  </div>
-                )}
-                {clientTasks.filter(task => task.assignedBy === user.id && !task.isCompleted).length === 0 && (
-                  <div className="text-center py-8">
-                    <span className="text-sm text-gray-500">لا توجد مهام مرسلة</span>
-                  </div>
+                    ))}
+                    {clientTasks.filter(task => task.assignedBy === user?.id && !task.isCompleted).length > 3 && (
+                      <div className="text-center py-2">
+                        <button 
+                          onClick={() => handleMoreTasksClick(
+                            clientTasks.filter(task => task.assignedBy === user?.id && !task.isCompleted), 
+                            'المهام المرسلة'
+                          )}
+                          className="text-sm text-teal-600 hover:text-teal-800 font-medium"
+                        >
+                          عرض المزيد ({clientTasks.filter(task => task.assignedBy === user?.id && !task.isCompleted).length - 3} مهمة إضافية)
+                        </button>
+                      </div>
+                    )}
+                    {clientTasks.filter(task => task.assignedBy === user?.id && !task.isCompleted).length === 0 && (
+                      <div className="text-center py-8">
+                        <span className="text-sm text-gray-500">لا توجد مهام مرسلة</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </ul>
             )}
@@ -1382,7 +1490,14 @@ export default function Home({
             {/* Completed Tasks Tab */}
             {tasksSectionState === "completedTasks" && (
               <ul className={`${Style["tajawal-medium"]} space-y-4`}>
-                {clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).slice(0, 3).map((task, index) => (
+                {isLoadingTasks ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+                    <span className="text-sm text-gray-500 mt-2 block">جاري تحميل المهام...</span>
+                  </div>
+                ) : (
+                  <>
+                    {clientTasks.filter(task => task.isCompleted && (task.userId === user?.id || task.assignedBy === user?.id)).slice(0, 3).map((task, index) => (
                   <li 
                     key={index} 
                     className="border px-3 rounded-md py-2 border-gray-200 pb-4 last:border-0 hover:bg-gray-50 transition-colors"
@@ -1450,24 +1565,26 @@ export default function Home({
                       </div>
                     </div>
                   </li>
-                ))}
-                {clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length > 3 && (
-                  <div className="text-center py-2">
-                    <button 
-                      onClick={() => handleMoreTasksClick(
-                        clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)), 
-                        'المهام المكتملة'
-                      )}
-                      className="text-sm text-teal-600 hover:text-teal-800 font-medium"
-                    >
-                      عرض المزيد ({clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length - 3} مهمة إضافية)
-                    </button>
-                  </div>
-                )}
-                {clientTasks.filter(task => task.isCompleted && (task.userId === user.id || task.assignedBy === user.id)).length === 0 && (
-                  <div className="text-center py-8">
-                    <span className="text-sm text-gray-500">لا توجد مهام مكتملة</span>
-                  </div>
+                    ))}
+                    {clientTasks.filter(task => task.isCompleted && (task.userId === user?.id || task.assignedBy === user?.id)).length > 3 && (
+                      <div className="text-center py-2">
+                        <button 
+                          onClick={() => handleMoreTasksClick(
+                            clientTasks.filter(task => task.isCompleted && (task.userId === user?.id || task.assignedBy === user?.id)), 
+                            'المهام المكتملة'
+                          )}
+                          className="text-sm text-teal-600 hover:text-teal-800 font-medium"
+                        >
+                          عرض المزيد ({clientTasks.filter(task => task.isCompleted && (task.userId === user?.id || task.assignedBy === user?.id)).length - 3} مهمة إضافية)
+                        </button>
+                      </div>
+                    )}
+                    {clientTasks.filter(task => task.isCompleted && (task.userId === user?.id || task.assignedBy === user?.id)).length === 0 && (
+                      <div className="text-center py-8">
+                        <span className="text-sm text-gray-500">لا توجد مهام مكتملة</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </ul>
             )}
@@ -1918,33 +2035,9 @@ export default function Home({
   );
 }
 
-// --- Server-Side Data Fetching ---
-export async function getServerSideProps(context) {
-  const { req } = context;
-
+// --- Static Site Generation with ISR ---
+export async function getStaticProps(context) {
   try {
-    const isAuthenticated = req.cookies.authToken ? true : false;
-    if (!isAuthenticated) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-let userforbutton = false;
-    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
-    console.log('User from token:', user);
-    const role = await prisma.user.findUnique({
-      where: {
-        id: Number(user?.id),
-      },
-    });
-    if(role?.roleId == 1) {
-      userforbutton = true;
-    } else {
-      userforbutton = false;
-    }
     // Helper function to fetch data from API
     const fetchDataFromApi = async (url) => {
       try {
@@ -1974,7 +2067,7 @@ let userforbutton = false;
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`http://localhost:3005/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https://wasl.rawaes.com/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -1987,7 +2080,7 @@ let userforbutton = false;
         externaldeparatureDate: { not: null },
       },
     });
-    // 2. Fetch all detailed data
+    // 2. Fetch all detailed data (excluding user-specific data like tasks)
     const [
       newOrdersRes,
       currentOrdersRes,
@@ -1998,31 +2091,29 @@ let userforbutton = false;
       externalDeparaturesRes,
       housedRes,
       sessionsRes,
-      relationsRes
-      ,
+      relationsRes,
       transferSponsorshipsRes,
       fullListRes,
       bookedListRes,
       availableListRes,
       foreignOfficesRes,
-      tasksRes,
     ] = await Promise.all([
-      fetchDataFromApi(`http://localhost:3005/api/neworderlistprisma/1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`http://localhost:3005/api/endedorders/`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`http://localhost:3005/api/deparatures`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/housed`),
-      fetchDataFromApi(`http://localhost:3005/api/sessions`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/clients`),
-      fetchDataFromApi(`http://localhost:3005/api/transfersponsorships`),
-      fetchDataFromApi(`http://localhost:3005/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
+      fetchDataFromApi(`https://wasl.rawaes.com/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/endedorders/`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/deparatures`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/sessions`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/clients`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/transfersponsorships`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/bookedlist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/availablelist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/externaloffices`),
+      // Tasks are now fetched client-side for user-specific data
     ]);
 
     // Mock events data (as in original)
@@ -2036,17 +2127,6 @@ let userforbutton = false;
       { title: "Arrival: Person 4", date: "2025-12-25" },
       { title: "Arrival: Person 5", date: "2025-11-30" },
     ];
-
-    // Debug: Log tasks data from API
-    console.log('Tasks API response:', tasksRes);
-    console.log('Tasks type:', typeof tasksRes, 'Is array:', Array.isArray(tasksRes));
-    if (tasksRes && Array.isArray(tasksRes)) {
-      console.log('Tasks count:', tasksRes.length);
-      if (tasksRes.length > 0) {
-        console.log('Sample task from API:', tasksRes[0]);
-      }
-    }
-console.log(arrivalsRes)
     // Process and structure the data for props
  
  
@@ -2056,12 +2136,9 @@ console.log(arrivalsRes)
           deparatureHousingDate: null,
         },
     });
-    console.log(housedCount)
     const propsData = {
- housedCount: housedCount,
-      user,
-      userforbutton,
-      // Data
+      housedCount: housedCount,
+      // Data (user, userforbutton, and tasks are now fetched client-side)
       newOrders: newOrdersRes?.data || [],
       currentOrders: currentOrdersRes?.data || [],
       endedOrders: endedOrdersRes?.homemaids || [],
@@ -2077,35 +2154,64 @@ console.log(arrivalsRes)
       bookedList: bookedListRes?.data || [],
       availableList: availableListRes?.data || [],
       foreignOffices: foreignOfficesRes?.data || [],
-      tasks: tasksRes || [], // Assuming the API returns an array of tasks
       events,
-      
       
       // Counts (using fetched data or falling back to initial counts)
       newOrdersLength: counts.neworderCount,
       currentOrdersLength: currentOrdersRes?.totalCount || 0,
       finished: endedOrdersRes?.homemaids?.length || counts.finished,
       cancelledorders: cancelledOrdersRes?.data?.length || counts.cancelledorders,
-      arrivalsLength:  arrivalsRes.arrivalsCount,
+      arrivalsLength: arrivalsRes?.arrivalsCount || 0,
       deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
       externaldeparaturesLength: countDeparaturesfromsaudi || 0,
       homeMaidsLength: fullListRes?.totalRecords || counts.workers,
       officesCount: foreignOfficesRes?.dataCount || 0,
-      transferSponsorshipsLength:  0,
+      transferSponsorshipsLength: 0,
       sessionsLength: sessionsRes?.totalResults || 0,
       clientsCount: relationsRes?.dataCount || 0,
     };
 
     return {
       props: propsData,
+      // Revalidate every 60 seconds (ISR - Incremental Static Regeneration)
+      revalidate: 60,
     };
   } catch (error) {
-    console.log("Error in getServerSideProps:", error);
+    console.log("Error in getStaticProps:", error);
+    // For SSG, return empty props on error instead of redirecting
     return {
-      redirect: {
-        destination: "/admin/login",
-        permanent: false,
+      props: {
+        newOrders: [],
+        currentOrders: [],
+        endedOrders: [],
+        cancelledOrders: [],
+        internalArrivals: [],
+        internalDeparatures: [],
+        externalDeparatures: [],
+        housed: [],
+        sessions: [],
+        relations: [],
+        transferSponsorships: [],
+        fullList: [],
+        bookedList: [],
+        availableList: [],
+        foreignOffices: [],
+        events: [],
+        newOrdersLength: 0,
+        housedCount: 0,
+        currentOrdersLength: 0,
+        finished: 0,
+        cancelledorders: 0,
+        arrivalsLength: 0,
+        deparaturesLength: 0,
+        externaldeparaturesLength: 0,
+        homeMaidsLength: 0,
+        officesCount: 0,
+        transferSponsorshipsLength: 0,
+        sessionsLength: 0,
+        clientsCount: 0,
       },
+      revalidate: 60,
     };
   }
 }
