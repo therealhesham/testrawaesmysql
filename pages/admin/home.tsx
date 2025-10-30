@@ -1950,7 +1950,7 @@ export async function getStaticProps() {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`http://localhost:3005/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https://wasl.rawaes.com/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -1982,21 +1982,21 @@ export async function getStaticProps() {
       availableListRes,
       foreignOfficesRes,
     ] = await Promise.all([
-      fetchDataFromApi(`http://localhost:3005/api/neworderlistprisma/1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`http://localhost:3005/api/endedorders/`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`http://localhost:3005/api/deparatures`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/housed`),
-      fetchDataFromApi(`http://localhost:3005/api/sessions`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/clients`),
-      fetchDataFromApi(`http://localhost:3005/api/transfersponsorships`),
-      fetchDataFromApi(`http://localhost:3005/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
-      fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/endedorders/`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/deparatures`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/sessions`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/clients`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/transfersponsorships`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/bookedlist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/availablelist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/externaloffices`),
     ]);
 
     // Mock events data (as in original)
