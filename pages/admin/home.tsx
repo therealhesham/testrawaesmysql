@@ -25,7 +25,7 @@ import {
 } from "react-icons/fa";
 import { useState, useRef } from "react";
 import { useRouter } from "next/router";
-// Removed server-only jwt import for SSG
+import jwt from "jsonwebtoken";
 import { ArrowLeftOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { PlusIcon, ArrowLeftIcon } from "@heroicons/react/solid";
 import Style from "/styles/Home.module.css";
@@ -1918,10 +1918,33 @@ export default function Home({
   );
 }
 
-// --- Static Site Generation ---
-export async function getStaticProps() {
+// --- Server-Side Data Fetching ---
+export async function getServerSideProps(context) {
+  const { req } = context;
+
   try {
-    let userforbutton = false; // no auth at build time
+    const isAuthenticated = req.cookies.authToken ? true : false;
+    if (!isAuthenticated) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
+    }
+let userforbutton = false;
+    const user = jwt.verify(req.cookies.authToken, "rawaesecret");
+    console.log('User from token:', user);
+    const role = await prisma.user.findUnique({
+      where: {
+        id: Number(user?.id),
+      },
+    });
+    if(role?.roleId == 1) {
+      userforbutton = true;
+    } else {
+      userforbutton = false;
+    }
     // Helper function to fetch data from API
     const fetchDataFromApi = async (url) => {
       try {
@@ -1999,7 +2022,7 @@ export async function getStaticProps() {
       fetchDataFromApi(`http://localhost:3005/api/bookedlist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/availablelist?page=1`),
       fetchDataFromApi(`http://localhost:3005/api/homeinitialdata/externaloffices`),
-      Promise.resolve([]), // tasks are user-specific; load client-side
+      fetchDataFromApi(`http://localhost:3005/api/tasks/${user.id}`), // Fetch tasks for the user
     ]);
 
     // Mock events data (as in original)
@@ -2036,7 +2059,7 @@ console.log(arrivalsRes)
     console.log(housedCount)
     const propsData = {
  housedCount: housedCount,
-      user: null,
+      user,
       userforbutton,
       // Data
       newOrders: newOrdersRes?.data || [],
@@ -2054,7 +2077,7 @@ console.log(arrivalsRes)
       bookedList: bookedListRes?.data || [],
       availableList: availableListRes?.data || [],
       foreignOffices: foreignOfficesRes?.data || [],
-      tasks: [], // user-specific; fetched client-side after mount
+      tasks: tasksRes || [], // Assuming the API returns an array of tasks
       events,
       
       
@@ -2075,43 +2098,14 @@ console.log(arrivalsRes)
 
     return {
       props: propsData,
-      revalidate: 60, // ISR for fresher data
     };
   } catch (error) {
-    console.log("Error in getStaticProps:", error);
-    return { props: { 
-      user: null,
-      userforbutton: false,
-      newOrders: [],
-      currentOrders: [],
-      endedOrders: [],
-      cancelledOrders: [],
-      internalArrivals: [],
-      internalDeparatures: [],
-      externalDeparatures: [],
-      housed: [],
-      sessions: [],
-      relations: [],
-      transferSponsorships: [],
-      fullList: [],
-      bookedList: [],
-      availableList: [],
-      foreignOffices: [],
-      tasks: [],
-      events: [],
-      newOrdersLength: 0,
-      currentOrdersLength: 0,
-      finished: 0,
-      cancelledorders: 0,
-      arrivalsLength: 0,
-      deparaturesLength: 0,
-      externaldeparaturesLength: 0,
-      homeMaidsLength: 0,
-      officesCount: 0,
-      transferSponsorshipsLength: 0,
-      sessionsLength: 0,
-      clientsCount: 0,
-      housedCount: 0,
-    }};
+    console.log("Error in getServerSideProps:", error);
+    return {
+      redirect: {
+        destination: "/admin/login",
+        permanent: false,
+      },
+    };
   }
 }
