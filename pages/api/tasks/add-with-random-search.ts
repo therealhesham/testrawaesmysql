@@ -1,11 +1,16 @@
 import prisma from "../globalprisma";
 import { NextApiRequest, NextApiResponse } from 'next';
-
+import jwt from "jsonwebtoken";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const token = req.cookies.authToken
+  console.log("token",token);
+  const decoded = jwt.verify(token, "rawaesecret") as any
+  const findUserByID = await prisma.user.findUnique({where:{id:decoded.id}})
+  if(Number(findUserByID?.roleId) !== 1) return res.status(401).json({ error: 'لا تملك صلاحية كافية لاضافة مهمة' });
   try {
     const { 
       userId, 
