@@ -76,9 +76,54 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'Error updating location', details: error.message });
     }
   }
+  // Handle DELETE request - Delete inHouseLocation
+  else if (req.method === 'DELETE') {
+    try {
+      if (!id || isNaN(Number(id))) {
+        return res.status(400).json({ error: 'Valid location ID is required' });
+      }
+
+      // Check if location exists and get current occupancy
+      const existingLocation = await prisma.inHouseLocation.findUnique({
+        where: { id: Number(id) },
+        include: {
+          housedWorkers: {
+            where: {
+              deparatureHousingDate: null
+            },
+            select: {
+              id: true,
+            }
+          }
+        }
+      });
+
+      if (!existingLocation) {
+        return res.status(404).json({ error: 'Location not found' });
+      }
+
+      // Check if there are active workers in this location
+      const currentOccupancy = existingLocation.housedWorkers.length;
+      if (currentOccupancy > 0) {
+        return res.status(400).json({ 
+          error: `لا يمكن حذف السكن لأنه يحتوي على ${currentOccupancy} عاملة مسكنة. يرجى نقل العاملات أولاً.` 
+        });
+      }
+
+      // Delete the location
+      await prisma.inHouseLocation.delete({
+        where: { id: Number(id) }
+      });
+
+      res.status(200).json({ message: 'تم حذف السكن بنجاح' });
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      res.status(500).json({ error: 'Error deleting location', details: error.message });
+    }
+  }
   // Handle unsupported methods
   else {
-    res.setHeader('Allow', ['PUT']);
+    res.setHeader('Allow', ['PUT', 'DELETE']);
     res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 }

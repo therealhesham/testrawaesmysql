@@ -3,7 +3,7 @@ import Head from 'next/head';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Style from 'styles/Home.module.css';
-import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal, Trash2 } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends } from 'react-icons/fa';
 import prisma from 'pages/api/globalprisma';
@@ -190,7 +190,9 @@ setUserName(decoded.username);
     sessionModal:false,
     housingForm: false,
     internalWorkerModal: false,
+    deleteLocationConfirm: false,
   });
+  const [locationToDelete, setLocationToDelete] = useState<{ id: number; name: string } | null>(null);
   const [housedWorkers, setHousedWorkers] = useState<HousedWorker[]>([]);
   const [departedWorkers, setDepartedWorkers] = useState<HousedWorker[]>([]);
   const [locations, setLocations] = useState<InHouseLocation[]>([]);
@@ -381,6 +383,29 @@ setUserName(decoded.username);
       setLocations(response.data);
     } catch (error) {
       showNotification('خطأ في جلب بيانات المواقع', 'error');
+    }
+  };
+
+  // Handle delete location
+  const handleDeleteLocation = (location: InHouseLocation) => {
+    setLocationToDelete({ id: location.id, name: location.location });
+    openModal('deleteLocationConfirm');
+  };
+
+  const confirmDeleteLocation = async () => {
+    if (!locationToDelete) return;
+
+    try {
+      await axios.delete(`/api/inhouselocation/${locationToDelete.id}`);
+      showNotification('تم حذف السكن بنجاح');
+      closeModal('deleteLocationConfirm');
+      setLocationToDelete(null);
+      fetchLocations();
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'حدث خطأ أثناء حذف السكن';
+      showNotification(errorMessage, 'error');
+      closeModal('deleteLocationConfirm');
+      setLocationToDelete(null);
     }
   };
   // Fetch homemaids
@@ -1217,7 +1242,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
                   <div key={location.id} className="bg-gray-100 border border-gray-300 rounded-md p-3 text-right relative">
-                    <div className="absolute top-2 left-2">
+                    <div className="absolute top-2 left-2 flex gap-1">
                       <button
                         onClick={() => {
                           setEditingLocation(location);
@@ -1227,6 +1252,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         title="تعديل"
                       >
                         <MoreHorizontal className="w-5 h-5 text-gray-600" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLocation(location)}
+                        className="p-1 rounded-full hover:bg-red-100 transition-colors"
+                        title="حذف السكن"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-600" />
                       </button>
                     </div>
                     <h3 className="text-md font-normal mb-1">{location.location}</h3>
@@ -2876,6 +2908,51 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            )}
+            {/* Delete Location Confirmation Modal */}
+            {modals.deleteLocationConfirm && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('deleteLocationConfirm')}
+              >
+                <div
+                  className="bg-white rounded-xl p-8 w-full max-w-md shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-center items-center mb-6">
+                    <div className="bg-red-100 rounded-full p-4">
+                      <Trash2 className="w-8 h-8 text-red-600" />
+                    </div>
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900 text-center mb-4">
+                    تأكيد حذف السكن
+                  </h2>
+                  <p className="text-base text-gray-600 text-center mb-6">
+                    هل أنت متأكد من رغبتك في حذف السكن <span className="font-semibold text-gray-900">{locationToDelete?.name}</span>؟
+                    <br />
+                    <span className="text-sm text-red-600 mt-2 block">هذا الإجراء لا يمكن التراجع عنه</span>
+                  </p>
+                  <div className="flex justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeModal('deleteLocationConfirm');
+                        setLocationToDelete(null);
+                      }}
+                      className="bg-white text-gray-700 border border-gray-300 rounded-md w-28 h-10 text-base hover:bg-gray-50"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDeleteLocation}
+                      className="bg-red-600 text-white rounded-md w-28 h-10 text-base hover:bg-red-700"
+                    >
+                      حذف
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

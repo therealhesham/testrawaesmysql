@@ -416,19 +416,19 @@ export default function TrackOrder() {
   const handleStepClick = (stepIndex: number) => {
     setCurrentStep(stepIndex);
     
-    // Map step indices to section IDs
+    // Map step indices to section IDs - يجب أن يتطابق مع ترتيب steps في OrderStepper
     const stepToSectionMap: { [key: number]: string } = {
-      0: 'office-link-info',
-      1: 'external-office-info', 
-      2: 'external-office-approval',
-      3: 'medical-check',
-      4: 'foreign-labor-approval',
-      5: 'agency-payment',
-      6: 'saudi-embassy-approval',
-      7: 'visa-issuance',
-      8: 'travel-permit',
-      9: 'destinations',
-      10: 'receipt'
+      0: 'office-link-info',          // الربط مع إدارة المكاتب
+      1: 'external-office-info',       // المكتب الخارجي
+      2: 'external-office-approval',   // موافقة المكتب الخارجي
+      3: 'medical-check',              // الفحص الطبي
+      4: 'foreign-labor-approval',     // موافقة وزارة العمل الأجنبية
+      5: 'agency-payment',             // دفع الوكالة
+      6: 'saudi-embassy-approval',      // موافقة السفارة
+      7: 'visa-issuance',               // إصدار التأشيرة
+      8: 'travel-permit',               // تصريح السفر
+      9: 'destinations',                // الوجهات
+      10: 'receipt'                     // الاستلام
     };
 
     const sectionId = stepToSectionMap[stepIndex];
