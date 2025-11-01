@@ -10,11 +10,11 @@ interface OrderStepperProps {
 }
 
 const steps = [
-  { label: 'تم التعاقد مع إدارة المكاتب', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'الربط مع المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'الربط مع إدارة المكاتب', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
   { label: 'موافقة المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'موافقة وزارة العمل الأجنبية', icon: <CheckCircle className="w-5 h-5" /> },
   { label: 'الفحص الطبي', icon: <CheckCircle className="w-5 h-5" /> },
+  { label: 'موافقة وزارة العمل الأجنبية', icon: <CheckCircle className="w-5 h-5" /> },
   { label: 'دفع الوكالة', icon: <CheckCircle className="w-5 h-5" /> },
   { label: 'موافقة السفارة', icon: <CheckCircle className="w-5 h-5" /> },
   { label: 'إصدار التأشيرة', icon: <CheckCircle className="w-5 h-5" /> },
@@ -23,28 +23,57 @@ const steps = [
   { label: 'الاستلام', icon: <CheckCircle className="w-5 h-5" /> },
 ];
 
-const statusToStepMap: { [key: string]: number } = {
-  pending_external_office: 0,
-  external_office_approved: 1,
-  medical_check_passed: 2,
-  pending_medical_check: 2,
-  foreign_labor_approved: 3,
-  pending_foreign_labor: 3,
-  agency_paid: 4,
-  pending_agency_payment: 4,
-  embassy_approved: 5,
-  pending_embassy: 5,
-  visa_issued: 6,
-  pending_visa: 6,
-  travel_permit_issued: 7,
-  pending_travel_permit: 7,
-  received: 8,
-  pending_receipt: 8,
-  cancelled: -1,
-};
+// دالة لحساب الخطوة النشطة بناءً على bookingStatus
+function calculateActiveStep(status: string | null | undefined): number {
+  if (!status || status === 'cancelled') {
+    return status === 'cancelled' ? -1 : 0;
+  }
+
+  // خريطة الحالات إلى الخطوات النشطة
+  // الخطوة النشطة هي الخطوة التي يجب أن يكون المستخدم فيها حالياً
+  const statusStepMap: { [key: string]: number } = {
+    // الخطوة 0: الربط مع إدارة المكاتب (البداية)
+    pending_external_office: 0,
+    
+    // الخطوة 2: موافقة المكتب الخارجي
+    // (الخطوة 1 هي "المكتب الخارجي" - خطوة معلوماتية فقط)
+    external_office_approved: 2,
+    
+    // الخطوة 3: الفحص الطبي
+    medical_check_passed: 3,
+    pending_medical_check: 3, // الخطوة الحالية هي الفحص الطبي
+    
+    // الخطوة 4: موافقة وزارة العمل الأجنبية
+    foreign_labor_approved: 4,
+    pending_foreign_labor: 4, // الخطوة الحالية هي موافقة العمل الأجنبية
+    
+    // الخطوة 5: دفع الوكالة
+    agency_paid: 5,
+    pending_agency_payment: 5, // الخطوة الحالية هي دفع الوكالة
+    
+    // الخطوة 6: موافقة السفارة
+    embassy_approved: 6,
+    pending_embassy: 6, // الخطوة الحالية هي موافقة السفارة
+    
+    // الخطوة 7: إصدار التأشيرة
+    visa_issued: 7,
+    pending_visa: 7, // الخطوة الحالية هي إصدار التأشيرة
+    
+    // الخطوة 8: تصريح السفر
+    travel_permit_issued: 8,
+    pending_travel_permit: 8, // الخطوة الحالية هي تصريح السفر
+    
+    // الخطوة 9: الوجهات
+    // الخطوة 10: الاستلام
+    received: 10,
+    pending_receipt: 9, // الخطوة الحالية هي الوجهات (9) قبل الاستلام (10)
+  };
+
+  return statusStepMap[status] ?? 0;
+}
 
 export default function OrderStepper({ status, onStepClick }: OrderStepperProps) {
-  const activeStep = statusToStepMap[status] ?? 0;
+  const activeStep = calculateActiveStep(status);
 
   if (status === 'cancelled') {
     return (
