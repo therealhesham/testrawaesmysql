@@ -31,6 +31,44 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('professions');
+  // SLA offices state
+  const [offices, setOffices] = useState<any[]>([]);
+  const [slaRules, setSlaRules] = useState<any[]>([]);
+  const [isSlaModalOpen, setIsSlaModalOpen] = useState(false);
+  const [slaForm, setSlaForm] = useState<{ officeName: string; stage: string; days: string }>({ officeName: '', stage: '', days: '' });
+
+  const stages = [
+    { value: 'medicalCheck', label: 'كشف طبي' },
+    { value: 'foreignLaborApproval', label: 'موافقة وزارة العمل الأجنبية' },
+    { value: 'saudiEmbassyApproval', label: 'موافقة السفارة السعودية' },
+    { value: 'visaIssuance', label: 'إصدار التأشيرة' },
+    { value: 'travelPermit', label: 'تصريح السفر' },
+  ];
+
+  const fetchOffices = async () => {
+    try {
+      const res = await fetch('/api/offices');
+      const data = await res.json();
+      setOffices(data.items || []);
+    } catch (e) {
+      console.error('فشل جلب المكاتب');
+    }
+  };
+  const fetchSlaRules = async () => {
+    try {
+      const res = await fetch('/api/offices-sla');
+      const data = await res.json();
+      setSlaRules(data.items || []);
+    } catch (e) {
+      console.error('فشل جلب SLA');
+    }
+  };
+  useEffect(() => {
+    if (activeTab === 'offices') {
+      fetchOffices();
+      fetchSlaRules();
+    }
+  }, [activeTab]);
 
   // جلب المهن
   const fetchProfessions = async () => {
@@ -283,7 +321,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           >
             إدارة المهن
           </button>
-          <button 
+          {/* <button 
             onClick={() => setActiveTab('statements')}
             className={`pb-3 px-6 font-medium text-sm transition ${
               activeTab === 'statements' 
@@ -292,7 +330,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
             }`}
           >
             إدارة البيان
-          </button>
+          </button> */}
           <button 
             onClick={() => setActiveTab('offices')}
             className={`pb-3 px-6 font-medium text-sm transition ${
@@ -350,10 +388,10 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           <>
          
          
-        {activeTab === 'statements' && (
+        {/* {activeTab === 'statements' && (
           <div className="bg-white rounded-lg p-8 shadow-sm">
           </div>
-        )}
+        )} */}
  </>
         )}
 
@@ -363,10 +401,135 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           {activeTab === 'offices' && (
           <div className="bg-white rounded-lg p-8 shadow-sm">
             <h3 className="text-xl font-semibold text-gray-800 mb-6">إدارة المكاتب الخارجية</h3>
-            
-       
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-sm text-gray-600">تخصيص مهلة المراحل لكل مكتب خارجي</div>
+              <button
+                onClick={() => {
+                  setSlaForm({ officeName: '', stage: '', days: '' });
+                  setIsSlaModalOpen(true);
+                }}
+                className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900"
+              >
+                تخصيص
+              </button>
+            </div>
 
-       
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-teal-800 text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-right">المكتب</th>
+                    <th className="px-4 py-3 text-right">المرحلة</th>
+                    <th className="px-4 py-3 text-right">المدة (يوم)</th>
+                    <th className="px-4 py-3 text-right">#</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slaRules.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-gray-500">لا توجد إعدادات</td>
+                    </tr>
+                  ) : (
+                    slaRules.map((r: any) => (
+                      <tr key={r.id} className="odd:bg-gray-50">
+                        <td className="px-4 py-3">{r.officeName}</td>
+                        <td className="px-4 py-3">{stages.find(s => s.value === r.stage)?.label || r.stage}</td>
+                        <td className="px-4 py-3">{r.days}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="text-red-600 hover:text-red-700"
+                            onClick={async () => {
+                              try {
+                                const qs = new URLSearchParams({ id: r.id }).toString();
+                                const res = await fetch(`/api/offices-sla?${qs}`, { method: 'DELETE' });
+                                if (res.ok) {
+                                  fetchSlaRules();
+                                  setSuccess('تم الحذف');
+                                  setTimeout(() => setSuccess(null), 2000);
+                                }
+                              } catch {}
+                            }}
+                          >
+                            حذف
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {isSlaModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setIsSlaModalOpen(false)}>
+                <div className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 p-6" onClick={(e) => e.stopPropagation()}>
+                  <h4 className="text-lg font-semibold mb-4 text-right">تخصيص مهلة مرحلة</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">المكتب</label>
+                      <select
+                        className="w-full border border-gray-300 rounded-md  py-2 bg-gray-50"
+                        value={slaForm.officeName}
+                        onChange={(e) => setSlaForm((p) => ({ ...p, officeName: e.target.value }))}
+                      >
+                        <option value="">اختر المكتب</option>
+                        {offices.map((o) => (
+                          <option key={o.id} value={o.office}>{o.office}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">المرحلة</label>
+                      <select
+                        className="w-full border border-gray-300 rounded-md  py-2 bg-gray-50"
+                        value={slaForm.stage}
+                        onChange={(e) => setSlaForm((p) => ({ ...p, stage: e.target.value }))}
+                      >
+                        <option value="">اختر المرحلة</option>
+                        {stages.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">المدة بالأيام</label>
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-full border border-gray-300 rounded-md  py-2 bg-gray-50"
+                        value={slaForm.days}
+                        onChange={(e) => setSlaForm((p) => ({ ...p, days: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button className="px-4 py-2 border border-gray-300 rounded-md" onClick={() => setIsSlaModalOpen(false)}>إلغاء</button>
+                    <button
+                      className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                      onClick={async () => {
+                        if (!slaForm.officeName || !slaForm.stage || !slaForm.days) return;
+                        try {
+                          const res = await fetch('/api/offices-sla', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ officeName: slaForm.officeName, stage: slaForm.stage, days: Number(slaForm.days) }),
+                          });
+                          if (res.ok) {
+                            setIsSlaModalOpen(false);
+                            fetchSlaRules();
+                            setSuccess('تم الحفظ بنجاح');
+                            setTimeout(() => setSuccess(null), 2000);
+                          }
+                        } catch (e) {}
+                      }}
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
         </>

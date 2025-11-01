@@ -29,6 +29,8 @@ interface HousedWorker {
   Reason: string;
   Details: string;
   isHasEntitlements?: boolean;
+  entitlementsCost?: number;
+  entitlementReason?: string;
   Order?: {
     Name: string;
     phone: string;
@@ -175,6 +177,7 @@ setUserName(decoded.username);
   const router = useRouter();
   const [modals, setModals] = useState({
     addResidence: false,
+    editResidence: false,
     editWorker: false,
     workerDeparture: false,
     session: false,
@@ -192,6 +195,7 @@ setUserName(decoded.username);
   const [departedWorkers, setDepartedWorkers] = useState<HousedWorker[]>([]);
   const [locations, setLocations] = useState<InHouseLocation[]>([]);
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
+  const [editingLocation, setEditingLocation] = useState<InHouseLocation | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [departedTotalCount, setDepartedTotalCount] = useState(0);
   const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
@@ -337,6 +341,10 @@ setUserName(decoded.username);
     if (modalName === 'housingForm') {
       setSelectedWorker(null);
       setWorkerSearchTerm('');
+    }
+    // Clear editing location when closing edit residence modal
+    if (modalName === 'editResidence') {
+      setEditingLocation(null);
     }
   };
   // Show notification modal
@@ -1134,14 +1142,20 @@ const exportToPDF = async () => {
     a.click();
     window.URL.revokeObjectURL(url);
   };
-  const [entitlementsCost, setEntitlementsCost] = useState(0);
+  const [entitlementsCost, setEntitlementsCost] = useState<string | number>(0);
   const [entitlementReason, setEntitlementReason] = useState('');
 const handleEntitlementsSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   try {
-    const response = await axios.post('/api/entitlemnthousedarrivalspage', { id: selectedWorker?.id, entitlementsCost: Number(entitlementsCost), entitlementReason });
+    const workerId = selectedWorker?.id || selectedWorkerId;
+    if (!workerId) {
+      showNotification('يرجى اختيار عاملة أولاً', 'error');
+      return;
+    }
+    const response = await axios.post('/api/entitlemnthousedarrivalspage', { id: workerId, entitlementsCost: Number(entitlementsCost), entitlementReason });
     showNotification('تم تسجيل المستحقات بنجاح');
     closeModal('amountModal');
+    fetchWorkers(); // Refresh the data
   } catch (error: any) {
     showNotification(error.response?.data?.error || 'خطأ في تسجيل المستحقات', 'error');
     closeModal('amountModal');
@@ -1202,7 +1216,19 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                 const color =
                   progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
-                  <div key={location.id} className="bg-gray-100 border border-gray-300 rounded-md p-3 text-right">
+                  <div key={location.id} className="bg-gray-100 border border-gray-300 rounded-md p-3 text-right relative">
+                    <div className="absolute top-2 left-2">
+                      <button
+                        onClick={() => {
+                          setEditingLocation(location);
+                          openModal('editResidence');
+                        }}
+                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                        title="تعديل"
+                      >
+                        <MoreHorizontal className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
                     <h3 className="text-md font-normal mb-1">{location.location}</h3>
                     <p className="text-md font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
                     <div className="flex justify-between text-md mb-2">
@@ -1452,13 +1478,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             <button
                               onClick={() => {
                                 setSelectedWorkerId(worker.id);
+                                setSelectedWorker({ id: worker.id });
                                 setEntitlementsCost(worker.entitlementsCost || 0);
                                 setEntitlementReason(worker.entitlementReason || '');
                                 openModal('amountModal');
                               }}
                               className="text-teal-800 hover:text-teal-600"
                             >
-                              {worker.entitlementsCost >0 ? 'نعم' : 'لا'}
+                              {(worker.entitlementsCost ?? 0) > 0 ? 'نعم' : 'لا'}
                             </button>
                           </td>}
                           {columnVisibility.notes && <td className="py-4 px-4 text-center">
@@ -1629,7 +1656,82 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('addResidence')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
+                      >
+                        الغاء
+                      </button>
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                        حفظ
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            {/* Edit Residence Modal */}
+            {modals.editResidence && editingLocation && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center   items-center z-50 "
+                onClick={() => closeModal('editResidence')}
+              >
+                <div
+                  className="bg-gray-200 rounded-lg p-6 justify-between    shadow-card  w-[600px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-5  ">
+                    <h2 className="text-xl font-bold text-textDark">تعديل سكن</h2>
+                    <button onClick={() => closeModal('editResidence')} className="text-textMuted text-2xl">
+                      &times;
+                    </button>
+                  </div>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                        try {
+                        await axios.put(`/api/inhouselocation/${editingLocation.id}`, {
+                          location: (e.target as any)['edit-residence-name'].value,
+                          quantity: Number((e.target as any)['edit-residence-capacity'].value),
+                        });
+                        showNotification('تم تعديل السكن بنجاح');
+                        closeModal('editResidence');
+                        fetchLocations();
+                      } catch (error) {
+                        showNotification('خطأ في تعديل السكن', 'error');
+                      }
+                    }}
+                    
+                  >
+                    <div className="grid grid-cols-2 gap-2 " >
+                    <div className="mb-4 ">
+                      <label htmlFor="edit-residence-name" className="block text-md mb-2 text-textDark">
+                        اسم السكن
+                      </label>
+                      <input
+                        type="text"
+                        id="edit-residence-name"
+                        defaultValue={editingLocation.location}
+                        placeholder="ادخل اسم السكن"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label htmlFor="edit-residence-capacity" className="block text-md mb-2 text-textDark">
+                        السعة
+                      </label>
+                      <input
+                        type="number"
+                        id="edit-residence-capacity"
+                        defaultValue={editingLocation.quantity}
+                        placeholder="ادخل السعة"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                      />
+                    </div>
+                    </div>
+                    <div className="flex justify-end gap-4 col-span-2">
+                      <button
+                        type="button"
+                        onClick={() => closeModal('editResidence')}
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
@@ -1680,7 +1782,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('notesModal')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
@@ -2241,7 +2343,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('editWorker')}
-                        className="bg-textMuted text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
                       >
                         الغاء
                       </button>
@@ -2441,13 +2543,10 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         <label className="block text-md text-gray-600 mb-2">المبلغ المستحق</label>
                         <input
                           type="number"
-                          // value="2000 ريال"
-                          value={entitlementsCost}
-                          onChange={(e) => setEntitlementsCost(e.target.value)}
-                          
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base"
-                          // readOnly
-                          // disabled={!selectedWorker || !selectedWorker.id}
+                          value={entitlementsCost.toString()}
+                          onChange={(e) => setEntitlementsCost(e.target.value === '' ? 0 : e.target.value)}
+                          disabled={!selectedWorker && !selectedWorkerId}
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base disabled:bg-gray-200 disabled:cursor-not-allowed"
                         />
                       </div>
                       <div>
@@ -2455,10 +2554,10 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         <input
                           type="text"
                           placeholder="سبب المبلغ المستحق"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-3 text-right text-base disabled:bg-gray-200 disabled:cursor-not-allowed"
                           value={entitlementReason}
                           onChange={(e) => setEntitlementReason(e.target.value)}
-                          disabled={!selectedWorker || !selectedWorker.id}
+                          disabled={!selectedWorker && !selectedWorkerId}
                         />
                       </div>
                     </div>

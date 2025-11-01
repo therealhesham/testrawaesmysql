@@ -40,6 +40,7 @@ console.log(id)
               travelPermit: true,
               externalOfficeStatus: true,
               medicalCheckFile: true,
+              medicalCheckDate: true,
               approvalPayment: true,
               EmbassySealing: true,
               visaNumber: true,
@@ -59,6 +60,12 @@ console.log(id)
               KingdomentryTime: true,
               receiptMethod: true,
             } as any,
+          },
+          DeliveryDetails: {
+            orderBy: {
+              id: 'desc',
+            },
+            take: 1,
           },
         },
       });
@@ -86,7 +93,9 @@ console.log(id)
         },
         applicationInfo: {
           applicationDate: order.createdAt?.toISOString().split('T')[0] || 'N/A',
-          applicationTime: order.createdAt?.toISOString().split('T')[1]?.split('.')[0] || 'N/A',
+          applicationTime: order.createdAt 
+            ? new Date(order.createdAt.getTime() + (3 * 60 * 60 * 1000)).toISOString().split('T')[1]?.split('.')[0] || 'N/A'
+            : 'N/A',
         },
         officeLinkInfo: {
           nationalId: order.client?.nationalId|| 'N/A',
@@ -103,10 +112,11 @@ console.log(id)
           approved: order.arrivals[0]?.externalOfficeStatus === 'approved',
         },
         medicalCheck: {
-          passed: !!order.arrivals[0]?.medicalCheckFile,
+          passed: !!order.arrivals[0]?.medicalCheckDate,
         },
+        medicalFile: order.arrivals[0]?.medicalCheckFile || null,
         foreignLaborApproval: {
-          approved: order.arrivals[0]?.externalOfficeStatus === 'approved',
+          approved: !!order.arrivals[0]?.foreignLaborApprovalDate,
         },
         agencyPayment: {
           paid: !!order.arrivals[0]?.approvalPayment,
@@ -142,6 +152,15 @@ console.log(id)
         documentUpload: {
           files: order.arrivals[0]?.additionalfiles || null,
         },
+        deliveryDetails: order.DeliveryDetails && order.DeliveryDetails.length > 0 ? {
+          deliveryDate: order.DeliveryDetails[0].deliveryDate 
+            ? (order.DeliveryDetails[0].deliveryDate as Date).toISOString().split('T')[0] 
+            : undefined,
+          deliveryTime: order.DeliveryDetails[0].deliveryTime || undefined,
+          deliveryFile: order.DeliveryDetails[0].deliveryFile || null,
+          deliveryNotes: order.DeliveryDetails[0].deliveryNotes || undefined,
+          cost: order.DeliveryDetails[0].cost ? order.DeliveryDetails[0].cost.toString() : undefined,
+        } : undefined,
       };
 const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
@@ -223,10 +242,12 @@ const cookieHeader = req.headers.cookie;
 
           case 'externalOfficeApproval':
             arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';
+            arrivalUpdate.ExternalOFficeApproval = value ? new Date() : null;
             updateData.bookingstatus = value ? 'external_office_approved' : 'pending_external_office';
             break;
           case 'medicalCheck':
-            arrivalUpdate.medicalCheckFile = value ? 'passed' : null;
+            arrivalUpdate.medicalCheckFile = value ? undefined : null;
+            arrivalUpdate.medicalCheckDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'medical_check_passed' : 'pending_medical_check';
             break;
           case 'foreignLaborApproval':
@@ -244,10 +265,12 @@ const cookieHeader = req.headers.cookie;
             break;
           case 'visaIssuance':
             arrivalUpdate.visaNumber = value ? `VISA-${id}-${Date.now()}` : null;
+            arrivalUpdate.visaIssuanceDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'visa_issued' : 'pending_visa';
             break;
           case 'travelPermit':
             arrivalUpdate.travelPermit = value ? 'issued' : null;
+            arrivalUpdate.travelPermitDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'travel_permit_issued' : 'pending_travel_permit';
             break;
           case 'receipt':
@@ -314,6 +337,11 @@ const cookieHeader = req.headers.cookie;
 
 
         switch (section) {
+          case 'medical':
+            if (updatedData.medicalCheckFile) {
+              arrivalUpdate.medicalCheckFile = updatedData.medicalCheckFile;
+            }
+            break;
           case 'homemaidInfo':
 
           console.log('order.HomemaidId:', order.HomemaidId);
@@ -395,13 +423,55 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             }
             break;
           case 'documentUpload':
-            if (updatedData.files) {
+            if (updatedData.hasOwnProperty('files')) {
               arrivalUpdate.additionalfiles = updatedData.files;
             }
             break;
           case 'receipt':
             if (updatedData.method) {
               arrivalUpdate.receiptMethod = updatedData.method;
+            }
+            break;
+          case 'deliveryDetails':
+            // Handle deliveryDetails - create or update DeliveryDetails record
+            const deliveryData: any = {};
+            
+            if (updatedData.deliveryDate) {
+              deliveryData.deliveryDate = new Date(updatedData.deliveryDate);
+            }
+            if (updatedData.deliveryTime) {
+              deliveryData.deliveryTime = updatedData.deliveryTime;
+            }
+            if (updatedData.deliveryFile !== undefined) {
+              deliveryData.deliveryFile = updatedData.deliveryFile;
+            }
+            if (updatedData.deliveryNotes !== undefined) {
+              deliveryData.deliveryNotes = updatedData.deliveryNotes;
+            }
+            if (updatedData.cost !== undefined && updatedData.cost !== '') {
+              deliveryData.cost = parseFloat(updatedData.cost.toString());
+            }
+            
+            // Check if DeliveryDetails exists for this order
+            const existingDeliveryDetails = await prisma.deliveryDetails.findFirst({
+              where: { newOrderId: Number(id) },
+              orderBy: { id: 'desc' },
+            });
+
+            if (existingDeliveryDetails) {
+              // Update existing record
+              await prisma.deliveryDetails.update({
+                where: { id: existingDeliveryDetails.id },
+                data: deliveryData,
+              });
+            } else {
+              // Create new record
+              await prisma.deliveryDetails.create({
+                data: {
+                  ...deliveryData,
+                  newOrderId: Number(id),
+                },
+              });
             }
             break;
           default:
@@ -467,7 +537,7 @@ BeneficiaryId: Number(id),
       return res.status(400).json({ error: 'Invalid request' });
     } catch (error) {
       console.error('Error updating order:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error:  'Internal server error' });
     }
   }
 

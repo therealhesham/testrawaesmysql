@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const homemaids = await prisma.neworder.findMany({
     orderBy: { id: "desc" },
     where: {
-      arrivals: { some: { KingdomentryDate: { lte: ninetyDaysAgo } } },
+      // arrivals: { some: { KingdomentryDate: { lte: ninetyDaysAgo } } },
       ...filters,
       bookingstatus: { in: ["received"] },
     },
@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const totalCount = await prisma.neworder.count({
     where: {
-      arrivals: { some: { KingdomentryDate: { lte: ninetyDaysAgo } } },
+      // arrivals: { some: { KingdomentryDate: { lte: ninetyDaysAgo } } },
       ...filters,
       bookingstatus: { in: ["received"] },
     },
@@ -81,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
  else if (req.method === "POST") {
       const updatedOrder = await prisma.neworder.update({
         where: { id: Number(req.body.id) },
-        data: { bookingstatus: "delivered" },
+        data: { bookingstatus: "received" },
       });
       return res.status(200).json(updatedOrder);
     }
@@ -91,4 +91,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } finally {
     await prisma.$disconnect();
   }
-}
+}     

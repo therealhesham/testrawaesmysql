@@ -32,6 +32,11 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   const [isSaving, setIsSaving] = useState(false);
 
   const validateInput = (key: string, value: string): string | null => {
+  // Check if "تاريخ مساند" is required
+  if (key === 'تاريخ مساند' && value == 'N/A') {
+    return 'تاريخ مساند مطلوب';
+  }
+
   // Check if the key is related to a date field
   if (key.includes('تاريخ') && value) {
     const today = new Date();

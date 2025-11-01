@@ -50,6 +50,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
   const [homemaids] = useState(initialData?.homemaids || []);
   const [offices] = useState(initialData?.offices || []);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRevalidating, setIsRevalidating] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [formData, setFormData] = useState({
@@ -314,14 +315,19 @@ autoFocus
       if (confirmRequest.status === 200) {
         setModalMessage(getSuccessMessage('orderAccepted'));
         setShowSuccessModal(true);
-        // Refresh data by reloading the page
-        window.location.reload();
+        closePopup();
+        // Show loader for 15 seconds (revalidation duration)
+        setIsRevalidating(true);
+        setTimeout(() => {
+          // Refresh data by reloading the page
+          window.location.reload();
+        }, 15000);
       }
     } catch (error) {
       setModalMessage(getErrorMessage('generalError'));
       setShowErrorModal(true);
+      closePopup();
     }
-    closePopup();
   };
 
   const confirmReject = async (id: string) => {
@@ -330,13 +336,18 @@ autoFocus
       if (rejectRequest.status === 200) {
         setModalMessage(getSuccessMessage('orderRejected'));
         setShowSuccessModal(true);
-        router.push("/admin/rejectedorders");
+        closePopup();
+        // Show loader for 15 seconds (revalidation duration)
+        setIsRevalidating(true);
+        setTimeout(() => {
+          router.push("/admin/rejectedorders");
+        }, 15000);
       }
     } catch (error) {
       setModalMessage(getErrorMessage('generalError'));
       setShowErrorModal(true);
+      closePopup();
     }
-    closePopup();
   };
 
   const handleOrderClick = (id: string) => {
@@ -1331,6 +1342,17 @@ useEffect(() => {
             )}
           </div>
         )}
+        {isRevalidating && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 z-[2000] flex items-center justify-center">
+            <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-teal-900 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-lg font-medium text-teal-900">جاري إعادة التحقق من البيانات...</p>
+                <p className="text-sm text-gray-600">يرجى الانتظار 15 ثانية</p>
+              </div>
+            </div>
+          </div>
+        )}
         {hasPermission ? renderRequests() : (
           <div className="p-6 min-h-screen">
             <h1 className="text-3xl font-normal"></h1>
@@ -1464,7 +1486,7 @@ export async function getStaticProps() {
         hasPermission: true, // Static pages can't check auth, handle in component
         initialData: serializedData
       },
-      revalidate: 60, // Revalidate every 60 seconds
+      revalidate: 15, // Revalidate every 30 seconds
     };
   } catch (err) {
     console.error("Static generation error:", err);

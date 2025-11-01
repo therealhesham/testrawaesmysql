@@ -30,6 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (token.exp && token.exp < currentTime) {
         return res.status(401).json({ error: 'Token expired' });
       }
+      
 
       // Return user info
       return res.status(200).json({ 
