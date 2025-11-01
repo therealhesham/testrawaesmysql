@@ -2296,10 +2296,10 @@ export async function getStaticProps(context) {
       housedRes,
       sessionsRes,
       relationsRes,
-      // transferSponsorshipsRes,
+      transferSponsorshipsRes,
       fullListRes,
       bookedListRes,
-      // availableListRes,
+      availableListRes,
       foreignOfficesRes,
     ] = await Promise.all([
       fetchDataFromApi(`https:/wasl.rawaes.com/api/neworderlistprisma/1`),
@@ -2312,10 +2312,10 @@ export async function getStaticProps(context) {
       fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/housed`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/sessions`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/clients`),
-      // fetchDataFromApi(`https:/wasl.rawaes.com/api/transfersponsorships`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/transfersponsorships`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/homemaidprisma?page=1`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/bookedlist?page=1`),
-      // fetchDataFromApi(`https:/wasl.rawaes.com/api/availablelist?page=1`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/availablelist?page=1`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/externaloffices`),
       // Tasks are now fetched client-side for user-specific data
     ]);
