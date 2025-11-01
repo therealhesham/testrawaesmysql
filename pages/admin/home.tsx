@@ -998,7 +998,7 @@ export default function Home({
       const response = await fetch('/api/confirmrequest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: orderActionModal.orderId.toString() }),
+        body: JSON.stringify({ id: Number(orderActionModal.orderId) }),
       });
 
       if (response.ok) {
