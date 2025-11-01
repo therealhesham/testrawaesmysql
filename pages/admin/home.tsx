@@ -62,7 +62,7 @@ function getDate(date) {
 const NewOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
-      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
+      <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(order.id)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
@@ -528,6 +528,16 @@ export default function Home({
     message: ''
   });
 
+  // State for order action modal (accept/reject)
+  const [orderActionModal, setOrderActionModal] = useState({
+    isOpen: false,
+    orderId: null as number | null,
+    action: null as 'accept' | 'reject' | null,
+  });
+
+  // State for rejection reason
+  const [rejectionReason, setRejectionReason] = useState('');
+
   // Fetch tasks client-side when user is authenticated
   React.useEffect(() => {
     const fetchTasks = async () => {
@@ -654,39 +664,35 @@ export default function Home({
   };
 
   const getTasksForDay = (day) => {
-    // Debug: Log all tasks and their dates
-    if (day === 1) { // Only log for first day to avoid spam
-      console.log('=== TASKS DEBUG ===');
-      console.log('Current month:', monthIndex, 'Current year:', year);
-      console.log('Total clientTasks:', clientTasks.length);
-      console.log('All tasks:', clientTasks.map(task => ({
-        id: task.id,
-        title: task.Title,
-        deadline: task.taskDeadline,
-        isCompleted: task.isCompleted,
-        parsedDate: new Date(task.taskDeadline)
-      })));
+    if (!clientTasks || clientTasks.length === 0) {
+      return [];
     }
     
     const filteredTasks = clientTasks.filter((task) => {
-      const taskDate = new Date(task.taskDeadline);
-      const taskMonth = taskDate.getMonth();
-      const taskDay = taskDate.getDate();
-      const taskYear = taskDate.getFullYear();
-      const matches = taskMonth === monthIndex && taskDay === day && !task.isCompleted;
-      
-      // Debug logging for each task
-      if (day === 1) { // Only log for first day to avoid spam
-        console.log(`Task ${task.id}: deadline=${task.taskDeadline}, parsed=${taskDate}, month=${taskMonth}, day=${taskDay}, year=${taskYear}, matches=${matches}`);
+      // Check if task has a valid deadline
+      if (!task.taskDeadline) {
+        return false;
       }
       
-      return matches;
+      try {
+        const taskDate = new Date(task.taskDeadline);
+        
+        // Check if date is valid
+        if (isNaN(taskDate.getTime())) {
+          return false;
+        }
+        
+        const taskMonth = taskDate.getMonth();
+        const taskDay = taskDate.getDate();
+        const taskYear = taskDate.getFullYear();
+        
+        // Match: same month, day, and year, and task is not completed
+        return taskMonth === monthIndex && taskDay === day && taskYear === year && !task.isCompleted;
+      } catch (error) {
+        console.error('Error parsing task deadline:', task.taskDeadline, error);
+        return false;
+      }
     });
-    
-    // Debug logging
-    if (filteredTasks.length > 0) {
-      console.log(`Found ${filteredTasks.length} tasks for day ${day} in month ${monthIndex}`);
-    }
     
     return filteredTasks;
   };
@@ -973,6 +979,105 @@ export default function Home({
       isOpen: true,
       task: task
     });
+  };
+
+  // Function to handle order click (open accept/reject modal)
+  const handleOrderItemClick = (orderId: number) => {
+    setOrderActionModal({
+      isOpen: true,
+      orderId: orderId,
+      action: null,
+    });
+  };
+
+  // Function to confirm accept order
+  const confirmAcceptOrder = async () => {
+    if (!orderActionModal.orderId) return;
+
+    try {
+      const response = await fetch('/api/confirmrequest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderActionModal.orderId.toString() }),
+      });
+
+      if (response.ok) {
+        setAlertModal({
+          isOpen: true,
+          type: 'success',
+          title: 'تم القبول بنجاح',
+          message: 'تم قبول الطلب بنجاح'
+        });
+        setOrderActionModal({ isOpen: false, orderId: null, action: null });
+        
+        // Refresh page after 2 seconds
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        throw new Error('Failed to accept order');
+      }
+    } catch (error) {
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء قبول الطلب'
+      });
+      console.error('Error accepting order:', error);
+    }
+  };
+
+  // Function to confirm reject order
+  const confirmRejectOrder = async () => {
+    if (!orderActionModal.orderId) return;
+
+    if (!rejectionReason.trim()) {
+      setAlertModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'تنبيه',
+        message: 'يرجى كتابة سبب الرفض'
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/rejectbookingprisma', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: orderActionModal.orderId.toString(),
+          ReasonOfRejection: rejectionReason 
+        }),
+      });
+
+      if (response.ok) {
+        setAlertModal({
+          isOpen: true,
+          type: 'success',
+          title: 'تم الرفض بنجاح',
+          message: 'تم رفض الطلب بنجاح'
+        });
+        setOrderActionModal({ isOpen: false, orderId: null, action: null });
+        setRejectionReason('');
+        
+        // Refresh page after 2 seconds
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        throw new Error('Failed to reject order');
+      }
+    } catch (error) {
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء رفض الطلب'
+      });
+      console.error('Error rejecting order:', error);
+    }
   };
 
   // Show loading state while authenticating or fetching user
@@ -1640,7 +1745,7 @@ export default function Home({
               عرض الكل
             </a>
           </header>
-          {ordersSectionState === "newOrders" && <NewOrdersTab orders={newOrders} count={newOrdersLength} onItemClick={handleItemClick} />}
+          {ordersSectionState === "newOrders" && <NewOrdersTab orders={newOrders} count={newOrdersLength} onItemClick={handleOrderItemClick} />}
           {ordersSectionState === "currentOrders" && <CurrentOrdersTab orders={currentOrders} count={currentOrdersLength} onItemClick={handleItemClick} />}
           {ordersSectionState === "endedOrders" && <EndedOrdersTab orders={endedOrders} count={finished} onItemClick={handleItemClick} />}
           {ordersSectionState === "cancelledOrders" && <CancelledOrdersTab orders={cancelledOrders} count={cancelledorders} onItemClick={handleItemClick} />}
@@ -2030,6 +2135,105 @@ export default function Home({
           onTaskUpdate={handleTaskUpdate}
           currentUser={user}
         />
+
+        {/* Order Action Modal (Accept/Reject) */}
+        {orderActionModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-800">
+                  إجراء على الطلب #{orderActionModal.orderId}
+                </h3>
+                <button
+                  onClick={() => {
+                    setOrderActionModal({ isOpen: false, orderId: null, action: null });
+                    setRejectionReason('');
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {orderActionModal.action === null ? (
+                // Initial selection: Accept or Reject
+                <div className="space-y-4">
+                  <p className="text-gray-600 mb-4">اختر الإجراء المناسب للطلب:</p>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => setOrderActionModal({ ...orderActionModal, action: 'accept' })}
+                      className="w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition duration-200 text-base font-medium"
+                    >
+                      قبول الطلب
+                    </button>
+                    <button
+                      onClick={() => setOrderActionModal({ ...orderActionModal, action: 'reject' })}
+                      className="w-full bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition duration-200 text-base font-medium"
+                    >
+                      رفض الطلب
+                    </button>
+                    <button
+                      onClick={() => router.push(`/admin/track_order/${orderActionModal.orderId}`)}
+                      className="w-full bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition duration-200 text-base font-medium"
+                    >
+                      عرض تفاصيل الطلب
+                    </button>
+                  </div>
+                </div>
+              ) : orderActionModal.action === 'accept' ? (
+                // Confirm Accept
+                <div className="space-y-4">
+                  <p className="text-gray-600 mb-4">هل أنت متأكد من قبول هذا الطلب؟</p>
+                  <div className="flex justify-between gap-3">
+                    <button
+                      onClick={() => setOrderActionModal({ ...orderActionModal, action: null })}
+                      className="flex-1 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
+                    >
+                      رجوع
+                    </button>
+                    <button
+                      onClick={confirmAcceptOrder}
+                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200"
+                    >
+                      نعم، قبول
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Reject with reason
+                <div className="space-y-4">
+                  <p className="text-gray-600 mb-2">يرجى كتابة سبب رفض الطلب:</p>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="اكتب السبب هنا..."
+                    className="w-full p-3 border border-gray-300 rounded-lg text-right resize-none"
+                    rows={4}
+                  />
+                  <div className="flex justify-between gap-3">
+                    <button
+                      onClick={() => {
+                        setOrderActionModal({ ...orderActionModal, action: null });
+                        setRejectionReason('');
+                      }}
+                      className="flex-1 bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200"
+                    >
+                      رجوع
+                    </button>
+                    <button
+                      onClick={confirmRejectOrder}
+                      className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200"
+                    >
+                      تأكيد الرفض
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
@@ -2067,7 +2271,7 @@ export async function getStaticProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`https://wasl.rawaes.com/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https:/wasl.rawaes.com/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -2092,27 +2296,27 @@ export async function getStaticProps(context) {
       housedRes,
       sessionsRes,
       relationsRes,
-      transferSponsorshipsRes,
+      // transferSponsorshipsRes,
       fullListRes,
       bookedListRes,
-      availableListRes,
+      // availableListRes,
       foreignOfficesRes,
     ] = await Promise.all([
-      fetchDataFromApi(`https://wasl.rawaes.com/api/neworderlistprisma/1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/endedorders/`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/deparatures`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/housed`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/sessions`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/clients`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/transfersponsorships`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/bookedlist?page=1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/availablelist?page=1`),
-      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/endedorders/`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/deparatures`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/sessions`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/clients`),
+      // fetchDataFromApi(`https:/wasl.rawaes.com/api/transfersponsorships`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/bookedlist?page=1`),
+      // fetchDataFromApi(`https:/wasl.rawaes.com/api/availablelist?page=1`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/externaloffices`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 
@@ -2136,6 +2340,7 @@ export async function getStaticProps(context) {
           deparatureHousingDate: null,
         },
     });
+    console.log(newOrdersRes);
     const propsData = {
       housedCount: housedCount,
       // Data (user, userforbutton, and tasks are now fetched client-side)

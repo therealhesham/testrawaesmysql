@@ -23,13 +23,14 @@ import prisma from 'pages/api/globalprisma';
 
 interface OrderData {
   orderId: string;
-  clientInfo: { name: string; phone: string; email: string };
+  clientInfo: { id?: string; name: string; phone: string; email: string };
   homemaidInfo: { id: string; name: string; passportNumber: string; nationality: string; externalOffice: string };
   applicationInfo: { applicationDate: string; applicationTime: string };
   officeLinkInfo: { nationalId: string; visaNumber: string; internalMusanedContract: string; musanedDate: string };
   externalOfficeInfo: { officeName: string; country: string; externalMusanedContract: string };
   externalOfficeApproval: { approved: boolean };
   medicalCheck: { passed: boolean };
+  medicalFile?: string | null;
   foreignLaborApproval: { approved: boolean };
   agencyPayment: { paid: boolean };
   saudiEmbassyApproval: { approved: boolean };
@@ -38,9 +39,16 @@ interface OrderData {
   destinations: { departureCity: string; arrivalCity: string; departureDateTime: string; arrivalDateTime: string };
   ticketUpload: { files: string };
   receipt: { received: boolean; method?: string };
-  documentUpload: { files: string };
+  documentUpload: { files: string | string[] | null };
   bookingStatus: string;
   nationality?: string;
+  deliveryDetails?: {
+    deliveryDate?: string;
+    deliveryTime?: string;
+    deliveryFile?: string | null;
+    deliveryNotes?: string;
+    cost?: string | number;
+  };
 }
 
 interface Homemaid {
@@ -67,6 +75,14 @@ export default function TrackOrder() {
   });
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]); // State for homemaid options
   const [selectedHomemaid, setSelectedHomemaid] = useState<{ value: string; label: string } | null>(null);
+  const [documentUploadFields, setDocumentUploadFields] = useState<number[]>([0]); // Track upload field indices
+  const [deliveryDetails, setDeliveryDetails] = useState({
+    deliveryDate: '',
+    deliveryTime: '',
+    deliveryFile: null as string | null,
+    deliveryNotes: '',
+    cost: '',
+  });
 
   // --- Modal States ---
   const [showConfirmModal, setShowConfirmModal] = useState({
@@ -103,6 +119,16 @@ export default function TrackOrder() {
       if (!res.ok) throw new Error('فشل في جلب بيانات الطلب');
       const data = await res.json();
       setOrderData(data);
+      // Update deliveryDetails state if available
+      if (data.deliveryDetails) {
+        setDeliveryDetails({
+          deliveryDate: data.deliveryDetails.deliveryDate || '',
+          deliveryTime: data.deliveryDetails.deliveryTime || '',
+          deliveryFile: data.deliveryDetails.deliveryFile || null,
+          deliveryNotes: data.deliveryDetails.deliveryNotes || '',
+          cost: data.deliveryDetails.cost?.toString() || '',
+        });
+      }
       setError(null);
     } catch (error: any) {
       console.error('Error fetching order:', error);
@@ -168,6 +194,10 @@ export default function TrackOrder() {
             throw new Error(errorData.error || 'فشل في تحديث الحالة');
           }
           await fetchOrderData();
+          setShowAlertModal({
+            isOpen: true,
+            message: 'تم تحديث الحالة بنجاح',
+          });
         } catch (error: any) {
           console.error('Error updating status:', error);
           setShowErrorModal({
@@ -201,6 +231,10 @@ export default function TrackOrder() {
             throw new Error(errorData.error || 'فشل في حفظ التعديلات');
           }
           await fetchOrderData();
+          setShowAlertModal({
+            isOpen: true,
+            message: 'تم حفظ التعديلات بنجاح',
+          });
         } catch (error: any) {
           console.error('Error saving edits:', error);
           setShowErrorModal({
@@ -338,6 +372,40 @@ export default function TrackOrder() {
     }
   };
 
+  const handleSaveDeliveryDetails = async () => {
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/track_order/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: 'deliveryDetails',
+          updatedData: deliveryDetails,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في حفظ بيانات الاستلام');
+      }
+
+      await fetchOrderData();
+      setShowAlertModal({
+        isOpen: true,
+        message: 'تم حفظ بيانات الاستلام بنجاح',
+      });
+    } catch (error: any) {
+      console.error('Error saving delivery details:', error);
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ في حفظ بيانات الاستلام',
+        message: error.message || 'حدث خطأ أثناء حفظ بيانات الاستلام',
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   // Format homemaids for react-select
   const homemaidOptions = homemaids.map((homemaid) => ({
     value: homemaid.id,
@@ -455,13 +523,33 @@ export default function TrackOrder() {
     );
   };
 
+  // --- Loading Modal Component ---
+  const LoadingModal = () => {
+    if (!updating) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-8 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-900 mb-6"></div>
+            <p className="text-gray-800 text-lg font-medium">جاري التحميل...</p>
+            <p className="text-gray-600 text-sm mt-2">يرجى الانتظار</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Layout>
       <div className={`min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
         <Head>
           <title>تتبع الطلب</title>
         </Head>
-        <main className="max-w-7xl mx-auto px-5 py-8">
+        <main className={`max-w-7xl mx-auto px-5 py-8 ${orderData.receipt.received ? 'pb-20' : ''}`}>
           {error && <div className="text-red-600 text-md mb-4 text-right">{error}</div>}
 
           <div className="flex justify-between items-center mb-6">
@@ -524,11 +612,11 @@ export default function TrackOrder() {
               { label: 'هوية العميل', value: orderData.officeLinkInfo.nationalId },
               { label: 'رقم التأشيرة', value: orderData.officeLinkInfo.visaNumber, fieldType: 'visa' },
               { label: 'رقم عقد إدارة المكاتب', value: orderData.officeLinkInfo.internalMusanedContract },
-              { label: 'تاريخ مساند', value: orderData.officeLinkInfo.musanedDate },
+              { label: 'تاريخ مساند', value: orderData.officeLinkInfo.musanedDate},
             ]}
             gridCols={3}
             editable={true}
-            clientID={orderData.clientInfo?.id}
+            clientID={orderData.clientInfo?.id ? Number(orderData.clientInfo.id) : undefined}
             onSave={(updatedData) => handleSaveEdits('officeLinkInfo', updatedData)}
           />
 
@@ -590,6 +678,105 @@ export default function TrackOrder() {
                   >
                     تأكيد الاجتياز
                   </button>
+                ),
+              },
+              {
+                label: 'ملف الفحص الطبي',
+                value: (
+                  <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
+                    <span className="text-gray-500 text-md pr-2 flex items-center gap-2">
+                      {orderData.medicalFile ? (
+                        <>
+                          <a
+                            href={orderData.medicalFile}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-800 hover:underline"
+                          >
+                            {orderData.medicalFile.split('/').pop()}
+                          </a>
+                          <button
+                            aria-label="حذف ملف الفحص الطبي"
+                            className="text-red-600 hover:text-red-700 text-lg font-bold"
+                            onClick={async () => {
+                              setUpdating(true);
+                              try {
+                                await fetch(`/api/track_order/${id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ section: 'medical', updatedData: { medicalCheckFile: null } }),
+                                });
+                                await fetchOrderData();
+                              } catch (error) {
+                                console.error('Error deleting medical file:', error);
+                              } finally {
+                                setUpdating(false);
+                              }
+                            }}
+                          >
+                            ×
+                          </button>
+                        </>
+                      ) : (
+                        'إرفاق ملف الفحص الطبي'
+                      )}
+                    </span>
+                    <input
+                      type="file"
+                      id="file-upload-medical"
+                      className="hidden"
+                      accept="application/pdf,image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setUpdating(true);
+                          try {
+                            const res = await fetch(`/api/upload-presigned-url/${id}`);
+                            if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                            const { url, filePath } = await res.json();
+
+                            const uploadRes = await fetch(url, {
+                              method: 'PUT',
+                              body: file,
+                              headers: {
+                                'Content-Type': file.type || 'application/octet-stream',
+                                'x-amz-acl': 'public-read',
+                              },
+                            });
+
+                            if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+                            await fetch(`/api/track_order/${id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                section: 'medical',
+                                updatedData: { medicalCheckFile: filePath },
+                              }),
+                            });
+
+                            await fetchOrderData();
+                            setShowAlertModal({ isOpen: true, message: 'تم رفع ملف الفحص الطبي بنجاح' });
+                          } catch (error: any) {
+                            console.error('Error uploading medical file:', error);
+                            setShowErrorModal({
+                              isOpen: true,
+                              title: 'خطأ في رفع الملف',
+                              message: error.message || 'حدث خطأ أثناء رفع الملف',
+                            });
+                          } finally {
+                            setUpdating(false);
+                          }
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="file-upload-medical"
+                      className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
+                    >
+                      اختيار ملف
+                    </label>
+                  </div>
                 ),
               },
             ]}
@@ -990,11 +1177,173 @@ export default function TrackOrder() {
                   </div>
                 ),
               },
+              // حقول deliveryDetails - تظهر عند اختيار أي طريقة استلام
+              ...(orderData.receipt.received && orderData.receipt.method ? [
+                {
+                  label: 'تاريخ الاستلام',
+                  value: (
+                    <input
+                      type="date"
+                      value={deliveryDetails.deliveryDate}
+                      onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryDate: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
+                    />
+                  ),
+                },
+                {
+                  label: 'وقت الاستلام',
+                  value: (
+                    <input
+                      type="time"
+                      value={deliveryDetails.deliveryTime}
+                      onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryTime: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
+                    />
+                  ),
+                },
+                {
+                  label: 'التكلفة',
+                  value: (
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={deliveryDetails.cost}
+                      onChange={(e) => setDeliveryDetails({ ...deliveryDetails, cost: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
+                    />
+                  ),
+                },
+                {
+                  label: 'ملاحظات الاستلام',
+                  value: (
+                    <textarea
+                      value={deliveryDetails.deliveryNotes}
+                      onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryNotes: e.target.value })}
+                      rows={3}
+                      placeholder="أدخل ملاحظات الاستلام..."
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
+                    />
+                  ),
+                },
+                {
+                  label: 'ملف الاستلام',
+                  value: (
+                    <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
+                      <span className="text-gray-500 text-md pr-2 flex items-center gap-2">
+                        {deliveryDetails.deliveryFile ? (
+                          <>
+                            <a
+                              href={deliveryDetails.deliveryFile}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-800 hover:underline"
+                            >
+                              {deliveryDetails.deliveryFile.split('/').pop()}
+                            </a>
+                            <button
+                              aria-label="حذف ملف الاستلام"
+                              className="text-red-600 hover:text-red-700 text-lg font-bold"
+                              onClick={async () => {
+                                setUpdating(true);
+                                try {
+                                  setDeliveryDetails({ ...deliveryDetails, deliveryFile: null });
+                                  await fetch(`/api/track_order/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      section: 'deliveryDetails',
+                                      updatedData: { ...deliveryDetails, deliveryFile: null },
+                                    }),
+                                  });
+                                  await fetchOrderData();
+                                } catch (error) {
+                                  console.error('Error deleting delivery file:', error);
+                                } finally {
+                                  setUpdating(false);
+                                }
+                              }}
+                            >
+                              ×
+                            </button>
+                          </>
+                        ) : (
+                          'إرفاق ملف الاستلام'
+                        )}
+                      </span>
+                      <input
+                        type="file"
+                        id="file-upload-delivery"
+                        className="hidden"
+                        accept="application/pdf,image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setUpdating(true);
+                            try {
+                              const res = await fetch(`/api/upload-presigned-url/${id}`);
+                              if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                              const { url, filePath } = await res.json();
+
+                              const uploadRes = await fetch(url, {
+                                method: 'PUT',
+                                body: file,
+                                headers: {
+                                  'Content-Type': file.type || 'application/octet-stream',
+                                  'x-amz-acl': 'public-read',
+                                },
+                              });
+
+                              if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+                              setDeliveryDetails({ ...deliveryDetails, deliveryFile: filePath });
+                              await fetch(`/api/track_order/${id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  section: 'deliveryDetails',
+                                  updatedData: { ...deliveryDetails, deliveryFile: filePath },
+                                }),
+                              });
+
+                              await fetchOrderData();
+                              setShowAlertModal({ isOpen: true, message: 'تم رفع ملف الاستلام بنجاح' });
+                            } catch (error: any) {
+                              console.error('Error uploading delivery file:', error);
+                              setShowErrorModal({
+                                isOpen: true,
+                                title: 'خطأ في رفع الملف',
+                                message: error.message || 'حدث خطأ أثناء رفع الملف',
+                              });
+                            } finally {
+                              setUpdating(false);
+                            }
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="file-upload-delivery"
+                        className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
+                      >
+                        اختيار ملف
+                      </label>
+                    </div>
+                  ),
+                },
+              ] : []),
             ]}
             actions={[
+              ...(orderData.receipt.received && orderData.receipt.method ? [
+                {
+                  label: 'حفظ بيانات الاستلام',
+                  type: 'primary' as const,
+                  onClick: handleSaveDeliveryDetails,
+                  disabled: updating,
+                },
+              ] : []),
               {
                 label: 'تراجع',
-                type: 'secondary',
+                type: 'secondary' as const,
                 onClick: () => handleStatusUpdate('receipt', false),
                 disabled: updating || !orderData.receipt.received,
               },
@@ -1007,79 +1356,177 @@ export default function TrackOrder() {
               {
                 label: 'ملفات أخرى',
                 value: (
-                  <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
-                    <span className="text-gray-500 text-md pr-2">
-                      {orderData.documentUpload.files ? (
-                        <a
-                          href={orderData.documentUpload.files}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-teal-800 hover:underline"
-                        >
-                          تصفح الملف
-                        </a>
-                      ) : (
-                        'إرفاق ملفات أخرى'
-                      )}
-                    </span>
-                    <input
-                      type="file"
-                      id="file-upload"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setUpdating(true);
-                          try {
-                            const res = await fetch(`/api/upload-presigned-url/${id}`);
-                            if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
-                            const { url, filePath } = await res.json();
+                  <div className="space-y-3">
+                    {/* عرض الملفات الموجودة */}
+                    {(() => {
+                      const existingFiles = Array.isArray(orderData.documentUpload.files) 
+                        ? orderData.documentUpload.files 
+                        : orderData.documentUpload.files 
+                          ? [orderData.documentUpload.files] 
+                          : [];
+                      
+                      return existingFiles.length > 0 ? (
+                        <div className="space-y-2">
+                          {existingFiles.map((file, index) => (
+                            <div key={index} className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center bg-gray-50">
+                              <span className="text-gray-700 text-sm pr-2 flex items-center gap-2">
+                                <a
+                                  href={file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-teal-800 hover:underline"
+                                >
+                                  {file.split('/').pop() || `ملف ${index + 1}`}
+                                </a>
+                                <button
+                                  aria-label="حذف الملف"
+                                  className="text-red-600 hover:text-red-700 text-lg font-bold"
+                                  onClick={async () => {
+                                    setUpdating(true);
+                                    try {
+                                      const updatedFiles = existingFiles.filter((_, i) => i !== index);
+                                      await fetch(`/api/track_order/${id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          section: 'documentUpload',
+                                          updatedData: { files: updatedFiles.length > 0 ? updatedFiles : null },
+                                        }),
+                                      });
+                                      await fetchOrderData();
+                                      setShowAlertModal({
+                                        isOpen: true,
+                                        message: 'تم حذف الملف بنجاح',
+                                      });
+                                    } catch (error: any) {
+                                      console.error('Error deleting file:', error);
+                                      setShowErrorModal({
+                                        isOpen: true,
+                                        title: 'خطأ في حذف الملف',
+                                        message: error.message || 'حدث خطأ أثناء حذف الملف',
+                                      });
+                                    } finally {
+                                      setUpdating(false);
+                                    }
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                    
+                    {/* حقول الرفع */}
+                    {documentUploadFields.map((fieldIndex, idx) => (
+                      <div key={fieldIndex} className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center">
+                        <span className="text-gray-500 text-md pr-2">
+                          إرفاق ملف {idx + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="bg-teal-600 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-700 disabled:opacity-50 flex items-center gap-1"
+                            onClick={() => {
+                              const newIndex = Math.max(...documentUploadFields, -1) + 1;
+                              setDocumentUploadFields([...documentUploadFields, newIndex]);
+                            }}
+                            disabled={updating}
+                            title="إضافة مستند آخر"
+                          >
+                            +
+                          </button>
+                          <input
+                            type="file"
+                            id={`file-upload-${fieldIndex}`}
+                            className="hidden"
+                            accept="application/pdf,image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setUpdating(true);
+                                try {
+                                  const res = await fetch(`/api/upload-presigned-url/${id}`);
+                                  if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                                  const { url, filePath } = await res.json();
 
-                            const uploadRes = await fetch(url, {
-                              method: 'PUT',
-                              body: file,
-                              headers: {
-                                'Content-Type': 'application/pdf',
-                              },
-                            });
+                                  const uploadRes = await fetch(url, {
+                                    method: 'PUT',
+                                    body: file,
+                                    headers: {
+                                      'Content-Type': file.type || 'application/octet-stream',
+                                      'x-amz-acl': 'public-read',
+                                    },
+                                  });
 
-                            if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-                            
-                            await fetch(`/api/track_order/${id}`, {
-                              method: 'PATCH',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                section: 'documentUpload',
-                                updatedData: { files: filePath },
-                              }),
-                            });
+                                  if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+                                  
+                                  // Get existing files
+                                  const existingFiles = Array.isArray(orderData.documentUpload.files) 
+                                    ? orderData.documentUpload.files 
+                                    : orderData.documentUpload.files 
+                                      ? [orderData.documentUpload.files] 
+                                      : [];
+                                  
+                                  // Add new file
+                                  const updatedFiles = [...existingFiles, filePath];
+                                  
+                                  await fetch(`/api/track_order/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      section: 'documentUpload',
+                                      updatedData: { files: updatedFiles },
+                                    }),
+                                  });
 
-                            await fetchOrderData();
-                            
-                            // Show success message
-                            setShowAlertModal({
-                              isOpen: true,
-                              message: 'تم رفع الملف بنجاح',
-                            });
-                          } catch (error: any) {
-                            console.error('Error uploading file:', error);
-                            setShowErrorModal({
-                              isOpen: true,
-                              title: 'خطأ في رفع الملف',
-                              message: error.message || 'حدث خطأ أثناء رفع الملف',
-                            });
-                          } finally {
-                            setUpdating(false);
-                          }
-                        }
-                      }}
-                    />
-                    <label
-                      htmlFor="file-upload"
-                      className="bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 disabled:opacity-50"
-                    >
-                      اختيار ملف
-                    </label>
+                                  await fetchOrderData();
+                                  
+                                  // Reset this input
+                                  e.target.value = '';
+                                  
+                                  // Show success message
+                                  setShowAlertModal({
+                                    isOpen: true,
+                                    message: 'تم رفع الملف بنجاح',
+                                  });
+                                } catch (error: any) {
+                                  console.error('Error uploading file:', error);
+                                  setShowErrorModal({
+                                    isOpen: true,
+                                    title: 'خطأ في رفع الملف',
+                                    message: error.message || 'حدث خطأ أثناء رفع الملف',
+                                  });
+                                } finally {
+                                  setUpdating(false);
+                                }
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`file-upload-${fieldIndex}`}
+                            className="bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 disabled:opacity-50"
+                          >
+                            اختيار ملف
+                          </label>
+                          {documentUploadFields.length > 1 && (
+                            <button
+                              type="button"
+                              className="bg-red-600 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-red-700 disabled:opacity-50"
+                              onClick={() => {
+                                setDocumentUploadFields(documentUploadFields.filter((_, i) => i !== idx));
+                              }}
+                              disabled={updating}
+                              title="إزالة هذا الحقل"
+                            >
+                              حذف
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ),
               },
@@ -1091,9 +1538,20 @@ export default function TrackOrder() {
           />
         </main>
 
+        {/* Feedback when order reaches receipt stage */}
+        {orderData.receipt.received && (
+          <div className="fixed bottom-0 left-0 right-0 bg-teal-800 text-white py-4 px-6 shadow-lg z-40" dir="rtl">
+            <div className="max-w-7xl mx-auto flex items-center justify-center gap-3">
+              <CheckCircleIcon className="w-6 h-6 text-white" />
+              <span className="text-lg font-medium">تم انهاء الطلب</span>
+            </div>
+          </div>
+        )}
+
         {/* Modals */}
         <ConfirmModal />
         <AlertModal />
+        <LoadingModal />
         <ErrorModal 
           isOpen={showErrorModal.isOpen}
           title={showErrorModal.title}

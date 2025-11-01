@@ -64,6 +64,19 @@ elderlycareLevel String? @db.VarChar(100)
 laundryLevel String? @db.VarChar(100)
 
 }
+
+
+model DeliveryDetails{
+  id Int @id @default(autoincrement())
+  deliveryDate DateTime?
+  deliveryTime String? @db.VarChar(100)
+  deliveryFile String? @db.VarChar(255)
+  deliveryNotes String? @db.VarChar(255)
+  cost Decimal?
+  newOrderId Int?
+  completionDate DateTime? @default(now())
+  neworder neworder? @relation(fields: [newOrderId], references: [id])
+}
 model reports{
 
   id              Int       @id @default(autoincrement())
@@ -387,6 +400,7 @@ notes String?
   isContractEnded Boolean? @default(false)
   clientAccountStatement ClientAccountStatement[]
   // visa visa?
+  DeliveryDetails DeliveryDetails[]
 }
 
 model visa {
@@ -501,6 +515,7 @@ externalReason            String?
 visaNumber                String?   @db.VarChar(191)
 foreignLaborApproval        Boolean? @default(false)
 foreignLaborApprovalDate    DateTime?
+  medicalCheckDate            DateTime?
 startWorkingDate       DateTime?
 endWorkingDate          DateTime?
 ExternalStatusByoffice    String?
@@ -536,8 +551,10 @@ guaranteeStatus               String?  @db.VarChar(100)
   BookinDate                DateTime?
   GuaranteeDurationEnd      DateTime?
   travelPermit              String?
+  travelPermitDate          DateTime?
   medicalCheckFile          String?   @db.VarChar(191)
   ticketFile                String?   @db.VarChar(191)
+  visaIssuanceDate          DateTime?
   deparatureTicketFile      String?    @db.VarChar(255)
   receivingFile             String?   @db.VarChar(191)
   receiptMethod            String?   @db.VarChar(50) // طريقة الاستلام: direct, indirect, intermediary
@@ -1038,4 +1055,17 @@ model PDFExtractedRecord {
   updatedAt         DateTime  @updatedAt
   
   @@index([sessionId])
+}
+
+// SLA rules for external offices
+model OfficeSlaRule {
+  id         Int      @id @default(autoincrement())
+  officeName String   @db.VarChar(255)
+  stage      String   @db.VarChar(100)
+  days       Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([officeName])
+  @@index([stage])
 }

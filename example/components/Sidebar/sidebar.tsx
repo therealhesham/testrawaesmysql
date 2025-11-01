@@ -273,6 +273,14 @@ const Sidebar = (props) => {
           />
         )}
         
+        {/* Toggle Button */}
+        <button
+          onClick={handleSidebarToggle}
+          className={collapseIconClasses}
+          aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <CollapsIcon className="w-5 h-5 text-white" />
+        </button>
       </div>
 
       {/* Menu Items */}
