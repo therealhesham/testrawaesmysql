@@ -34,7 +34,7 @@ export default async function handler(
             Nationality: true, // Added to match table display
             Passportnumber: true, // Added to match table display
           },
-        },
+        },client:true,
         age: true,
         ages: true,
         id: true,

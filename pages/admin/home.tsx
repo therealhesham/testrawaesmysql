@@ -65,7 +65,7 @@ const NewOrdersTab = ({ orders, count, onItemClick }) => (
       <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(order.id)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: {order.client.fullname}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             منذ {order.createdAt} <FieldTimeOutlined />
           </p>
@@ -199,7 +199,7 @@ const HousingTab = ({ housing, count, onItemClick }) => (
       <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/housedarrivals')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">تسكين #{item.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {item.Order.Name}</p>
+          <p className="item-subtitle text-xs text-gray-600">العاملة: {item.Order.Name}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ التسكين: {getDate(item.houseentrydate)} <FieldTimeOutlined />
           </p>
@@ -328,7 +328,7 @@ const RelationsTab = ({ relations, count, onItemClick }) => (
 
 const SponsorshipTransfersTab = ({ transfers, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
-    {transfers.slice(0, 3).map((transfer) => (
+    {transfers.transfers.slice(0, 3).map((transfer) => (
       <div key={transfer.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/transfersponsorship')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">نقل كفالة #{transfer.id}</p>
