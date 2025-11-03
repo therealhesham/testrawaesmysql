@@ -202,29 +202,20 @@ export default function Home() {
     fetchAllData();
   }, [period, startDate, endDate]);
 
-  // Map data - تأكد من تضمين جميع المناطق بالعربية حتى لو لم يكن لديها بيانات
-  const citiesWithData = new Map<string, number>();
-  reportsData?.citiesSources?.byCity?.forEach((item: any) => {
-    const eng = item.city;
-    const hcKey = regionMap[eng as keyof typeof regionMap];
-    if (hcKey) {
-      citiesWithData.set(hcKey, item._count?.id || 0);
-    }
-  });
-
-  // إضافة جميع المناطق من regionMap، مع البيانات الموجودة أو 0
-  const mapData = Object.entries(regionMap).map(([eng, hcKey]) => {
-    const name = arabicRegionMap[eng as keyof typeof arabicRegionMap];
-    if (!name) {
-      console.warn(`Missing Arabic name for: ${eng}`);
-      return null;
-    }
-    return {
-      'hc-key': hcKey,
-      name: name,
-      value: citiesWithData.get(hcKey) || 0,
-    };
-  }).filter(Boolean) || [];
+  // Map data
+  const mapData = reportsData?.citiesSources?.byCity
+    ?.map((item: any) => {
+      const eng = item.city;
+      const hcKey = regionMap[eng as keyof typeof regionMap];
+      const name = arabicRegionMap[eng as keyof typeof arabicRegionMap];
+      const value = item._count?.id || 0;
+      if (!hcKey || !name) {
+        console.warn(`Skipping invalid city data: ${eng}`);
+        return null;
+      }
+      return { 'hc-key': hcKey, name, value };
+    })
+    .filter(Boolean) || [];
 
   // Load Highcharts map
   useEffect(() => {
