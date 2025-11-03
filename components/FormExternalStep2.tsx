@@ -11,6 +11,26 @@ interface FormStepExternal2Props {
 }
 
 export default function FormStepExternal2({ onPrevious, onClose, data }: FormStepExternal2Props) {
+  const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
+
+  const convertToArabicRegion = (region: string) => {
+    return arabicRegionMap[region] || region;
+  };
+
   const [formData, setFormData] = useState({
     externaldeparatureCity: '',
     externalReason: '',
@@ -36,6 +56,8 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
   const [uploadError, setUploadError] = useState('');
   const [fileUploaded, setFileUploaded] = useState(false);
   const [internalTicketFile, setInternalTicketFile] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [fileName, setFileName] = useState<string>('');
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
   const [alertMessage, setAlertMessage] = useState('');
@@ -52,6 +74,8 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
       setUploadError('لم يتم اختيار ملف');
       setErrors(prev => ({ ...prev, internalTicketFile: 'يجب رفع ملف التذكرة' }));
       setFileUploaded(false);
+      setIsUploading(false);
+      setFileName('');
       return;
     }
 
@@ -63,6 +87,8 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
       setUploadError('نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)');
       setErrors(prev => ({ ...prev, internalTicketFile: 'نوع الملف غير مدعوم' }));
       setFileUploaded(false);
+      setIsUploading(false);
+      setFileName('');
       return;
     }
 
@@ -71,12 +97,18 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
       setUploadError('حجم الملف كبير جدًا (الحد الأقصى 5 ميجابايت)');
       setErrors(prev => ({ ...prev, internalTicketFile: 'حجم الملف كبير جدًا' }));
       setFileUploaded(false);
+      setIsUploading(false);
+      setFileName('');
       return;
     }
 
     try {
+      setIsUploading(true);
       setUploadError('');
       setErrors(prev => ({ ...prev, internalTicketFile: '' }));
+      setFileUploaded(false);
+      setFileName('');
+      
       const res = await fetch(`/api/upload-presigned-url/internalTicketFile`);
       if (!res.ok) {
         throw new Error('فشل في الحصول على رابط الرفع');
@@ -87,6 +119,7 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
         method: 'PUT',
         body: file,
         headers: {
+          'x-amz-acl': 'public-read',
           'Content-Type': file.type,
         },
       });
@@ -94,6 +127,7 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
       if (uploadRes.ok) {
         setInternalTicketFile(filePath);
         setFileUploaded(true);
+        setFileName(file.name);
         setUploadError('');
       } else {
         throw new Error('فشل في رفع الملف');
@@ -102,6 +136,9 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
       setUploadError(error.message || 'حدث خطأ أثناء رفع الملف');
       setErrors(prev => ({ ...prev, internalTicketFile: 'حدث خطأ أثناء رفع الملف' }));
       setFileUploaded(false);
+      setFileName('');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -127,10 +164,7 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
     if (!formData.externaldeparatureCity.trim()) {
       newErrors.externaldeparatureCity = 'وجهة المغادرة مطلوبة';
       isValid = false;
-    } else if (!cityRegex.test(formData.externaldeparatureCity.trim())) {
-      newErrors.externaldeparatureCity = 'وجهة المغادرة يجب أن تحتوي على حروف فقط';
-      isValid = false;
-    }
+    } 
 
     // Validate reason
     if (!formData.externalReason.trim()) {
@@ -294,14 +328,16 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="departure-from" className="text-xs text-gray-500 text-right font-inter">من</label>
-            <input 
-              type="text" 
-              id="departure-from" 
-              className={`bg-gray-50 border ${errors.externaldeparatureCity ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`} 
-              value={formData.externaldeparatureCity} 
-              onChange={(e) => setFormData({ ...formData, externaldeparatureCity: e.target.value })} 
-              placeholder="وجهة المغادرة" 
-            />
+            <select 
+              value={formData.externaldeparatureCity || ''}
+              onChange={(e) => setFormData({ ...formData, externaldeparatureCity: e.target.value })}
+              className={`bg-gray-50 border ${errors.externaldeparatureCity ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`}
+            >
+              <option >اختر المدينة</option>
+              {Object.keys(arabicRegionMap).map((region) => (
+                <option value={region} key={region}>{convertToArabicRegion(region)}</option>
+              ))}
+            </select>
             {errors.externaldeparatureCity && <span className="text-red-500 text-xs text-right">{errors.externaldeparatureCity}</span>}
           </div>
         </div>
@@ -375,14 +411,38 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="ticket-upload" className="text-xs text-gray-500 text-right font-inter">ارفاق التذكرة</label>
             <div className="flex items-center justify-between bg-gray-50 border rounded p-1 pl-3">
-              <span className="text-md text-gray-500 font-tajawal">{fileUploaded ? 'تم رفع الملف بنجاح' : 'ارفاق ملف التذكرة'}</span>
-              <label htmlFor="ticket-upload-btn" className="bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded cursor-pointer">اختيار ملف</label>
+              <div className="flex items-center gap-2 flex-1">
+                {isUploading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-teal-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-md text-gray-500 font-tajawal">جاري الرفع...</span>
+                  </>
+                ) : fileUploaded && fileName && internalTicketFile ? (
+                  <a 
+                    href={internalTicketFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-md text-teal-800 font-tajawal hover:text-teal-900 hover:underline cursor-pointer transition-colors"
+                  >
+                    {fileName}
+                  </a>
+                ) : (
+                  <span className="text-md text-gray-500 font-tajawal">ارفاق ملف التذكرة</span>
+                )}
+              </div>
+              <label htmlFor="ticket-upload-btn" className={`bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {isUploading ? 'جاري الرفع...' : 'اختيار ملف'}
+              </label>
               <input
                 placeholder={fileUploaded ? 'تم رفع الملف بنجاح' : 'ارفاق ملف التذكرة'}
                 type="file"
                 id="ticket-upload-btn"
                 className="hidden"
                 onChange={handleTicketFileChange}
+                disabled={isUploading}
               />
             </div>
             {(errors.internalTicketFile || uploadError) && (

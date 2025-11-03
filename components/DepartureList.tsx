@@ -45,6 +45,21 @@ interface DepartureListProps {
   onOpenModal: () => void;
   refreshTrigger?: number; // Add refresh trigger prop
 }
+ const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
 
 export default function DepartureList({ onOpenModal, refreshTrigger }: DepartureListProps) {
   const [departures, setDepartures] = useState<DepartureData[]>([]);
@@ -496,8 +511,8 @@ const router = useRouter();
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.client?.fullname || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.office?.Country || "-"}</td>
                   <td className="py-3 px-2 border-t border-gray-200">{row.Order?.HomeMaid?.Passportnumber || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.internaldeparatureCity || "-"}</td>
-                  <td className="py-3 px-2 border-t border-gray-200">{row.internalArrivalCity || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200"> {arabicRegionMap[row.internaldeparatureCity] || "-"}</td>
+                  <td className="py-3 px-2 border-t border-gray-200">{arabicRegionMap[row.internalArrivalCity] || "-"}</td>
                   <td
                     className="py-3 px-2 border-t border-gray-200"
                     // dangerouslySetInnerHTML={{ __html: row.reason || "-" }}

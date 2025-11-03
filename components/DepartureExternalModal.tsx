@@ -8,10 +8,23 @@ export default function DepartureModal({ currentStep, onNext, onPrevious, onClos
   const [id, setId] = useState("");
   const [data, setData] = useState<any>(null);
 
-  const getData = async () => {
-    const getByID = await fetch(`/api/getdatafordeparatures?id=${id}`).then(res => res.json());
-    // console.log(getByID.data)
-    setData(getByID.data);
+  const getData = async (orderId?: string) => {
+    try {
+      const idToUse = orderId || id;
+      const response = await fetch(`/api/getdatafordeparatures?id=${idToUse}`);
+      const getByID = await response.json();
+      
+      if (!response.ok) {
+        const errorMessage = getByID.message || 'حدث خطأ في جلب بيانات الطلب';
+        throw new Error(errorMessage);
+      }
+      
+      setData(getByID);
+    } catch (error) {
+      setData(null);
+      // Re-throw the error so FormStepExternal1 can catch it
+      throw error;
+    }
   };
 
   return (

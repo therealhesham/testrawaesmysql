@@ -198,6 +198,7 @@ setUserName(decoded.username);
   const [locations, setLocations] = useState<InHouseLocation[]>([]);
   const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [editingLocation, setEditingLocation] = useState<InHouseLocation | null>(null);
+  const [openLocationDropdown, setOpenLocationDropdown] = useState<number | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [departedTotalCount, setDepartedTotalCount] = useState(0);
   const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
@@ -1206,6 +1207,23 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  
+  // Close location dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside any location dropdown
+      if (!target.closest('[data-location-dropdown]')) {
+        setOpenLocationDropdown(null);
+      }
+    };
+    if (openLocationDropdown !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [openLocationDropdown]);
   return (
     <Layout>
       <Head>
@@ -1242,30 +1260,47 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
                   <div key={location.id} className="bg-gray-100 border border-gray-300 rounded-md p-3 text-right relative">
-                    <div className="absolute top-2 left-2 flex gap-1">
-                      <button
-                        onClick={() => {
-                          setEditingLocation(location);
-                          openModal('editResidence');
-                        }}
-                        className="p-1 rounded-full hover:bg-gray-200 transition-colors"
-                        title="تعديل"
-                      >
-                        <MoreHorizontal className="w-5 h-5 text-gray-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLocation(location)}
-                        className="p-1 rounded-full hover:bg-red-100 transition-colors"
-                        title="حذف السكن"
-                      >
-                        <Trash2 className="w-5 h-5 text-red-600" />
-                      </button>
+                    <div className="absolute top-2 left-2" data-location-dropdown>
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setOpenLocationDropdown(openLocationDropdown === location.id ? null : location.id);
+                          }}
+                          className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                          title="القائمة"
+                        >
+                          <MoreHorizontal className="w-5 h-5 text-gray-600" />
+                        </button>
+                        {openLocationDropdown === location.id && (
+                          <div className="absolute left-0 mt-2 w-32 bg-white border border-gray-300 rounded-md shadow-lg z-10" data-location-dropdown>
+                            <button
+                              onClick={() => {
+                                setEditingLocation(location);
+                                openModal('editResidence');
+                                setOpenLocationDropdown(null);
+                              }}
+                              className="w-full text-right py-2 px-4 text-md text-gray-700 hover:bg-gray-100"
+                            >
+                              تعديل
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDeleteLocation(location);
+                                setOpenLocationDropdown(null);
+                              }}
+                              className="w-full text-right py-2 px-4 text-md text-red-600 hover:bg-red-50"
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <h3 className="text-md font-normal mb-1">{location.location}</h3>
                     <p className="text-md font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
                     <div className="flex justify-between text-md mb-2">
                       <span>{status}</span>
-                      <span>{Math.round(progress)}%</span>
+                      <span>{progress < 0.01 ? progress.toFixed(4) : progress < 1 ? progress.toFixed(2) : Math.round(progress)}%</span>
                     </div>
                     <div className="bg-white border border-gray-300 rounded-sm h-3 overflow-hidden">
                       <div

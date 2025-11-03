@@ -127,6 +127,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       assignedUser: assignedUser,
       message: `تم إنشاء المهمة بنجاح للمستخدم: ${assignedUser ? assignedUser.username : 'المستخدم المحدد'}`
     });
+    await prisma.notifications.create({
+      data: {
+        message: `تم إنشاء المهمة بنجاح للمستخدم: ${assignedUser ? assignedUser.username : 'المستخدم المحدد'}`,
+        userId: assignedUser?.username,
+        isRead: false
+        ,
+        type: 'task'
+      }
+    });
 
   } catch (error) {
     console.error("Error creating task:", error);

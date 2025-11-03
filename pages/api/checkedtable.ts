@@ -37,7 +37,8 @@ const search =
       const endDateString = end.toISOString().split("T")[0];
 
       // استعلام لجلب البيانات
-      const data = await prisma.$queryRawUnsafe(
+      // نفلتر CheckIn ضمن النطاق الزمني في الـ JOIN نفسه، وليس في WHERE
+      const data = await prisma.$queryRawUnsafe<any[]>(
         `
         SELECT 
           hw.id,
@@ -50,16 +51,16 @@ const search =
           CAST(IFNULL(ci.DailyCost, 0) AS DECIMAL(10,2)) AS DailyCost
         FROM housedworker hw
         INNER JOIN homemaid h ON hw.homeMaid_id = h.id
-        LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId
+        LEFT JOIN CheckIn ci ON hw.id = ci.housedworkerId 
+          AND DATE(ci.CheckDate) BETWEEN ? AND ?
         WHERE (h.Name LIKE ? OR ? = '')
           AND hw.isActive = true
-          AND (ci.CheckDate IS NULL OR (DATE(ci.CheckDate) BETWEEN ? AND ?))
         ORDER BY h.Name, ci.CheckDate;
         `,
-        searchPattern,
-        search,
         startDateString,
-        endDateString
+        endDateString,
+        searchPattern,
+        search
       );
 
       // تجميع البيانات حسب العاملة واليوم

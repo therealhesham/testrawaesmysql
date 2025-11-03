@@ -7,10 +7,21 @@ export default function DepartureModal({ currentStep, onNext, onPrevious, onClos
   const [data, setData] = useState<any>(null);
 
   const getData = async (s) => {
-    // alert(id)
-    const getByID = await fetch(`/api/getdatafordeparatures?id=${s}`).then(res => res.json());
-    // console.log(getByID.data)
-    setData(getByID.data);
+    try {
+      const response = await fetch(`/api/getdatafordeparatures?id=${s}`);
+      const getByID = await response.json();
+      
+      if (!response.ok) {
+        const errorMessage = getByID.message || 'حدث خطأ في جلب بيانات الطلب';
+        throw new Error(errorMessage);
+      }
+      
+      setData(getByID);
+    } catch (error) {
+      setData(null);
+      // Re-throw the error so FormStep1 can catch it
+      throw error;
+    }
   };
 
   return (

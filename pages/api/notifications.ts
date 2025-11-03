@@ -35,8 +35,15 @@ export default async function handler(
       const { tab = "unread", page = "1", limit = "5" } = req.query;
       const pageNum = parseInt(page as string, 10) || 1;
       const limitNum = parseInt(limit as string, 10) || 5;
-// userId
-      let where: any = {  };
+
+      // ✅ جلب الإشعارات الخاصة بالمستخدم والإشعارات العامة
+      let where: any = {
+        OR: [
+          { userId: userId },      // الإشعارات الخاصة بي
+          { userId: null }         // الإشعارات العامة
+        ]
+      };
+      
       if (tab === "unread") where.isRead = false;
       if (tab === "read") where.isRead = true;
 
@@ -47,12 +54,46 @@ export default async function handler(
         orderBy: { createdAt: "desc" },
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
+        include: {
+          task: {
+            select: {
+              id: true,
+              Title: true,
+              description: true,
+              priority: true,
+              taskDeadline: true,
+              isCompleted: true,
+              completionDate: true,
+              completionNotes: true,
+              userId: true,
+              assignedBy: true,
+              user: {
+                select: {
+                  username: true,
+                  id: true
+                }
+              },
+              assignedByUser: {
+                select: {
+                  username: true,
+                  id: true
+                }
+              }
+            }
+          }
+        }
       });
 
       // ✅ حساب العدادات
-      const allCount = await prisma.notifications.count({ where: {  } });
-      const readCount = await prisma.notifications.count({ where: {  isRead: true } });
-      const unreadCount = await prisma.notifications.count({ where: {  isRead: false } });
+      const baseWhere = {
+        OR: [
+          { userId: userId },
+          { userId: null }
+        ]
+      };
+      const allCount = await prisma.notifications.count({ where: baseWhere });
+      const readCount = await prisma.notifications.count({ where: { ...baseWhere, isRead: true } });
+      const unreadCount = await prisma.notifications.count({ where: { ...baseWhere, isRead: false } });
 
       return res.status(200).json({
         data: notifications,
@@ -63,11 +104,13 @@ export default async function handler(
       });
     }
 
-    // ✅ تعليم الكل كمقروء
+    // ✅ تعليم الكل كمقروء (فقط الإشعارات الخاصة بالمستخدم)
     if (req.method === "DELETE") {
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
       await prisma.notifications.updateMany({
-        where: { userId },
+        where: {
+          userId: userId  // فقط الإشعارات الخاصة بالمستخدم
+        },
         data: { isRead: true },
       });
       return res.status(204).json({ message: "All notifications cleared" });

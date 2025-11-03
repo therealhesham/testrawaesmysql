@@ -327,6 +327,7 @@ const RelationsTab = ({ relations, count, onItemClick }) => (
 );
 
 const SponsorshipTransfersTab = ({ transfers, count, onItemClick }) => (
+  console.log(transfers),
   <div className="info-card-body flex flex-col gap-4">
     {transfers.slice(0, 3).map((transfer) => (
       <div key={transfer.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/transfersponsorship')}>

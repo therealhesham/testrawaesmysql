@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Calendar, CheckCircle, Clock } from 'lucide-react';
+import dayjs from 'dayjs';
 
 interface TaskCompletionModalProps {
   isOpen: boolean;
@@ -89,8 +90,8 @@ export default function TaskCompletionModal({
           />
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              <span>الموعد: {new Date(task.taskDeadline).toLocaleDateString('ar-SA')}</span>
+              {/* <Calendar className="w-4 h-4" /> */}
+              <span>الموعد: {dayjs(task.taskDeadline).format('DD/MM/YYYY')}</span>
             </div>
             {task.priority && (
               <span className={`px-2 py-1 rounded-full text-xs ${
@@ -169,7 +170,7 @@ export default function TaskCompletionModal({
                   onChange={(e) => setCompletionDate(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                 />
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                {/* <Calendar className="absolute lefft-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" /> */}
               </div>
             </div>
           )}

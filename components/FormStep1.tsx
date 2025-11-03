@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
+import ErrorModal from './ErrorModal';
 
 export default function FormStep1({ onNext, id, setId, data, getData }) {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const warrantyInfo = useMemo(() => {
     if (!data?.KingdomentryDate) {
       return { status: 'لم يدخل المملكة', date: '' };
@@ -45,12 +47,15 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
         setSuggestions(data.suggestions || []);
         setShowSuggestions(true);
       } else {
-        console.error('Error searching orders');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || 'حدث خطأ في البحث عن الطلبات';
+        setErrorModal({ isOpen: true, message: errorMessage });
         setSuggestions([]);
         setShowSuggestions(false);
       }
     } catch (error) {
       console.error('Error searching orders:', error);
+      setErrorModal({ isOpen: true, message: 'حدث خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.' });
       setSuggestions([]);
       setShowSuggestions(false);
     } finally {
@@ -70,15 +75,17 @@ export default function FormStep1({ onNext, id, setId, data, getData }) {
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-
-
+  const handleSuggestionClick = async (suggestion: string) => {
     setId(suggestion);
     setShowSuggestions(false);
     // Auto-fetch data when order is selected
-    setTimeout(() => {
-      getData(suggestion);
-    }, 100);
+    try {
+      await getData(suggestion);
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      const errorMessage = error?.message || 'حدث خطأ في جلب بيانات الطلب. يرجى المحاولة مرة أخرى.';
+      setErrorModal({ isOpen: true, message: errorMessage });
+    }
   };
 
   const handleInputBlur = () => {
@@ -285,6 +292,12 @@ const arabicRegionMap: { [key: string]: string } = {
 
         </div>
       </form>
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        title="حدث خطأ"
+      />
     </section>
   );
 }

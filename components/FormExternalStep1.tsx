@@ -1,9 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import ErrorModal from './ErrorModal';
 
-export default function FormStepExternal1({ onNext, id, setId, data, getData }) {
+interface FormStepExternal1Props {
+  onNext: () => void;
+  id: string;
+  setId: (id: string) => void;
+  data: any;
+  getData: (orderId?: string) => Promise<void>;
+}
 
+export default function FormStepExternal1({ onNext, id, setId, data, getData }: FormStepExternal1Props) {
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  
+  const warrantyInfo = useMemo(() => {
+    if (!data?.KingdomentryDate) {
+      return { status: 'لم يدخل المملكة', date: '' };
+    }
 
-const arabicRegionMap: { [key: string]: string } = {
+    const entryDate = new Date(data?.KingdomentryDate);
+    const currentDate = new Date();
+    const diffTime = Math.abs(currentDate.getTime() - entryDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // تحويل الفرق إلى أيام
+
+    const status = diffDays > 90 ? 'منتهي' : 'ساري';
+    const formattedDate = entryDate.toLocaleDateString(); // تنسيق التاريخ بالتقويم الهجري أو حسب الحاجة
+
+    return { status, date: formattedDate, remainingDays: diffDays };
+  }, [data?.KingdomentryDate]);
+
+  const arabicRegionMap: { [key: string]: string } = {
     'Ar Riyāḍ': 'الرياض',
     'Makkah al Mukarramah': 'مكة المكرمة',
     'Al Madīnah al Munawwarah': 'المدينة المنورة',
@@ -19,33 +47,102 @@ const arabicRegionMap: { [key: string]: string } = {
     'Ḩa\'il': 'حائل',
   };
 
+  const searchOrders = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      setSuggestions([]);
+      const response = await fetch(`/api/orders/suggestions?q=${encodeURIComponent(searchTerm)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.suggestions || []);
+        setShowSuggestions(true);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || 'حدث خطأ في البحث عن الطلبات';
+        setErrorModal({ isOpen: true, message: errorMessage });
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error searching orders:', error);
+      setErrorModal({ isOpen: true, message: 'حدث خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.' });
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
-  const [errors, setErrors] = useState({});
+  const handleIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setId(value);
+    
+    if (value.trim()) {
+      searchOrders(value);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSuggestionClick = async (suggestion: string) => {
+    // Extract order ID from suggestion (format: "123 - Name" or just "123")
+    const orderId = suggestion.split(' - ')[0];
+    setId(orderId);
+    setShowSuggestions(false);
+    // Auto-fetch data when order is selected
+    try {
+      await getData(orderId);
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+      const errorMessage = error?.message || 'حدث خطأ في جلب بيانات الطلب. يرجى المحاولة مرة أخرى.';
+      setErrorModal({ isOpen: true, message: errorMessage });
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.search-container')) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const validate = () => {
-    const newErrors = {};
-
     if (!id || id.trim() === '') {
-      newErrors.id = 'يرجى إدخال رقم الطلب';
+      return false;
     }
 
     if (!data?.Order) {
-      newErrors.data = 'يرجى البحث عن رقم الطلب أولاً';
+      return false;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleNext = () => {
     if (validate()) {
       onNext();
     }
-  };
-
-  const handleSearch = async () => {
-    setErrors((prev) => ({ ...prev, data: '' })); // Clear data error on new search
-    await getData(); // Assume getData handles API call
   };
 
   return (
@@ -64,42 +161,44 @@ const arabicRegionMap: { [key: string]: string } = {
         </div>
       </div>
 
-      <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
+      <form className="flex flex-col gap-4">
         <div className="flex flex-col gap-2 w-full">
-          <label htmlFor="order-number" className="text-xs text-gray-500 text-right font-inter">
-            رقم الطلب
-          </label>
-          <div className="flex items-center bg-gray-50 border rounded pl-2">
-            <input
-              type="text"
-              id="order-number"
-              className={`flex-1 border-none bg-transparent outline-none text-gray-800 text-md p-3 ${
-                errors.id ? 'border-red-500' : 'border-gray-300'
-              }`}
-              onChange={(e) => {
-                setId(e.target.value);
-                setErrors((prev) => ({ ...prev, id: '' })); // Clear error on input
-              }}
+          <label htmlFor="order-number" className="text-xs text-gray-500 text-right font-inter">البحث عن الطلب</label>
+          <div className="relative search-container">
+            <input 
+              type="text" 
+              id="order-number" 
+              className="w-full p-3 border border-gray-300 rounded-md bg-gray-50" 
+              onChange={handleIdChange}
+              onBlur={handleInputBlur}
+              onFocus={() => id.length >= 1 && setShowSuggestions(true)}
               value={id}
-              placeholder="ادخل رقم الطلب"
+              placeholder="ابحث برقم الطلب أو اسم العاملة" 
             />
-            <button
-              type="button"
-              className="bg-teal-800 text-white text-md font-tajawal px-4 py-2 rounded"
-              onClick={handleSearch}
-            >
-              بحث
-            </button>
+            {isSearching && (
+              <div className="absolute right-3 top-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+              </div>
+            )}
+            
+            {/* Search Results Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {suggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                  >
+                    <div className="font-medium flex flex-col text-md">
+                      <span className="text-gray-500">رقم الطلب #{suggestion.split(' - ')[0]}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {errors.id && <p className="text-red-500 text-xs text-right mt-1">{errors.id}</p>}
         </div>
-
-        {/* Show message if data not found */}
-        {errors.data && (
-          <p className="text-red-500 text-sm text-right bg-red-50 p-2 rounded border border-red-200">
-            {errors.data}
-          </p>
-        )}
 
         {/* Customer Info */}
         <div className="flex flex-col md:flex-row gap-8">
@@ -141,7 +240,7 @@ const arabicRegionMap: { [key: string]: string } = {
               id="customer-city"
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
               placeholder="مدينة العميل"
-              value={arabicRegionMap[data?.Order?.client?.city]as string || ''}
+              value={arabicRegionMap[data?.Order?.client?.city] as string || ''}
               readOnly
             />
           </div>
@@ -199,7 +298,7 @@ const arabicRegionMap: { [key: string]: string } = {
               id="warranty-status"
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
               placeholder="حالة الضمان"
-              value={data?.Order?.HomeMaid?.guaranteeStatus || ''}
+              value={`${warrantyInfo.status}${warrantyInfo.date ? ` - ${warrantyInfo.date}` : ''}`}
               readOnly
             />
           </div>
@@ -212,7 +311,7 @@ const arabicRegionMap: { [key: string]: string } = {
               id="remaining-period"
               className="bg-gray-50 border border-gray-300 rounded p-3 text-gray-800 text-md"
               placeholder="المدة المتبقية"
-              value={data?.Order?.HomeMaid?.GuaranteeDurationEnd || ''}
+              value={warrantyInfo.remainingDays || ''}
               readOnly
             />
           </div>
@@ -222,17 +321,20 @@ const arabicRegionMap: { [key: string]: string } = {
           <button
             type="button"
             onClick={handleNext}
-            disabled={!id || !data?.Order} // Disable if no ID or no data
-            className={`w-28 py-2 rounded font-inter text-base text-white transition-colors ${
-              !id || !data?.Order
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-teal-800 hover:bg-teal-900'
-            }`}
+            disabled={!data?.Order} // الزر يتعطل إذا لم تكن البيانات موجودة
+            className={`w-28 py-2 text-base rounded font-inter 
+              ${!data?.Order ? 'bg-gray-400 cursor-not-allowed' : 'bg-teal-800 text-white'}`}
           >
             التالي
           </button>
         </div>
       </form>
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        message={errorModal.message}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        title="حدث خطأ"
+      />
     </section>
   );
 }

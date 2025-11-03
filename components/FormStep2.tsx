@@ -1,6 +1,6 @@
 import { CheckIcon } from '@heroicons/react/outline';
 import { Calendar } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import AlertModal from './AlertModal';
 
 interface FormStep2Props {
@@ -39,7 +39,77 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
   const [fileName, setFileName] = useState<string>('');
   const [fileUploaded, setFileUploaded] = useState(false);
   const [uploadError, setUploadError] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
   const ticketFileInputRef = useRef<HTMLInputElement>(null);
+
+  const validateFields = (currentFormData: typeof formData, fieldName?: string) => {
+    setErrors((prevErrors) => {
+      const newErrors = { ...prevErrors };
+
+      // City validation - المدينتين لا يمكن أن تكونا نفس المدينة
+      if (fieldName === 'ArrivalCity' || fieldName === 'finaldestination' || !fieldName) {
+        if (currentFormData.ArrivalCity && currentFormData.finaldestination && 
+            currentFormData.ArrivalCity === currentFormData.finaldestination) {
+          newErrors.finaldestination = 'مدينة الوصول يجب أن تكون مختلفة عن مدينة المغادرة';
+        } else if (currentFormData.ArrivalCity !== currentFormData.finaldestination) {
+          // Clear error if cities are different
+          if (newErrors.finaldestination === 'مدينة الوصول يجب أن تكون مختلفة عن مدينة المغادرة') {
+            newErrors.finaldestination = '';
+          }
+        }
+      }
+
+      // Date validation - التواريخ لا يمكن أن تكون من الماضي
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if ((fieldName === 'deparatureDate' || !fieldName) && currentFormData.deparatureDate) {
+        const depDate = new Date(currentFormData.deparatureDate);
+        depDate.setHours(0, 0, 0, 0);
+        if (depDate < today) {
+          newErrors.deparatureDate = 'تاريخ المغادرة لا يمكن أن يكون من الماضي';
+        } else if (newErrors.deparatureDate === 'تاريخ المغادرة لا يمكن أن يكون من الماضي') {
+          newErrors.deparatureDate = '';
+        }
+      }
+
+      if ((fieldName === 'finalDestinationDate' || !fieldName) && currentFormData.finalDestinationDate) {
+        const arrDate = new Date(currentFormData.finalDestinationDate);
+        arrDate.setHours(0, 0, 0, 0);
+        if (arrDate < today) {
+          newErrors.finalDestinationDate = 'تاريخ الوصول لا يمكن أن يكون من الماضي';
+        } else if (newErrors.finalDestinationDate === 'تاريخ الوصول لا يمكن أن يكون من الماضي') {
+          // Check if there's another validation error first
+          const depDate = currentFormData.deparatureDate ? new Date(currentFormData.deparatureDate) : null;
+          if (depDate && arrDate >= depDate) {
+            newErrors.finalDestinationDate = '';
+          } else if (!depDate) {
+            newErrors.finalDestinationDate = '';
+          }
+        }
+      }
+
+      // Date validation - تاريخ الوصول يجب أن يكون بعد تاريخ المغادرة
+      if ((fieldName === 'deparatureDate' || fieldName === 'finalDestinationDate' || !fieldName) 
+          && currentFormData.deparatureDate && currentFormData.finalDestinationDate) {
+        const depDate = new Date(currentFormData.deparatureDate);
+        const arrDate = new Date(currentFormData.finalDestinationDate);
+        if (depDate > arrDate) {
+          newErrors.finalDestinationDate = 'تاريخ الوصول يجب أن يكون بعد تاريخ المغادرة';
+        } else if (newErrors.finalDestinationDate === 'تاريخ الوصول يجب أن يكون بعد تاريخ المغادرة') {
+          // Check if date is not in the past
+          const todayOnly = new Date();
+          todayOnly.setHours(0, 0, 0, 0);
+          arrDate.setHours(0, 0, 0, 0);
+          if (arrDate >= todayOnly && arrDate >= depDate) {
+            newErrors.finalDestinationDate = '';
+          }
+        }
+      }
+
+      return newErrors;
+    });
+  };
 
   const validateForm = () => {
     const newErrors = {
@@ -73,12 +143,40 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
       newErrors.finalDestinationDate = 'تاريخ الوصول مطلوب';
       isValid = false;
     }
-    if (!internalTicketFile) {
-      newErrors.internalTicketFile = 'ملف التذكرة مطلوب';
+    // if (!internalTicketFile) {
+    //   newErrors.internalTicketFile = 'ملف التذكرة مطلوب';
+    //   isValid = false;
+    // }
+
+    // City validation - المدينتين لا يمكن أن تكونا نفس المدينة
+    if (formData.ArrivalCity && formData.finaldestination && formData.ArrivalCity === formData.finaldestination) {
+      newErrors.finaldestination = 'مدينة الوصول يجب أن تكون مختلفة عن مدينة المغادرة';
       isValid = false;
     }
 
-    // Date validation
+    // Date validation - التواريخ لا يمكن أن تكون من الماضي
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    
+    if (formData.deparatureDate) {
+      const depDate = new Date(formData.deparatureDate);
+      depDate.setHours(0, 0, 0, 0);
+      if (depDate < today) {
+        newErrors.deparatureDate = 'تاريخ المغادرة لا يمكن أن يكون من الماضي';
+        isValid = false;
+      }
+    }
+
+    if (formData.finalDestinationDate) {
+      const arrDate = new Date(formData.finalDestinationDate);
+      arrDate.setHours(0, 0, 0, 0);
+      if (arrDate < today) {
+        newErrors.finalDestinationDate = 'تاريخ الوصول لا يمكن أن يكون من الماضي';
+        isValid = false;
+      }
+    }
+
+    // Date validation - تاريخ الوصول يجب أن يكون بعد تاريخ المغادرة
     if (formData.deparatureDate && formData.finalDestinationDate) {
       const depDate = new Date(formData.deparatureDate);
       const arrDate = new Date(formData.finalDestinationDate);
@@ -91,7 +189,25 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
     setErrors(newErrors);
     return isValid;
   };
+  const arabicRegionMap: { [key: string]: string } = {
+    'Ar Riyāḍ': 'الرياض',
+    'Makkah al Mukarramah': 'مكة المكرمة',
+    'Al Madīnah al Munawwarah': 'المدينة المنورة',
+    'Ash Sharqīyah': 'المنطقة الشرقية',
+    'Asīr': 'عسير',
+    'Tabūk': 'تبوك',
+    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+    'Jazan': 'جازان',
+    'Najrān': 'نجران',
+    'Al Bāḩah': 'الباحة',
+    'Al Jawf': 'الجوف',
+    'Al Qaşīm': 'القصيم',
+    'Ḩa\'il': 'حائل',
+  };
 
+  const convertToArabicRegion = (region: string) => {
+    return arabicRegionMap[region] || region;
+  };
   const handleTicketFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
@@ -115,7 +231,9 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
 
     try {
       setUploadError('');
-      setFileName(file.name);
+      setFileName(file.name); // عرض اسم الملف فوراً
+      setIsUploading(true); // بدء حالة التحميل
+      
       const res = await fetch(`/api/upload-presigned-url/internalTicketFile`);
       if (!res.ok) {
         throw new Error('فشل في الحصول على رابط الرفع');
@@ -126,6 +244,7 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
         method: 'PUT',
         body: file,
         headers: {
+          'x-amz-acl': 'public-read',
           'Content-Type': file.type,
         },
       });
@@ -143,6 +262,8 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
       setFileUploaded(false);
       setFileName('');
       setErrors({ ...errors, internalTicketFile: error.message || 'حدث خطأ أثناء رفع الملف' });
+    } finally {
+      setIsUploading(false); // إنهاء حالة التحميل
     }
   };
 
@@ -233,14 +354,22 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="departure-from" className="text-xs text-gray-500 text-right font-inter">من</label>
-            <input 
-              type="text" 
-              id="departure-from" 
-              className={`bg-gray-50 border ${errors.ArrivalCity ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-gray-800 text-md`} 
-              value={formData.ArrivalCity} 
-              onChange={(e) => setFormData({ ...formData, ArrivalCity: e.target.value })} 
-              placeholder="وجهة المغادرة" 
-            />
+          <select 
+            value={formData.ArrivalCity || ''}
+            onChange={(e) => {
+              const newFormData = { ...formData, ArrivalCity: e.target.value };
+              setFormData(newFormData);
+              validateFields(newFormData, 'ArrivalCity');
+            }}
+            className={`bg-gray-50 border ${errors.ArrivalCity ? 'border-red-500' : 'border-gray-300'} rounded  text-gray-800 text-md`}
+          >
+            <option value="">اختر المدينة</option>
+            {Object.keys(arabicRegionMap).map((region) => (
+              <option value={region} key={region}>{convertToArabicRegion(region)}</option>
+            ))}
+          </select>
+          
+            
             {errors.ArrivalCity && (
               <span className="text-red-500 text-xs text-right">{errors.ArrivalCity}</span>
             )}
@@ -249,14 +378,21 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="arrival-destination" className="text-xs text-gray-500 text-right font-inter">الى</label>
-            <input 
-              type="text" 
-              id="arrival-destination" 
-              className={`bg-gray-50 border ${errors.finaldestination ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-gray-800 text-md`} 
-              placeholder="وجهة الوصول" 
-              value={formData.finaldestination} 
-              onChange={(e) => setFormData({ ...formData, finaldestination: e.target.value })} 
-            />
+            <select 
+              value={formData.finaldestination || ''}
+              onChange={(e) => {
+                const newFormData = { ...formData, finaldestination: e.target.value };
+                setFormData(newFormData);
+                validateFields(newFormData, 'finaldestination');
+              }}
+              className={`bg-gray-50 border ${errors.finaldestination ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`}
+            >
+            <option value="">اختر المدينة</option>
+              {Object.keys(arabicRegionMap).map((region) => (
+          
+          <option value={region} key={region}>{convertToArabicRegion(region)}</option>
+              ))}
+            </select>
             {errors.finaldestination && (
               <span className="text-red-500 text-xs text-right">{errors.finaldestination}</span>
             )}
@@ -270,7 +406,11 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
                 className={`bg-gray-50 border ${errors.deparatureDate ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-gray-800 text-md w-full`} 
                 placeholder="ادخل تاريخ ووقت المغادرة"  
                 value={formData.deparatureDate} 
-                onChange={(e) => setFormData({ ...formData, deparatureDate: e.target.value })} 
+                onChange={(e) => {
+                  const newFormData = { ...formData, deparatureDate: e.target.value };
+                  setFormData(newFormData);
+                  validateFields(newFormData, 'deparatureDate');
+                }}
               />
             </div>
             {errors.deparatureDate && (
@@ -288,7 +428,11 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
                 className={`bg-gray-50 border ${errors.finalDestinationDate ? 'border-red-500' : 'border-gray-300'} rounded p-3 text-gray-800 text-md w-full`} 
                 placeholder="ادخل تاريخ ووقت الوصول"  
                 value={formData.finalDestinationDate} 
-                onChange={(e) => setFormData({ ...formData, finalDestinationDate: e.target.value })} 
+                onChange={(e) => {
+                  const newFormData = { ...formData, finalDestinationDate: e.target.value };
+                  setFormData(newFormData);
+                  validateFields(newFormData, 'finalDestinationDate');
+                }}
               />
             </div>
             {errors.finalDestinationDate && (
@@ -298,11 +442,20 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="ticket-upload" className="text-xs text-gray-500 text-right font-inter">ارفاق التذكرة</label>
             <div className={`flex items-center justify-between bg-gray-50 border ${errors.internalTicketFile ? 'border-red-500' : 'border-gray-300'} rounded p-1 pl-3`}>
-              <span className="text-md text-gray-500 font-tajawal">
-                {fileUploaded && fileName ? fileName : 'ارفاق ملف التذكرة'}
+              <span className="text-md text-gray-500 font-tajawal flex items-center gap-2 flex-1 min-w-0">
+                {isUploading && (
+                  <svg className="animate-spin h-5 w-5 text-teal-800 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                <span className="truncate">{fileName ? fileName : 'ارفاق ملف التذكرة'}</span>
               </span>
-              <label htmlFor="ticket-upload-btn" className="bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded cursor-pointer">
-                {fileUploaded ? 'تغيير الملف' : 'اختيار ملف'}
+              <label 
+                htmlFor="ticket-upload-btn" 
+                className={`bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded ${isUploading ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} flex-shrink-0`}
+              >
+                {isUploading ? 'جاري الرفع...' : (fileUploaded ? 'تغيير الملف' : 'اختيار ملف')}
               </label>
               <input 
                 type="file" 
@@ -311,6 +464,7 @@ export default function FormStep2({ onPrevious, onClose, data, onSuccess }: Form
                 ref={ticketFileInputRef}
                 onChange={handleTicketFileChange}
                 accept=".pdf,.jpg,.jpeg,.png"
+                disabled={isUploading}
               />
             </div>
             {errors.internalTicketFile && (
