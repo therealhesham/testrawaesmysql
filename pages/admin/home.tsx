@@ -116,15 +116,15 @@ const EndedOrdersTab = ({ orders, count, onItemClick }) => (
   </div>
 );
 
-const CancelledOrdersTab = ({ orders, count, onItemClick }) => (
+const CancelledOrdersTab = ({ rejectedOrders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
-    {orders.slice(0, 3).map((order) => (
+    {rejectedOrders?.slice(0, 3).map((order) => (
       <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order.cancelReason ?? "غير محدد"}</p>
+          <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order?.ReasonOfRejection ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الإلغاء: {order.cancelDate ?? order.createdAt} <FieldTimeOutlined />
+            تاريخ الإلغاء: {order?.updatedAt} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -327,7 +327,6 @@ const RelationsTab = ({ relations, count, onItemClick }) => (
 );
 
 const SponsorshipTransfersTab = ({ transfers, count, onItemClick }) => (
-  console.log(transfers),
   <div className="info-card-body flex flex-col gap-4">
     {transfers.slice(0, 3).map((transfer) => (
       <div key={transfer.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/transfersponsorship')}>
@@ -368,7 +367,9 @@ const ForeignOfficesTab = ({ offices, count, onItemClick }) => (
 // --- Main Home Component ---
 export default function Home({
   // Data fetched on server
+  rejectedOrdersCount,
   newOrders,
+  rejectedOrders,
   currentOrders,
   endedOrders,
   cancelledOrders,
@@ -1725,7 +1726,7 @@ export default function Home({
                   onClick={() => setOrdersSectionState("cancelledOrders")}
                   className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
-                  الطلبات المرفوضة  <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{cancelledorders}</span>
+                  الطلبات المرفوضة  <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{rejectedOrdersCount}</span>
                 </a>
               </nav>
             </div>
@@ -1749,7 +1750,7 @@ export default function Home({
           {ordersSectionState === "newOrders" && <NewOrdersTab orders={newOrders} count={newOrdersLength} onItemClick={handleOrderItemClick} />}
           {ordersSectionState === "currentOrders" && <CurrentOrdersTab orders={currentOrders} count={currentOrdersLength} onItemClick={handleItemClick} />}
           {ordersSectionState === "endedOrders" && <EndedOrdersTab orders={endedOrders} count={finished} onItemClick={handleItemClick} />}
-          {ordersSectionState === "cancelledOrders" && <CancelledOrdersTab orders={cancelledOrders} count={cancelledorders} onItemClick={handleItemClick} />}
+          {ordersSectionState === "cancelledOrders" && <CancelledOrdersTab rejectedOrders={rejectedOrders} count={rejectedOrdersCount} onItemClick={handleItemClick} />}
         </section>
 
         {/* Arrivals and Departures Section */}
@@ -2302,6 +2303,7 @@ export async function getStaticProps(context) {
       bookedListRes,
       availableListRes,
       foreignOfficesRes,
+      rejectedOrdersRes,
     ] = await Promise.all([
       fetchDataFromApi(`https:/wasl.rawaes.com/api/neworderlistprisma/1`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
@@ -2318,6 +2320,7 @@ export async function getStaticProps(context) {
       fetchDataFromApi(`https:/wasl.rawaes.com/api/bookedlist?page=1`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/availablelist?page=1`),
       fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https:/wasl.rawaes.com/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 
@@ -2361,7 +2364,8 @@ export async function getStaticProps(context) {
       availableList: availableListRes?.data || [],
       foreignOffices: foreignOfficesRes?.data || [],
       events,
-      
+      rejectedOrdersCount: rejectedOrdersRes?.totalCount || 0,
+      rejectedOrders: rejectedOrdersRes.homemaids || [],
       // Counts (using fetched data or falling back to initial counts)
       newOrdersLength: counts.neworderCount,
       currentOrdersLength: currentOrdersRes?.totalCount || 0,
@@ -2387,10 +2391,12 @@ export async function getStaticProps(context) {
     // For SSG, return empty props on error instead of redirecting
     return {
       props: {
+        rejectedOrdersCount: 0,
         newOrders: [],
         currentOrders: [],
         endedOrders: [],
         cancelledOrders: [],
+        rejectedOrders: [],
         internalArrivals: [],
         internalDeparatures: [],
         externalDeparatures: [],
