@@ -146,7 +146,7 @@ if (req.body.location) {
           title: `تسكين عاملة  ${homeMaidData?.Name} منزلية`,
           message: `تم تسكين العاملة بنجاح <br/>
               يمكنك فحص المعلومات في قسم التسكين ......  <a href="/admin/housedarrivals" target="_blank" className="text-blue-500">اضغط هنا</a>`,
-          userId: req.body.employee,
+          // userId: req.body.employee,
           isRead: false,
         },
       });

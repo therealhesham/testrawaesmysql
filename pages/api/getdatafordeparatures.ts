@@ -87,23 +87,9 @@ export default async function handler(
           }
         }
       });
-
-      // التحقق من وجود البيانات
-      // if (!data) {
-      //   return res.status(404).json({ 
-      //     error: "Order not found",
-      //     message: "الطلب غير موجود",
-      //     data: null
-      //   });
-      // }
-
-      console.log("Found data for Order ID:", data);
+console.log(data);
       
-      res.status(200).json({
-        data: data,
-        success: true,
-        message: "تم جلب البيانات بنجاح"
-      });
+      res.status(200).json(data);
     } catch (error) {
       console.error("Error fetching arrival data:", error);
       res.status(500).json({ 

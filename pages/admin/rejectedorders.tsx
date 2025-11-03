@@ -13,7 +13,8 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useRouter } from 'next/router';
 import { FaRecycle, FaTrashRestore } from 'react-icons/fa';
-
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
 export default function Dashboard() {
   const [activePopup, setActivePopup] = useState(null);
   const [view, setView] = useState('requests');
@@ -255,81 +256,185 @@ const router = useRouter();
     }
   };
 
-  const exportToPDF = async () => {
-    const doc = new jsPDF();
+  const [userName, setUserName] = useState('');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const decoded = jwtDecode(token);
+    setUserName(decoded.username);
+  }, []);
+const fetchFilteredDataExporting = async () => {
+  const query = new URLSearchParams({
+    perPage: "1000",
+    ...(formData.searchTerm && { search: formData.searchTerm }),
+    ...(ageFilter && { age: ageFilter }),
+    ...(nationalityFilter && { nationality: nationalityFilter }),
+  }).toString();
+  const res = await fetch(`/api/rejectedorderslist?${query}`);
+  
+  if (!res.ok) throw new Error("Failed to fetch data");
+  const data = await res.json();
+  return data.data;
+};
+
+
+   const exportToPDF = async () => {
+  
+  
+    let dataToExport = exportedData;
     
+  const doc = new jsPDF({orientation: 'landscape'});
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  if (formData.searchTerm || ageFilter || nationalityFilter) {
+    dataToExport = await fetchFilteredDataExporting();
+  }
+
+  // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+  const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+  const logoBuffer = await logo.arrayBuffer();
+  const logoBytes = new Uint8Array(logoBuffer);
+  const logoBase64 = Buffer.from(logoBytes).toString('base64');
+  
     try {
-      // تحميل خط Amiri بشكل صحيح
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
       const fontBytes = new Uint8Array(fontBuffer);
       const fontBase64 = Buffer.from(fontBytes).toString('base64');
-
       doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       doc.setFont('Amiri', 'normal');
     } catch (error) {
       console.error('Error loading Amiri font:', error);
-      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
-      doc.setFont('helvetica', 'normal');
+      setModalMessage('خطأ في تحميل الخط العربي');
+      setShowErrorModal(true);
+      return;
     }
-
     doc.setLanguage('ar');
-    doc.setFontSize(16);
-    doc.text("الطلبات المرفوضة", 200, 10, { align: 'center' });
-
+    doc.setFontSize(12);
     const tableColumn = [
-      "رقم الطلب",
-      "اسم العميل",
-      "رقم العميل",
-      "هوية العميل",
-      "رقم العاملة",
-      "اسم العاملة",
-      "الجنسية",
-      "جواز السفر",
-      "العمر",
+      'العمر',
+      'جواز السفر',
+      'الجنسية',
+      'اسم العاملة',
+      'رقم العاملة',
+      'هوية العميل',
+      'رقم العميل',
+      'اسم العميل',
+      'رقم الطلب',
     ];
-    const tableRows = exportedData?.map(row => [
-      row.id,
-      row.client?.fullname || "غير متوفر",
-      row.client?.phonenumber || "غير متوفر",
-      row.client?.nationalId || "غير متوفر",
-      row.HomeMaid?.id || "غير متوفر",
-      row.HomeMaid?.Name || "غير متوفر",
-      row.HomeMaid?.office?.Country || "غير متوفر",
-      row.Passportnumber || "غير متوفر",
+    const tableRows = exportedData.map((row: any) => [
       row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
+      row.Passportnumber || 'غير متوفر',
+      row.HomeMaid?.office?.Country || 'غير متوفر',
+      row.HomeMaid?.Name || 'غير متوفر',
+      row.HomeMaid?.id || 'غير متوفر',
+      row.client?.nationalId || 'غير متوفر',
+      row.client?.phonenumber || 'غير متوفر',
+      row.client?.fullname || 'غير متوفر',
+      row.id || 'غير متوفر',
     ]);
-
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      styles: { font: "Amiri", halign: 'right' },
-      headStyles: { fillColor: [0, 105, 92] },
-      margin: { top: 20 },
-    });
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [26, 77, 79],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 39, right: 10, left: 10 },
 
-    doc.save("new_orders.pdf");
+
+       didDrawPage: (data: any) => {
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+
+      // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+      if (doc.getCurrentPageInfo().pageNumber === 1) {
+        doc.setFontSize(12);
+        doc.setFont('Amiri', 'normal');
+        doc.text('الطلبات المرفوضة', pageWidth / 2, 20, { align: 'right' });
+      }
+
+      // 🔸 الفوتر
+      doc.setFontSize(10);
+      doc.setFont('Amiri', 'normal');
+
+      doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+      const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+      doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      const dateText =
+        "التاريخ: " +
+        new Date().toLocaleDateString('ar-EG', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }) +
+        "  الساعة: " +
+        new Date().toLocaleTimeString('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+    },
+
+      didParseCell: (data: any) => {
+        data.cell.styles.halign = 'right';
+      },
+    });
+    doc.save('rejected_orders.pdf');
   };
 
-  const exportToExcel = () => {
-    const worksheetData = exportedData?.map(row => ({
-      "رقم الطلب": row.id,
-      "اسم العميل": row.client?.fullname || "غير متوفر",
-      "رقم العميل": row.client?.phonenumber || "غير متوفر",
-      "هوية العميل": row.client?.nationalId || "غير متوفر",
-      "رقم العاملة": row.HomeMaid?.id || "غير متوفر",
-      "اسم العاملة": row.HomeMaid?.Name || "غير متوفر",
-      "الجنسية": row.HomeMaid?.office?.Country || "غير متوفر",
-      "جواز السفر": row.Passportnumber || "غير متوفر",
-      "العمر": row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات الجديدة");
-    XLSX.writeFile(workbook, "new_orders.xlsx");
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('الطلبات المرفوضة', { properties: { defaultColWidth: 20 } });
+    worksheet.columns = [
+      { header: 'رقم الطلب', key: 'id', width: 15 },
+      { header: 'اسم العميل', key: 'clientName', width: 20 },
+      { header: 'رقم العميل', key: 'clientPhone', width: 15 },
+      { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
+      { header: 'رقم العاملة', key: 'maidId', width: 15 },
+      { header: 'اسم العاملة', key: 'maidName', width: 20 },
+      { header: 'الجنسية', key: 'nationality', width: 15 },
+      { header: 'جواز السفر', key: 'passport', width: 15 },
+      { header: 'العمر', key: 'age', width: 10 },
+    ];
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+    exportedData.forEach((row: any) => {
+      worksheet.addRow({
+        id: row.id || 'غير متوفر',
+        clientName: row.client?.fullname || 'غير متوفر',
+        clientPhone: row.client?.phonenumber || 'غير متوفر',
+        clientNationalId: row.client?.nationalId || 'غير متوفر',
+        maidId: row.HomeMaid?.id || 'غير متوفر',
+        maidName: row.HomeMaid?.Name || 'غير متوفر',
+        nationality: row.HomeMaid?.office?.Country || 'غير متوفر',
+        passport: row.Passportnumber || 'غير متوفر',
+        age: row.HomeMaid?.age || calculateAge(row.HomeMaid?.dateofbirth),
+      }).alignment = { horizontal: 'right' };
+    });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rejected_orders.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   useEffect(() => {

@@ -157,8 +157,7 @@ console.log(internalReason)
 
     // Apply `excludeEmptyFields` to filter out empty fields from the object
     const dataToUpdate = excludeEmptyFields(ss);
-
-    // Prisma update queries
+console.log("dataToUpdate",req.body.internalTicketFile)
     await prisma.neworder.update({
       where: { id: Orderid },
       data: { bookingstatus },

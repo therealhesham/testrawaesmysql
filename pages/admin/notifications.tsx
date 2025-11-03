@@ -7,15 +7,19 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/ar";
 import Layout from "example/containers/Layout";
 import DOMPurify from "dompurify";
+import TaskCompletionModal from "../../components/TaskCompletionModal";
 dayjs.extend(relativeTime);
 dayjs.locale("ar");
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [tab, setTab] = useState("unread");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [counts, setCounts] = useState({ all: 0, read: 0, unread: 0 });
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -31,12 +35,11 @@ export default function NotificationsPage() {
     }
   };
 
-  // إعادة الصفحة للأولى عند تغيير التبويب
+  // جلب البيانات عند تغيير الصفحة أو التبويب
   useEffect(() => {
-    setPage(1);
+    setPage(1); // إعادة الصفحة للأولى عند تغيير التبويب
   }, [tab]);
 
-  // جلب البيانات عند تغيير الصفحة أو التبويب
   useEffect(() => {
     fetchNotifications();
   }, [tab, page]);
@@ -47,8 +50,111 @@ export default function NotificationsPage() {
     socket.on("newNotification", () => {
       fetchNotifications();
     });
-    return () => socket.disconnect();
+    return () => {
+      socket.disconnect();
+    };
   }, []);
+
+  // جلب معلومات المستخدم الحالي
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.user?.id) {
+            setCurrentUser({ id: data.user.id, username: data.user.username });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // تسجيل الإشعار كمقروء عند النقر عليه
+  const handleNotificationClick = async (notification: any) => {
+    // إذا كان الإشعار مرتبط بمهمة، افتح modal المهمة
+    if (notification.taskId && notification.task) {
+      setSelectedTask(notification.task);
+      setIsTaskModalOpen(true);
+    }
+
+    // تسجيل الإشعار كمقروء
+    try {
+      const response = await fetch(`/api/notifications/${notification.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      });
+
+      if (!response.ok) throw new Error("Failed to mark notification as read");
+
+      // تحديث القائمة بعد تسجيل الإشعار كمقروء
+      fetchNotifications();
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // تحديث المهمة
+  const handleTaskUpdate = async (
+    taskId: number,
+    isCompleted: boolean,
+    completionDate?: string,
+    completionNotes?: string
+  ) => {
+    try {
+      const response = await fetch("/api/tasks/update", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId,
+          isCompleted,
+          completionDate,
+          completionNotes,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update task");
+      }
+
+      const updatedTask = await response.json();
+
+      // تحديث الإشعارات بعد تحديث المهمة
+      setNotifications((prev) =>
+        prev.map((notif: any) =>
+          notif.taskId === taskId
+            ? {
+                ...notif,
+                task: notif.task ? { ...notif.task, ...updatedTask } : undefined,
+              }
+            : notif
+        )
+      );
+
+      setIsTaskModalOpen(false);
+      fetchNotifications(); // تحديث القائمة
+    } catch (error) {
+      console.error("Error updating task:", error);
+      throw error;
+    }
+  };
+
+  // الحصول على لون حسب الأولوية
+  const getPriorityColor = (priority?: string) => {
+    if (!priority) return "";
+    if (priority === "عالية الأهمية" || priority === "high") {
+      return "border-r-4 border-red-500 bg-red-50";
+    } else if (priority === "متوسط الأهمية" || priority === "medium") {
+      return "border-r-4 border-yellow-500 bg-yellow-50";
+    } else {
+      return "border-r-4 border-green-500 bg-green-50";
+    }
+  };
 
   // تقسيم الإشعارات زمنياً
   const today = dayjs().startOf("day");
@@ -69,15 +175,23 @@ export default function NotificationsPage() {
           list.map((n: any) => (
             <div
               key={n.id}
-              className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:bg-gray-50"
+              onClick={() => handleNotificationClick(n)}
+              className={`flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:bg-gray-50 cursor-pointer transition-all ${
+                n.taskId && n.task ? getPriorityColor(n.task.priority) : ""
+              }`}
             >
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-semibold text-gray-900" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.message) }}></p>
-                <p className="text-xs text-gray-500 flex items-center gap-2">
-                  منذ {dayjs(n.createdAt).fromNow()} <FieldTimeOutlined />
-                </p>
+              <div className="flex items-start gap-3 flex-1">
+                {n.taskId && n.task && (
+                  <span className="text-xl mt-1">📋</span>
+                )}
+                <div className="flex flex-col gap-2 flex-1">
+                  <p className="text-sm font-semibold text-gray-900" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.message || n.title) }}></p>
+                  <p className="text-xs text-gray-500 flex items-center gap-2">
+                    منذ {dayjs(n.createdAt).fromNow()} <FieldTimeOutlined />
+                  </p>
+                </div>
               </div>
-              <button className="bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100">
+              <button className="bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 ml-2">
                 <ArrowLeftOutlined className="w-4 h-4" />
               </button>
             </div>
@@ -87,21 +201,90 @@ export default function NotificationsPage() {
     </section>
   );
 
-  const renderPagination = () => (
-    <div className="flex gap-2 mt-6">
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+  const renderPagination = () => {
+    if (totalPages <= 1) return null; // إخفاء الـ pagination إذا كان هناك صفحة واحدة أو أقل
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisible = 7; // عدد الصفحات المرئية
+      
+      if (totalPages <= maxVisible) {
+        // إذا كان عدد الصفحات أقل من الحد الأقصى، اعرض جميع الصفحات
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // منطق معقد لعرض الصفحات مع ...
+        if (page <= 4) {
+          // إذا كانت الصفحة الحالية في البداية
+          for (let i = 1; i <= 5; i++) pages.push(i);
+          pages.push("...");
+          pages.push(totalPages);
+        } else if (page >= totalPages - 3) {
+          // إذا كانت الصفحة الحالية في النهاية
+          pages.push(1);
+          pages.push("...");
+          for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+        } else {
+          // إذا كانت الصفحة الحالية في المنتصف
+          pages.push(1);
+          pages.push("...");
+          for (let i = page - 1; i <= page + 1; i++) pages.push(i);
+          pages.push("...");
+          pages.push(totalPages);
+        }
+      }
+      return pages;
+    };
+
+    const pageNumbers = getPageNumbers();
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
         <button
-          key={p}
-          onClick={() => setPage(p)}
-          className={`px-3 py-1 rounded-lg border ${
-            page === p ? "bg-teal-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100"
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className={`px-3 py-2 rounded-lg border ${
+            page === 1
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100"
           }`}
         >
-          {p}
+          السابق
         </button>
-      ))}
-    </div>
-  );
+        {pageNumbers.map((p, idx) => (
+          p === "..." ? (
+            <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">
+              ...
+            </span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => setPage(p as number)}
+              className={`px-3 py-2 rounded-lg border ${
+                page === p
+                  ? "bg-teal-600 text-white border-teal-600"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
+              }`}
+            >
+              {p}
+            </button>
+          )
+        ))}
+        <button
+          onClick={() => setPage(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages}
+          className={`px-3 py-2 rounded-lg border ${
+            page === totalPages
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          التالي
+        </button>
+      </div>
+    );
+  };
 
   return (
     <Layout>
@@ -139,6 +322,20 @@ export default function NotificationsPage() {
 
         {/* Pagination */}
         {renderPagination()}
+
+        {/* Task Completion Modal */}
+        {isTaskModalOpen && selectedTask && (
+          <TaskCompletionModal
+            isOpen={isTaskModalOpen}
+            onClose={() => {
+              setIsTaskModalOpen(false);
+              setSelectedTask(null);
+            }}
+            task={selectedTask}
+            onTaskUpdate={handleTaskUpdate}
+            currentUser={currentUser}
+          />
+        )}
       </div>
     </Layout>
   );

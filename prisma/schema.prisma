@@ -168,6 +168,8 @@ completionNotes    String?   @db.VarChar(500) // ملاحظات الإنجاز
 parentTaskId       Int?      // المهمة الأصلية للتكرار
 parentTask         tasks?    @relation("TaskRepeats", fields: [parentTaskId], references: [id])
 repeatTasks        tasks[]   @relation("TaskRepeats") // المهام المتكررة
+
+notifications notifications?
 }
 model weeklyStatus{
   id              Int       @id @default(autoincrement())
@@ -187,14 +189,15 @@ homeMaid_id  Int
 model notifications {
   id              Int       @id @default(autoincrement())
 title        String?   @db.VarChar(55)
-
+type          String? @db.VarChar(32)
 message        String?   @db.VarChar(255)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   isRead          Boolean?  @default(false)
   userId          String?
   user            User?     @relation(fields: [userId], references: [username]) 
-
+taskId        Int? @unique()
+task          tasks?     @relation(fields: [taskId], references: [id]) 
 }
 model officemssages{
  //الموديل ده خاص بالرسايل اللي هيكتبها روائس وهيستعرضها المكتب

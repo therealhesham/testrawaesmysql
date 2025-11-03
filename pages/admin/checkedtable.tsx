@@ -56,6 +56,7 @@ setUserName(decoded.username);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteDate, setDeleteDate] = useState('');
   const [isAddCashModalOpen, setIsAddCashModalOpen] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '', title: 'خطأ' });
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,7 +148,7 @@ setUserName(decoded.username);
   const handleDelete = async (e) => {
     e.preventDefault();
     if (!deleteDate) {
-      alert('يرجى اختيار تاريخ');
+      setErrorModal({ isOpen: true, message: 'يرجى اختيار تاريخ', title: 'تنبيه' });
       return;
     }
     try {
@@ -156,15 +157,15 @@ setUserName(decoded.username);
       });
       const data = await response.json();
       if (response.ok) {
-        alert(data.message);
+        setErrorModal({ isOpen: true, message: data.message, title: 'نجح' });
         setIsModalOpen(false);
         setDeleteDate('');
         fetchData(page);
       } else {
-        alert(data.message || 'حدث خطأ أثناء الحذف');
+        setErrorModal({ isOpen: true, message: data.message || 'حدث خطأ أثناء الحذف', title: 'خطأ' });
       }
     } catch (err) {
-      alert('فشل في الاتصال بالخادم');
+      setErrorModal({ isOpen: true, message: 'فشل في الاتصال بالخادم', title: 'خطأ' });
     }
   };
 
@@ -194,11 +195,24 @@ setUserName(decoded.username);
     setEndDate(defaultEnd);
     setPage(1);
   };
-const [amount, setAmount] = useState(0);
-const [month, setMonth] = useState(0);
-const [year, setYear] = useState(0);
-  const addCash =async  () => {
+const [amount, setAmount] = useState('');
+const [period, setPeriod] = useState('');
+
+  const addCash = async () => {
+    if (!amount || !period) {
+      setErrorModal({ isOpen: true, message: 'يرجى إدخال المبلغ واختيار الفترة', title: 'تنبيه' });
+      return;
+    }
+    
     try {
+      // السنة الحالية تلقائياً
+      const currentYear = new Date().getFullYear();
+      
+      // تحويل الفترة إلى شهر بناءً على اختيار المستخدم
+      // إذا كان يومي أو أسبوعي، سنستخدم الشهر الحالي
+      // إذا كان شهري، سنستخدم الشهر الحالي أيضاً (أو يمكن التعديل حسب الحاجة)
+      const currentMonth = new Date().getMonth() + 1;
+      
       const response = await fetch('/api/addcash', {
         method: 'POST',
         headers: {
@@ -206,23 +220,23 @@ const [year, setYear] = useState(0);
         },
         body: JSON.stringify({
           amount,
-          Month: month,
-          Year: year,
+          Month: currentMonth,
+          Year: currentYear.toString(),
+          transaction_type: period, // استخدام الفترة كـ transaction_type
         }),
       });
       const data = await response.json();
       if (response.ok) {
-        setIsAddCashModalOpen(false)
-        setAmount('')
-        setMonth('1')
-        setYear('2025')
-        fetchData(page)
+        setIsAddCashModalOpen(false);
+        setAmount('');
+        setPeriod('');
+        fetchData(page);
+      } else {
+        setErrorModal({ isOpen: true, message: data.error || 'حدث خطأ أثناء إضافة المبلغ', title: 'خطأ' });
       }
-    }
- 
- 
-    catch (error) {
+    } catch (error) {
       console.error('Error adding cash:', error);
+      setErrorModal({ isOpen: true, message: 'حدث خطأ أثناء إضافة المبلغ', title: 'خطأ' });
     }
   }
 const exportToPDF = async () => {
@@ -462,7 +476,7 @@ const exportToExcel = () => {
                     className="bg-teal-900 text-white px-3 py-[7.5px] rounded-[5px] text-md hover:bg-[#14595b] transition-colors"
                     onClick={() => setIsAddCashModalOpen(true)}
                   >
-                    اضافة رصيد
+                    اضافة مبلغ
                   </button>
                   
                   <button
@@ -664,58 +678,85 @@ const exportToExcel = () => {
           </section>
 
 
-<section className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-100 border border-[#e0e0e0] rounded-[5px] p-[40px_48px] flex flex-col gap-[40px] z-[1000] w-full max-w-[731px] shadow-2xl ${
+{/* Add Amount Modal Overlay */}
+{isAddCashModalOpen && (
+  <div
+    className="fixed inset-0 bg-black bg-opacity-50 z-[999]"
+    onClick={() => {
+      setIsAddCashModalOpen(false);
+      setAmount('');
+      setPeriod('');
+    }}
+  />
+)}
+
+<section className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#f7f8fa] border border-[#e0e0e0] rounded-[5px] p-[40px_48px] flex flex-col gap-[40px] z-[1000] w-full max-w-[731px] shadow-2xl ${
               isAddCashModalOpen ? 'flex' : 'hidden'
             }`}>
-    <div className='flex flex-col gap-[20px]'>
-<XIcon className="w-4 h-4 absolute top-5 left-3 cursor-pointer" onClick={() => 
-{
-  setIsAddCashModalOpen(false)
-  setAmount('')
-  setMonth('1')
-  setYear('2025')
-}
-} />
+    <div className='flex flex-col gap-[20px] relative'>
+      <XIcon className="w-4 h-4 absolute top-0 left-0 cursor-pointer text-gray-600 hover:text-gray-800" onClick={() => {
+        setIsAddCashModalOpen(false);
+        setAmount('');
+        setPeriod('');
+      }} />
 
-<h2 className="text-[24px] font-normal text-black text-right m-0">اضافة رصيد</h2>
+      <h2 className="text-[24px] font-normal text-black text-right m-0 mb-4">اضافة مبلغ</h2>
 
-              <div className="flex  flex-col gap-[8px]">
+      <div className="flex flex-row-reverse gap-4 items-start">
+        {/* Period Selection - Right Side */}
+        <div className="flex flex-col gap-[8px] flex-1">
+          <label htmlFor="period" className="text-[14px] text-[#1f2937] text-right font-medium">الفترة</label>
+          <div className="relative">
+            <select 
+              id="period" 
+              className="w-full bg-white border border-[#e0e0e0] rounded-[5px] px-[10px] py-[10px] pr-8 text-md text-[#6b7280] outline-none appearance-none cursor-pointer"
+              value={period} 
+              onChange={(e) => setPeriod(e.target.value)}
+            >
+              <option value="">اختر الفترة</option>
+              <option value="daily">يومي</option>
+              <option value="weekly">اسبوعي</option>
+              <option value="monthly">شهري</option>
+            </select>
+            <ChevronLeft className="w-4 h-4 absolute left-[10px] top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400" />
+          </div>
+        </div>
 
-      <label htmlFor="amount">المبلغ</label>
-      <input type="number" id="amount" className='bg-gray-100' value={amount} onChange={(e) => setAmount(e.target.value)} />
-</div>
-<div className="flex  flex-col gap-[8px]">
+        {/* Amount Input - Left Side */}
+        <div className="flex flex-col gap-[8px] flex-1">
+          <label htmlFor="amount" className="text-[14px] text-[#1f2937] text-right font-medium">المبلغ</label>
+          <input 
+            type="number" 
+            id="amount" 
+            className="w-full bg-white border border-[#e0e0e0] rounded-[5px] px-[10px] py-[10px] text-md text-[#6b7280] outline-none placeholder:text-gray-400" 
+            placeholder={period === 'daily' ? 'ادخل المبلغ اليومي' : period === 'weekly' ? 'ادخل المبلغ الاسبوعي' : period === 'monthly' ? 'ادخل المبلغ الشهري' : 'ادخل المبلغ'}
+            value={amount} 
+            onChange={(e) => setAmount(e.target.value)} 
+          />
+        </div>
+      </div>
 
-    <label htmlFor="month">الشهر</label>
-<select id="month" className='bg-gray-100' value={month} onChange={(e) => setMonth(e.target.value)}>
-<option value="1">يناير</option>
-<option value="2">فبراير</option>
-<option value="3">مارس</option>
-<option value="4">أبريل</option>
-<option value="5">مايو</option>
-<option value="6">يونيو</option>
-<option value="7">يوليو</option>
-<option value="8">أغسطس</option>
-<option value="9">سبتمبر</option>
-<option value="10">أكتوبر</option>
-<option value="11">نوفمبر</option>
-<option value="12">ديسمبر</option>
-
-</select>
-
-  
-</div>
-  
-  <div className="flex flex-col gap-[8px]">
-
-  <label htmlFor="year">السنة</label>
-      <input type="text" id="year" className='bg-gray-100' value={year} onChange={(e) => setYear(e.target.value)} />
-    
-  </div>
-      <button onClick={addCash} className="bg-teal-900 text-white px-3 py-[7.5px] rounded-[5px] text-md hover:bg-[#14595b] transition-colors">اضافة الاعاشة</button>
+      {/* Action Buttons */}
+      <div className="flex flex-row-reverse gap-4 justify-end pt-4 border-t border-[#e0e0e0]">
+        <button 
+          onClick={addCash} 
+          className="bg-teal-900 text-white px-6 py-2 rounded-[5px] text-[16px] font-medium hover:bg-[#14595b] transition-colors"
+        >
+          حفظ
+        </button>
+        <button 
+          onClick={() => {
+            setIsAddCashModalOpen(false);
+            setAmount('');
+            setPeriod('');
+          }} 
+          className="bg-transparent border border-teal-900 text-teal-900 px-6 py-2 rounded-[5px] text-[16px] font-medium hover:bg-gray-50 transition-colors"
+        >
+          الغاء
+        </button>
+      </div>
     </div>
-
-            </section>
+</section>
 
 
           {/* Delete Modal */}
@@ -760,6 +801,51 @@ const exportToExcel = () => {
               </div>
             </form>
           </section>
+
+          {/* Error Modal */}
+          {errorModal.isOpen && (
+            <>
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 z-[1001]"
+                onClick={() => setErrorModal({ ...errorModal, isOpen: false })}
+              />
+              <section className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white border border-[#e0e0e0] rounded-[5px] p-[40px_48px] flex flex-col gap-[20px] z-[1002] w-full max-w-[500px] shadow-2xl">
+                <div className="flex flex-col gap-4 relative">
+                  <XIcon 
+                    className="w-4 h-4 absolute top-0 left-0 cursor-pointer text-gray-600 hover:text-gray-800" 
+                    onClick={() => setErrorModal({ ...errorModal, isOpen: false })} 
+                  />
+                  
+                  <h2 className={`text-[24px] font-normal text-right m-0 ${
+                    errorModal.title === 'نجح' ? 'text-green-600' : 
+                    errorModal.title === 'تنبيه' ? 'text-yellow-600' : 
+                    'text-red-600'
+                  }`}>
+                    {errorModal.title}
+                  </h2>
+                  
+                  <p className="text-[16px] text-[#1f2937] text-right">
+                    {errorModal.message}
+                  </p>
+                  
+                  <div className="flex flex-row-reverse justify-end gap-4 pt-4 border-t border-[#e0e0e0]">
+                    <button
+                      onClick={() => setErrorModal({ ...errorModal, isOpen: false })}
+                      className={`px-6 py-2 rounded-[5px] text-[16px] font-medium transition-colors w-[140px] ${
+                        errorModal.title === 'نجح' 
+                          ? 'bg-green-600 text-white hover:bg-green-700' 
+                          : errorModal.title === 'تنبيه'
+                          ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      موافق
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
         </main>
       </div>
     </Layout>

@@ -7,7 +7,18 @@ import {
   startOfDay,
   endOfDay,
   format,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  subDays,
 } from "date-fns";
+
+function getDate(date: Date): string {
+  const currentDate = new Date(date);
+  const form = currentDate.toISOString().split("T")[0];
+  console.log(currentDate);
+  return form;
+}
 
 export default async function handler(
   request: NextApiRequest,
@@ -15,29 +26,13 @@ export default async function handler(
 ) {
   try {
     if (request.method === "GET") {
-      function getDate(date) {
-    const currentDate = new Date(date); // Original date
-    // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
-    const form = currentDate.toISOString().split("T")[0];
-    console.log(currentDate);
-    return form;
-  }
+      const { transaction_type } = request.query;
+
       // Handle daily check-in creation
       const today = new Date();
-      const startOfDayS = startOfDay(today); // بداية اليوم
-      const endOfDayS = endOfDay(today); // نهاية اليوم
-      const td = format(today, "yyyy-MM-dd"); // تنسيق التاريخ كـ YYYY-MM-DD
-
-      // Delete existing check-ins for today
-      // await prisma.checkIn.deleteMany({
-      //   where: {
-      //     CheckDate: {
-      //       gte: startOfDayS.toISOString(),
-      //       lte: endOfDayS.toISOString(),
-      //     },
-      //     isActive: true,
-      //   },
-      // });
+      const startOfDayS = startOfDay(today);
+      const endOfDayS = endOfDay(today);
+      const td = format(today, "yyyy-MM-dd");
 
       // Fetch all active housed workers
       const activeHousedWorkers = await prisma.housedworker.findMany({
@@ -46,139 +41,133 @@ export default async function handler(
         },
       });
 
-      // Create check-in records for all active workers
-      const checkInPromises = activeHousedWorkers.map((worker) =>
-        prisma.checkIn.create({
-          data: {
+      // Create check-in records for all active workers if they don't exist
+      for (const worker of activeHousedWorkers) {
+        const existingCheckIn = await prisma.checkIn.findFirst({
+          where: {
             housedWorkerId: worker.id,
-            isActive: true,
-            CheckDate: startOfDayS.toISOString(), // استخدام تاريخ موحد
+            CheckDate: {
+              gte: startOfDayS.toISOString(),
+              lte: endOfDayS.toISOString(),
+            },
           },
-        })
-      );
+        });
 
-      // Execute all check-in creations
-      await Promise.all(checkInPromises);
+        if (!existingCheckIn) {
+          await prisma.checkIn.create({
+            data: {
+              housedWorkerId: worker.id,
+              isActive: true,
+              CheckDate: startOfDayS.toISOString(),
+            },
+          });
+        }
+      }
 
-      // Handle daily cost distribution
-      const parsedDate = new Date(); // Use current date
-      const month = parsedDate.getMonth() + 1; // getMonth() is 0-based
+      const parsedDate = new Date();
+      const month = parsedDate.getMonth() + 1;
       const year = parsedDate.getFullYear();
 
-      // Fetch Cash record
-      const cash = await prisma.cash.findFirst({
-        where: { Month: month.toString(), Year: year.toString() },
-      });
+      // Fetch Cash records based on transaction_type
+      let cashRecords = [];
+      
+      if (transaction_type && transaction_type !== "all") {
+        cashRecords = await prisma.cash.findMany({
+          where: {
+            Month: month.toString(),
+            Year: year.toString(),
+            transaction_type: transaction_type.toString(),
+          },
+        });
+      } else {
+        // If no transaction_type specified, get all cash records for the month
+        cashRecords = await prisma.cash.findMany({
+          where: {
+            Month: month.toString(),
+            Year: year.toString(),
+          },
+        });
+      }
 
-      if (!cash || !cash.amount || !cash.Month) {
+      if (!cashRecords || cashRecords.length === 0) {
         return response.status(404).json({
           success: false,
-          error: "Cash record not found or missing amount/month",
+          error: "Cash record not found for the specified criteria",
         });
       }
 
-      // Calculate total distributed amount for the month
-      const monthYear = new Date(`${year}-${month}-01`);
-      const monthStart = startOfMonth(monthYear);
-      const monthEnd = endOfMonth(monthYear);
+      // Process each cash record based on its transaction_type
+      const results = [];
 
-      const distributedRecords = await prisma.checkIn.findMany({
-        where: {
-          CheckDate: {
-            gte: monthStart,
-            lte: monthEnd,
-          },
-          DailyCost: {
-            not: null,
-          },
-        },
-        select: {
-          DailyCost: true,
-        },
-      });
+      for (const cash of cashRecords) {
+        const transactionType = cash.transaction_type?.toLowerCase() || "daily";
 
-      const totalDistributed = distributedRecords.reduce(
-        (sum, record) => sum + (Number(record.DailyCost) || 0),
-        0
-      );
+        if (transactionType === "daily") {
+          // Handle daily distribution
+          const result = await handleDailyDistribution(
+            cash,
+            month,
+            year,
+            startOfDayS,
+            endOfDayS,
+            today,
+            td,
+            activeHousedWorkers
+          );
+          if (result) results.push(result);
+        } else if (transactionType === "weekly") {
+          // Handle weekly distribution
+          const result = await handleWeeklyDistribution(
+            cash,
+            month,
+            year,
+            startOfDayS,
+            endOfDayS,
+            today,
+            td,
+            activeHousedWorkers
+          );
+          if (result) results.push(result);
+        } else if (transactionType === "monthly") {
+          // Handle monthly distribution
+          const result = await handleMonthlyDistribution(
+            cash,
+            month,
+            year,
+            startOfDayS,
+            endOfDayS,
+            today,
+            td,
+            activeHousedWorkers
+          );
+          if (result) results.push(result);
+        }
+      }
 
-      // Calculate remaining cash
-      const totalCash = Number(cash.amount);
-      const remainingCash = totalCash - totalDistributed;
-      if (remainingCash <= 0) {
-        return response.status(400).json({
+      if (results.length === 0) {
+        return response.status(200).json({
           success: false,
-          error: "لا يوجد رصيد كافٍ متبقي للتوزيع في هذا الشهر",
+          message: "لم يتم التوزيع - تحقق من الشروط",
         });
       }
 
-      // Calculate remaining days in the month
-      const todayParsed = startOfDay(parsedDate);
-      const daysRemaining = differenceInDays(monthEnd, todayParsed) + 1; // Including today
-      if (daysRemaining <= 0) {
-        return response.status(400).json({
-          success: false,
-          error: "لا يمكن التوزيع بعد نهاية الشهر",
-        });
-      }
-
-      // Calculate daily amount based on remaining cash
-      const dailyAmount = remainingCash / daysRemaining;
-
-      // Fetch active check-ins for the specified date
-      const checkIns = await prisma.housedworker.findMany({
-        where: {
-          isActive: true,
-        },
-      });
-
-      const workerCount = checkIns.length;
-      if (workerCount === 0) {
-        return response.status(404).json({
-          success: false,
-          error: "No active workers found for this date",
-        });
-      }
-
-      // Calculate cost per worker
-      const costPerWorker = dailyAmount / workerCount;
-
-      // Update DailyCost in CheckIn
-      await prisma.checkIn.updateMany({
-        where: {
-          CheckDate: {
-            gte: startOfDayS.toISOString(),
-            lte: endOfDayS.toISOString(),
-          },
-          isActive: true,
-        },
-        data: {
-          DailyCost: costPerWorker,
-        },
-      });
+      // Create notification
       try {
+        const totalWorkers = activeHousedWorkers.length;
         await prisma.notifications.create({
           data: {
             title: `تسجيل اعاشات اتوماتيكيا بتاريخ ${getDate(today)}`,
-            message: `تم تسجيل اعاشات  لـ${workerCount}عاملة   
-`,
+            message: `تم تسجيل اعاشات لـ${totalWorkers} عاملة`,
             isRead: false,
           },
         });
       } catch (e) {
         console.log(e);
       }
-      // Return success response
+
       return response.status(200).json({
         success: true,
-        data: {
-          workerCount,
-          costPerWorker: Math.round(costPerWorker),
-          date: td,
-          totalCash,
-          totalDistributed,
-          remainingCash,
-        },
+        data: results,
       });
     }
   } catch (error) {
@@ -189,4 +178,310 @@ export default async function handler(
   } finally {
     await prisma.$disconnect();
   }
+}
+
+// Handle daily distribution
+async function handleDailyDistribution(
+  cash: any,
+  month: number,
+  year: number,
+  startOfDayS: Date,
+  endOfDayS: Date,
+  today: Date,
+  td: string,
+  activeHousedWorkers: any[]
+) {
+  // Check if today already has distribution - if yes, delete it
+  const existingDistribution = await prisma.checkIn.findFirst({
+    where: {
+      CheckDate: {
+        gte: startOfDayS.toISOString(),
+        lte: endOfDayS.toISOString(),
+      },
+      DailyCost: {
+        not: null,
+      },
+    },
+  });
+
+  if (existingDistribution) {
+    // Delete existing distribution for today
+    await prisma.checkIn.updateMany({
+      where: {
+        CheckDate: {
+          gte: startOfDayS.toISOString(),
+          lte: endOfDayS.toISOString(),
+        },
+        DailyCost: {
+          not: null,
+        },
+      },
+      data: {
+        DailyCost: null,
+      },
+    });
+  }
+
+  // Calculate total distributed amount for the month for this cash record
+  const monthYear = new Date(`${year}-${month}-01`);
+  const monthStart = startOfMonth(monthYear);
+  const monthEnd = endOfMonth(monthYear);
+
+  const distributedRecords = await prisma.checkIn.findMany({
+    where: {
+      CheckDate: {
+        gte: monthStart,
+        lte: monthEnd,
+      },
+      DailyCost: {
+        not: null,
+      },
+    },
+    select: {
+      DailyCost: true,
+    },
+  });
+
+  const totalDistributed = distributedRecords.reduce(
+    (sum, record) => sum + (Number(record.DailyCost) || 0),
+    0
+  );
+
+  const totalCash = Number(cash.amount);
+  const remainingCash = totalCash - totalDistributed;
+
+  if (remainingCash <= 0) {
+    return null;
+  }
+
+  const todayParsed = startOfDay(today);
+  const daysRemaining = differenceInDays(monthEnd, todayParsed) + 1;
+
+  if (daysRemaining <= 0) {
+    return null;
+  }
+
+  const dailyAmount = remainingCash / daysRemaining;
+  const workerCount = activeHousedWorkers.length;
+
+  if (workerCount === 0) {
+    return null;
+  }
+
+  const costPerWorker = dailyAmount / workerCount;
+
+  await prisma.checkIn.updateMany({
+    where: {
+      CheckDate: {
+        gte: startOfDayS.toISOString(),
+        lte: endOfDayS.toISOString(),
+      },
+      isActive: true,
+    },
+    data: {
+      DailyCost: costPerWorker,
+    },
+  });
+
+  return {
+    transaction_type: "daily",
+    workerCount,
+    costPerWorker: Math.round(costPerWorker * 100) / 100,
+    date: td,
+    totalCash,
+    totalDistributed,
+    remainingCash: Math.round(remainingCash * 100) / 100,
+  };
+}
+
+// Handle weekly distribution
+async function handleWeeklyDistribution(
+  cash: any,
+  month: number,
+  year: number,
+  startOfDayS: Date,
+  endOfDayS: Date,
+  today: Date,
+  td: string,
+  activeHousedWorkers: any[]
+) {
+  // Check cash created_at - if it was created today, distribute today
+  const cashCreatedAt = cash.createdAt ? new Date(cash.createdAt) : today;
+  const cashCreatedAtDay = startOfDay(cashCreatedAt);
+  const todayDay = startOfDay(today);
+
+  // Check if cash was created today
+  const isCreatedToday = differenceInDays(todayDay, cashCreatedAtDay) === 0;
+
+  if (!isCreatedToday) {
+    // Check the last distribution date - must be at least 7 days ago
+    // لو اتوزع امبارح في check in مش هوزع النهاردة لان لازم الفرق 7 ايام
+    const oneDayAgo = subDays(todayDay, 1);
+    const lastDistribution = await prisma.checkIn.findFirst({
+      where: {
+        DailyCost: {
+          not: null,
+        },
+        CheckDate: {
+          lte: oneDayAgo.toISOString(), // Check distributions before today (yesterday or earlier)
+        },
+      },
+      orderBy: {
+        CheckDate: "desc",
+      },
+      select: {
+        CheckDate: true,
+      },
+    });
+
+    if (lastDistribution && lastDistribution.CheckDate) {
+      const lastDistDate = startOfDay(new Date(lastDistribution.CheckDate));
+      const daysSinceLastDist = differenceInDays(todayDay, lastDistDate);
+
+      // If distribution was done less than 7 days ago, skip
+      // This ensures at least 7 days gap between weekly distributions
+      if (daysSinceLastDist < 7) {
+        return null;
+      }
+    }
+  }
+
+  // Calculate weekly amount (divide by 4 or remaining weeks in month)
+  const monthYear = new Date(`${year}-${month}-01`);
+  const monthStart = startOfMonth(monthYear);
+  const monthEnd = endOfMonth(monthYear);
+  const todayParsed = startOfDay(today);
+  const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
+  const daysRemaining = differenceInDays(monthEnd, todayParsed) + 1;
+  const weeksRemaining = Math.ceil(daysRemaining / 7);
+
+  const totalCash = Number(cash.amount);
+  const weeklyAmount = totalCash / (weeksRemaining > 0 ? weeksRemaining : 1);
+
+  // Check if already distributed this week
+  const weekStart = startOfWeek(todayDay, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(todayDay, { weekStartsOn: 0 });
+
+  const existingWeeklyDistribution = await prisma.checkIn.findFirst({
+    where: {
+      CheckDate: {
+        gte: weekStart.toISOString(),
+        lte: weekEnd.toISOString(),
+      },
+      DailyCost: {
+        not: null,
+      },
+    },
+  });
+
+  if (existingWeeklyDistribution && !isCreatedToday) {
+    return null;
+  }
+
+  const workerCount = activeHousedWorkers.length;
+  if (workerCount === 0) {
+    return null;
+  }
+
+  const costPerWorker = weeklyAmount / workerCount;
+
+  await prisma.checkIn.updateMany({
+    where: {
+      CheckDate: {
+        gte: startOfDayS.toISOString(),
+        lte: endOfDayS.toISOString(),
+      },
+      isActive: true,
+    },
+    data: {
+      DailyCost: costPerWorker,
+    },
+  });
+
+  return {
+    transaction_type: "weekly",
+    workerCount,
+    costPerWorker: Math.round(costPerWorker * 100) / 100,
+    date: td,
+    totalCash,
+    weeklyAmount: Math.round(weeklyAmount * 100) / 100,
+    weeksRemaining,
+  };
+}
+
+// Handle monthly distribution
+async function handleMonthlyDistribution(
+  cash: any,
+  month: number,
+  year: number,
+  startOfDayS: Date,
+  endOfDayS: Date,
+  today: Date,
+  td: string,
+  activeHousedWorkers: any[]
+) {
+  const monthYear = new Date(`${year}-${month}-01`);
+  const monthStart = startOfMonth(monthYear);
+  const monthEnd = endOfMonth(monthYear);
+
+  // Check if already distributed this month
+  const existingMonthlyDistribution = await prisma.checkIn.findFirst({
+    where: {
+      CheckDate: {
+        gte: monthStart.toISOString(),
+        lte: monthEnd.toISOString(),
+      },
+      DailyCost: {
+        not: null,
+      },
+    },
+  });
+
+  // For monthly, distribute only once per month (on first day or if cash was created this month)
+  const todayDay = startOfDay(today);
+  const monthStartDay = startOfDay(monthStart);
+  const isFirstDayOfMonth = differenceInDays(todayDay, monthStartDay) === 0;
+
+  const cashCreatedAt = cash.createdAt ? new Date(cash.createdAt) : null;
+  const isCreatedThisMonth =
+    cashCreatedAt &&
+    cashCreatedAt.getMonth() === month - 1 &&
+    cashCreatedAt.getFullYear() === year;
+
+  if (!isFirstDayOfMonth && !isCreatedThisMonth && existingMonthlyDistribution) {
+    return null;
+  }
+
+  const totalCash = Number(cash.amount);
+  const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
+  const monthlyDailyAmount = totalCash / daysInMonth;
+
+  const workerCount = activeHousedWorkers.length;
+  if (workerCount === 0) {
+    return null;
+  }
+
+  const costPerWorker = monthlyDailyAmount / workerCount;
+
+  await prisma.checkIn.updateMany({
+    where: {
+      CheckDate: {
+        gte: startOfDayS.toISOString(),
+        lte: endOfDayS.toISOString(),
+      },
+      isActive: true,
+    },
+    data: {
+      DailyCost: costPerWorker,
+    },
+  });
+
+  return {
+    transaction_type: "monthly",
+    workerCount,
+    costPerWorker: Math.round(costPerWorker * 100) / 100,
+    date: td,
+    totalCash,
+    monthlyDailyAmount: Math.round(monthlyDailyAmount * 100) / 100,
+  };
 }
