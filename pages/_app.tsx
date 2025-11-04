@@ -12,8 +12,9 @@ import { jwtDecode } from "jwt-decode";
 import { useRouter } from "next/router";
 import "@fortawesome/fontawesome-free/css/all.css";
 
-import { ToastContainer } from "react-toastify";
 import { SidebarProvider } from "utils/sidebarcontext";
+import { GlobalToastProvider } from "../components/GlobalToast";
+import { DeliveryNotificationWrapper } from "../components/DeliveryNotificationWrapper";
 // import { SidebarProvider } from "context/SidebarContext";
 function MyApp({ Component, pageProps }: AppProps) {
   const [user, setUser] = useState("ssssss");
@@ -41,11 +42,13 @@ function MyApp({ Component, pageProps }: AppProps) {
   const isLoginPage = typeof window !== "undefined" && window.location.pathname === "/login";
 
   return (
-    <SidebarProvider>
-
-        <Component {...pageProps} />
-        {/* </Windmill> */}
-    </SidebarProvider>
+    <GlobalToastProvider>
+      <DeliveryNotificationWrapper />
+      <SidebarProvider>
+          <Component {...pageProps} />
+          {/* </Windmill> */}
+      </SidebarProvider>
+    </GlobalToastProvider>
   );
 }
 export default MyApp;
