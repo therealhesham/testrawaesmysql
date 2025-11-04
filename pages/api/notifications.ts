@@ -43,17 +43,48 @@ export default async function handler(
           { userId: null }         // الإشعارات العامة
         ]
       };
-      
-      if (tab === "unread") where.isRead = false;
-      if (tab === "read") where.isRead = true;
 
-      const total = await prisma.notifications.count({ where });
-
-      const notifications = await prisma.notifications.findMany({
+      // جلب كل الإشعارات (سنقوم بالفلترة لاحقًا بناءً على حالة القراءة الفعلية)
+      const allNotificationsForFilter = await prisma.notifications.findMany({
         where,
+        include: {
+          readByUsers: {
+            where: { userId: userId },
+            select: { userId: true }
+          }
+        }
+      });
+
+      // فلترة الإشعارات بناءً على التبويب وحالة القراءة الفعلية
+      let filteredNotifications = allNotificationsForFilter.filter(notif => {
+        const isActuallyRead = notif.userId === null 
+          ? (notif.readByUsers && notif.readByUsers.length > 0)
+          : notif.isRead === true;
+        
+        if (tab === "unread") return !isActuallyRead;
+        if (tab === "read") return isActuallyRead;
+        return true; // tab === "all"
+      });
+
+      // ترتيب حسب التاريخ
+      filteredNotifications.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      const total = filteredNotifications.length;
+
+      // تطبيق pagination
+      const paginatedNotifications = filteredNotifications.slice(
+        (pageNum - 1) * limitNum,
+        pageNum * limitNum
+      );
+
+      // جلب التفاصيل الكاملة للإشعارات المعروضة
+      const notifications = await prisma.notifications.findMany({
+        where: {
+          id: { in: paginatedNotifications.map(n => n.id) }
+        },
         orderBy: { createdAt: "desc" },
-        skip: (pageNum - 1) * limitNum,
-        take: limitNum,
         include: {
           task: {
             select: {
@@ -80,8 +111,31 @@ export default async function handler(
                 }
               }
             }
+          },
+          // جلب حالة القراءة للإشعارات العامة من جدول NotificationRead
+          readByUsers: {
+            where: {
+              userId: userId
+            },
+            select: {
+              userId: true,
+              readAt: true
+            }
           }
         }
+      });
+
+      // ✅ تحديث حالة isRead للإشعارات العامة بناءً على جدول NotificationRead
+      const notificationsWithReadStatus = notifications.map((notif) => {
+        // إذا كان الإشعار عامًا (userId = null)، استخدم حالة القراءة من NotificationRead
+        if (notif.userId === null) {
+          return {
+            ...notif,
+            isRead: notif.readByUsers && notif.readByUsers.length > 0
+          };
+        }
+        // للإشعارات الخاصة، استخدم حالة isRead العادية
+        return notif;
       });
 
       // ✅ حساب العدادات
@@ -91,12 +145,30 @@ export default async function handler(
           { userId: null }
         ]
       };
-      const allCount = await prisma.notifications.count({ where: baseWhere });
-      const readCount = await prisma.notifications.count({ where: { ...baseWhere, isRead: true } });
-      const unreadCount = await prisma.notifications.count({ where: { ...baseWhere, isRead: false } });
+      const allNotifications = await prisma.notifications.findMany({
+        where: baseWhere,
+        include: {
+          readByUsers: {
+            where: { userId: userId },
+            select: { userId: true }
+          }
+        }
+      });
+
+      // حساب العدادات بناءً على حالة القراءة الفعلية
+      const allCount = allNotifications.length;
+      const readCount = allNotifications.filter(notif => {
+        if (notif.userId === null) {
+          // للإشعارات العامة، تحقق من جدول NotificationRead
+          return notif.readByUsers && notif.readByUsers.length > 0;
+        }
+        // للإشعارات الخاصة، استخدم isRead
+        return notif.isRead === true;
+      }).length;
+      const unreadCount = allCount - readCount;
 
       return res.status(200).json({
-        data: notifications,
+        data: notificationsWithReadStatus,
         total,
         totalPages: Math.ceil(total / limitNum),
         currentPage: pageNum,

@@ -74,6 +74,11 @@ model DeliveryDetails{
   deliveryNotes String? @db.VarChar(255)
   cost Decimal?
   newOrderId Int?
+  isDelivered Boolean? @default(false)
+  userId Int?
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+  user User? @relation(fields: [userId], references: [id],onDelete: Cascade)
   completionDate DateTime? @default(now())
   neworder neworder? @relation(fields: [newOrderId], references: [id])
 }
@@ -113,9 +118,10 @@ model User {
   assignedTasks tasks[] @relation("TaskAssignedBy")
   logs          logs[]
   emaillist    emaillist[]
+  readNotifications NotificationRead[]
   cashLogs      cashLogs[]
   SystemLogs    systemUserLogs[]
-
+  DeliveryDetails DeliveryDetails[]
   createdAt     DateTime? @default(now())
   updatedAt     DateTime? @updatedAt
 }
@@ -198,6 +204,20 @@ message        String?   @db.VarChar(255)
   user            User?     @relation(fields: [userId], references: [username]) 
 taskId        Int? @unique()
 task          tasks?     @relation(fields: [taskId], references: [id]) 
+  readByUsers    NotificationRead[]  // الإشعارات العامة المقروءة من المستخدمين
+}
+
+model NotificationRead {
+  id             Int       @id @default(autoincrement())
+  notificationId Int
+  userId          String
+  readAt          DateTime  @default(now())
+  notification    notifications @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [username], onDelete: Cascade)
+  
+  @@unique([notificationId, userId])  // كل مستخدم يمكنه قراءة نفس الإشعار مرة واحدة فقط
+  @@index([notificationId])
+  @@index([userId])
 }
 model officemssages{
  //الموديل ده خاص بالرسايل اللي هيكتبها روائس وهيستعرضها المكتب
