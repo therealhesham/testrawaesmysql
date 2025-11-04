@@ -8,6 +8,7 @@ import Layout from 'example/containers/Layout';
 import { format } from 'date-fns';
 import Skeleton, { SkeletonTheme } from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
+import { useRouter } from 'next/router';
 
 // Dynamically import Highcharts components (SSR-safe)
 const HighchartsReact = dynamic(() => import('highcharts-react-official'), { ssr: false });
@@ -102,6 +103,8 @@ const DataTableModal = ({ isOpen, onClose, title, columns, data }: { isOpen: boo
 };
 
 export default function Home() {
+  const router = useRouter();
+  
   // Color palette
   const primaryColor = '#2d7a7a';
   const secondaryColor = '#45a5a5';
@@ -145,6 +148,26 @@ export default function Home() {
     setModalColumns(columns);
     setModalData(data);
     setModalOpen(true);
+  };
+
+  // Handler for city clicks - navigate to clients page with city filter
+  const handleCityClick = (cityName: string) => {
+    // Convert Arabic city name to English if needed
+    const englishCityName = Object.entries(arabicRegionMap).find(
+      ([_, arabic]) => arabic === cityName
+    )?.[0] || cityName;
+    router.push(`/admin/clients?city=${encodeURIComponent(englishCityName)}`);
+  };
+
+  // Handler for source clicks - navigate to clients page (we'll need to check if source filter is supported)
+  const handleSourceClick = (source: string) => {
+    // Navigate to clients page - you may need to add source filter support
+    router.push(`/admin/clients?source=${encodeURIComponent(source)}`);
+  };
+
+  // Handler for nationality clicks - navigate to bookedlist with nationality filter
+  const handleNationalityClick = (nationality: string) => {
+    router.push(`/admin/bookedlist?Nationality=${encodeURIComponent(nationality)}`);
   };
 
   // Fetch data
@@ -377,6 +400,23 @@ export default function Home() {
               },
               backgroundColor: 'rgba(0, 0, 0, 0.85)',
               style: { color: '#fff', fontFamily: '"Tajawal", sans-serif', fontSize: '14px', direction: 'rtl' },
+            },
+            plotOptions: {
+              map: {
+                cursor: 'pointer',
+                events: {
+                  click: function(e: any) {
+                    const hcKey = e.point['hc-key'];
+                    const englishName = hcKeyToEnglishMap[hcKey];
+                    const arabicName = englishName ? arabicRegionMap[englishName] : (e.point.name || '');
+                    if (englishName) {
+                      // Navigate to clients page with city filter
+                      const englishCityName = englishName;
+                      window.location.href = `/admin/clients?city=${encodeURIComponent(englishCityName)}`;
+                    }
+                  }
+                }
+              }
             },
             series: [{
               data: mapData,
@@ -958,6 +998,9 @@ export default function Home() {
             text-align: center;
             color: red;
           }
+          canvas {
+            cursor: pointer;
+          }
         `}</style>
 
         <div className="max-w-7xl mx-auto">
@@ -1096,6 +1139,22 @@ export default function Home() {
                 <Bar data={donutChart4Data} options={{ 
                   responsive: true, 
                   maintainAspectRatio: false, 
+                  onHover: (event, elements) => {
+                    const target = event.native?.target as HTMLElement;
+                    if (target) {
+                      target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    }
+                  },
+                  onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                      const element = elements[0];
+                      const index = element.index;
+                      const source = donutChart4Data.labels[index];
+                      if (source) {
+                        handleSourceClick(source);
+                      }
+                    }
+                  },
                   plugins: {
                     legend: {
                       display: false,
@@ -1217,6 +1276,21 @@ export default function Home() {
                         options={{
                           responsive: true,
                           maintainAspectRatio: true,
+                          onHover: (event, elements) => {
+                            if (elements.length > 0) {
+                              (event.native?.target as HTMLElement)?.style && ((event.native?.target as HTMLElement).style.cursor = 'pointer');
+                            }
+                          },
+                          onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                              const element = elements[0];
+                              const index = element.index;
+                              const nationality = item.chartData.labels[index];
+                              if (nationality) {
+                                handleNationalityClick(nationality);
+                              }
+                            }
+                          },
                           plugins: {
                             legend: {
                               display: true,
