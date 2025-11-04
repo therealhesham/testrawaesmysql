@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         bookingstatus: {
           not: {
-            in: ["new_order", "new_orders", "delivered", "in_progress", "received", "cancelled", "rejected"],
+            in: [ "delivered", "in_progress", "received", "cancelled", "rejected"],
           },
         },
         createdAt: dateFilter,

@@ -1,5 +1,5 @@
 import { CheckCircleIcon, XIcon } from '@heroicons/react/outline';
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { FaExclamationTriangle } from 'react-icons/fa';
 // import { CheckCircleIcon, FaExclamationTriangle, XIcon } from 'react-icons/fa';
 // CheckCircleIcon
@@ -8,7 +8,7 @@ interface AlertModalProps {
   onClose: () => void;
   type: 'success' | 'error' | 'warning' | 'info';
   title: string;
-  message: string;
+  message: string | React.ReactNode;
   autoClose?: boolean;
   autoCloseDelay?: number;
 }
@@ -80,7 +80,7 @@ export default function AlertModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`relative bg-white border-2 rounded-lg shadow-lg max-w-md w-full mx-4 ${getBackgroundColor()}`}>
+      <div className={`relative bg-white border-2 rounded-lg shadow-lg max-w-2xl w-full mx-4 ${getBackgroundColor()}`}>
         <button
           onClick={onClose}
           className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
@@ -97,9 +97,13 @@ export default function AlertModal({
               <h3 className={`text-lg font-semibold mb-2 ${getTextColor()}`}>
                 {title}
               </h3>
-              <p className={`text-sm ${getTextColor()}`}>
-                {message}
-              </p>
+              <div className={`text-sm ${getTextColor()} max-h-96 overflow-y-auto`}>
+                {typeof message === 'string' ? (
+                  <p className="whitespace-pre-wrap">{message}</p>
+                ) : (
+                  message
+                )}
+              </div>
             </div>
           </div>
           

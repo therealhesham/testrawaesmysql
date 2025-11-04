@@ -22,6 +22,7 @@ import {
   FaPlaneArrival,
   FaArrowUp,
   FaArrowCircleLeft,
+  FaShuttleVan,
 } from "react-icons/fa";
 import { useState, useRef } from "react";
 import { useRouter } from "next/router";
@@ -33,6 +34,8 @@ import AlertModal from "../../components/AlertModal";
 import AddTaskModal from "../../components/AddTaskModal";
 import TaskCompletionModal from "../../components/TaskCompletionModal";
 import prisma from "lib/prisma";
+import { PersonStanding } from "lucide-react";
+import { PeopleIcon } from "icons";
 
 // --- Helper Functions (Moved outside component for reusability on server) ---
 const calculateRemainingDays = (eventDate) => {
@@ -406,6 +409,9 @@ export default function Home({
   
   // Client-side state for user and authentication
   const [user, setUser] = useState(null);
+  const [clientDeliveries, setClientDeliveries] = useState([]);
+  const [isLoadingDeliveries, setIsLoadingDeliveries] = useState(true);
+  const [isNotificationMuted, setIsNotificationMuted] = useState(false);
   const [userforbutton, setUserforbutton] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -598,6 +604,295 @@ export default function Home({
     fetchTasks();
   }, [user]);
 
+  // Fetch deliveries client-side
+  React.useEffect(() => {
+    const fetchDeliveries = async () => {
+      try {
+        setIsLoadingDeliveries(true);
+        const response = await fetch('/api/deliveries');
+        
+        if (response.ok) {
+          const deliveriesData = await response.json();
+          console.log('Deliveries fetched:', deliveriesData);
+          setClientDeliveries(deliveriesData);
+        } else {
+          console.error('Failed to fetch deliveries:', response.status);
+          setClientDeliveries([]);
+        }
+      } catch (error) {
+        console.error('Error fetching deliveries:', error);
+        setClientDeliveries([]);
+      } finally {
+        setIsLoadingDeliveries(false);
+      }
+    };
+    
+    fetchDeliveries();
+    
+    // Refresh deliveries every 5 minutes
+    const intervalId = setInterval(fetchDeliveries, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Check and restore mute status on mount and periodically
+  React.useEffect(() => {
+    const checkMuteStatus = () => {
+      const muteExpiry = localStorage.getItem('deliveryNotificationMuteExpiry');
+      if (muteExpiry) {
+        const expiryTime = parseInt(muteExpiry);
+        if (Date.now() < expiryTime) {
+          setIsNotificationMuted(true);
+        } else {
+          // Expired, remove from localStorage
+          localStorage.removeItem('deliveryNotificationMuteExpiry');
+          setIsNotificationMuted(false);
+          
+          // Show notification that mute has expired
+          if (isNotificationMuted) {
+            setAlertModal({
+              isOpen: true,
+              type: 'info',
+              title: '🔔 تم تفعيل الإشعارات',
+              message: 'انتهت مدة كتم الإشعارات، سيتم إرسال إشعارات التسليم مرة أخرى'
+            });
+          }
+        }
+      }
+    };
+    
+    // Check immediately on mount
+    checkMuteStatus();
+    
+    // Check every minute to see if mute period has expired
+    const checkInterval = setInterval(checkMuteStatus, 60 * 1000);
+    
+    return () => clearInterval(checkInterval);
+  }, [isNotificationMuted]);
+ let audio: HTMLAudioElement;
+
+  React.useEffect(() => {
+    const enableAudio = () => {
+      audio = new Audio("/notifications.mp3");
+      document.removeEventListener("click", enableAudio);
+    };
+    document.addEventListener("click", enableAudio);
+  }, []);
+
+  const notify = () => {
+    if (audio) {
+      audio.play().catch(err => console.error("Error:", err));
+    } else {
+      console.error("Audio not initialized yet");
+    }
+  };
+
+  // Notification system for deliveries
+  React.useEffect(() => {
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // Function to check upcoming deliveries and send notifications
+    const checkDeliveries = () => {
+      if (!clientDeliveries || clientDeliveries.length === 0) {
+        console.log('⚠️ لا يوجد تسليمات للفحص');
+        return;
+      }
+      
+      console.log(`📦 عدد التسليمات: ${clientDeliveries.length}`);
+      
+      // Check if muted
+      const muteExpiry = localStorage.getItem('deliveryNotificationMuteExpiry');
+      if (muteExpiry) {
+        const expiryTime = parseInt(muteExpiry);
+        if (Date.now() < expiryTime) {
+          console.log('Notifications are muted');
+          return;
+        } else {
+          // Expired, remove from localStorage and unmute
+          localStorage.removeItem('deliveryNotificationMuteExpiry');
+          setIsNotificationMuted(false);
+        }
+      }
+
+      const now = new Date();
+      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+      clientDeliveries.forEach((delivery) => {
+        if (!delivery.deliveryDate || !delivery.deliveryTime || delivery.isDelivered) {
+          console.log(`⏭️ تخطي التسليم #${delivery.id}: ${!delivery.deliveryDate ? 'لا يوجد تاريخ' : !delivery.deliveryTime ? 'لا يوجد وقت' : 'تم التسليم'}`);
+          return;
+        }
+
+        try {
+          // Parse delivery date and time
+          const deliveryDate = new Date(delivery.deliveryDate);
+          console.log(`🔍 فحص التسليم #${delivery.id}:`);
+          console.log(`   📅 التاريخ: ${delivery.deliveryDate}`);
+          console.log(`   ⏰ الوقت: ${delivery.deliveryTime}`);
+          
+          // Parse time (assuming format like "14:30" or "2:30 PM")
+          const timeString = delivery.deliveryTime;
+          let hours = 0;
+          let minutes = 0;
+          
+          // Try to parse time
+          if (timeString.includes(':')) {
+            const timeParts = timeString.split(':');
+            hours = parseInt(timeParts[0]);
+            minutes = parseInt(timeParts[1]);
+            
+            // Handle PM times if present
+            if (timeString.toLowerCase().includes('pm') && hours < 12) {
+              hours += 12;
+            }
+          }
+          
+          // Set the delivery time
+          deliveryDate.setHours(hours, minutes, 0, 0);
+          
+          // Check if delivery is within 2 hours
+          const timeDiff = deliveryDate.getTime() - now.getTime();
+          const twoHoursInMs = 2 * 60 * 60 * 1000;
+          const hoursDiff = timeDiff / (60 * 60 * 1000);
+          
+          console.log(`   ⏳ الفرق الزمني: ${hoursDiff.toFixed(2)} ساعة (${Math.floor(timeDiff / (60 * 1000))} دقيقة)`);
+          
+          // Send notification if delivery is within 2 hours and in the future
+          if (timeDiff > 0 && timeDiff <= twoHoursInMs) {
+            console.log(`   ✅ التسليم ضمن النطاق (أقل من ساعتين)`);
+            const clientName = delivery.neworder?.ClientName || delivery.neworder?.Name || 'غير محدد';
+            const minutesLeft = Math.floor(timeDiff / (60 * 1000));
+            
+            // Check last notification time (every 5 minutes)
+            const notificationKey = `delivery-last-notified-${delivery.id}`;
+            const lastNotified = localStorage.getItem(notificationKey);
+            const fiveMinutesInMs = 5 * 60 * 1000;
+            
+            // Send notification if never notified OR if 5 minutes passed since last notification
+            const shouldNotify = !lastNotified || (Date.now() - parseInt(lastNotified)) >= fiveMinutesInMs;
+            // alert(shouldNotify);
+            const lastNotifiedTime = lastNotified ? new Date(parseInt(lastNotified)).toLocaleTimeString('ar-EG') : 'لم يتم الإرسال';
+            console.log(`   📊 آخر إشعار: ${lastNotifiedTime}`);
+            console.log(`   🔔 يجب الإرسال: ${shouldNotify ? '✅ نعم' : '❌ لا (انتظر 5 دقائق)'}`);
+            
+            if (shouldNotify) {
+            // alert(shouldNotify);
+              // Play notification sound ALWAYS (independent of browser notification permission)
+              try {
+                const audio = new Audio('/notifications.mp3');
+
+                audio.play().catch(e => {
+                  
+                  console.error('Could not play notification.mp3, using beep sound:', e);
+                  // Fallback: Create a simple beep sound using Web Audio API
+                  try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800; // Frequency in Hz
+                    gainNode.gain.value = 0.5; // Volume (increased)
+                    
+                    oscillator.start();
+                    setTimeout(() => oscillator.stop(), 300); // Play for 300ms (longer)
+                    
+                    console.log('🔊 Playing beep sound for delivery #' + delivery.id);
+                  } catch (audioError) {
+                    console.log('Could not create beep sound:', audioError);
+                  }
+                });
+              } catch (e) {
+                console.log('Audio not supported:', e);
+              }
+              
+              // Show browser notification (if permission granted)
+              if ('Notification' in window && Notification.permission === 'granted') {
+                const notification = new Notification('🚚 تذكير بموعد تسليم قريب', {
+                  body: `موعد التسليم للعميل ${clientName} خلال ${minutesLeft} دقيقة\nالموعد: ${timeString}`,
+                  icon: '/favicon.ico',
+                  badge: '/favicon.ico',
+                  tag: `delivery-${delivery.id}`,
+                  requireInteraction: true,
+                });
+                
+                notification.onclick = () => {
+                  window.focus();
+                  notification.close();
+                };
+              }
+              
+              // Show in-page alert as fallback
+              console.log(`🚚 تنبيه تسليم: العميل ${clientName} - باقي ${minutesLeft} دقيقة - الموعد ${timeString}`);
+              
+              // Update last notification time
+              localStorage.setItem(notificationKey, Date.now().toString());
+            }
+          } else if (timeDiff <= 0) {
+            console.log(`   ⏰ التسليم انتهى (مر ${Math.abs(hoursDiff).toFixed(2)} ساعة)`);
+            // Clear notification history if delivery passed
+            const notificationKey = `delivery-last-notified-${delivery.id}`;
+            localStorage.removeItem(notificationKey);
+          } else if (timeDiff > twoHoursInMs) {
+            console.log(`   ⏰ التسليم بعيد (بعد ${hoursDiff.toFixed(2)} ساعة - أكثر من ساعتين)`);
+            // Clear notification history if delivery is not within 2 hours anymore
+            const notificationKey = `delivery-last-notified-${delivery.id}`;
+            localStorage.removeItem(notificationKey);
+          }
+        } catch (error) {
+          console.error('Error checking delivery notification:', error);
+        }
+      });
+    };
+
+    // Check deliveries immediately
+    checkDeliveries();
+
+    // Set up interval to check every minute (to send notification every 5 minutes when needed)
+    const intervalId = setInterval(checkDeliveries, 60 * 1000);
+
+    // Cleanup
+    return () => clearInterval(intervalId);
+  }, [clientDeliveries, isNotificationMuted]);
+
+  // Function to toggle notification mute
+  const toggleNotificationMute = () => {
+    if (isNotificationMuted) {
+      // Unmute
+      localStorage.removeItem('deliveryNotificationMuteExpiry');
+      setIsNotificationMuted(false);
+      
+      // Show confirmation
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: '✅ تم تفعيل الإشعارات',
+        message: 'سيتم إرسال إشعارات التسليم كل 5 دقائق قبل الموعد بساعتين'
+      });
+    } else {
+      // Mute for 2 hours
+      const twoHoursFromNow = Date.now() + (2 * 60 * 60 * 1000);
+      localStorage.setItem('deliveryNotificationMuteExpiry', twoHoursFromNow.toString());
+      setIsNotificationMuted(true);
+      
+      // Show confirmation with time
+      const expiryTime = new Date(twoHoursFromNow);
+      const timeString = expiryTime.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      
+      setAlertModal({
+        isOpen: true,
+        type: 'info',
+        title: '🔕 تم كتم الإشعارات',
+        message: `تم كتم إشعارات التسليم لمدة ساعتين\nسيتم تفعيل الإشعارات تلقائياً في الساعة ${timeString}`
+      });
+    }
+  };
+
   // Function to remove HTML tags from text
   const stripHtmlTags = (html) => {
     if (!html) return '';
@@ -702,11 +997,22 @@ export default function Home({
   // Get arrivals for a specific day
   const getArrivalsForDay = (day) => {
     return internalArrivals.filter((arrival) => {
-      if (!arrival.createdAt) return false;
-      const arrivalDate = new Date(arrival.createdAt);
-      const arrivalMonth = arrivalDate.getMonth();
-      const arrivalDay = arrivalDate.getDate();
-      return arrivalMonth === monthIndex && arrivalDay === day;
+      // Use KingdomentryDate for arrival date if available, otherwise fall back to createdAt
+      const dateToUse = arrival.KingdomentryDate || arrival.createdAt;
+      if (!dateToUse) return false;
+      
+      try {
+        const arrivalDate = new Date(dateToUse);
+        const arrivalMonth = arrivalDate.getMonth();
+        const arrivalDay = arrivalDate.getDate();
+        const arrivalYear = arrivalDate.getFullYear();
+        
+        // Match: same month, day, and year
+        return arrivalMonth === monthIndex && arrivalDay === day && arrivalYear === year;
+      } catch (error) {
+        console.error('Error parsing arrival date:', dateToUse, error);
+        return false;
+      }
     });
   };
 
@@ -743,6 +1049,71 @@ export default function Home({
     });
   };
 
+  // Get deliveries for a specific day
+  const getDeliveriesForDay = (day) => {
+    if (!clientDeliveries || clientDeliveries.length === 0) return [];
+    
+    return clientDeliveries.filter((delivery) => {
+      if (!delivery.deliveryDate) return false;
+      
+      try {
+        const deliveryDate = new Date(delivery.deliveryDate);
+        const deliveryMonth = deliveryDate.getMonth();
+        const deliveryDay = deliveryDate.getDate();
+        const deliveryYear = deliveryDate.getFullYear();
+        
+        // Match: same month, day, and year
+        return deliveryMonth === monthIndex && deliveryDay === day && deliveryYear === year;
+      } catch (error) {
+        console.error('Error parsing delivery date:', delivery.deliveryDate, error);
+        return false;
+      }
+    });
+  };
+
+  // Get color for delivery based on date and time proximity
+  const getDeliveryColor = (delivery) => {
+    if (!delivery.deliveryDate) return "bg-gray-100 text-gray-600";
+    
+    const now = new Date();
+    const deliveryDate = new Date(delivery.deliveryDate);
+    
+    // Calculate days difference
+    const timeDiff = deliveryDate.getTime() - now.getTime();
+    const daysDiff = timeDiff / (1000 * 3600 * 24);
+    
+    // If delivery is today, check time
+    if (daysDiff >= 0 && daysDiff < 1) {
+      return "bg-red-100 text-red-700"; // Red for today
+    } else if (daysDiff >= 1 && daysDiff < 3) {
+      return "bg-yellow-100 text-yellow-700"; // Yellow for close (1-3 days)
+    } else if (daysDiff >= 3) {
+      return "bg-green-100 text-green-700"; // Green for far (3+ days)
+    } else {
+      return "bg-gray-100 text-gray-600"; // Gray for overdue
+    }
+  };
+
+  // Get new orders for a specific day
+  const getNewOrdersForDay = (day) => {
+    return newOrders.filter((order) => {
+      if (!order.createdAt) return false;
+      
+      try {
+        const orderDate = new Date(order.createdAt);
+        const orderMonth = orderDate.getMonth();
+        const orderDay = orderDate.getDate();
+        const orderYear = orderDate.getFullYear();
+        
+        // Match: same month, day, and year
+        return orderMonth === monthIndex && orderDay === day && orderYear === year;
+      } catch (error) {
+        console.error('Error parsing order date:', order.createdAt, error);
+        return false;
+      }
+    });
+  };
+
   const getEventColor = (eventDate) => {
     const today = new Date();
     const event = new Date(eventDate);
@@ -763,68 +1134,250 @@ export default function Home({
       const housingForDay = getHousingForDay(day);
       const sessionsForDay = getSessionsForDay(day);
       const eventsForDay = getEventsForDay(day);
+      const newOrdersForDay = getNewOrdersForDay(day);
+      const deliveriesForDay = getDeliveriesForDay(day);
       
-      let message = `أحداث ${day}/${monthIndex + 1}/${year}:\n\n`;
-      
-      if (tasksForDay.length > 0) {
-        message += `المهام (${tasksForDay.length}):\n`;
-        tasksForDay.forEach(task => {
-          message += `• ${stripHtmlTags(task.Title)} - ${stripHtmlTags(task.description)}\n`;
+      const hasAnyEvents = tasksForDay.length > 0 || arrivalsForDay.length > 0 || 
+        departuresForDay.length > 0 || housingForDay.length > 0 || 
+        sessionsForDay.length > 0 || eventsForDay.length > 0 || 
+        newOrdersForDay.length > 0 || deliveriesForDay.length > 0;
+
+      if (!hasAnyEvents) {
+        setAlertModal({
+          isOpen: true,
+          type: 'info',
+          title: 'أحداث اليوم',
+          message: `لا توجد أحداث في ${day}/${monthIndex + 1}/${year}`
         });
-        message += '\n';
+        return;
       }
       
-      if (arrivalsForDay.length > 0) {
-        message += `الوصول (${arrivalsForDay.length}):\n`;
-        arrivalsForDay.forEach(arrival => {
-          message += `• وصول #${arrival.id} من ${arrival.ArrivalCity || 'غير محدد'}\n`;
-        });
-        message += '\n';
-      }
-      
-      if (departuresForDay.length > 0) {
-        message += `المغادرة (${departuresForDay.length}):\n`;
-        departuresForDay.forEach(departure => {
-          message += `• مغادرة #${departure.id} إلى ${departure.finaldestination || 'غير محدد'}\n`;
-        });
-        message += '\n';
-      }
-      
-      if (housingForDay.length > 0) {
-        message += `التسكين (${housingForDay.length}):\n`;
-        housingForDay.forEach(housing => {
-          message += `• تسكين #${housing.id} للعميل ${housing.Order?.Name || 'غير محدد'}\n`;
-        });
-        message += '\n';
-      }
-      
-      if (sessionsForDay.length > 0) {
-        message += `الجلسات (${sessionsForDay.length}):\n`;
-        sessionsForDay.forEach(session => {
-          message += `• جلسة #${session.id} - ${session.reason || 'غير محدد'}\n`;
-        });
-        message += '\n';
-      }
-      
-      if (eventsForDay.length > 0) {
-        message += `الأحداث (${eventsForDay.length}):\n`;
-        eventsForDay.forEach(event => {
-          message += `• ${event.title}\n`;
-        });
-        message += '\n';
-      }
-      
-      if (tasksForDay.length === 0 && arrivalsForDay.length === 0 && 
-          departuresForDay.length === 0 && housingForDay.length === 0 && 
-          sessionsForDay.length === 0 && eventsForDay.length === 0) {
-        message = `لا توجد أحداث في ${day}/${monthIndex + 1}/${year}`;
-      }
+      // Create organized content with JSX
+      const messageContent = (
+        <div className="space-y-4">
+          {/* Tasks Section */}
+          {tasksForDay.length > 0 && (
+            <div className="border-r-4 border-red-500 pr-3">
+              <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2">
+                <span className="bg-red-100 px-2 py-1 rounded-md">📋 المهام ({tasksForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {tasksForDay.map((task, index) => (
+                  <li 
+                    key={index} 
+                    className="text-sm bg-red-50 p-2 rounded-md hover:bg-red-200 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAlertModal({ ...alertModal, isOpen: false });
+                      setTaskCompletionModal({ isOpen: true, task: task });
+                    }}
+                    title="اضغط للرد على المهمة"
+                  >
+                    <div className="font-semibold text-red-900">{stripHtmlTags(task.Title)}</div>
+                    <div className="text-red-700 text-xs mt-1">{stripHtmlTags(task.description)}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* New Orders Section */}
+          {newOrdersForDay.length > 0 && (
+            <div className="border-r-4 border-yellow-500 pr-3">
+              <h4 className="font-bold text-yellow-700 mb-2 flex items-center gap-2">
+                <span className="bg-yellow-100 px-2 py-1 rounded-md">📦 الطلبات الجديدة ({newOrdersForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {newOrdersForDay.map((order, index) => (
+                  <li 
+                    key={index} 
+                    className="text-sm bg-yellow-50 p-2 rounded-md hover:bg-yellow-200 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAlertModal({ ...alertModal, isOpen: false });
+                      router.push('/admin/neworders');
+                    }}
+                    title="اضغط للذهاب إلى صفحة الطلبات الجديدة"
+                  >
+                    <span className="font-semibold text-yellow-900">طلب #{order.id}</span>
+                    <span className="text-yellow-700 mr-2">- {order.Name || 'غير محدد'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Arrivals Section */}
+          {arrivalsForDay.length > 0 && (
+            <div className="border-r-4 border-blue-500 pr-3">
+              <h4 className="font-bold text-blue-700 mb-2 flex items-center gap-2">
+                <span className="bg-blue-100 px-2 py-1 rounded-md">✈️ الوصول ({arrivalsForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {arrivalsForDay.map((arrival, index) => (
+                  <li 
+                    key={index} 
+                    className="text-sm bg-blue-50 p-2 rounded-md hover:bg-blue-200 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAlertModal({ ...alertModal, isOpen: false });
+                      router.push('/admin/housedarrivals');
+                    }}
+                    title="اضغط للذهاب إلى صفحة الوصول"
+                  >
+                    <span className="font-semibold text-blue-900">وصول #{arrival.id}</span>
+                    <span className="text-blue-700 mr-2">من {arrival.ArrivalCity || 'غير محدد'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Departures Section */}
+          {departuresForDay.length > 0 && (
+            <div className="border-r-4 border-orange-500 pr-3">
+              <h4 className="font-bold text-orange-700 mb-2 flex items-center gap-2">
+                <span className="bg-orange-100 px-2 py-1 rounded-md">🛫 المغادرة ({departuresForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {departuresForDay.map((departure, index) => (
+                  <li 
+                    key={index} 
+                    className="text-sm bg-orange-50 p-2 rounded-md hover:bg-orange-200 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAlertModal({ ...alertModal, isOpen: false });
+                      router.push('/admin/deparatures');
+                    }}
+                    title="اضغط للذهاب إلى صفحة المغادرات"
+                  >
+                    <span className="font-semibold text-orange-900">مغادرة #{departure.id}</span>
+                    <span className="text-orange-700 mr-2">إلى {departure.finaldestination || 'غير محدد'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Housing Section */}
+          {housingForDay.length > 0 && (
+            <div className="border-r-4 border-green-500 pr-3">
+              <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2">
+                <span className="bg-green-100 px-2 py-1 rounded-md">🏠 التسكين ({housingForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {housingForDay.map((housing, index) => (
+                  <li 
+                    key={index} 
+                    className="text-sm bg-green-50 p-2 rounded-md hover:bg-green-200 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAlertModal({ ...alertModal, isOpen: false });
+                      router.push('/admin/checkedtable');
+                    }}
+                    title="اضغط للذهاب إلى صفحة التسكين"
+                  >
+                    <span className="font-semibold text-green-900">تسكين #{housing.id}</span>
+                    <span className="text-green-700 mr-2">للعميل {housing.Order?.Name || 'غير محدد'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Sessions Section */}
+          {sessionsForDay.length > 0 && (
+            <div className="border-r-4 border-purple-500 pr-3">
+              <h4 className="font-bold text-purple-700 mb-2 flex items-center gap-2">
+                <span className="bg-purple-100 px-2 py-1 rounded-md">👥 الجلسات ({sessionsForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {sessionsForDay.map((session, index) => (
+                  <li 
+                    key={index} 
+                    className="text-sm bg-purple-50 p-2 rounded-md hover:bg-purple-200 transition-colors cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAlertModal({ ...alertModal, isOpen: false });
+                      router.push('/admin/sessions');
+                    }}
+                    title="اضغط للذهاب إلى صفحة الجلسات"
+                  >
+                    <span className="font-semibold text-purple-900">جلسة #{session.id}</span>
+                    <span className="text-purple-700 mr-2">- {session.reason || 'غير محدد'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Deliveries Section */}
+          {deliveriesForDay.length > 0 && (
+            <div className="border-r-4 border-teal-500 pr-3">
+              <h4 className="font-bold text-teal-700 mb-2 flex items-center gap-2">
+                <span className="bg-teal-100 px-2 py-1 rounded-md"><span> <FaShuttleVan className="w-4 h-4" /> </span> التسليمات ({deliveriesForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {deliveriesForDay.map((delivery, index) => {
+                  const deliveryDate = new Date(delivery.deliveryDate);
+                  const timeString = delivery.deliveryTime ? ` - ${delivery.deliveryTime}` : '';
+                  const clientName = delivery.neworder?.ClientName || delivery.neworder?.Name || 'غير محدد';
+                  
+                  // Determine color class
+                  let colorClass = 'bg-teal-50 text-teal-900';
+                  const now = new Date();
+                  const timeDiff = deliveryDate.getTime() - now.getTime();
+                  const daysDiff = timeDiff / (1000 * 3600 * 24);
+                  
+                  if (daysDiff >= 0 && daysDiff < 1) {
+                    colorClass = 'bg-red-50 text-red-900 border border-red-200';
+                  } else if (daysDiff >= 1 && daysDiff < 3) {
+                    colorClass = 'bg-yellow-50 text-yellow-900 border border-yellow-200';
+                  } else if (daysDiff >= 3) {
+                    colorClass = 'bg-green-50 text-green-900 border border-green-200';
+                  }
+                  
+                  return (
+                    <li 
+                      key={index} 
+                      className={`text-sm p-2 rounded-md hover:opacity-80 transition-colors cursor-pointer ${colorClass}`}
+                      title="تفاصيل التسليم"
+                    >
+                      <div className="font-semibold">تسليم #{delivery.id}{timeString}</div>
+                      <div className="text-xs mt-1">للعميل: {clientName}</div>
+                      {delivery.deliveryNotes && (
+                        <div className="text-xs mt-1 opacity-75">ملاحظات: {delivery.deliveryNotes}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Events Section */}
+          {eventsForDay.length > 0 && (
+            <div className="border-r-4 border-gray-500 pr-3">
+              <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="bg-gray-100 px-2 py-1 rounded-md">📅 الأحداث ({eventsForDay.length})</span>
+              </h4>
+              <ul className="space-y-2">
+                {eventsForDay.map((event, index) => (
+                  <li key={index} className="text-sm bg-gray-50 p-2 rounded-md hover:bg-gray-100 transition-colors text-gray-900">
+                    {event.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      );
       
       setAlertModal({
         isOpen: true,
         type: 'info',
-        title: 'أحداث اليوم',
-        message: message
+        title: `أحداث يوم ${day}/${monthIndex + 1}/${year}`,
+        message: messageContent
       });
     }
   };
@@ -1112,13 +1665,65 @@ export default function Home({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <h2 className="text-2xl font-semibold text-gray-800">{currentMonth}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-semibold text-gray-800">{currentMonth}</h2>
+                
+                {/* Notification Mute Button */}
+                <button 
+                  onClick={toggleNotificationMute}
+                  className={`p-2 rounded-full transition-all duration-300 ${
+                    isNotificationMuted 
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                      : 'bg-teal-100 text-teal-600 hover:bg-teal-200'
+                  }`}
+                  title={isNotificationMuted ? 'تفعيل إشعارات التسليم' : 'كتم إشعارات التسليم لمدة ساعتين'}
+                >
+                  {isNotificationMuted ? (
+                    // Muted icon (bell with slash)
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.586 15H4a1 1 0 01-.707-1.707l1.414-1.414A1 1 0 015 11.172V9a7 7 0 0114 0v2.172a1 1 0 01.293.707l1.414 1.414A1 1 0 0120 15h-1.586m-13.828 0A2 2 0 0112 18h0a2 2 0 007.414-1m-13.828 0h13.828M15 8a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" />
+                    </svg>
+                  ) : (
+                    // Bell icon
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <button onClick={getNextMonth} className="text-teal-600 hover:text-teal-800">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
             </div>
+            
+            {/* Mute Status Indicator */}
+            {isNotificationMuted && (
+              <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-center">
+                <span className="text-xs text-red-700">
+                  🔕 إشعارات التسليم مكتومة
+                  {(() => {
+                    const muteExpiry = localStorage.getItem('deliveryNotificationMuteExpiry');
+                    if (muteExpiry) {
+                      const expiryTime = parseInt(muteExpiry);
+                      const remainingMs = expiryTime - Date.now();
+                      const remainingMinutes = Math.floor(remainingMs / (60 * 1000));
+                      const remainingHours = Math.floor(remainingMinutes / 60);
+                      const displayMinutes = remainingMinutes % 60;
+                      
+                      if (remainingHours > 0) {
+                        return ` (${remainingHours} ساعة و ${displayMinutes} دقيقة متبقية)`;
+                      } else if (remainingMinutes > 0) {
+                        return ` (${remainingMinutes} دقيقة متبقية)`;
+                      }
+                    }
+                    return '';
+                  })()}
+                </span>
+              </div>
+            )}
             
             {/* Week Navigation */}
             <div className="flex justify-between items-center mb-4">
@@ -1182,6 +1787,8 @@ export default function Home({
                 const hasDepartures = getDeparturesForDay(date).length > 0;
                 const hasHousing = getHousingForDay(date).length > 0;
                 const hasSessions = getSessionsForDay(date).length > 0;
+                const hasNewOrders = getNewOrdersForDay(date).length > 0;
+                const hasDeliveries = getDeliveriesForDay(date).length > 0;
                 
                 const tasksForDay = getTasksForDay(date);
                 
@@ -1197,6 +1804,8 @@ export default function Home({
                 const departuresForDay = getDeparturesForDay(date);
                 const housingForDay = getHousingForDay(date);
                 const sessionsForDay = getSessionsForDay(date);
+                const newOrdersForDay = getNewOrdersForDay(date);
+                const deliveriesForDay = getDeliveriesForDay(date);
                 
                 const today = new Date();
                 const isToday =
@@ -1241,8 +1850,21 @@ export default function Home({
                           key={`arrival-${arrivalIndex}`}
                           className="text-xs font-light px-1 py-0.5 rounded bg-blue-100 text-blue-600 cursor-pointer hover:bg-blue-200"
                           title={`وصول: من ${arrival.ArrivalCity || 'غير محدد'}`}
+                          onClick={() => router.push('/admin/housedarrivals')}
                         >
                           وصول #{arrival.id}
+                        </div>
+                      ))}
+                      
+                      {/* New Orders */}
+                      {hasNewOrders && newOrdersForDay.map((order, orderIndex) => (
+                        <div 
+                          key={`order-${orderIndex}`}
+                          className="text-xs font-light px-1 py-0.5 rounded bg-yellow-100 text-yellow-700 cursor-pointer hover:bg-yellow-200"
+                          title={`طلب جديد: ${order.Name || 'غير محدد'}`}
+                          onClick={() => router.push('/admin/neworders')}
+                        >
+                          طلب #{order.id}
                         </div>
                       ))}
                       
@@ -1279,6 +1901,21 @@ export default function Home({
                         </div>
                       ))}
                       
+                      {/* Deliveries */}
+                      {hasDeliveries && deliveriesForDay.map((delivery, deliveryIndex) => {
+                        const colorClass = getDeliveryColor(delivery);
+                        const timeString = delivery.deliveryTime ? ` ${delivery.deliveryTime}` : '';
+                        return (
+                          <div 
+                            key={`delivery-${deliveryIndex}`}
+                            className={`text-xs font-light px-1 py-0.5 rounded cursor-pointer hover:opacity-80 ${colorClass}`}
+                            title={`تسليم: ${delivery.neworder?.ClientName || delivery.neworder?.Name || 'غير محدد'}${timeString}`}
+                          >
+                            <FaShuttleVan className="w-4 h-4" /> #{delivery.id}
+                          </div>
+                        );
+                      })}
+                      
                       {/* Events */}
                       {hasEvents && eventsForDay.map((event, eventIndex) => (
                         <div 
@@ -1291,7 +1928,7 @@ export default function Home({
                       ))}
                       
                       {/* Show message if no events */}
-                      {!hasTasks && !hasEvents && !hasArrivals && !hasDepartures && !hasHousing && !hasSessions && (
+                      {!hasTasks && !hasEvents && !hasArrivals && !hasDepartures && !hasHousing && !hasSessions && !hasNewOrders && !hasDeliveries && (
                         <span className="text-xs text-gray-400">-</span>
                       )}
                     </div>
@@ -2336,8 +2973,6 @@ export async function getStaticProps(context) {
       { title: "Arrival: Person 5", date: "2025-11-30" },
     ];
     // Process and structure the data for props
- 
- 
   
       const housedCount = await prisma.housedworker.count({
         where: {

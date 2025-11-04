@@ -32,7 +32,7 @@ export default async function handler(
           .json({ error: "isRead must be a boolean value" });
       }
 
-      // ✅ التحقق من أن الإشعار موجود وأنه خاص بالمستخدم (ليس عامًا)
+      // ✅ التحقق من أن الإشعار موجود
       const notification = await prisma.notifications.findUnique({
         where: { id: Number(id) },
       });
@@ -41,21 +41,59 @@ export default async function handler(
         return res.status(404).json({ error: "Notification not found" });
       }
 
-      // ✅ منع تحديث الإشعارات العامة (userId = null)
+      // ✅ إذا كان الإشعار عامًا (userId = null)
       if (notification.userId === null) {
-        return res.status(403).json({ 
-          error: "Cannot mark general notifications as read" 
+        if (isRead) {
+          // إنشاء أو تحديث سجل في NotificationRead
+          await prisma.notificationRead.upsert({
+            where: {
+              notificationId_userId: {
+                notificationId: Number(id),
+                userId: userId,
+              },
+            },
+            create: {
+              notificationId: Number(id),
+              userId: userId,
+            },
+            update: {
+              readAt: new Date(),
+            },
+          });
+        } else {
+          // حذف السجل إذا تم تعليمه كغير مقروء
+          await prisma.notificationRead.deleteMany({
+            where: {
+              notificationId: Number(id),
+              userId: userId,
+            },
+          });
+        }
+
+        // جلب الإشعار مع حالة القراءة الحالية
+        const updatedNotification = await prisma.notifications.findUnique({
+          where: { id: Number(id) },
+          include: {
+            readByUsers: {
+              where: { userId: userId },
+            },
+          },
+        });
+
+        return res.status(200).json({
+          ...updatedNotification,
+          isRead: updatedNotification?.readByUsers?.length > 0,
         });
       }
 
-      // ✅ التحقق من أن الإشعار يخص المستخدم الحالي
+      // ✅ التحقق من أن الإشعار يخص المستخدم الحالي (للإشعارات الخاصة)
       if (notification.userId !== userId) {
         return res.status(403).json({ 
           error: "You can only update your own notifications" 
         });
       }
 
-      // Update notification
+      // Update notification (للإشعارات الخاصة)
       const updatedNotification = await prisma.notifications.update({
         where: { id: Number(id) },
         data: { isRead },

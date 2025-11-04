@@ -21,6 +21,42 @@ declare global {
 // Register Chart.js components
 Chart.register(LineController, BarController, DoughnutController, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
 
+// Plugin مخصص لضمان وضوح الأعمدة الصغيرة في رسوم الإشغال
+const minBarHeightPlugin = {
+  id: 'minBarHeight',
+  afterDatasetsDraw: (chart: any) => {
+    if (chart.config.type !== 'bar') return;
+    const ctx = chart.ctx;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data || !chart.data?.datasets?.[0]?.data) return;
+    
+    const minHeight = 5; // حد أدنى للارتفاع بالبكسل
+    const dataset = chart.data.datasets[0];
+    // استخدام لون العمود من dataset إذا كان متاحاً
+    const barColor = dataset.borderColor || dataset.backgroundColor || '#2d7a7a';
+
+    meta.data.forEach((bar: any, index: number) => {
+      const value = dataset.data[index];
+      if (value != null && value > 0 && typeof value === 'number') {
+        const barHeight = Math.abs(bar.height);
+        if (barHeight < minHeight) {
+          // رسم خط أدنى للعمود الصغير لضمان وضوحه
+          ctx.save();
+          ctx.strokeStyle = Array.isArray(barColor) ? barColor[0] : barColor;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(bar.x - bar.width / 2, bar.y);
+          ctx.lineTo(bar.x + bar.width / 2, bar.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    });
+  }
+};
+
+Chart.register(minBarHeightPlugin);
+
 // Modal Component
 const DataTableModal = ({ isOpen, onClose, title, columns, data }: { isOpen: boolean; onClose: () => void; title: string; columns: string[]; data: any[] }) => {
   if (!isOpen) return null;
@@ -76,16 +112,27 @@ export default function Home() {
   const [reportsData, setReportsData] = useState<any>(null);
   const [inLocationsData, setInLocationsData] = useState<any>(null);
   const [housedWorkerData, setHousedWorkerData] = useState<any>(null);
-  const [ordersData, setOrdersData] = useState<any>(null);
+  const [ordersStatsData, setOrdersStatsData] = useState<any>(null);
+  const [growthData, setGrowthData] = useState<any>(null);
   const [governmentalData, setGovernmentalData] = useState<any>(null);
   const [clientsData, setClientsData] = useState<any>(null);
   const [tasksData, setTasksData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<string>('year');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  
+  // Separate period states for each chart
+  const [ordersPeriod, setOrdersPeriod] = useState<string>('year');
+  const [ordersStartDate, setOrdersStartDate] = useState<string>('');
+  const [ordersEndDate, setOrdersEndDate] = useState<string>('');
+  
+  const [growthPeriod, setGrowthPeriod] = useState<string>('year');
+  const [growthStartDate, setGrowthStartDate] = useState<string>('');
+  const [growthEndDate, setGrowthEndDate] = useState<string>('');
+  
+  const [tasksPeriod, setTasksPeriod] = useState<string>('year');
+  const [tasksStartDate, setTasksStartDate] = useState<string>('');
+  const [tasksEndDate, setTasksEndDate] = useState<string>('');
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -103,11 +150,7 @@ export default function Home() {
   // Fetch data
   const fetchHousedWorkerData = async () => {
     try {
-      const response = await fetch('/api/reports/housedworker', {
-        method: period === 'custom' ? 'POST' : 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        body: period === 'custom' ? JSON.stringify({ period, startDate, endDate }) : undefined,
-      });
+      const response = await fetch('/api/reports/housedworker');
       const data = await response.json();
       setHousedWorkerData(data);
     } catch (error) {
@@ -157,29 +200,68 @@ export default function Home() {
     'Ḩa\'il': 'حائل',
   };
 
+  // خريطة عكسية من hc-key إلى الاسم الإنجليزي للمدينة
+  const hcKeyToEnglishMap: { [key: string]: string } = {
+    'sa-ri': 'Ar Riyāḍ',
+    'sa-mk': 'Makkah al Mukarramah',
+    'sa-md': 'Al Madīnah al Munawwarah',
+    'sa-sh': 'Ash Sharqīyah',
+    'sa-as': 'Asīr',
+    'sa-tb': 'Tabūk',
+    'sa-hs': 'Al Ḩudūd ash Shamālīyah',
+    'sa-jz': 'Jazan',
+    'sa-nj': 'Najrān',
+    'sa-bh': 'Al Bāḩah',
+    'sa-ju': 'Al Jawf',
+    'sa-qs': 'Al Qaşīm',
+    'sa-hl': 'Ḩa\'il',
+  };
+
   useEffect(() => {
     fetchHousedWorkerData();
     fetchInLocationsData();
     const fetchAllData = async () => {
       try {
         setLoading(true);
-        const requestBody = period === 'custom' ? { period, startDate, endDate } : { period };
 
-        const tasksResponse = await fetch('/api/reports/tasks', {
-          method: period === 'custom' ? 'POST' : 'GET',
+        // Fetch tasks data with tasksPeriod
+        const tasksUrl = tasksPeriod === 'custom'
+          ? `/api/reports/tasks`
+          : `/api/reports/tasks?period=${tasksPeriod}`;
+        
+        const tasksResponse = await fetch(tasksUrl, {
+          method: tasksPeriod === 'custom' ? 'POST' : 'GET',
           headers: { 'Content-Type': 'application/json' },
-          body: period === 'custom' ? JSON.stringify(requestBody) : undefined,
+          body: tasksPeriod === 'custom' ? JSON.stringify({ period: tasksPeriod, startDate: tasksStartDate, endDate: tasksEndDate }) : undefined,
         });
         const tasks = await tasksResponse.json();
         setTasksData(tasks);
 
-        const ordersResponse = await fetch('/api/reports/orders', {
-          method: period === 'custom' ? 'POST' : 'GET',
+        // Fetch orders stats data with ordersPeriod
+        const ordersStatsUrl = ordersPeriod === 'custom'
+          ? `/api/reports/orders`
+          : `/api/reports/orders?period=${ordersPeriod}`;
+        
+        const ordersStatsResponse = await fetch(ordersStatsUrl, {
+          method: ordersPeriod === 'custom' ? 'POST' : 'GET',
           headers: { 'Content-Type': 'application/json' },
-          body: period === 'custom' ? JSON.stringify(requestBody) : undefined,
+          body: ordersPeriod === 'custom' ? JSON.stringify({ period: ordersPeriod, startDate: ordersStartDate, endDate: ordersEndDate }) : undefined,
         });
-        const orders = await ordersResponse.json();
-        setOrdersData(orders);
+        const ordersStats = await ordersStatsResponse.json();
+        setOrdersStatsData(ordersStats);
+
+        // Fetch growth data with growthPeriod
+        const growthUrl = growthPeriod === 'custom'
+          ? `/api/reports/orders`
+          : `/api/reports/orders?period=${growthPeriod}`;
+        
+        const growthResponse = await fetch(growthUrl, {
+          method: growthPeriod === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: growthPeriod === 'custom' ? JSON.stringify({ period: growthPeriod, startDate: growthStartDate, endDate: growthEndDate }) : undefined,
+        });
+        const growth = await growthResponse.json();
+        setGrowthData(growth);
 
         const reportsResponse = await fetch('/api/reports');
         const reports = await reportsResponse.json();
@@ -200,7 +282,7 @@ export default function Home() {
     };
 
     fetchAllData();
-  }, [period, startDate, endDate]);
+  }, [ordersPeriod, ordersStartDate, ordersEndDate, growthPeriod, growthStartDate, growthEndDate, tasksPeriod, tasksStartDate, tasksEndDate]);
 
   // Map data
   const mapData = reportsData?.citiesSources?.byCity
@@ -223,6 +305,39 @@ export default function Home() {
 
     const initMap = async () => {
       try {
+        // تعريف الخرائط داخل useEffect لضمان الوصول إليها
+        const hcKeyToEnglishMap: { [key: string]: string } = {
+          'sa-ri': 'Ar Riyāḍ',
+          'sa-mk': 'Makkah al Mukarramah',
+          'sa-md': 'Al Madīnah al Munawwarah',
+          'sa-sh': 'Ash Sharqīyah',
+          'sa-as': 'Asīr',
+          'sa-tb': 'Tabūk',
+          'sa-hs': 'Al Ḩudūd ash Shamālīyah',
+          'sa-jz': 'Jazan',
+          'sa-nj': 'Najrān',
+          'sa-bh': 'Al Bāḩah',
+          'sa-ju': 'Al Jawf',
+          'sa-qs': 'Al Qaşīm',
+          'sa-hl': 'Ḩa\'il',
+        };
+
+        const arabicRegionMap: { [key: string]: string } = {
+          'Ar Riyāḍ': 'الرياض',
+          'Makkah al Mukarramah': 'مكة المكرمة',
+          'Al Madīnah al Munawwarah': 'المدينة المنورة',
+          'Ash Sharqīyah': 'المنطقة الشرقية',
+          'Asīr': 'عسير',
+          'Tabūk': 'تبوك',
+          'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+          'Jazan': 'جازان',
+          'Najrān': 'نجران',
+          'Al Bāḩah': 'الباحة',
+          'Al Jawf': 'الجوف',
+          'Al Qaşīm': 'القصيم',
+          'Ḩa\'il': 'حائل',
+        };
+
         const loadHighcharts = async () => {
           if (!window.Highcharts) {
             await new Promise<void>((resolve) => {
@@ -253,7 +368,13 @@ export default function Home() {
             colorAxis: { min: 0, minColor: '#14B8A6', maxColor: '#134E4A' },
             tooltip: {
               headerFormat: '',
-              pointFormat: '<b>{point.name}</b>: {point.value}',
+              pointFormatter: function(this: any) {
+                const hcKey = this['hc-key'];
+                const englishName = hcKeyToEnglishMap[hcKey];
+                const arabicName = englishName ? arabicRegionMap[englishName] : (this.name || '');
+                const value = this.value !== undefined ? this.value : 0;
+                return `<b>${arabicName}</b>: ${value}`;
+              },
               backgroundColor: 'rgba(0, 0, 0, 0.85)',
               style: { color: '#fff', fontFamily: '"Tajawal", sans-serif', fontSize: '14px', direction: 'rtl' },
             },
@@ -265,7 +386,16 @@ export default function Home() {
               borderColor: '#F5FF57',
               borderWidth: 1,
               states: { hover: { color: '#BADA55', borderColor: '#333', borderWidth: 2 } },
-              dataLabels: { enabled: true, format: '{point.name}', style: { fontFamily: '"Tajawal", sans-serif' } },
+              dataLabels: { 
+                enabled: true, 
+                formatter: function(this: any) {
+                  const hcKey = this.point['hc-key'];
+                  const englishName = hcKeyToEnglishMap[hcKey];
+                  const arabicName = englishName ? arabicRegionMap[englishName] : (this.point.name || '');
+                  return arabicName;
+                },
+                style: { fontFamily: '"Tajawal", sans-serif' } 
+              },
             }],
           });
           setMapLoaded(true);
@@ -297,7 +427,18 @@ export default function Home() {
   const inLocationBarChartOptions = {
     responsive: true,
     scales: {
-      y: { beginAtZero: true, max: 100, title: { display: true, text: 'نسبة الإشغال (%)', font: { family: '"Tajawal", sans-serif', size: 14 } } },
+      y: { 
+        beginAtZero: true, 
+        max: 100, 
+        title: { display: true, text: 'نسبة الإشغال (%)', font: { family: '"Tajawal", sans-serif', size: 14 } },
+        ticks: {
+          stepSize: 1, // إظهار كل نسبة حتى 1%
+          precision: 1,
+          callback: function(value: any) {
+            return value + '%';
+          }
+        }
+      },
       x: { grid: { display: false }, title: { display: true, text: 'الموقع', font: { family: '"Tajawal", sans-serif', size: 14 } } },
     },
     maintainAspectRatio: false,
@@ -326,17 +467,31 @@ export default function Home() {
   const donutChart1Data = {
     labels: ['جديد', 'قيد التنفيذ', 'مكتمل', 'ملغي'],
     datasets: [{
-      data: [ordersData?.new_order || 0, ordersData?.in_progress || 0, ordersData?.delivered || 0, ordersData?.cancelled || 0],
+      data: [ordersStatsData?.new_order || 0, ordersStatsData?.in_progress || 0, ordersStatsData?.delivered || 0, ordersStatsData?.cancelled || 0],
       backgroundColor: ["#600000", "#F8DADA", "lightblue", tertiaryColor],
     }],
   };
 
   const lineChart1Data = {
-    labels: period === 'year'
+    labels: growthPeriod === 'year'
       ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
-      : ordersData?.timeSeriesData?.labels?.map((label: string) => new Date(label).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' })) || [],
+      : (growthData?.timeSeriesData?.labels && Array.isArray(growthData.timeSeriesData.labels))
+        ? growthData.timeSeriesData.labels.map((label: string) => {
+            try {
+              if (!label) return '';
+              const date = new Date(label);
+              if (isNaN(date.getTime())) {
+                return label; // إرجاع القيمة الأصلية إذا كان التاريخ غير صالح
+              }
+              return format(date, 'd/M');
+            } catch (error) {
+              console.error('Error formatting date:', label, error);
+              return label || '';
+            }
+          })
+        : [],
     datasets: [{
-      data: ordersData?.timeSeriesData?.data || Array(period === 'year' ? 12 : 7).fill(0),
+      data: growthData?.timeSeriesData?.data || Array(growthPeriod === 'year' ? 12 : 30).fill(0),
       borderColor: primaryColor,
       backgroundColor: 'rgba(45, 122, 122, 0.1)',
       tension: 0.4,
@@ -345,10 +500,16 @@ export default function Home() {
   };
 
   const donutChart4Data = {
-    labels: ordersData?.SourcesStats?.map((item: any) => item.Source) || ['تويتر', 'فيسبوك', 'أخرى'],
+    labels: ordersStatsData?.SourcesStats
+      ?.filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
+      ?.map((item: any) => item.Source || 'غير محدد') || ['تويتر', 'فيسبوك', 'أخرى'],
     datasets: [{
-      data: ordersData?.SourcesStats?.map((item: any) => item._count.id) || [0, 0, 0],
+      data: ordersStatsData?.SourcesStats
+        ?.filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
+        ?.map((item: any) => item._count?.id || 0) || [0, 0, 0],
       backgroundColor: [primaryColor, secondaryColor, tertiaryColor, lightColor],
+      borderColor: [primaryColor, secondaryColor, tertiaryColor, lightColor],
+      borderWidth: 1,
     }],
   };
 
@@ -406,7 +567,7 @@ export default function Home() {
   const barChart3Data = {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [{
-      data: ordersData?.timeSeriesData?.data || Array(12).fill(0),
+      data: growthData?.timeSeriesData?.data || Array(12).fill(0),
       backgroundColor: primaryColor,
     }],
   };
@@ -437,7 +598,7 @@ export default function Home() {
   const lineChart2Data = {
     labels: Array.from({ length: 12 }, (_, i) => `الشهر ${i + 1}`),
     datasets: [{
-      data: ordersData?.timeSeriesData?.data || Array(12).fill(0),
+      data: growthData?.timeSeriesData?.data || Array(12).fill(0),
       borderColor: primaryColor,
       backgroundColor: 'rgba(45, 122, 122, 0.1)',
       tension: 0.4,
@@ -466,7 +627,7 @@ export default function Home() {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [
       { label: '2023', data: Array.from({ length: 12 }, () => Math.floor(Math.random() * 50) + 30), backgroundColor: primaryColor },
-      { label: '2024', data: ordersData?.timeSeriesData?.data || Array(12).fill(0), backgroundColor: secondaryColor },
+      { label: '2024', data: growthData?.timeSeriesData?.data || Array(12).fill(0), backgroundColor: secondaryColor },
       { label: '2025', data: Array.from({ length: 12 }, () => Math.floor(Math.random() * 50) + 50), backgroundColor: tertiaryColor },
     ],
   }));
@@ -474,7 +635,7 @@ export default function Home() {
   const lineChart34Data = Array.from({ length: 2 }, () => ({
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [
-      { label: 'الفعلي', data: ordersData?.timeSeriesData?.data || Array(12).fill(0), borderColor: primaryColor, tension: 0.4 },
+      { label: 'الفعلي', data: growthData?.timeSeriesData?.data || Array(12).fill(0), borderColor: primaryColor, tension: 0.4 },
       { label: 'المتوقع', data: Array.from({ length: 12 }, () => Math.floor(Math.random() * 40) + 70), borderColor: secondaryColor, borderDash: [5, 5], tension: 0.4 },
     ],
   }));
@@ -482,7 +643,7 @@ export default function Home() {
   const barChart6Data = {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس'],
     datasets: [{
-      data: ordersData?.timeSeriesData?.data?.slice(0, 8) || [0, 0, 0, 0, 0, 0, 0, 0],
+      data: growthData?.timeSeriesData?.data?.slice(0, 8) || [0, 0, 0, 0, 0, 0, 0, 0],
       backgroundColor: primaryColor,
     }],
   };
@@ -498,7 +659,7 @@ export default function Home() {
   const barChart7Data = {
     labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [{
-      data: ordersData?.timeSeriesData?.data || Array(12).fill(0),
+      data: growthData?.timeSeriesData?.data || Array(12).fill(0),
       backgroundColor: primaryColor,
     }],
   };
@@ -546,10 +707,10 @@ export default function Home() {
 
   // Table data for modals
   const ordersTableData = [
-    { الحالة: 'جديد', العدد: ordersData?.new_order || 0 },
-    { الحالة: 'قيد التنفيذ', العدد: ordersData?.in_progress || 0 },
-    { الحالة: 'مكتمل', العدد: ordersData?.delivered || 0 },
-    { الحالة: 'ملغي', العدد: ordersData?.cancelled || 0 },
+    { الحالة: 'جديد', العدد: ordersStatsData?.new_order || 0 },
+    { الحالة: 'قيد التنفيذ', العدد: ordersStatsData?.in_progress || 0 },
+    { الحالة: 'مكتمل', العدد: ordersStatsData?.delivered || 0 },
+    { الحالة: 'ملغي', العدد: ordersStatsData?.cancelled || 0 },
   ];
 
   const growthRateTableData = lineChart1Data.labels.map((label: string, i: number) => ({
@@ -562,10 +723,12 @@ export default function Home() {
     العدد: item.value,
   }));
 
-  const sourcesTableData = ordersData?.SourcesStats?.map((item: any) => ({
-    المصدر: item.Source,
-    العدد: item._count.id,
-  })) || [];
+  const sourcesTableData = ordersStatsData?.SourcesStats
+    ?.filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
+    ?.map((item: any) => ({
+      المصدر: item.Source || 'غير محدد',
+      العدد: item._count?.id || 0,
+    })) || [];
 
   const receivablesTableData = [
     { الحالة: 'لديهم مستحقات', العدد: reportsData?.clientsReceivables?.withReceivables || 0 },
@@ -795,8 +958,8 @@ export default function Home() {
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
                 <div className="flex items-center gap-4">
                   <select
-                    value={period}
-                    onChange={(e) => setPeriod(e.target.value)}
+                    value={ordersPeriod}
+                    onChange={(e) => setOrdersPeriod(e.target.value)}
                     className="bg-white text-black  py-1 rounded text-sm"
                   >
                     <option value="week">أسبوعي</option>
@@ -804,18 +967,18 @@ export default function Home() {
                     <option value="year">سنوي</option>
                     <option value="custom">مخصص</option>
                   </select>
-                  {period === 'custom' && (
+                  {ordersPeriod === 'custom' && (
                     <div className="flex gap-2">
                       <input
                         type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        value={ordersStartDate}
+                        onChange={(e) => setOrdersStartDate(e.target.value)}
                         className="border rounded px-2 py-1"
                       />
                       <input
                         type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        value={ordersEndDate}
+                        onChange={(e) => setOrdersEndDate(e.target.value)}
                         className="border rounded px-2 py-1"
                       />
                     </div>
@@ -839,8 +1002,8 @@ export default function Home() {
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
                 <div className="flex items-center gap-4">
                   <select
-                    value={period}
-                    onChange={(e) => setPeriod(e.target.value)}
+                    value={growthPeriod}
+                    onChange={(e) => setGrowthPeriod(e.target.value)}
                     className="bg-white text-black py-1 rounded text-sm"
                   >
                     <option value="week">أسبوعي</option>
@@ -848,18 +1011,18 @@ export default function Home() {
                     <option value="year">سنوي</option>
                     <option value="custom">مخصص</option>
                   </select>
-                  {period === 'custom' && (
+                  {growthPeriod === 'custom' && (
                     <div className="flex gap-2">
                       <input
                         type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
+                        value={growthStartDate}
+                        onChange={(e) => setGrowthStartDate(e.target.value)}
                         className="border rounded px-2 py-1"
                       />
                       <input
                         type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
+                        value={growthEndDate}
+                        onChange={(e) => setGrowthEndDate(e.target.value)}
                         className="border rounded px-2 py-1"
                       />
                     </div>
@@ -867,7 +1030,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-4">
                   <h3 className="text-base font-semibold text-gray-800">
-                    {period === 'week' ? 'معدل النمو الأسبوعي' : period === 'month' ? 'معدل النمو اليومي' : period === 'custom' ? 'معدل النمو للفترة' : 'معدل النمو الشهري'}
+                    {growthPeriod === 'week' ? 'معدل النمو الأسبوعي' : growthPeriod === 'month' ? 'معدل النمو اليومي' : growthPeriod === 'custom' ? 'معدل النمو للفترة' : 'معدل النمو الشهري'}
                   </h3>
                   <button
                     onClick={() => openModal('معدل النمو', ['الفترة', 'العدد'], growthRateTableData)}
@@ -921,7 +1084,47 @@ export default function Home() {
                 </div>
               </div>
               <div className="relative h-[500px]">
-                <Bar data={donutChart4Data} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 50 } } }} />
+                <Bar data={donutChart4Data} options={{ 
+                  responsive: true, 
+                  maintainAspectRatio: false, 
+                  plugins: {
+                    legend: {
+                      display: false,
+                    },
+                    tooltip: {
+                      enabled: true,
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleFont: { family: '"Tajawal", sans-serif' },
+                      bodyFont: { family: '"Tajawal", sans-serif' },
+                      callbacks: {
+                        title: (context: any) => {
+                          return context[0].label || 'المصدر';
+                        },
+                        label: (context: any) => {
+                          return `عدد العملاء: ${context.parsed.y}`;
+                        }
+                      }
+                    }
+                  },
+                  scales: { 
+                    y: { 
+                      beginAtZero: true,
+                      title: {
+                        display: true,
+                        text: 'عدد العملاء',
+                        font: { family: '"Tajawal", sans-serif', size: 14 }
+                      }
+                    },
+                    x: {
+                      grid: { display: false },
+                      title: {
+                        display: true,
+                        text: 'المصدر',
+                        font: { family: '"Tajawal", sans-serif', size: 14 }
+                      }
+                    }
+                  } 
+                }} />
               </div>
             </div>
           </div>
