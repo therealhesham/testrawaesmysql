@@ -1053,7 +1053,7 @@ export default function Home({
   const getDeliveriesForDay = (day) => {
     if (!clientDeliveries || clientDeliveries.length === 0) return [];
     
-    return clientDeliveries.filter((delivery) => {
+    const filteredDeliveries = clientDeliveries.filter((delivery) => {
       if (!delivery.deliveryDate) return false;
       
       try {
@@ -1069,6 +1069,42 @@ export default function Home({
         return false;
       }
     });
+
+    // Sort deliveries by time (deliveryTime) - those with time first, then by time value
+    return filteredDeliveries.sort((a, b) => {
+      // If both have deliveryTime, sort by time
+      if (a.deliveryTime && b.deliveryTime) {
+        // Parse time strings (format: "HH:MM" or "HH:MM:SS")
+        const parseTime = (timeStr) => {
+          if (!timeStr) return Infinity;
+          const parts = timeStr.split(':');
+          if (parts.length >= 2) {
+            const hours = parseInt(parts[0]) || 0;
+            const minutes = parseInt(parts[1]) || 0;
+            // Handle PM times if present
+            let adjustedHours = hours;
+            if (timeStr.toLowerCase().includes('pm') && hours < 12) {
+              adjustedHours = hours + 12;
+            } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
+              adjustedHours = 0;
+            }
+            return adjustedHours * 60 + minutes;
+          }
+          return Infinity;
+        };
+        
+        const timeA = parseTime(a.deliveryTime);
+        const timeB = parseTime(b.deliveryTime);
+        return timeA - timeB;
+      }
+      
+      // If only one has time, put it first
+      if (a.deliveryTime && !b.deliveryTime) return -1;
+      if (!a.deliveryTime && b.deliveryTime) return 1;
+      
+      // If neither has time, keep original order
+      return 0;
+    });
   };
 
   // Get color for delivery based on date and time proximity
@@ -1078,13 +1114,41 @@ export default function Home({
     const now = new Date();
     const deliveryDate = new Date(delivery.deliveryDate);
     
-    // Calculate days difference
+    // If deliveryTime exists, use it to set the exact time
+    if (delivery.deliveryTime) {
+      try {
+        const timeString = delivery.deliveryTime;
+        let hours = 0;
+        let minutes = 0;
+        
+        // Parse time (format: "HH:MM" or "HH:MM:SS")
+        if (timeString.includes(':')) {
+          const timeParts = timeString.split(':');
+          hours = parseInt(timeParts[0]) || 0;
+          minutes = parseInt(timeParts[1]) || 0;
+          
+          // Handle PM times if present
+          if (timeString.toLowerCase().includes('pm') && hours < 12) {
+            hours += 12;
+          } else if (timeString.toLowerCase().includes('am') && hours === 12) {
+            hours = 0;
+          }
+        }
+        
+        // Set the exact delivery time
+        deliveryDate.setHours(hours, minutes, 0, 0);
+      } catch (error) {
+        console.error('Error parsing delivery time:', delivery.deliveryTime, error);
+      }
+    }
+    
+    // Calculate time difference in milliseconds
     const timeDiff = deliveryDate.getTime() - now.getTime();
     const daysDiff = timeDiff / (1000 * 3600 * 24);
     
-    // If delivery is today, check time
+    // If delivery is today or very close (within 24 hours), check time
     if (daysDiff >= 0 && daysDiff < 1) {
-      return "bg-red-100 text-red-700"; // Red for today
+      return "bg-red-100 text-red-700"; // Red for today/soon
     } else if (daysDiff >= 1 && daysDiff < 3) {
       return "bg-yellow-100 text-yellow-700"; // Yellow for close (1-3 days)
     } else if (daysDiff >= 3) {
