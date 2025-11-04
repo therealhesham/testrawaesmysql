@@ -578,15 +578,24 @@ export default function Home() {
     const reasonData = housedWorkerData?.nationalityStats?.[reason] || {};
     const total = housedWorkerData?.total || 1;
     const nationalities = Object.keys(reasonData);
-    const colors = [primaryColor, secondaryColor, tertiaryColor, lightColor];
+    const colors = [primaryColor, secondaryColor, tertiaryColor, lightColor, '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#a8e6cf', '#ffd3a5'];
+    
+    // جمع جميع الجنسيات في dataset واحد لدائرة واحدة
+    const nationalityData = nationalities.map((country) => reasonData[country]?.count || 0);
+    const nationalityLabels = nationalities;
+    const nationalityColors = nationalities.map((_, i) => colors[i % colors.length]);
+    
     return {
       reason,
-      datasets: nationalities.map((country, i) => ({
-        label: country,
-        data: [reasonData[country]?.count || 0, total - (reasonData[country]?.count || 0)],
-        backgroundColor: [colors[i % colors.length], '#e8f4f4'],
-        borderWidth: 0,
-      })),
+      chartData: {
+        labels: nationalityLabels,
+        datasets: [{
+          data: nationalityData,
+          backgroundColor: nationalityColors,
+          borderColor: '#ffffff',
+          borderWidth: 2,
+        }],
+      },
       data: nationalities.map((country) => ({
         country,
         count: reasonData[country]?.count || 0,
@@ -1201,27 +1210,55 @@ export default function Home() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {miniDonutData.map((item, index) => (
                 <div key={index} className="text-center">
-                  <div className="w-32 h-32 mx-auto mb-2">
-                    <Doughnut
-                      data={{ labels: item.data.map((d) => d.country), datasets: item.datasets }}
-                      options={{
-                        ...miniDonutOptions,
-                        plugins: {
-                          ...miniDonutOptions.plugins,
-                          legend: { display: true, position: 'bottom', labels: { font: { family: '"Tajawal", sans-serif' } } },
-                        },
-                      }}
-                    />
+                  <div className="w-40 h-40 mx-auto mb-2">
+                    {item.chartData.labels.length > 0 ? (
+                      <Doughnut
+                        data={item.chartData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: true,
+                          plugins: {
+                            legend: {
+                              display: true,
+                              position: 'bottom' as const,
+                              labels: {
+                                font: { family: '"Tajawal", sans-serif', size: 11 },
+                                padding: 8,
+                                boxWidth: 12,
+                                boxHeight: 12,
+                              },
+                            },
+                            tooltip: {
+                              enabled: true,
+                              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                              titleFont: { family: '"Tajawal", sans-serif' },
+                              bodyFont: { family: '"Tajawal", sans-serif' },
+                              callbacks: {
+                                label: (context: any) => {
+                                  const label = context.label || '';
+                                  const value = context.parsed || 0;
+                                  const total = item.data.reduce((sum, d) => sum + d.count, 0);
+                                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                  return `${label}: ${value} (${percentage}%)`;
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-500 pt-16">لا توجد بيانات</div>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-500 font-semibold">{item.reason}</div>
+                  <div className="text-sm text-gray-500 font-semibold mb-2">{item.reason}</div>
                   {item.data.length > 0 ? (
                     item.data.map((d, i) => (
-                      <div key={i} className="text-sm text-gray-800">
+                      <div key={i} className="text-xs text-gray-800">
                         {d.country}: {d.percentage}% ({d.count})
                       </div>
                     ))
                   ) : (
-                    <div className="text-sm text-gray-500">لا توجد بيانات</div>
+                    <div className="text-xs text-gray-500">لا توجد بيانات</div>
                   )}
                 </div>
               ))}
