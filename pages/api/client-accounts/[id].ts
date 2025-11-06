@@ -121,15 +121,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const {
         contractNumber,
         officeName,
-        totalRevenue,
-        totalExpenses,
-        netAmount,
         contractStatus,
         notes
       } = req.body;
 
       // Get user info for logging
       const { userId } = getUserFromCookies(req);
+
+      // Recalculate totals from entries instead of using provided values
+      const entries = await prisma.clientAccountEntry.findMany({
+        where: { statementId: Number(id) }
+      });
+
+      const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
+      const totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
+      const netAmount = totalRevenue - totalExpenses;
 
       const statement = await prisma.clientAccountStatement.update({
         where: {
@@ -138,9 +144,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           contractNumber,
           officeName,
-          totalRevenue: Number(totalRevenue),
-          totalExpenses: Number(totalExpenses),
-          netAmount: Number(netAmount),
+          totalRevenue,
+          totalExpenses,
+          netAmount,
           contractStatus,
           notes
         },

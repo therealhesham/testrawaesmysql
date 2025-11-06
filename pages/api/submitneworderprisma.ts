@@ -89,15 +89,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
+    // ✅ تحضير البيانات للخلفية قبل setImmediate
+    let token: any = null;
+    try {
+      const cookieHeader = req.headers?.cookie || "";
+      const cookies = cookieHeader ? cookie.parse(cookieHeader) : {};
+      token = cookies.authToken ? jwtDecode(cookies.authToken) as any : null;
+    } catch (parseError) {
+      // إذا فشل تحليل الكوكيز، نتابع بدون token
+      console.error("Error parsing cookies/token:", parseError);
+    }
+
     // ✅ أرسل الاستجابة للمستخدم بسرعة
     res.status(200).json(result);
 
     // ✅ تنفيذ باقي العمليات في الخلفية (بدون تعطيل الرد)
     setImmediate(async () => {
       try {
-        // كوكيز وتحليل التوكن
-        const cookies = cookie.parse(req.headers.cookie || "");
-        const token = jwtDecode(cookies.authToken || "") as any;
 
         // جلب بيانات العاملة لمعلومات المكتب
         const homemaid = await prisma.homemaid.findUnique({
@@ -145,20 +153,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
 
         // ✅ تسجيل الحدث في EventBus
-        eventBus.emit('ACTION', {
-          type: 'تسجيل طلب جديد رقم ' + result.id,
-          userId: Number(token.id),
-        });
+        if (token) {
+          eventBus.emit('ACTION', {
+            type: 'تسجيل طلب جديد رقم ' + result.id,
+            userId: Number(token.id),
+          });
 
-        // ✅ حفظ سجل في logs
-        await prisma.logs.create({
-          data: {
-            Details: 'تسجيل طلب جديد رقم ' + result.id,
-            homemaidId: result.HomemaidId,
-            userId: token.username,
-            Status: "طلب جديد",
-          },
-        });
+          // ✅ حفظ سجل في logs
+          await prisma.logs.create({
+            data: {
+              Details: 'تسجيل طلب جديد رقم ' + result.id,
+              homemaidId: result.HomemaidId,
+              userId: token.username,
+              Status: "طلب جديد",
+            },
+          });
+        }
 
       } catch (err) {
         console.error("Error in background processing:", err);
@@ -167,6 +177,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error: unknown) {
     console.error("Error in creating new order:", error);
+
+    // ✅ التحقق من أن الاستجابة لم يتم إرسالها بعد
+    if (res.headersSent) {
+      console.error("Response already sent, cannot send error response");
+      return;
+    }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {

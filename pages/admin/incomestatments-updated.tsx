@@ -53,6 +53,13 @@ interface FinancialData {
   };
   mainCategories: MainCategory[]; // Processed data with values
   zakatRate: number;
+  contracts: {
+    byMonth: Record<string, { count: number; revenue: number }>;
+    total: number;
+    average: number;
+    totalRevenue: number;
+    averageRevenue: number;
+  };
 }
 
 export default function Home() {
@@ -125,7 +132,7 @@ export default function Home() {
   };
 
   const formatCurrency = (amount: number | string) => {
-    return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(Number(amount));
+    return Number(amount).toFixed(2);
   };
 
 
@@ -203,12 +210,12 @@ export default function Home() {
                   className="bg-[#1A4D4F] text-white rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-[#164044]"
                   onClick={() => setOpenAddModal(true)}
                 >
-                  <span>اضافة سجل</span>
+                  <span>اضافة مبلغ</span>
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                     <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">نسبة الزكاة:</label>
                   <input
                     type="number"
@@ -220,7 +227,7 @@ export default function Home() {
                     className="w-20 px-2 py-1 border rounded text-sm"
                   />
                   <span className="text-sm">%</span>
-                </div>
+                </div> */}
               </div>
               <h2 className="text-3xl text-black">قائمة الدخل</h2>
             </div>
@@ -357,16 +364,36 @@ export default function Home() {
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Revenue Section */}
+                      {/* Contracts Count Section - Real Data */}
                       <tr className="bg-[#1A4D4F]/5 hover:bg-[#1A4D4F]/10">
-                        <td className="p-3 text-right text-base font-medium">35</td>
-                        <td className="p-3 text-right text-base font-medium">100</td>
+                        <td className="p-3 text-right text-base font-medium">
+                          {Math.round(financialData.contracts.average)}
+                        </td>
+                        <td className="p-3 text-right text-base font-medium">
+                          {financialData.contracts.total}
+                        </td>
                         {financialData.months.map((month, i) => (
                           <td key={i} className="p-3 text-right text-base font-medium">
-                            {i < 5 ? [14, 20, 16, 25, 30][i] : 0}
+                            {financialData.contracts.byMonth[month]?.count || 0}
                           </td>
                         ))}
                         <td className="text-right font-medium pr-4">عدد العقود</td>
+                      </tr>
+                      
+                      {/* Contracts Revenue Section - Real Data */}
+                      <tr className="bg-[#1A4D4F]/5 hover:bg-[#1A4D4F]/10">
+                        <td className="p-3 text-right text-base font-medium">
+                          {formatCurrency(financialData.contracts.averageRevenue)}
+                        </td>
+                        <td className="p-3 text-right text-base font-medium">
+                          {formatCurrency(financialData.contracts.totalRevenue)}
+                        </td>
+                        {financialData.months.map((month, i) => (
+                          <td key={i} className="p-3 text-right text-base font-medium">
+                            {formatCurrency(financialData.contracts.byMonth[month]?.revenue || 0)}
+                          </td>
+                        ))}
+                        <td className="text-right font-medium pr-4">إيرادات العقود</td>
                       </tr>
                       
                       {/* Dynamic Categories from Database - Following exact pseudo-code structure */}

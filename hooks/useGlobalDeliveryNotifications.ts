@@ -44,7 +44,7 @@ export function useGlobalDeliveryNotifications() {
     fetchDeliveries();
     
     // Refresh deliveries every 5 minutes
-    const intervalId = setInterval(fetchDeliveries, 5 * 60 * 1000);
+    const intervalId = setInterval(fetchDeliveries, 30 * 60 * 1000);
     
     return () => clearInterval(intervalId);
   }, []);
@@ -148,7 +148,7 @@ export function useGlobalDeliveryNotifications() {
             // Check last notification time (every 5 minutes)
             const notificationKey = `delivery-last-notified-${delivery.id}`;
             const lastNotified = localStorage.getItem(notificationKey);
-            const fiveMinutesInMs = 5 * 60 * 1000;
+            const fiveMinutesInMs = 30 * 60 * 1000;
             
             // Send notification if never notified OR if 5 minutes passed since last notification
             const shouldNotify = !lastNotified || (Date.now() - parseInt(lastNotified)) >= fiveMinutesInMs;

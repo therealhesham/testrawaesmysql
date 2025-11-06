@@ -165,8 +165,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('Error creating employee:', error);
       res.status(500).json({ error: 'Failed to create employee' });
     }
+  } else if (req.method === 'DELETE') {
+    try {
+      const { id } = req.query;
+
+      if (!id) {
+        return res.status(400).json({ error: 'معرف الموظف مطلوب' });
+      }
+
+      // Check if employee exists
+      const employee = await prisma.employee.findUnique({
+        where: { id: Number(id) },
+        include: {
+          _count: {
+            select: {
+              employeeCash: true,
+              employeeCashDetails: true
+            }
+          }
+        }
+      });
+
+      if (!employee) {
+        return res.status(404).json({ error: 'الموظف غير موجود' });
+      }
+
+      // Check if employee has related records
+      if (employee._count.employeeCash > 0 || employee._count.employeeCashDetails > 0) {
+        return res.status(400).json({ 
+          error: 'لا يمكن حذف الموظف لأنه يحتوي على سجلات عهدة مرتبطة' 
+        });
+      }
+
+      // Delete employee
+      await prisma.employee.delete({
+        where: { id: Number(id) }
+      });
+
+      res.status(200).json({ 
+        message: 'تم حذف الموظف بنجاح'
+      });
+
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      res.status(500).json({ error: 'Failed to delete employee' });
+    }
   } else {
-    res.setHeader('Allow', ['GET', 'POST']);
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

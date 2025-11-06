@@ -4,6 +4,10 @@ import Head from "next/head";
 import jwt from "jsonwebtoken";
 import Style from "styles/Home.module.css"
 import { PlusIcon } from '@heroicons/react/outline';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
 // Types
 interface FinancialRecord {
   id: string;
@@ -19,6 +23,21 @@ interface FinancialRecord {
   status: string;
 }
 
+  // خريطة لتحويل أسماء الحقول الإنجليزية إلى أسماء عربية
+  const fieldNames: { [key: string]: string } = {
+    'officeLinkInfo': 'الربط مع إدارة المكاتب',
+    'externalOfficeInfo': 'المكتب الخارجي',
+    'externalOfficeApproval': 'موافقة المكتب الخارجي',
+    'medicalCheck': 'الفحص الطبي',
+    'foreignLaborApproval': 'موافقة وزارة العمل الأجنبية',
+    'agencyPayment': 'دفع الوكالة',
+    'saudiEmbassyApproval': 'موافقة السفارة السعودية',
+    'visaIssuance': 'إصدار التأشيرة',
+    'travelPermit': 'تصريح السفر',
+    'destinations': 'الوجهات',
+    'receipt': 'الاستلام',
+    'ticketUpload': 'رفع المستندات'
+  };
 interface FinancialRecordForm {
   orderId: string;
   orderNumber: string;
@@ -365,7 +384,7 @@ const AddRecordModal = ({ isOpen, onClose, onAdd, offices, clients }: {
               name="officeId"
               value={formData.officeId}
               onChange={handleInputChange}
-              className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
+              className="w-full  border border-gray-300 rounded-md bg-gray-50"
             >
               <option value="">حدد المكتب</option>
               {offices.map(office => (
@@ -504,6 +523,7 @@ export default function MusanadFinancial({ user }: { user: any }) {
   const [orderDateFilter, setOrderDateFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [userName, setUserName] = useState('');
   
   // Alert Modal state
   const [alertModal, setAlertModal] = useState({
@@ -529,6 +549,21 @@ export default function MusanadFinancial({ user }: { user: any }) {
   const totalRevenue = records.reduce((sum, record) => sum + record.revenue, 0);
   const totalExpenses = records.reduce((sum, record) => sum + record.expenses, 0);
   const totalNet = totalRevenue - totalExpenses;
+
+  // Set userName from token
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token) as any;
+        setUserName(decoded.username || user?.username || '');
+      } catch (error) {
+        setUserName(user?.username || '');
+      }
+    } else {
+      setUserName(user?.username || '');
+    }
+  }, [user]);
 
   // Fetch data
   useEffect(() => {
@@ -735,176 +770,206 @@ export default function MusanadFinancial({ user }: { user: any }) {
     setSearchTimeout(timeout);
   };
 
-  const handleExportExcel = () => {
-    if (records.length === 0) {
-      showAlert('لا توجد بيانات', 'لا توجد بيانات للتصدير', 'warning');
-      return;
-    }
+  // Fetch all data for export
+  const fetchFilteredDataExporting = async () => {
+    const query = new URLSearchParams({
+      limit: "1000",
+      page: "1",
+      ...(searchTerm && { search: searchTerm }),
+      ...(transferDateFilter && { transferDate: transferDateFilter }),
+      ...(orderDateFilter && { orderDate: orderDateFilter }),
+    }).toString();
+    const res = await fetch(`/api/financial-records?${query}`);
+    
+    if (!res.ok) throw new Error("Failed to fetch data");
+    const data = await res.json();
+    return data.records || [];
+  };
 
+  const handleExportExcel = async () => {
     try {
-      // Create CSV content with proper encoding
-      const headers = ['#', 'العميل', 'المكتب الخارجي', 'الجنسية', 'تاريخ الطلب', 'رقم الحوالة', 'تاريخ الحوالة', 'الايرادات', 'المصروفات', 'الصافي', 'حالة الطلب'];
-      const csvContent = [
-        headers.join(','),
-        ...records.map((record, index) => [
-          index + 1,
-          `"${record.clientName}"`,
-          `"${record.officeName}"`,
-          `"${record.nationality}"`,
-          record.orderDate,
-          record.transferNumber,
-          record.transferDate,
-          record.revenue,
-          record.expenses,
-          record.net,
-          `"${record.status}"`
-        ].join(','))
-      ].join('\n');
+      let dataToExport = await fetchFilteredDataExporting();
 
-      // Create and download file with BOM for proper Arabic encoding
-      const BOM = '\uFEFF';
-      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `musanad_financial_report_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      if (dataToExport.length === 0) {
+        showAlert('لا توجد بيانات', 'لا توجد بيانات للتصدير', 'warning');
+        return;
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('تقرير المالي المساند', { properties: { defaultColWidth: 20 } });
+
+      worksheet.columns = [
+        { header: 'رقم الطلب', key: 'id', width: 15 },
+        { header: 'العميل', key: 'clientName', width: 20 },
+        { header: 'المكتب الخارجي', key: 'officeName', width: 20 },
+        { header: 'الجنسية', key: 'nationality', width: 15 },
+        { header: 'تاريخ الطلب', key: 'orderDate', width: 15 },
+        { header: 'رقم الحوالة', key: 'transferNumber', width: 15 },
+        { header: 'تاريخ الحوالة', key: 'transferDate', width: 15 },
+        { header: 'الايرادات', key: 'revenue', width: 15 },
+        { header: 'المصروفات', key: 'expenses', width: 15 },
+        { header: 'الصافي', key: 'net', width: 15 },
+        { header: 'حالة الطلب', key: 'status', width: 15 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      dataToExport.forEach((record: any) => {
+        worksheet.addRow({
+          id: record.id || 'غير متوفر',
+          clientName: record.clientName || 'غير متوفر',
+          officeName: record.officeName || 'غير متوفر',
+          nationality: record.nationality || 'غير متوفر',
+          orderDate: record.orderDate || 'غير متوفر',
+          transferNumber: record.transferNumber || 'غير متوفر',
+          transferDate: record.transferDate || 'غير متوفر',
+          revenue: record.revenue || 0,
+          expenses: record.expenses || 0,
+          net: record.net || 0,
+          status: record.status || 'غير متوفر',
+        }).alignment = { horizontal: 'right' };
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'musanad_financial_report.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting Excel:', error);
       showAlert('خطأ في التصدير', 'حدث خطأ في تصدير البيانات', 'error');
     }
   };
 
-  const handleExportPDF = () => {
-    if (records.length === 0) {
-      showAlert('لا توجد بيانات', 'لا توجد بيانات للتصدير', 'warning');
-      return;
-    }
-
+  const handleExportPDF = async () => {
     try {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const currentDate = new Date().toLocaleDateString('ar-SA');
-        const tableContent = `
-          <html dir="rtl">
-            <head>
-              <title>تقرير المالي المساند</title>
-              <style>
-                body { 
-                  font-family: 'Arial', sans-serif; 
-                  direction: rtl; 
-                  margin: 20px;
-                  font-size: 12px;
-                }
-                .header {
-                  text-align: center;
-                  margin-bottom: 30px;
-                  border-bottom: 2px solid #1A4D4F;
-                  padding-bottom: 10px;
-                }
-                .summary { 
-                  margin-bottom: 20px; 
-                  background-color: #f5f5f5;
-                  padding: 15px;
-                  border-radius: 5px;
-                }
-                .summary div { 
-                  display: inline-block; 
-                  margin: 0 20px; 
-                  font-weight: bold;
-                }
-                table { 
-                  width: 100%; 
-                  border-collapse: collapse; 
-                  margin-top: 20px; 
-                  font-size: 10px;
-                }
-                th, td { 
-                  border: 1px solid #000; 
-                  padding: 6px; 
-                  text-align: center; 
-                }
-                th { 
-                  background-color: #1A4D4F; 
-                  color: white; 
-                  font-weight: bold;
-                }
-                tr:nth-child(even) {
-                  background-color: #f9f9f9;
-                }
-                .footer {
-                  margin-top: 20px;
-                  text-align: center;
-                  font-size: 10px;
-                  color: #666;
-                }
-                @media print {
-                  body { margin: 0; }
-                  .no-print { display: none; }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <h1>تقرير المالي المساند</h1>
-                <p>تاريخ التقرير: ${currentDate}</p>
-              </div>
-              
-              <div class="summary">
-                <div>اجمالي الايرادات: ${totalRevenue.toLocaleString()} ريال</div>
-                <div>اجمالي المصروفات: ${totalExpenses.toLocaleString()} ريال</div>
-                <div>الصافي: ${totalNet.toLocaleString()} ريال</div>
-              </div>
-              
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>العميل</th>
-                    <th>المكتب الخارجي</th>
-                    <th>الجنسية</th>
-                    <th>تاريخ الطلب</th>
-                    <th>رقم الحوالة</th>
-                    <th>تاريخ الحوالة</th>
-                    <th>الايرادات</th>
-                    <th>المصروفات</th>
-                    <th>الصافي</th>
-                    <th>حالة الطلب</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${records.map((record, index) => `
-                    <tr>
-                      <td>${index + 1}</td>
-                      <td>${record.clientName}</td>
-                      <td>${record.officeName}</td>
-                      <td>${record.nationality}</td>
-                      <td>${record.orderDate}</td>
-                      <td>${record.transferNumber}</td>
-                      <td>${record.transferDate}</td>
-                      <td>${record.revenue.toLocaleString()}</td>
-                      <td>${record.expenses.toLocaleString()}</td>
-                      <td>${record.net.toLocaleString()}</td>
-                      <td>${record.status}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-              
-              <div class="footer">
-                <p>تم إنشاء هذا التقرير تلقائياً من نظام إدارة المالية - ${currentDate}</p>
-              </div>
-            </body>
-          </html>
-        `;
-        printWindow.document.write(tableContent);
-        printWindow.document.close();
-        printWindow.print();
+      let dataToExport = await fetchFilteredDataExporting();
+
+      if (dataToExport.length === 0) {
+        showAlert('لا توجد بيانات', 'لا توجد بيانات للتصدير', 'warning');
+        return;
       }
+
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      try {
+        const response = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!response.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (error) {
+        console.error('Error loading Amiri font:', error);
+        showAlert('خطأ في تحميل الخط العربي', 'حدث خطأ في تحميل الخط', 'error');
+        return;
+      }
+
+      doc.setLanguage('ar');
+      doc.setFontSize(12);
+
+      const tableColumn = [
+        'حالة الطلب',
+        'الصافي',
+        'المصروفات',
+        'الايرادات',
+        'تاريخ الحوالة',
+        'رقم الحوالة',
+        'تاريخ الطلب',
+        'الجنسية',
+        'المكتب الخارجي',
+        'العميل',
+        'رقم الطلب',
+      ];
+
+      const tableRows = dataToExport.map((row: any) => [
+        row.status || 'غير متوفر',
+        (row.net || 0).toLocaleString(),
+        (row.expenses || 0).toLocaleString(),
+        (row.revenue || 0).toLocaleString(),
+        row.transferDate || 'غير متوفر',
+        row.transferNumber || 'غير متوفر',
+        row.orderDate || 'غير متوفر',
+        row.nationality || 'غير متوفر',
+        row.officeName || 'غير متوفر',
+        row.clientName || 'غير متوفر',
+        row.id || 'غير متوفر',
+      ]);
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 10,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          halign: 'right',
+        },
+        margin: { top: 39, right: 10, left: 10 },
+        didDrawPage: (data: any) => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // 🔹 كتابة العنوان في أول صفحة فقط
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text('تقرير المالي المساند', pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // 🔸 الفوتر
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+          const dateText =
+            "التاريخ: " +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            "  الساعة: " +
+            new Date().toLocaleTimeString('ar-EG', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save('musanad_financial_report.pdf');
     } catch (error) {
       console.error('Error exporting PDF:', error);
       showAlert('خطأ في التصدير', 'حدث خطأ في تصدير البيانات', 'error');
@@ -1111,7 +1176,7 @@ export default function MusanadFinancial({ user }: { user: any }) {
                     <div className="text-md md:text-md text-gray-800 flex-1 text-center min-w-[100px]">{record.revenue.toLocaleString()}</div>
                     <div className="text-md md:text-md text-gray-800 flex-1 text-center min-w-[150px]">{record.expenses.toLocaleString()}</div>
                     <div className="text-md md:text-md text-gray-800 flex-1 text-center min-w-[80px]">{record.net.toLocaleString()}</div>
-                    <div className="text-md md:text-md text-gray-800 flex-1 text-center min-w-[100px]">{record.status}</div>
+                    <div className="text-md md:text-md text-gray-800 flex-1 text-center min-w-[100px]"> {fieldNames[record.status] || record.status}</div>
                   </div>
                 ))
               )}

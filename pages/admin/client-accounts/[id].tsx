@@ -142,10 +142,11 @@ const ClientStatementPage = () => {
         },
         body: JSON.stringify({
           statementId: id,
-          ...formData,
-          debit: Number(formData.debit),
-          credit: Number(formData.credit),
-          balance: Number(formData.balance)
+          date: formData.date,
+          description: formData.description,
+          debit: Number(formData.debit) || 0,
+          credit: Number(formData.credit) || 0,
+          entryType: formData.entryType
         }),
       });
 
@@ -177,10 +178,11 @@ const ClientStatementPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
-          debit: Number(formData.debit),
-          credit: Number(formData.credit),
-          balance: Number(formData.balance)
+          date: formData.date,
+          description: formData.description,
+          debit: Number(formData.debit) || 0,
+          credit: Number(formData.credit) || 0,
+          entryType: formData.entryType
         }),
       });
 

@@ -145,6 +145,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const zakatAmount = Math.max(0, netProfitBeforeZakat * (Number(zakatRate) / 100))
     const netProfitAfterZakat = netProfitBeforeZakat - zakatAmount
 
+    // Get contract counts and revenues per month from ClientAccountStatement
+    const contractsData = await prisma.clientAccountStatement.findMany({
+      select: {
+        createdAt: true,
+        totalRevenue: true
+      }
+    })
+
+    // Process contracts by month
+    const contractsByMonth: Record<string, { count: number; revenue: number }> = {}
+    
+    months.forEach(month => {
+      contractsByMonth[month] = { count: 0, revenue: 0 }
+    })
+
+    contractsData.forEach(contract => {
+      const contractDate = new Date(contract.createdAt)
+      const monthYear = `${contractDate.getFullYear()}-${(contractDate.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}`
+      
+      if (contractsByMonth[monthYear] !== undefined) {
+        contractsByMonth[monthYear].count += 1
+        contractsByMonth[monthYear].revenue += Number(contract.totalRevenue || 0)
+      }
+    })
+
+    // Calculate contracts totals and averages
+    const totalContracts = Object.values(contractsByMonth).reduce((sum, data) => sum + data.count, 0)
+    const totalContractRevenue = Object.values(contractsByMonth).reduce((sum, data) => sum + data.revenue, 0)
+
     // Prepare export data
     const exportData = {
       months,
@@ -161,7 +192,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         zakatAmount,
         netProfitAfterZakat
       },
-      zakatRate: Number(zakatRate)
+      zakatRate: Number(zakatRate),
+      contracts: {
+        byMonth: contractsByMonth,
+        total: totalContracts,
+        average: totalContracts / months.length,
+        totalRevenue: totalContractRevenue,
+        averageRevenue: totalContractRevenue / months.length
+      }
     }
 
     if (format === 'excel') {

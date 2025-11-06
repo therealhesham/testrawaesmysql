@@ -3,6 +3,9 @@ import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import AlertModal from '../../../components/AlertModal';
+import { PencilAltIcon } from '@heroicons/react/outline';
+import { TrashIcon } from '@heroicons/react/solid';
+import { FaExclamationTriangle } from 'react-icons/fa';
 interface EmployeeDetail {
   id: number;
   name: string;
@@ -50,6 +53,10 @@ export default function EmployeeCashDetail() {
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
   const [alertMessage, setAlertMessage] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<number | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<EmployeeTransaction | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -132,29 +139,118 @@ export default function EmployeeCashDetail() {
     }
   };
 
-  const handleEditRecord = (transactionId: number) => {
-    const modal = document.getElementById('edit-modal-bg');
-    if (modal) {
-      modal.style.display = 'flex';
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setEditingTransaction(null);
+  };
+
+  const handleSubmitEditRecord = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingTransaction) return;
+
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch(`/api/employee-cash/${editingTransaction.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionDate: formData.get('transactionDate'),
+          client: formData.get('client'),
+          mainAccount: formData.get('mainAccount'),
+          subAccount: formData.get('subAccount'),
+          debit: Number(formData.get('debit') || 0),
+          credit: Number(formData.get('credit') || 0),
+          attachment: formData.get('attachment') || ''
+        }),
+      });
+
+      if (response.ok) {
+        setAlertType('success');
+        setAlertMessage('تم تحديث السجل بنجاح');
+        setShowAlert(true);
+        handleCloseEditModal();
+        fetchEmployeeDetail();
+      } else {
+        const errorData = await response.json();
+        setAlertType('error');
+        setAlertMessage(`خطأ: ${errorData.error || 'حدث خطأ أثناء تحديث السجل'}`);
+        setShowAlert(true);
+      }
+    } catch (error) {
+      console.error('Error updating record:', error);
+      setAlertType('error');
+      setAlertMessage('حدث خطأ أثناء تحديث السجل');
+      setShowAlert(true);
     }
   };
 
-  const handleDeleteRecord = async (transactionId: number) => {
-    if (confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+  const parseDateForInput = (dateStr: string): string => {
+    if (!dateStr) return '';
+    // Convert date string (DD/MM/YYYY) to YYYY-MM-DD format
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const [day, month, year] = parts;
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+    }
+    // If already in ISO format or other format, try to parse it
+    try {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+    } catch (e) {
+      // ignore
+    }
+    return '';
+  };
+
+  const handleEditRecord = (transactionId: number) => {
+    const transaction = data?.transactions.find(t => t.id === transactionId);
+    if (transaction) {
+      setEditingTransaction(transaction);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleDeleteRecord = (transactionId: number) => {
+    setTransactionToDelete(transactionId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (transactionToDelete) {
       try {
-        const response = await fetch(`/api/employee-cash/${transactionId}`, {
+        const response = await fetch(`/api/employee-cash/${transactionToDelete}`, {
           method: 'DELETE',
         });
 
         if (response.ok) {
-          alert('تم حذف السجل بنجاح');
+          setAlertType('success');
+          setAlertMessage('تم حذف السجل بنجاح');
+          setShowAlert(true);
+          setShowDeleteConfirm(false);
+          setTransactionToDelete(null);
           fetchEmployeeDetail();
         } else {
-          alert('حدث خطأ أثناء حذف السجل');
+          setAlertType('error');
+          setAlertMessage('حدث خطأ أثناء حذف السجل');
+          setShowAlert(true);
+          setShowDeleteConfirm(false);
+          setTransactionToDelete(null);
         }
       } catch (error) {
         console.error('Error deleting record:', error);
-        alert('حدث خطأ أثناء حذف السجل');
+        setAlertType('error');
+        setAlertMessage('حدث خطأ أثناء حذف السجل');
+        setShowAlert(true);
+        setShowDeleteConfirm(false);
+        setTransactionToDelete(null);
       }
     }
   };
@@ -356,7 +452,7 @@ export default function EmployeeCashDetail() {
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.balance.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.description}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">
-                      <a href="#" className="text-teal-800 hover:underline">{transaction.attachment}</a>
+                      <a href={transaction.attachment} target="_blank" rel="noopener noreferrer" className="text-teal-800 hover:underline">عرض</a>
                     </td>
                     <td className="p-4 text-center text-sm bg-gray-100">
                       <div className="flex justify-center gap-2">
@@ -364,18 +460,16 @@ export default function EmployeeCashDetail() {
                           onClick={() => handleEditRecord(transaction.id)}
                           className="bg-none border-none cursor-pointer p-1 rounded hover:bg-teal-100"
                         >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M2 12.5V14h1.5l8.5-8.5-1.5-1.5L2 12.5z" fill="#1A4D4F"/>
-                            <path d="M13.5 4.5l-2-2" stroke="#1A4D4F" strokeWidth="1.5" strokeLinecap="round"/>
-                          </svg>
+
+
+<PencilAltIcon className='h-4 w-44'/>
                         </button>
                         <button
                           onClick={() => handleDeleteRecord(transaction.id)}
                           className="bg-none border-none cursor-pointer p-1 rounded hover:bg-red-100"
                         >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M6 2h4v1H6V2zm1 0h2v1H7V2zm6 3H3v1h10V5zm-1 3v7c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1V8H4v7c0 1.1.9 2 2 2h4c1.1 0 2-.9 2-2V8h-1z" fill="#DC2626"/>
-                          </svg>
+
+<TrashIcon className='h-4 w-44'/>
                         </button>
                       </div>
                     </td>
@@ -451,58 +545,151 @@ export default function EmployeeCashDetail() {
       </div>
 
       {/* Edit Record Modal */}
-      <div id="edit-modal-bg" className="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center">
-        <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-3xl mx-auto relative" dir="rtl">
-          <h2 className="text-center text-xl mb-8 text-gray-700">تعديل سجل</h2>
-          <form className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">التاريخ</label>
-                <input type="date" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+      {showEditModal && editingTransaction && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center"
+          onClick={handleCloseEditModal}
+        >
+          <div 
+            className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-3xl mx-auto relative" 
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-center text-xl mb-8 text-gray-700">تعديل سجل</h2>
+            <form onSubmit={handleSubmitEditRecord} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">التاريخ</label>
+                  <input 
+                    name="transactionDate"
+                    type="date" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    defaultValue={parseDateForInput(editingTransaction.date)}
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">العميل</label>
+                  <input 
+                    name="client"
+                    type="text" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    defaultValue={editingTransaction.client}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">الحساب الرئيسي</label>
+                  <input 
+                    name="mainAccount"
+                    type="text" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    defaultValue={editingTransaction.mainAccount}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">الحساب الفرعي</label>
+                  <input 
+                    name="subAccount"
+                    type="text" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    defaultValue={editingTransaction.subAccount}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
+                  <input 
+                    name="debit"
+                    type="number" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    min="0" 
+                    step="0.01" 
+                    defaultValue={editingTransaction.debit}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
+                  <input 
+                    name="credit"
+                    type="number" 
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
+                    min="0" 
+                    step="0.01" 
+                    defaultValue={editingTransaction.credit}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-sm text-gray-500 mb-2">المرفقات</label>
+                  <div className="flex gap-3 w-full justify-start flex-row-reverse">
+                    <input name="attachment" type="file" id="fileEditRecord" className="hidden" />
+                    <button type="button" onClick={() => document.getElementById('fileEditRecord')?.click()} className="bg-teal-800 text-white border-none rounded px-5 py-2 text-sm cursor-pointer">اختيار ملف</button>
+                    <span id="fileNameEdit" className="self-center text-sm text-gray-600">{editingTransaction.attachment || ''}</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">العميل</label>
-                <input type="text" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
+              <div className="flex justify-center gap-4 mt-5">
+                <button type="button" onClick={handleCloseEditModal} className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
+                <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">حفظ</button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
 
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">الحساب الرئيسي</label>
-                <input type="text" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
-              </div>
-
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">الحساب الفرعي</label>
-                <input type="text" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
-              </div>
-
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                <input type="number" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
-              </div>
-
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
-                <input type="number" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
-              </div>
-
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">المرفقات</label>
-                <div className="flex items-center w-full bg-gray-50 border border-gray-300 rounded overflow-hidden">
-                  <input type="text" id="fileNameEdit" readOnly className="flex-1 border-none bg-transparent px-3 py-2 text-sm text-right text-gray-600" />
-                  <input type="file" id="fileEditRecord" className="hidden" />
-                  <button type="button" onClick={() => document.getElementById('fileEditRecord')?.click()} className="bg-teal-800 text-white border-none px-4 py-2 text-sm cursor-pointer">إدخال</button>
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => {
+            setShowDeleteConfirm(false);
+            setTransactionToDelete(null);
+          }}
+        >
+          <div 
+            className="bg-white border-2 border-yellow-200 rounded-lg shadow-lg max-w-md w-full mx-4 bg-yellow-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <FaExclamationTriangle className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-2 text-yellow-800">
+                    تأكيد الحذف
+                  </h3>
+                  <p className="text-sm text-yellow-800 mb-4">
+                    هل أنت متأكد من حذف هذا السجل؟
+                  </p>
+                  <div className="flex justify-end gap-4">
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setTransactionToDelete(null);
+                      }}
+                      className="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      حذف
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="flex justify-center gap-4 mt-5">
-              <button type="button" className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
-              <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">حفظ</button>
-            </div>
-          </form>
+          </div>
         </div>
-      </div>
+      )}
 
       <script dangerouslySetInnerHTML={{
         __html: `
@@ -511,30 +698,15 @@ export default function EmployeeCashDetail() {
           });
 
           document.getElementById('fileEditRecord')?.addEventListener('change', function(){
-            document.getElementById('fileNameEdit').value = this.files[0]?.name || '';
+            document.getElementById('fileNameEdit').textContent = this.files[0]?.name || '';
           });
 
-          // Close modals when clicking outside
+          // Close add modal when clicking outside
           document.getElementById('add-record-modal')?.addEventListener('click', function(e) {
             if (e.target === this) {
               this.style.display = 'none';
             }
           });
-
-          document.getElementById('edit-modal-bg')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-              this.style.display = 'none';
-            }
-          });
-
-          // Cancel buttons for modals
-          document.querySelector('#add-record-modal button[type="button"]').onclick = function() {
-            document.getElementById('add-record-modal').style.display = 'none';
-          };
-
-          document.querySelector('#edit-modal-bg button[type="button"]').onclick = function() {
-            document.getElementById('edit-modal-bg').style.display = 'none';
-          };
         `
       }} />
       
