@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
@@ -38,7 +38,7 @@ export interface EmployeeCashFormData {
   receivedAmount: number | '';
   expenseAmount: number | '';
   description: string;
-  attachment: File | null;
+  attachment: string;
   transactionDate: string;
 }
 
@@ -69,11 +69,15 @@ export default function EmployeeCash() {
     receivedAmount: '',
     expenseAmount: '',
     description: '',
-    attachment: null,
+    attachment: '',
     transactionDate: new Date().toISOString().split('T')[0]
   });
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [fileUploaded, setFileUploaded] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
   useEffect(() => {
     fetchEmployeeCashData();
@@ -128,10 +132,12 @@ export default function EmployeeCash() {
       receivedAmount: '',
       expenseAmount: '',
       description: '',
-      attachment: null,
+      attachment: '',
       transactionDate: new Date().toISOString().split('T')[0]
     });
     setFormErrors({});
+    setFileUploaded(false);
+    setUploadedFileName('');
   };
 
   const handleCloseModal = () => {
@@ -143,10 +149,12 @@ export default function EmployeeCash() {
       receivedAmount: '',
       expenseAmount: '',
       description: '',
-      attachment: null,
+      attachment: '',
       transactionDate: new Date().toISOString().split('T')[0]
     });
     setFormErrors({});
+    setFileUploaded(false);
+    setUploadedFileName('');
   };
 
   // Form field handlers with two-way binding
@@ -165,9 +173,77 @@ export default function EmployeeCash() {
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    handleFormFieldChange('attachment', file);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      setFormErrors((prev) => ({ ...prev, attachment: 'لم يتم اختيار ملف' }));
+      setFileUploaded(false);
+      setUploadedFileName('');
+      return;
+    }
+
+    const file = files[0];
+    
+    // حفظ اسم الملف فوراً
+    setUploadedFileName(file.name);
+    
+    // File size validation (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setFormErrors((prev) => ({ ...prev, attachment: 'حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)' }));
+      setFileUploaded(false);
+      setUploadedFileName('');
+      return;
+    }
+
+    if (!allowedFileTypes.includes(file.type)) {
+      setFormErrors((prev) => ({ ...prev, attachment: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
+      setFileUploaded(false);
+      setUploadedFileName('');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/upload-presigned-url/attachment`);
+      if (!res.ok) {
+        throw new Error('فشل في الحصول على رابط الرفع');
+      }
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('فشل في رفع الملف');
+      }
+
+      setFormData((prev) => ({ ...prev, attachment: filePath }));
+      setFormErrors((prev) => ({ ...prev, attachment: '' }));
+      setFileUploaded(true);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      setFormErrors((prev) => ({ ...prev, attachment: error.message || 'حدث خطأ أثناء رفع الملف' }));
+      setFileUploaded(false);
+      setUploadedFileName('');
+    }
+  };
+
+  const handleButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    } else {
+      console.error('File input reference is not defined or has no current value');
+      setFormErrors((prev) => ({ ...prev, attachment: 'خطأ في تحديد حقل الملف' }));
+    }
   };
 
   // Form validation
@@ -216,7 +292,7 @@ export default function EmployeeCash() {
         receivedAmount: Number(formData.receivedAmount),
         expenseAmount: Number(formData.expenseAmount),
         description: formData.description,
-        attachment: formData.attachment?.name || ''
+        attachment: formData.attachment || ''
       };
       
       const response = await fetch('/api/employee-cash', {
@@ -280,7 +356,7 @@ export default function EmployeeCash() {
               <label className="text-md text-gray-700 text-right">الموظف</label>
               <div className="relative">
                 <select 
-                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right appearance-none"
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right "
                   value={filters.employee}
                   onChange={(e) => setFilters({...filters, employee: e.target.value})}
                 >
@@ -505,25 +581,51 @@ export default function EmployeeCash() {
               
               <div className="flex flex-col items-end">
                 <label className="text-md text-gray-500 mb-2">المرفقات</label>
-                <div className="flex gap-3 w-full justify-start flex-row-reverse">
+                <div className={`w-full border ${
+                  formErrors.attachment ? 'border-red-500' : 'border-gray-300'
+                } rounded p-2 flex justify-between items-center`}>
+                  <span className="text-gray-500 text-sm pr-2">
+                    {fileUploaded ? (
+                      <div className="flex flex-col">
+                        <span className="font-medium text-teal-800 text-sm mb-1">
+                          {uploadedFileName || 'ملف مرفق'}
+                        </span>
+                        <a
+                          href={formData.attachment}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-600 hover:underline text-xs"
+                        >
+                          فتح الملف
+                        </a>
+                      </div>
+                    ) : (
+                      'إرفاق ملف'
+                    )}
+                  </span>
                   <input 
                     type="file" 
-                    id="fileUpload" 
+                    ref={fileInputRef}
                     className="hidden" 
                     onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept="application/pdf,image/jpeg,image/png"
                   />
                   <button 
                     type="button" 
-                    onClick={() => document.getElementById('fileUpload')?.click()} 
-                    className="bg-teal-800 text-white border-none rounded px-5 py-2 text-md cursor-pointer"
+                    onClick={handleButtonClick}
+                    disabled={isSubmitting}
+                    className={`px-3 py-1 rounded text-sm transition duration-200 ${
+                      isSubmitting 
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                        : 'bg-teal-800 text-white hover:bg-teal-700'
+                    }`}
                   >
                     اختيار ملف
                   </button>
-                  <span className="self-center text-md text-gray-600">
-                    {formData.attachment ? formData.attachment.name : 'لم يتم اختيار ملف'}
-                  </span>
                 </div>
+                {formErrors.attachment && (
+                  <span className="text-red-500 text-sm mt-1">{formErrors.attachment}</span>
+                )}
               </div>
               
               <div className="flex justify-center gap-4 mt-5">

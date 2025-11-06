@@ -1,0 +1,116 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import prisma from 'lib/prisma';
+import { Prisma } from '@prisma/client';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    if (req.method === 'GET') {
+      const { from, to, customerId } = req.query;
+
+      const where: any = {};
+      if (from || to) {
+        where.date = {};
+        if (from) where.date.gte = new Date(String(from));
+        if (to) where.date.lte = new Date(String(to));
+      }
+      if (customerId) {
+        where.customerId = Number(customerId);
+      }
+
+      // Note: After running 'npx prisma generate', the customer relation will be available
+      const sales = await prisma.taxSalesRecord.findMany({
+        where,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              fullname: true,
+              phonenumber: true,
+              email: true,
+              city: true,
+            },
+          },
+        } as any, // Type assertion until prisma generate is run
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return res.status(200).json({ success: true, sales });
+    }
+
+    if (req.method === 'POST') {
+      const {
+        customerId,
+        customerName,
+        date,
+        salesBeforeTax,
+        taxRate,
+        taxValue,
+        salesIncludingTax,
+        paymentMethod,
+        amount,
+        total,
+      } = req.body;
+
+      // Validate required fields
+      if (!customerId || !date || !salesBeforeTax || !taxRate) {
+        return res.status(400).json({
+          success: false,
+          message: 'الحقول المطلوبة: ID العميل، التاريخ، قيمة المبيعات قبل الضريبة، ونسبة الضريبة',
+        });
+      }
+
+      // Verify customer exists
+      const customer = await prisma.client.findUnique({
+        where: { id: Number(customerId) },
+        select: { id: true, fullname: true },
+      });
+
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          message: 'العميل غير موجود',
+        });
+      }
+
+      // Create sales tax record using TaxSalesRecord model with relation
+      // Note: After running 'npx prisma generate', the customer relation will be available
+      const salesTax = await prisma.taxSalesRecord.create({
+        data: {
+          customerId: Number(customerId),
+          customerName: customer.fullname || customerName || null, // Use customer's fullname from database
+          date: new Date(date),
+          salesBeforeTax: new Prisma.Decimal(salesBeforeTax),
+          taxRate: new Prisma.Decimal(taxRate),
+          taxValue: new Prisma.Decimal(taxValue || 0),
+          salesIncludingTax: new Prisma.Decimal(salesIncludingTax || 0),
+          paymentMethod: paymentMethod ? String(paymentMethod) : null,
+          attachment: null, // File upload will be handled separately if needed
+          amount: new Prisma.Decimal(amount || salesBeforeTax),
+          total: new Prisma.Decimal(total || salesIncludingTax),
+          // taxDeclarationId is optional, can be set later if needed
+          taxDeclarationId: undefined,
+        } as any, // Type assertion until prisma generate is run
+        include: {
+          customer: {
+            select: {
+              id: true,
+              fullname: true,
+              phonenumber: true,
+              email: true,
+              city: true,
+            },
+          },
+        } as any, // Type assertion until prisma generate is run
+      });
+
+      return res.status(201).json({ success: true, salesTax });
+    }
+
+    res.setHeader('Allow', ['GET', 'POST']);
+    return res.status(405).json({ success: false, message: `Method ${req.method} Not Allowed` });
+  } catch (error: any) {
+    console.error('TaxSalesRecord API error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error', error: error.message });
+  }
+}
+

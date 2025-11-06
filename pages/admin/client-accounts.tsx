@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 interface ClientAccountStatement {
   id: number;
   contractNumber: string;
@@ -45,6 +50,7 @@ const ClientAccountsPage = () => {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState('recruitment');
   const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
+  const [userName, setUserName] = useState('');
   
   // Filter states
   const [selectedOffice, setSelectedOffice] = useState('all');
@@ -122,6 +128,17 @@ const ClientAccountsPage = () => {
     fetchTabCounts();
   }, []);
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const decoded = jwtDecode(token) as any;
+      setUserName(decoded.username || '');
+    } catch (error) {
+      console.error('Error decoding token:', error);
+    }
+  }, []);
+
   const handleGenerateReport = () => {
     fetchData();
   };
@@ -157,20 +174,238 @@ const fetchForeignOffices = async()=>{
     setLoadingOffices(false);
   }
 }
+  const fieldNames: { [key: string]: string } = {
+    'officeLinkInfo': 'الربط مع إدارة المكاتب',
+    'externalOfficeInfo': 'المكتب الخارجي',
+    'externalOfficeApproval': 'موافقة المكتب الخارجي',
+    'medicalCheck': 'الفحص الطبي',
+    'foreignLaborApproval': 'موافقة وزارة العمل الأجنبية',
+    'agencyPayment': 'دفع الوكالة',
+    'saudiEmbassyApproval': 'موافقة السفارة السعودية',
+    'visaIssuance': 'إصدار التأشيرة',
+    'travelPermit': 'تصريح السفر',
+    'destinations': 'الوجهات',
+    'receipt': 'الاستلام',
+    'pending_external_office': 'في انتظار المكتب الخارجي',
+    'ticketUpload': 'رفع المستندات'
+  };
+
+  const translateContractStatus = (status: string) => {
+    // alert(status);
+    // alert(fieldNames[status]);
+    return fieldNames[status] || status;
+  };
+
 useEffect(() => {
   fetchClients();
   fetchForeignOffices();
 }, []);
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 2
-    }).format(amount);
+  return amount
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ar-SA');
+  };
+
+  // Fetch data for export with all filters
+  const fetchFilteredDataExporting = async () => {
+    const query = new URLSearchParams({
+      limit: "1000",
+      page: "1",
+      ...(selectedOffice !== 'all' && { foreignOffice: selectedOffice }),
+      ...(selectedForeignOffice !== 'all' && { foreignOffice: selectedForeignOffice }),
+      ...(selectedClient !== 'all' && { client: selectedClient }),
+      ...(fromDate && { fromDate }),
+      ...(toDate && { toDate }),
+      ...(activeTab && { contractType: activeTab }),
+    }).toString();
+    const res = await fetch(`/api/client-accounts?${query}`);
+    
+    if (!res.ok) throw new Error("Failed to fetch data");
+    const data = await res.json();
+    return data.statements;
+  };
+
+  // Export to PDF
+  const exportToPDF = async () => {
+    try {
+      let dataToExport = await fetchFilteredDataExporting();
+      
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Load logo
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      // Load Arabic font
+      try {
+        const response = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!response.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        const fontBase64 = Buffer.from(fontBytes).toString('base64');
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (error) {
+        console.error('Error loading Amiri font:', error);
+        return;
+      }
+
+      doc.setLanguage('ar');
+      doc.setFontSize(12);
+
+      const tableColumn = [
+        'ملاحظات',
+        'حالة العقد',
+        'الصافي',
+        'المصروفات',
+        'الايرادات',
+        'اسم المكتب',
+        'رقم العقد',
+        'اسم العميل',
+        'التاريخ',
+        'رقم',
+      ];
+
+      const tableRows = Array.isArray(dataToExport)
+        ? dataToExport.map((row: any, index: number) => [
+            row.notes || 'غير متوفر',
+            row.contractStatus || 'غير متوفر',
+            formatCurrency(row.netAmount || 0),
+            formatCurrency(row.totalExpenses || 0),
+            formatCurrency(row.totalRevenue || 0),
+            row.officeName || 'غير متوفر',
+            row.contractNumber || 'غير متوفر',
+            row.client?.fullname || 'غير متوفر',
+            formatDate(row.createdAt),
+            index + 1,
+          ])
+        : [];
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 9,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          halign: 'right',
+        },
+        margin: { top: 39, right: 10, left: 10 },
+        didDrawPage: (data: any) => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // Add logo on every page
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // Add title on first page only
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text('كشف حساب العملاء', pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // Footer
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+          const dateText =
+            "التاريخ: " +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            "  الساعة: " +
+            new Date().toLocaleTimeString('ar-EG', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save('client_accounts.pdf');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('حدث خطأ أثناء تصدير PDF');
+    }
+  };
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    try {
+      let dataToExport = await fetchFilteredDataExporting();
+      
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('كشف حساب العملاء', { properties: { defaultColWidth: 20 } });
+
+      worksheet.columns = [
+        { header: 'رقم', key: 'id', width: 10 },
+        { header: 'التاريخ', key: 'date', width: 15 },
+        { header: 'اسم العميل', key: 'clientName', width: 20 },
+        { header: 'رقم العقد', key: 'contractNumber', width: 15 },
+        { header: 'اسم المكتب', key: 'officeName', width: 20 },
+        { header: 'الايرادات', key: 'totalRevenue', width: 15 },
+        { header: 'المصروفات', key: 'totalExpenses', width: 15 },
+        { header: 'الصافي', key: 'netAmount', width: 15 },
+        { header: 'حالة العقد', key: 'contractStatus', width: 15 },
+        { header: 'ملاحظات', key: 'notes', width: 30 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      if (Array.isArray(dataToExport)) {
+        dataToExport.forEach((row: any, index: number) => {
+          worksheet.addRow({
+            id: index + 1,
+            date: formatDate(row.createdAt),
+            clientName: row.client?.fullname || 'غير متوفر',
+            contractNumber: row.contractNumber || 'غير متوفر',
+            officeName: row.officeName || 'غير متوفر',
+            totalRevenue: row.totalRevenue || 0,
+            totalExpenses: row.totalExpenses || 0,
+            netAmount: row.netAmount || 0,
+            contractStatus: row.contractStatus || 'غير متوفر',
+            notes: row.notes || 'غير متوفر',
+          }).alignment = { horizontal: 'right' };
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'client_accounts.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('حدث خطأ أثناء تصدير Excel');
+    }
   };
 
   const filteredStatements = statements.filter(statement => {
@@ -316,11 +551,19 @@ useEffect(() => {
 
           {/* Export and Search */}
           <div className="flex items-center gap-2 mb-4 px-4">
-            <button className="bg-teal-800 text-white rounded text-md  w-16">
-              Excel
+            <button 
+              onClick={exportToExcel}
+              className="flex items-center gap-1 bg-teal-800 text-white rounded text-md px-3 py-1 hover:bg-teal-900 transition duration-200"
+            >
+              <FileExcelOutlined />
+              <span>Excel</span>
             </button>
-            <button className="bg-teal-800 text-white rounded text-md  w-14">
-              PDF
+            <button 
+              onClick={exportToPDF}
+              className="flex items-center gap-1 bg-teal-800 text-white rounded text-md px-3 py-1 hover:bg-teal-900 transition duration-200"
+            >
+              <FilePdfOutlined />
+              <span>PDF</span>
             </button>
             <div className="flex-1 max-w-64">
               <input
@@ -391,7 +634,7 @@ useEffect(() => {
                       {formatCurrency(statement.netAmount)}
                     </div>
                     <div className="flex-1 text-center text-md text-gray-700">
-                      {statement.contractStatus}
+                      {translateContractStatus(statement.contractStatus)}
                     </div>
                     <div className="flex-1 text-center text-md text-gray-700">
                       {statement.notes || '-'}
@@ -402,13 +645,13 @@ useEffect(() => {
                           e.stopPropagation();
                           router.push(`/admin/client-accounts/${statement.id}`);
                         }}
-                        className="bg-teal-800 text-white px-3 py-1 rounded text-xs"
+                        className="bg-teal-800 text-white px-3 py-1 rounded text-md"
                       >
                         تفاصيل
                       </button>
                     </div>
                     <div className="flex-1 text-center">
-                      <button className="bg-teal-800 text-white px-3 py-1 rounded text-xs">
+                      <button className="bg-teal-800 text-white px-3 py-1 rounded text-md">
                         اجراءات
                       </button>
                     </div>
@@ -419,11 +662,11 @@ useEffect(() => {
                     <div className="bg-gray-100 border border-gray-300 p-4">
                       <div className="flex flex-col gap-4">
                         <div className="flex justify-between items-center gap-4 px-2">
-                          <div className="flex-1 text-center text-xs text-gray-700">التاريخ</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">البيان</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">مدين</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">دائن</div>
-                          <div className="flex-1 text-center text-xs text-gray-700">الرصيد</div>
+                          <div className="flex-1 text-center text-md text-gray-700">التاريخ</div>
+                          <div className="flex-1 text-center text-md text-gray-700">البيان</div>
+                          <div className="flex-1 text-center text-md text-gray-700">مدين</div>
+                          <div className="flex-1 text-center text-md text-gray-700">دائن</div>
+                          <div className="flex-1 text-center text-md text-gray-700">الرصيد</div>
                         </div>
                         {statement.entries.map((entry, idx) => {
                           let description = entry.description;
@@ -432,11 +675,11 @@ useEffect(() => {
                           }
                           return (
                             <div key={idx} className="flex justify-between items-center gap-4 px-2">
-                              <div className="flex-1 text-center text-xs text-gray-500">{formatDate(entry.date)}</div>
-                              <div className="flex-1 text-center text-xs text-gray-500">{description}</div>
-                              <div className="flex-1 text-center text-xs text-gray-500">{formatCurrency(entry.debit)}</div>
-                              <div className="flex-1 text-center text-xs text-gray-500">{formatCurrency(entry.credit)}</div>
-                              <div className="flex-1 text-center text-xs text-gray-500">{formatCurrency(entry.balance)}</div>
+                              <div className="flex-1 text-center text-md text-gray-500">{formatDate(entry.date)}</div>
+                              <div className="flex-1 text-center text-md text-gray-500">{description}</div>
+                              <div className="flex-1 text-center text-md text-gray-500">{formatCurrency(entry.debit)}</div>
+                              <div className="flex-1 text-center text-md text-gray-500">{formatCurrency(entry.credit)}</div>
+                              <div className="flex-1 text-center text-md text-gray-500">{formatCurrency(entry.balance)}</div>
                             </div>
                           );
                         })}

@@ -5,6 +5,11 @@ import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
 import { useRouter } from 'next/router';
 import Style from "styles/Home.module.css";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
+import { FileExcelOutlined, FileOutlined, FilePdfOutlined } from '@ant-design/icons';
 
 interface Office {
   id: number;
@@ -78,6 +83,10 @@ export default function OfficeFinancialDetails() {
   const [searchTerm, setSearchTerm] = useState('');
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [userName, setUserName] = useState('');
+  const [contractSuggestions, setContractSuggestions] = useState<string[]>([]);
+  const [showContractSuggestions, setShowContractSuggestions] = useState(false);
+  const [isSearchingContract, setIsSearchingContract] = useState(false);
 
   const fetchOfficeData = async () => {
     if (!officeId) return;
@@ -110,7 +119,7 @@ export default function OfficeFinancialDetails() {
       const records = res.data.items || [];
       const totalDebit = records.reduce((sum: number, record: FinancialRecord) => sum + Number(record.debit), 0);
       const totalCredit = records.reduce((sum: number, record: FinancialRecord) => sum + Number(record.credit), 0);
-      const openingBalance = 20000; // This could be calculated from previous records
+      const openingBalance = 0; // This could be calculated from previous records
       
       setSummaryData({
         openingBalance,
@@ -129,15 +138,107 @@ export default function OfficeFinancialDetails() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token) as any;
+        setUserName(decoded.username || '');
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (officeId) {
       fetchOfficeData();
       fetchFinancialRecords();
     }
   }, [officeId, filters, searchTerm]);
 
+  // Close contract suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.contract-search-container')) {
+        setShowContractSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const searchContracts = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setContractSuggestions([]);
+      setShowContractSuggestions(false);
+      return;
+    }
+    
+    setIsSearchingContract(true);
+    try {
+      const response = await fetch(`/api/contracts/suggestions?q=${encodeURIComponent(searchTerm)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setContractSuggestions(data.suggestions || []);
+        setShowContractSuggestions(true);
+      } else {
+        setContractSuggestions([]);
+        setShowContractSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Error searching contracts:', error);
+      setContractSuggestions([]);
+      setShowContractSuggestions(false);
+    } finally {
+      setIsSearchingContract(false);
+    }
+  };
+
+  const fetchContractData = async (contractNumber: string) => {
+    try {
+      const response = await axios.get(`/api/contracts/${contractNumber}`);
+      if (response.data) {
+        setForm(prev => ({
+          ...prev,
+          clientName: response.data.client?.fullname || '',
+          date: response.data.createdAt ? new Date(response.data.createdAt).toISOString().split('T')[0] : prev.date
+        }));
+      }
+    } catch (error) {
+      console.error('Contract not found:', error);
+    }
+  };
+
+  const handleContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setForm(prev => ({ ...prev, contractNumber: value }));
+    
+    if (value.trim()) {
+      searchContracts(value);
+    } else {
+      setContractSuggestions([]);
+      setShowContractSuggestions(false);
+    }
+  };
+
+  const handleContractSuggestionClick = async (suggestion: string) => {
+    setForm(prev => ({ ...prev, contractNumber: suggestion }));
+    setShowContractSuggestions(false);
+    await fetchContractData(suggestion);
+  };
+
+  const handleContractInputBlur = () => {
+    setTimeout(() => {
+      setShowContractSuggestions(false);
+    }, 200);
   };
 
   const handleEditChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -151,11 +252,7 @@ export default function OfficeFinancialDetails() {
   };
 
   const formatCurrency = (amount: number | string) => {
-    return new Intl.NumberFormat('ar-SA', { 
-      style: 'currency', 
-      currency: 'SAR',
-      minimumFractionDigits: 2 
-    }).format(Number(amount));
+    return Number(amount).toLocaleString();
   };
 
   const handleInvoiceUpload = async (file: File): Promise<string> => {
@@ -268,8 +365,231 @@ export default function OfficeFinancialDetails() {
     fetchFinancialRecords();
   };
 
+  const fetchFilteredDataExporting = async () => {
+    if (!officeId) return [];
+    
+    const params = new URLSearchParams({
+      officeId: officeId as string,
+      page: "1",
+      limit: "1000",
+      ...(filters.movementType && { movementType: filters.movementType }),
+      ...(filters.fromDate && { fromDate: filters.fromDate }),
+      ...(filters.toDate && { toDate: filters.toDate }),
+      ...(searchTerm && { search: searchTerm }),
+    });
+
+    const res = await fetch(`/api/foreign-offices-financial?${params}`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+    const data = await res.json();
+    return data.items || [];
+  };
+
+  const exportToPDF = async () => {
+    try {
+      let dataToExport = await fetchFilteredDataExporting();
+      
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // تحميل الشعار
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      // تحميل الخط العربي
+      try {
+        const response = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!response.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (error) {
+        console.error('Error loading Amiri font:', error);
+        return;
+      }
+
+      doc.setLanguage('ar');
+      doc.setFontSize(12);
+
+      const tableColumn = [
+        'الرصيد',
+        'مدين',
+        'دائن',
+        'البيان',
+        'الدفعة',
+        'رقم العقد',
+        'اسم العميل',
+        'الشهر',
+        'التاريخ',
+        '#',
+      ];
+
+      const tableRows = dataToExport.map((row: FinancialRecord, index: number) => [
+        formatCurrency(row.balance),
+        row.debit > 0 ? formatCurrency(row.debit) : '-',
+        row.credit > 0 ? formatCurrency(row.credit) : '-',
+        row.description || '-',
+        row.payment || '-',
+        row.contractNumber || '-',
+        row.clientName || '-',
+        new Date(row.date).toLocaleDateString('ar-SA', { month: 'long' }),
+        new Date(row.date).toLocaleDateString('ar-SA'),
+        (index + 1).toString(),
+      ]);
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 10,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          halign: 'right',
+        },
+        margin: { top: 39, right: 10, left: 10 },
+        didDrawPage: (data: any) => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // إضافة اللوجو أعلى الصفحة
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // كتابة العنوان في أول صفحة فقط
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text(`كشف حساب ${office?.office || ''}`, pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // الفوتر
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+          const dateText =
+            "التاريخ: " +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            "  الساعة: " +
+            new Date().toLocaleTimeString('ar-EG', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save(`financial_report_${office?.office || 'office'}.pdf`);
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('حدث خطأ أثناء تصدير PDF');
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      let dataToExport = await fetchFilteredDataExporting();
+      
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(`كشف حساب ${office?.office || ''}`, { 
+        properties: { defaultColWidth: 20 } 
+      });
+
+      worksheet.columns = [
+        { header: '#', key: 'index', width: 10 },
+        { header: 'التاريخ', key: 'date', width: 15 },
+        { header: 'الشهر', key: 'month', width: 15 },
+        { header: 'اسم العميل', key: 'clientName', width: 20 },
+        { header: 'رقم العقد', key: 'contractNumber', width: 15 },
+        { header: 'الدفعة', key: 'payment', width: 15 },
+        { header: 'البيان', key: 'description', width: 20 },
+        { header: 'دائن', key: 'credit', width: 15 },
+        { header: 'مدين', key: 'debit', width: 15 },
+        { header: 'الرصيد', key: 'balance', width: 15 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      dataToExport.forEach((row: FinancialRecord, index: number) => {
+        const addedRow = worksheet.addRow({
+          index: index + 1,
+          date: new Date(row.date).toLocaleDateString('ar-SA'),
+          month: new Date(row.date).toLocaleDateString('ar-SA', { month: 'long' }),
+          clientName: row.clientName || 'غير متوفر',
+          contractNumber: row.contractNumber || '-',
+          payment: row.payment || '-',
+          description: row.description || '-',
+          credit: row.credit > 0 ? row.credit : 0,
+          debit: row.debit > 0 ? row.debit : 0,
+          balance: row.balance,
+        });
+        addedRow.alignment = { horizontal: 'right' };
+        
+        // تنسيق الأرقام كعملة
+        const creditCell = addedRow.getCell('credit');
+        const debitCell = addedRow.getCell('debit');
+        const balanceCell = addedRow.getCell('balance');
+        
+        if (row.credit > 0) {
+          creditCell.numFmt = '#,##0.00';
+        } else {
+          creditCell.value = '-';
+        }
+        
+        if (row.debit > 0) {
+          debitCell.numFmt = '#,##0.00';
+        } else {
+          debitCell.value = '-';
+        }
+        
+        balanceCell.numFmt = '#,##0.00';
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `financial_report_${office?.office || 'office'}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('حدث خطأ أثناء تصدير Excel');
+    }
+  };
+
   const handleExport = (type: string) => {
-    alert(`تصدير إلى ${type}`);
+    if (type === 'PDF') {
+      exportToPDF();
+    } else if (type === 'Excel') {
+      exportToExcel();
+    }
   };
 
   const handleBackToMain = () => {
@@ -426,22 +746,18 @@ export default function OfficeFinancialDetails() {
               <div className="flex justify-between items-center px-4 pb-6">
                 <div className="flex gap-2">
                   <button
-                    className="bg-[#1A4D4F] text-white border-none rounded-sm px-3 py-1 flex items-center gap-1 text-[10px] hover:bg-[#164044] h-[21px]"
+                    className="bg-[#1A4D4F] text-white border-none rounded-sm px-3 py-1 flex items-center gap-1 text-md hover:bg-[#164044] "
                     onClick={() => handleExport('Excel')}
                   >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M8 1H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4L8 1z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Excel
+                    <FileExcelOutlined />
+                    <span>Excel</span>
                   </button>
                   <button
-                    className="bg-[#1A4D4F] text-white border-none rounded-sm px-3 py-1 flex items-center gap-1 text-[10px] hover:bg-[#164044] h-[21px]"
+                    className="bg-[#1A4D4F] text-white border-none rounded-sm px-3 py-1 flex items-center gap-1 text-md hover:bg-[#164044] "
                     onClick={() => handleExport('PDF')}
                   >
-                    <svg width="13" height="12" viewBox="0 0 13 12" fill="none">
-                      <path d="M8.5 1H2.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4L8.5 1z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    PDF
+                    <FilePdfOutlined />
+                    <span>PDF</span>
                   </button>
                 </div>
                 
@@ -475,6 +791,7 @@ export default function OfficeFinancialDetails() {
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">دائن</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">مدين</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الرصيد</th>
+                      <th className='bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal'>المرفق</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">إجراءات</th>
                     </tr>
                   </thead>
@@ -530,6 +847,22 @@ export default function OfficeFinancialDetails() {
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {formatCurrency(record.balance)}
                           </td>
+
+<td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+
+{record.invoice && (
+  <a href={record.invoice} target="_blank" rel="noopener noreferrer">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <polyline points="14,2 14,8 20,8" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <line x1="16" y1="13" x2="8" y2="13" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <line x1="16" y1="17" x2="8" y2="17" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    <polyline points="10,9 9,9 8,9" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+  </a>
+)}
+                          </td>
+
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             <div className="flex gap-2 justify-center">
                               <button
@@ -541,23 +874,7 @@ export default function OfficeFinancialDetails() {
                                   <path d="M14 3l4 4-8 8H6v-4l8-8z" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                               </button>
-                              {record.invoice && (
-                                <a
-                                  href={record.invoice}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="bg-transparent border-none cursor-pointer p-1 rounded-md hover:bg-[#1A4D4F]/10"
-                                  title="عرض الفاتورة"
-                                >
-                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <polyline points="14,2 14,8 20,8" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <line x1="16" y1="13" x2="8" y2="13" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <line x1="16" y1="17" x2="8" y2="17" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    <polyline points="10,9 9,9 8,9" stroke="#1A4D4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                  </svg>
-                                </a>
-                              )}
+                              
                             </div>
                           </td>
                         </tr>
@@ -590,21 +907,39 @@ export default function OfficeFinancialDetails() {
                 {/* Contract Search */}
                 <div className="flex flex-col mb-6">
                   <label className="mb-2 font-bold text-gray-800">رقم العقد</label>
-                  <div className="flex gap-2">
+                  <div className="relative contract-search-container">
                     <input
                       type="text"
                       name="contractNumber"
                       value={form.contractNumber}
-                      onChange={handleChange}
-                      placeholder="ادخل رقم العقد"
-                      className="flex-1 p-2 border border-gray-300 rounded-md bg-white"
+                      onChange={handleContractNumberChange}
+                      onBlur={handleContractInputBlur}
+                      onFocus={() => form.contractNumber.length >= 1 && setShowContractSuggestions(true)}
+                      placeholder="ابحث برقم العقد"
+                      className="w-full p-2 border border-gray-300 rounded-md bg-white pr-10"
                     />
-                    <button
-                      type="button"
-                      className="bg-[#1A4D4F] text-white px-4 py-2 rounded-md text-sm hover:bg-[#164044]"
-                    >
-                      بحث
-                    </button>
+                    {isSearchingContract && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1A4D4F]"></div>
+                      </div>
+                    )}
+                    
+                    {/* Contract Suggestions Dropdown */}
+                    {showContractSuggestions && contractSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {contractSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleContractSuggestionClick(suggestion)}
+                            className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                          >
+                            <div className="font-medium text-sm">
+                              <span className="text-gray-700">رقم العقد: {suggestion}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
