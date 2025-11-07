@@ -123,6 +123,7 @@ const menuItems: MenuItem[] = [
       { id: 94, label: "التسوية المالية", link: "/admin/settlement" },
 
       { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
+      { id: 95, label: "سجل النظام المحاسبي", link: "/admin/account-systemlogs" },
 
     ],
   },{

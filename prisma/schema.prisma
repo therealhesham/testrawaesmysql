@@ -124,6 +124,8 @@ model User {
   DeliveryDetails DeliveryDetails[]
   createdAt     DateTime? @default(now())
   updatedAt     DateTime? @updatedAt
+
+  AccountSystemLogs AccountSystemLogs[]
 }
 
 
@@ -294,6 +296,8 @@ notes_date        DateTime?
   notes notes[]
   visa visa[]
   salesRecords TaxSalesRecord[] // Added relation to sales records
+
+  AccountSystemLogs AccountSystemLogs[]
 }
 model notes{
   id Int @id @default(autoincrement())
@@ -1117,4 +1121,23 @@ model OfficeSlaRule {
 
   @@index([officeName])
   @@index([stage])
+}
+
+
+
+
+
+model AccountSystemLogs  {
+  id Int @id @default(autoincrement())
+  action String?
+  actionNotes String?
+  actionType String?
+  actionStatus String?
+  actionAmount Decimal?
+  actionClientId Int?
+  actionClient Client? @relation(fields: [actionClientId], references: [id])
+  actionUserId Int?
+  actionUser User? @relation(fields: [actionUserId], references: [id])
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 }

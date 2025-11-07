@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import { PlusIcon } from '@heroicons/react/outline';
 import Style from "styles/Home.module.css";
+import { jwtDecode } from 'jwt-decode';
 interface ClientAccountEntry {
   id: number;
   date: string;
@@ -75,6 +76,13 @@ const ClientStatementPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ClientAccountEntry | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
+function getDate(date: any) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
   
   // Filter states
   const [selectedEntryType, setSelectedEntryType] = useState('all');
@@ -131,7 +139,16 @@ const ClientStatementPage = () => {
     setDebounceTimeout(timeout);
     return () => clearTimeout(timeout);
   }, [searchTerm]);
-
+useEffect(() => {
+  const user = localStorage.getItem('token');
+  if (user) {
+    // setUserId(Number(JSON.parse(user).id));
+    const decoded: any = jwtDecode(user);
+    setUserId(Number(decoded?.id));
+  } else {
+    setUserId(null);
+  }
+}, [userId]);
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -143,6 +160,7 @@ const ClientStatementPage = () => {
         body: JSON.stringify({
           statementId: id,
           date: formData.date,
+          userId: userId,
           description: formData.description,
           debit: Number(formData.debit) || 0,
           credit: Number(formData.credit) || 0,
@@ -217,12 +235,40 @@ const ClientStatementPage = () => {
     setShowEditModal(true);
   };
 
+
+
+
+
+
+ const fieldNames: { [key: string]: string } = {
+    'officeLinkInfo': 'الربط مع إدارة المكاتب',
+    'externalOfficeInfo': 'المكتب الخارجي',
+    'externalOfficeApproval': 'موافقة المكتب الخارجي',
+    'medicalCheck': 'الفحص الطبي',
+    'foreignLaborApproval': 'موافقة وزارة العمل الأجنبية',
+    'agencyPayment': 'دفع الوكالة',
+    'saudiEmbassyApproval': 'موافقة السفارة السعودية',
+    'visaIssuance': 'إصدار التأشيرة',
+    'travelPermit': 'تصريح السفر',
+    'destinations': 'الوجهات',
+    'receipt': 'الاستلام',
+    'pending_external_office': 'في انتظار المكتب الخارجي',
+    'ticketUpload': 'رفع المستندات'
+  };
+
+  const translateContractStatus = (status: string) => {
+    // alert(status);
+    // alert(fieldNames[status]);
+    return fieldNames[status] || status;
+  };
+
+
+
+
+
+
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 2
-    }).format(amount);
+    return amount;
   };
 
   const formatDate = (dateString: string) => {
@@ -272,21 +318,21 @@ const ClientStatementPage = () => {
             <h3>معلومات الطلب</h3>
             <div className="info-grid">
               <div className="info-item">
-                <span className="label">تاريخ الطلب:</span>
+                <span className="label text-lg">تاريخ الطلب:</span>
                 <span className="value">{statement.order ? formatDate(statement.order.createdAt) : formatDate(statement.client?.createdAt)}</span>
               </div>
               <div className="info-item">
-                <span className="label">حالة العقد:</span>
-                <span className="value">{statement.order?.bookingstatus || 'غير محدد'}</span>
+                <span className="label text-lg">حالة العقد:</span>
+                <span className="value">{translateContractStatus(statement.order?.bookingstatus || '')}</span>
               </div>
               <div className="info-item">
-                <span className="label">تاريخ الوصول:</span>
+                <span className="label text-lg">تاريخ الوصول:</span>
                 <span className="value">
                   {statement.order?.arrivals?.[0]?.KingdomentryDate ? formatDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
                 </span>
               </div>
               <div className="info-item">
-                <span className="label">تاريخ انتهاء الضمان :</span>
+                <span className="label text-lg">تاريخ انتهاء الضمان :</span>
                 <span className="value">
                   {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd ? formatDate(statement.order.arrivals[0].GuaranteeDurationEnd) : 'غير محدد'}
                 </span>
@@ -406,7 +452,7 @@ const ClientStatementPage = () => {
                 <div key={entry.id} className="flex items-center p-4 gap-9 border-b border-gray-300 bg-gray-50 hover:bg-gray-100">
                   <div className="flex-1 text-center text-md text-gray-700">#{index + 1}</div>
                   <div className="flex-1 text-center text-md text-gray-700">
-                    {formatDate(entry.date)}
+                    {getDate(entry.date)}
                   </div>
                   <div className="flex-1 text-center text-md text-gray-700">
                     {entry.description}
