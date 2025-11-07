@@ -192,16 +192,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       });
-
-      // Emit event for logging
-      if (userId) {
-        eventBus.emit('ACTION', {
-          type: `إنشاء حساب عميل جديد - رقم العقد: ${contractNumber}`,
-          userId: userId,
-        });
-      }
-
       res.status(201).json(statement);
+      try {
+      await prisma.accountSystemLogs.create({
+        data: {
+          action: `إنشاء حساب عميل جديد - رقم العقد: ${contractNumber}`,
+          actionClientId: Number(clientId),
+          actionUserId: userId,
+        }
+      });
+      } catch (error) {
+        console.error('Error creating account system log:', error);
+      }
     } catch (error) {
       console.error('Error creating client account statement:', error);
       res.status(500).json({ error: 'Failed to create client account statement' });

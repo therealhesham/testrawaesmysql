@@ -100,6 +100,7 @@ const menuItems: MenuItem[] = [
       { id: 94, label: "التقرير المالي لمساند", link: "/admin/musanad_finacial" },
       { id: 95, label: "التسوية المالية", link: "/admin/settlement" },
       { id: 96, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
+      { id: 97, label: "سجل النظام المحاسبي", link: "/admin/account-systemlogs" },
     ],
   },
   {

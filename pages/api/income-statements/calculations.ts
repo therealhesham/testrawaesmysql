@@ -116,46 +116,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     })
 
-    // Calculate financial metrics from processed data
-    let totalRevenues = 0
-    let totalExpenses = 0
-    let grossProfit = 0
-    let totalOperationalExpenses = 0
-    let netProfitBeforeZakat = 0
-
-    // Calculate totals from processed main categories
-    processedMainCategories.forEach(mainCat => {
-      const categoryTotal = mainCat.subCategories.reduce((sum, sub) => sum + sub.total, 0)
-
-      if (mainCat.mathProcess === 'add') {
-        totalRevenues += categoryTotal
-      } else if (mainCat.mathProcess === 'subtract') {
-        totalExpenses += categoryTotal
-      }
-    })
-
-    // Calculate gross profit (revenues - direct expenses)
-    // Find the first subtract category as direct expenses
-    const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
-    const directExpenses = directExpensesCategory
-      ? directExpensesCategory.subCategories.reduce((sum, sub) => sum + sub.total, 0)
-      : 0
-    grossProfit = totalRevenues + directExpenses // directExpenses is already negative
-
-    // Calculate total operational expenses (all other subtract categories)
-    const operationalCategories = processedMainCategories.filter(
-      cat => cat.mathProcess === 'subtract' && cat.id !== directExpensesCategory?.id
-    )
-    totalOperationalExpenses = operationalCategories.reduce(
-      (sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0),
-      0
-    )
-
-    // Calculate net profit before zakat
-    netProfitBeforeZakat = grossProfit + totalOperationalExpenses
-    const zakatAmount = Math.max(0, netProfitBeforeZakat * (Number(zakatRate) / 100))
-    const netProfitAfterZakat = netProfitBeforeZakat - zakatAmount
-
     // Get contract counts and revenues per month from ClientAccountStatement
     const contractsData = await prisma.clientAccountStatement.findMany({
       select: {
@@ -183,16 +143,65 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     })
 
+    // Calculate total contract revenue
+    const totalContractRevenue = Object.values(contractsByMonth).reduce((sum, data) => sum + data.revenue, 0)
+
+    // Calculate financial metrics from processed data
+    let totalRevenues = 0
+    let totalExpenses = 0
+    let grossProfit = 0
+    let totalOperationalExpenses = 0
+    let netProfitBeforeZakat = 0
+
+    // Calculate totals from processed main categories
+    processedMainCategories.forEach(mainCat => {
+      const categoryTotal = mainCat.subCategories.reduce((sum, sub) => sum + sub.total, 0)
+
+      if (mainCat.mathProcess === 'add') {
+        totalRevenues += categoryTotal
+      } else if (mainCat.mathProcess === 'subtract') {
+        totalExpenses += categoryTotal
+      }
+    })
+
+    // Add contract revenues to total revenues
+    totalRevenues += totalContractRevenue
+
+    // Calculate gross profit (revenues - direct expenses)
+    // Find the first subtract category as direct expenses
+    const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
+    const directExpenses = directExpensesCategory
+      ? directExpensesCategory.subCategories.reduce((sum, sub) => sum + sub.total, 0)
+      : 0
+    grossProfit = totalRevenues + directExpenses // directExpenses is already negative
+
+    // Calculate total operational expenses (all other subtract categories)
+    const operationalCategories = processedMainCategories.filter(
+      cat => cat.mathProcess === 'subtract' && cat.id !== directExpensesCategory?.id
+    )
+    totalOperationalExpenses = operationalCategories.reduce(
+      (sum, cat) => sum + cat.subCategories.reduce((subSum, sub) => subSum + sub.total, 0),
+      0
+    )
+
+    // Calculate net profit before zakat
+    netProfitBeforeZakat = grossProfit + totalOperationalExpenses
+    const zakatAmount = Math.max(0, netProfitBeforeZakat * (Number(zakatRate) / 100))
+    const netProfitAfterZakat = netProfitBeforeZakat - zakatAmount
+
     // Calculate monthly breakdowns from processed data
     const monthlyBreakdown = {
       revenues: months.map(month => {
-        return processedMainCategories
+        const categoryRevenues = processedMainCategories
           .filter(cat => cat.mathProcess === 'add')
           .reduce(
             (sum, cat) =>
               sum + cat.subCategories.reduce((subSum, sub) => subSum + (sub.values[month] || 0), 0),
             0
           )
+        // Add contract revenues for this month
+        const contractRevenue = contractsByMonth[month]?.revenue || 0
+        return categoryRevenues + contractRevenue
       }),
         directExpenses: months.map(month => {
           const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
@@ -234,12 +243,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             0
           )
 
+        // Add contract revenues for this month
+        const contractRevenue = contractsByMonth[month]?.revenue || 0
+        const totalMonthlyRevenues = monthlyRevenues + contractRevenue
+
         const directExpensesCategory = processedMainCategories.find(cat => cat.mathProcess === 'subtract')
         const monthlyDirectExpenses = directExpensesCategory
           ? directExpensesCategory.subCategories.reduce((sum, sub) => sum + (sub.values[month] || 0), 0)
           : 0
 
-        return monthlyRevenues + monthlyDirectExpenses
+        return totalMonthlyRevenues + monthlyDirectExpenses
       }),
       netProfitBeforeZakat: months.map(month => {
         const monthlyRevenues = processedMainCategories
@@ -250,6 +263,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             0
           )
 
+        // Add contract revenues for this month
+        const contractRevenue = contractsByMonth[month]?.revenue || 0
+        const totalMonthlyRevenues = monthlyRevenues + contractRevenue
+
         const monthlyExpenses = processedMainCategories
           .filter(cat => cat.mathProcess === 'subtract')
           .reduce(
@@ -258,7 +275,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             0
           )
 
-        return monthlyRevenues + monthlyExpenses
+        return totalMonthlyRevenues + monthlyExpenses
       }),
       netProfitAfterZakat: months.map(month => {
         const monthlyRevenues = processedMainCategories
@@ -269,6 +286,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             0
           )
 
+        // Add contract revenues for this month
+        const contractRevenue = contractsByMonth[month]?.revenue || 0
+        const totalMonthlyRevenues = monthlyRevenues + contractRevenue
+
         const monthlyExpenses = processedMainCategories
           .filter(cat => cat.mathProcess === 'subtract')
           .reduce(
@@ -277,7 +298,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             0
           )
 
-        const beforeZakat = monthlyRevenues + monthlyExpenses
+        const beforeZakat = totalMonthlyRevenues + monthlyExpenses
         const monthlyZakat = Math.max(0, beforeZakat * (Number(zakatRate) / 100))
         return beforeZakat - monthlyZakat
       })
@@ -312,7 +333,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Calculate contracts totals and averages
     const totalContracts = Object.values(contractsByMonth).reduce((sum, data) => sum + data.count, 0)
-    const totalContractRevenue = Object.values(contractsByMonth).reduce((sum, data) => sum + data.revenue, 0)
 
     return res.status(200).json({
       success: true,

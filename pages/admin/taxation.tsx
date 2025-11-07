@@ -6,6 +6,11 @@ import EditSalesModal from '../../components/EditSalesModal';
 import EditPurchasesModal from '../../components/EditPurchasesModal';
 import Layout from 'example/containers/Layout';
 import { PencilAltIcon } from '@heroicons/react/solid';
+import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
 
 // Helper component for SVG icons to keep the main component clean
 const Icon = ({ path, className = "w-6 h-6" }: { path: string; className?: string }) => (
@@ -24,11 +29,14 @@ const TaxReportPage = () => {
   const [selectedPurchaseRecord, setSelectedPurchaseRecord] = useState<any | null>(null);
   const [salesData, setSalesData] = useState<any[]>([]);
   const [purchasesData, setPurchasesData] = useState<any[]>([]);
+  const [vatSummaryData, setVatSummaryData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPurchasesLoading, setIsPurchasesLoading] = useState(false);
+  const [isVatLoading, setIsVatLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [userName, setUserName] = useState('');
 
   // Fetch sales data
   const fetchSalesData = async () => {
@@ -72,15 +80,45 @@ const TaxReportPage = () => {
     }
   };
 
+  // Fetch VAT summary data
+  const fetchVATSummary = async () => {
+    setIsVatLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (dateFrom) params.append('from', dateFrom);
+      if (dateTo) params.append('to', dateTo);
+      
+      const response = await fetch(`/api/tax/vat-summary?${params.toString()}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setVatSummaryData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching VAT summary:', error);
+    } finally {
+      setIsVatLoading(false);
+    }
+  };
+
   // Load data on mount and when tab changes
   useEffect(() => {
     if (activeTab === 'sales') {
       fetchSalesData();
     } else if (activeTab === 'purchases') {
       fetchPurchasesData();
+    } else if (activeTab === 'vat') {
+      fetchVATSummary();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, dateFrom, dateTo]);
+
+  // Get user name from token
+  useEffect(() => {
+    const authToken = localStorage.getItem('token');
+    const decoder = authToken ? jwtDecode(authToken) : null;
+    setUserName((decoder as any)?.username || '');
+  }, []);
 
   // Calculate summary from sales data
   const calculateSalesSummary = () => {
@@ -167,12 +205,430 @@ const TaxReportPage = () => {
     { title: 'المشتريات قبل الضريبة', value: purchasesSummary.purchasesBeforeTax },
   ];
 
+
+  
+function getDate(date: any) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
+  // Format date for display
+  const formatDate = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' });
+  };
+
+  // Format number with commas
+  const formatNumber = (num: number | string | null | undefined) => {
+    if (!num && num !== 0) return '0.00';
+    const numValue = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(numValue)) return '0.00';
+    return numValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  // Export Sales to PDF
+  const exportSalesToPDF = async () => {
+    const dataToExport = filteredSalesData;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // Load logo
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+    // Load Arabic font
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      return;
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text('المبيعات', pageWidth / 2, 10, { align: 'right' });
+
+    const tableColumn = [
+      '#',
+      'التاريخ',
+      'اسم العميل',
+      'المبيعات قبل الضريبة',
+      'نسبة الضريبة',
+      'قيمة الضريبة',
+      'المبيعات شاملة الضريبة',
+      'طريقة الدفع',
+      'المرفقات',
+      'الإجراءات',
+    ];
+
+    const tableRows = dataToExport.map((row, index) => [
+      (index + 1).toString(),
+      getDate(row.date),
+      row.customer?.fullname || row.customerName || '-',
+      formatNumber(row.salesBeforeTax),
+      formatNumber(row.taxRate),
+      formatNumber(row.taxValue),
+      formatNumber(row.salesIncludingTax),
+      row.paymentMethod || '-',
+      row.attachment ? 'ملف PDF' : '-',
+      '-',
+    ]);
+
+    // Add total row
+    tableRows.push([
+      '-',
+      '-',
+      'الاجمالي',
+      formatNumber(salesSummary.salesBeforeTax),
+      formatNumber(salesSummary.taxRate),
+      formatNumber(salesSummary.taxValue),
+      formatNumber(salesSummary.salesIncludingTax),
+      '-',
+      '-',
+      '-',
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [26, 77, 79],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 40, right: 10, left: 10 },
+      didDrawPage: (data: any) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+        if (doc.getCurrentPageInfo().pageNumber === 1) {
+          doc.setFontSize(12);
+          doc.setFont('Amiri', 'normal');
+          // doc.text('المبيعات', pageWidth / 2, 20, { align: 'right' });
+        }
+
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        const dateText =
+          'التاريخ: ' +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          '  الساعة: ' +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+      },
+      didParseCell: (data: any) => {
+        data.cell.styles.halign = 'right';
+      },
+    });
+
+    doc.save('sales.pdf');
+  };
+
+  // Export Sales to Excel
+  const exportSalesToExcel = async () => {
+    const dataToExport = filteredSalesData;
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('المبيعات', { properties: { defaultColWidth: 20 } });
+
+    worksheet.columns = [
+      { header: '#', key: 'index', width: 10 },
+      { header: 'التاريخ', key: 'date', width: 15 },
+      { header: 'اسم العميل', key: 'customerName', width: 20 },
+      { header: 'المبيعات قبل الضريبة', key: 'salesBeforeTax', width: 20 },
+      { header: 'نسبة الضريبة', key: 'taxRate', width: 15 },
+      { header: 'قيمة الضريبة', key: 'taxValue', width: 15 },
+      { header: 'المبيعات شاملة الضريبة', key: 'salesIncludingTax', width: 20 },
+      { header: 'طريقة الدفع', key: 'paymentMethod', width: 15 },
+      { header: 'المرفقات', key: 'attachment', width: 15 },
+    ];
+
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+    dataToExport.forEach((row, index) => {
+      worksheet.addRow({
+        index: index + 1,
+        date: getDate(row.date),
+        customerName: row.customer?.fullname || row.customerName || 'غير متوفر',
+        salesBeforeTax: formatNumber(row.salesBeforeTax),
+        taxRate: formatNumber(row.taxRate),
+        taxValue: formatNumber(row.taxValue),
+        salesIncludingTax: formatNumber(row.salesIncludingTax),
+        paymentMethod: row.paymentMethod || '-',
+        attachment: row.attachment ? 'ملف PDF' : '-',
+      }).alignment = { horizontal: 'right' };
+    });
+
+    // Add total row
+    worksheet.addRow({
+      index: '-',
+      date: '-',
+      customerName: 'الاجمالي',
+      salesBeforeTax: formatNumber(salesSummary.salesBeforeTax),
+      taxRate: formatNumber(salesSummary.taxRate),
+      taxValue: formatNumber(salesSummary.taxValue),
+      salesIncludingTax: formatNumber(salesSummary.salesIncludingTax),
+      paymentMethod: '-',
+      attachment: '-',
+    }).alignment = { horizontal: 'right' };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sales.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Export Purchases to PDF
+  const exportPurchasesToPDF = async () => {
+    const dataToExport = filteredPurchasesData;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // Load logo
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+    // Load Arabic font
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      return;
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    doc.text('المشتريات', pageWidth / 2, 10, { align: 'right' });
+
+    const tableColumn = [
+      '#',
+      'التاريخ',
+      'الحالة',
+      'رقم الفاتورة',
+      'اسم المورد',
+      'المشتريات قبل الضريبة',
+      'نسبة الضريبة',
+      'قيمة الضريبة',
+      'المشتريات شاملة الضريبة',
+      'نوع التوريد',
+      'المرفقات',
+      'الإجراءات',
+    ];
+
+    const tableRows = dataToExport.map((row, index) => [
+      (index + 1).toString(),
+      getDate(row.date),
+      row.status || '-',
+      row.invoiceNumber || '-',
+      row.supplierName || '-',
+      formatNumber(row.purchasesBeforeTax),
+      formatNumber(row.taxRate),
+      formatNumber(row.taxValue),
+      formatNumber(row.purchasesIncludingTax),
+      row.supplyType || '-',
+      row.attachment ? 'ملف PDF' : '-',
+      '-',
+    ]);
+
+    // Add total row
+    tableRows.push([
+      '-',
+      '-',
+      '-',
+      '-',
+      'الاجمالي',
+      formatNumber(purchasesSummary.purchasesBeforeTax),
+      formatNumber(purchasesSummary.taxRate),
+      formatNumber(purchasesSummary.taxValue),
+      formatNumber(purchasesSummary.purchasesIncludingTax),
+      '-',
+      '-',
+      '-',
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [26, 77, 79],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 40, right: 10, left: 10 },
+      didDrawPage: (data: any) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+        if (doc.getCurrentPageInfo().pageNumber === 1) {
+          doc.setFontSize(12);
+          doc.setFont('Amiri', 'normal');
+          doc.text('المشتريات', pageWidth / 2, 20, { align: 'right' });
+        }
+
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        const dateText =
+          'التاريخ: ' +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          '  الساعة: ' +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+      },
+      didParseCell: (data: any) => {
+        data.cell.styles.halign = 'right';
+      },
+    });
+
+    doc.save('purchases.pdf');
+  };
+
+  // Export Purchases to Excel
+  const exportPurchasesToExcel = async () => {
+    const dataToExport = filteredPurchasesData;
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('المشتريات', { properties: { defaultColWidth: 20 } });
+
+    worksheet.columns = [
+      { header: '#', key: 'index', width: 10 },
+      { header: 'التاريخ', key: 'date', width: 15 },
+      { header: 'الحالة', key: 'status', width: 15 },
+      { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 15 },
+      { header: 'اسم المورد', key: 'supplierName', width: 20 },
+      { header: 'المشتريات قبل الضريبة', key: 'purchasesBeforeTax', width: 20 },
+      { header: 'نسبة الضريبة', key: 'taxRate', width: 15 },
+      { header: 'قيمة الضريبة', key: 'taxValue', width: 15 },
+      { header: 'المشتريات شاملة الضريبة', key: 'purchasesIncludingTax', width: 20 },
+      { header: 'نوع التوريد', key: 'supplyType', width: 15 },
+      { header: 'المرفقات', key: 'attachment', width: 15 },
+    ];
+
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+    dataToExport.forEach((row, index) => {
+      worksheet.addRow({
+        index: index + 1,
+        date: formatDate(row.date),
+        status: row.status || 'غير محدد',
+        invoiceNumber: row.invoiceNumber || '-',
+        supplierName: row.supplierName || 'غير متوفر',
+        purchasesBeforeTax: formatNumber(row.purchasesBeforeTax),
+        taxRate: formatNumber(row.taxRate),
+        taxValue: formatNumber(row.taxValue),
+        purchasesIncludingTax: formatNumber(row.purchasesIncludingTax),
+        supplyType: row.supplyType || '-',
+        attachment: row.attachment ? 'ملف PDF' : '-',
+      }).alignment = { horizontal: 'right' };
+    });
+
+    // Add total row
+    worksheet.addRow({
+      index: '-',
+      date: '-',
+      status: '-',
+      invoiceNumber: '-',
+      supplierName: 'الاجمالي',
+      purchasesBeforeTax: formatNumber(purchasesSummary.purchasesBeforeTax),
+      taxRate: formatNumber(purchasesSummary.taxRate),
+      taxValue: formatNumber(purchasesSummary.taxValue),
+      purchasesIncludingTax: formatNumber(purchasesSummary.purchasesIncludingTax),
+      supplyType: '-',
+      attachment: '-',
+    }).alignment = { horizontal: 'right' };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'purchases.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   // Data for the summary cards (default/VAT view)
-  const defaultSummaryData = [
-    { title: 'المبيعات الخاضعة للضريبة', value: '20,000.00' },
-    { title: 'المبيعات الخاضعة للصفر', value: '10,000.00' },
-    { title: 'التعديلات', value: '1200.00' },
-    { title: 'قيمة الضريبة', value: '11200.00' },
+  const defaultSummaryData = vatSummaryData?.summary ? [
+    { title: 'المبيعات الخاضعة للضريبة', value: formatNumber(vatSummaryData.summary.taxableSales) },
+    { title: 'المبيعات الخاضعة للصفر', value: formatNumber(vatSummaryData.summary.zeroRateSales) },
+    { title: 'التعديلات', value: formatNumber(vatSummaryData.summary.adjustments) },
+    { title: 'قيمة الضريبة', value: formatNumber(vatSummaryData.summary.taxValue) },
+  ] : [
+    { title: 'المبيعات الخاضعة للضريبة', value: '0.00' },
+    { title: 'المبيعات الخاضعة للصفر', value: '0.00' },
+    { title: 'التعديلات', value: '0.00' },
+    { title: 'قيمة الضريبة', value: '0.00' },
   ];
 
   // Filter sales data based on search
@@ -189,53 +645,43 @@ const TaxReportPage = () => {
       purchase.supplierName?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
-
-  // Format date for display
-  const formatDate = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' });
-  };
-
-  // Format number with commas
-  const formatNumber = (num: number | string | null | undefined) => {
-    if (!num) return '0.00';
-    const numValue = typeof num === 'string' ? parseFloat(num) : num;
-    return numValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
   
-  // Data for the main table, structured for easy rendering
-  const tableData = {
+  // Data for the main table, structured for easy rendering - now dynamic
+  const tableData = vatSummaryData ? {
+    sales: vatSummaryData.sales,
+    purchases: vatSummaryData.purchases,
+    vat: vatSummaryData.vat,
+  } : {
     sales: {
       title: 'المبيعات',
       rows: [
-        { description: 'ضريبة المبيعات الخاضعة للنسبة الاساسية (15%)', amount: '10,566.00', adjustment: '8,000', vat: '1,361.00' },
+        { description: 'ضريبة المبيعات الخاضعة للنسبة الاساسية (15%)', amount: '0.00', adjustment: '0.00', vat: '0.00' },
         { description: 'المبيعات لصالح المواطنين(خدمات صحية خاصة،التعليم الاهلي الخاص، المسكن الاول)', amount: '-', adjustment: '-', vat: '-' },
-        { description: 'المبيعات الداخلية الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'المبيعات الداخلية الخاضعة لنسبة صفر بالمائة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
         { description: 'الصادرات الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
-        { description: 'المبيعات الملغاة', amount: '700', adjustment: '200', vat: '1,000' },
+        { description: 'المبيعات الملغاة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
       ],
-      total: { amount: '10,566.00', adjustment: '8,000', vat: '1,361.00' }
+      total: { amount: '0.00', adjustment: '0.00', vat: '0.00' }
     },
     purchases: {
       title: 'المشتريات',
       rows: [
-        { description: 'المشتريات الداخلية الخاضعة للنسبة الاساسية(15%)', amount: '-', adjustment: '-', vat: '-' },
-        { description: 'التوريدات الخاضعة للضريبة القيمة المضافة المسددة للجمارك', amount: '-', adjustment: '-', vat: '-' },
-        { description: 'عمليات الاستيراد الخاضعة لضريبة القيمة المضافة والمستحقة للضريبة وفقا لالية الاحتساب العكسي', amount: '-', adjustment: '-', vat: '-' },
-        { description: 'المشتريات الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
-        { description: 'المبيعات المعفاة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'المشتريات الداخلية الخاضعة للنسبة الاساسية(15%)', amount: '0.00', adjustment: '0.00', vat: '0.00' },
+        { description: 'التوريدات الخاضعة للضريبة القيمة المضافة المسددة للجمارك', amount: '0.00', adjustment: '0.00', vat: '0.00' },
+        { description: 'عمليات الاستيراد الخاضعة لضريبة القيمة المضافة والمستحقة للضريبة وفقا لالية الاحتساب العكسي', amount: '0.00', adjustment: '0.00', vat: '0.00' },
+        { description: 'المشتريات الخاضعة لنسبة صفر بالمائة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
+        { description: 'المبيعات المعفاة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
       ],
-      total: { amount: '-', adjustment: '-', vat: '-' }
+      total: { amount: '0.00', adjustment: '0.00', vat: '0.00' }
     },
     vat: {
       title: 'الضريبة المضافة',
       rows: [
-        { description: 'ضريبة القيمة المضافة الاجمالية للفترة الضريبية المستحقة', amount: '-', adjustment: '-', vat: '-' },
+        { description: 'ضريبة القيمة المضافة الاجمالية للفترة الضريبية المستحقة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
         { description: 'تصحيحات الفترة السابقة (حوالي +-5000 ريال)', amount: '-', adjustment: '-', vat: '-' },
         { description: 'ضريبة القيمة المضافة التي تم ترحيلها من الفترة \ الفترات السابقة', amount: '-', adjustment: '-', vat: '-' },
       ],
-      total: { description: 'ضريبة القيمة المضافة المستحقة (المطلوب اصلاحها)', amount: '-', adjustment: '-', vat: '-' }
+      total: { description: 'ضريبة القيمة المضافة المستحقة (المطلوب اصلاحها)', amount: '0.00', adjustment: '0.00', vat: '0.00' }
     }
   };
 
@@ -356,12 +802,18 @@ const TaxReportPage = () => {
                {/* Export Buttons */}
               {(activeTab === 'sales' || activeTab === 'purchases') && (
                 <div className="flex gap-2 mt-5">
-                  <button className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6">
-                    <Icon path="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625a1.875 1.875 0 00-1.875 1.875v17.25a1.875 1.875 0 001.875 1.875h12.75a1.875 1.875 0 001.875-1.875V10.5" className="w-3 h-3"/>
+                  <button 
+                    onClick={activeTab === 'sales' ? exportSalesToExcel : exportPurchasesToExcel}
+                    className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                  >
+                    <TableIcon className="w-3 h-3"/>
                     <span>Excel</span>
                   </button>
-                  <button className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6">
-                     <Icon path="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625a1.875 1.875 0 00-1.875 1.875v17.25a1.875 1.875 0 001.875 1.875h12.75a1.875 1.875 0 001.875-1.875V10.5" className="w-3 h-3"/>
+                  <button 
+                    onClick={activeTab === 'sales' ? exportSalesToPDF : exportPurchasesToPDF}
+                    className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                  >
+                    <DocumentDownloadIcon className="w-3 h-3"/>
                     <span>PDF</span>
                   </button>
                 </div>
@@ -527,51 +979,57 @@ const TaxReportPage = () => {
             ) : (
               /* ## Tax Declaration Table - For VAT tab */
               <section className="overflow-x-auto">
-                <table className="w-full min-w-[800px] border-collapse text-base text-gray-800">
-                  <thead className="bg-[#1A4D4F] text-white">
-                    <tr>
-                      <th className="font-normal p-4 text-center w-1/4">التفاصيل</th>
-                      
-                      <th className="font-normal p-4 text-center w-1/4">التفاصيل</th>
-                      <th className="font-normal p-4 text-center w-1/4">المبلغ<br/>(بالريال)</th>
-                      <th className="font-normal p-4 text-center w-1/4">مبلغ التعديل<br/>(بالريال)</th>
-                      <th className="font-normal p-4 text-center  w-full">مبلغ ضريبة القيمة المضافة<br/>(بالريال)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.values(tableData).map((section, sectionIndex) => (
-                      <React.Fragment key={sectionIndex}>
-                        {/* Section Rows */}
-                        {section.rows.map((row, rowIndex) => (
-                          <tr key={rowIndex} className="bg-[#F7F8FA] border border-gray-200">
-                            {rowIndex === 0 && (
-                              <td 
-                                rowSpan={section.rows.length + 1} 
-                                className="bg-[#1A4D4F] text-white text-2xl font-normal p-4 border-l border-gray-200 align-middle text-center"
-                                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-                              >
-                                {section.title}
-                              </td>
-                            )}
-                            <td className="p-4 text-center text-sm leading-tight">{row.description}</td>
-                            <td className="p-4 text-center">{row.amount}</td>
-                            <td className="p-4 text-center">{row.adjustment}</td>
-                            <td className="p-4 text-center">{row.vat}</td>
+                {isVatLoading ? (
+                  <div className="p-8 text-center text-gray-500">
+                    جاري التحميل...
+                  </div>
+                ) : (
+                  <table className="w-full min-w-[800px] border-collapse text-base text-gray-800">
+                    <thead className="bg-[#1A4D4F] text-white">
+                      <tr>
+                        <th className="font-normal p-4 text-center w-1/4">التفاصيل</th>
+                        
+                        <th className="font-normal p-4 text-center w-1/4">التفاصيل</th>
+                        <th className="font-normal p-4 text-center w-1/4">المبلغ<br/>(بالريال)</th>
+                        <th className="font-normal p-4 text-center w-1/4">مبلغ التعديل<br/>(بالريال)</th>
+                        <th className="font-normal p-4 text-center  w-full">مبلغ ضريبة القيمة المضافة<br/>(بالريال)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.values(tableData).map((section, sectionIndex) => (
+                        <React.Fragment key={sectionIndex}>
+                          {/* Section Rows */}
+                          {section.rows.map((row: any, rowIndex: number) => (
+                            <tr key={rowIndex} className="bg-[#F7F8FA] border border-gray-200">
+                              {rowIndex === 0 && (
+                                <td 
+                                  rowSpan={section.rows.length + 1} 
+                                  className="bg-[#1A4D4F] text-white text-2xl font-normal p-4 border-l border-gray-200 align-middle text-center"
+                                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                                >
+                                  {section.title}
+                                </td>
+                              )}
+                              <td className="p-4 text-center text-sm leading-tight">{row.description}</td>
+                              <td className="p-4 text-center">{row.amount}</td>
+                              <td className="p-4 text-center">{row.adjustment}</td>
+                              <td className="p-4 text-center">{row.vat}</td>
+                            </tr>
+                          ))}
+                           {/* Section Total Row */}
+                          <tr className="bg-teal-50/50 border border-gray-200 font-bold">
+                            <td className="p-3 text-center">
+                              {'description' in section.total ? section.total.description : 'الاجمالي'}
+                            </td>
+                            <td className="p-3 text-center">{section.total.amount}</td>
+                            <td className="p-3 text-center">{section.total.adjustment}</td>
+                            <td className="p-3 text-center">{section.total.vat}</td>
                           </tr>
-                        ))}
-                         {/* Section Total Row */}
-                        <tr className="bg-teal-50/50 border border-gray-200 font-bold">
-                          <td className="p-3 text-center">
-                            {'description' in section.total ? section.total.description : 'الاجمالي'}
-                          </td>
-                          <td className="p-3 text-center">{section.total.amount}</td>
-                          <td className="p-3 text-center">{section.total.adjustment}</td>
-                          <td className="p-3 text-center">{section.total.vat}</td>
-                        </tr>
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </section>
             )}
           </div>
@@ -582,8 +1040,11 @@ const TaxReportPage = () => {
           isOpen={isAddSalesModalOpen}
           onClose={() => setIsAddSalesModalOpen(false)}
           onSuccess={() => {
-            // Refresh sales data after adding new record
+            // Refresh sales data and VAT summary after adding new record
             fetchSalesData();
+            if (activeTab === 'vat') {
+              fetchVATSummary();
+            }
           }}
         />
 
@@ -592,8 +1053,11 @@ const TaxReportPage = () => {
           isOpen={isAddPurchasesModalOpen}
           onClose={() => setIsAddPurchasesModalOpen(false)}
           onSuccess={() => {
-            // Refresh purchases data after adding new record
+            // Refresh purchases data and VAT summary after adding new record
             fetchPurchasesData();
+            if (activeTab === 'vat') {
+              fetchVATSummary();
+            }
           }}
         />
 
@@ -605,8 +1069,11 @@ const TaxReportPage = () => {
             setSelectedSalesRecord(null);
           }}
           onSuccess={() => {
-            // Refresh sales data after editing
+            // Refresh sales data and VAT summary after editing
             fetchSalesData();
+            if (activeTab === 'vat') {
+              fetchVATSummary();
+            }
           }}
           salesRecord={selectedSalesRecord}
         />
@@ -619,8 +1086,11 @@ const TaxReportPage = () => {
             setSelectedPurchaseRecord(null);
           }}
           onSuccess={() => {
-            // Refresh purchases data after editing
+            // Refresh purchases data and VAT summary after editing
             fetchPurchasesData();
+            if (activeTab === 'vat') {
+              fetchVATSummary();
+            }
           }}
           purchaseRecord={selectedPurchaseRecord}
         />

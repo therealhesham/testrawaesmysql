@@ -87,7 +87,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         description,
         debit,
         credit,
-        entryType
+        entryType,
+        userId
       } = req.body;
 
       // Get the last entry before or on the new entry's date to calculate the balance
@@ -136,6 +137,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await recalculateStatementTotals(Number(statementId));
 
       res.status(201).json(entry);
+      try {
+        await prisma.accountSystemLogs.create({
+          data: {
+            action: `إضافة حساب عميل جديد - رقم العقد: ${entry.statement.contractNumber}`,
+            actionClientId: Number(entry.statement.clientId),
+            actionUserId: Number(userId),
+            actionType: 'entry',
+            actionStatus: 'success',
+            actionAmount: Number(entry.debit),
+            actionNotes: entry.description,
+          }
+        });
+      } catch (error) {
+        console.error('Error creating account system log:', error);
+      }
     } catch (error) {
       console.error('Error creating client account entry:', error);
       res.status(500).json({ error: 'Failed to create client account entry' });

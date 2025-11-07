@@ -120,6 +120,14 @@ export default function Home() {
   const [governmentalData, setGovernmentalData] = useState<any>(null);
   const [clientsData, setClientsData] = useState<any>(null);
   const [tasksData, setTasksData] = useState<any>(null);
+  const [employeePerformanceData, setEmployeePerformanceData] = useState<any>(null);
+  const [officesFinancialData, setOfficesFinancialData] = useState<any>(null);
+  const [employeeCashStatsData, setEmployeeCashStatsData] = useState<any>(null);
+  const [clientAccountsStatsData, setClientAccountsStatsData] = useState<any>(null);
+  const [incomeStatementStatsData, setIncomeStatementStatsData] = useState<any>(null);
+  const [musanadFinancialStatsData, setMusanadFinancialStatsData] = useState<any>(null);
+  const [settlementStatsData, setSettlementStatsData] = useState<any>(null);
+  const [taxMonthlyStatsData, setTaxMonthlyStatsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -136,6 +144,15 @@ export default function Home() {
   const [tasksPeriod, setTasksPeriod] = useState<string>('year');
   const [tasksStartDate, setTasksStartDate] = useState<string>('');
   const [tasksEndDate, setTasksEndDate] = useState<string>('');
+
+  const [employeePerformancePeriod, setEmployeePerformancePeriod] = useState<string>('year');
+  const [employeePerformanceStartDate, setEmployeePerformanceStartDate] = useState<string>('');
+  const [employeePerformanceEndDate, setEmployeePerformanceEndDate] = useState<string>('');
+
+  const [bookedEmployeesByOfficePeriod, setBookedEmployeesByOfficePeriod] = useState<string>('year');
+  const [bookedEmployeesByOfficeStartDate, setBookedEmployeesByOfficeStartDate] = useState<string>('');
+  const [bookedEmployeesByOfficeEndDate, setBookedEmployeesByOfficeEndDate] = useState<string>('');
+  const [bookedEmployeesByOfficeData, setBookedEmployeesByOfficeData] = useState<any>(null);
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -191,6 +208,113 @@ export default function Home() {
     }
   };
 
+  const fetchBookedEmployeesByOfficeData = async () => {
+    try {
+      const url = bookedEmployeesByOfficePeriod === 'custom'
+        ? `/api/reports/booked-employees-by-office`
+        : `/api/reports/booked-employees-by-office?period=${bookedEmployeesByOfficePeriod}`;
+      
+      const response = await fetch(url, {
+        method: bookedEmployeesByOfficePeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: bookedEmployeesByOfficePeriod === 'custom' ? JSON.stringify({ period: bookedEmployeesByOfficePeriod, startDate: bookedEmployeesByOfficeStartDate, endDate: bookedEmployeesByOfficeEndDate }) : undefined,
+      });
+      const data = await response.json();
+      setBookedEmployeesByOfficeData(data);
+    } catch (error) {
+      console.error('Error fetching booked employees by office data:', error);
+    }
+  };
+
+  const fetchEmployeePerformanceData = async () => {
+    try {
+      const url = employeePerformancePeriod === 'custom'
+        ? `/api/reports/employee-performance`
+        : `/api/reports/employee-performance?period=${employeePerformancePeriod}`;
+      
+      const response = await fetch(url, {
+        method: employeePerformancePeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: employeePerformancePeriod === 'custom' ? JSON.stringify({ period: employeePerformancePeriod, startDate: employeePerformanceStartDate, endDate: employeePerformanceEndDate }) : undefined,
+      });
+      const data = await response.json();
+      setEmployeePerformanceData(data);
+    } catch (error) {
+      console.error('Error fetching employee performance data:', error);
+    }
+  };
+
+  const fetchOfficesFinancialData = async () => {
+    try {
+      const response = await fetch('/api/reports/offices-financial');
+      const data = await response.json();
+      setOfficesFinancialData(data);
+    } catch (error) {
+      console.error('Error fetching offices financial data:', error);
+    }
+  };
+
+  const fetchEmployeeCashStatsData = async () => {
+    try {
+      const response = await fetch('/api/reports/employee-cash-stats');
+      const data = await response.json();
+      setEmployeeCashStatsData(data);
+    } catch (error) {
+      console.error('Error fetching employee cash stats data:', error);
+    }
+  };
+
+  const fetchClientAccountsStatsData = async () => {
+    try {
+      const response = await fetch('/api/reports/client-accounts-stats');
+      const data = await response.json();
+      setClientAccountsStatsData(data);
+    } catch (error) {
+      console.error('Error fetching client accounts stats data:', error);
+    }
+  };
+
+  const fetchIncomeStatementStatsData = async () => {
+    try {
+      const response = await fetch('/api/reports/income-statement-stats?zakatRate=2.5');
+      const data = await response.json();
+      setIncomeStatementStatsData(data);
+    } catch (error) {
+      console.error('Error fetching income statement stats data:', error);
+    }
+  };
+
+  const fetchMusanadFinancialStatsData = async () => {
+    try {
+      const response = await fetch('/api/reports/musanad-financial-stats');
+      const data = await response.json();
+      setMusanadFinancialStatsData(data);
+    } catch (error) {
+      console.error('Error fetching musanad financial stats data:', error);
+    }
+  };
+
+  const fetchSettlementStatsData = async () => {
+    try {
+      const response = await fetch('/api/reports/settlement-stats');
+      const data = await response.json();
+      setSettlementStatsData(data);
+    } catch (error) {
+      console.error('Error fetching settlement stats data:', error);
+    }
+  };
+
+  const fetchTaxMonthlyStatsData = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`/api/tax/monthly-stats?year=${currentYear}`);
+      const data = await response.json();
+      setTaxMonthlyStatsData(data);
+    } catch (error) {
+      console.error('Error fetching tax monthly stats data:', error);
+    }
+  };
+
   const regionMap: { [key: string]: string } = {
     'Ar Riyāḍ': 'sa-ri',
     'Makkah al Mukarramah': 'sa-mk',
@@ -243,6 +367,15 @@ export default function Home() {
   useEffect(() => {
     fetchHousedWorkerData();
     fetchInLocationsData();
+    fetchBookedEmployeesByOfficeData();
+    fetchEmployeePerformanceData();
+    fetchOfficesFinancialData();
+    fetchEmployeeCashStatsData();
+    fetchClientAccountsStatsData();
+    fetchIncomeStatementStatsData();
+    fetchMusanadFinancialStatsData();
+    fetchSettlementStatsData();
+    fetchTaxMonthlyStatsData();
     const fetchAllData = async () => {
       try {
         setLoading(true);
@@ -305,7 +438,7 @@ export default function Home() {
     };
 
     fetchAllData();
-  }, [ordersPeriod, ordersStartDate, ordersEndDate, growthPeriod, growthStartDate, growthEndDate, tasksPeriod, tasksStartDate, tasksEndDate]);
+  }, [ordersPeriod, ordersStartDate, ordersEndDate, growthPeriod, growthStartDate, growthEndDate, tasksPeriod, tasksStartDate, tasksEndDate, bookedEmployeesByOfficePeriod, bookedEmployeesByOfficeStartDate, bookedEmployeesByOfficeEndDate, employeePerformancePeriod, employeePerformanceStartDate, employeePerformanceEndDate]);
 
   // Map data
   const mapData = reportsData?.citiesSources?.byCity
@@ -498,6 +631,53 @@ export default function Home() {
               `عدد العاملين: ${item.housedWorkersCount}`,
               `السعة الإجمالية: ${item.quantity}`,
             ];
+          },
+        },
+      },
+    },
+  };
+
+  // Chart Data for Booked Employees by Office
+  const bookedEmployeesByOfficeBarChartData = {
+    labels: bookedEmployeesByOfficeData?.map((item: any) => item.office) || [],
+    datasets: [{
+      label: 'عدد العاملات المحجوزة',
+      data: bookedEmployeesByOfficeData?.map((item: any) => item.count) || [],
+      backgroundColor: secondaryColor,
+      borderColor: secondaryColor,
+      borderWidth: 1,
+    }],
+  };
+
+  const bookedEmployeesByOfficeBarChartOptions = {
+    responsive: true,
+    scales: {
+      y: { 
+        beginAtZero: true, 
+        title: { display: true, text: 'عدد العاملات المحجوزة', font: { family: '"Tajawal", sans-serif', size: 14 } },
+        ticks: {
+          stepSize: 1,
+          precision: 0,
+        }
+      },
+      x: { 
+        grid: { display: false }, 
+        title: { display: true, text: 'المكتب', font: { family: '"Tajawal", sans-serif', size: 14 } } 
+      },
+    },
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'top' as const, labels: { font: { family: '"Tajawal", sans-serif', size: 14 } } },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: { family: '"Tajawal", sans-serif' },
+        bodyFont: { family: '"Tajawal", sans-serif' },
+        callbacks: {
+          label: (context: any) => {
+            const index = context.dataIndex;
+            const item = bookedEmployeesByOfficeData[index];
+            return `عدد العاملات المحجوزة: ${item?.count || 0}`;
           },
         },
       },
@@ -816,6 +996,11 @@ export default function Home() {
     'السعة الإجمالية': item.quantity,
     'عدد العاملين': item.housedWorkersCount,
     'نسبة الإشغال': `${item.occupancyPercentage}%`,
+  })) || [];
+
+  const bookedEmployeesByOfficeTableData = bookedEmployeesByOfficeData?.map((item: any) => ({
+    المكتب: item.office || 'غير محدد',
+    'عدد العاملات المحجوزة': item.count || 0,
   })) || [];
 
   const trendsTableData = lineChart2Data.labels.map((label: string, i: number) => ({
@@ -1362,6 +1547,56 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Row 6.5: إحصائيات العاملات المحجوزة حسب المكتب */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <div className="flex items-center gap-4">
+                <select
+                  value={bookedEmployeesByOfficePeriod}
+                  onChange={(e) => setBookedEmployeesByOfficePeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {bookedEmployeesByOfficePeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={bookedEmployeesByOfficeStartDate}
+                      onChange={(e) => setBookedEmployeesByOfficeStartDate(e.target.value)}
+                      className="border rounded px-2 py-1"
+                    />
+                    <input
+                      type="date"
+                      value={bookedEmployeesByOfficeEndDate}
+                      onChange={(e) => setBookedEmployeesByOfficeEndDate(e.target.value)}
+                      className="border rounded px-2 py-1"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
+                <h3 className="text-base font-semibold text-gray-800">عدد العاملات المحجوزة لكل مكتب</h3>
+                <button
+                  onClick={() => openModal('عدد العاملات المحجوزة لكل مكتب', ['المكتب', 'عدد العاملات المحجوزة'], bookedEmployeesByOfficeTableData)}
+                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                >
+                  عرض الجدول
+                </button>
+              </div>
+            </div>
+            <div className="relative h-64">
+              {bookedEmployeesByOfficeData?.length > 0 ? (
+                <Bar data={bookedEmployeesByOfficeBarChartData} options={bookedEmployeesByOfficeBarChartOptions} />
+              ) : (
+                <div className="text-center text-gray-500">لا توجد بيانات متاحة.</div>
+              )}
+            </div>
+          </div>
+
           {/* Row 7: تحليل الاتجاهات الزمنية */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
@@ -1381,155 +1616,1238 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Row 8: أداء الفريق */}
+          {/* Row 8: أداء الموظفين */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            {/* النصف الأول: إحصائيات المهام */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
                 <div className="flex items-center gap-4">
-                  <h3 className="text-base font-semibold text-gray-800">أداء الفريق - النصف الأول</h3>
-                  <button
-                    onClick={() => openModal('أداء الفريق - النصف الأول', ['الفريق', 'الأداء'], teamPerformance1TableData)}
-                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  <select
+                    value={employeePerformancePeriod}
+                    onChange={(e) => setEmployeePerformancePeriod(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm"
                   >
-                    عرض الجدول
-                  </button>
+                    <option value="week">أسبوعي</option>
+                    <option value="month">شهري</option>
+                    <option value="year">سنوي</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                  {employeePerformancePeriod === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={employeePerformanceStartDate}
+                        onChange={(e) => setEmployeePerformanceStartDate(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                      <input
+                        type="date"
+                        value={employeePerformanceEndDate}
+                        onChange={(e) => setEmployeePerformanceEndDate(e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-base font-semibold text-gray-800">إحصائيات المهام لكل موظف</h3>
+                  {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const tableData = employeePerformanceData.employees.map((emp: any) => ({
+                          الموظف: emp.employeeName,
+                          'مكتملة': emp.tasks.completed,
+                          'معلقة': emp.tasks.pending,
+                          'إجمالي': emp.tasks.total,
+                          'أنشأها': emp.tasks.created,
+                        }));
+                        openModal('إحصائيات المهام لكل موظف', ['الموظف', 'مكتملة', 'معلقة', 'إجمالي', 'أنشأها'], tableData);
+                      }}
+                      className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                    >
+                      عرض الجدول
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="relative h-64">
-                <Bar data={barChart4Data} options={{ ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }} />
+                {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 ? (
+                  <Bar 
+                    data={{
+                      labels: employeePerformanceData.employees.map((emp: any) => emp.employeeName),
+                      datasets: [
+                        {
+                          label: 'مكتملة',
+                          data: employeePerformanceData.employees.map((emp: any) => emp.tasks.completed),
+                          backgroundColor: primaryColor,
+                          borderColor: primaryColor,
+                          borderWidth: 1,
+                        },
+                        {
+                          label: 'معلقة',
+                          data: employeePerformanceData.employees.map((emp: any) => emp.tasks.pending),
+                          backgroundColor: secondaryColor,
+                          borderColor: secondaryColor,
+                          borderWidth: 1,
+                        },
+                      ],
+                    }} 
+                    options={{
+                      ...commonOptions,
+                      plugins: {
+                        ...commonOptions.plugins,
+                        legend: {
+                          display: true,
+                          position: 'top' as const,
+                          labels: {
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                        tooltip: {
+                          enabled: true,
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleFont: { family: '"Tajawal", sans-serif' },
+                          bodyFont: { family: '"Tajawal", sans-serif' },
+                        },
+                      },
+                      scales: {
+                        y: { 
+                          beginAtZero: true,
+                          title: {
+                            display: true,
+                            text: 'عدد المهام',
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                        x: {
+                          grid: { display: false },
+                          title: {
+                            display: true,
+                            text: 'الموظف',
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                      },
+                    }} 
+                  />
+                ) : (
+                  <div className="text-center text-gray-500 py-16">لا توجد بيانات موظفين متاحة</div>
+                )}
               </div>
             </div>
+
+            {/* النصف الثاني: إحصائيات الطلبات */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
+                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">طلبات</span>
                 <div className="flex items-center gap-4">
-                  <h3 className="text-base font-semibold text-gray-800">أداء الفريق - النصف الثاني</h3>
-                  <button
-                    onClick={() => openModal('أداء الفريق - النصف الثاني', ['الفريق', 'الأداء'], teamPerformance2TableData)}
-                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                  >
-                    عرض الجدول
-                  </button>
+                  <h3 className="text-base font-semibold text-gray-800">إحصائيات الطلبات لكل موظف</h3>
+                  {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const tableData = employeePerformanceData.employees.map((emp: any) => ({
+                          الموظف: emp.employeeName,
+                          'جديد': emp.orders.byStatus.new,
+                          'قيد التنفيذ': emp.orders.byStatus.inProgress,
+                          'مكتمل': emp.orders.byStatus.delivered,
+                          'ملغي': emp.orders.byStatus.cancelled,
+                          'إجمالي': emp.orders.total,
+                        }));
+                        openModal('إحصائيات الطلبات لكل موظف', ['الموظف', 'جديد', 'قيد التنفيذ', 'مكتمل', 'ملغي', 'إجمالي'], tableData);
+                      }}
+                      className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                    >
+                      عرض الجدول
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="relative h-64">
-                <Bar data={barChart5Data} options={{ ...commonOptions, scales: { y: { beginAtZero: true, max: 100 } } }} />
+                {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 ? (
+                  <Bar 
+                    data={{
+                      labels: employeePerformanceData.employees.map((emp: any) => emp.employeeName),
+                      datasets: [
+                        {
+                          label: 'جديد',
+                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.new),
+                          backgroundColor: '#600000',
+                          borderColor: '#600000',
+                          borderWidth: 1,
+                        },
+                        {
+                          label: 'قيد التنفيذ',
+                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.inProgress),
+                          backgroundColor: '#F8DADA',
+                          borderColor: '#F8DADA',
+                          borderWidth: 1,
+                        },
+                        {
+                          label: 'مكتمل',
+                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.delivered),
+                          backgroundColor: primaryColor,
+                          borderColor: primaryColor,
+                          borderWidth: 1,
+                        },
+                        {
+                          label: 'ملغي',
+                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.cancelled),
+                          backgroundColor: tertiaryColor,
+                          borderColor: tertiaryColor,
+                          borderWidth: 1,
+                        },
+                      ],
+                    }} 
+                    options={{
+                      ...commonOptions,
+                      plugins: {
+                        ...commonOptions.plugins,
+                        legend: {
+                          display: true,
+                          position: 'top' as const,
+                          labels: {
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                        tooltip: {
+                          enabled: true,
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleFont: { family: '"Tajawal", sans-serif' },
+                          bodyFont: { family: '"Tajawal", sans-serif' },
+                        },
+                      },
+                      scales: {
+                        y: { 
+                          beginAtZero: true,
+                          title: {
+                            display: true,
+                            text: 'عدد الطلبات',
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                        x: {
+                          grid: { display: false },
+                          title: {
+                            display: true,
+                            text: 'الموظف',
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                      },
+                    }} 
+                  />
+                ) : (
+                  <div className="text-center text-gray-500 py-16">لا توجد بيانات طلبات متاحة</div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Rows 9-11: تحليل شامل */}
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl p-6 shadow-sm mb-5">
-              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تفصيلي</span>
-                <div className="flex items-center gap-4">
-                  <h3 className="text-base font-semibold text-gray-800">تحليل شامل - المجموعة {i}</h3>
+          {/* Row 8.5: إحصائية المكاتب */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مكاتب</span>
+              <div className="flex items-center gap-4">
+                <h3 className="text-base font-semibold text-gray-800">إحصائية المكاتب - الدائن والمدين والرصيد</h3>
+                {officesFinancialData?.aggregatedByMonth && officesFinancialData.aggregatedByMonth.length > 0 && (
                   <button
-                    onClick={() => openModal(`تحليل شامل - المجموعة ${i}`, ['الشهر', '2023', '2024', '2025', 'المجموعة'], groupedBarTableData.filter((item) => item['المجموعة'] === `المجموعة ${i}`))}
+                    onClick={() => {
+                      const tableData = officesFinancialData.aggregatedByMonth.map((month: any) => ({
+                        الشهر: month.month,
+                        'الدائن': month.credit.toFixed(2),
+                        'المدين': month.debit.toFixed(2),
+                        'الرصيد': month.balance.toFixed(2),
+                      }));
+                      openModal('إحصائية المكاتب', ['الشهر', 'الدائن', 'المدين', 'الرصيد'], tableData);
+                    }}
                     className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
                   >
                     عرض الجدول
                   </button>
-                </div>
-              </div>
-              <div className="relative h-96">
-                <Bar data={groupedBarData[i - 1]} options={groupedBarOptions} />
-              </div>
-            </div>
-          ))}
-
-          {/* Row 12: التوقعات المستقبلية */}
-          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تنبؤات</span>
-              <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">التوقعات المستقبلية</h3>
-                <button
-                  onClick={() => openModal('التوقعات المستقبلية', ['الشهر', 'الفعلي', 'المتوقع'], forecastTableData1)}
-                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                >
-                  عرض الجدول
-                </button>
+                )}
               </div>
             </div>
             <div className="relative h-80">
-              <Line data={lineChart34Data[0]} options={lineChart34Options} />
+              {officesFinancialData?.aggregatedByMonth && officesFinancialData.aggregatedByMonth.length > 0 ? (
+                <Bar 
+                  data={{
+                    labels: officesFinancialData.aggregatedByMonth.map((month: any) => month.month),
+                    datasets: [
+                      {
+                        label: 'الدائن',
+                        data: officesFinancialData.aggregatedByMonth.map((month: any) => month.credit),
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'المدين',
+                        data: officesFinancialData.aggregatedByMonth.map((month: any) => month.debit),
+                        backgroundColor: secondaryColor,
+                        borderColor: secondaryColor,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'الرصيد',
+                        data: officesFinancialData.aggregatedByMonth.map((month: any) => month.balance),
+                        backgroundColor: tertiaryColor,
+                        borderColor: tertiaryColor,
+                        borderWidth: 1,
+                      },
+                    ],
+                  }} 
+                  options={{
+                    ...commonOptions,
+                    plugins: {
+                      ...commonOptions.plugins,
+                      legend: {
+                        display: true,
+                        position: 'top' as const,
+                        labels: {
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: '"Tajawal", sans-serif' },
+                        bodyFont: { family: '"Tajawal", sans-serif' },
+                        callbacks: {
+                          label: (context: any) => {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            return `${label}: ${value.toLocaleString()}`;
+                          },
+                        },
+                      },
+                    },
+                    scales: {
+                      y: { 
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'المبلغ',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        },
+                        ticks: {
+                          callback: function(value: any) {
+                            return value.toLocaleString();
+                          }
+                        }
+                      },
+                      x: {
+                        grid: { display: false },
+                        title: {
+                          display: true,
+                          text: 'الشهر',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                    },
+                  }} 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-32">لا توجد بيانات مكاتب متاحة</div>
+              )}
             </div>
           </div>
 
-          {/* Row 13: مقارنة الأداء السنوي */}
+          {/* Row 8.6: إحصائية العهد */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مقارنة</span>
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">عهد</span>
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">مقارنة الأداء السنوي</h3>
-                <button
-                  onClick={() => openModal('مقارنة الأداء السنوي', ['الشهر', 'الفعلي', 'المتوقع'], forecastTableData2)}
-                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                >
-                  عرض الجدول
-                </button>
-              </div>
-            </div>
-            <div className="relative h-80">
-              <Line data={lineChart34Data[1]} options={lineChart34Options} />
-            </div>
-          </div>
-
-          {/* Row 14: نظرة عامة على الأداء */}
-          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">ملخص</span>
-              <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">نظرة عامة على الأداء</h3>
-                <button
-                  onClick={() => openModal('نظرة عامة على الأداء', ['الشهر', 'العدد'], performanceOverviewTableData)}
-                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                >
-                  عرض الجدول
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col md:flex-row gap-8 items-center">
-              <div className="flex-2 w-full md:w-2/3">
-                <div className="relative h-64">
-                  <Bar data={barChart6Data} options={commonOptions} />
-                </div>
-              </div>
-              <div className="flex-1 w-full md:w-1/3 text-center">
-                <div className="max-w-xs mx-auto">
-                  <Doughnut data={donutChart3Data} options={donutChart3Options} />
+                <h3 className="text-base font-semibold text-gray-800">إحصائية العهد - المدين والدائن والرصيد</h3>
+                {employeeCashStatsData?.monthlyData && employeeCashStatsData.monthlyData.length > 0 && (
                   <button
-                    onClick={() => openModal('إكمال المهام', ['الحالة', 'العدد'], taskCompletionTableData)}
-                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800 mt-4"
+                    onClick={() => {
+                      const tableData = employeeCashStatsData.monthlyData.map((month: any) => ({
+                        الشهر: month.month,
+                        'المدين': month.debit.toFixed(2),
+                        'الدائن': month.credit.toFixed(2),
+                        'الرصيد': month.balance.toFixed(2),
+                      }));
+                      openModal('إحصائية العهد', ['الشهر', 'المدين', 'الدائن', 'الرصيد'], tableData);
+                    }}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
                   >
                     عرض الجدول
                   </button>
-                </div>
+                )}
+              </div>
+            </div>
+            <div className="relative h-80">
+              {employeeCashStatsData?.monthlyData && employeeCashStatsData.monthlyData.length > 0 ? (
+                <Bar 
+                  data={{
+                    labels: employeeCashStatsData.monthlyData.map((month: any) => month.month),
+                    datasets: [
+                      {
+                        label: 'المدين',
+                        data: employeeCashStatsData.monthlyData.map((month: any) => month.debit),
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'الدائن',
+                        data: employeeCashStatsData.monthlyData.map((month: any) => month.credit),
+                        backgroundColor: secondaryColor,
+                        borderColor: secondaryColor,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'الرصيد',
+                        data: employeeCashStatsData.monthlyData.map((month: any) => month.balance),
+                        backgroundColor: tertiaryColor,
+                        borderColor: tertiaryColor,
+                        borderWidth: 1,
+                      },
+                    ],
+                  }} 
+                  options={{
+                    ...commonOptions,
+                    plugins: {
+                      ...commonOptions.plugins,
+                      legend: {
+                        display: true,
+                        position: 'top' as const,
+                        labels: {
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: '"Tajawal", sans-serif' },
+                        bodyFont: { family: '"Tajawal", sans-serif' },
+                        callbacks: {
+                          label: (context: any) => {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            return `${label}: ${value.toLocaleString()}`;
+                          },
+                        },
+                      },
+                    },
+                    scales: {
+                      y: { 
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'المبلغ',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        },
+                        ticks: {
+                          callback: function(value: any) {
+                            return value.toLocaleString();
+                          }
+                        }
+                      },
+                      x: {
+                        grid: { display: false },
+                        title: {
+                          display: true,
+                          text: 'الشهر',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                    },
+                  }} 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-32">لا توجد بيانات عهد متاحة</div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 8.7: إحصائية كشف حساب العملاء */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">عملاء</span>
+              <div className="flex items-center gap-4">
+                <h3 className="text-base font-semibold text-gray-800">إحصائية كشف حساب العملاء</h3>
+                {clientAccountsStatsData?.monthlyData && clientAccountsStatsData.monthlyData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const tableData = clientAccountsStatsData.monthlyData.map((month: any) => ({
+                        الشهر: month.month,
+                        'عدد العملاء': month.clientsCount,
+                        'إجمالي الإيرادات': month.totalRevenue.toFixed(2),
+                        'إجمالي المصروفات': month.totalExpenses.toFixed(2),
+                        'إجمالي الصافي': month.netAmount.toFixed(2),
+                      }));
+                      openModal('إحصائية كشف حساب العملاء', ['الشهر', 'عدد العملاء', 'إجمالي الإيرادات', 'إجمالي المصروفات', 'إجمالي الصافي'], tableData);
+                    }}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="relative h-80">
+              {clientAccountsStatsData?.monthlyData && clientAccountsStatsData.monthlyData.length > 0 ? (
+                <Bar 
+                  data={{
+                    labels: clientAccountsStatsData.monthlyData.map((month: any) => month.month),
+                    datasets: [
+                      {
+                        label: 'عدد العملاء',
+                        data: clientAccountsStatsData.monthlyData.map((month: any) => month.clientsCount),
+                        backgroundColor: primaryColor,
+                        borderColor: primaryColor,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                      },
+                      {
+                        label: 'إجمالي الإيرادات',
+                        data: clientAccountsStatsData.monthlyData.map((month: any) => month.totalRevenue),
+                        backgroundColor: secondaryColor,
+                        borderColor: secondaryColor,
+                        borderWidth: 1,
+                        yAxisID: 'y1',
+                      },
+                      {
+                        label: 'إجمالي المصروفات',
+                        data: clientAccountsStatsData.monthlyData.map((month: any) => month.totalExpenses),
+                        backgroundColor: tertiaryColor,
+                        borderColor: tertiaryColor,
+                        borderWidth: 1,
+                        yAxisID: 'y1',
+                      },
+                      {
+                        label: 'إجمالي الصافي',
+                        data: clientAccountsStatsData.monthlyData.map((month: any) => month.netAmount),
+                        backgroundColor: lightColor,
+                        borderColor: lightColor,
+                        borderWidth: 1,
+                        yAxisID: 'y1',
+                      },
+                    ],
+                  }} 
+                  options={{
+                    ...commonOptions,
+                    plugins: {
+                      ...commonOptions.plugins,
+                      legend: {
+                        display: true,
+                        position: 'top' as const,
+                        labels: {
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: '"Tajawal", sans-serif' },
+                        bodyFont: { family: '"Tajawal", sans-serif' },
+                        callbacks: {
+                          label: (context: any) => {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            if (label === 'عدد العملاء') {
+                              return `${label}: ${value}`;
+                            }
+                            return `${label}: ${value.toLocaleString()}`;
+                          },
+                        },
+                      },
+                    },
+                    scales: {
+                      y: { 
+                        type: 'linear' as const,
+                        position: 'left' as const,
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'عدد العملاء',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        },
+                        ticks: {
+                          stepSize: 1,
+                          precision: 0,
+                        }
+                      },
+                      y1: {
+                        type: 'linear' as const,
+                        position: 'right' as const,
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'المبلغ',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        },
+                        ticks: {
+                          callback: function(value: any) {
+                            return value.toLocaleString();
+                          }
+                        },
+                        grid: {
+                          drawOnChartArea: false,
+                        },
+                      },
+                      x: {
+                        grid: { display: false },
+                        title: {
+                          display: true,
+                          text: 'الشهر',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                    },
+                  }} 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-32">لا توجد بيانات كشف حساب عملاء متاحة</div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 8.8: إحصائية قائمة الدخل */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <div className="flex gap-3">
+                {incomeStatementStatsData?.totals && (
+                  <>
+                    <div className="bg-teal-800 text-white px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">إجمالي العقود</div>
+                      <div className="text-lg font-bold">{incomeStatementStatsData.totals.contractsCount}</div>
+                    </div>
+                    <div className="bg-gray-100 text-gray-700 px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">إجمالي الإيرادات</div>
+                      <div className="text-lg font-bold">{incomeStatementStatsData.totals.totalRevenues.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-blue-100 text-blue-700 px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">صافي الربح</div>
+                      <div className="text-lg font-bold">{incomeStatementStatsData.totals.netProfitAfterZakat.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-blue-50 text-blue-600 px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">إجمالي المصروفات</div>
+                      <div className="text-lg font-bold">{incomeStatementStatsData.totals.totalExpenses.toLocaleString()}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
+                <h3 className="text-base font-semibold text-gray-800">إحصائية قائمة الدخل</h3>
+                {incomeStatementStatsData?.monthlyData && incomeStatementStatsData.monthlyData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const tableData = incomeStatementStatsData.monthlyData.map((month: any) => ({
+                        الشهر: month.month,
+                        'عدد العقود': month.contractsCount,
+                        'الإيرادات': month.totalRevenues.toFixed(2),
+                        'المصروفات': month.totalExpenses.toFixed(2),
+                        'صافي الربح': month.netProfitAfterZakat.toFixed(2),
+                      }));
+                      openModal('إحصائية قائمة الدخل', ['الشهر', 'عدد العقود', 'الإيرادات', 'المصروفات', 'صافي الربح'], tableData);
+                    }}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mb-4 text-sm text-gray-600 text-right">
+              يوضح هذا الرسم البياني المؤشرات المالية الرئيسية، بما في ذلك عدد العملاء، إجمالي الايرادات، المصروفات، وصافي الإيرادات خلال الفترة الزمنية المحددة
+            </div>
+            <div className="relative h-80">
+              {incomeStatementStatsData?.monthlyData && incomeStatementStatsData.monthlyData.length > 0 ? (
+                <Bar 
+                  data={{
+                    labels: incomeStatementStatsData.monthlyData.map((month: any) => month.month),
+                    datasets: [
+                      {
+                        label: 'إجمالي الإيرادات',
+                        data: incomeStatementStatsData.monthlyData.map((month: any) => month.totalRevenues),
+                        backgroundColor: 'rgba(255, 179, 186, 0.6)',
+                        borderColor: 'rgba(255, 179, 186, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                      },
+                      {
+                        label: 'إجمالي المصروفات',
+                        data: incomeStatementStatsData.monthlyData.map((month: any) => month.totalExpenses),
+                        backgroundColor: 'rgba(173, 216, 230, 0.6)',
+                        borderColor: 'rgba(173, 216, 230, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                      },
+                      {
+                        label: 'صافي الربح',
+                        data: incomeStatementStatsData.monthlyData.map((month: any) => month.netProfitAfterZakat),
+                        type: 'line' as const,
+                        borderColor: '#2d7a7a',
+                        backgroundColor: 'rgba(45, 122, 122, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#2d7a7a',
+                        tension: 0.3,
+                        fill: false,
+                        yAxisID: 'y',
+                      },
+                    ],
+                  } as any} 
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                      mode: 'index' as const,
+                      intersect: false,
+                    },
+                    plugins: {
+                      legend: {
+                        display: true,
+                        position: 'top' as const,
+                        labels: {
+                          font: { family: '"Tajawal", sans-serif', size: 14 },
+                          usePointStyle: true,
+                        }
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: '"Tajawal", sans-serif' },
+                        bodyFont: { family: '"Tajawal", sans-serif' },
+                        callbacks: {
+                          label: (context: any) => {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            return `${label}: ${value.toLocaleString()}`;
+                          },
+                        },
+                      },
+                    },
+                    scales: {
+                      y: { 
+                        type: 'linear' as const,
+                        position: 'right' as const,
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'المبلغ',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        },
+                        ticks: {
+                          callback: function(value: any) {
+                            return value.toLocaleString();
+                          }
+                        }
+                      },
+                      x: {
+                        grid: { display: false },
+                        title: {
+                          display: true,
+                          text: 'الشهر',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                    },
+                  }} 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-32">لا توجد بيانات قائمة الدخل متاحة</div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 8.9: إحصائية تقرير المالي المساند */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <div className="flex gap-3">
+                {musanadFinancialStatsData?.totals && (
+                  <>
+                    <div className="bg-gray-100 text-gray-700 px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">إجمالي الإيرادات</div>
+                      <div className="text-lg font-bold">{musanadFinancialStatsData.totals.totalRevenues.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-blue-50 text-blue-600 px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">إجمالي المصروفات</div>
+                      <div className="text-lg font-bold">{musanadFinancialStatsData.totals.totalExpenses.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-teal-800 text-white px-4 py-3 rounded text-center min-w-[150px]">
+                      <div className="text-xs mb-1">صافي الربح</div>
+                      <div className="text-lg font-bold">{musanadFinancialStatsData.totals.totalNet.toLocaleString()}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
+                <h3 className="text-base font-semibold text-gray-800">إحصائية تقرير المالي المساند</h3>
+                {musanadFinancialStatsData?.monthlyData && musanadFinancialStatsData.monthlyData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const tableData = musanadFinancialStatsData.monthlyData.map((month: any) => ({
+                        الشهر: month.month,
+                        'الإيرادات': month.totalRevenues.toFixed(2),
+                        'المصروفات': month.totalExpenses.toFixed(2),
+                        'الصافي': month.totalNet.toFixed(2),
+                      }));
+                      openModal('إحصائية تقرير المالي المساند', ['الشهر', 'الإيرادات', 'المصروفات', 'الصافي'], tableData);
+                    }}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mb-4 text-sm text-gray-600 text-right">
+              يوضح الرسم البياني أهم المؤشرات المالية والإدارية بما في ذلك الإيرادات المصروفات واجمالي الصافي خلال الفترة الزمنية المحددة
+            </div>
+            <div className="relative h-80">
+              {musanadFinancialStatsData?.monthlyData && musanadFinancialStatsData.monthlyData.length > 0 ? (
+                <Bar 
+                  data={{
+                    labels: musanadFinancialStatsData.monthlyData.map((month: any) => month.month),
+                    datasets: [
+                      {
+                        label: 'إجمالي الإيرادات',
+                        data: musanadFinancialStatsData.monthlyData.map((month: any) => month.totalRevenues),
+                        backgroundColor: 'rgba(255, 179, 186, 0.6)',
+                        borderColor: 'rgba(255, 179, 186, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                      },
+                      {
+                        label: 'إجمالي المصروفات',
+                        data: musanadFinancialStatsData.monthlyData.map((month: any) => month.totalExpenses),
+                        backgroundColor: 'rgba(144, 238, 144, 0.6)',
+                        borderColor: 'rgba(144, 238, 144, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                      },
+                      {
+                        label: 'إجمالي الصافي',
+                        data: musanadFinancialStatsData.monthlyData.map((month: any) => month.totalNet),
+                        type: 'line' as const,
+                        borderColor: '#2d7a7a',
+                        backgroundColor: 'rgba(45, 122, 122, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#2d7a7a',
+                        tension: 0.3,
+                        fill: false,
+                        yAxisID: 'y',
+                      },
+                    ],
+                  } as any} 
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                      mode: 'index' as const,
+                      intersect: false,
+                    },
+                    plugins: {
+                      legend: {
+                        display: true,
+                        position: 'top' as const,
+                        labels: {
+                          font: { family: '"Tajawal", sans-serif', size: 14 },
+                          usePointStyle: true,
+                        }
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: '"Tajawal", sans-serif' },
+                        bodyFont: { family: '"Tajawal", sans-serif' },
+                        callbacks: {
+                          label: (context: any) => {
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            return `${label}: ${value.toLocaleString()}`;
+                          },
+                        },
+                      },
+                    },
+                    scales: {
+                      y: { 
+                        type: 'linear' as const,
+                        position: 'right' as const,
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'المبلغ',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        },
+                        ticks: {
+                          callback: function(value: any) {
+                            return value.toLocaleString();
+                          }
+                        }
+                      },
+                      x: {
+                        grid: { display: false },
+                        title: {
+                          display: true,
+                          text: 'الشهر',
+                          font: { family: '"Tajawal", sans-serif', size: 14 }
+                        }
+                      },
+                    },
+                  }} 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-32">لا توجد بيانات تقرير مالي مساند متاحة</div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 8.10: إحصائية التسوية المالية */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <div className="flex items-center gap-4">
+                <h3 className="text-base font-semibold text-gray-800">إحصائية التسوية المالية</h3>
+                {settlementStatsData?.monthlyData && settlementStatsData.monthlyData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const tableData = settlementStatsData.monthlyData.map((month: any) => ({
+                        الشهر: month.month,
+                        'قيمة العقود': month.contractValue.toFixed(2),
+                        'اجمالي المدفوعات': month.totalPaid.toFixed(2),
+                        'اجمالي المصروفات': month.totalExpenses.toFixed(2),
+                        'الصافي': month.netAmount.toFixed(2),
+                      }));
+                      openModal('إحصائية التسوية المالية', ['الشهر', 'قيمة العقود', 'اجمالي المدفوعات', 'اجمالي المصروفات', 'الصافي'], tableData);
+                    }}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mb-4 text-sm text-gray-600 text-right">
+              يوضح الرسم البياني المؤشرات الرئيسية للتسوية المالية، بما في ذلك قيمة العقود، اجمالي المدفوعات، اجمالي المصروفات والصافي خلال الفترة المحددة.
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Section: Combination Chart */}
+              <div className="lg:col-span-2 relative h-80">
+                {settlementStatsData?.monthlyData && settlementStatsData.monthlyData.length > 0 ? (
+                  <Bar 
+                    data={{
+                      labels: settlementStatsData.monthlyData.map((month: any) => month.month),
+                      datasets: [
+                        {
+                          label: 'قيمة العقود',
+                          data: settlementStatsData.monthlyData.map((month: any) => month.contractValue),
+                          backgroundColor: 'rgba(255, 179, 186, 0.6)',
+                          borderColor: 'rgba(255, 179, 186, 1)',
+                          borderWidth: 1,
+                          yAxisID: 'y',
+                        },
+                        {
+                          label: 'اجمالي المدفوعات',
+                          data: settlementStatsData.monthlyData.map((month: any) => month.totalPaid),
+                          backgroundColor: 'rgba(173, 216, 230, 0.6)',
+                          borderColor: 'rgba(173, 216, 230, 1)',
+                          borderWidth: 1,
+                          yAxisID: 'y',
+                        },
+                        {
+                          label: 'اجمالي المصروفات',
+                          data: settlementStatsData.monthlyData.map((month: any) => month.totalExpenses),
+                          backgroundColor: 'rgba(144, 238, 144, 0.6)',
+                          borderColor: 'rgba(144, 238, 144, 1)',
+                          borderWidth: 1,
+                          yAxisID: 'y',
+                        },
+                        {
+                          label: 'الصافي',
+                          data: settlementStatsData.monthlyData.map((month: any) => month.netAmount),
+                          type: 'line' as const,
+                          borderColor: '#2d7a7a',
+                          backgroundColor: 'rgba(45, 122, 122, 0.1)',
+                          borderWidth: 2,
+                          pointRadius: 4,
+                          pointBackgroundColor: '#2d7a7a',
+                          tension: 0.3,
+                          fill: false,
+                          yAxisID: 'y',
+                        },
+                      ],
+                    } as any} 
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      interaction: {
+                        mode: 'index' as const,
+                        intersect: false,
+                      },
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'top' as const,
+                          labels: {
+                            font: { family: '"Tajawal", sans-serif', size: 14 },
+                            usePointStyle: true,
+                          }
+                        },
+                        tooltip: {
+                          enabled: true,
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleFont: { family: '"Tajawal", sans-serif' },
+                          bodyFont: { family: '"Tajawal", sans-serif' },
+                          callbacks: {
+                            label: (context: any) => {
+                              const label = context.dataset.label || '';
+                              const value = context.parsed.y;
+                              return `${label}: ${value.toLocaleString()}`;
+                            },
+                          },
+                        },
+                      },
+                      scales: {
+                        y: { 
+                          type: 'linear' as const,
+                          position: 'right' as const,
+                          beginAtZero: true,
+                          title: {
+                            display: true,
+                            text: 'المبلغ',
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          },
+                          ticks: {
+                            callback: function(value: any) {
+                              return value.toLocaleString();
+                            }
+                          }
+                        },
+                        x: {
+                          grid: { display: false },
+                          title: {
+                            display: true,
+                            text: 'الشهر',
+                            font: { family: '"Tajawal", sans-serif', size: 14 }
+                          }
+                        },
+                      },
+                    }} 
+                  />
+                ) : (
+                  <div className="text-center text-gray-500 py-32">لا توجد بيانات تسوية مالية متاحة</div>
+                )}
+              </div>
+
+              {/* Right Section: Donut Chart and Summary */}
+              <div className="lg:col-span-1 flex flex-col items-center justify-center">
+                {settlementStatsData?.totals ? (
+                  <>
+                    <div className="relative w-64 h-64 mb-6">
+                      <Doughnut
+                        data={{
+                          labels: ['الصافي', 'اجمالي المصروفات', 'اجمالي المدفوعات'],
+                          datasets: [
+                            {
+                              data: [
+                                settlementStatsData.totals.totalNet,
+                                settlementStatsData.totals.totalExpenses,
+                                settlementStatsData.totals.totalPaid,
+                              ],
+                              backgroundColor: [
+                                'rgba(255, 179, 186, 0.8)',
+                                'rgba(173, 216, 230, 0.8)',
+                                '#2d7a7a',
+                              ],
+                              borderColor: [
+                                'rgba(255, 179, 186, 1)',
+                                'rgba(173, 216, 230, 1)',
+                                '#2d7a7a',
+                              ],
+                              borderWidth: 2,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: true,
+                          plugins: {
+                            legend: {
+                              display: false,
+                            },
+                            tooltip: {
+                              enabled: true,
+                              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                              titleFont: { family: '"Tajawal", sans-serif' },
+                              bodyFont: { family: '"Tajawal", sans-serif' },
+                              callbacks: {
+                                label: (context: any) => {
+                                  const label = context.label || '';
+                                  const value = context.parsed;
+                                  const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                                  const percentage = ((value / total) * 100).toFixed(1);
+                                  return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                                },
+                              },
+                            },
+                          },
+                          cutout: '60%',
+                        }}
+                      />
+                      {/* Center Text */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-gray-800">
+                            {(settlementStatsData.totals.totalPaid + settlementStatsData.totals.totalExpenses + settlementStatsData.totals.totalNet).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Summary Labels */}
+                    <div className="space-y-3 w-full">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(255, 179, 186, 0.8)' }}></div>
+                        <div className="flex-1 text-right">
+                          <div className="text-sm text-gray-600">الصافي</div>
+                          <div className="text-lg font-bold text-gray-800">{settlementStatsData.totals.totalNet.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: 'rgba(173, 216, 230, 0.8)' }}></div>
+                        <div className="flex-1 text-right">
+                          <div className="text-sm text-gray-600">اجمالي المصروفات</div>
+                          <div className="text-lg font-bold text-gray-800">{settlementStatsData.totals.totalExpenses.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: '#2d7a7a' }}></div>
+                        <div className="flex-1 text-right">
+                          <div className="text-sm text-gray-600">اجمالي المدفوعات</div>
+                          <div className="text-lg font-bold text-gray-800">{settlementStatsData.totals.totalPaid.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-500 py-16">لا توجد بيانات</div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Row 15: التقرير النهائي */}
-          <div className="bg-white rounded-xl p-6 shadow-sm">
+          {/* Row 8.11: إحصائية الاقرار الضريبي */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">نهائي</span>
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">التقرير النهائي</h3>
-                <button
-                  onClick={() => openModal('التقرير النهائي', ['الشهر', 'العدد'], finalReportTableData)}
-                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                >
-                  عرض الجدول
-                </button>
+                <h3 className="text-base font-semibold text-gray-800">إحصائية الاقرار الضريبي</h3>
+                {taxMonthlyStatsData?.monthlyData && taxMonthlyStatsData.monthlyData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const tableData = taxMonthlyStatsData.monthlyData.map((month: any) => ({
+                        الشهر: month.month,
+                        'اجمالي ضريبة المبيعات': month.totalSalesTax.toFixed(2),
+                        'اجمالي ضريبة المشتريات': month.totalPurchaseTax.toFixed(2),
+                        'اجمالي الضريبة المستحقة': month.netDueTax.toFixed(2),
+                      }));
+                      openModal('إحصائية الاقرار الضريبي', ['الشهر', 'اجمالي ضريبة المبيعات', 'اجمالي ضريبة المشتريات', 'اجمالي الضريبة المستحقة'], tableData);
+                    }}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                )}
               </div>
             </div>
-            <div className="relative h-80">
-              <Bar data={barChart7Data} options={commonOptions} />
+            <div className="mb-4 text-sm text-gray-600 text-right">
+              يوضح الرسم البياني المؤشرات الرئيسية للإقرار الضريبي، بما في ذلك ضريبة المبيعات، ضريبة المشتريات وصافي الضريبة المستحقة خلال الفترة المحددة.
+            </div>
+            <div className="relative h-96">
+              {taxMonthlyStatsData?.monthlyData && taxMonthlyStatsData.monthlyData.length > 0 ? (
+                <Bar 
+                  data={{
+                    labels: taxMonthlyStatsData.monthlyData.map((month: any) => month.month),
+                    datasets: [
+                      {
+                        label: 'اجمالي ضريبة المبيعات',
+                        data: taxMonthlyStatsData.monthlyData.map((month: any) => month.totalSalesTax),
+                        backgroundColor: '#2d7a7a', // Dark teal/green
+                        borderColor: '#2d7a7a',
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'اجمالي ضريبة المشتريات',
+                        data: taxMonthlyStatsData.monthlyData.map((month: any) => month.totalPurchaseTax),
+                        backgroundColor: '#7dd3c0', // Light teal/mint green
+                        borderColor: '#7dd3c0',
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'اجمالي الضريبة المستحقة',
+                        data: taxMonthlyStatsData.monthlyData.map((month: any) => month.netDueTax),
+                        backgroundColor: '#a8c5e0', // Light blue/lavender
+                        borderColor: '#a8c5e0',
+                        borderWidth: 1,
+                      },
+                    ],
+                  }} 
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: true,
+                        position: 'bottom' as const,
+                        labels: {
+                          font: { family: '"Tajawal", sans-serif', size: 12 },
+                          padding: 15,
+                        },
+                      },
+                      tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: '"Tajawal", sans-serif' },
+                        bodyFont: { family: '"Tajawal", sans-serif' },
+                        callbacks: {
+                          label: (context: any) => {
+                            const value = context.parsed.y;
+                            return `${context.dataset.label}: ${value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+                          },
+                        },
+                      },
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          stepSize: 4000,
+                          font: {
+                            family: '"Tajawal", sans-serif',
+                            size: 12,
+                          },
+                          callback: function(value: any) {
+                            return value.toLocaleString('ar-SA');
+                          },
+                        },
+                        grid: {
+                          color: 'rgba(0, 0, 0, 0.1)',
+                        },
+                      },
+                      x: {
+                        ticks: {
+                          font: {
+                            family: '"Tajawal", sans-serif',
+                            size: 11,
+                          },
+                        },
+                        grid: {
+                          display: false,
+                        },
+                      },
+                    },
+                  }} 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-32">لا توجد بيانات اقرار ضريبي متاحة</div>
+              )}
             </div>
           </div>
+
+ 
+      
         </div>
 
         {/* Modal */}
