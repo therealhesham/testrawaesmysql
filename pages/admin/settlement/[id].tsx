@@ -205,36 +205,8 @@ export default function SettlementDetail() {
 
           {/* Filters Section */}
           <section className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-4">
-            <div className="flex gap-8 mb-6 justify-end">
-              <button 
-                onClick={handleReset}
-                className="bg-teal-800 text-white border-none rounded px-8 py-3 text-base font-medium h-11"
-              >
-                إعادة ضبط
-              </button>
-              
-              <div className="flex gap-4">
-                <div className="flex flex-col gap-2 min-w-56">
-                  <label className="text-md text-gray-500 text-right">الى</label>
-                  <input 
-                    type="date" 
-                    className="w-full bg-white  border border-gray-300 rounded px-4 py-2 text-base text-gray-500 text-right h-11"
-                    value={filters.toDate}
-                    onChange={(e) => setFilters({...filters, toDate: e.target.value})}
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-2 min-w-56">
-                  <label className="text-md text-gray-500 text-right">من</label>
-                  <input 
-                    type="date" 
-                    className="w-full bg-white  border border-gray-300 rounded px-4 py-2 text-base text-gray-500 text-right h-11"
-                    value={filters.fromDate}
-                    onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-2 min-w-56">
+            <div className="flex gap-8 mb-6 justify-start"  >
+             <div className="flex flex-col gap-2 min-w-56">
                   <label className="text-md text-gray-500 text-right">بحث</label>
                   <div className="relative">
                     <input 
@@ -255,6 +227,36 @@ export default function SettlementDetail() {
                     </svg>
                   </div>
                 </div>
+                <div className="flex flex-col gap-2 min-w-56" >
+                  <label className="text-md text-gray-500 text-right">من</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-white  border border-gray-300 rounded px-4 py-2 text-base text-gray-500 text-right h-11"
+                    value={filters.fromDate}
+                    onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
+                  />
+                </div>
+                
+
+              <div className="flex gap-4">
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-500 text-right">الى</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-white  border border-gray-300 rounded px-4 py-2 text-base text-gray-500 text-right h-11"
+                    value={filters.toDate}
+                    onChange={(e) => setFilters({...filters, toDate: e.target.value})}
+                  />
+                </div>
+              <button 
+                onClick={handleReset}
+                className="bg-teal-800 text-white border-none rounded px-8 py-3 text-base font-medium h-11"
+              >
+                إعادة ضبط
+              </button>
+                              
+              
+                
               </div>
             </div>
 
