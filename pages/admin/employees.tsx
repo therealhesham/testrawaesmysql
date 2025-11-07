@@ -371,7 +371,7 @@ return (
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">البريد الإلكتروني</th>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الراتب</th>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">تاريخ التوظيف</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الحالة</th>
+                    {/* <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الحالة</th> */}
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الإجراءات</th>
                   </tr>
                 </thead>
@@ -409,15 +409,15 @@ return (
                         <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                           {formatDate(employee.hireDate)}
                         </td>
-                        <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
+                        {/* <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                           <span className={`px-3 py-1 rounded-full text-sm ${
                             employee.isActive 
-                              ? 'bg-green-100 text-green-800' 
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
                           }`}>
                             {employee.isActive ? 'نشط' : 'غير نشط'}
                           </span>
-                        </td>
+                        </td> */}
                         <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">
                           <button
                             onClick={() => handleDeleteClick(employee)}
