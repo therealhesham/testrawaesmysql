@@ -63,6 +63,19 @@ export default function OfficeFinancialDetails() {
     balance: '',
     description: '',
   });
+
+function getDate(date: string) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
+
+function getMonthName(month: number) {
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[month];
+}
+
   const [openAddModal, setOpenAddModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [office, setOffice] = useState<Office | null>(null);
@@ -438,8 +451,8 @@ export default function OfficeFinancialDetails() {
         row.payment || '-',
         row.contractNumber || '-',
         row.clientName || '-',
-        new Date(row.date).toLocaleDateString('ar-SA', { month: 'long' }),
-        new Date(row.date).toLocaleDateString('ar-SA'),
+        new Date(row.date).toLocaleDateString('en-US', { month: 'long' }),
+        new Date(row.date).toLocaleDateString('en-US'),
         (index + 1).toString(),
       ]);
 
@@ -520,7 +533,7 @@ export default function OfficeFinancialDetails() {
       worksheet.columns = [
         { header: '#', key: 'index', width: 10 },
         { header: 'التاريخ', key: 'date', width: 15 },
-        { header: 'الشهر', key: 'month', width: 15 },
+        // { header: 'الشهر', key: 'month', width: 15 },
         { header: 'اسم العميل', key: 'clientName', width: 20 },
         { header: 'رقم العقد', key: 'contractNumber', width: 15 },
         { header: 'الدفعة', key: 'payment', width: 15 },
@@ -536,8 +549,8 @@ export default function OfficeFinancialDetails() {
       dataToExport.forEach((row: FinancialRecord, index: number) => {
         const addedRow = worksheet.addRow({
           index: index + 1,
-          date: new Date(row.date).toLocaleDateString('ar-SA'),
-          month: new Date(row.date).toLocaleDateString('ar-SA', { month: 'long' }),
+          date: getDate(row.date),
+          // month: getMonthName(new Date(row.date).getMonth()),
           clientName: row.clientName || 'غير متوفر',
           contractNumber: row.contractNumber || '-',
           payment: row.payment || '-',
@@ -777,13 +790,13 @@ export default function OfficeFinancialDetails() {
               </div>
 
               {/* Data Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" dir="rtl">
                 <table className="w-full bg-white border-collapse">
                   <thead>
                     <tr>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">#</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">التاريخ</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الشهر</th>
+                      {/* <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الشهر</th> */}
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">اسم العميل</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">رقم العقد</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الدفعة</th>
@@ -821,11 +834,11 @@ export default function OfficeFinancialDetails() {
                             #{index + 1}
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
-                            {new Date(record.date).toLocaleDateString('ar-SA')}
-                          </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
-                            {new Date(record.date).toLocaleDateString('ar-SA', { month: 'long' })}
-                          </td>
+                            {getDate(record.date)}
+                          </td> 
+                          {/* <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                            {getMonthName(new Date(record.date).getMonth())}
+                          </td> */}
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.clientName}
                           </td>
