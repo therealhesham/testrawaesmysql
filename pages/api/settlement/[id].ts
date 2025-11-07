@@ -1,4 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -7,29 +11,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { id } = req.query;
-    const { fromDate, toDate, search } = req.query;
+    const fromDateStr = Array.isArray(req.query.fromDate) ? req.query.fromDate[0] : req.query.fromDate;
+    const toDateStr = Array.isArray(req.query.toDate) ? req.query.toDate[0] : req.query.toDate;
+    const searchStr = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
 
     if (!id) {
       return res.status(400).json({ message: 'Settlement ID is required' });
     }
 
-    // Build query parameters for client-accounts API
-    const queryParams = new URLSearchParams();
-    if (fromDate) queryParams.append('fromDate', fromDate as string);
-    if (toDate) queryParams.append('toDate', toDate as string);
-    if (search) queryParams.append('search', search as string);
+    // Build where clause for filtering entries
+    const whereClause = {
+      AND: [] as Prisma.ClientAccountEntryWhereInput[]
+    };
 
-    // Fetch data from client-accounts API
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const clientAccountsResponse = await fetch(`${baseUrl}/api/client-accounts/${id}?${queryParams}`);
-    
-    if (!clientAccountsResponse.ok) {
-      return res.status(clientAccountsResponse.status).json({ 
-        message: 'Failed to fetch client account data' 
-      });
+    if (fromDateStr) {
+      whereClause.AND.push({ date: { gte: new Date(fromDateStr) } });
+    }
+    if (toDateStr) {
+      whereClause.AND.push({ date: { lte: new Date(toDateStr) } });
+    }
+    if (searchStr) {
+      whereClause.AND.push({ description: { contains: searchStr } });
     }
 
-    const clientAccountData = await clientAccountsResponse.json();
+    // Fetch data directly from database using Prisma
+    const clientAccountData = await prisma.clientAccountStatement.findUnique({
+      where: { id: Number(id) },
+      include: {
+        client: {
+          select: {
+            id: true,
+            fullname: true,
+            phonenumber: true,
+            nationalId: true,
+            city: true,
+            address: true,
+            createdAt: true
+          }
+        },
+        entries: {
+          where: whereClause.AND.length > 0 ? whereClause : {},
+          orderBy: { date: 'asc' }
+        }
+      }
+    });
 
     if (!clientAccountData) {
       return res.status(404).json({ message: 'Settlement not found' });
