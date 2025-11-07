@@ -121,7 +121,8 @@ const menuItems: MenuItem[] = [
       { id: 93, label: "كشف حساب الموظفين", link: "/admin/employee_cash" },
       { id: 94, label: "التقرير المالي لمساند", link: "/admin/musanad_finacial" },
       { id: 94, label: "التسوية المالية", link: "/admin/settlement" },
-      { id: 94, label: "الاقرارات الضريبية", link: "/admin/taxation" },
+      { id: 2145, label: "الاقرارات الضريبية", link: "/admin/taxation" },
+      { id: 2145, label: "ادارة الموظفين", link: "/admin/employees" },
 
       { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
       { id: 95, label: "سجل النظام المحاسبي", link: "/admin/account-systemlogs" },
