@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 
 interface Payment {
   id: number;
@@ -55,6 +60,19 @@ export default function SettlementDetail() {
     toDate: '',
     search: ''
   });
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token) as any;
+        setUserName(decoded.username || '');
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -87,17 +105,306 @@ export default function SettlementDetail() {
       search: ''
     });
   };
+function getDate(date: string) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: 'SAR',
-      minimumFractionDigits: 2
-    }).format(amount);
+  const formatCurrency = (amount) => {
+    return amount;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-SA');
+  const formatDate = (date: string) => {
+    return getDate(date);
+  };
+
+  const exportToPDF = async () => {
+    if (!data) return;
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // تحميل الشعار
+    try {
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      // تحميل خط أميري
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+
+      doc.setLanguage('ar');
+      
+      // إضافة اللوجو
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+      // العنوان
+      doc.setFontSize(16);
+      doc.text(`عقد #${data.contract.contractNumber}`, pageWidth / 2, 20, { align: 'right' });
+      doc.setFontSize(12);
+      doc.text(`العميل: ${data.contract.clientName}`, pageWidth - 10, 35, { align: 'right' });
+
+      if (activeTab === 'payments') {
+        const tableColumn = ['المبلغ', 'الوصف', 'رقم الدفعة', 'تاريخ العملية', '#'];
+        const tableRows = data.payments.map((payment, index) => [
+          formatCurrency(payment.amount),
+          payment.description || 'غير متوفر',
+          payment.paymentNumber || 'غير متوفر',
+          formatDate(payment.date),
+          `#${index + 1}`
+        ]);
+
+        // إضافة صف الإجمالي
+        tableRows.push([
+          formatCurrency(data.summary.totalPayments),
+          'الإجمالي',
+          '',
+          '',
+          ''
+        ]);
+
+        doc.autoTable({
+          head: [tableColumn],
+          body: tableRows,
+          startY: 45,
+          styles: {
+            font: 'Amiri',
+            halign: 'right',
+            fontSize: 10,
+            cellPadding: 2,
+            textColor: [0, 0, 0],
+          },
+          headStyles: {
+            fillColor: [26, 77, 79],
+            textColor: [255, 255, 255],
+            halign: 'right',
+          },
+          margin: { top: 45, right: 10, left: 10 },
+          didDrawPage: (tableData: any) => {
+            const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
+
+            doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+            if (doc.getCurrentPageInfo().pageNumber === 1) {
+              doc.setFontSize(16);
+              doc.setFont('Amiri', 'normal');
+              doc.text(`عقد #${data.contract.contractNumber}`, pageWidth / 2, 20, { align: 'right' });
+            }
+
+            doc.setFontSize(10);
+            doc.setFont('Amiri', 'normal');
+            doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+            const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+            doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+            const dateText =
+              "التاريخ: " +
+              new Date().toLocaleDateString('ar-EG', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }) +
+              "  الساعة: " +
+              new Date().toLocaleTimeString('ar-EG', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+            doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+          },
+          didParseCell: (cellData: any) => {
+            cellData.cell.styles.halign = 'right';
+          },
+        });
+      } else {
+        const tableColumn = ['المستفيد', 'طريقة الدفع', 'المبلغ', 'الوصف', 'النوع', 'التاريخ', '#'];
+        const tableRows = data.expenses.map((expense, index) => [
+          expense.beneficiary || 'غير متوفر',
+          expense.paymentMethod || 'غير متوفر',
+          formatCurrency(expense.amount),
+          expense.description || 'غير متوفر',
+          expense.type || 'غير متوفر',
+          formatDate(expense.date),
+          `#${index + 1}`
+        ]);
+
+        // إضافة صف الإجمالي
+        tableRows.push([
+          '',
+          '',
+          formatCurrency(data.summary.totalExpenses),
+          'الإجمالي',
+          '',
+          '',
+          ''
+        ]);
+
+        doc.autoTable({
+          head: [tableColumn],
+          body: tableRows,
+          startY: 45,
+          styles: {
+            font: 'Amiri',
+            halign: 'right',
+            fontSize: 10,
+            cellPadding: 2,
+            textColor: [0, 0, 0],
+          },
+          headStyles: {
+            fillColor: [26, 77, 79],
+            textColor: [255, 255, 255],
+            halign: 'right',
+          },
+          margin: { top: 45, right: 10, left: 10 },
+          didDrawPage: (tableData: any) => {
+            const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
+
+            doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+            if (doc.getCurrentPageInfo().pageNumber === 1) {
+              doc.setFontSize(16);
+              doc.setFont('Amiri', 'normal');
+              doc.text(`عقد #${data.contract.contractNumber}`, pageWidth / 2, 20, { align: 'right' });
+            }
+
+            doc.setFontSize(10);
+            doc.setFont('Amiri', 'normal');
+            doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+            const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+            doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+            const dateText =
+              "التاريخ: " +
+              new Date().toLocaleDateString('ar-EG', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }) +
+              "  الساعة: " +
+              new Date().toLocaleTimeString('ar-EG', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+            doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+          },
+          didParseCell: (cellData: any) => {
+            cellData.cell.styles.halign = 'right';
+          },
+        });
+      }
+
+      doc.save(`settlement_${data.contract.contractNumber}.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    }
+  };
+
+  const exportToExcel = async () => {
+    if (!data) return;
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(
+      activeTab === 'payments' ? 'المدفوعات' : 'المصروفات',
+      { properties: { defaultColWidth: 20 } }
+    );
+
+    if (activeTab === 'payments') {
+      worksheet.columns = [
+        { header: '#', key: 'index', width: 10 },
+        { header: 'تاريخ العملية', key: 'date', width: 15 },
+        { header: 'رقم الدفعة', key: 'paymentNumber', width: 15 },
+        { header: 'الوصف', key: 'description', width: 30 },
+        { header: 'المبلغ', key: 'amount', width: 15 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      data.payments.forEach((payment, index) => {
+        worksheet.addRow({
+          index: index + 1,
+          date: formatDate(payment.date),
+          paymentNumber: payment.paymentNumber || 'غير متوفر',
+          description: payment.description || 'غير متوفر',
+          amount: payment.amount,
+        }).alignment = { horizontal: 'right' };
+      });
+
+      // إضافة صف الإجمالي
+      const totalRow = worksheet.addRow({
+        index: '',
+        date: '',
+        paymentNumber: '',
+        description: 'الإجمالي',
+        amount: data.summary.totalPayments,
+      });
+      totalRow.alignment = { horizontal: 'right' };
+      totalRow.font = { bold: true };
+    } else {
+      worksheet.columns = [
+        { header: '#', key: 'index', width: 10 },
+        { header: 'التاريخ', key: 'date', width: 15 },
+        { header: 'النوع', key: 'type', width: 15 },
+        { header: 'الوصف', key: 'description', width: 30 },
+        { header: 'المبلغ', key: 'amount', width: 15 },
+        { header: 'طريقة الدفع', key: 'paymentMethod', width: 15 },
+        { header: 'المستفيد', key: 'beneficiary', width: 20 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      data.expenses.forEach((expense, index) => {
+        worksheet.addRow({
+          index: index + 1,
+          date: formatDate(expense.date),
+          type: expense.type || 'غير متوفر',
+          description: expense.description || 'غير متوفر',
+          amount: expense.amount,
+          paymentMethod: expense.paymentMethod || 'غير متوفر',
+          beneficiary: expense.beneficiary || 'غير متوفر',
+        }).alignment = { horizontal: 'right' };
+      });
+
+      // إضافة صف الإجمالي
+      const totalRow = worksheet.addRow({
+        index: '',
+        date: '',
+        type: '',
+        description: 'الإجمالي',
+        amount: data.summary.totalExpenses,
+        paymentMethod: '',
+        beneficiary: '',
+      });
+      totalRow.alignment = { horizontal: 'right' };
+      totalRow.font = { bold: true };
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `settlement_${data.contract.contractNumber}_${activeTab === 'payments' ? 'payments' : 'expenses'}.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -262,11 +569,19 @@ export default function SettlementDetail() {
 
             {/* Export Buttons */}
             <div className="flex gap-2 mb-4">
-              <button className="bg-teal-800 text-white px-3 py-1 rounded text-md w-16">
-                Excel
+              <button
+                className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded text-md hover:bg-teal-700 transition duration-200"
+                onClick={exportToExcel}
+              >
+                <FileExcelOutlined />
+                <span>Excel</span>
               </button>
-              <button className="bg-teal-800 text-white px-3 py-1 rounded text-md w-14">
-                PDF
+              <button
+                className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded text-md hover:bg-teal-700 transition duration-200"
+                onClick={exportToPDF}
+              >
+                <FilePdfOutlined />
+                <span>PDF</span>
               </button>
             </div>
           </section>
