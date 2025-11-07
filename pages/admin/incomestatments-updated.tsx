@@ -3,6 +3,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { jwtDecode } from 'jwt-decode';
 
 interface MainCategory {
   id: number;
@@ -77,6 +82,7 @@ export default function Home() {
   const [loadingData, setLoadingData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const [zakatRate, setZakatRate] = useState(2.5);
+  const [userName, setUserName] = useState('');
 
   const fetchCategories = async () => {
     try {
@@ -114,6 +120,18 @@ export default function Home() {
 
   useEffect(() => {
     fetchCategories();
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token) as any;
+        setUserName(decoded.username || '');
+      } catch (error) {
+        console.error('Failed to decode token:', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     fetchFinancialData();
   }, [zakatRate]);
 
@@ -153,24 +171,409 @@ export default function Home() {
     );
   };
 
-  // Handle export button clicks
-  const handleExport = async (type: string) => {
+  // Export to PDF
+  const exportToPDF = async () => {
+    if (!financialData) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+
     try {
-      const response = await axios.get(`/api/income-statements/export?format=${type}&zakatRate=${zakatRate}`);
-      const exportData = response.data.data;
-      
-      if (type === 'excel') {
-        // Process Excel export with full year data
-        console.log('Excel export data:', exportData);
-        alert(`تم تحضير البيانات للتصدير إلى Excel (${exportData.months.length} شهر)`);
-      } else if (type === 'pdf') {
-        // Process PDF export with full year data
-        console.log('PDF export data:', exportData);
-        alert(`تم تحضير البيانات للتصدير إلى PDF (${exportData.months.length} شهر)`);
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Load logo
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      // Load Arabic font
+      try {
+        const response = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!response.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        const fontBase64 = Buffer.from(fontBytes).toString('base64');
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (error) {
+        console.error('Error loading Amiri font:', error);
+        alert('خطأ في تحميل الخط العربي');
+        return;
       }
+
+      doc.setLanguage('ar');
+      doc.setFontSize(12);
+
+      // Prepare table data - use months (last 6 months) for display
+      const tableColumn = [
+        'البيان',
+        ...financialData.months.map(month => month.split('-')[1]),
+        'الاجمالي',
+        'المتوسط الشهري'
+      ];
+
+      const tableRows: any[] = [];
+
+      // Add contracts count row
+      const contractsCountRow = [
+        'عدد العقود',
+        ...financialData.months.map(month => 
+          financialData.contracts.byMonth[month]?.count || 0
+        ),
+        financialData.contracts.total,
+        Math.round(financialData.contracts.average)
+      ];
+      tableRows.push(contractsCountRow);
+
+      // Add contracts revenue row
+      const contractsRevenueRow = [
+        'إيرادات العقود',
+        ...financialData.months.map(month => 
+          formatCurrency(financialData.contracts.byMonth[month]?.revenue || 0)
+        ),
+        formatCurrency(financialData.contracts.totalRevenue),
+        formatCurrency(financialData.contracts.averageRevenue)
+      ];
+      tableRows.push(contractsRevenueRow);
+
+      // Add main categories and subcategories
+      financialData.mainCategories.forEach(main => {
+        // Main category row
+        const mainCategoryRow = [
+          main.name,
+          ...financialData.months.map(month => {
+            const total = (main.subCategories || []).reduce((sum, sub) => 
+              sum + ((sub.values && sub.values[month]) || 0), 0
+            );
+            return formatCurrency(total);
+          }),
+          formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + (sub.total || 0), 0)),
+          formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + (sub.total || 0), 0) / (financialData.months?.length || 1))
+        ];
+        tableRows.push(mainCategoryRow);
+
+        // Subcategory rows
+        main.subCategories.forEach(sub => {
+          const subCategoryRow = [
+            sub.name,
+            ...financialData.months.map(month => 
+              formatCurrency((sub.values && sub.values[month]) || 0)
+            ),
+            formatCurrency(sub.total || 0),
+            formatCurrency((sub.total || 0) / (financialData.months?.length || 1))
+          ];
+          tableRows.push(subCategoryRow);
+        });
+      });
+
+      // Add financial metrics
+      const grossProfitRow = [
+        'مجمل الربح',
+        ...financialData.monthlyBreakdown.grossProfit.map(value => 
+          formatCurrency(value || 0)
+        ),
+        formatCurrency(financialData.totals.grossProfit),
+        formatCurrency(financialData.averages.grossProfit)
+      ];
+      tableRows.push(grossProfitRow);
+
+      const operationalExpensesRow = [
+        'اجمالي المصاريف التشغيلية',
+        ...financialData.monthlyBreakdown.operationalExpenses.map(value => 
+          formatCurrency(value || 0)
+        ),
+        formatCurrency(financialData.totals.operationalExpenses),
+        formatCurrency(financialData.averages.operationalExpenses)
+      ];
+      tableRows.push(operationalExpensesRow);
+
+      const otherOperationalExpensesRow = [
+        'اجمالي المصاريف الاخرى التشغيلية',
+        ...financialData.monthlyBreakdown.otherOperationalExpenses.map(value => 
+          formatCurrency(value || 0)
+        ),
+        formatCurrency(financialData.totals.otherOperationalExpenses),
+        formatCurrency(financialData.averages.otherOperationalExpenses)
+      ];
+      tableRows.push(otherOperationalExpensesRow);
+
+      const netProfitBeforeZakatRow = [
+        'صافي الربح قبل الزكاة',
+        ...financialData.monthlyBreakdown.netProfitBeforeZakat.map(value => 
+          formatCurrency(value || 0)
+        ),
+        formatCurrency(financialData.totals.netProfitBeforeZakat),
+        formatCurrency(financialData.averages.netProfitBeforeZakat)
+      ];
+      tableRows.push(netProfitBeforeZakatRow);
+
+      const zakatRow = [
+        `الزكاة (${zakatRate}%)`,
+        ...financialData.monthlyBreakdown.netProfitBeforeZakat.map(beforeZakat => {
+          const zakat = Math.max(0, beforeZakat * (zakatRate / 100));
+          return formatCurrency(zakat);
+        }),
+        formatCurrency(financialData.totals.zakatAmount),
+        formatCurrency(financialData.averages.zakatAmount)
+      ];
+      tableRows.push(zakatRow);
+
+      const netProfitAfterZakatRow = [
+        'صافي الربح بعد الزكاة',
+        ...financialData.monthlyBreakdown.netProfitAfterZakat.map(value => 
+          formatCurrency(value || 0)
+        ),
+        formatCurrency(financialData.totals.netProfitAfterZakat),
+        formatCurrency(financialData.averages.netProfitAfterZakat)
+      ];
+      tableRows.push(netProfitAfterZakatRow);
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 8,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          halign: 'right',
+        },
+        margin: { top: 42, right: 10, left: 10 },
+        didDrawPage: (data: any) => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // Add logo on every page
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // Title on first page only
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text('قائمة الدخل', pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // Footer
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+          const dateText =
+            "التاريخ: " +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            "  الساعة: " +
+            new Date().toLocaleTimeString('ar-EG', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save('income_statement.pdf');
     } catch (error) {
-      console.error('Export error:', error);
-      alert('حدث خطأ في التصدير');
+      console.error('PDF export error:', error);
+      alert('حدث خطأ في تصدير PDF');
+    }
+  };
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    if (!financialData) {
+      alert('لا توجد بيانات للتصدير');
+      return;
+    }
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('قائمة الدخل', { properties: { defaultColWidth: 15 } });
+
+      // Set up columns - use months (last 6 months) for display
+      const columns = [
+        { header: 'البيان', key: 'label', width: 30 },
+        ...financialData.months.map(month => ({
+          header: month.split('-')[1],
+          key: month,
+          width: 15
+        })),
+        { header: 'الاجمالي', key: 'total', width: 15 },
+        { header: 'المتوسط الشهري', key: 'average', width: 15 }
+      ];
+      worksheet.columns = columns;
+
+      // Style header row
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12, bold: true };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1A4D4F' }
+      };
+      worksheet.getRow(1).font = { color: { argb: 'FFFFFFFF' }, bold: true };
+
+      let rowIndex = 2;
+
+      // Add contracts count
+      worksheet.addRow({
+        label: 'عدد العقود',
+        ...financialData.months.reduce((acc, month) => {
+          acc[month] = financialData.contracts.byMonth[month]?.count || 0;
+          return acc;
+        }, {} as any),
+        total: financialData.contracts.total,
+        average: Math.round(financialData.contracts.average)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+
+      // Add contracts revenue
+      worksheet.addRow({
+        label: 'إيرادات العقود',
+        ...financialData.months.reduce((acc, month) => {
+          acc[month] = formatCurrency(financialData.contracts.byMonth[month]?.revenue || 0);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.contracts.totalRevenue),
+        average: formatCurrency(financialData.contracts.averageRevenue)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+
+      // Add main categories and subcategories
+      financialData.mainCategories.forEach(main => {
+        // Main category
+        worksheet.addRow({
+          label: main.name,
+          ...financialData.months.reduce((acc, month) => {
+            const total = (main.subCategories || []).reduce((sum, sub) => 
+              sum + ((sub.values && sub.values[month]) || 0), 0
+            );
+            acc[month] = formatCurrency(total);
+            return acc;
+          }, {} as any),
+          total: formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + (sub.total || 0), 0)),
+          average: formatCurrency((main.subCategories || []).reduce((sum, sub) => sum + (sub.total || 0), 0) / (financialData.months?.length || 1))
+        });
+        worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+        worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+        // Subcategories
+        main.subCategories.forEach(sub => {
+          worksheet.addRow({
+            label: sub.name,
+            ...financialData.months.reduce((acc, month) => {
+              acc[month] = formatCurrency((sub.values && sub.values[month]) || 0);
+              return acc;
+            }, {} as any),
+            total: formatCurrency(sub.total || 0),
+            average: formatCurrency((sub.total || 0) / (financialData.months?.length || 1))
+          });
+          worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+        });
+      });
+
+      // Add financial metrics
+      worksheet.addRow({
+        label: 'مجمل الربح',
+        ...financialData.months.reduce((acc, month, i) => {
+          acc[month] = formatCurrency(financialData.monthlyBreakdown.grossProfit[i] || 0);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.totals.grossProfit),
+        average: formatCurrency(financialData.averages.grossProfit)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+      worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+      worksheet.addRow({
+        label: 'اجمالي المصاريف التشغيلية',
+        ...financialData.months.reduce((acc, month, i) => {
+          acc[month] = formatCurrency(financialData.monthlyBreakdown.operationalExpenses[i] || 0);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.totals.operationalExpenses),
+        average: formatCurrency(financialData.averages.operationalExpenses)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+      worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+      worksheet.addRow({
+        label: 'اجمالي المصاريف الاخرى التشغيلية',
+        ...financialData.months.reduce((acc, month, i) => {
+          acc[month] = formatCurrency(financialData.monthlyBreakdown.otherOperationalExpenses[i] || 0);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.totals.otherOperationalExpenses),
+        average: formatCurrency(financialData.averages.otherOperationalExpenses)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+      worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+      worksheet.addRow({
+        label: 'صافي الربح قبل الزكاة',
+        ...financialData.months.reduce((acc, month, i) => {
+          acc[month] = formatCurrency(financialData.monthlyBreakdown.netProfitBeforeZakat[i] || 0);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.totals.netProfitBeforeZakat),
+        average: formatCurrency(financialData.averages.netProfitBeforeZakat)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+      worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+      worksheet.addRow({
+        label: `الزكاة (${zakatRate}%)`,
+        ...financialData.months.reduce((acc, month, i) => {
+          const beforeZakat = financialData.monthlyBreakdown.netProfitBeforeZakat[i] || 0;
+          const zakat = Math.max(0, beforeZakat * (zakatRate / 100));
+          acc[month] = formatCurrency(zakat);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.totals.zakatAmount),
+        average: formatCurrency(financialData.averages.zakatAmount)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+      worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+      worksheet.addRow({
+        label: 'صافي الربح بعد الزكاة',
+        ...financialData.months.reduce((acc, month, i) => {
+          acc[month] = formatCurrency(financialData.monthlyBreakdown.netProfitAfterZakat[i] || 0);
+          return acc;
+        }, {} as any),
+        total: formatCurrency(financialData.totals.netProfitAfterZakat),
+        average: formatCurrency(financialData.averages.netProfitAfterZakat)
+      });
+      worksheet.getRow(rowIndex++).alignment = { horizontal: 'right' };
+      worksheet.getRow(rowIndex - 1).font = { bold: true };
+
+      // Generate and download
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'income_statement.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Excel export error:', error);
+      alert('حدث خطأ في تصدير Excel');
     }
   };
 
@@ -215,7 +618,7 @@ export default function Home() {
                     <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </button>
-                {/* <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">نسبة الزكاة:</label>
                   <input
                     type="number"
@@ -223,11 +626,32 @@ export default function Home() {
                     min="0"
                     max="100"
                     value={zakatRate}
-                    onChange={(e) => setZakatRate(Number(e.target.value))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (!isNaN(value) && value >= 0 && value <= 100) {
+                        setZakatRate(value);
+                      }
+                    }}
                     className="w-20 px-2 py-1 border rounded text-sm"
                   />
                   <span className="text-sm">%</span>
-                </div> */}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="flex items-center gap-1 bg-[#1A4D4F] text-white px-3 py-1 rounded text-sm hover:bg-[#164044] transition duration-200"
+                    onClick={exportToPDF}
+                  >
+                    <FilePdfOutlined />
+                    <span>PDF</span>
+                  </button>
+                  <button
+                    className="flex items-center gap-1 bg-[#1A4D4F] text-white px-3 py-1 rounded text-sm hover:bg-[#164044] transition duration-200"
+                    onClick={exportToExcel}
+                  >
+                    <FileExcelOutlined />
+                    <span>Excel</span>
+                  </button>
+                </div>
               </div>
               <h2 className="text-3xl text-black">قائمة الدخل</h2>
             </div>
