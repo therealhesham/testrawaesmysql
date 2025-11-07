@@ -613,7 +613,7 @@ useEffect(() => {
                     <div className="flex-1 text-center text-md text-gray-700">
                       <button onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/admin/clients/${statement.client.id}`);
+                        router.push(`/admin/clientdetails?id=${statement.client.id}`);
                       }} className="text-teal-800 hover:underline">
                         {statement.client.fullname}
                       </button>
