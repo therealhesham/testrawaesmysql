@@ -86,7 +86,10 @@ export default async function handler(
         },
       },
       where: filters,
-      orderBy: { id: "desc" },
+      orderBy: [
+        { displayOrder: "desc" },
+        { id: "desc" }
+      ],
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,
     });
