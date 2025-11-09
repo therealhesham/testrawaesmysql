@@ -100,6 +100,7 @@ function getMonthName(month: number) {
   const [contractSuggestions, setContractSuggestions] = useState<string[]>([]);
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
+  const [lastBalance, setLastBalance] = useState<number>(0);
 
   const fetchOfficeData = async () => {
     if (!officeId) return;
@@ -183,9 +184,44 @@ function getMonthName(month: number) {
     };
   }, []);
 
+  const fetchLastBalance = async (officeId: number) => {
+    try {
+      const response = await axios.get(`/api/foreign-offices-financial?officeId=${officeId}&limit=1`);
+      if (response.data.items && response.data.items.length > 0) {
+        const lastRecord = response.data.items[0];
+        setLastBalance(Number(lastRecord.balance) || 0);
+        return Number(lastRecord.balance) || 0;
+      }
+      setLastBalance(0);
+      return 0;
+    } catch (error) {
+      console.error('Error fetching last balance:', error);
+      setLastBalance(0);
+      return 0;
+    }
+  };
+
+  const calculateBalance = (credit: string, debit: string, baseBalance: number) => {
+    const creditNum = parseFloat(credit) || 0;
+    const debitNum = parseFloat(debit) || 0;
+    return baseBalance + debitNum - creditNum;
+  };
+
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const updatedForm = { ...form, [name]: value };
+    
+    // حساب الرصيد تلقائياً عند تغيير المدين أو الدائن
+    if (name === 'credit' || name === 'debit') {
+      const newBalance = calculateBalance(
+        name === 'credit' ? value : updatedForm.credit,
+        name === 'debit' ? value : updatedForm.debit,
+        lastBalance
+      );
+      updatedForm.balance = newBalance.toString();
+    }
+    
+    setForm(updatedForm);
   };
 
   const searchContracts = async (searchTerm: string) => {
@@ -254,9 +290,46 @@ function getMonthName(month: number) {
     }, 200);
   };
 
+  const fetchPreviousBalance = async (recordId: number, officeId: number) => {
+    try {
+      // جلب كل السجلات الخاصة بالمكتب ثم البحث عن السجل السابق
+      const response = await axios.get(`/api/foreign-offices-financial?officeId=${officeId}&limit=1000`);
+      if (response.data.items && response.data.items.length > 0) {
+        const records = response.data.items;
+        // إيجاد السجل الحالي
+        const currentIndex = records.findIndex((r: FinancialRecord) => r.id === recordId);
+        // إذا كان هناك سجل قبله، نأخذ رصيده
+        if (currentIndex > 0) {
+          return Number(records[currentIndex - 1].balance) || 0;
+        }
+        // إذا كان أول سجل، نحسب الرصيد السابق من قيمه (الرصيد - مدين + دائن)
+        if (currentIndex === 0 && records[currentIndex]) {
+          const currentRecord = records[currentIndex];
+          return Number(currentRecord.balance) - Number(currentRecord.debit) + Number(currentRecord.credit);
+        }
+      }
+      return 0;
+    } catch (error) {
+      console.error('Error fetching previous balance:', error);
+      return 0;
+    }
+  };
+
   const handleEditChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setEditForm((prev) => ({ ...prev, [name]: value }));
+    const updatedForm = { ...editForm, [name]: value };
+    
+    // حساب الرصيد تلقائياً عند تغيير المدين أو الدائن
+    if (name === 'credit' || name === 'debit') {
+      const newBalance = calculateBalance(
+        name === 'credit' ? value : updatedForm.credit,
+        name === 'debit' ? value : updatedForm.debit,
+        lastBalance
+      );
+      updatedForm.balance = newBalance.toString();
+    }
+    
+    setEditForm(updatedForm);
   };
 
   const handleFilterChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -308,6 +381,13 @@ function getMonthName(month: number) {
         invoiceUrl = await handleInvoiceUpload(invoiceFile);
       }
       
+      // حساب الرصيد النهائي
+      const calculatedBalance = calculateBalance(
+        form.credit || '0',
+        form.debit || '0',
+        lastBalance
+      );
+      
       await axios.post('/api/foreign-offices-financial', {
         date: form.date,
         clientName: form.clientName,
@@ -316,7 +396,7 @@ function getMonthName(month: number) {
         description: form.description,
         credit: Number(form.credit) || 0,
         debit: Number(form.debit) || 0,
-        balance: Number(form.balance) || 0,
+        balance: calculatedBalance,
         invoice: invoiceUrl,
         officeId: Number(officeId),
       });
@@ -332,6 +412,7 @@ function getMonthName(month: number) {
         balance: '',
       });
       setInvoiceFile(null);
+      setLastBalance(0);
       setOpenAddModal(false);
       fetchFinancialRecords();
       alert('تمت الإضافة بنجاح');
@@ -345,15 +426,23 @@ function getMonthName(month: number) {
     e.preventDefault();
     
     try {
+      // حساب الرصيد النهائي
+      const calculatedBalance = calculateBalance(
+        editForm.credit || '0',
+        editForm.debit || '0',
+        lastBalance
+      );
+      
       await axios.put(`/api/foreign-offices-financial/${editForm.id}`, {
         clientName: editForm.clientName,
-        debit: Number(editForm.debit),
-        credit: Number(editForm.credit),
-        balance: Number(editForm.balance),
+        debit: Number(editForm.debit) || 0,
+        credit: Number(editForm.credit) || 0,
+        balance: calculatedBalance,
         description: editForm.description,
       });
       
       setOpenEditModal(false);
+      setLastBalance(0);
       fetchFinancialRecords();
       alert('تم التعديل بنجاح');
     } catch (error) {
@@ -362,7 +451,11 @@ function getMonthName(month: number) {
     }
   };
 
-  const openEditModalHandler = (record: FinancialRecord) => {
+  const openEditModalHandler = async (record: FinancialRecord) => {
+    // جلب الرصيد السابق
+    const previousBalance = await fetchPreviousBalance(record.id, record.officeId);
+    setLastBalance(previousBalance);
+    
     setEditForm({
       id: record.id,
       clientName: record.clientName,
@@ -651,7 +744,22 @@ function getMonthName(month: number) {
               </div>
               <button
                 className="bg-[#1A4D4F] text-white rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-[#164044]"
-                onClick={() => setOpenAddModal(true)}
+                onClick={async () => {
+                  if (officeId) {
+                    await fetchLastBalance(Number(officeId));
+                  }
+                  setForm({
+                    date: new Date().toISOString().split('T')[0],
+                    clientName: '',
+                    contractNumber: '',
+                    payment: '',
+                    description: '',
+                    credit: '',
+                    debit: '',
+                    balance: '0',
+                  });
+                  setOpenAddModal(true);
+                }}
               >
                 <span>اضافة سجل</span>
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -903,13 +1011,41 @@ function getMonthName(month: number) {
         {/* Add Record Modal */}
         {openAddModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/30" onClick={() => setOpenAddModal(false)} />
+            <div className="absolute inset-0 bg-black/30" onClick={() => {
+              setOpenAddModal(false);
+              setLastBalance(0);
+              setForm({
+                date: '',
+                clientName: '',
+                contractNumber: '',
+                payment: '',
+                description: '',
+                credit: '',
+                debit: '',
+                balance: '',
+              });
+              setInvoiceFile(null);
+            }} />
             <div className="relative bg-white p-8 rounded-lg w-full max-w-[850px] mx-auto shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-center text-2xl text-gray-800">إضافة سجل</h2>
                 <button
                   aria-label="close"
-                  onClick={() => setOpenAddModal(false)}
+                  onClick={() => {
+                    setOpenAddModal(false);
+                    setLastBalance(0);
+                    setForm({
+                      date: '',
+                      clientName: '',
+                      contractNumber: '',
+                      payment: '',
+                      description: '',
+                      credit: '',
+                      debit: '',
+                      balance: '',
+                    });
+                    setInvoiceFile(null);
+                  }}
                   className="text-[#1A4D4F] hover:text-[#164044] text-2xl"
                 >
                   ×
@@ -1035,14 +1171,24 @@ function getMonthName(month: number) {
                     )}
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">الرصيد</label>
+                    <label className="mb-2 font-bold text-gray-800">الرصيد (محسوب تلقائياً)</label>
                     <input
                       type="number"
                       name="balance"
                       value={form.balance}
-                      onChange={handleChange}
-                      className="p-2 border border-gray-300 rounded-md bg-white"
+                      disabled
+                      className="p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                     />
+                    <div className="text-sm text-gray-500 mt-1">
+                      الرصيد السابق: <span className="font-semibold">{lastBalance.toLocaleString()}</span>
+                      {(form.debit || form.credit) && (
+                        <span className="mr-2">
+                          {form.debit && ` + ${parseFloat(form.debit).toLocaleString()} (مدين)`}
+                          {form.credit && ` - ${parseFloat(form.credit).toLocaleString()} (دائن)`}
+                          {` = ${parseFloat(form.balance || '0').toLocaleString()}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -1056,7 +1202,21 @@ function getMonthName(month: number) {
                   <button
                     type="button"
                     className="inline-flex justify-center items-center px-6 py-2 rounded-md text-sm font-bold text-[#1A4D4F] border-2 border-[#1A4D4F] hover:bg-[#1A4D4F] hover:text-white"
-                    onClick={() => setOpenAddModal(false)}
+                    onClick={() => {
+                      setOpenAddModal(false);
+                      setLastBalance(0);
+                      setForm({
+                        date: '',
+                        clientName: '',
+                        contractNumber: '',
+                        payment: '',
+                        description: '',
+                        credit: '',
+                        debit: '',
+                        balance: '',
+                      });
+                      setInvoiceFile(null);
+                    }}
                   >
                     إلغاء
                   </button>
@@ -1069,13 +1229,19 @@ function getMonthName(month: number) {
         {/* Edit Record Modal */}
         {openEditModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/30" onClick={() => setOpenEditModal(false)} />
+            <div className="absolute inset-0 bg-black/30" onClick={() => {
+              setOpenEditModal(false);
+              setLastBalance(0);
+            }} />
             <div className="relative bg-white p-8 rounded-lg w-full max-w-[700px] mx-auto shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-center text-2xl text-gray-800">تعديل</h2>
                 <button
                   aria-label="close"
-                  onClick={() => setOpenEditModal(false)}
+                  onClick={() => {
+                    setOpenEditModal(false);
+                    setLastBalance(0);
+                  }}
                   className="text-[#1A4D4F] hover:text-[#164044] text-2xl"
                 >
                   ×
@@ -1115,14 +1281,24 @@ function getMonthName(month: number) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">الرصيد</label>
+                    <label className="mb-2 font-bold text-gray-800">الرصيد (محسوب تلقائياً)</label>
                     <input
                       type="number"
                       name="balance"
                       value={editForm.balance}
-                      onChange={handleEditChange}
-                      className="p-2 border border-gray-300 rounded-md bg-white"
+                      disabled
+                      className="p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                     />
+                    <div className="text-sm text-gray-500 mt-1">
+                      الرصيد السابق: <span className="font-semibold">{lastBalance.toLocaleString()}</span>
+                      {(editForm.debit || editForm.credit) && (
+                        <span className="mr-2">
+                          {editForm.debit && ` + ${parseFloat(editForm.debit).toLocaleString()} (مدين)`}
+                          {editForm.credit && ` - ${parseFloat(editForm.credit).toLocaleString()} (دائن)`}
+                          {` = ${parseFloat(editForm.balance || '0').toLocaleString()}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col sm:col-span-2">
                     <label className="mb-2 font-bold text-gray-800">البيان</label>
@@ -1146,7 +1322,10 @@ function getMonthName(month: number) {
                   <button
                     type="button"
                     className="inline-flex justify-center items-center px-6 py-2 rounded-md text-sm font-bold text-[#1A4D4F] border-2 border-[#1A4D4F] hover:bg-[#1A4D4F] hover:text-white"
-                    onClick={() => setOpenEditModal(false)}
+                    onClick={() => {
+                      setOpenEditModal(false);
+                      setLastBalance(0);
+                    }}
                   >
                     إلغاء
                   </button>

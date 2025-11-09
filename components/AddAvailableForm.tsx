@@ -85,6 +85,10 @@ const [uploadedFileNames, setUploadedFileNames] = useState<Record<string, string
   orderDocument: '',
   contract: '',
 });
+const [isUploading, setIsUploading] = useState<Record<string, boolean>>({
+  orderDocument: false,
+  contract: false,
+});
   // Auto search states for clients
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
@@ -356,6 +360,7 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           const matchedHomemaid = homemaids.find(homemaid => homemaid.Name === order.homemaidInfo.name);
           
           const mappedFormData: FormData = {
+            typeOfContract: "recruitment",
             clientID: matchedClient?.id || '',
             HomemaidId: matchedHomemaid?.id || order.homemaidInfo.name, // Fallback to name if no ID match
             ClientName: order.clientInfo.name,
@@ -434,6 +439,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: 
     return;
   }
 
+  setIsUploading((prev) => ({ ...prev, [fileId]: true }));
   try {
     const res = await fetch(`/api/upload-presigned-url/${fileId}`);
     if (!res.ok) {
@@ -467,6 +473,8 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: 
     setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
     setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
     setUploadedFileNames((prev) => ({ ...prev, [fileId]: '' }));
+  } finally {
+    setIsUploading((prev) => ({ ...prev, [fileId]: false }));
   }
 };
   const handleButtonClick = (fileId: string) => {
@@ -890,8 +898,13 @@ const arabicRegionMap: { [key: string]: string } = {
       <div className={`file-upload-display border ${
         errors[file.id] ? 'border-red-500' : 'border-gray-300'
       } rounded p-2 flex justify-between items-center`}>
-        <span className="text-gray-500 text-sm pr-2">
-          {fileUploaded[file.id as keyof typeof fileUploaded] ? (
+        <span className="text-gray-500 text-sm pr-2 flex items-center gap-2">
+          {isUploading[file.id as keyof typeof isUploading] ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+              <span>جاري الرفع...</span>
+            </>
+          ) : fileUploaded[file.id as keyof typeof fileUploaded] ? (
             // **التغيير الجديد: عرض اسم الملف بدلاً من "ملف مرفق"**
             <div className="flex flex-col">
               <span className="font-medium text-teal-800 text-sm mb-1">

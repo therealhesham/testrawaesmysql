@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
-import { FaSearch, FaRedo, FaFileExcel, FaFilePdf } from "react-icons/fa";
+import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import Modal from "react-modal";
@@ -10,6 +10,23 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { jwtDecode } from "jwt-decode";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
 
@@ -403,6 +420,119 @@ export default function Table() {
     }));
   };
 
+  // Sortable Row Component
+  const SortableRow = ({ item }: { item: any }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <tr
+        ref={setNodeRef}
+        style={style}
+        className={`border-b hover:bg-gray-50 ${isDragging ? 'bg-gray-100' : ''}`}
+      >
+        <td className="px-4 py-2 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <button
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+              title="اسحب لإعادة الترتيب"
+            >
+              <FaGripVertical />
+            </button>
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => handleMoveUp(item.id)}
+                className="text-teal-800 hover:text-teal-900 disabled:opacity-30"
+                disabled={data.indexOf(item) === 0}
+                title="تحريك للأعلى"
+              >
+                <FaArrowUp size={12} />
+              </button>
+              <button
+                onClick={() => handleMoveDown(item.id)}
+                className="text-teal-800 hover:text-teal-900 disabled:opacity-30"
+                disabled={data.indexOf(item) === data.length - 1}
+                title="تحريك للأسفل"
+              >
+                <FaArrowDown size={12} />
+              </button>
+            </div>
+          </div>
+        </td>
+        {visibleColumns.includes('id') && (
+          <td
+            onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
+            className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
+          >
+            {item.id}
+          </td>
+        )}
+        {visibleColumns.includes('Name') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.Name}
+          </td>
+        )}
+        {visibleColumns.includes('phone') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.phone}
+          </td>
+        )}
+        {visibleColumns.includes('Country') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item?.office?.Country}
+          </td>
+        )}
+        {visibleColumns.includes('maritalstatus') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.maritalstatus}
+          </td>
+        )}
+        {visibleColumns.includes('dateofbirth') && (
+          <td 
+            className="px-4 py-2 text-center text-gray-600 cursor-help" 
+            title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}
+          >
+            {calculateAge(item.dateofbirth)} سنة
+          </td>
+        )}
+        {visibleColumns.includes('Passportnumber') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.Passportnumber}
+          </td>
+        )}
+        {visibleColumns.includes('PassportStart') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.PassportStart ? getDate(item.PassportStart) : ""}
+          </td>
+        )}
+        {visibleColumns.includes('PassportEnd') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.PassportEnd ? getDate(item.PassportEnd) : ""}
+          </td>
+        )}
+        {visibleColumns.includes('office') && (
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item?.office?.office}
+          </td>
+        )}
+      </tr>
+    );
+  };
+
   // Column Selector Component
   const ColumnSelector = ({
     visibleColumns,
@@ -462,10 +592,89 @@ export default function Table() {
 const [userName, setUserName] = useState('');
 useEffect(() => {
   const token = localStorage.getItem('token');
-  const decoded = jwtDecode(token);
-  const userName = decoded.username;
-  setUserName(userName);
+  if (token) {
+    const decoded: any = jwtDecode(token);
+    const userName = decoded.username;
+    setUserName(userName);
+  }
 }, []);
+
+  // Drag and Drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = data.findIndex((item) => item.id === active.id);
+      const newIndex = data.findIndex((item) => item.id === over.id);
+
+      const newData = arrayMove(data, oldIndex, newIndex);
+      setData(newData);
+
+      // Update display order in backend
+      try {
+        await updateDisplayOrder(active.id as number, newIndex);
+      } catch (error) {
+        console.error('Error updating display order:', error);
+        // Revert on error
+        fetchData(currentPage);
+      }
+    }
+  };
+
+  // Handle move up
+  const handleMoveUp = async (id: number) => {
+    const index = data.findIndex((item) => item.id === id);
+    if (index > 0) {
+      const newData = arrayMove(data, index, index - 1);
+      setData(newData);
+      
+      try {
+        await updateDisplayOrder(id, index - 1);
+      } catch (error) {
+        console.error('Error updating display order:', error);
+        fetchData(currentPage);
+      }
+    }
+  };
+
+  // Handle move down
+  const handleMoveDown = async (id: number) => {
+    const index = data.findIndex((item) => item.id === id);
+    if (index < data.length - 1) {
+      const newData = arrayMove(data, index, index + 1);
+      setData(newData);
+      
+      try {
+        await updateDisplayOrder(id, index + 1);
+      } catch (error) {
+        console.error('Error updating display order:', error);
+        fetchData(currentPage);
+      }
+    }
+  };
+
+  // Update display order API call
+  const updateDisplayOrder = async (id: number, newOrder: number) => {
+    const response = await fetch('/api/update-display-order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id, newOrder }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update display order');
+    }
+  };
 const exportToPDF = async () => {
   //image logo
     const doc = new jsPDF({ orientation: 'landscape' }); // 🔄 جعلها عرضية لو تحب
@@ -570,12 +779,12 @@ const exportToPDF = async () => {
 
       margin: { top: 45, right: 10, left: 10 },
       direction: 'rtl', // ✅ مهم جدًا لعرض الجدول من اليمين لليسار
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         data.cell.styles.halign = 'center';
       },
 
       // ⚙️ فوتر في كل صفحة
-      didDrawPage: () => {
+      didDrawPage: (data: any) => {
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
 
@@ -586,7 +795,7 @@ const exportToPDF = async () => {
         doc.text(userName, 10, pageHeight - 10, { align: 'left' });
 
         // 🔢 رقم الصفحة في المنتصف
-        const pageNumber = `صفحة ${doc.internal.getNumberOfPages()}`;
+        const pageNumber = `صفحة ${(doc as any).internal.getNumberOfPages()}`;
         doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
  doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
@@ -706,7 +915,7 @@ const exportToPDF = async () => {
     <Layout>
       <div className={`container mx-auto p-4 ${Style["almarai-regular"]}`}>
         <div className="space-y-4">
-          <div className="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
+          <div className="overflow-x-auto   ">
             <div className="flex items-center justify-between p-4">
               <h1
                 className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
@@ -775,95 +984,50 @@ const exportToPDF = async () => {
               </div>
             </div>
 
-            <table className="min-w-full text-md text-left min-h-96">
-              <thead className="bg-teal-800">
-                <tr className="text-white">
-                  {visibleColumns.includes('id') && <th className="px-4 py-2 text-center">الرقم</th>}
-                  {visibleColumns.includes('Name') && <th className="px-4 py-2 text-center">الاسم</th>}
-                  {visibleColumns.includes('phone') && <th className="px-4 py-2 text-center">رقم الجوال</th>}
-                  {visibleColumns.includes('Country') && <th className="px-4 py-2 text-center">الجنسية</th>}
-                  {visibleColumns.includes('maritalstatus') && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
-                  {visibleColumns.includes('dateofbirth') && <th className="px-4 py-2 text-center">العمر</th>}
-                  {visibleColumns.includes('Passportnumber') && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
-                  {visibleColumns.includes('PassportStart') && <th className="px-4 py-2 text-center">بداية الجواز</th>}
-                  {visibleColumns.includes('PassportEnd') && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
-                  {visibleColumns.includes('office') && <th className="px-4 py-2 text-center">المكتب</th>}
-                </tr>
-              </thead>
-              <tbody className="bg-gray-50">
-                {data.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={visibleColumns.length}
-                      className="px-4 py-2 text-center text-gray-500"
-                    >
-                      لا توجد نتائج
-                    </td>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <table className="min-w-full text-md text-left min-h-96">
+                <thead className="bg-teal-800">
+                  <tr className="text-white">
+                    <th className="px-4 py-2 text-center">الترتيب</th>
+                    {visibleColumns.includes('id') && <th className="px-4 py-2 text-center">الرقم</th>}
+                    {visibleColumns.includes('Name') && <th className="px-4 py-2 text-center">الاسم</th>}
+                    {visibleColumns.includes('phone') && <th className="px-4 py-2 text-center">رقم الجوال</th>}
+                    {visibleColumns.includes('Country') && <th className="px-4 py-2 text-center">الجنسية</th>}
+                    {visibleColumns.includes('maritalstatus') && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
+                    {visibleColumns.includes('dateofbirth') && <th className="px-4 py-2 text-center">العمر</th>}
+                    {visibleColumns.includes('Passportnumber') && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
+                    {visibleColumns.includes('PassportStart') && <th className="px-4 py-2 text-center">بداية الجواز</th>}
+                    {visibleColumns.includes('PassportEnd') && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
+                    {visibleColumns.includes('office') && <th className="px-4 py-2 text-center">المكتب</th>}
                   </tr>
-                ) : (
-                  data.map((item) => (
-                    <tr key={item.id} className="border-b hover:bg-gray-50">
-                      {visibleColumns.includes('id') && (
-                        <td
-                          onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
-                          className="px-4 py-2 text-lg  text-center text-teal-800 cursor-pointer hover:underline"
-                        >
-                          {item.id}
-                        </td>
-                      )}
-                      {visibleColumns.includes('Name') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.Name}
-                        </td>
-                      )}
-                      {visibleColumns.includes('phone') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.phone}
-                        </td>
-                      )}
-                      {visibleColumns.includes('Country') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item?.office?.Country}
-                        </td>
-                      )}
-                      {visibleColumns.includes('maritalstatus') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.maritalstatus}
-                        </td>
-                      )}
-                      {visibleColumns.includes('dateofbirth') && (
-                        <td 
-                          className="px-4 py-2 text-center text-gray-600 cursor-help" 
-                          title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}
-                        >
-                          {calculateAge(item.dateofbirth)} سنة
-                        </td>
-                      )}
-                      {visibleColumns.includes('Passportnumber') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.Passportnumber}
-                        </td>
-                      )}
-                      {visibleColumns.includes('PassportStart') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.PassportStart ? getDate(item.PassportStart) : ""}
-                        </td>
-                      )}
-                      {visibleColumns.includes('PassportEnd') && (
-                        <td className="px-4 py-2 text-center text-gray-600">
-                          {item.PassportEnd ? getDate(item.PassportEnd) : ""}
-                        </td>
-                      )}
-                      {visibleColumns.includes('office') && (
-                        <td className="px-4 py-2 text-center  text-gray-600">
-                          {item?.office?.office}
-                        </td>
-                      )}
+                </thead>
+                <tbody className="bg-gray-50">
+                  {data.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={visibleColumns.length + 1}
+                        className="px-4 py-2 text-center text-gray-500"
+                      >
+                        لا توجد نتائج
+                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    <SortableContext
+                      items={data.map((item) => item.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {data.map((item) => (
+                        <SortableRow key={item.id} item={item} />
+                      ))}
+                    </SortableContext>
+                  )}
+                </tbody>
+              </table>
+            </DndContext>
 
             {totalPages > 1 && renderPagination()}
             {loading && (
