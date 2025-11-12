@@ -236,9 +236,9 @@ export default function EditSalesModal({ isOpen, onClose, onSuccess, salesRecord
                     placeholder="اختر العميل"
                     className="w-full bg-white border border-gray-300 rounded-md p-2 pr-10 text-sm"
                   />
-                  <span className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400">
+                  {/* <span className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400">
                     <Icon path="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" className="w-4 h-4" />
-                  </span>
+                  </span> */}
                   {showClientDropdown && filteredClients.length > 0 && (
                     <div 
                       className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"

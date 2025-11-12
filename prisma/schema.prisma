@@ -254,7 +254,7 @@ model offices {
   office            String?    @db.VarChar(191) @unique
   password         String?    @db.VarChar(191)
   url         String?    @db.VarChar(512)
-  
+  email         String?    @db.VarChar(191)
   office_id       String?    @db.VarChar(191)
 Country         String?    @db.VarChar(191)
 phoneNumber     String ?@db.VarChar(191)
@@ -262,6 +262,8 @@ HomeMaid  homemaid[]
   officemssages   officemssages[]
   financialRecords foreignOfficeFinancial[]
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
+language        String? @default("eng")
+
 }
 // model Office {
 //   id         Int       @id @default(autoincrement())

@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // استخراج معايير البحث
-    const { period, startDate, endDate } = req.method === 'POST' ? req.body : req.query;
+    const { period, startDate, endDate, monthSelection } = req.method === 'POST' ? req.body : req.query;
 
     // تحديد نطاق زمني
     let dateFilter: { gte?: Date; lte?: Date } = {};
@@ -18,8 +18,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       dateFilter.gte = subDays(new Date(), 7);
       dateFilter.lte = new Date();
     } else if (period === 'month') {
-      dateFilter.gte = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      dateFilter.lte = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+      let targetMonth: Date;
+      if (monthSelection === 'previous') {
+        targetMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+      } else {
+        targetMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      }
+      dateFilter.gte = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+      dateFilter.lte = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59, 999);
     } else if (period === 'custom' && startDate && endDate) {
       dateFilter.gte = new Date(startDate as string);
       dateFilter.lte = new Date(endDate as string);

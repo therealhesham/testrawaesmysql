@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { period = 'year', startDate, endDate } = req.method === 'POST' ? req.body : req.query;
+    const { period = 'year', startDate, endDate, monthSelection } = req.method === 'POST' ? req.body : req.query;
 
     // تحديد نطاق التاريخ
     let dateFilter: any = {};
@@ -18,10 +18,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         lte: now,
       };
     } else if (period === 'month') {
-      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      let targetMonth: Date;
+      if (monthSelection === 'previous') {
+        targetMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      } else {
+        targetMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+      const monthStart = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+      const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59, 999);
       dateFilter = {
-        gte: oneMonthAgo,
-        lte: now,
+        gte: monthStart,
+        lte: monthEnd,
       };
     } else if (period === 'week') {
       const oneWeekAgo = new Date(now);

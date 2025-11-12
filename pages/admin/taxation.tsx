@@ -37,6 +37,7 @@ const TaxReportPage = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [userName, setUserName] = useState('');
+  const [counts, setCounts] = useState({ sales: 0, purchases: 0, vat: 3 });
 
   // Fetch sales data
   const fetchSalesData = async () => {
@@ -100,6 +101,30 @@ const TaxReportPage = () => {
       setIsVatLoading(false);
     }
   };
+
+  // Fetch counts for tabs
+  const fetchCounts = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (dateFrom) params.append('from', dateFrom);
+      if (dateTo) params.append('to', dateTo);
+      
+      const response = await fetch(`/api/tax/counts?${params.toString()}`);
+      const data = await response.json();
+      
+      if (data.success && data.counts) {
+        setCounts(data.counts);
+      }
+    } catch (error) {
+      console.error('Error fetching counts:', error);
+    }
+  };
+
+  // Fetch counts on mount and when date filters change
+  useEffect(() => {
+    fetchCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo]);
 
   // Load data on mount and when tab changes
   useEffect(() => {
@@ -217,7 +242,7 @@ function getDate(date: any) {
   const formatDate = (dateString: string | Date | null | undefined) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'numeric', year: 'numeric' });
   };
 
   // Format number with commas
@@ -710,14 +735,17 @@ function getDate(date: any) {
 
             {/* ## Tab Navigation */}
             <nav className="flex justify-center items-end gap-9 mb-5 border-b border-gray-200 pb-4">
-              <button onClick={() => setActiveTab('vat')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'vat' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-500'}`}>
-                <span>3</span><span>الضريبة المضافة</span>
+              <button onClick={() => setActiveTab('vat')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'vat' ? 'border-b-2 border-gray-800 text-gray-800 font-bold' : 'text-gray-500'}`}>
+                <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-gray-200 text-xs font-medium text-gray-700">{counts.vat}</span>
+                <span>الضريبة المضافة</span>
               </button>
-              <button onClick={() => setActiveTab('sales')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'sales' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-500'}`}>
-                <span>{salesData.length}</span><span>المبيعات</span>
+              <button onClick={() => setActiveTab('sales')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'sales' ? 'border-b-2 border-gray-800 text-gray-800 font-bold' : 'text-gray-500'}`}>
+                <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-gray-200 text-xs font-medium text-gray-700">{counts.sales || salesData.length}</span>
+                <span>المبيعات</span>
               </button>
-              <button onClick={() => setActiveTab('purchases')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'purchases' ? 'border-b-2 border-gray-800 text-gray-800' : 'text-gray-500'}`}>
-                <span>{purchasesData.length}</span><span>المشتريات</span>
+              <button onClick={() => setActiveTab('purchases')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'purchases' ? 'border-b-2 border-gray-800 text-gray-800 font-bold' : 'text-gray-500'}`}>
+                <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-gray-200 text-xs font-medium text-gray-700">{counts.purchases || purchasesData.length}</span>
+                <span>المشتريات</span>
               </button>
             </nav>
             
@@ -1042,6 +1070,7 @@ function getDate(date: any) {
           onSuccess={() => {
             // Refresh sales data and VAT summary after adding new record
             fetchSalesData();
+            fetchCounts();
             if (activeTab === 'vat') {
               fetchVATSummary();
             }
@@ -1055,6 +1084,7 @@ function getDate(date: any) {
           onSuccess={() => {
             // Refresh purchases data and VAT summary after adding new record
             fetchPurchasesData();
+            fetchCounts();
             if (activeTab === 'vat') {
               fetchVATSummary();
             }
@@ -1071,6 +1101,7 @@ function getDate(date: any) {
           onSuccess={() => {
             // Refresh sales data and VAT summary after editing
             fetchSalesData();
+            fetchCounts();
             if (activeTab === 'vat') {
               fetchVATSummary();
             }
@@ -1088,6 +1119,7 @@ function getDate(date: any) {
           onSuccess={() => {
             // Refresh purchases data and VAT summary after editing
             fetchPurchasesData();
+            fetchCounts();
             if (activeTab === 'vat') {
               fetchVATSummary();
             }
