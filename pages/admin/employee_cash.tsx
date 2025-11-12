@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
+import AlertModal from '../../components/AlertModal';
 interface Employee {
   id: number;
   name: string;
@@ -50,6 +51,20 @@ export interface EmployeeOption {
   department?: string;
 }
 
+// Employee form data interface
+interface EmployeeFormData {
+  name: string;
+  position: string;
+  department: string;
+  phoneNumber: string;
+  email: string;
+  nationalId: string;
+  address: string;
+  hireDate: string;
+  salary: string;
+  notes: string;
+}
+
 export default function EmployeeCash() {
   const router = useRouter();
   const [data, setData] = useState<EmployeeCashData | null>(null);
@@ -78,6 +93,28 @@ export default function EmployeeCash() {
   const [uploadedFileName, setUploadedFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+  
+  // Add Employee Modal State
+  const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
+  const [isSubmittingEmployee, setIsSubmittingEmployee] = useState(false);
+  const [employeeFormData, setEmployeeFormData] = useState<EmployeeFormData>({
+    name: '',
+    position: '',
+    department: '',
+    phoneNumber: '',
+    email: '',
+    nationalId: '',
+    address: '',
+    hireDate: '',
+    salary: '',
+    notes: ''
+  });
+  const [employeeFormErrors, setEmployeeFormErrors] = useState<Record<string, string>>({});
+  
+  // Success/Error Modal State
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
   useEffect(() => {
     fetchEmployeeCashData();
@@ -170,6 +207,139 @@ export default function EmployeeCash() {
         const { [field]: removed, ...rest } = prev;
         return rest;
       });
+    }
+  };
+
+  // Employee form handlers
+  const handleEmployeeFormFieldChange = (field: keyof EmployeeFormData, value: string) => {
+    setEmployeeFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error for this field when user starts typing
+    if (employeeFormErrors[field]) {
+      setEmployeeFormErrors(prev => {
+        const { [field]: removed, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const validateEmployeeForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (!employeeFormData.name.trim()) {
+      errors.name = 'اسم الموظف مطلوب';
+    }
+    
+    // Email validation if provided
+    if (employeeFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeFormData.email)) {
+      errors.email = 'البريد الإلكتروني غير صحيح';
+    }
+    
+    // Phone validation if provided
+    if (employeeFormData.phoneNumber && !/^[0-9+\-\s()]+$/.test(employeeFormData.phoneNumber)) {
+      errors.phoneNumber = 'رقم الهاتف غير صحيح';
+    }
+    
+    setEmployeeFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleEmployeeSelectChange = (value: string) => {
+    if (value === 'add_new') {
+      // Open add employee modal
+      setIsAddEmployeeModalOpen(true);
+      setEmployeeFormData({
+        name: '',
+        position: '',
+        department: '',
+        phoneNumber: '',
+        email: '',
+        nationalId: '',
+        address: '',
+        hireDate: '',
+        salary: '',
+        notes: ''
+      });
+      setEmployeeFormErrors({});
+    } else {
+      // Normal employee selection
+      handleFormFieldChange('employeeId', value);
+    }
+  };
+
+  const handleCloseAddEmployeeModal = () => {
+    setIsAddEmployeeModalOpen(false);
+    setEmployeeFormData({
+      name: '',
+      position: '',
+      department: '',
+      phoneNumber: '',
+      email: '',
+      nationalId: '',
+      address: '',
+      hireDate: '',
+      salary: '',
+      notes: ''
+    });
+    setEmployeeFormErrors({});
+  };
+
+  const handleSubmitEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateEmployeeForm()) {
+      return;
+    }
+    
+    setIsSubmittingEmployee(true);
+    
+    try {
+      const submitData = {
+        name: employeeFormData.name.trim(),
+        position: employeeFormData.position.trim() || null,
+        department: employeeFormData.department.trim() || null,
+        phoneNumber: employeeFormData.phoneNumber.trim() || null,
+        email: employeeFormData.email.trim() || null,
+        nationalId: employeeFormData.nationalId.trim() || null,
+        address: employeeFormData.address.trim() || null,
+        hireDate: employeeFormData.hireDate || null,
+        salary: employeeFormData.salary ? Number(employeeFormData.salary) : null,
+        notes: employeeFormData.notes.trim() || null
+      };
+      
+      const response = await fetch('/api/employees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitData),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        // Refresh employees list
+        await fetchEmployees();
+        // Select the newly added employee
+        if (result.employee?.id) {
+          handleFormFieldChange('employeeId', result.employee.id.toString());
+        }
+        handleCloseAddEmployeeModal();
+        setModalMessage('تم إضافة الموظف بنجاح');
+        setShowSuccessModal(true);
+      } else {
+        const errorData = await response.json();
+        setModalMessage(errorData.error || 'حدث خطأ أثناء إضافة الموظف');
+        setShowErrorModal(true);
+      }
+    } catch (error) {
+      console.error('Error submitting employee form:', error);
+      setModalMessage('حدث خطأ أثناء إضافة الموظف');
+      setShowErrorModal(true);
+    } finally {
+      setIsSubmittingEmployee(false);
     }
   };
 
@@ -396,10 +566,7 @@ export default function EmployeeCash() {
                   value={filters.fromDate}
                   onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
                 />
-                <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="3" width="12" height="11" rx="2" ry="2" stroke="#6B7280" strokeWidth="2"/>
-                  <path d="M11 1v4M5 1v4M2 7h12" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+          
               </div>
             </div>
           </div>
@@ -500,8 +667,8 @@ export default function EmployeeCash() {
                   <label className="text-md text-gray-500 mb-2">الموظف</label>
                   <select 
                     value={formData.employeeId}
-                    onChange={(e) => handleFormFieldChange('employeeId', e.target.value)}
-                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                    onChange={(e) => handleEmployeeSelectChange(e.target.value)}
+                    className={`w-full bg-gray-50 border rounded   text-base text-right ${
                       formErrors.employeeId ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -509,6 +676,7 @@ export default function EmployeeCash() {
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.name}</option>
                     ))}
+                    <option value="add_new" className="bg-teal-100 font-bold">+ إضافة موظف جديد</option>
                   </select>
                   {formErrors.employeeId && (
                     <span className="text-red-500 text-sm mt-1">{formErrors.employeeId}</span>
@@ -649,6 +817,181 @@ export default function EmployeeCash() {
           </div>
         </div>
       )}
+
+      {/* Add Employee Modal */}
+      {isAddEmployeeModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-85 z-[60] flex justify-center items-center" onClick={handleCloseAddEmployeeModal}>
+          <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-3xl mx-auto relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-center text-xl mb-8 text-gray-700">إضافة موظف جديد</h2>
+            <form onSubmit={handleSubmitEmployee} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">اسم الموظف <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل اسم الموظف" 
+                    value={employeeFormData.name}
+                    onChange={(e) => handleEmployeeFormFieldChange('name', e.target.value)}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
+                  />
+                  {employeeFormErrors.name && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.name}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">المنصب</label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل المنصب" 
+                    value={employeeFormData.position}
+                    onChange={(e) => handleEmployeeFormFieldChange('position', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                  />
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">القسم</label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل القسم" 
+                    value={employeeFormData.department}
+                    onChange={(e) => handleEmployeeFormFieldChange('department', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                  />
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">رقم الهاتف</label>
+                  <input 
+                    type="tel" 
+                    placeholder="05xxxxxxxx" 
+                    value={employeeFormData.phoneNumber}
+                    onChange={(e) => handleEmployeeFormFieldChange('phoneNumber', e.target.value)}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {employeeFormErrors.phoneNumber && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.phoneNumber}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">البريد الإلكتروني</label>
+                  <input 
+                    type="email" 
+                    placeholder="example@email.com" 
+                    value={employeeFormData.email}
+                    onChange={(e) => handleEmployeeFormFieldChange('email', e.target.value)}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  {employeeFormErrors.email && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.email}</span>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">الهوية الوطنية</label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل الهوية الوطنية" 
+                    value={employeeFormData.nationalId}
+                    onChange={(e) => handleEmployeeFormFieldChange('nationalId', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                  />
+                </div>
+                
+                <div className="flex flex-col items-end col-span-2">
+                  <label className="text-md text-gray-500 mb-2">العنوان</label>
+                  <input 
+                    type="text" 
+                    placeholder="ادخل العنوان" 
+                    value={employeeFormData.address}
+                    onChange={(e) => handleEmployeeFormFieldChange('address', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                  />
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">تاريخ التوظيف</label>
+                  <input 
+                    type="date" 
+                    value={employeeFormData.hireDate}
+                    onChange={(e) => handleEmployeeFormFieldChange('hireDate', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                  />
+                </div>
+                
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">الراتب</label>
+                  <input 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={employeeFormData.salary}
+                    onChange={(e) => handleEmployeeFormFieldChange('salary', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                
+                <div className="flex flex-col items-end col-span-2">
+                  <label className="text-md text-gray-500 mb-2">ملاحظات</label>
+                  <textarea 
+                    placeholder="ادخل الملاحظات (اختياري)" 
+                    value={employeeFormData.notes}
+                    onChange={(e) => handleEmployeeFormFieldChange('notes', e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-center gap-4 mt-5">
+                <button 
+                  type="button" 
+                  onClick={handleCloseAddEmployeeModal}
+                  className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base"
+                  disabled={isSubmittingEmployee}
+                >
+                  إلغاء
+                </button>
+                <button 
+                  type="submit" 
+                  className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base disabled:opacity-50"
+                  disabled={isSubmittingEmployee}
+                >
+                  {isSubmittingEmployee ? 'جاري الإضافة...' : 'إضافة'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      <AlertModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        type="success"
+        title="نجح"
+        message={modalMessage}
+      />
+
+      {/* Error Modal */}
+      <AlertModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        type="error"
+        title="خطأ"
+        message={modalMessage}
+      />
 
     </div>
     
