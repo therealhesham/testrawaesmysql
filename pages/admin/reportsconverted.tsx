@@ -9,6 +9,12 @@ import { format } from 'date-fns';
 import Skeleton, { SkeletonTheme } from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { useRouter } from 'next/router';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { jwtDecode } from 'jwt-decode';
+import Select from 'react-select';
 
 // Dynamically import Highcharts components (SSR-safe)
 const HighchartsReact = dynamic(() => import('highcharts-react-official'), { ssr: false });
@@ -59,15 +65,184 @@ const minBarHeightPlugin = {
 Chart.register(minBarHeightPlugin);
 
 // Modal Component
-const DataTableModal = ({ isOpen, onClose, title, columns, data }: { isOpen: boolean; onClose: () => void; title: string; columns: string[]; data: any[] }) => {
+const DataTableModal = ({ isOpen, onClose, title, columns, data, userName }: { isOpen: boolean; onClose: () => void; title: string; columns: string[]; data: any[]; userName: string }) => {
   if (!isOpen) return null;
+
+  const exportToPDF = async () => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // تحميل الشعار
+    try {
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBlob = await logo.blob();
+      const logoBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(logoBlob);
+      });
+      
+      // تحميل خط أميري
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBlob = await response.blob();
+      const fontBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(fontBlob);
+      });
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+      
+      // إعداد الجدول
+      const tableHeaders = columns;
+      const tableRows = data.map((row) => 
+        columns.map((col) => row[col] || 'غير متوفر')
+      );
+
+      doc.autoTable({
+        head: [tableHeaders],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 10,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          halign: 'right',
+        },
+        margin: { top: 39, right: 10, left: 10 },
+        didDrawPage: (data: any) => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // إضافة اللوجو أعلى الصفحة
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // كتابة العنوان في أول صفحة فقط
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text(title, pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // الفوتر
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+
+          doc.text(userName || '', 10, pageHeight - 10, { align: 'left' });
+
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+          const dateText =
+            "التاريخ: " +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            "  الساعة: " +
+            new Date().toLocaleTimeString('ar-EG', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('حدث خطأ أثناء تصدير PDF');
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(title, { properties: { defaultColWidth: 20 } });
+      
+      // إعداد الأعمدة
+      worksheet.columns = columns.map((col) => ({
+        header: col,
+        key: col,
+        width: 20,
+      }));
+
+      // تنسيق رأس الجدول
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1A4D4F' }
+      };
+      worksheet.getRow(1).font = { ...worksheet.getRow(1).font, color: { argb: 'FFFFFFFF' }, bold: true };
+
+      // إضافة البيانات
+      data.forEach((row) => {
+        const excelRow: any = {};
+        columns.forEach((col) => {
+          excelRow[col] = row[col] || 'غير متوفر';
+        });
+        const addedRow = worksheet.addRow(excelRow);
+        addedRow.alignment = { horizontal: 'right' };
+      });
+
+      // تصدير الملف
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title.replace(/\s+/g, '_')}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      alert('حدث خطأ أثناء تصدير Excel');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
           <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToPDF}
+              className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+            >
+              <FilePdfOutlined />
+              <span>PDF</span>
+            </button>
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+            >
+              <FileExcelOutlined />
+              <span>Excel</span>
+            </button>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+          </div>
         </div>
         <div className="p-4">
           <div className="overflow-x-auto">
@@ -131,28 +306,97 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [userName, setUserName] = useState('');
   
   // Separate period states for each chart
   const [ordersPeriod, setOrdersPeriod] = useState<string>('year');
   const [ordersStartDate, setOrdersStartDate] = useState<string>('');
   const [ordersEndDate, setOrdersEndDate] = useState<string>('');
+  const [ordersMonthSelection, setOrdersMonthSelection] = useState<string>('current');
+
+  const [monthlyOrdersPeriod, setMonthlyOrdersPeriod] = useState<string>('year');
+  const [monthlyOrdersStartDate, setMonthlyOrdersStartDate] = useState<string>('');
+  const [monthlyOrdersEndDate, setMonthlyOrdersEndDate] = useState<string>('');
+  const [monthlyOrdersMonthSelection, setMonthlyOrdersMonthSelection] = useState<string>('current');
+  const [monthlyOrdersData, setMonthlyOrdersData] = useState<any>(null);
+
+  const [receivablesPeriod, setReceivablesPeriod] = useState<string>('year');
+  const [receivablesStartDate, setReceivablesStartDate] = useState<string>('');
+  const [receivablesEndDate, setReceivablesEndDate] = useState<string>('');
+  const [receivablesMonthSelection, setReceivablesMonthSelection] = useState<string>('current');
+  const [receivablesData, setReceivablesData] = useState<any>(null);
   
   const [growthPeriod, setGrowthPeriod] = useState<string>('year');
   const [growthStartDate, setGrowthStartDate] = useState<string>('');
   const [growthEndDate, setGrowthEndDate] = useState<string>('');
+  const [growthMonthSelection, setGrowthMonthSelection] = useState<string>('current');
+  
+  const [nationalityTrendsPeriod, setNationalityTrendsPeriod] = useState<string>('year');
+  const [nationalityTrendsStartDate, setNationalityTrendsStartDate] = useState<string>('');
+  const [nationalityTrendsEndDate, setNationalityTrendsEndDate] = useState<string>('');
+  const [nationalityTrendsMonthSelection, setNationalityTrendsMonthSelection] = useState<string>('current');
+  const [nationalityTrendsData, setNationalityTrendsData] = useState<any>(null);
   
   const [tasksPeriod, setTasksPeriod] = useState<string>('year');
   const [tasksStartDate, setTasksStartDate] = useState<string>('');
   const [tasksEndDate, setTasksEndDate] = useState<string>('');
+  const [tasksMonthSelection, setTasksMonthSelection] = useState<string>('current');
 
   const [employeePerformancePeriod, setEmployeePerformancePeriod] = useState<string>('year');
   const [employeePerformanceStartDate, setEmployeePerformanceStartDate] = useState<string>('');
   const [employeePerformanceEndDate, setEmployeePerformanceEndDate] = useState<string>('');
+  const [employeePerformanceMonthSelection, setEmployeePerformanceMonthSelection] = useState<string>('current');
+  
+  const [employeeOrdersPeriod, setEmployeeOrdersPeriod] = useState<string>('year');
+  const [employeeOrdersStartDate, setEmployeeOrdersStartDate] = useState<string>('');
+  const [employeeOrdersEndDate, setEmployeeOrdersEndDate] = useState<string>('');
+  const [employeeOrdersMonthSelection, setEmployeeOrdersMonthSelection] = useState<string>('current');
+  const [employeeOrdersData, setEmployeeOrdersData] = useState<any>(null);
 
   const [bookedEmployeesByOfficePeriod, setBookedEmployeesByOfficePeriod] = useState<string>('year');
   const [bookedEmployeesByOfficeStartDate, setBookedEmployeesByOfficeStartDate] = useState<string>('');
   const [bookedEmployeesByOfficeEndDate, setBookedEmployeesByOfficeEndDate] = useState<string>('');
+  const [bookedEmployeesByOfficeMonthSelection, setBookedEmployeesByOfficeMonthSelection] = useState<string>('current');
   const [bookedEmployeesByOfficeData, setBookedEmployeesByOfficeData] = useState<any>(null);
+  
+  const [officesFinancialPeriod, setOfficesFinancialPeriod] = useState<string>('year');
+  const [officesFinancialStartDate, setOfficesFinancialStartDate] = useState<string>('');
+  const [officesFinancialEndDate, setOfficesFinancialEndDate] = useState<string>('');
+  const [officesFinancialMonthSelection, setOfficesFinancialMonthSelection] = useState<string>('current');
+  
+  const [employeeCashStatsPeriod, setEmployeeCashStatsPeriod] = useState<string>('year');
+  const [employeeCashStatsStartDate, setEmployeeCashStatsStartDate] = useState<string>('');
+  const [employeeCashStatsEndDate, setEmployeeCashStatsEndDate] = useState<string>('');
+  const [employeeCashStatsMonthSelection, setEmployeeCashStatsMonthSelection] = useState<string>('current');
+  
+  const [clientAccountsStatsPeriod, setClientAccountsStatsPeriod] = useState<string>('year');
+  const [clientAccountsStatsStartDate, setClientAccountsStatsStartDate] = useState<string>('');
+  const [clientAccountsStatsEndDate, setClientAccountsStatsEndDate] = useState<string>('');
+  const [clientAccountsStatsMonthSelection, setClientAccountsStatsMonthSelection] = useState<string>('current');
+  
+  const [incomeStatementStatsPeriod, setIncomeStatementStatsPeriod] = useState<string>('year');
+  const [incomeStatementStatsStartDate, setIncomeStatementStatsStartDate] = useState<string>('');
+  const [incomeStatementStatsEndDate, setIncomeStatementStatsEndDate] = useState<string>('');
+  const [incomeStatementStatsMonthSelection, setIncomeStatementStatsMonthSelection] = useState<string>('current');
+  
+  const [musanadFinancialStatsPeriod, setMusanadFinancialStatsPeriod] = useState<string>('year');
+  const [musanadFinancialStatsStartDate, setMusanadFinancialStatsStartDate] = useState<string>('');
+  const [musanadFinancialStatsEndDate, setMusanadFinancialStatsEndDate] = useState<string>('');
+  const [musanadFinancialStatsMonthSelection, setMusanadFinancialStatsMonthSelection] = useState<string>('current');
+
+  const [settlementStatsPeriod, setSettlementStatsPeriod] = useState<string>('year');
+  const [settlementStatsStartDate, setSettlementStatsStartDate] = useState<string>('');
+  const [settlementStatsEndDate, setSettlementStatsEndDate] = useState<string>('');
+  const [settlementStatsMonthSelection, setSettlementStatsMonthSelection] = useState<string>('current');
+
+  const [taxMonthlyStatsPeriod, setTaxMonthlyStatsPeriod] = useState<string>('year');
+  const [taxMonthlyStatsStartDate, setTaxMonthlyStatsStartDate] = useState<string>('');
+  const [taxMonthlyStatsEndDate, setTaxMonthlyStatsEndDate] = useState<string>('');
+  const [taxMonthlyStatsMonthSelection, setTaxMonthlyStatsMonthSelection] = useState<string>('current');
+
+  // Sources filter states
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -212,7 +456,7 @@ export default function Home() {
     try {
       const url = bookedEmployeesByOfficePeriod === 'custom'
         ? `/api/reports/booked-employees-by-office`
-        : `/api/reports/booked-employees-by-office?period=${bookedEmployeesByOfficePeriod}`;
+        : `/api/reports/booked-employees-by-office?period=${bookedEmployeesByOfficePeriod}${bookedEmployeesByOfficePeriod === 'month' ? `&monthSelection=${bookedEmployeesByOfficeMonthSelection}` : ''}`;
       
       const response = await fetch(url, {
         method: bookedEmployeesByOfficePeriod === 'custom' ? 'POST' : 'GET',
@@ -230,7 +474,7 @@ export default function Home() {
     try {
       const url = employeePerformancePeriod === 'custom'
         ? `/api/reports/employee-performance`
-        : `/api/reports/employee-performance?period=${employeePerformancePeriod}`;
+        : `/api/reports/employee-performance?period=${employeePerformancePeriod}${employeePerformancePeriod === 'month' ? `&monthSelection=${employeePerformanceMonthSelection}` : ''}`;
       
       const response = await fetch(url, {
         method: employeePerformancePeriod === 'custom' ? 'POST' : 'GET',
@@ -244,9 +488,35 @@ export default function Home() {
     }
   };
 
+  const fetchEmployeeOrdersData = async () => {
+    try {
+      const url = employeeOrdersPeriod === 'custom'
+        ? `/api/reports/employee-performance`
+        : `/api/reports/employee-performance?period=${employeeOrdersPeriod}${employeeOrdersPeriod === 'month' ? `&monthSelection=${employeeOrdersMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: employeeOrdersPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: employeeOrdersPeriod === 'custom' ? JSON.stringify({ period: employeeOrdersPeriod, startDate: employeeOrdersStartDate, endDate: employeeOrdersEndDate }) : undefined,
+      });
+      const data = await response.json();
+      setEmployeeOrdersData(data);
+    } catch (error) {
+      console.error('Error fetching employee orders data:', error);
+    }
+  };
+
   const fetchOfficesFinancialData = async () => {
     try {
-      const response = await fetch('/api/reports/offices-financial');
+      const url = officesFinancialPeriod === 'custom'
+        ? `/api/reports/offices-financial`
+        : `/api/reports/offices-financial?period=${officesFinancialPeriod}${officesFinancialPeriod === 'month' ? `&monthSelection=${officesFinancialMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: officesFinancialPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: officesFinancialPeriod === 'custom' ? JSON.stringify({ period: officesFinancialPeriod, startDate: officesFinancialStartDate, endDate: officesFinancialEndDate }) : undefined,
+      });
       const data = await response.json();
       setOfficesFinancialData(data);
     } catch (error) {
@@ -256,7 +526,15 @@ export default function Home() {
 
   const fetchEmployeeCashStatsData = async () => {
     try {
-      const response = await fetch('/api/reports/employee-cash-stats');
+      const url = employeeCashStatsPeriod === 'custom'
+        ? `/api/reports/employee-cash-stats`
+        : `/api/reports/employee-cash-stats?period=${employeeCashStatsPeriod}${employeeCashStatsPeriod === 'month' ? `&monthSelection=${employeeCashStatsMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: employeeCashStatsPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: employeeCashStatsPeriod === 'custom' ? JSON.stringify({ period: employeeCashStatsPeriod, startDate: employeeCashStatsStartDate, endDate: employeeCashStatsEndDate }) : undefined,
+      });
       const data = await response.json();
       setEmployeeCashStatsData(data);
     } catch (error) {
@@ -266,7 +544,15 @@ export default function Home() {
 
   const fetchClientAccountsStatsData = async () => {
     try {
-      const response = await fetch('/api/reports/client-accounts-stats');
+      const url = clientAccountsStatsPeriod === 'custom'
+        ? `/api/reports/client-accounts-stats`
+        : `/api/reports/client-accounts-stats?period=${clientAccountsStatsPeriod}${clientAccountsStatsPeriod === 'month' ? `&monthSelection=${clientAccountsStatsMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: clientAccountsStatsPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: clientAccountsStatsPeriod === 'custom' ? JSON.stringify({ period: clientAccountsStatsPeriod, startDate: clientAccountsStatsStartDate, endDate: clientAccountsStatsEndDate }) : undefined,
+      });
       const data = await response.json();
       setClientAccountsStatsData(data);
     } catch (error) {
@@ -276,7 +562,15 @@ export default function Home() {
 
   const fetchIncomeStatementStatsData = async () => {
     try {
-      const response = await fetch('/api/reports/income-statement-stats?zakatRate=2.5');
+      const url = incomeStatementStatsPeriod === 'custom'
+        ? `/api/reports/income-statement-stats?zakatRate=2.5`
+        : `/api/reports/income-statement-stats?zakatRate=2.5&period=${incomeStatementStatsPeriod}${incomeStatementStatsPeriod === 'month' ? `&monthSelection=${incomeStatementStatsMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: incomeStatementStatsPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: incomeStatementStatsPeriod === 'custom' ? JSON.stringify({ period: incomeStatementStatsPeriod, startDate: incomeStatementStatsStartDate, endDate: incomeStatementStatsEndDate, zakatRate: 2.5 }) : undefined,
+      });
       const data = await response.json();
       setIncomeStatementStatsData(data);
     } catch (error) {
@@ -286,7 +580,15 @@ export default function Home() {
 
   const fetchMusanadFinancialStatsData = async () => {
     try {
-      const response = await fetch('/api/reports/musanad-financial-stats');
+      const url = musanadFinancialStatsPeriod === 'custom'
+        ? `/api/reports/musanad-financial-stats`
+        : `/api/reports/musanad-financial-stats?period=${musanadFinancialStatsPeriod}${musanadFinancialStatsPeriod === 'month' ? `&monthSelection=${musanadFinancialStatsMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: musanadFinancialStatsPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: musanadFinancialStatsPeriod === 'custom' ? JSON.stringify({ period: musanadFinancialStatsPeriod, startDate: musanadFinancialStatsStartDate, endDate: musanadFinancialStatsEndDate }) : undefined,
+      });
       const data = await response.json();
       setMusanadFinancialStatsData(data);
     } catch (error) {
@@ -296,7 +598,15 @@ export default function Home() {
 
   const fetchSettlementStatsData = async () => {
     try {
-      const response = await fetch('/api/reports/settlement-stats');
+      const url = settlementStatsPeriod === 'custom'
+        ? `/api/reports/settlement-stats`
+        : `/api/reports/settlement-stats?period=${settlementStatsPeriod}${settlementStatsPeriod === 'month' ? `&monthSelection=${settlementStatsMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: settlementStatsPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: settlementStatsPeriod === 'custom' ? JSON.stringify({ period: settlementStatsPeriod, startDate: settlementStatsStartDate, endDate: settlementStatsEndDate }) : undefined,
+      });
       const data = await response.json();
       setSettlementStatsData(data);
     } catch (error) {
@@ -306,8 +616,15 @@ export default function Home() {
 
   const fetchTaxMonthlyStatsData = async () => {
     try {
-      const currentYear = new Date().getFullYear();
-      const response = await fetch(`/api/tax/monthly-stats?year=${currentYear}`);
+      const url = taxMonthlyStatsPeriod === 'custom'
+        ? `/api/tax/monthly-stats`
+        : `/api/tax/monthly-stats?period=${taxMonthlyStatsPeriod}${taxMonthlyStatsPeriod === 'month' ? `&monthSelection=${taxMonthlyStatsMonthSelection}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: taxMonthlyStatsPeriod === 'custom' ? 'POST' : 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: taxMonthlyStatsPeriod === 'custom' ? JSON.stringify({ period: taxMonthlyStatsPeriod, startDate: taxMonthlyStatsStartDate, endDate: taxMonthlyStatsEndDate }) : undefined,
+      });
       const data = await response.json();
       setTaxMonthlyStatsData(data);
     } catch (error) {
@@ -365,25 +682,36 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchHousedWorkerData();
-    fetchInLocationsData();
-    fetchBookedEmployeesByOfficeData();
-    fetchEmployeePerformanceData();
-    fetchOfficesFinancialData();
-    fetchEmployeeCashStatsData();
-    fetchClientAccountsStatsData();
-    fetchIncomeStatementStatsData();
-    fetchMusanadFinancialStatsData();
-    fetchSettlementStatsData();
-    fetchTaxMonthlyStatsData();
-    const fetchAllData = async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
       try {
-        setLoading(true);
+        const decoded: any = jwtDecode(token);
+        setUserName(decoded.username || '');
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
 
-        // Fetch tasks data with tasksPeriod
+  // Extract available sources from ordersStatsData
+  useEffect(() => {
+    if (ordersStatsData?.SourcesStats) {
+      const sources = ordersStatsData.SourcesStats
+        .filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
+        .map((item: any) => item.Source || 'غير محدد');
+      setAvailableSources(sources);
+      // Initialize selectedSources with all sources if empty
+      setSelectedSources((prev) => prev.length === 0 ? sources : prev);
+    }
+  }, [ordersStatsData]);
+
+  // Separate useEffect for tasks data to avoid re-rendering entire page
+  useEffect(() => {
+    const fetchTasksData = async () => {
+      try {
         const tasksUrl = tasksPeriod === 'custom'
           ? `/api/reports/tasks`
-          : `/api/reports/tasks?period=${tasksPeriod}`;
+          : `/api/reports/tasks?period=${tasksPeriod}${tasksPeriod === 'month' ? `&monthSelection=${tasksMonthSelection}` : ''}`;
         
         const tasksResponse = await fetch(tasksUrl, {
           method: tasksPeriod === 'custom' ? 'POST' : 'GET',
@@ -392,32 +720,81 @@ export default function Home() {
         });
         const tasks = await tasksResponse.json();
         setTasksData(tasks);
+      } catch (error) {
+        console.error('Error fetching tasks data:', error);
+      }
+    };
 
-        // Fetch orders stats data with ordersPeriod
-        const ordersStatsUrl = ordersPeriod === 'custom'
-          ? `/api/reports/orders`
-          : `/api/reports/orders?period=${ordersPeriod}`;
-        
-        const ordersStatsResponse = await fetch(ordersStatsUrl, {
-          method: ordersPeriod === 'custom' ? 'POST' : 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          body: ordersPeriod === 'custom' ? JSON.stringify({ period: ordersPeriod, startDate: ordersStartDate, endDate: ordersEndDate }) : undefined,
-        });
-        const ordersStats = await ordersStatsResponse.json();
-        setOrdersStatsData(ordersStats);
+    fetchTasksData();
+  }, [tasksPeriod, tasksStartDate, tasksEndDate, tasksMonthSelection]);
 
-        // Fetch growth data with growthPeriod
-        const growthUrl = growthPeriod === 'custom'
-          ? `/api/reports/orders`
-          : `/api/reports/orders?period=${growthPeriod}`;
+  useEffect(() => {
+    const fetchNationalityTrendsData = async () => {
+      try {
+        const trendsUrl = nationalityTrendsPeriod === 'custom'
+          ? `/api/reports/nationality-trends`
+          : `/api/reports/nationality-trends?period=${nationalityTrendsPeriod}${nationalityTrendsPeriod === 'month' ? `&monthSelection=${nationalityTrendsMonthSelection}` : ''}`;
         
-        const growthResponse = await fetch(growthUrl, {
-          method: growthPeriod === 'custom' ? 'POST' : 'GET',
+        const trendsResponse = await fetch(trendsUrl, {
+          method: nationalityTrendsPeriod === 'custom' ? 'POST' : 'GET',
           headers: { 'Content-Type': 'application/json' },
-          body: growthPeriod === 'custom' ? JSON.stringify({ period: growthPeriod, startDate: growthStartDate, endDate: growthEndDate }) : undefined,
+          body: nationalityTrendsPeriod === 'custom' ? JSON.stringify({ period: nationalityTrendsPeriod, startDate: nationalityTrendsStartDate, endDate: nationalityTrendsEndDate }) : undefined,
         });
-        const growth = await growthResponse.json();
-        setGrowthData(growth);
+        const trends = await trendsResponse.json();
+        setNationalityTrendsData(trends);
+      } catch (error) {
+        console.error('Error fetching nationality trends data:', error);
+      }
+    };
+
+    fetchNationalityTrendsData();
+  }, [nationalityTrendsPeriod, nationalityTrendsStartDate, nationalityTrendsEndDate, nationalityTrendsMonthSelection]);
+
+  useEffect(() => {
+    fetchEmployeeOrdersData();
+  }, [employeeOrdersPeriod, employeeOrdersStartDate, employeeOrdersEndDate, employeeOrdersMonthSelection]);
+
+  useEffect(() => {
+    fetchBookedEmployeesByOfficeData();
+  }, [bookedEmployeesByOfficePeriod, bookedEmployeesByOfficeStartDate, bookedEmployeesByOfficeEndDate, bookedEmployeesByOfficeMonthSelection]);
+
+  useEffect(() => {
+    fetchEmployeePerformanceData();
+  }, [employeePerformancePeriod, employeePerformanceStartDate, employeePerformanceEndDate, employeePerformanceMonthSelection]);
+
+  useEffect(() => {
+    fetchOfficesFinancialData();
+  }, [officesFinancialPeriod, officesFinancialStartDate, officesFinancialEndDate, officesFinancialMonthSelection]);
+
+  useEffect(() => {
+    fetchEmployeeCashStatsData();
+  }, [employeeCashStatsPeriod, employeeCashStatsStartDate, employeeCashStatsEndDate, employeeCashStatsMonthSelection]);
+
+  useEffect(() => {
+    fetchClientAccountsStatsData();
+  }, [clientAccountsStatsPeriod, clientAccountsStatsStartDate, clientAccountsStatsEndDate, clientAccountsStatsMonthSelection]);
+
+  useEffect(() => {
+    fetchIncomeStatementStatsData();
+  }, [incomeStatementStatsPeriod, incomeStatementStatsStartDate, incomeStatementStatsEndDate, incomeStatementStatsMonthSelection]);
+
+  useEffect(() => {
+    fetchMusanadFinancialStatsData();
+  }, [musanadFinancialStatsPeriod, musanadFinancialStatsStartDate, musanadFinancialStatsEndDate, musanadFinancialStatsMonthSelection]);
+
+  useEffect(() => {
+    fetchSettlementStatsData();
+  }, [settlementStatsPeriod, settlementStatsStartDate, settlementStatsEndDate, settlementStatsMonthSelection]);
+
+  useEffect(() => {
+    fetchTaxMonthlyStatsData();
+  }, [taxMonthlyStatsPeriod, taxMonthlyStatsStartDate, taxMonthlyStatsEndDate, taxMonthlyStatsMonthSelection]);
+
+  // Initial data fetch - only once on mount
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
 
         const reportsResponse = await fetch('/api/reports');
         const reports = await reportsResponse.json();
@@ -431,14 +808,108 @@ export default function Home() {
         const clients = await clientsResponse.json();
         setClientsData(clients);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching initial data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAllData();
-  }, [ordersPeriod, ordersStartDate, ordersEndDate, growthPeriod, growthStartDate, growthEndDate, tasksPeriod, tasksStartDate, tasksEndDate, bookedEmployeesByOfficePeriod, bookedEmployeesByOfficeStartDate, bookedEmployeesByOfficeEndDate, employeePerformancePeriod, employeePerformanceStartDate, employeePerformanceEndDate]);
+    fetchInitialData();
+    fetchHousedWorkerData();
+    fetchInLocationsData();
+  }, []); // Empty dependency array - only run on mount
+
+  // Separate useEffect for orders stats
+  useEffect(() => {
+    const fetchOrdersStats = async () => {
+      try {
+        const ordersStatsUrl = ordersPeriod === 'custom'
+          ? `/api/reports/orders`
+          : `/api/reports/orders?period=${ordersPeriod}${ordersPeriod === 'month' ? `&monthSelection=${ordersMonthSelection}` : ''}`;
+        
+        const ordersStatsResponse = await fetch(ordersStatsUrl, {
+          method: ordersPeriod === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: ordersPeriod === 'custom' ? JSON.stringify({ period: ordersPeriod, startDate: ordersStartDate, endDate: ordersEndDate }) : undefined,
+        });
+        const ordersStats = await ordersStatsResponse.json();
+        setOrdersStatsData(ordersStats);
+      } catch (error) {
+        console.error('Error fetching orders stats:', error);
+      }
+    };
+
+    fetchOrdersStats();
+  }, [ordersPeriod, ordersStartDate, ordersEndDate, ordersMonthSelection]);
+
+  // Separate useEffect for growth data
+  useEffect(() => {
+    const fetchGrowthData = async () => {
+      try {
+        const growthUrl = growthPeriod === 'custom'
+          ? `/api/reports/orders`
+          : `/api/reports/orders?period=${growthPeriod}${growthPeriod === 'month' ? `&monthSelection=${growthMonthSelection}` : ''}`;
+        
+        const growthResponse = await fetch(growthUrl, {
+          method: growthPeriod === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: growthPeriod === 'custom' ? JSON.stringify({ period: growthPeriod, startDate: growthStartDate, endDate: growthEndDate }) : undefined,
+        });
+        const growth = await growthResponse.json();
+        setGrowthData(growth);
+      } catch (error) {
+        console.error('Error fetching growth data:', error);
+      }
+    };
+
+    fetchGrowthData();
+  }, [growthPeriod, growthStartDate, growthEndDate, growthMonthSelection]);
+
+  // Separate useEffect for monthly orders data
+  useEffect(() => {
+    const fetchMonthlyOrdersData = async () => {
+      try {
+        const monthlyOrdersUrl = monthlyOrdersPeriod === 'custom'
+          ? `/api/reports/orders`
+          : `/api/reports/orders?period=${monthlyOrdersPeriod}${monthlyOrdersPeriod === 'month' ? `&monthSelection=${monthlyOrdersMonthSelection}` : ''}`;
+        
+        const monthlyOrdersResponse = await fetch(monthlyOrdersUrl, {
+          method: monthlyOrdersPeriod === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: monthlyOrdersPeriod === 'custom' ? JSON.stringify({ period: monthlyOrdersPeriod, startDate: monthlyOrdersStartDate, endDate: monthlyOrdersEndDate }) : undefined,
+        });
+        const monthlyOrders = await monthlyOrdersResponse.json();
+        setMonthlyOrdersData(monthlyOrders);
+      } catch (error) {
+        console.error('Error fetching monthly orders data:', error);
+      }
+    };
+
+    fetchMonthlyOrdersData();
+  }, [monthlyOrdersPeriod, monthlyOrdersStartDate, monthlyOrdersEndDate, monthlyOrdersMonthSelection]);
+
+  // Separate useEffect for receivables data
+  useEffect(() => {
+    const fetchReceivablesData = async () => {
+      try {
+        const receivablesUrl = receivablesPeriod === 'custom'
+          ? `/api/reports/receivables-stats`
+          : `/api/reports/receivables-stats?period=${receivablesPeriod}${receivablesPeriod === 'month' ? `&monthSelection=${receivablesMonthSelection}` : ''}`;
+        
+        const receivablesResponse = await fetch(receivablesUrl, {
+          method: receivablesPeriod === 'custom' ? 'POST' : 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          body: receivablesPeriod === 'custom' ? JSON.stringify({ period: receivablesPeriod, startDate: receivablesStartDate, endDate: receivablesEndDate }) : undefined,
+        });
+        const receivables = await receivablesResponse.json();
+        setReceivablesData(receivables);
+      } catch (error) {
+        console.error('Error fetching receivables data:', error);
+      }
+    };
+
+    fetchReceivablesData();
+  }, [receivablesPeriod, receivablesStartDate, receivablesEndDate, receivablesMonthSelection]);
 
   // Map data
   const mapData = reportsData?.citiesSources?.byCity
@@ -721,12 +1192,20 @@ export default function Home() {
 
   const donutChart4Data = {
     labels: ordersStatsData?.SourcesStats
-      ?.filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
-      ?.map((item: any) => item.Source || 'غير محدد') || ['تويتر', 'فيسبوك', 'أخرى'],
+      ?.filter((item: any) => {
+        const source = item.Source || 'غير محدد';
+        return item.Source != null && item.Source !== undefined && item.Source !== '' && 
+               (selectedSources.length === 0 || selectedSources.includes(source));
+      })
+      ?.map((item: any) => item.Source || 'غير محدد') || [],
     datasets: [{
       data: ordersStatsData?.SourcesStats
-        ?.filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
-        ?.map((item: any) => item._count?.id || 0) || [0, 0, 0],
+        ?.filter((item: any) => {
+          const source = item.Source || 'غير محدد';
+          return item.Source != null && item.Source !== undefined && item.Source !== '' && 
+                 (selectedSources.length === 0 || selectedSources.includes(source));
+        })
+        ?.map((item: any) => item._count?.id || 0) || [],
       backgroundColor: [primaryColor, secondaryColor, tertiaryColor, lightColor],
       borderColor: [primaryColor, secondaryColor, tertiaryColor, lightColor],
       borderWidth: 1,
@@ -779,15 +1258,34 @@ export default function Home() {
   const donutChart2Data = {
     labels: ['لديهم مستحقات', 'بدون مستحقات'],
     datasets: [{
-      data: [reportsData?.clientsReceivables?.withReceivables || 0, reportsData?.clientsReceivables?.withoutReceivables || 0],
+      data: [
+        receivablesData?.withReceivables || reportsData?.clientsReceivables?.withReceivables || 0, 
+        receivablesData?.withoutReceivables || reportsData?.clientsReceivables?.withoutReceivables || 0
+      ],
       backgroundColor: [primaryColor, secondaryColor],
     }],
   };
 
   const barChart3Data = {
-    labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
+    labels: monthlyOrdersPeriod === 'year'
+      ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+      : (monthlyOrdersData?.timeSeriesData?.labels && Array.isArray(monthlyOrdersData.timeSeriesData.labels))
+        ? monthlyOrdersData.timeSeriesData.labels.map((label: string) => {
+            try {
+              if (!label) return '';
+              const date = new Date(label);
+              if (isNaN(date.getTime())) {
+                return label;
+              }
+              return format(date, 'd/M');
+            } catch (error) {
+              console.error('Error formatting date:', label, error);
+              return label || '';
+            }
+          })
+        : ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
     datasets: [{
-      data: growthData?.timeSeriesData?.data || Array(12).fill(0),
+      data: monthlyOrdersData?.timeSeriesData?.data || growthData?.timeSeriesData?.data || Array(12).fill(0),
       backgroundColor: primaryColor,
     }],
   };
@@ -824,15 +1322,59 @@ export default function Home() {
     };
   });
 
+  // إعداد بيانات الرسم البياني للجنسيات
+  const nationalityTimeSeries = nationalityTrendsData?.nationalityTimeSeries || {};
+  const topNationalities = Object.keys(nationalityTimeSeries);
+  const colors = [primaryColor, secondaryColor, tertiaryColor, '#8B4513', '#FF6347'];
+  
+  // تحديد التسميات (Labels)
+  const chartLabels = nationalityTrendsPeriod === 'year'
+    ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    : (nationalityTrendsData?.timeSeriesData?.labels && Array.isArray(nationalityTrendsData.timeSeriesData.labels))
+      ? nationalityTrendsData.timeSeriesData.labels.map((label: string) => {
+          try {
+            if (!label) return '';
+            const date = new Date(label);
+            if (isNaN(date.getTime())) {
+              return label; // إرجاع القيمة الأصلية إذا كان التاريخ غير صالح
+            }
+            return format(date, 'd/M');
+          } catch (error) {
+            console.error('Error formatting date:', label, error);
+            return label || '';
+          }
+        })
+      : [];
+  
+  const labelCount = chartLabels.length;
+  
   const lineChart2Data = {
-    labels: Array.from({ length: 12 }, (_, i) => `الشهر ${i + 1}`),
-    datasets: [{
-      data: growthData?.timeSeriesData?.data || Array(12).fill(0),
-      borderColor: primaryColor,
-      backgroundColor: 'rgba(45, 122, 122, 0.1)',
-      tension: 0.4,
-      fill: true,
-    }],
+    labels: chartLabels,
+    datasets: topNationalities.length > 0
+      ? topNationalities.map((nationality, index) => {
+          const data = nationalityTimeSeries[nationality] || [];
+          // التأكد من أن طول البيانات يطابق طول التسميات
+          const paddedData = data.length < labelCount 
+            ? [...data, ...Array(labelCount - data.length).fill(0)]
+            : data.slice(0, labelCount);
+          
+          return {
+            label: nationality,
+            data: paddedData,
+            borderColor: colors[index % colors.length],
+            backgroundColor: `${colors[index % colors.length]}20`,
+            tension: 0.4,
+            fill: false,
+          };
+        })
+      : [{
+          label: 'لا توجد بيانات',
+          data: Array(labelCount || (nationalityTrendsPeriod === 'year' ? 12 : 30)).fill(0),
+          borderColor: primaryColor,
+          backgroundColor: 'rgba(45, 122, 122, 0.1)',
+          tension: 0.4,
+          fill: false,
+        }],
   };
 
   const teamData = [85, 92, 78, 88, 95, 82];
@@ -901,6 +1443,29 @@ export default function Home() {
     scales: { y: { beginAtZero: true }, x: { grid: { display: false } } },
   };
 
+  // Chart options for nationality trends (with legend)
+  const nationalityTrendsOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { 
+      legend: { 
+        display: true,
+        position: 'top' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 15,
+          font: {
+            size: 12
+          }
+        }
+      } 
+    },
+    scales: { 
+      y: { beginAtZero: true }, 
+      x: { grid: { display: false } } 
+    },
+  };
+
   const donutOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -953,15 +1518,25 @@ export default function Home() {
   }));
 
   const sourcesTableData = ordersStatsData?.SourcesStats
-    ?.filter((item: any) => item.Source != null && item.Source !== undefined && item.Source !== '')
+    ?.filter((item: any) => {
+      const source = item.Source || 'غير محدد';
+      return item.Source != null && item.Source !== undefined && item.Source !== '' && 
+             (selectedSources.length === 0 || selectedSources.includes(source));
+    })
     ?.map((item: any) => ({
       المصدر: item.Source || 'غير محدد',
       العدد: item._count?.id || 0,
     })) || [];
 
   const receivablesTableData = [
-    { الحالة: 'لديهم مستحقات', العدد: reportsData?.clientsReceivables?.withReceivables || 0 },
-    { الحالة: 'بدون مستحقات', العدد: reportsData?.clientsReceivables?.withoutReceivables || 0 },
+    { 
+      الحالة: 'لديهم مستحقات', 
+      العدد: receivablesData?.withReceivables || reportsData?.clientsReceivables?.withReceivables || 0 
+    },
+    { 
+      الحالة: 'بدون مستحقات', 
+      العدد: receivablesData?.withoutReceivables || reportsData?.clientsReceivables?.withoutReceivables || 0 
+    },
   ];
 
   const tasksTableData = barChart2Data.labels.map((label: string, i: number) => ({
@@ -1003,10 +1578,11 @@ export default function Home() {
     'عدد العاملات المحجوزة': item.count || 0,
   })) || [];
 
-  const trendsTableData = lineChart2Data.labels.map((label: string, i: number) => ({
-    الشهر: label,
-    العدد: lineChart2Data.datasets[0].data[i] || 0,
-  }));
+  // بيانات الجنسيات الأكثر طلباً
+  const trendsTableData = nationalityTrendsData?.nationalityStats?.map((stat: any) => ({
+    الجنسية: stat.nationality || 'غير محدد',
+    'عدد الطلبات': stat.count || 0,
+  })) || [];
 
   const teamPerformance1TableData = barChart4Data.labels.map((label: string, i: number) => ({
     الفريق: label,
@@ -1204,6 +1780,16 @@ export default function Home() {
                     <option value="year">سنوي</option>
                     <option value="custom">مخصص</option>
                   </select>
+                  {ordersPeriod === 'month' && (
+                    <select
+                      value={ordersMonthSelection}
+                      onChange={(e) => setOrdersMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">الشهر الحالي</option>
+                      <option value="previous">الشهر السابق</option>
+                    </select>
+                  )}
                   {ordersPeriod === 'custom' && (
                     <div className="flex gap-2">
                       <input
@@ -1248,6 +1834,16 @@ export default function Home() {
                     <option value="year">سنوي</option>
                     <option value="custom">مخصص</option>
                   </select>
+                  {growthPeriod === 'month' && (
+                    <select
+                      value={growthMonthSelection}
+                      onChange={(e) => setGrowthMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">الشهر الحالي</option>
+                      <option value="previous">الشهر السابق</option>
+                    </select>
+                  )}
                   {growthPeriod === 'custom' && (
                     <div className="flex gap-2">
                       <input
@@ -1287,9 +1883,9 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">جغرافي</span>
-                <div className="flex items-center gap-4">
                   <h3 className="text-base font-semibold text-gray-800">إحصائيات المدن\المصادر</h3>
+
+                <div className="flex items-center gap-4">
                   <button
                     onClick={() => openModal('إحصائيات المدن', ['المدينة', 'العدد'], citiesTableData)}
                     className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
@@ -1309,9 +1905,44 @@ export default function Home() {
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مصادر</span>
                 <div className="flex items-center gap-4">
                   <h3 className="text-base font-semibold text-gray-800">توزيع العملاء حسب المصدر</h3>
+                
+                  <div className="w-64">
+                    <Select
+                      isMulti
+                      options={availableSources.map((source) => ({ value: source, label: source }))}
+                      value={selectedSources.map((source) => ({ value: source, label: source }))}
+                      onChange={(selected) => {
+                        setSelectedSources(selected ? selected.map((item) => item.value) : []);
+                      }}
+                      placeholder="اختر المصادر"
+                      className="text-right"
+                      styles={{
+                        control: (base) => ({
+                          ...base,
+                          backgroundColor: '#F9FAFB',
+                          borderColor: '#D1D5DB',
+                          textAlign: 'right',
+                          paddingRight: '0.5rem',
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          textAlign: 'right',
+                        }),
+                        multiValue: (base) => ({
+                          ...base,
+                          direction: 'rtl',
+                        }),
+                        multiValueLabel: (base) => ({
+                          ...base,
+                          textAlign: 'right',
+                        }),
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
                   <button
                     onClick={() => openModal('توزيع العملاء حسب المصدر', ['المصدر', 'العدد'], sourcesTableData)}
                     className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
@@ -1386,27 +2017,109 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <h3 className="text-base font-semibold text-gray-800">توزيع المستحقات</h3>
-                <button
-                  onClick={() => openModal('توزيع المستحقات', ['الحالة', 'العدد'], receivablesTableData)}
-                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                >
-                  عرض الجدول
-                </button>
+                  <h3 className="text-base font-semibold text-gray-800">توزيع المستحقات</h3>
+
+                <div className="flex items-center gap-4">
+                  <select
+                    value={receivablesPeriod}
+                    onChange={(e) => setReceivablesPeriod(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="week">أسبوعي</option>
+                    <option value="month">شهري</option>
+                    <option value="year">سنوي</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                  {receivablesPeriod === 'month' && (
+                    <select
+                      value={receivablesMonthSelection}
+                      onChange={(e) => setReceivablesMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">الشهر الحالي</option>
+                      <option value="previous">الشهر السابق</option>
+                    </select>
+                  )}
+                  {receivablesPeriod === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={receivablesStartDate}
+                        onChange={(e) => setReceivablesStartDate(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      />
+                      <input
+                        type="date"
+                        value={receivablesEndDate}
+                        onChange={(e) => setReceivablesEndDate(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => openModal('توزيع المستحقات', ['الحالة', 'العدد'], receivablesTableData)}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                </div>
               </div>
               <div className="relative h-64">
                 <Doughnut data={donutChart2Data} options={donutOptions} />
               </div>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <h3 className="text-base font-semibold text-gray-800">إحصائيات المهام</h3>
-                <button
-                  onClick={() => openModal('إحصائيات المهام', ['الشهر', 'المهام المكتملة', 'المهام غير المكتملة'], tasksTableData)}
-                  className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
-                >
-                  عرض الجدول
-                </button>
+            <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                  <h3 className="text-base font-semibold text-gray-800">إحصائيات المهام</h3>
+
+                <div className="flex items-center gap-4">
+                  <select
+                    value={tasksPeriod}
+                    onChange={(e) => setTasksPeriod(e.target.value)}
+                    className="bg-white text-black  py-1 rounded text-sm"
+                  >
+                    <option value="week">أسبوعي</option>
+                    <option value="month">شهري</option>
+                    <option value="year">سنوي</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                  {tasksPeriod === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={tasksStartDate}
+                        onChange={(e) => setTasksStartDate(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      />
+                      <input
+                        type="date"
+                        value={tasksEndDate}
+                        onChange={(e) => setTasksEndDate(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                  )}
+                  {tasksPeriod === 'month' && (
+                    <select
+                      value={tasksMonthSelection}
+                      onChange={(e) => setTasksMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">الشهر الحالي</option>
+                      <option value="previous">الشهر السابق</option>
+                    </select>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => openModal('إحصائيات المهام', ['الشهر', 'المهام المكتملة', 'المهام غير المكتملة'], tasksTableData)}
+                    className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
+                  >
+                    عرض الجدول
+                  </button>
+                </div>
               </div>
               <div className="relative h-64">
                 {tasksData?.timeSeriesData?.labels?.length > 0 ? (
@@ -1421,9 +2134,47 @@ export default function Home() {
           {/* Row 4: الطلبات حسب الشهر */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">تحليل سنوي</span>
+              <h3 className="text-base font-semibold text-gray-800">الطلبات حسب الشهر</h3>
+
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">الطلبات حسب الشهر</h3>
+                <select
+                  value={monthlyOrdersPeriod}
+                  onChange={(e) => setMonthlyOrdersPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {monthlyOrdersPeriod === 'month' && (
+                  <select
+                    value={monthlyOrdersMonthSelection}
+                    onChange={(e) => setMonthlyOrdersMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {monthlyOrdersPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={monthlyOrdersStartDate}
+                      onChange={(e) => setMonthlyOrdersStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={monthlyOrdersEndDate}
+                      onChange={(e) => setMonthlyOrdersEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
                 <button
                   onClick={() => openModal('الطلبات حسب الشهر', ['الشهر', 'العدد'], monthlyOrdersTableData)}
                   className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
@@ -1440,9 +2191,9 @@ export default function Home() {
           {/* Row 5: إحصائيات التسكين حسب الجنسية */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">توزيع</span>
-              <div className="flex items-center gap-4">
                 <h3 className="text-base font-semibold text-gray-800">إحصائيات التسكين حسب الجنسية</h3>
+
+              <div className="flex items-center gap-4">
                 <button
                   onClick={() => openModal('إحصائيات التسكين حسب الجنسية', ['السبب', 'الجنسية', 'العدد', 'النسبة'], housedWorkersTableData)}
                   className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
@@ -1550,6 +2301,8 @@ export default function Home() {
           {/* Row 6.5: إحصائيات العاملات المحجوزة حسب المكتب */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <h3 className="text-base font-semibold text-gray-800">عدد العاملات المحجوزة لكل مكتب</h3>
+
               <div className="flex items-center gap-4">
                 <select
                   value={bookedEmployeesByOfficePeriod}
@@ -1561,6 +2314,16 @@ export default function Home() {
                   <option value="year">سنوي</option>
                   <option value="custom">مخصص</option>
                 </select>
+                {bookedEmployeesByOfficePeriod === 'month' && (
+                  <select
+                    value={bookedEmployeesByOfficeMonthSelection}
+                    onChange={(e) => setBookedEmployeesByOfficeMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
                 {bookedEmployeesByOfficePeriod === 'custom' && (
                   <div className="flex gap-2">
                     <input
@@ -1579,7 +2342,6 @@ export default function Home() {
                 )}
               </div>
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">عدد العاملات المحجوزة لكل مكتب</h3>
                 <button
                   onClick={() => openModal('عدد العاملات المحجوزة لكل مكتب', ['المكتب', 'عدد العاملات المحجوزة'], bookedEmployeesByOfficeTableData)}
                   className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
@@ -1597,14 +2359,49 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Row 7: تحليل الاتجاهات الزمنية */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">اتجاه</span>
+              <h3 className="text-base font-semibold text-gray-800">جنسيات العاملات الأكثر طلباً</h3>
+
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">تحليل الاتجاهات الزمنية</h3>
+                <select
+                  value={nationalityTrendsPeriod}
+                  onChange={(e) => setNationalityTrendsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {nationalityTrendsPeriod === 'month' && (
+                  <select
+                    value={nationalityTrendsMonthSelection}
+                    onChange={(e) => setNationalityTrendsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {nationalityTrendsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={nationalityTrendsStartDate}
+                      onChange={(e) => setNationalityTrendsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={nationalityTrendsEndDate}
+                      onChange={(e) => setNationalityTrendsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
                 <button
-                  onClick={() => openModal('تحليل الاتجاهات الزمنية', ['الشهر', 'العدد'], trendsTableData)}
+                  onClick={() => openModal('جنسيات العاملات الأكثر طلباً', ['الجنسية', 'عدد الطلبات'], trendsTableData)}
                   className="bg-teal-700 text-white px-4 py-2 rounded text-sm hover:bg-teal-800"
                 >
                   عرض الجدول
@@ -1612,7 +2409,7 @@ export default function Home() {
               </div>
             </div>
             <div className="relative h-80">
-              <Line data={lineChart2Data} options={commonOptions} />
+              <Line data={lineChart2Data} options={nationalityTrendsOptions} />
             </div>
           </div>
 
@@ -1621,6 +2418,8 @@ export default function Home() {
             {/* النصف الأول: إحصائيات المهام */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <h3 className="text-base font-semibold text-gray-800">إحصائيات المهام لكل موظف</h3>
+
                 <div className="flex items-center gap-4">
                   <select
                     value={employeePerformancePeriod}
@@ -1632,6 +2431,16 @@ export default function Home() {
                     <option value="year">سنوي</option>
                     <option value="custom">مخصص</option>
                   </select>
+                  {employeePerformancePeriod === 'month' && (
+                    <select
+                      value={employeePerformanceMonthSelection}
+                      onChange={(e) => setEmployeePerformanceMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">الشهر الحالي</option>
+                      <option value="previous">الشهر السابق</option>
+                    </select>
+                  )}
                   {employeePerformancePeriod === 'custom' && (
                     <div className="flex gap-2">
                       <input
@@ -1650,7 +2459,6 @@ export default function Home() {
                   )}
                 </div>
                 <div className="flex items-center gap-4">
-                  <h3 className="text-base font-semibold text-gray-800">إحصائيات المهام لكل موظف</h3>
                   {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 && (
                     <button
                       onClick={() => {
@@ -1731,7 +2539,7 @@ export default function Home() {
                     }} 
                   />
                 ) : (
-                  <div className="text-center text-gray-500 py-16">لا توجد بيانات موظفين متاحة</div>
+                  <div className="text-center text-gray-500 py-16">لا توجد بيانات طلبات متاحة</div>
                 )}
               </div>
             </div>
@@ -1739,13 +2547,51 @@ export default function Home() {
             {/* النصف الثاني: إحصائيات الطلبات */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-                <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">طلبات</span>
+              <h3 className="text-base font-semibold text-gray-800">إحصائيات الطلبات لكل موظف</h3>
+
                 <div className="flex items-center gap-4">
-                  <h3 className="text-base font-semibold text-gray-800">إحصائيات الطلبات لكل موظف</h3>
-                  {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 && (
+                  <select
+                    value={employeeOrdersPeriod}
+                    onChange={(e) => setEmployeeOrdersPeriod(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="week">أسبوعي</option>
+                    <option value="month">شهري</option>
+                    <option value="year">سنوي</option>
+                    <option value="custom">مخصص</option>
+                  </select>
+                  {employeeOrdersPeriod === 'month' && (
+                    <select
+                      value={employeeOrdersMonthSelection}
+                      onChange={(e) => setEmployeeOrdersMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">الشهر الحالي</option>
+                      <option value="previous">الشهر السابق</option>
+                    </select>
+                  )}
+                  {employeeOrdersPeriod === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={employeeOrdersStartDate}
+                        onChange={(e) => setEmployeeOrdersStartDate(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      />
+                      <input
+                        type="date"
+                        value={employeeOrdersEndDate}
+                        onChange={(e) => setEmployeeOrdersEndDate(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  {employeeOrdersData?.employees && employeeOrdersData.employees.length > 0 && (
                     <button
                       onClick={() => {
-                        const tableData = employeePerformanceData.employees.map((emp: any) => ({
+                        const tableData = employeeOrdersData.employees.map((emp: any) => ({
                           الموظف: emp.employeeName,
                           'جديد': emp.orders.byStatus.new,
                           'قيد التنفيذ': emp.orders.byStatus.inProgress,
@@ -1763,35 +2609,35 @@ export default function Home() {
                 </div>
               </div>
               <div className="relative h-64">
-                {employeePerformanceData?.employees && employeePerformanceData.employees.length > 0 ? (
+                {employeeOrdersData?.employees && employeeOrdersData.employees.length > 0 ? (
                   <Bar 
                     data={{
-                      labels: employeePerformanceData.employees.map((emp: any) => emp.employeeName),
+                      labels: employeeOrdersData.employees.map((emp: any) => emp.employeeName),
                       datasets: [
                         {
                           label: 'جديد',
-                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.new),
+                          data: employeeOrdersData.employees.map((emp: any) => emp.orders.byStatus.new),
                           backgroundColor: '#600000',
                           borderColor: '#600000',
                           borderWidth: 1,
                         },
                         {
                           label: 'قيد التنفيذ',
-                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.inProgress),
+                          data: employeeOrdersData.employees.map((emp: any) => emp.orders.byStatus.inProgress),
                           backgroundColor: '#F8DADA',
                           borderColor: '#F8DADA',
                           borderWidth: 1,
                         },
                         {
                           label: 'مكتمل',
-                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.delivered),
+                          data: employeeOrdersData.employees.map((emp: any) => emp.orders.byStatus.delivered),
                           backgroundColor: primaryColor,
                           borderColor: primaryColor,
                           borderWidth: 1,
                         },
                         {
                           label: 'ملغي',
-                          data: employeePerformanceData.employees.map((emp: any) => emp.orders.byStatus.cancelled),
+                          data: employeeOrdersData.employees.map((emp: any) => emp.orders.byStatus.cancelled),
                           backgroundColor: tertiaryColor,
                           borderColor: tertiaryColor,
                           borderWidth: 1,
@@ -1846,9 +2692,47 @@ export default function Home() {
           {/* Row 8.5: إحصائية المكاتب */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">مكاتب</span>
+            <h3 className="text-base font-semibold text-gray-800">إحصائية المكاتب - الدائن والمدين والرصيد</h3>
+
+                <div className="flex items-center gap-4">
+                <select
+                  value={officesFinancialPeriod}
+                  onChange={(e) => setOfficesFinancialPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {officesFinancialPeriod === 'month' && (
+                  <select
+                    value={officesFinancialMonthSelection}
+                    onChange={(e) => setOfficesFinancialMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {officesFinancialPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={officesFinancialStartDate}
+                      onChange={(e) => setOfficesFinancialStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={officesFinancialEndDate}
+                      onChange={(e) => setOfficesFinancialEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">إحصائية المكاتب - الدائن والمدين والرصيد</h3>
                 {officesFinancialData?.aggregatedByMonth && officesFinancialData.aggregatedByMonth.length > 0 && (
                   <button
                     onClick={() => {
@@ -1955,9 +2839,47 @@ export default function Home() {
           {/* Row 8.6: إحصائية العهد */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">عهد</span>
+            <h3 className="text-base font-semibold text-gray-800">إحصائية العهد - المدين والدائن والرصيد</h3>
+
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">إحصائية العهد - المدين والدائن والرصيد</h3>
+                <select
+                  value={employeeCashStatsPeriod}
+                  onChange={(e) => setEmployeeCashStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {employeeCashStatsPeriod === 'month' && (
+                  <select
+                    value={employeeCashStatsMonthSelection}
+                    onChange={(e) => setEmployeeCashStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {employeeCashStatsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={employeeCashStatsStartDate}
+                      onChange={(e) => setEmployeeCashStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={employeeCashStatsEndDate}
+                      onChange={(e) => setEmployeeCashStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
                 {employeeCashStatsData?.monthlyData && employeeCashStatsData.monthlyData.length > 0 && (
                   <button
                     onClick={() => {
@@ -2064,9 +2986,47 @@ export default function Home() {
           {/* Row 8.7: إحصائية كشف حساب العملاء */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
-              <span className="bg-teal-800 text-white px-3 py-1 rounded text-sm">عملاء</span>
+            <h3 className="text-base font-semibold text-gray-800">إحصائية كشف حساب العملاء</h3>
+
               <div className="flex items-center gap-4">
-                <h3 className="text-base font-semibold text-gray-800">إحصائية كشف حساب العملاء</h3>
+                <select
+                  value={clientAccountsStatsPeriod}
+                  onChange={(e) => setClientAccountsStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {clientAccountsStatsPeriod === 'month' && (
+                  <select
+                    value={clientAccountsStatsMonthSelection}
+                    onChange={(e) => setClientAccountsStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {clientAccountsStatsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={clientAccountsStatsStartDate}
+                      onChange={(e) => setClientAccountsStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={clientAccountsStatsEndDate}
+                      onChange={(e) => setClientAccountsStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
                 {clientAccountsStatsData?.monthlyData && clientAccountsStatsData.monthlyData.length > 0 && (
                   <button
                     onClick={() => {
@@ -2207,6 +3167,44 @@ export default function Home() {
           {/* Row 8.8: إحصائية قائمة الدخل */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <div className="flex items-center gap-4">
+                <select
+                  value={incomeStatementStatsPeriod}
+                  onChange={(e) => setIncomeStatementStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {incomeStatementStatsPeriod === 'month' && (
+                  <select
+                    value={incomeStatementStatsMonthSelection}
+                    onChange={(e) => setIncomeStatementStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {incomeStatementStatsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={incomeStatementStatsStartDate}
+                      onChange={(e) => setIncomeStatementStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={incomeStatementStatsEndDate}
+                      onChange={(e) => setIncomeStatementStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3">
                 {incomeStatementStatsData?.totals && (
                   <>
@@ -2356,6 +3354,44 @@ export default function Home() {
           {/* Row 8.9: إحصائية تقرير المالي المساند */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
+              <div className="flex items-center gap-4">
+                <select
+                  value={musanadFinancialStatsPeriod}
+                  onChange={(e) => setMusanadFinancialStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {musanadFinancialStatsPeriod === 'month' && (
+                  <select
+                    value={musanadFinancialStatsMonthSelection}
+                    onChange={(e) => setMusanadFinancialStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {musanadFinancialStatsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={musanadFinancialStatsStartDate}
+                      onChange={(e) => setMusanadFinancialStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={musanadFinancialStatsEndDate}
+                      onChange={(e) => setMusanadFinancialStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex gap-3">
                 {musanadFinancialStatsData?.totals && (
                   <>
@@ -2501,6 +3537,42 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
               <div className="flex items-center gap-4">
+                <select
+                  value={settlementStatsPeriod}
+                  onChange={(e) => setSettlementStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {settlementStatsPeriod === 'month' && (
+                  <select
+                    value={settlementStatsMonthSelection}
+                    onChange={(e) => setSettlementStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {settlementStatsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={settlementStatsStartDate}
+                      onChange={(e) => setSettlementStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={settlementStatsEndDate}
+                      onChange={(e) => setSettlementStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
                 <h3 className="text-base font-semibold text-gray-800">إحصائية التسوية المالية</h3>
                 {settlementStatsData?.monthlyData && settlementStatsData.monthlyData.length > 0 && (
                   <button
@@ -2733,6 +3805,42 @@ export default function Home() {
           <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
             <div className="flex justify-between items-center mb-5 pb-4 border-b-2 border-gray-200">
               <div className="flex items-center gap-4">
+                <select
+                  value={taxMonthlyStatsPeriod}
+                  onChange={(e) => setTaxMonthlyStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {taxMonthlyStatsPeriod === 'month' && (
+                  <select
+                    value={taxMonthlyStatsMonthSelection}
+                    onChange={(e) => setTaxMonthlyStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {taxMonthlyStatsPeriod === 'custom' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={taxMonthlyStatsStartDate}
+                      onChange={(e) => setTaxMonthlyStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={taxMonthlyStatsEndDate}
+                      onChange={(e) => setTaxMonthlyStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
                 <h3 className="text-base font-semibold text-gray-800">إحصائية الاقرار الضريبي</h3>
                 {taxMonthlyStatsData?.monthlyData && taxMonthlyStatsData.monthlyData.length > 0 && (
                   <button
@@ -2857,6 +3965,7 @@ export default function Home() {
           title={modalTitle}
           columns={modalColumns}
           data={modalData}
+          userName={userName}
         />
       </div>
     </Layout>
