@@ -58,6 +58,8 @@ export default function ForeignOfficesFinancial() {
     toDate: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [loadingOffices, setLoadingOffices] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecord, setNewRecord] = useState({
     contractNumber: '',
@@ -144,6 +146,25 @@ export default function ForeignOfficesFinancial() {
     fetchFinancialRecords(1);
   }, [filters, searchTerm]);
 
+  const fetchOffices = async () => {
+    setLoadingOffices(true);
+    try {
+      const res = await axios.get('/api/foreign-offices-financial/offices');
+      if (res.data.success && res.data.offices) {
+        setOffices(res.data.offices);
+      }
+    } catch (err) {
+      console.error('Failed to fetch offices:', err);
+      showAlert('تعذر جلب قائمة المكاتب', 'error');
+    } finally {
+      setLoadingOffices(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOffices();
+  }, []);
+
   // Close contract suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -166,6 +187,13 @@ export default function ForeignOfficesFinancial() {
   const formatCurrency = (amount: number | string) => {
     return amount.toString()
   };
+
+  function getDate(date: string) {
+    if (!date) return null;
+    const currentDate = new Date(date);
+    const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+    return formatted;
+  }
 
   const handlePageChange = (newPage: number) => {
     fetchFinancialRecords(newPage);
@@ -260,7 +288,7 @@ export default function ForeignOfficesFinancial() {
         row.clientName || 'غير متوفر',
         row.office?.office || 'غير متوفر',
         row.office?.Country || 'غير متوفر',
-        row.date ? new Date(row.date).toLocaleDateString('ar-EG') : 'غير متوفر',
+        row.date ? getDate(row.date) : 'غير متوفر',
         (index + 1).toString(),
       ]);
 
@@ -361,7 +389,7 @@ export default function ForeignOfficesFinancial() {
       dataToExport.forEach((row: FinancialRecord, index: number) => {
         worksheet.addRow({
           index: index + 1,
-          date: row.date ? new Date(row.date).toLocaleDateString('ar-EG') : 'غير متوفر',
+          date: row.date ? getDate(row.date) : 'غير متوفر',
           country: row.office?.Country || 'غير متوفر',
           office: row.office?.office || 'غير متوفر',
           clientName: row.clientName || 'غير متوفر',
@@ -396,6 +424,16 @@ export default function ForeignOfficesFinancial() {
   };
 
   const handleSearch = () => {
+    fetchFinancialRecords(1);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      officeId: '',
+      fromDate: '',
+      toDate: '',
+    });
+    setSearchTerm('');
     fetchFinancialRecords(1);
   };
 
@@ -454,9 +492,10 @@ export default function ForeignOfficesFinancial() {
 
   const handleAddRecord = async () => {
     try {
+      const defaultOfficeId = filters.officeId || (offices.length > 0 ? offices[0].id.toString() : '1');
       const response = await axios.post('/api/foreign-offices-financial', {
         ...newRecord,
-        officeId: filters.officeId || 1,
+        officeId: defaultOfficeId,
         credit: parseFloat(newRecord.credit) || 0,
         debit: parseFloat(newRecord.debit) || 0,
         balance: parseFloat(newRecord.balance) || 0,
@@ -720,8 +759,8 @@ export default function ForeignOfficesFinancial() {
               <button
                 className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 flex items-center gap-2 text-md cursor-pointer hover:bg-[#164044]"
                 onClick={async () => {
-                  const officeId = filters.officeId ? parseInt(filters.officeId) : 1;
-                  await fetchLastBalance(officeId);
+                  const defaultOfficeId = filters.officeId ? parseInt(filters.officeId) : (offices.length > 0 ? offices[0].id : 1);
+                  await fetchLastBalance(defaultOfficeId);
                   setShowAddModal(true);
                 }}
               >
@@ -742,11 +781,15 @@ export default function ForeignOfficesFinancial() {
                       name="officeId"
                       value={filters.officeId}
                       onChange={handleFilterChange}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 appearance-none pr-8"
+                      disabled={loadingOffices}
+                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 appearance-none pr-8 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">جميع المكاتب</option>
-                      <option value="1">مكتب فرصة كينيا</option>
-                      <option value="2">مكتب ايرث باكستان</option>
+                      {offices.map((office) => (
+                        <option key={office.id} value={office.id.toString()}>
+                          {office.office}
+                        </option>
+                      ))}
                     </select>
    
                   </div>
@@ -781,12 +824,20 @@ export default function ForeignOfficesFinancial() {
                 </div>
               </div>
               
-              <button
-                className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 text-md cursor-pointer hover:bg-[#164044]"
-                onClick={handleSearch}
-              >
-                كشف حساب
-              </button>
+              <div className="flex gap-3">
+                <button
+                  className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 text-md cursor-pointer hover:bg-[#164044]"
+                  onClick={handleSearch}
+                >
+                  كشف حساب
+                </button>
+                <button
+                  className="bg-gray-500 text-white border-none rounded-md px-4 py-2 text-md cursor-pointer hover:bg-gray-600"
+                  onClick={handleResetFilters}
+                >
+                  إعادة الضبط
+                </button>
+              </div>
             </section>
 
             {/* Results Section */}
