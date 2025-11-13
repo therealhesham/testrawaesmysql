@@ -73,31 +73,41 @@ const DataTableModal = ({ isOpen, onClose, title, columns, data, userName }: { i
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
 
-    // تحميل الشعار
+    // تحميل الشعار والخط بالتوازي باستخدام Promise.all
     try {
-      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
-      const logoBlob = await logo.blob();
-      const logoBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(logoBlob);
-      });
-      
-      // تحميل خط أميري
-      const response = await fetch('/fonts/Amiri-Regular.ttf');
-      if (!response.ok) throw new Error('Failed to fetch font');
-      const fontBlob = await response.blob();
-      const fontBase64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(fontBlob);
-      });
+      // تشغيل طلبات التحميل بالتوازي
+      const [logoResponse, fontResponse] = await Promise.all([
+        fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png'),
+        fetch('/fonts/Amiri-Regular.ttf')
+      ]);
+
+      if (!fontResponse.ok) throw new Error('Failed to fetch font');
+
+      // تحويل البيانات إلى blob بالتوازي
+      const [logoBlob, fontBlob] = await Promise.all([
+        logoResponse.blob(),
+        fontResponse.blob()
+      ]);
+
+      // تحويل البيانات إلى base64 بالتوازي
+      const [logoBase64, fontBase64] = await Promise.all([
+        new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(logoBlob);
+        }),
+        new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(fontBlob);
+        })
+      ]);
 
       doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
@@ -796,16 +806,21 @@ export default function Home() {
       try {
         setLoading(true);
 
-        const reportsResponse = await fetch('/api/reports');
-        const reports = await reportsResponse.json();
+        // تشغيل جميع طلبات API بالتوازي باستخدام Promise.all
+        const [reportsResponse, governmentalResponse, clientsResponse] = await Promise.all([
+          fetch('/api/reports'),
+          fetch('/api/reports/governmental'),
+          fetch('/api/report/clients')
+        ]);
+
+        const [reports, governmental, clients] = await Promise.all([
+          reportsResponse.json(),
+          governmentalResponse.json(),
+          clientsResponse.json()
+        ]);
+
         setReportsData(reports);
-
-        const governmentalResponse = await fetch('/api/reports/governmental');
-        const governmental = await governmentalResponse.json();
         setGovernmentalData(governmental);
-
-        const clientsResponse = await fetch('/api/report/clients');
-        const clients = await clientsResponse.json();
         setClientsData(clients);
       } catch (error) {
         console.error('Error fetching initial data:', error);
@@ -814,9 +829,14 @@ export default function Home() {
       }
     };
 
-    fetchInitialData();
-    fetchHousedWorkerData();
-    fetchInLocationsData();
+    // تشغيل جميع عمليات جلب البيانات بالتوازي
+    Promise.all([
+      fetchInitialData(),
+      fetchHousedWorkerData(),
+      fetchInLocationsData()
+    ]).catch(error => {
+      console.error('Error fetching initial data:', error);
+    });
   }, []); // Empty dependency array - only run on mount
 
   // Separate useEffect for orders stats
