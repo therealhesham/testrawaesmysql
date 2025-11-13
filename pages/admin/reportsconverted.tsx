@@ -1878,7 +1878,7 @@ export default function Home() {
                       } as any)}
                     />
                     {mapData.map((region: any, index: number) => {
-                      const radius = Math.max(20, (region.value / maxValue) * 50);
+                      const radius = Math.max(15, (region.value / maxValue) * 30);
                       const color = region.value > maxValue * 0.7 ? '#134E4A' : 
                                    region.value > maxValue * 0.4 ? '#14B8A6' : 
                                    '#5EEAD4';
