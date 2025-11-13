@@ -230,8 +230,8 @@ const DataTableModal = ({ isOpen, onClose, title, columns, data, userName }: { i
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-auto z-[10000]" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
           <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           <div className="flex items-center gap-2">
@@ -1712,6 +1712,24 @@ export default function Home() {
             min-width: 310px;
             max-width: 800px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
+          }
+          .leaflet-container {
+            z-index: 1 !important;
+          }
+          .leaflet-pane {
+            z-index: 1 !important;
+          }
+          .leaflet-top,
+          .leaflet-bottom {
+            z-index: 1 !important;
+          }
+          .leaflet-popup-pane {
+            z-index: 2 !important;
+          }
+          .leaflet-tooltip-pane {
+            z-index: 2 !important;
           }
           .loading {
             margin-top: 10em;
