@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Chart, LineController, BarController, DoughnutController, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Chart, LineController, BarController, DoughnutController, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import 'tailwindcss/tailwind.css';
 import Layout from 'example/containers/Layout';
@@ -16,17 +16,15 @@ import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select';
 
-// Dynamically import Highcharts components (SSR-safe)
-const HighchartsReact = dynamic(() => import('highcharts-react-official'), { ssr: false });
-
-declare global {
-  interface Window {
-    Highcharts: any;
-  }
-}
+// Dynamically import Leaflet components (SSR-safe)
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
+const LeafletTooltip = dynamic(() => import('react-leaflet').then(mod => mod.Tooltip), { ssr: false });
 
 // Register Chart.js components
-Chart.register(LineController, BarController, DoughnutController, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
+Chart.register(LineController, BarController, DoughnutController, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, ChartTooltip, Legend);
 
 // Plugin مخصص لضمان وضوح الأعمدة الصغيرة في رسوم الإشغال
 const minBarHeightPlugin = {
@@ -316,6 +314,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
   const [userName, setUserName] = useState('');
   
   // Separate period states for each chart
@@ -931,150 +930,61 @@ export default function Home() {
     fetchReceivablesData();
   }, [receivablesPeriod, receivablesStartDate, receivablesEndDate, receivablesMonthSelection]);
 
-  // Map data
+  // إحداثيات المناطق السعودية
+  const saudiRegionsCoordinates: { [key: string]: [number, number] } = {
+    'Ar Riyāḍ': [24.7136, 46.6753],
+    'Makkah al Mukarramah': [21.3891, 39.8579],
+    'Al Madīnah al Munawwarah': [24.5247, 39.5692],
+    'Ash Sharqīyah': [26.4207, 50.0888],
+    'Asīr': [18.2164, 42.5053],
+    'Tabūk': [28.3838, 36.5550],
+    'Al Ḩudūd ash Shamālīyah': [30.9833, 41.0167],
+    'Jazan': [16.8892, 42.5511],
+    'Najrān': [17.4917, 44.1319],
+    'Al Bāḩah': [20.0129, 41.4677],
+    'Al Jawf': [29.8113, 40.2096],
+    'Al Qaşīm': [26.3264, 43.9750],
+    'Ḩa\'il': [27.5219, 41.6901],
+  };
+
+  // Map data for Leaflet
   const mapData = reportsData?.citiesSources?.byCity
     ?.map((item: any) => {
       const eng = item.city;
-      const hcKey = regionMap[eng as keyof typeof regionMap];
       const name = arabicRegionMap[eng as keyof typeof arabicRegionMap];
       const value = item._count?.id || 0;
-      if (!hcKey || !name) {
+      const coordinates = saudiRegionsCoordinates[eng as keyof typeof saudiRegionsCoordinates];
+      
+      if (!coordinates || !name) {
         console.warn(`Skipping invalid city data: ${eng}`);
         return null;
       }
-      return { 'hc-key': hcKey, name, value };
+      
+      return { 
+        city: eng,
+        name, 
+        value,
+        lat: coordinates[0],
+        lng: coordinates[1]
+      };
     })
     .filter(Boolean) || [];
 
-  // Load Highcharts map
+  // تحديد أقصى قيمة للتحجيم
+  const maxValue = Math.max(...mapData.map((item: any) => item.value), 1);
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const initMap = async () => {
-      try {
-        // تعريف الخرائط داخل useEffect لضمان الوصول إليها
-        const hcKeyToEnglishMap: { [key: string]: string } = {
-          'sa-ri': 'Ar Riyāḍ',
-          'sa-mk': 'Makkah al Mukarramah',
-          'sa-md': 'Al Madīnah al Munawwarah',
-          'sa-sh': 'Ash Sharqīyah',
-          'sa-as': 'Asīr',
-          'sa-tb': 'Tabūk',
-          'sa-hs': 'Al Ḩudūd ash Shamālīyah',
-          'sa-jz': 'Jazan',
-          'sa-nj': 'Najrān',
-          'sa-bh': 'Al Bāḩah',
-          'sa-ju': 'Al Jawf',
-          'sa-qs': 'Al Qaşīm',
-          'sa-hl': 'Ḩa\'il',
-        };
-
-        const arabicRegionMap: { [key: string]: string } = {
-          'Ar Riyāḍ': 'الرياض',
-          'Makkah al Mukarramah': 'مكة المكرمة',
-          'Al Madīnah al Munawwarah': 'المدينة المنورة',
-          'Ash Sharqīyah': 'المنطقة الشرقية',
-          'Asīr': 'عسير',
-          'Tabūk': 'تبوك',
-          'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
-          'Jazan': 'جازان',
-          'Najrān': 'نجران',
-          'Al Bāḩah': 'الباحة',
-          'Al Jawf': 'الجوف',
-          'Al Qaşīm': 'القصيم',
-          'Ḩa\'il': 'حائل',
-        };
-
-        const loadHighcharts = async () => {
-          if (!window.Highcharts) {
-            await new Promise<void>((resolve) => {
-              const script = document.createElement('script');
-              script.src = 'https://code.highcharts.com/maps/highmaps.js';
-              script.onload = () => {
-                const exportScript = document.createElement('script');
-                exportScript.src = 'https://code.highcharts.com/maps/modules/exporting.js';
-                exportScript.onload = () => resolve();
-                document.head.appendChild(exportScript);
-              };
-              document.head.appendChild(script);
-            });
-          }
-
-          if (mapData.length === 0) {
-            setMapLoaded(true);
-            return;
-          }
-
-          const res = await fetch('https://code.highcharts.com/mapdata/countries/sa/sa-all.topo.json');
-          const topology = await res.json();
-
-          window.Highcharts.mapChart('map-container', {
-            chart: { map: topology },
-            title: { text: 'العملاء حسب المدينة' },
-            mapNavigation: { enabled: true },
-            colorAxis: { min: 0, minColor: '#14B8A6', maxColor: '#134E4A' },
-            tooltip: {
-              headerFormat: '',
-              pointFormatter: function(this: any) {
-                const hcKey = this['hc-key'];
-                const englishName = hcKeyToEnglishMap[hcKey];
-                const arabicName = englishName ? arabicRegionMap[englishName] : (this.name || '');
-                const value = this.value !== undefined ? this.value : 0;
-                return `<b>${arabicName}</b>: ${value}`;
-              },
-              backgroundColor: 'rgba(0, 0, 0, 0.85)',
-              style: { color: '#fff', fontFamily: '"Tajawal", sans-serif', fontSize: '14px', direction: 'rtl' },
-            },
-            plotOptions: {
-              map: {
-                cursor: 'pointer',
-                events: {
-                  click: function(e: any) {
-                    const hcKey = e.point['hc-key'];
-                    const englishName = hcKeyToEnglishMap[hcKey];
-                    const arabicName = englishName ? arabicRegionMap[englishName] : (e.point.name || '');
-                    if (englishName) {
-                      // Navigate to clients page with city filter
-                      const englishCityName = englishName;
-                      window.location.href = `/admin/clients?city=${encodeURIComponent(englishCityName)}`;
-                    }
-                  }
-                }
-              }
-            },
-            series: [{
-              data: mapData,
-              joinBy: ['hc-key', 'hc-key'],
-              name: 'عدد العملاء',
-              nullColor: '#14B8A6',
-              borderColor: '#F5FF57',
-              borderWidth: 1,
-              states: { hover: { color: '#BADA55', borderColor: '#333', borderWidth: 2 } },
-              dataLabels: { 
-                enabled: true, 
-                formatter: function(this: any) {
-                  const hcKey = this.point['hc-key'];
-                  const englishName = hcKeyToEnglishMap[hcKey];
-                  const arabicName = englishName ? arabicRegionMap[englishName] : (this.point.name || '');
-                  return arabicName;
-                },
-                style: { fontFamily: '"Tajawal", sans-serif' } 
-              },
-            }],
-          });
-          setMapLoaded(true);
-        };
-
-        loadHighcharts();
-      } catch (err) {
-        console.error('فشل تحميل الخريطة:', err);
-        setMapError('خطأ أثناء تحميل الخريطة');
-        setMapLoaded(true);
-      }
-    };
-
-    initMap();
-  }, [mapData]);
+    setMapLoaded(true);
+    // Load Leaflet dynamically for creating custom icons
+    if (typeof window !== 'undefined') {
+      import('leaflet').then((L) => {
+        (window as any).L = L.default;
+        setLeafletLoaded(true);
+      }).catch(() => {
+        setLeafletLoaded(false);
+      });
+    }
+  }, []);
 
   // Chart Data
   const inLocationBarChartData = {
@@ -1126,6 +1036,13 @@ export default function Home() {
         },
       },
     },
+    datasets: {
+      bar: {
+        maxBarThickness: 30,
+        categoryPercentage: 0.5,
+        barPercentage: 0.8,
+      }
+    },
   };
 
   // Chart Data for Booked Employees by Office
@@ -1172,6 +1089,13 @@ export default function Home() {
           },
         },
       },
+    },
+    datasets: {
+      bar: {
+        maxBarThickness: 30,
+        categoryPercentage: 0.5,
+        barPercentage: 0.8,
+      }
     },
   };
 
@@ -1264,6 +1188,13 @@ export default function Home() {
     scales: {
       y: { beginAtZero: true, title: { display: true, text: 'عدد المهام', font: { family: '"Tajawal", sans-serif', size: 14 } } },
       x: { grid: { display: false }, title: { display: true, text: 'الأشهر', font: { family: '"Tajawal", sans-serif', size: 14 } } },
+    },
+    datasets: {
+      bar: {
+        maxBarThickness: 30,
+        categoryPercentage: 0.5,
+        barPercentage: 0.8,
+      }
     },
   };
 
@@ -1461,6 +1392,13 @@ export default function Home() {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: { y: { beginAtZero: true }, x: { grid: { display: false } } },
+    datasets: {
+      bar: {
+        maxBarThickness: 30,
+        categoryPercentage: 0.5,
+        barPercentage: 0.8,
+      }
+    },
   };
 
   // Chart options for nationality trends (with legend)
@@ -1504,6 +1442,13 @@ export default function Home() {
     maintainAspectRatio: false,
     plugins: { legend: { position: 'top' as const } },
     scales: { y: { beginAtZero: true } },
+    datasets: {
+      bar: {
+        maxBarThickness: 30,
+        categoryPercentage: 0.5,
+        barPercentage: 0.8,
+      }
+    },
   };
 
   const lineChart34Options = {
@@ -1755,8 +1700,7 @@ export default function Home() {
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
-          <script src="https://code.highcharts.com/maps/highmaps.js"></script>
-          <script src="https://code.highcharts.com/maps/modules/exporting.js"></script>
+          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         </Head>
 
         <style jsx global>{`
@@ -1915,10 +1859,108 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 text-sm mb-5">
-                خريطة تفاعلية بسيطة للمملكة العربية السعودية توضح عدد العملاء حسب المنطقة.
+                خريطة تفاعلية للمملكة العربية السعودية توضح عدد العملاء حسب المنطقة.
               </p>
-              {mapLoaded ? (
-                <div id="map-container"></div>
+              {mapLoaded && mapData.length > 0 ? (
+                <div style={{ height: '400px', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+                  <MapContainer
+                    {...({
+                      center: [24.0, 45.0],
+                      zoom: 6,
+                      style: { height: '100%', width: '100%' },
+                      scrollWheelZoom: false,
+                    } as any)}
+                  >
+                    <TileLayer
+                      {...({
+                        url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                      } as any)}
+                    />
+                    {mapData.map((region: any, index: number) => {
+                      const radius = Math.max(20, (region.value / maxValue) * 50);
+                      const color = region.value > maxValue * 0.7 ? '#134E4A' : 
+                                   region.value > maxValue * 0.4 ? '#14B8A6' : 
+                                   '#5EEAD4';
+                      
+                      // Convert hex color to rgba with opacity
+                      const hexToRgba = (hex: string, opacity: number) => {
+                        const r = parseInt(hex.slice(1, 3), 16);
+                        const g = parseInt(hex.slice(3, 5), 16);
+                        const b = parseInt(hex.slice(5, 7), 16);
+                        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                      };
+                      
+                      // Create custom icon with circle and number inside
+                      const createCircleIcon = (count: number, fillColor: string, circleRadius: number) => {
+                        if (leafletLoaded && typeof window !== 'undefined' && (window as any).L) {
+                          const L = (window as any).L;
+                          const size = circleRadius * 2;
+                          const backgroundColor = hexToRgba(fillColor, 0.7); // 70% opacity
+                          return L.divIcon({
+                            className: 'custom-circle-marker',
+                            html: `<div style="
+                              width: ${size}px;
+                              height: ${size}px;
+                              border-radius: 50%;
+                              background-color: ${backgroundColor};
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              font-family: 'Tajawal', sans-serif;
+                              font-size: ${Math.max(12, circleRadius * 0.5)}px;
+                              font-weight: 700;
+                              color: #ffffff;
+                              text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                              cursor: pointer;
+                              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                            ">${count}</div>`,
+                            iconSize: [size, size],
+                            iconAnchor: [size / 2, size / 2],
+                          });
+                        }
+                        return null;
+                      };
+                      
+                      return (
+                        leafletLoaded && createCircleIcon(region.value, color, radius) && (
+                          <Marker
+                            key={index}
+                            position={[region.lat, region.lng]}
+                            icon={createCircleIcon(region.value, color, radius)}
+                            {...({
+                              eventHandlers: {
+                                click: () => {
+                                  router.push(`/admin/clients?city=${encodeURIComponent(region.city)}`);
+                                },
+                              },
+                            } as any)}
+                          >
+                            <Popup>
+                              <div style={{ fontFamily: '"Tajawal", sans-serif', textAlign: 'right', direction: 'rtl' }}>
+                                <strong>{region.name}</strong>
+                                <br />
+                                عدد العملاء: {region.value}
+                              </div>
+                            </Popup>
+                            <LeafletTooltip
+                              {...({
+                                direction: "top",
+                                offset: [0, -10],
+                                opacity: 0.95,
+                                permanent: false,
+                              } as any)}
+                            >
+                              <div style={{ fontFamily: '"Tajawal", sans-serif', textAlign: 'right', direction: 'rtl' }}>
+                                <strong>{region.name}</strong>
+                              </div>
+                            </LeafletTooltip>
+                          </Marker>
+                        )
+                      );
+                    })}
+                  </MapContainer>
+                </div>
               ) : (
                 <div className="loading">جاري تحميل الخريطة...</div>
               )}
@@ -1974,7 +2016,14 @@ export default function Home() {
               <div className="relative h-[500px]">
                 <Bar data={donutChart4Data} options={{ 
                   responsive: true, 
-                  maintainAspectRatio: false, 
+                  maintainAspectRatio: false,
+                  datasets: {
+                    bar: {
+                      maxBarThickness: 30,
+                      categoryPercentage: 0.5,
+                      barPercentage: 0.8,
+                    }
+                  },
                   onHover: (event, elements) => {
                     const target = event.native?.target as HTMLElement;
                     if (target) {
