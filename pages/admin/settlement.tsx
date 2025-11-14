@@ -146,28 +146,18 @@ export default function Settlement() {
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
 
-    // Load logo
+    // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
     const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
     const logoBuffer = await logo.arrayBuffer();
     const logoBytes = new Uint8Array(logoBuffer);
-    let logoBase64 = '';
-    for (let i = 0; i < logoBytes.length; i += 0x8000) {
-      const chunk = logoBytes.subarray(i, i + 0x8000);
-      logoBase64 += String.fromCharCode.apply(null, Array.prototype.slice.call(chunk));
-    }
-    logoBase64 = btoa(logoBase64);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
     
     try {
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
       const fontBytes = new Uint8Array(fontBuffer);
-      let fontBase64 = '';
-      for (let i = 0; i < fontBytes.length; i += 0x8000) {
-        const chunk = fontBytes.subarray(i, i + 0x8000);
-        fontBase64 += String.fromCharCode.apply(null, Array.prototype.slice.call(chunk));
-      }
-      fontBase64 = btoa(fontBase64);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
       doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
       doc.setFont('Amiri', 'normal');
@@ -219,17 +209,17 @@ export default function Settlement() {
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
 
-        // Add logo on every page
+        // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
         doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
 
-        // Add title on first page only
+        // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
         if (doc.getCurrentPageInfo().pageNumber === 1) {
           doc.setFontSize(12);
           doc.setFont('Amiri', 'normal');
           doc.text('تسوية مالية', pageWidth / 2, 20, { align: 'right' });
         }
 
-        // Footer
+        // 🔸 الفوتر
         doc.setFontSize(10);
         doc.setFont('Amiri', 'normal');
 
