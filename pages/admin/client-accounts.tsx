@@ -14,6 +14,8 @@ interface ClientAccountStatement {
   totalRevenue: number;
   totalExpenses: number;
   netAmount: number;
+  commissionPercentage?: number;
+  masandTransferAmount?: number;
   contractStatus: string;
   notes: string;
   createdAt: string;
@@ -64,6 +66,21 @@ const ClientAccountsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Edit modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingStatement, setEditingStatement] = useState<ClientAccountStatement | null>(null);
+  const [editForm, setEditForm] = useState({
+    contractNumber: '',
+    officeName: '',
+    totalRevenue: 0,
+    totalExpenses: 0,
+    masandTransferAmount: 0,
+    commissionPercentage: 0,
+    netAmount: 0,
+    contractStatus: '',
+    notes: ''
+  });
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -80,6 +97,14 @@ const ClientAccountsPage = () => {
 
       const response = await fetch(`/api/client-accounts?${params}`);
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to fetch client accounts');
+      }
+
+      if (!data?.pagination) {
+        throw new Error('Invalid response format from server');
+      }
 
       setStatements(data.statements);
       setSummary(data.summary);
@@ -161,6 +186,57 @@ const ClientAccountsPage = () => {
       newExpanded.add(id);
     }
     setExpandedRows(newExpanded);
+  };
+
+  const calculateNetAmount = (revenue: number, expenses: number, commissionPercentage: number) => {
+    const commissionValue = revenue * (commissionPercentage / 100);
+    return revenue - expenses - commissionValue;
+  };
+
+  const handleEditClick = (statement: ClientAccountStatement) => {
+    const totalRevenue = statement.totalRevenue || 0;
+    const totalExpenses = statement.totalExpenses || 0;
+    const masandTransferAmount = statement.masandTransferAmount || 0;
+    const commissionPercentage = statement.commissionPercentage || 0;
+
+    setEditingStatement(statement);
+    setEditForm({
+      contractNumber: statement.contractNumber,
+      officeName: statement.officeName,
+      totalRevenue,
+      totalExpenses,
+      masandTransferAmount,
+      commissionPercentage,
+      netAmount: calculateNetAmount(totalRevenue, totalExpenses, commissionPercentage),
+      contractStatus: statement.contractStatus,
+      notes: statement.notes || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingStatement) return;
+    try {
+      const response = await fetch(`/api/client-accounts/${editingStatement.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm)
+      });
+
+      if (!response.ok) throw new Error('Update failed');
+      setIsEditModalOpen(false);
+      setEditingStatement(null);
+      await fetchData();
+      alert('تم التحديث بنجاح');
+    } catch (error) {
+      console.error('Error updating statement:', error);
+      alert('حدث خطأ أثناء التحديث');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingStatement(null);
   };
 const [clients, setClients] = useState<{ id: number; fullname: string }[]>([]);
 const [foreignOffices, setForeignOffices] = useState<{ office: string }[]>([]);
@@ -675,7 +751,13 @@ function getDate(date: string) {
                       </button>
                     </div>
                     <div className="flex-1 text-center">
-                      <button className="bg-teal-800 text-white px-3 py-1 rounded text-md">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(statement);
+                        }}
+                        className="bg-teal-800 text-white px-3 py-1 rounded text-md hover:bg-teal-900 transition duration-200"
+                      >
                         اجراءات
                       </button>
                     </div>
@@ -763,6 +845,171 @@ function getDate(date: string) {
             </div>
           )}
         </div>
+
+        {/* Edit Modal */}
+        {isEditModalOpen && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-8">
+              <h2 className="text-3xl text-center text-gray-900 mb-8">تعديل</h2>
+
+              <div className="space-y-5">
+                <div className="flex flex-col">
+                  <label className="text-right text-gray-700 mb-2">اسم العميل</label>
+                  <input
+                    type="text"
+                    value={editingStatement?.client.fullname || ''}
+                    disabled
+                    className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">رقم العقد</label>
+                    <input
+                      type="text"
+                      value={editForm.contractNumber}
+                      onChange={(e) => setEditForm({ ...editForm, contractNumber: e.target.value })}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">اسم المكتب</label>
+                    <input
+                      type="text"
+                      value={editForm.officeName}
+                      onChange={(e) => setEditForm({ ...editForm, officeName: e.target.value })}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">صافي ربح مؤجل</label>
+                    <input
+                      disabled
+                      type="number"
+                      value={editForm.totalRevenue}
+                      onChange={(e) => {
+                        const totalRevenue = parseFloat(e.target.value) || 0;
+                        setEditForm(prev => ({
+                          ...prev,
+                          totalRevenue,
+                          netAmount: calculateNetAmount(totalRevenue, prev.totalExpenses, prev.commissionPercentage)
+                        }));
+                      }}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">الربح الفعلي</label>
+                    <input
+                      type="text"
+                      value={`${formatCurrency(editForm.netAmount - editForm.masandTransferAmount)}`}
+                      disabled
+                      className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">المبلغ المحول من مساند</label>
+                    <input
+                      type="number"
+                      value={editForm.masandTransferAmount}
+                      onChange={(e) => {
+                        const masandTransferAmount = parseFloat(e.target.value) || 0;
+                        setEditForm(prev => ({
+                          ...prev,
+                          masandTransferAmount
+                        }));
+                      }}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">الضريبة</label>
+                    <input
+                      type="text"
+                      value="رسوم عمولة المكتب"
+                      disabled
+                      className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">العمولة (٪)</label>
+                    <input
+                      type="number"
+                      value={editForm.commissionPercentage}
+                      onChange={(e) => {
+                        const commissionPercentage = parseFloat(e.target.value) || 0;
+                        setEditForm(prev => ({
+                          ...prev,
+                          commissionPercentage,
+                          netAmount: calculateNetAmount(prev.totalRevenue, prev.totalExpenses, commissionPercentage)
+                        }));
+                      }}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">المرفقات</label>
+                    <div className="flex gap-3">
+                      <button className="bg-teal-800 text-white rounded-lg px-4 min-w-[110px]">اختيار ملف</button>
+                      <input
+                        type="text"
+                        placeholder="ارفاق ملف"
+                        disabled
+                        className="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">حالة العقد</label>
+                    <input
+                      type="text"
+                      value={editForm.contractStatus}
+                      onChange={(e) => setEditForm({ ...editForm, contractStatus: e.target.value })}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-right text-gray-700 mb-2">ملاحظات</label>
+                    <textarea
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      rows={3}
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-4 mt-8">
+                <button
+                  onClick={handleSaveEdit}
+                  className="bg-teal-800 text-white rounded-lg px-10 py-2 text-lg hover:bg-teal-900 transition"
+                >
+                  حفظ
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="bg-gray-200 text-gray-700 rounded-lg px-10 py-2 text-lg hover:bg-gray-300 transition"
+                >
+                  الغاء
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
