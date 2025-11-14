@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
@@ -18,6 +18,7 @@ interface ClientAccountStatement {
   masandTransferAmount?: number;
   contractStatus: string;
   notes: string;
+  attachment?: string;
   createdAt: string;
   client: {
     id: number;
@@ -80,6 +81,11 @@ const ClientAccountsPage = () => {
     contractStatus: '',
     notes: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string>('');
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -211,6 +217,13 @@ const ClientAccountsPage = () => {
       contractStatus: statement.contractStatus,
       notes: statement.notes || ''
     });
+    // Reset file states
+    setSelectedFileName('');
+    setSelectedFile(null);
+    setUploadedFilePath(statement.attachment || '');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     setIsEditModalOpen(true);
   };
 
@@ -220,12 +233,21 @@ const ClientAccountsPage = () => {
       const response = await fetch(`/api/client-accounts/${editingStatement.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify({
+          ...editForm,
+          attachment: uploadedFilePath || undefined
+        })
       });
 
       if (!response.ok) throw new Error('Update failed');
       setIsEditModalOpen(false);
       setEditingStatement(null);
+      setSelectedFileName('');
+      setSelectedFile(null);
+      setUploadedFilePath('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       await fetchData();
       alert('تم التحديث بنجاح');
     } catch (error) {
@@ -237,6 +259,83 @@ const ClientAccountsPage = () => {
   const handleCancelEdit = () => {
     setIsEditModalOpen(false);
     setEditingStatement(null);
+    setSelectedFileName('');
+    setSelectedFile(null);
+    setUploadedFilePath('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setSelectedFileName(file.name);
+    setIsUploadingFile(true);
+
+    // Validate file type
+    const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedFileTypes.includes(file.type)) {
+      alert('نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)');
+      setSelectedFileName('');
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsUploadingFile(false);
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)');
+      setSelectedFileName('');
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsUploadingFile(false);
+      return;
+    }
+
+    try {
+      // Get presigned URL
+      const fileId = editingStatement?.id 
+        ? `client-account-${editingStatement.id}-${Date.now()}` 
+        : `client-account-${Date.now()}`;
+      
+      const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+      if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+      
+      const { url, filePath } = await res.json();
+
+      // Upload to Digital Ocean
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-amz-acl': 'public-read',
+        },
+      });
+
+      if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+      setUploadedFilePath(filePath);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      alert(error.message || 'حدث خطأ أثناء رفع الملف');
+      setSelectedFileName('');
+      setSelectedFile(null);
+      setUploadedFilePath('');
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 const [clients, setClients] = useState<{ id: number; fullname: string }[]>([]);
 const [foreignOffices, setForeignOffices] = useState<{ office: string }[]>([]);
@@ -960,19 +1059,47 @@ function getDate(date: string) {
                   <div className="flex flex-col">
                     <label className="text-right text-gray-700 mb-2">المرفقات</label>
                     <div className="flex gap-3">
-                      <button className="bg-teal-800 text-white rounded-lg px-4 min-w-[110px]">اختيار ملف</button>
+                      <button 
+                        type="button"
+                        onClick={handleFileButtonClick}
+                        disabled={isUploadingFile}
+                        className="bg-teal-800 text-white rounded-lg px-4 min-w-[110px] hover:bg-teal-900 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUploadingFile ? 'جاري الرفع...' : 'اختيار ملف'}
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="application/pdf,image/*"
+                        disabled={isUploadingFile}
+                      />
                       <input
                         type="text"
-                        placeholder="ارفاق ملف"
+                        placeholder={isUploadingFile ? 'جاري رفع الملف...' : uploadedFilePath ? 'تم رفع الملف بنجاح' : 'ارفاق ملف'}
+                        value={selectedFileName || (uploadedFilePath ? 'تم رفع الملف' : '')}
                         disabled
                         className="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
                       />
                     </div>
+                    {uploadedFilePath && (
+                      <div className="mt-2">
+                        <a 
+                          href={uploadedFilePath} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-teal-800 hover:underline text-sm"
+                        >
+                          عرض الملف المرفق
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-5">
-                  <div className="flex flex-col">
+                  {/* <div className="flex flex-col">
                     <label className="text-right text-gray-700 mb-2">حالة العقد</label>
                     <input
                       type="text"
@@ -980,8 +1107,8 @@ function getDate(date: string) {
                       onChange={(e) => setEditForm({ ...editForm, contractStatus: e.target.value })}
                       className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
                     />
-                  </div>
-                  <div className="flex flex-col">
+                  </div> */}
+                  {/* <div className="flex flex-col">
                     <label className="text-right text-gray-700 mb-2">ملاحظات</label>
                     <textarea
                       value={editForm.notes}
@@ -989,7 +1116,7 @@ function getDate(date: string) {
                       rows={3}
                       className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
                     />
-                  </div>
+                  </div> */}
                 </div>
               </div>
 

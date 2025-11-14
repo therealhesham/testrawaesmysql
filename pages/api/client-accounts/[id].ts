@@ -123,6 +123,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         officeName,
         contractStatus,
         notes,
+        attachment,
         totalRevenue: providedRevenue,
         totalExpenses: providedExpenses,
         masandTransferAmount,
@@ -156,20 +157,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         netAmount = totalRevenue - totalExpenses;
       }
 
+      const updateData: any = {
+        contractNumber,
+        officeName,
+        totalRevenue,
+        totalExpenses,
+        masandTransferAmount: masandTransferAmount !== undefined ? Number(masandTransferAmount) : undefined,
+        netAmount,
+        contractStatus,
+        notes
+      };
+
+      if (attachment !== undefined) {
+        updateData.attachment = attachment;
+      }
+
       const statement = await prisma.clientAccountStatement.update({
         where: {
           id: Number(id)
         },
-        data: {
-          contractNumber,
-          officeName,
-          totalRevenue,
-          totalExpenses,
-          masandTransferAmount: masandTransferAmount !== undefined ? Number(masandTransferAmount) : undefined,
-          netAmount,
-          contractStatus,
-          notes
-        },
+        data: updateData,
         include: {
           client: {
             select: {
