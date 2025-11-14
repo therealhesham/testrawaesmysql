@@ -212,45 +212,120 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const debitAmount = Number(debit || 0);
       const creditAmount = Number(credit || 0);
       const balance = debitAmount - creditAmount;
+      const transactionId = Number(id);
 
-      const updatedRecord = await prisma.employeeCashDetail.update({
-        where: {
-          id: Number(id)
-        },
-        data: {
-          date: new Date(transactionDate),
-          month: new Date(transactionDate).toLocaleDateString('ar-SA', { month: 'long' }),
-          mainAccount: mainAccount || '',
-          subAccount: subAccount || '',
-          client: client || '',
-          debit: debitAmount,
-          credit: creditAmount,
-          balance: balance,
-          attachment: typeof attachment === 'string' ? attachment : ''
-        }
+      // First, check if the record exists in EmployeeCashDetail
+      const detailRecord = await prisma.employeeCashDetail.findUnique({
+        where: { id: transactionId }
       });
 
-      res.status(200).json({
-        message: 'تم تحديث السجل بنجاح',
-        record: updatedRecord
+      if (detailRecord) {
+        // Update EmployeeCashDetail record
+        const updatedRecord = await prisma.employeeCashDetail.update({
+          where: {
+            id: transactionId
+          },
+          data: {
+            date: new Date(transactionDate),
+            month: new Date(transactionDate).toLocaleDateString('ar-SA', { month: 'long' }),
+            mainAccount: mainAccount || '',
+            subAccount: subAccount || '',
+            client: client || '',
+            debit: debitAmount,
+            credit: creditAmount,
+            balance: balance,
+            attachment: typeof attachment === 'string' ? attachment : ''
+          }
+        });
+
+        return res.status(200).json({
+          message: 'تم تحديث السجل بنجاح',
+          record: updatedRecord
+        });
+      }
+
+      // If not found in EmployeeCashDetail, check EmployeeCash
+      const cashRecord = await prisma.employeeCash.findUnique({
+        where: { id: transactionId }
       });
+
+      if (cashRecord) {
+        // Update EmployeeCash record
+        // For cash records, debit maps to receivedAmount and credit maps to expenseAmount
+        const updatedRecord = await prisma.employeeCash.update({
+          where: {
+            id: transactionId
+          },
+          data: {
+            transactionDate: new Date(transactionDate),
+            receivedAmount: debitAmount,
+            expenseAmount: creditAmount,
+            remainingBalance: balance,
+            description: client || cashRecord.description || '',
+            attachment: typeof attachment === 'string' ? attachment : cashRecord.attachment || ''
+          }
+        });
+
+        return res.status(200).json({
+          message: 'تم تحديث السجل بنجاح',
+          record: updatedRecord
+        });
+      }
+
+      // If record not found in either table
+      return res.status(404).json({ error: 'record to update not found' });
 
     } catch (error) {
       console.error('Error updating employee cash detail:', error);
+      if (error instanceof Error && error.message.includes('Record to update not found')) {
+        return res.status(404).json({ error: 'record to update not found' });
+      }
       res.status(500).json({ error: 'Failed to update employee cash detail' });
     }
   } else if (req.method === 'DELETE') {
     try {
-      await prisma.employeeCashDetail.delete({
-        where: {
-          id: Number(id)
-        }
+      const transactionId = Number(id);
+
+      // First, check if the record exists in EmployeeCashDetail
+      const detailRecord = await prisma.employeeCashDetail.findUnique({
+        where: { id: transactionId }
       });
 
-      res.status(200).json({ message: 'تم حذف السجل بنجاح' });
+      if (detailRecord) {
+        // Delete from EmployeeCashDetail
+        await prisma.employeeCashDetail.delete({
+          where: {
+            id: transactionId
+          }
+        });
+
+        return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
+      }
+
+      // If not found in EmployeeCashDetail, check EmployeeCash
+      const cashRecord = await prisma.employeeCash.findUnique({
+        where: { id: transactionId }
+      });
+
+      if (cashRecord) {
+        // Delete from EmployeeCash
+        await prisma.employeeCash.delete({
+          where: {
+            id: transactionId
+          }
+        });
+
+        return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
+      }
+
+      // If record not found in either table
+      return res.status(404).json({ error: 'record to delete not found' });
 
     } catch (error) {
       console.error('Error deleting employee cash detail:', error);
+      if (error instanceof Error && error.message.includes('Record to delete not found')) {
+        return res.status(404).json({ error: 'record to delete not found' });
+      }
       res.status(500).json({ error: 'Failed to delete employee cash detail' });
     }
   } else {
