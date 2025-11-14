@@ -21,6 +21,7 @@ interface ClientAccountStatement {
   totalRevenue: number;
   totalExpenses: number;
   netAmount: number;
+  masandTransferAmount?: number;
   contractStatus: string;
   notes: string;
   createdAt: string;

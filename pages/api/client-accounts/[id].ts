@@ -122,20 +122,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         contractNumber,
         officeName,
         contractStatus,
-        notes
+        notes,
+        totalRevenue: providedRevenue,
+        totalExpenses: providedExpenses,
+        masandTransferAmount,
+        netAmount: providedNetAmount
       } = req.body;
 
       // Get user info for logging
       const { userId } = getUserFromCookies(req);
 
-      // Recalculate totals from entries instead of using provided values
-      const entries = await prisma.clientAccountEntry.findMany({
-        where: { statementId: Number(id) }
-      });
+      let totalRevenue: number;
+      let totalExpenses: number;
+      let netAmount: number;
 
-      const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
-      const totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
-      const netAmount = totalRevenue - totalExpenses;
+      const hasManualTotals =
+        providedRevenue !== undefined && providedExpenses !== undefined;
+
+      if (hasManualTotals) {
+        totalRevenue = Number(providedRevenue) || 0;
+        totalExpenses = Number(providedExpenses) || 0;
+        netAmount =
+          providedNetAmount !== undefined
+            ? Number(providedNetAmount) || 0
+            : totalRevenue - totalExpenses;
+      } else {
+        // Recalculate totals from entries instead of using provided values
+        const entries = await prisma.clientAccountEntry.findMany({
+          where: { statementId: Number(id) }
+        });
+        totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
+        totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
+        netAmount = totalRevenue - totalExpenses;
+      }
 
       const statement = await prisma.clientAccountStatement.update({
         where: {
@@ -146,6 +165,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           officeName,
           totalRevenue,
           totalExpenses,
+          masandTransferAmount: masandTransferAmount !== undefined ? Number(masandTransferAmount) : undefined,
           netAmount,
           contractStatus,
           notes

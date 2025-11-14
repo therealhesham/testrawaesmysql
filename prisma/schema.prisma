@@ -856,8 +856,11 @@ model ClientAccountStatement {
   totalRevenue   Decimal   @default(0)
   totalExpenses  Decimal   @default(0)
   netAmount      Decimal   @default(0)
+  commissionPercentage Decimal? @default(0)
+  masandTransferAmount Decimal?   @default(0)
   contractStatus String?   @db.VarChar(100)
   notes          String?   @db.VarChar(500)
+  attachment     String?   @db.VarChar(500)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   entries        ClientAccountEntry[]
