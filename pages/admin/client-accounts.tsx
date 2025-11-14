@@ -1028,7 +1028,7 @@ function getDate(date: string) {
                       className="bg-gray-50 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
                     />
                   </div>
-                  <div className="flex flex-col">
+                  {/* <div className="flex flex-col">
                     <label className="text-right text-gray-700 mb-2">الضريبة</label>
                     <input
                       type="text"
@@ -1036,7 +1036,7 @@ function getDate(date: string) {
                       disabled
                       className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-right text-gray-600"
                     />
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-5">
