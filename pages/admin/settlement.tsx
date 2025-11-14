@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import Head from 'next/head';
+import { jwtDecode } from 'jwt-decode';
 
 interface SettlementData {
   id: number;
@@ -38,6 +44,19 @@ export default function Settlement() {
     date: '',
     search: ''
   });
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token) as any;
+        setUserName(decoded.username || '');
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchSettlementData();
@@ -99,6 +118,194 @@ export default function Settlement() {
     });
   };
 
+  // Fetch filtered data for export
+  const fetchFilteredDataExporting = async () => {
+    const query = new URLSearchParams({
+      perPage: "1000",
+      ...(filters.client && { client: filters.client }),
+      ...(filters.date && { date: filters.date }),
+      ...(filters.search && { search: filters.search }),
+      ...(activeTab && { contractType: activeTab }),
+    }).toString();
+    const res = await fetch(`/api/settlement?${query}`);
+    
+    if (!res.ok) throw new Error("Failed to fetch data");
+    const data = await res.json();
+    return data.settlements || [];
+  };
+
+  // Export to PDF
+  const exportToPDF = async () => {
+    let dataToExport = data?.settlements || [];
+    
+    if (filters.client || filters.date || filters.search) {
+      dataToExport = await fetchFilteredDataExporting();
+    }
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // Load logo
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    let logoBase64 = '';
+    for (let i = 0; i < logoBytes.length; i += 0x8000) {
+      const chunk = logoBytes.subarray(i, i + 0x8000);
+      logoBase64 += String.fromCharCode.apply(null, Array.prototype.slice.call(chunk));
+    }
+    logoBase64 = btoa(logoBase64);
+    
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      let fontBase64 = '';
+      for (let i = 0; i < fontBytes.length; i += 0x8000) {
+        const chunk = fontBytes.subarray(i, i + 0x8000);
+        fontBase64 += String.fromCharCode.apply(null, Array.prototype.slice.call(chunk));
+      }
+      fontBase64 = btoa(fontBase64);
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      return;
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(12);
+
+    const tableColumn = [
+      'تاريخ آخر تحديث',
+      'الصافي',
+      'المصروف',
+      'المدفوع',
+      'قيمة العقد',
+      'رقم العقد',
+      'العميل',
+    ];
+
+    const tableRows = dataToExport.map((row: SettlementData) => [
+      row.lastUpdated || 'غير متوفر',
+      row.netAmount?.toLocaleString() || '0',
+      row.totalExpenses?.toLocaleString() || '0',
+      row.totalPaid?.toLocaleString() || '0',
+      row.contractValue?.toLocaleString() || '0',
+      row.contractNumber || 'غير متوفر',
+      row.clientName || 'غير متوفر',
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [26, 77, 79],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 39, right: 10, left: 10 },
+      didDrawPage: (data: any) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        // Add logo on every page
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+        // Add title on first page only
+        if (doc.getCurrentPageInfo().pageNumber === 1) {
+          doc.setFontSize(12);
+          doc.setFont('Amiri', 'normal');
+          doc.text('تسوية مالية', pageWidth / 2, 20, { align: 'right' });
+        }
+
+        // Footer
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        const dateText =
+          "التاريخ: " +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          "  الساعة: " +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+      },
+      didParseCell: (data: any) => {
+        data.cell.styles.halign = 'right';
+      },
+    });
+
+    doc.save('settlement.pdf');
+  };
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    let dataToExport = data?.settlements || [];
+    
+    if (filters.client || filters.date || filters.search) {
+      dataToExport = await fetchFilteredDataExporting();
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('تسوية مالية', { properties: { defaultColWidth: 20 } });
+    
+    worksheet.columns = [
+      { header: 'العميل', key: 'clientName', width: 20 },
+      { header: 'رقم العقد', key: 'contractNumber', width: 15 },
+      { header: 'قيمة العقد', key: 'contractValue', width: 15 },
+      { header: 'المدفوع', key: 'totalPaid', width: 15 },
+      { header: 'المصروف', key: 'totalExpenses', width: 15 },
+      { header: 'الصافي', key: 'netAmount', width: 15 },
+      { header: 'تاريخ آخر تحديث', key: 'lastUpdated', width: 15 },
+    ];
+
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+    dataToExport.forEach((row: SettlementData) => {
+      worksheet.addRow({
+        clientName: row.clientName || 'غير متوفر',
+        contractNumber: row.contractNumber || 'غير متوفر',
+        contractValue: row.contractValue || 0,
+        totalPaid: row.totalPaid || 0,
+        totalExpenses: row.totalExpenses || 0,
+        netAmount: row.netAmount || 0,
+        lastUpdated: row.lastUpdated || 'غير متوفر',
+      }).alignment = { horizontal: 'right' };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'settlement.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
 
 
   if (loading) {
@@ -111,11 +318,31 @@ export default function Settlement() {
 
   return (
     <Layout>
+      <Head>
+        <title>تسوية مالية</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      </Head>
       <div className={`min-h-screen bg-gray-50 ${Style['tajawal-regular']}`} dir="rtl">
         {/* Page Content */}
         <div className="p-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-3xl font-normal text-black text-right">تسوية مالية</h2>
+            <div className="flex gap-4">
+              <button
+                className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+                onClick={exportToPDF}
+              >
+                <FilePdfOutlined />
+                <span>PDF</span>
+              </button>
+              <button
+                className="flex items-center gap-1 bg-teal-900 text-white px-3 py-1 rounded text-sm hover:bg-teal-800 transition duration-200"
+                onClick={exportToExcel}
+              >
+                <FileExcelOutlined />
+                <span>Excel</span>
+              </button>
+            </div>
           </div>
           
           {/* Summary Cards */}

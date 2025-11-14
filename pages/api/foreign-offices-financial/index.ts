@@ -37,9 +37,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (search) {
         where.OR = [
-          { clientName: { contains: String(search), mode: 'insensitive' } },
-          { contractNumber: { contains: String(search), mode: 'insensitive' } },
-          { description: { contains: String(search), mode: 'insensitive' } },
+          { clientName: { contains: String(search) } },
+          { contractNumber: { contains: String(search) } },
+          { description: { contains: String(search) } },
         ]
       }
 

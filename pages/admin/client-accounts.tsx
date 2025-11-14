@@ -143,6 +143,16 @@ const ClientAccountsPage = () => {
     fetchData();
   };
 
+  const handleResetFilters = () => {
+    setSelectedOffice('all');
+    setSelectedForeignOffice('all');
+    setSelectedClient('all');
+    setFromDate('');
+    setToDate('');
+    setSearchTerm('');
+    setCurrentPage(1);
+  };
+
   const toggleRowExpansion = (id: number) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(id)) {
@@ -203,9 +213,15 @@ useEffect(() => {
   const formatCurrency = (amount: number) => {
   return amount
   };
+function getDate(date: string) {
 
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-SA');
+    return getDate(dateString);
   };
 
   // Fetch data for export with all filters
@@ -481,12 +497,20 @@ useEffect(() => {
               />
             </div>
           </div>
-          <button
-            onClick={handleGenerateReport}
-            className="bg-teal-800 text-white rounded text-md  min-w-[123px]"
-          >
-            كشف حساب
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleGenerateReport}
+              className="bg-teal-800 text-white rounded text-md  min-w-[123px]"
+            >
+              كشف حساب
+            </button>
+            <button
+              onClick={handleResetFilters}
+              className="bg-gray-500 text-white rounded text-md  min-w-[123px] hover:bg-gray-600 transition duration-200"
+            >
+              إعادة ضبط
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}

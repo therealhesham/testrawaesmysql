@@ -83,6 +83,9 @@ export default function Home() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [zakatRate, setZakatRate] = useState(2.5);
   const [userName, setUserName] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -107,7 +110,11 @@ export default function Home() {
   const fetchFinancialData = async () => {
     setLoadingData(true);
     try {
-      const res = await axios.get(`/api/income-statements/calculations?zakatRate=${zakatRate}`);
+      let url = `/api/income-statements/calculations?zakatRate=${zakatRate}`;
+      if (dateFrom) url += `&from=${dateFrom}`;
+      if (dateTo) url += `&to=${dateTo}`;
+      
+      const res = await axios.get(url);
       setFinancialData(res.data.data);
       setDataError(null);
     } catch (err) {
@@ -577,22 +584,14 @@ export default function Home() {
     }
   };
 
-  // Handle reset button
-  const handleReset = () => {
-    alert('تم إعادة ضبط المرشحات');
+  const handleResetFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setShowFilters(false);
   };
 
-  // Handle dropdown click
-  const handleDropdown = () => {
-    alert('فتح قائمة الخيارات');
-  };
-
-  // Handle date input click
-  const handleDateInput = (e: React.MouseEvent<HTMLDivElement>) => {
-    const span = e.currentTarget.querySelector('span');
-    if (!span) return;
-    const currentDate = new Intl.DateTimeFormat('ar-SA').format(new Date());
-    span.textContent = currentDate;
+  const handleApplyFilters = () => {
+    fetchFinancialData();
   };
 
   return (
@@ -608,7 +607,7 @@ export default function Home() {
         <div className="flex flex-col min-h-screen">
           <main className="flex-1 p-4 md:p-8" dir='ltr'>
             <div className="flex justify-between items-center mb-10 " >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <button
                   className="bg-[#1A4D4F] text-white rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-[#164044]"
                   onClick={() => setOpenAddModal(true)}
@@ -617,6 +616,24 @@ export default function Home() {
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                     <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round" />
                   </svg>
+                </button>
+                <button
+                  className={`rounded-md px-4 py-2 flex items-center gap-2 text-sm transition ${
+                    showFilters || dateFrom || dateTo
+                      ? 'bg-[#1A4D4F] text-white hover:bg-[#164044]'
+                      : 'bg-white text-[#1A4D4F] border border-[#1A4D4F] hover:bg-[#1A4D4F]/10'
+                  }`}
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <span>تصفية</span>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  {(dateFrom || dateTo) && (
+                    <span className="bg-white text-[#1A4D4F] rounded-full px-2 py-0.5 text-xs font-bold">
+                      {(dateFrom ? 1 : 0) + (dateTo ? 1 : 0)}
+                    </span>
+                  )}
                 </button>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">نسبة الزكاة:</label>
@@ -655,6 +672,56 @@ export default function Home() {
               </div>
               <h2 className="text-3xl text-black">قائمة الدخل</h2>
             </div>
+
+            {/* Filters Panel */}
+            {showFilters && (
+              <div className="bg-white border border-[#E0E0E0] rounded-md p-6 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[#333]">تصفية البيانات</h3>
+                  <button
+                    onClick={() => setShowFilters(false)}
+                    className="text-[#1A4D4F] hover:text-[#164044] text-xl font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-medium text-[#333] text-sm">من تاريخ</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="p-2 border border-[#CCC] rounded-md bg-white text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-medium text-[#333] text-sm">إلى تاريخ</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      min={dateFrom || undefined}
+                      className="p-2 border border-[#CCC] rounded-md bg-white text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-4">
+                  <button
+                    onClick={handleApplyFilters}
+                    className="bg-[#1A4D4F] text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-[#164044] transition"
+                  >
+                    تطبيق التصفية
+                  </button>
+                  <button
+                    onClick={handleResetFilters}
+                    className="bg-white text-[#1A4D4F] border border-[#1A4D4F] px-6 py-2 rounded-md text-sm font-medium hover:bg-[#1A4D4F]/10 transition"
+                  >
+                    إعادة تعيين
+                  </button>
+                </div>
+              </div>
+            )}
 
             {openAddModal ? (
               <div className="fixed inset-0 z-50 flex items-center justify-center">

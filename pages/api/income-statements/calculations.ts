@@ -38,6 +38,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         return `${year}-${month.toString().padStart(2, '0')}`
       })
+    } else {
+      // Calculate months between from and to dates
+      const fromDate = new Date(String(from))
+      const toDate = new Date(String(to))
+      
+      // Generate all months between from and to
+      const startYear = fromDate.getFullYear()
+      const startMonth = fromDate.getMonth() + 1
+      const endYear = toDate.getFullYear()
+      const endMonth = toDate.getMonth() + 1
+      
+      months = []
+      allMonths = []
+      
+      let currentYear = startYear
+      let currentMonth = startMonth
+      
+      while (
+        currentYear < endYear ||
+        (currentYear === endYear && currentMonth <= endMonth)
+      ) {
+        const monthStr = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`
+        months.push(monthStr)
+        allMonths.push(monthStr)
+        
+        currentMonth++
+        if (currentMonth > 12) {
+          currentMonth = 1
+          currentYear++
+        }
+      }
     }
 
     // Advanced query to get all income statements with categories

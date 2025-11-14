@@ -471,6 +471,15 @@ function getMonthName(month: number) {
     fetchFinancialRecords();
   };
 
+  const handleReset = () => {
+    setFilters({
+      movementType: '',
+      fromDate: '',
+      toDate: '',
+    });
+    setSearchTerm('');
+  };
+
   const fetchFilteredDataExporting = async () => {
     if (!officeId) return [];
     
@@ -825,12 +834,20 @@ function getMonthName(month: number) {
                 </div>
               </div>
               
-              <button
-                className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 text-sm cursor-pointer hover:bg-[#164044]"
-                onClick={handleSearch}
-              >
-                كشف حساب
-              </button>
+              <div className="flex gap-3">
+                <button
+                  className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 text-sm cursor-pointer hover:bg-[#164044]"
+                  onClick={handleSearch}
+                >
+                  كشف حساب
+                </button>
+                <button
+                  className="bg-gray-500 text-white border-none rounded-md px-4 py-2 text-sm cursor-pointer hover:bg-gray-600"
+                  onClick={handleReset}
+                >
+                  إعادة ضبط
+                </button>
+              </div>
             </section>
 
             {/* Results Section */}

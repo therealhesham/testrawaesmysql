@@ -120,6 +120,37 @@ const TaxReportPage = () => {
     }
   };
 
+  // Fetch filtered data for export
+  const fetchFilteredSalesDataExporting = async () => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('from', dateFrom);
+    if (dateTo) params.append('to', dateTo);
+    if (searchTerm) params.append('search', searchTerm);
+    
+    const response = await fetch(`/api/tax-sales?${params.toString()}`);
+    const data = await response.json();
+    
+    if (data.success && Array.isArray(data.sales)) {
+      return data.sales;
+    }
+    return [];
+  };
+
+  const fetchFilteredPurchasesDataExporting = async () => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('from', dateFrom);
+    if (dateTo) params.append('to', dateTo);
+    if (searchTerm) params.append('search', searchTerm);
+    
+    const response = await fetch(`/api/tax-purchases?${params.toString()}`);
+    const data = await response.json();
+    
+    if (data.success && Array.isArray(data.purchases)) {
+      return data.purchases;
+    }
+    return [];
+  };
+
   // Fetch counts on mount and when date filters change
   useEffect(() => {
     fetchCounts();
@@ -255,7 +286,22 @@ function getDate(date: any) {
 
   // Export Sales to PDF
   const exportSalesToPDF = async () => {
-    const dataToExport = filteredSalesData;
+    let dataToExport = filteredSalesData;
+    // If filters are applied, fetch filtered data from API
+    if (dateFrom || dateTo || searchTerm) {
+      dataToExport = await fetchFilteredSalesDataExporting();
+    }
+    
+    // Calculate summary from exported data
+    const exportSummary = {
+      salesBeforeTax: dataToExport.reduce((sum, sale) => sum + parseFloat(sale.salesBeforeTax?.toString() || '0'), 0).toFixed(2),
+      taxRate: dataToExport.length > 0 
+        ? (dataToExport.reduce((sum, sale) => sum + parseFloat(sale.taxRate?.toString() || '0'), 0) / dataToExport.length).toFixed(2)
+        : '0.00',
+      taxValue: dataToExport.reduce((sum, sale) => sum + parseFloat(sale.taxValue?.toString() || '0'), 0).toFixed(2),
+      salesIncludingTax: dataToExport.reduce((sum, sale) => sum + parseFloat(sale.salesIncludingTax?.toString() || '0'), 0).toFixed(2),
+    };
+    
     const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -317,10 +363,10 @@ function getDate(date: any) {
       '-',
       '-',
       'الاجمالي',
-      formatNumber(salesSummary.salesBeforeTax),
-      formatNumber(salesSummary.taxRate),
-      formatNumber(salesSummary.taxValue),
-      formatNumber(salesSummary.salesIncludingTax),
+      formatNumber(exportSummary.salesBeforeTax),
+      formatNumber(exportSummary.taxRate),
+      formatNumber(exportSummary.taxValue),
+      formatNumber(exportSummary.salesIncludingTax),
       '-',
       '-',
       '-',
@@ -386,7 +432,22 @@ function getDate(date: any) {
 
   // Export Sales to Excel
   const exportSalesToExcel = async () => {
-    const dataToExport = filteredSalesData;
+    let dataToExport = filteredSalesData;
+    // If filters are applied, fetch filtered data from API
+    if (dateFrom || dateTo || searchTerm) {
+      dataToExport = await fetchFilteredSalesDataExporting();
+    }
+    
+    // Calculate summary from exported data
+    const exportSummary = {
+      salesBeforeTax: dataToExport.reduce((sum, sale) => sum + parseFloat(sale.salesBeforeTax?.toString() || '0'), 0).toFixed(2),
+      taxRate: dataToExport.length > 0 
+        ? (dataToExport.reduce((sum, sale) => sum + parseFloat(sale.taxRate?.toString() || '0'), 0) / dataToExport.length).toFixed(2)
+        : '0.00',
+      taxValue: dataToExport.reduce((sum, sale) => sum + parseFloat(sale.taxValue?.toString() || '0'), 0).toFixed(2),
+      salesIncludingTax: dataToExport.reduce((sum, sale) => sum + parseFloat(sale.salesIncludingTax?.toString() || '0'), 0).toFixed(2),
+    };
+    
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('المبيعات', { properties: { defaultColWidth: 20 } });
 
@@ -424,10 +485,10 @@ function getDate(date: any) {
       index: '-',
       date: '-',
       customerName: 'الاجمالي',
-      salesBeforeTax: formatNumber(salesSummary.salesBeforeTax),
-      taxRate: formatNumber(salesSummary.taxRate),
-      taxValue: formatNumber(salesSummary.taxValue),
-      salesIncludingTax: formatNumber(salesSummary.salesIncludingTax),
+      salesBeforeTax: formatNumber(exportSummary.salesBeforeTax),
+      taxRate: formatNumber(exportSummary.taxRate),
+      taxValue: formatNumber(exportSummary.taxValue),
+      salesIncludingTax: formatNumber(exportSummary.salesIncludingTax),
       paymentMethod: '-',
       attachment: '-',
     }).alignment = { horizontal: 'right' };
@@ -444,7 +505,22 @@ function getDate(date: any) {
 
   // Export Purchases to PDF
   const exportPurchasesToPDF = async () => {
-    const dataToExport = filteredPurchasesData;
+    let dataToExport = filteredPurchasesData;
+    // If filters are applied, fetch filtered data from API
+    if (dateFrom || dateTo || searchTerm) {
+      dataToExport = await fetchFilteredPurchasesDataExporting();
+    }
+    
+    // Calculate summary from exported data
+    const exportSummary = {
+      purchasesBeforeTax: dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.purchasesBeforeTax?.toString() || '0'), 0).toFixed(2),
+      taxRate: dataToExport.length > 0 
+        ? (dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.taxRate?.toString() || '0'), 0) / dataToExport.length).toFixed(2)
+        : '0.00',
+      taxValue: dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.taxValue?.toString() || '0'), 0).toFixed(2),
+      purchasesIncludingTax: dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.purchasesIncludingTax?.toString() || '0'), 0).toFixed(2),
+    };
+    
     const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
@@ -512,10 +588,10 @@ function getDate(date: any) {
       '-',
       '-',
       'الاجمالي',
-      formatNumber(purchasesSummary.purchasesBeforeTax),
-      formatNumber(purchasesSummary.taxRate),
-      formatNumber(purchasesSummary.taxValue),
-      formatNumber(purchasesSummary.purchasesIncludingTax),
+      formatNumber(exportSummary.purchasesBeforeTax),
+      formatNumber(exportSummary.taxRate),
+      formatNumber(exportSummary.taxValue),
+      formatNumber(exportSummary.purchasesIncludingTax),
       '-',
       '-',
       '-',
@@ -581,7 +657,22 @@ function getDate(date: any) {
 
   // Export Purchases to Excel
   const exportPurchasesToExcel = async () => {
-    const dataToExport = filteredPurchasesData;
+    let dataToExport = filteredPurchasesData;
+    // If filters are applied, fetch filtered data from API
+    if (dateFrom || dateTo || searchTerm) {
+      dataToExport = await fetchFilteredPurchasesDataExporting();
+    }
+    
+    // Calculate summary from exported data
+    const exportSummary = {
+      purchasesBeforeTax: dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.purchasesBeforeTax?.toString() || '0'), 0).toFixed(2),
+      taxRate: dataToExport.length > 0 
+        ? (dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.taxRate?.toString() || '0'), 0) / dataToExport.length).toFixed(2)
+        : '0.00',
+      taxValue: dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.taxValue?.toString() || '0'), 0).toFixed(2),
+      purchasesIncludingTax: dataToExport.reduce((sum, purchase) => sum + parseFloat(purchase.purchasesIncludingTax?.toString() || '0'), 0).toFixed(2),
+    };
+    
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('المشتريات', { properties: { defaultColWidth: 20 } });
 
@@ -625,10 +716,10 @@ function getDate(date: any) {
       status: '-',
       invoiceNumber: '-',
       supplierName: 'الاجمالي',
-      purchasesBeforeTax: formatNumber(purchasesSummary.purchasesBeforeTax),
-      taxRate: formatNumber(purchasesSummary.taxRate),
-      taxValue: formatNumber(purchasesSummary.taxValue),
-      purchasesIncludingTax: formatNumber(purchasesSummary.purchasesIncludingTax),
+      purchasesBeforeTax: formatNumber(exportSummary.purchasesBeforeTax),
+      taxRate: formatNumber(exportSummary.taxRate),
+      taxValue: formatNumber(exportSummary.taxValue),
+      purchasesIncludingTax: formatNumber(exportSummary.purchasesIncludingTax),
       supplyType: '-',
       attachment: '-',
     }).alignment = { horizontal: 'right' };
@@ -639,6 +730,257 @@ function getDate(date: any) {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'purchases.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Export VAT Summary to PDF
+  const exportVATToPDF = async () => {
+    if (!vatSummaryData) return;
+    
+    const doc = new jsPDF({ orientation: 'portrait' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // Load logo
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+    // Load Arabic font
+    try {
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading Amiri font:', error);
+      return;
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+    // doc.text('الاقرار الضريبي - الضريبة المضافة', pageWidth / 2, 20, { align: 'right' });
+
+    const tableColumn = [
+      'التفاصيل',
+      'المبلغ (بالريال)',
+      'مبلغ التعديل (بالريال)',
+      'مبلغ ضريبة القيمة المضافة (بالريال)',
+    ];
+
+    const tableRows: any[] = [];
+    
+    // Sales section
+    if (vatSummaryData.sales?.rows) {
+      vatSummaryData.sales.rows.forEach((row: any) => {
+        tableRows.push([
+          `المبيعات - ${row.description}`,
+          row.amount,
+          row.adjustment,
+          row.vat,
+        ]);
+      });
+      if (vatSummaryData.sales.total) {
+        tableRows.push([
+          `المبيعات - ${vatSummaryData.sales.total.description || 'الاجمالي'}`,
+          vatSummaryData.sales.total.amount,
+          vatSummaryData.sales.total.adjustment,
+          vatSummaryData.sales.total.vat,
+        ]);
+      }
+    }
+
+    // Purchases section
+    if (vatSummaryData.purchases?.rows) {
+      vatSummaryData.purchases.rows.forEach((row: any) => {
+        tableRows.push([
+          `المشتريات - ${row.description}`,
+          row.amount,
+          row.adjustment,
+          row.vat,
+        ]);
+      });
+      if (vatSummaryData.purchases.total) {
+        tableRows.push([
+          `المشتريات - ${vatSummaryData.purchases.total.description || 'الاجمالي'}`,
+          vatSummaryData.purchases.total.amount,
+          vatSummaryData.purchases.total.adjustment,
+          vatSummaryData.purchases.total.vat,
+        ]);
+      }
+    }
+
+    // VAT section
+    if (vatSummaryData.vat?.rows) {
+      vatSummaryData.vat.rows.forEach((row: any) => {
+        tableRows.push([
+          `الضريبة المضافة - ${row.description}`,
+          row.amount,
+          row.adjustment,
+          row.vat,
+        ]);
+      });
+      if (vatSummaryData.vat.total) {
+        tableRows.push([
+          `الضريبة المضافة - ${vatSummaryData.vat.total.description || 'الاجمالي'}`,
+          vatSummaryData.vat.total.amount,
+          vatSummaryData.vat.total.adjustment,
+          vatSummaryData.vat.total.vat,
+        ]);
+      }
+    }
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: {
+        font: 'Amiri',
+        halign: 'right',
+        fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+      },
+      headStyles: {
+        fillColor: [26, 77, 79],
+        textColor: [255, 255, 255],
+        halign: 'right',
+      },
+      margin: { top: 40, right: 10, left: 10 },
+      didDrawPage: (data: any) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+        if (doc.getCurrentPageInfo().pageNumber === 1) {
+          doc.setFontSize(12);
+          doc.setFont('Amiri', 'normal');
+          doc.text('الاقرار الضريبي - الضريبة المضافة', pageWidth / 2, 20, { align: 'right' });
+        }
+
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        const dateText =
+          'التاريخ: ' +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          '  الساعة: ' +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+      },
+      didParseCell: (data: any) => {
+        data.cell.styles.halign = 'right';
+      },
+    });
+
+    doc.save('vat_summary.pdf');
+  };
+
+  // Export VAT Summary to Excel
+  const exportVATToExcel = async () => {
+    if (!vatSummaryData) return;
+    
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('الضريبة المضافة', { properties: { defaultColWidth: 30 } });
+
+    worksheet.columns = [
+      { header: 'التفاصيل', key: 'description', width: 40 },
+      { header: 'المبلغ (بالريال)', key: 'amount', width: 20 },
+      { header: 'مبلغ التعديل (بالريال)', key: 'adjustment', width: 20 },
+      { header: 'مبلغ ضريبة القيمة المضافة (بالريال)', key: 'vat', width: 25 },
+    ];
+
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12, bold: true };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+    // Sales section
+    if (vatSummaryData.sales?.rows) {
+      vatSummaryData.sales.rows.forEach((row: any) => {
+        worksheet.addRow({
+          description: `المبيعات - ${row.description}`,
+          amount: formatNumber(row.amount),
+          adjustment: formatNumber(row.adjustment),
+          vat: formatNumber(row.vat),
+        }).alignment = { horizontal: 'right' };
+      });
+      if (vatSummaryData.sales.total) {
+        worksheet.addRow({
+          description: `المبيعات - ${vatSummaryData.sales.total.description || 'الاجمالي'}`,
+          amount: formatNumber(vatSummaryData.sales.total.amount),
+          adjustment: formatNumber(vatSummaryData.sales.total.adjustment),
+          vat: formatNumber(vatSummaryData.sales.total.vat),
+        }).alignment = { horizontal: 'right' };
+        worksheet.lastRow!.font = { bold: true };
+      }
+    }
+
+    // Purchases section
+    if (vatSummaryData.purchases?.rows) {
+      vatSummaryData.purchases.rows.forEach((row: any) => {
+        worksheet.addRow({
+          description: `المشتريات - ${row.description}`,
+          amount: formatNumber(row.amount),
+          adjustment: formatNumber(row.adjustment),
+          vat: formatNumber(row.vat),
+        }).alignment = { horizontal: 'right' };
+      });
+      if (vatSummaryData.purchases.total) {
+        worksheet.addRow({
+          description: `المشتريات - ${vatSummaryData.purchases.total.description || 'الاجمالي'}`,
+          amount: formatNumber(vatSummaryData.purchases.total.amount),
+          adjustment: formatNumber(vatSummaryData.purchases.total.adjustment),
+          vat: formatNumber(vatSummaryData.purchases.total.vat),
+        }).alignment = { horizontal: 'right' };
+        worksheet.lastRow!.font = { bold: true };
+      }
+    }
+
+    // VAT section
+    if (vatSummaryData.vat?.rows) {
+      vatSummaryData.vat.rows.forEach((row: any) => {
+        worksheet.addRow({
+          description: `الضريبة المضافة - ${row.description}`,
+          amount: formatNumber(row.amount),
+          adjustment: formatNumber(row.adjustment),
+          vat: formatNumber(row.vat),
+        }).alignment = { horizontal: 'right' };
+      });
+      if (vatSummaryData.vat.total) {
+        worksheet.addRow({
+          description: `الضريبة المضافة - ${vatSummaryData.vat.total.description || 'الاجمالي'}`,
+          amount: formatNumber(vatSummaryData.vat.total.amount),
+          adjustment: formatNumber(vatSummaryData.vat.total.adjustment),
+          vat: formatNumber(vatSummaryData.vat.total.vat),
+        }).alignment = { horizontal: 'right' };
+        worksheet.lastRow!.font = { bold: true };
+      }
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vat_summary.xlsx';
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -828,24 +1170,62 @@ function getDate(date: any) {
                 </div>
               </div>
                {/* Export Buttons */}
-              {(activeTab === 'sales' || activeTab === 'purchases') && (
-                <div className="flex gap-2 mt-5">
-                  <button 
-                    onClick={activeTab === 'sales' ? exportSalesToExcel : exportPurchasesToExcel}
-                    className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
-                  >
-                    <TableIcon className="w-3 h-3"/>
-                    <span>Excel</span>
-                  </button>
-                  <button 
-                    onClick={activeTab === 'sales' ? exportSalesToPDF : exportPurchasesToPDF}
-                    className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
-                  >
-                    <DocumentDownloadIcon className="w-3 h-3"/>
-                    <span>PDF</span>
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-2 mt-5">
+                {activeTab === 'sales' && (
+                  <>
+                    <button 
+                      onClick={exportSalesToExcel}
+                      className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                    >
+                      <TableIcon className="w-3 h-3"/>
+                      <span>Excel</span>
+                    </button>
+                    <button 
+                      onClick={exportSalesToPDF}
+                      className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                    >
+                      <DocumentDownloadIcon className="w-3 h-3"/>
+                      <span>PDF</span>
+                    </button>
+                  </>
+                )}
+                {activeTab === 'purchases' && (
+                  <>
+                    <button 
+                      onClick={exportPurchasesToExcel}
+                      className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                    >
+                      <TableIcon className="w-3 h-3"/>
+                      <span>Excel</span>
+                    </button>
+                    <button 
+                      onClick={exportPurchasesToPDF}
+                      className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                    >
+                      <DocumentDownloadIcon className="w-3 h-3"/>
+                      <span>PDF</span>
+                    </button>
+                  </>
+                )}
+                {activeTab === 'vat' && (
+                  <>
+                    <button 
+                      onClick={exportVATToExcel}
+                      className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                    >
+                      <TableIcon className="w-3 h-3"/>
+                      <span>Excel</span>
+                    </button>
+                    <button 
+                      onClick={exportVATToPDF}
+                      className="bg-[#1A4D4F] text-white rounded-sm text-[10px] px-2.5 py-1 flex items-center gap-1 h-6 hover:bg-[#1a4d4fcc] transition-colors cursor-pointer"
+                    >
+                      <DocumentDownloadIcon className="w-3 h-3"/>
+                      <span>PDF</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </section>
             
             {/* ## Sales Table - Only show for sales tab */}
