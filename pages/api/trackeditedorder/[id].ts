@@ -63,6 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching order:', error);
       return res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      await prisma.$disconnect();
     }
   }
 
@@ -308,6 +310,8 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
     } catch (error) {
       console.error('Error updating order:', error);
       return res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      await prisma.$disconnect();
     }
   }
 

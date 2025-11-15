@@ -44,6 +44,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error('Tax export API error:', error);
     return res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

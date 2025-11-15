@@ -119,6 +119,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching employees:', error);
       res.status(500).json({ error: 'Failed to fetch employees' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'POST') {
     try {
@@ -164,6 +166,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error creating employee:', error);
       res.status(500).json({ error: 'Failed to create employee' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -209,6 +213,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error deleting employee:', error);
       res.status(500).json({ error: 'Failed to delete employee' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else {
     res.setHeader('Allow', ['GET', 'POST', 'DELETE']);

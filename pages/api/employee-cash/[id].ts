@@ -136,6 +136,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching employee detail:', error);
       res.status(500).json({ error: 'Failed to fetch employee detail' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'POST') {
     try {
@@ -191,6 +193,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error creating employee cash detail:', error);
       res.status(500).json({ error: 'Failed to create employee cash detail' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'PUT') {
     try {
@@ -281,6 +285,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'record to update not found' });
       }
       res.status(500).json({ error: 'Failed to update employee cash detail' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -327,6 +333,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'record to delete not found' });
       }
       res.status(500).json({ error: 'Failed to delete employee cash detail' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else {
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);

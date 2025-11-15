@@ -142,6 +142,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching financial records:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    } finally {
+      await prisma.$disconnect();
     }
   } 
   
@@ -252,6 +254,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error creating financial record:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    } finally {
+      await prisma.$disconnect();
     }
   }
   
@@ -351,6 +355,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error updating financial record:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    } finally {
+      await prisma.$disconnect();
     }
   }
   
@@ -390,6 +396,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error deleting financial record:', error);
       return res.status(500).json({ message: 'Internal server error' });
+    } finally {
+      await prisma.$disconnect();
     }
   }
   

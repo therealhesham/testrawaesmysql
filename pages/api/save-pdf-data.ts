@@ -115,5 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: 'Failed to save PDF data',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  } finally {
+    await prisma.$disconnect();
   }
 }
