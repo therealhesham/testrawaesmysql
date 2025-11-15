@@ -141,6 +141,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching employee cash data:', error);
       res.status(500).json({ error: 'Failed to fetch employee cash data' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'POST') {
     try {
@@ -193,6 +195,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error creating employee cash record:', error);
       res.status(500).json({ error: 'Failed to create employee cash record' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else {
     res.setHeader('Allow', ['GET', 'POST']);

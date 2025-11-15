@@ -20,6 +20,8 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
         res.status(200).json(user);
       } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user' });
+      } finally {
+        await prisma.$disconnect();
       }
       break;
 
@@ -47,6 +49,8 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
       } catch (error) {
         console.log(error)
         res.status(500).json({ error: 'Failed to update user' });
+      } finally {
+        await prisma.$disconnect();
       }
       break;
 
@@ -59,6 +63,8 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
       } catch (error) {
         console.log(error)
         res.status(500).json({ error: 'Failed to delete user' });
+      } finally {
+        await prisma.$disconnect();
       }
       break;
 

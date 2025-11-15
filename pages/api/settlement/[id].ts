@@ -115,5 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error('Error fetching settlement data:', error);
     res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 }

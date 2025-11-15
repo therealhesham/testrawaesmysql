@@ -115,6 +115,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching client account statement:', error);
       res.status(500).json({ error: 'Failed to fetch client account statement' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'PUT') {
     try {
@@ -201,6 +203,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error updating client account statement:', error);
       res.status(500).json({ error: 'Failed to update client account statement' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'DELETE') {
     try {
@@ -231,6 +235,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error deleting client account statement:', error);
       res.status(500).json({ error: 'Failed to delete client account statement' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else {
     res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);

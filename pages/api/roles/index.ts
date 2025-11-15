@@ -13,6 +13,8 @@ export default async function handler(req, res) {
       } catch (error) {
         console.log(error)
         res.status(500).json({ error: 'Failed to fetch roles' });
+      } finally {
+        await prisma.$disconnect();
       }
       break;
 
@@ -30,6 +32,8 @@ export default async function handler(req, res) {
       } catch (error) {
         console.log(error)
         res.status(500).json({ error: 'Failed to create role' });
+      } finally {
+        await prisma.$disconnect();
       }
       break;
 

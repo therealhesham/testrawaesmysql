@@ -153,6 +153,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error fetching client accounts:', error);
       res.status(500).json({ error: 'Failed to fetch client accounts' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else if (req.method === 'POST') {
     try {
@@ -207,6 +209,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       console.error('Error creating client account statement:', error);
       res.status(500).json({ error: 'Failed to create client account statement' });
+    } finally {
+      await prisma.$disconnect();
     }
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
