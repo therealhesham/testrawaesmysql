@@ -173,7 +173,7 @@ const Sidebar = (props) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter overflow-y-hidden",
+    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter overflow-y-hidden flex-shrink-0",
     {
       "w-96": !toggleCollapse,
       "w-20": toggleCollapse,

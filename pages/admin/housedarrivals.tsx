@@ -1228,7 +1228,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
     <Layout>
       <Head>
         <title>Dashboard Preview</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* <meta name="viewport" content="width=device-width, initial-scale=1.0" /> */}
       </Head>
       <section className={`min-h-screen ${Style['tajawal-regular']}`}>
         <div className="mx-auto">
