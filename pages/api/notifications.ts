@@ -176,16 +176,40 @@ export default async function handler(
       });
     }
 
-    // ✅ تعليم الكل كمقروء (فقط الإشعارات الخاصة بالمستخدم)
+    // ✅ تعليم الكل كمقروء
     if (req.method === "DELETE") {
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      // 1) تعليم كل الإشعارات الخاصة بالمستخدم كمقروءة
       await prisma.notifications.updateMany({
         where: {
-          userId: userId  // فقط الإشعارات الخاصة بالمستخدم
+          userId: userId, // فقط الإشعارات الخاصة بالمستخدم
         },
         data: { isRead: true },
       });
-      return res.status(204).json({ message: "All notifications cleared" });
+
+      // 2) تعليم كل الإشعارات العامة كمقروءة لهذا المستخدم
+      //    من خلال إنشاء سجلات في NotificationRead لكل إشعار عام
+      const generalNotifications = await prisma.notifications.findMany({
+        where: {
+          userId: null,
+        },
+        select: { id: true },
+      });
+
+      if (generalNotifications.length > 0) {
+        await prisma.notificationRead.createMany({
+          data: generalNotifications.map((notif) => ({
+            notificationId: notif.id,
+            userId: userId!,
+          })),
+          skipDuplicates: true, // في حالة وجود سجلات سابقة لنفس المستخدم والإشعار
+        });
+      }
+
+      return res
+        .status(204)
+        .json({ message: "All personal and general notifications marked as read for this user" });
     }
 
     res.setHeader("Allow", ["GET", "POST", "DELETE"]);

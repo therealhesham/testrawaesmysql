@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaBars, FaTimes, FaChevronDown, FaChevronUp } from 'react-icons/fa';
@@ -44,39 +44,50 @@ const DesktopNavbar = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!userName) return; // Wait for userName to be set
+  // ✅ دالة لتحديث الإشعارات بعد التغيير
+  const refreshNotifications = useCallback(async () => {
+    if (!userName) return;
     
-    // Fetch notifications
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetch(`/api/notifications?limit=100`);
-        if (!response.ok) throw new Error('Failed to fetch notifications');
-        const { data } = await response.json();
-        
-        // Filter notifications based on active tab
-        let filteredData = data;
-        if (activeTab === 'personal') {
-          filteredData = data.filter((n: any) => n.userId === userName);
-        } else if (activeTab === 'general') {
-          filteredData = data.filter((n: any) => !n.userId || n.userId === null || n.userId === '');
-        }
-        
-        setNotifications(filteredData.slice(0, 5)); // Show only first 5
-        
-        // Calculate counts
-        const allCount = data.length;
-        const personalCount = data.filter((n: any) => n.userId === userName).length;
-        const generalCount = data.filter((n: any) => !n.userId || n.userId === null || n.userId === '').length;
-        
-        setCounts({ all: allCount, personal: personalCount, general: generalCount });
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
+    try {
+      const response = await fetch(`/api/notifications?limit=100`);
+      if (!response.ok) throw new Error('Failed to fetch notifications');
+      const { data, counts } = await response.json();
+      
+      // Filter notifications based on active tab
+      let filteredData = data;
+      if (activeTab === 'personal') {
+        filteredData = data.filter((n: any) => n.userId === userName);
+      } else if (activeTab === 'general') {
+        filteredData = data.filter((n: any) => !n.userId || n.userId === null || n.userId === '');
       }
-    };
-
-    fetchNotifications();
+      
+      setNotifications(filteredData.slice(0, 5));
+      
+      // ✅ حساب العدادات بناءً على حالة القراءة الفعلية
+      const personalUnread = data.filter((n: any) => 
+        n.userId === userName && !n.isRead
+      ).length;
+      
+      const generalUnread = data.filter((n: any) => 
+        (!n.userId || n.userId === null || n.userId === '') && 
+        !(n.readByUsers && n.readByUsers.length > 0)
+      ).length;
+      
+      const totalUnread = counts?.unread || (personalUnread + generalUnread);
+      
+      setCounts({ 
+        all: totalUnread, // ✅ عدد غير المقروءة فقط
+        personal: personalUnread,
+        general: generalUnread
+      });
+    } catch (error) {
+      console.error('Error refreshing notifications:', error);
+    }
   }, [activeTab, userName]);
+
+  useEffect(() => {
+    refreshNotifications();
+  }, [refreshNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -114,29 +125,31 @@ const DesktopNavbar = () => {
     }
   };
 
+  // ✅ دالة لتحديث إشعار كمقروء عند النقر عليه
+  const handleNotificationClick = async (notificationId: number) => {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isRead: true }),
+      });
+      
+      if (response.ok) {
+        // تحديث الإشعارات والعدادات
+        await refreshNotifications();
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
   const handleMarkAllAsRead = async () => {
     try {
       const response = await fetch('/api/notifications', {
         method: 'DELETE',
       });
       if (response.ok) {
-        // Refresh notifications
-        const fetchResponse = await fetch(`/api/notifications?limit=100`);
-        if (fetchResponse.ok) {
-          const { data, counts } = await fetchResponse.json();
-          let filteredData = data;
-          if (activeTab === 'personal') {
-            filteredData = data.filter((n: any) => n.userId === userName);
-          } else if (activeTab === 'general') {
-            filteredData = data.filter((n: any) => !n.userId || n.userId === null);
-          }
-          setNotifications(filteredData.slice(0, 5));
-          
-          const allCount = data.length;
-          const personalCount = data.filter((n: any) => n.userId === userName).length;
-          const generalCount = data.filter((n: any) => !n.userId || n.userId === null).length;
-          setCounts({ all: allCount, personal: personalCount, general: generalCount });
-        }
+        await refreshNotifications();
       }
     } catch (error) {
       console.error('Error marking all as read:', error);
@@ -239,7 +252,8 @@ const DesktopNavbar = () => {
                       <ul className="py-2">
                         {notifications.map((n) => (
                           <li
-                            onClick={() => {
+                            onClick={async () => {
+                              await handleNotificationClick(n.id);
                               router.push(`/admin/notifications`);
                               setIsNotificationOpen(false);
                             }}
@@ -285,7 +299,7 @@ const DesktopNavbar = () => {
             
             <div>
               <span className="text-red-500 text-md">
-                لديك {counts.all} إشعارات  
+                {counts.all > 0 ? `لديك ${counts.all} إشعار${counts.all > 1 ? 'ات' : ''} غير مقروء${counts.all > 1 ? 'ة' : ''}` : 'لا توجد إشعارات غير مقروءة'}
               </span>
             </div>
             
