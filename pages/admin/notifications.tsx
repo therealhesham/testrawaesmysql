@@ -8,6 +8,60 @@ import "dayjs/locale/ar";
 import Layout from "example/containers/Layout";
 import DOMPurify from "dompurify";
 import TaskCompletionModal from "../../components/TaskCompletionModal";
+
+const STATUS_TRANSLATIONS: { [key: string]: string } = {
+  // حلات الطلب (bookingstatus)
+  pending: "قيد الانتظار",
+  external_office_approved: "موافقة المكتب الخارجي",
+  pending_external_office: "في انتظار المكتب الخارجي",
+  medical_check_passed: "تم اجتياز الفحص الطبي",
+  pending_medical_check: "في انتظار الفحص الطبي",
+  foreign_labor_approved: "موافقة وزارة العمل الأجنبية",
+  pending_foreign_labor: "في انتظار وزارة العمل الأجنبية",
+  agency_paid: "تم دفع الوكالة",
+  pending_agency_payment: "في انتظار دفع الوكالة",
+  embassy_approved: "موافقة السفارة السعودية",
+  pending_embassy: "في انتظار السفارة السعودية",
+  visa_issued: "تم إصدار التأشيرة",
+  pending_visa: "في انتظار إصدار التأشيرة",
+  travel_permit_issued: "تم إصدار تصريح السفر",
+  pending_travel_permit: "في انتظار تصريح السفر",
+  received: "تم الاستلام",
+  pending_receipt: "في انتظار الاستلام",
+  cancelled: "ملغي",
+  rejected: "مرفوض",
+  delivered: "تم التسليم",
+  new_order: "طلب جديد",
+  new_orders: "طلبات جديدة",
+  // مراحل التتبع (stage / field names)
+  officeLinkInfo: "الربط مع إدارة المكاتب",
+  externalOfficeInfo: "المكتب الخارجي",
+  externalOfficeApproval: "موافقة المكتب الخارجي",
+  medicalCheck: "الفحص الطبي",
+  foreignLaborApproval: "موافقة وزارة العمل الأجنبية",
+  agencyPayment: "دفع الوكالة",
+  saudiEmbassyApproval: "موافقة السفارة السعودية",
+  visaIssuance: "إصدار التأشيرة",
+  travelPermit: "تصريح السفر",
+  destinations: "الوجهات",
+  receipt: "الاستلام",
+  ticketUpload: "رفع المستندات",
+};
+
+const translateStatusInMessage = (message: string) => {
+  if (!message) return "";
+
+  let translated = message;
+
+  Object.keys(STATUS_TRANSLATIONS).forEach((statusKey) => {
+    const arabicText = STATUS_TRANSLATIONS[statusKey];
+    const regex = new RegExp(statusKey, "gi");
+    translated = translated.replace(regex, arabicText);
+  });
+
+  return translated;
+};
+
 dayjs.extend(relativeTime);
 dayjs.locale("ar");
 
@@ -185,7 +239,14 @@ export default function NotificationsPage() {
                   <span className="text-xl mt-1">📋</span>
                 )}
                 <div className="flex flex-col gap-2 flex-1">
-                  <p className="text-sm font-semibold text-gray-900" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.message || n.title) }}></p>
+                  <p
+                    className="text-sm font-semibold text-gray-900"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(
+                        translateStatusInMessage(n.message || n.title || "")
+                      ),
+                    }}
+                  ></p>
                   <p className="text-xs text-gray-500 flex items-center gap-2">
                     منذ {dayjs(n.createdAt).fromNow()} <FieldTimeOutlined />
                   </p>

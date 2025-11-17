@@ -1,5 +1,5 @@
-//@ts-ignore
 //@ts-nocheck
+//@ts-ignore
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
 import { jwtDecode } from 'jwt-decode';
@@ -50,15 +50,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const newHomemaid = await prisma.automaticEmployee.create({
         data: {
-          cleaning: Cleaning == "Yes" ? true : false,
+          // cleaning: Cleaning == "Yes" ? true : false,
           name: Name,
           birthDate: BirthDate,
-          babySitting: BabySitting == "Yes" ? true : false,
+          // babySitting: BabySitting == "Yes" ? true : false,
           contractDuration: Contract_duration,
-          cooking: Cooking == "Yes" ? true : false,
+          // cooking: Cooking == "Yes" ? true : false,
           age: Array.isArray(Age) ? String(Age[0]) : (Age !== undefined ? String(Age) : undefined),
           height,
-          laundry: laundry == "Yes" ? true : false,
+          // laundry: laundry == "Yes" ? true : false,
           nationality: Array.isArray(Nationality)?Nationality[0]:Nationality,
           maritalStatus: Array.isArray(MaritalStatus)?MaritalStatus[0]:MaritalStatus,
           officeName: Array.isArray(OfficeName)?OfficeName[0]:OfficeName,
@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           passportStartDate: Array.isArray(PassportStartDate)?PassportStartDate[0]:PassportStartDate,
           religion: Array.isArray(Religion)?Religion[0]:Religion,
           salary:Array.isArray(salary)?salary[0]:salary,
-          stitching: stitiching == "Yes" ? true : false,
+          // stitching: stitiching == "Yes" ? true : false,
           weight: Array.isArray(Weight)?Weight[0]:Weight,
           profileImage: profileImage || null,
           fullImage: fullImage || null,
@@ -106,12 +106,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           age: true,
           nationality: true,
           birthDate: true,
-          babySitting: true,
-          cleaning: true,
-          cooking: true,
+          // babySitting: true,
+          // cleaning: true,
+          // cooking: true,
           contractDuration: true,
           height: true,
-          laundry: true,
+          // laundry: true,
           maritalStatus: true,
           officeName: true,
           passportEndDate: true,
@@ -119,7 +119,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           passportStartDate: true,
           religion: true,
           salary: true,
-          stitching: true,
+          // stitching: true,
           weight: true,
           profileImage: true,
           fullImage: true,
@@ -157,15 +157,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const updatedHomemaid = await prisma.automaticEmployee.update({
         where: { id: parseInt(id) },
         data: {
-          cleaning: updateData.Cleaning == "Yes" ? true : false,
+          // cleaning: updateData.Cleaning == "Yes" ? true : false,
           name: updateData.Name,
           birthDate: updateData.BirthDate,
-          babySitting: updateData.BabySitting == "Yes" ? true : false,
+          // babySitting: updateData.BabySitting == "Yes" ? true : false,
           contractDuration: updateData.Contract_duration,
-          cooking: updateData.Cooking == "Yes" ? true : false,
+          // cooking: updateData.Cooking == "Yes" ? true : false,
           age: Array.isArray(updateData.Age) ? String(updateData.Age[0]) : (updateData.Age !== undefined ? String(updateData.Age) : undefined),
           height: updateData.height,
-          laundry: updateData.laundry == "Yes" ? true : false,
+          // laundry: updateData.laundry == "Yes" ? true : false,
           nationality: Array.isArray(updateData.Nationality)?updateData.Nationality[0]:updateData.Nationality,
           maritalStatus: Array.isArray(updateData.MaritalStatus)?updateData.MaritalStatus[0]:updateData.MaritalStatus,
           officeName: Array.isArray(updateData.OfficeName)?updateData.OfficeName[0]:updateData.OfficeName,
@@ -174,7 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           passportStartDate: Array.isArray(updateData.PassportStartDate)?updateData.PassportStartDate[0]:updateData.PassportStartDate,
           religion: Array.isArray(updateData.Religion)?updateData.Religion[0]:updateData.Religion,
           salary:Array.isArray(updateData.salary)?updateData.salary[0]:updateData.salary,
-          stitching: updateData.stitiching == "Yes" ? true : false,
+          // stitching: updateData.stitiching == "Yes" ? true : false,
           weight: Array.isArray(updateData.Weight)?updateData.Weight[0]:updateData.Weight,
           profileImage: updateData.profileImage || null,
           fullImage: updateData.fullImage || null,
