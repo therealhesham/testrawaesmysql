@@ -13,6 +13,19 @@ interface ProcessingResult {
   errors?: string[];
 }
 
+// Ensure all image URLs are HTTPS to avoid mixed-content issues when the app
+// is served over HTTPS (e.g. https://wasl.rawaes.com)
+const normalizeImageUrl = (url: string) => {
+  if (typeof url !== 'string') return url;
+
+  // Force HTTPS for any HTTP URLs returned by the extractor service
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+
+  return url;
+};
+
 export default function PDFProcessor() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -76,7 +89,7 @@ export default function PDFProcessor() {
       }
 
       const imageResult = await imageResponse.json();
-      const extractedImages = imageResult.image_urls || [];
+      const extractedImages = (imageResult.image_urls || []).map(normalizeImageUrl);
 
       if (extractedImages.length === 0) {
         throw new Error('No images found in the PDF');
