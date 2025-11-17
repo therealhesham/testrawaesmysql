@@ -287,16 +287,16 @@ export default function Home() {
               {employees.map((employee) => (
                 <div key={employee.id} className="relative">
                   <AutomaticPreview employee={employee} />
-                  <div className="absolute top-4 right-4 flex space-x-2">
+                  <div className="absolute top-4  left-4 flex space-x-2">
                     <button
                       onClick={() => handleEdit(employee)}
-                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
+                      className="bg-blue-500 bottom-4 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(employee.id.toString())}
-                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm"
+                      className="bg-red-500 bottom-4 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm"
                     >
                       Delete
                     </button>
