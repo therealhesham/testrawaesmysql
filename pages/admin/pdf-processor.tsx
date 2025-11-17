@@ -65,7 +65,7 @@ export default function PDFProcessor() {
       const imageFormData = new FormData();
       imageFormData.append('file', file);
 
-      const imageResponse = await fetch('http://f4ocw4ws4cwgkos40gosg44g.31.97.55.12.sslip.io/extract-images', {
+      const imageResponse = await fetch('https://extract.rawaes.com/extract-images', {
         method: 'POST',
         body: imageFormData,
       });
