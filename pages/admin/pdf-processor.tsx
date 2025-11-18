@@ -130,7 +130,7 @@ export default function PDFProcessor() {
     }
   };
 
-  const handleImageSelection = () => {
+  const handleImageSelection = async () => {
     if (!selectedProfileImage) {
       setError('يرجى اختيار الصورة الشخصية على الأقل');
       return;
@@ -143,8 +143,73 @@ export default function PDFProcessor() {
     }
     
     setSelectedImages(imagesToUpload);
-    // الانتقال التلقائي لمرحلة رفع الصور
-    setCurrentStep('upload-images');
+    setIsUploadingImages(true);
+    setError('');
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < imagesToUpload.length; i++) {
+        const imageUrl = imagesToUpload[i];
+        
+        try {
+          // Fetch the image from the extracted URL
+          const imageResponse = await fetchWithTimeout(imageUrl);
+          if (!imageResponse.ok) {
+            console.error(`Failed to fetch image ${i}:`, imageResponse.status);
+            continue;
+          }
+
+          const imageBlob = await imageResponse.blob();
+          
+          // Get presigned URL for Digital Ocean
+          const presignedResponse = await fetchWithTimeout(`/api/upload-image-presigned-url/image-${Date.now()}-${i}`);
+          if (!presignedResponse.ok) {
+            console.error(`Failed to get presigned URL for image ${i}:`, presignedResponse.status);
+            continue;
+          }
+
+          const { url, filePath } = await presignedResponse.json();
+
+          // Upload to Digital Ocean
+          const uploadResponse = await fetchWithTimeout(url, {
+            method: 'PUT',
+            body: imageBlob,
+            headers: {
+              'Content-Type': imageBlob.type || 'image/jpeg',
+              'x-amz-acl': 'public-read',
+            },
+          });
+
+          if (uploadResponse.ok) {
+            uploadedUrls.push(filePath);
+            console.log(`Successfully uploaded image ${i}:`, filePath);
+          } else {
+            console.error(`Failed to upload image ${i}:`, uploadResponse.status);
+          }
+        } catch (imageError) {
+          console.error(`Error processing image ${i}:`, imageError);
+          continue;
+        }
+      }
+
+      if (uploadedUrls.length === 0) {
+        throw new Error('فشل في رفع جميع الصور');
+      }
+
+      setUploadedImageUrls(uploadedUrls);
+      setIsUploadingImages(false);
+      // الانتقال التلقائي لمرحلة استخراج البيانات وبدء الاستخراج
+      setCurrentStep('extract-data');
+      // بدء استخراج البيانات تلقائياً بعد نجاح الرفع
+      if (file) {
+        await handleDataExtraction();
+      }
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      setError(`فشل في رفع الصور المختارة: ${error.message}`);
+      setIsUploadingImages(false);
+    }
   };
 
   const uploadSelectedImages = async () => {
@@ -483,8 +548,7 @@ export default function PDFProcessor() {
                 <div className="flex justify-between items-center">
                    {[
                      { step: 'upload', label: 'رفع الملف', completed: !!file },
-                     { step: 'select-images', label: 'اختيار الصور', completed: selectedImages.length > 0 },
-                     { step: 'upload-images', label: 'رفع الصور', completed: uploadedImageUrls.length > 0 },
+                     { step: 'select-images', label: 'اختيار ورفع الصور', completed: uploadedImageUrls.length > 0 },
                      { step: 'extract-data', label: 'استخراج البيانات', completed: !!(processingResult && processingResult.geminiData && Object.keys(processingResult.geminiData.jsonResponse).length > 0) },
                      { step: 'save', label: 'حفظ البيانات', completed: !!saveMessage },
                    ].map(({ step, label, completed }, index) => (
@@ -619,10 +683,10 @@ export default function PDFProcessor() {
               {currentStep === 'select-images' && processingResult && (
                 <div className="mb-10">
                   <h2 className="text-xl font-semibold text-gray-900 mb-5 text-right">
-                    الخطوة 2: اختيار الصور
+                    الخطوة 2: اختيار ورفع الصور
                   </h2>
                   <p className="text-sm text-gray-600 mb-6 text-right">
-                    تم استخراج {processingResult.extractedImages.length} صورة من الملف. يرجى اختيار الصورة الشخصية (إلزامي) والصورة بالطول (اختياري):
+                    تم استخراج {processingResult.extractedImages.length} صورة من الملف. يرجى اختيار الصورة الشخصية (إلزامي) والصورة بالطول (اختياري). سيتم رفع الصور تلقائياً إلى Digital Ocean بعد التأكيد:
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -732,78 +796,8 @@ export default function PDFProcessor() {
                   <div className="mt-6 text-right">
                     <button
                       onClick={handleImageSelection}
-                      disabled={!selectedProfileImage}
+                      disabled={!selectedProfileImage || isUploadingImages}
                       className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
-                    >
-                      تأكيد اختيار الصور
-                    </button>
-                    
-                    {selectedImages.length > 0 && (
-                      <button
-                        onClick={() => setCurrentStep('upload-images')}
-                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 mr-3"
-                      >
-                        التالي: رفع الصور
-                      </button>
-                    )}
-                    
-                    <button
-                      onClick={() => setCurrentStep('upload')}
-                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
-                    >
-                      السابق: رفع ملف جديد
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Upload Images to Digital Ocean */}
-              {currentStep === 'upload-images' && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-5 text-right">
-                    الخطوة 3: رفع الصور إلى Digital Ocean
-                  </h2>
-                  <p className="text-sm text-gray-600 mb-6 text-right">
-                    تم اختيار الصور بنجاح. اضغط على الزر أدناه لرفع الصور إلى Digital Ocean.
-                  </p>
-                  
-                  <div className="bg-gray-50 rounded-xl p-6 mb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-3 text-right">
-                      الصور المختارة للرفع:
-                    </h3>
-                    <div className="flex space-x-6 justify-end">
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 mb-2">الصورة الشخصية</p>
-                        <img
-                          src={selectedProfileImage}
-                          alt="الصورة الشخصية"
-                          className="w-24 h-24 object-cover rounded-lg shadow-sm"
-                        />
-                      </div>
-                      {selectedFullImage && (
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
-                          <img
-                            src={selectedFullImage}
-                            alt="الصورة بالطول"
-                            className="w-24 h-24 object-cover rounded-lg shadow-sm"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-600">{error}</p>
-                    </div>
-                  )}
-
-                  <div className="mt-6 text-right">
-                    <button
-                      onClick={uploadSelectedImages}
-                      disabled={isUploadingImages}
-                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                     >
                       {isUploadingImages ? (
                         <>
@@ -831,37 +825,28 @@ export default function PDFProcessor() {
                           جاري رفع الصور...
                         </>
                       ) : (
-                        'رفع الصور إلى Digital Ocean'
+                        'تأكيد ورفع الصور'
                       )}
                     </button>
                     
-                    {uploadedImageUrls.length > 0 && (
-                      <button
-                        onClick={() => setCurrentStep('extract-data')}
-                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 mr-3"
-                      >
-                        التالي: استخراج البيانات
-                      </button>
-                    )}
-                    
                     <button
-                      onClick={() => setCurrentStep('select-images')}
-                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
+                      onClick={() => setCurrentStep('upload')}
+                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 mr-3"
                     >
-                      السابق: اختيار الصور
+                      السابق: رفع ملف جديد
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Step 4: Data Extraction */}
+              {/* Step 3: Data Extraction */}
               {currentStep === 'extract-data' && (
                 <div className="mb-10">
                   <h2 className="text-xl font-semibold text-gray-900 mb-5 text-right">
-                    الخطوة 4: استخراج البيانات
+                    الخطوة 3: استخراج البيانات
                   </h2>
                   <p className="text-sm text-gray-600 mb-6 text-right">
-                    تم اختيار الصور بنجاح. اضغط على الزر أدناه لاستخراج البيانات من الملف باستخدام Gemini AI.
+                    تم رفع الصور بنجاح إلى Digital Ocean. اضغط على الزر أدناه لاستخراج البيانات من الملف باستخدام Gemini AI.
                   </p>
 
                   <div className="bg-gray-50 rounded-xl p-6 mb-6">
@@ -942,20 +927,20 @@ export default function PDFProcessor() {
                     )}
                     
                     <button
-                      onClick={() => setCurrentStep('upload-images')}
+                      onClick={() => setCurrentStep('select-images')}
                       className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300"
                     >
-                      السابق: رفع الصور
+                      السابق: اختيار الصور
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Step 5: Save Data */}
+              {/* Step 4: Save Data */}
               {currentStep === 'save' && processingResult && processingResult.geminiData && processingResult.geminiData.jsonResponse && (
                 <div className="mb-10">
                   <h2 className="text-xl font-semibold text-gray-900 mb-5 text-right">
-                    الخطوة 5: حفظ البيانات
+                    الخطوة 4: حفظ البيانات
                   </h2>
 
                   {/* Model Information and Retry Button */}
