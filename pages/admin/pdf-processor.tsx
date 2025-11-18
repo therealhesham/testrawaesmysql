@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import Layout from 'example/containers/Layout';
 import AutomaticPreview from '../../components/AutomaticPreview';
@@ -42,7 +42,29 @@ export default function PDFProcessor() {
   const [currentStep, setCurrentStep] = useState<'upload' | 'select-images' | 'upload-images' | 'extract-data' | 'save'>('upload');
   const [currentModel, setCurrentModel] = useState('gemini-2.5-flash');
   const [isRetryingWithPro, setIsRetryingWithPro] = useState(false);
+  const [editingField, setEditingField] = useState<{ key: string; value: string } | null>(null);
+  const [offices, setOffices] = useState<{ id: number; office: string | null }[]>([]);
+  const [invalidOffice, setInvalidOffice] = useState<{ field: string; value: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchOffices = async () => {
+      try {
+        const res = await fetch('/api/foreign-offices-financial/offices');
+        if (!res.ok) {
+          return;
+        }
+        const data = await res.json();
+        if (data && Array.isArray(data.offices)) {
+          setOffices(data.offices);
+        }
+      } catch (e) {
+        console.error('Error fetching offices list:', e);
+      }
+    };
+
+    fetchOffices();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -109,13 +131,20 @@ export default function PDFProcessor() {
   };
 
   const handleImageSelection = () => {
-    if (!selectedProfileImage || !selectedFullImage) {
-      setError('Please select both profile image and full image');
+    if (!selectedProfileImage) {
+      setError('يرجى اختيار الصورة الشخصية على الأقل');
       return;
     }
 
-    setSelectedImages([selectedProfileImage, selectedFullImage]);
-    // Don't auto-advance, let user manually proceed to next step
+    // الصورة الشخصية إلزامية، صورة الطول اختيارية
+    const imagesToUpload = [selectedProfileImage];
+    if (selectedFullImage) {
+      imagesToUpload.push(selectedFullImage);
+    }
+    
+    setSelectedImages(imagesToUpload);
+    // الانتقال التلقائي لمرحلة رفع الصور
+    setCurrentStep('upload-images');
   };
 
   const uploadSelectedImages = async () => {
@@ -179,7 +208,8 @@ export default function PDFProcessor() {
       }
 
       setUploadedImageUrls(uploadedUrls);
-      // Don't auto-advance, let user manually proceed to next step
+      // الانتقال التلقائي لمرحلة استخراج البيانات
+      setCurrentStep('extract-data');
     } catch (error: any) {
       console.error('Error uploading images:', error);
       setError(`فشل في رفع الصور المختارة: ${error.message}`);
@@ -214,13 +244,33 @@ export default function PDFProcessor() {
       const geminiResult = await geminiResponse.json();
       const geminiData = { jsonResponse: geminiResult.jsonResponse };
 
+      // التحقق من أن office_name أو company_name موجودة في قائمة المكاتب
+      const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+      const extractedOfficeName = geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName || geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName;
+      
+      if (extractedOfficeName) {
+        const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
+        const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
+        
+        if (!isValidOffice && offices.length > 0) {
+          // المكتب غير موجود في القائمة
+          const officeField = geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName ? 'office_name' : 'company_name';
+          setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+        } else {
+          setInvalidOffice(null);
+        }
+      } else {
+        setInvalidOffice(null);
+      }
+
       setProcessingResult((prev) =>
         prev
           ? { ...prev, geminiData }
           : { extractedImages: [], geminiData, errors: [] }
       );
       setCurrentModel(modelName);
-      // Don't auto-advance, let user manually proceed to next step
+      // الانتقال التلقائي لمرحلة حفظ البيانات
+      setCurrentStep('save');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during data extraction');
     } finally {
@@ -249,6 +299,83 @@ export default function PDFProcessor() {
     }
   };
 
+  const handleOfficeSelection = (selectedOffice: string) => {
+    if (!processingResult || !invalidOffice) return;
+    
+    const updatedData = { ...processingResult.geminiData.jsonResponse };
+    
+    // تحديث الحقل المناسب (office_name أو company_name)
+    if (invalidOffice.field === 'office_name') {
+      updatedData.office_name = selectedOffice;
+      updatedData.OfficeName = selectedOffice;
+    } else {
+      updatedData.company_name = selectedOffice;
+      updatedData.CompanyName = selectedOffice;
+    }
+    
+    setProcessingResult({
+      ...processingResult,
+      geminiData: { jsonResponse: updatedData }
+    });
+    
+    setInvalidOffice(null);
+  };
+
+  const startEditingField = (key: string, value: any) => {
+    let baseVal = '';
+    if (key === 'skills' || key === 'languages_spoken') {
+      baseVal =
+        typeof value === 'string'
+          ? value
+          : value !== null && value !== undefined
+          ? JSON.stringify(value, null, 2)
+          : '';
+    } else {
+      baseVal = value !== null && value !== undefined ? String(value) : '';
+    }
+    setEditingField({ key, value: baseVal });
+  };
+
+  const cancelEditingField = () => {
+    setEditingField(null);
+  };
+
+  const saveEditingField = () => {
+    if (!editingField || !processingResult) return;
+
+    const { key, value } = editingField;
+    
+    // التحقق من المكتب إذا كان الحقل المُعدل هو office_name أو company_name
+    if ((key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') && value) {
+      const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+      const normalizedValue = String(value).toLowerCase().trim();
+      const isValidOffice = officeNames.some(officeName => officeName === normalizedValue);
+      
+      if (!isValidOffice && offices.length > 0) {
+        setError('المكتب المُدخل غير موجود في قائمة المكاتب. يرجى اختيار مكتب صحيح.');
+        const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
+        setInvalidOffice({ field: officeField, value: String(value) });
+        setEditingField(null);
+        return;
+      } else {
+        setInvalidOffice(null);
+      }
+    }
+    
+    setProcessingResult((prev) => {
+      if (!prev) return prev;
+      const updatedJson = { ...prev.geminiData.jsonResponse, [key]: value };
+      return {
+        ...prev,
+        geminiData: {
+          ...prev.geminiData,
+          jsonResponse: updatedJson,
+        },
+      };
+    });
+    setEditingField(null);
+  };
+
   const handleSave = async () => {
     if (!processingResult) {
       setError('No data to save');
@@ -258,6 +385,25 @@ export default function PDFProcessor() {
     if (selectedImages.length === 0) {
       setError('Please select at least one image to save');
       return;
+    }
+
+    // التحقق من المكتب قبل الحفظ
+    const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+    const extractedOfficeName = processingResult.geminiData.jsonResponse.office_name || 
+                                processingResult.geminiData.jsonResponse.OfficeName || 
+                                processingResult.geminiData.jsonResponse.company_name || 
+                                processingResult.geminiData.jsonResponse.CompanyName;
+    
+    if (extractedOfficeName && offices.length > 0) {
+      const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
+      const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
+      
+      if (!isValidOffice) {
+        setError('يجب اختيار مكتب صحيح من قائمة المكاتب قبل الحفظ');
+        const officeField = processingResult.geminiData.jsonResponse.office_name || processingResult.geminiData.jsonResponse.OfficeName ? 'office_name' : 'company_name';
+        setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -476,14 +622,14 @@ export default function PDFProcessor() {
                     الخطوة 2: اختيار الصور
                   </h2>
                   <p className="text-sm text-gray-600 mb-6 text-right">
-                    تم استخراج {processingResult.extractedImages.length} صورة من الملف. يرجى اختيار صورتين:
+                    تم استخراج {processingResult.extractedImages.length} صورة من الملف. يرجى اختيار الصورة الشخصية (إلزامي) والصورة بالطول (اختياري):
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Profile Image Selection */}
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
-                        الصورة الشخصية
+                        الصورة الشخصية <span className="text-sm text-red-500 font-normal">(إلزامي)</span>
                       </h3>
                       <div className="grid grid-cols-2 gap-4">
                         {processingResult.extractedImages.map((imageUrl, index) => (
@@ -531,7 +677,7 @@ export default function PDFProcessor() {
                     {/* Full Image Selection */}
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
-                        الصورة بالطول
+                        الصورة بالطول <span className="text-sm text-gray-500 font-normal">(اختياري)</span>
                       </h3>
                       <div className="grid grid-cols-2 gap-4">
                         {processingResult.extractedImages.map((imageUrl, index) => (
@@ -586,7 +732,7 @@ export default function PDFProcessor() {
                   <div className="mt-6 text-right">
                     <button
                       onClick={handleImageSelection}
-                      disabled={!selectedProfileImage || !selectedFullImage}
+                      disabled={!selectedProfileImage}
                       className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                     >
                       تأكيد اختيار الصور
@@ -634,14 +780,16 @@ export default function PDFProcessor() {
                           className="w-24 h-24 object-cover rounded-lg shadow-sm"
                         />
                       </div>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
-                        <img
-                          src={selectedFullImage}
-                          alt="الصورة بالطول"
-                          className="w-24 h-24 object-cover rounded-lg shadow-sm"
-                        />
-                      </div>
+                      {selectedFullImage && (
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
+                          <img
+                            src={selectedFullImage}
+                            alt="الصورة بالطول"
+                            className="w-24 h-24 object-cover rounded-lg shadow-sm"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -729,14 +877,16 @@ export default function PDFProcessor() {
                           className="w-24 h-24 object-cover rounded-lg shadow-sm"
                         />
                       </div>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
-                        <img
-                          src={selectedFullImage}
-                          alt="الصورة بالطول"
-                          className="w-24 h-24 object-cover rounded-lg shadow-sm"
-                        />
-                      </div>
+                      {selectedFullImage && (
+                        <div className="text-center">
+                          <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
+                          <img
+                            src={selectedFullImage}
+                            alt="الصورة بالطول"
+                            className="w-24 h-24 object-cover rounded-lg shadow-sm"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -860,6 +1010,54 @@ export default function PDFProcessor() {
                     </div>
                   </div>
 
+                  {/* Office Validation Warning */}
+                  {invalidOffice && (
+                    <div className="mb-6">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="mr-3 flex-1">
+                            <h3 className="text-lg font-medium text-yellow-800 mb-2 text-right">
+                              تحذير: المكتب غير موجود في القائمة
+                            </h3>
+                            <p className="text-sm text-yellow-700 mb-4 text-right">
+                              المكتب المستخرج: <span className="font-semibold">{invalidOffice.value}</span> غير موجود في قاعدة البيانات. يرجى اختيار مكتب صحيح من القائمة أدناه.
+                            </p>
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
+                                اختر المكتب الصحيح:
+                              </label>
+                              <select
+                                onChange={(e) => handleOfficeSelection(e.target.value)}
+                                className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
+                                defaultValue=""
+                              >
+                                <option value="">-- اختر مكتب من القائمة --</option>
+                                {offices.map((office) => (
+                                  <option key={office.id} value={office.office || ''}>
+                                    {office.office}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setInvalidOffice(null)}
+                            className="flex-shrink-0 text-yellow-600 hover:text-yellow-800"
+                          >
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Extracted Data Display */}
                   <div className="mb-6">
                     <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
@@ -881,7 +1079,8 @@ export default function PDFProcessor() {
                             </thead>
                             <tbody>
                               {Object.entries(processingResult.geminiData.jsonResponse).map(([key, value]) => {
-                                // Parse JSON strings for skills and languages_spoken
+                                const isEditing = editingField?.key === key;
+
                                 const renderValue = (val: any) => {
                                   if (key === 'skills' || key === 'languages_spoken') {
                                     try {
@@ -890,7 +1089,10 @@ export default function PDFProcessor() {
                                         return (
                                           <div className="space-y-2">
                                             {Object.entries(parsed).map(([skillKey, skillValue]) => (
-                                              <div key={skillKey} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                              <div
+                                                key={skillKey}
+                                                className="flex justify-between items-center bg-gray-50 p-2 rounded"
+                                              >
                                                 <span className="font-medium text-gray-800">{skillKey}:</span>
                                                 <span className="text-gray-600">{String(skillValue)}</span>
                                               </div>
@@ -898,8 +1100,7 @@ export default function PDFProcessor() {
                                           </div>
                                         );
                                       }
-                                    } catch (e) {
-                                      // If parsing fails, show as string
+                                    } catch {
                                       return String(val);
                                     }
                                   }
@@ -915,7 +1116,129 @@ export default function PDFProcessor() {
                                       {key}
                                     </td>
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
-                                      {renderValue(value)}
+                                      {isEditing ? (
+                                        key === 'skills' || key === 'languages_spoken' ? (
+                                          <div>
+                                            <textarea
+                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                              rows={4}
+                                              value={editingField?.value ?? ''}
+                                              onChange={(e) =>
+                                                setEditingField((prev) =>
+                                                  prev ? { ...prev, value: e.target.value } : prev
+                                                )
+                                              }
+                                            />
+                                            <div className="mt-2 flex justify-end gap-2 text-xs">
+                                              <button
+                                                type="button"
+                                                className="px-3 py-1 rounded-md bg-green-600 text-white hover:bg-green-700"
+                                                onClick={saveEditingField}
+                                              >
+                                                حفظ
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className="px-3 py-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300"
+                                                onClick={cancelEditingField}
+                                              >
+                                                إلغاء
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : key === 'office_name' || key === 'OfficeName' ? (
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <input
+                                                type="text"
+                                                list="office-list"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                value={editingField?.value ?? ''}
+                                                onChange={(e) =>
+                                                  setEditingField((prev) =>
+                                                    prev ? { ...prev, value: e.target.value } : prev
+                                                  )
+                                                }
+                                                placeholder="اختر مكتباً أو اكتب للبحث"
+                                              />
+                                              <datalist id="office-list">
+                                                {offices.map((o) => (
+                                                  <option key={o.id} value={o.office || ''} />
+                                                ))}
+                                              </datalist>
+                                            </div>
+                                            <div className="mt-2 flex justify-end gap-2 text-xs">
+                                              <button
+                                                type="button"
+                                                className="px-3 py-1 rounded-md bg-green-600 text-white hover:bg-green-700"
+                                                onClick={saveEditingField}
+                                              >
+                                                حفظ
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className="px-3 py-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300"
+                                                onClick={cancelEditingField}
+                                              >
+                                                إلغاء
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="text"
+                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                              value={editingField?.value ?? ''}
+                                              onChange={(e) =>
+                                                setEditingField((prev) =>
+                                                  prev ? { ...prev, value: e.target.value } : prev
+                                                )
+                                              }
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  e.preventDefault();
+                                                  saveEditingField();
+                                                }
+                                              }}
+                                            />
+                                            <button
+                                              type="button"
+                                              className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700"
+                                              onClick={saveEditingField}
+                                            >
+                                              حفظ
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300"
+                                              onClick={cancelEditingField}
+                                            >
+                                              إلغاء
+                                            </button>
+                                          </div>
+                                        )
+                                      ) : (
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span>{renderValue(value)}</span>
+                                          <button
+                                            type="button"
+                                            className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs"
+                                            onClick={() => startEditingField(key, value)}
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              viewBox="0 0 20 20"
+                                              fill="currentColor"
+                                              className="w-4 h-4"
+                                            >
+                                              <path d="M15.414 2.586a2 2 0 00-2.828 0L4 11.172V14h2.828l8.586-8.586a2 2 0 000-2.828z" />
+                                              <path d="M3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
+                                            </svg>
+                                            تعديل
+                                          </button>
+                                        </div>
+                                      )}
                                     </td>
                                   </tr>
                                 );
@@ -1051,17 +1374,19 @@ export default function PDFProcessor() {
                             <p className="text-xs text-green-600 mt-1">✓ مرفوعة</p>
                           )}
                         </div>
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
-                          <img
-                            src={uploadedImageUrls[1] || selectedFullImage}
-                            alt="الصورة بالطول"
-                            className="w-28 h-28 object-cover rounded-lg shadow-sm"
-                          />
-                          {uploadedImageUrls[1] && (
-                            <p className="text-xs text-green-600 mt-1">✓ مرفوعة</p>
-                          )}
-                        </div>
+                        {(uploadedImageUrls[1] || selectedFullImage) && (
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600 mb-2">الصورة بالطول</p>
+                            <img
+                              src={uploadedImageUrls[1] || selectedFullImage}
+                              alt="الصورة بالطول"
+                              className="w-28 h-28 object-cover rounded-lg shadow-sm"
+                            />
+                            {uploadedImageUrls[1] && (
+                              <p className="text-xs text-green-600 mt-1">✓ مرفوعة</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -189,7 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else if (req.method === 'DELETE') {
     try {
       const { id } = req.query;
-
+console.log(Number(id))
       const cookieHeader = req.headers.cookie;
       let cookies: { [key: string]: string } = {};
       if (cookieHeader) {
@@ -208,7 +208,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       await prisma.automaticEmployee.delete({
-        where: { id: parseInt(id as string) },
+        where: { id: Number(id as string) },
       });
 
       res.status(200).json({ message: 'Homemaid deleted successfully' });

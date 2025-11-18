@@ -99,7 +99,7 @@ export default function Home() {
       const response = await axios.post('/api/homemaid', formData);
       setSuccess('Homemaid created successfully');
       resetForm();
-      fetchHomemaids();
+      fetchEmployees();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create homemaid');
     }
@@ -200,7 +200,7 @@ export default function Home() {
       setSuccess('Homemaid updated successfully');
       setShowEditModal(false);
       setEditingId(null);
-      fetchHomemaids();
+      fetchEmployees();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update homemaid');
     }
@@ -217,7 +217,7 @@ export default function Home() {
       setSuccess('Homemaid deleted successfully');
       setShowDeleteModal(false);
       setDeleteId(null);
-      fetchHomemaids();
+      fetchEmployees();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete homemaid');
     }
