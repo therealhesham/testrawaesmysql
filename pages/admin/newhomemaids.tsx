@@ -63,6 +63,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const fileInputRefs = {
     travelTicket: useRef<HTMLInputElement>(null),
@@ -300,6 +301,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       return;
     }
 
+    setIsLoading(true);
     try {
       const response = await fetch('/api/newhomemaids', {
         method: 'POST',
@@ -362,6 +364,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       console.error('Error submitting form:', error);
       setModalMessage('حدث خطأ أثناء إرسال البيانات. حاول مرة أخرى.');
       setShowErrorModal(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -378,6 +382,37 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
           <title>إضافة عاملة</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         </Head>
+        {/* Loading Modal */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+              <svg
+                className="animate-spin h-8 w-8 text-teal-800"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 1 1 8 8 8 8 0 0 1-8-8z"
+                ></path>
+              </svg>
+              <span className="mr-4 text-lg font-semibold text-teal-800">
+                جاري الإرسال...
+              </span>
+            </div>
+          </div>
+        )}
+
         {showModal && error && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full text-center">
@@ -528,10 +563,11 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
 </button>
                   <button
                     type="button"
-                    className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md"
+                    className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleSubmit}
+                    disabled={isLoading}
                   >
-                    إضافة العاملة
+                    {isLoading ? 'جاري الإرسال...' : 'إضافة العاملة'}
                   </button>
                 </div>     
 
