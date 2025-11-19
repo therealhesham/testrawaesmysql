@@ -32,7 +32,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     city,
     externalOfficeStatus,
     ExperienceYears,
-    Paid
+    Paid,
+    clientID
   } = req.body;
 
   try {
@@ -65,13 +66,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         housed: { create: { HomeMaidId: HomemaidId } },
         paid: Paid == null ? undefined : Number(Paid),
         client: {
-          create: {
-            email,
-            address,
-            city,
-            nationalId,
-            fullname: ClientName,
-            phonenumber: clientphonenumber,
+          connect: {
+            id:Number(clientID),
+            
           },
         },
         HomeMaid: { connect: { id: HomemaidId } },

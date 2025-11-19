@@ -87,6 +87,7 @@ const menuItems: MenuItem[] = [
     icon: FaEnvelope,
     subItems: [
       { id: 91, label: "قائمة المراسلات", link: "/admin/messages" },
+      { id: 92, label: "قائمة البريد الالكتروني", link: "/admin/email-list" },
     ],
   },
   {

@@ -109,7 +109,8 @@ const menuItems: MenuItem[] = [
     icon: FaEnvelope,
     subItems: [
       { id: 91, label: "قائمة المراسلات", link: "/admin/messages" },
-      // { id: 92, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
+      { id: 92, label: "قائمة البريد الالكتروني", link: "/admin/email-list" },
+      // { id: 93, label: "ارسال رسالة", link: "/admin/send_message_to_office" },
     ],
   },{
     id: 254,
@@ -161,6 +162,7 @@ const Sidebar = (props) => {
   const [image, setImage] = useState();
   const [info, setInfo] = useState();
   const [role, setRole] = useState();
+  const [showSplash, setShowSplash] = useState(true);
 
   const activeMenu = useMemo(
     () =>
@@ -251,6 +253,14 @@ const Sidebar = (props) => {
     }
   }, []);
 
+  useEffect(() => {
+    // تشغيل تأثير splash لمدة 3 ثواني
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
  return (
   <div className={wrapperClasses}>
     <div className="flex flex-col relative min-h-full">
@@ -259,21 +269,47 @@ const Sidebar = (props) => {
       <div className="flex items-center justify-center relative p-6 border-b border-teal-700/30">
         {!toggleCollapse ? (
           <div className="flex flex-col items-center gap-3">
-            <img
-              src={image ? image : "/images/favicon.ico"}
-              alt="Profile"
-              className="rounded-full w-20 h-20 object-cover ring-2 ring-teal-400/50 transition-all duration-300"
-            />
+            <div className="relative">
+              {/* Splash effect - يظهر لمدة 3 ثواني */}
+              {showSplash && (
+                <>
+                  <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-500 opacity-80 blur-xl animate-ping" style={{ animationDuration: '1s' }}></div>
+                  <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-500 opacity-70 blur-lg animate-pulse" style={{ animationDuration: '1.5s' }}></div>
+                  <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-teal-300 via-cyan-300 to-teal-400 opacity-60 blur-md animate-pulse" style={{ animationDuration: '2s' }}></div>
+                </>
+              )}
+              {/* Glow effect - ثابت بدون نبض */}
+              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-500 opacity-60 blur-md"></div>
+              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-teal-300 via-cyan-300 to-teal-400 opacity-40 blur-sm"></div>
+              <img
+                src={image ? image : "/images/favicon.ico"}
+                alt="Profile"
+                className="relative rounded-full w-20 h-20 object-cover ring-4 ring-teal-400/70 shadow-2xl shadow-teal-500/40 transition-all duration-300 hover:ring-teal-300/90 hover:shadow-teal-400/60 hover:scale-105"
+              />
+            </div>
             <span className="text-base font-semibold text-teal-100">
               {/* مرحباً {info} */}
             </span>
           </div>
         ) : (
-          <img
-            src={image || "/images/favicon.ico"}
-            alt="Profile"
-            className="rounded-full w-12 h-12 object-cover ring-2 ring-teal-400/50"
-          />
+          <div className="relative">
+            {/* Splash effect - يظهر لمدة 3 ثواني */}
+            {showSplash && (
+              <>
+                <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-500 opacity-80 blur-xl animate-ping" style={{ animationDuration: '1s' }}></div>
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-500 opacity-70 blur-lg animate-pulse" style={{ animationDuration: '1.5s' }}></div>
+                <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-teal-300 via-cyan-300 to-teal-400 opacity-60 blur-md animate-pulse" style={{ animationDuration: '2s' }}></div>
+              </>
+            )}
+            {/* Glow effect - ثابت بدون نبض */}
+            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-teal-500 opacity-60 blur-md"></div>
+            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-teal-300 via-cyan-300 to-teal-400 opacity-40 blur-sm"></div>
+            <img
+              src={image || "/images/favicon.ico"}
+              alt="Profile"
+              className="relative rounded-full w-12 h-12 object-cover ring-3 ring-teal-400/70 shadow-2xl shadow-teal-500/40 transition-all duration-300 hover:ring-teal-300/90 hover:shadow-teal-400/60 hover:scale-105"
+            />
+          </div>
         )}
         
         {/* Toggle Button */}

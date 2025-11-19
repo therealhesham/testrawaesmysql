@@ -22,6 +22,7 @@ export default async function handler(
 
     // Search homemaids by ID, name, passport number, or phone
     // Search for homemaids that are NOT linked to housedworker table (housedarrivals)
+    // and are linked to neworder table (have orders)
     const homemaids = await prisma.homemaid.findMany({
       where: {
         AND: [
@@ -38,6 +39,12 @@ export default async function handler(
             // This ensures no housedworker record exists for this homemaid
             inHouse: {
               none: {}
+            }
+          },
+          {
+            // Only get homemaids that have at least one record in NewOrder table
+            NewOrder: {
+              some: {}
             }
           }
         ]

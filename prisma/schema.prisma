@@ -29,6 +29,19 @@ model homemaid {
   age               Int?
   Passportphoto    String?    @db.VarChar(255)
   job               String?    @db.VarChar(255)
+  Education String? @db.VarChar(255)
+  EnglishLanguageLevel String? @db.VarChar(255)
+  ArabicLanguageLeveL String? @db.VarChar(255)
+  SewingLevel String? @db.VarChar(255)
+  weight Int?
+  height Int?
+  CleaningLevel String? @db.VarChar(255)
+  CookingLevel String? @db.VarChar(255)
+  WashingLevel String? @db.VarChar(255)
+  IroningLevel String? @db.VarChar(255)
+  ChildcareLevel String? @db.VarChar(255)
+  ElderlycareLevel String? @db.VarChar(255)
+  LaundryLevel String? @db.VarChar(255)
   flag              Json?
   phone             String?    @db.VarChar(17)
   bookingstatus     String?    @db.VarChar(255)
@@ -41,10 +54,7 @@ model homemaid {
  PassportStart DateTime?
   PassportEnd       DateTime?
   OldPeopleCare     Boolean?
-  ArabicLanguageLeveL String?  @db.VarChar(100)
-  EnglishLanguageLevel String? @db.VarChar(100)
   Salary            String?    @db.VarChar(20)
-  Education         String?    @db.VarChar(60)
   Housed            housing[]
   inHouse           housedworker[]
   Session           Session[]
@@ -807,8 +817,8 @@ model AutomaticEmployee {
   passportStartDate String?
   passportEndDate  String?
   contractDuration  String?
-  weight            String?
-  height            String?
+  weight            Int ?
+  height            Int?
   salary            String?
   
   // Languages (flattened)
