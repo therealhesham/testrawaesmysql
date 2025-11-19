@@ -227,6 +227,7 @@ setUserName(decoded.username);
     reason: false,
     internalLocation: false,
     internalReason: false,
+    internalHousingDate: false,
   });
   const [columnVisibility, setColumnVisibility] = useState({
     id: true,
@@ -298,6 +299,7 @@ setUserName(decoded.username);
     mobile: '',
     clientName: '',
     clientMobile: '',
+    clientIdNumber: '',
     city: '',
     address: '',
     officeName: '',
@@ -774,7 +776,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       });
       showNotification(response.data.message);
       closeModal('housingForm');
-      setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false });
+      setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false, internalHousingDate: false });
       setFormData({
         homeMaidId: '',
         profileStatus: '',
@@ -852,17 +854,30 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       showNotification('يرجى اختيار سبب التسكين', 'error');
       return;
     }
+
+    // Validate housing date
+    if (!internalWorkerForm.housingDate || internalWorkerForm.housingDate === '') {
+      setValidationErrors(prev => ({ ...prev, internalHousingDate: true }));
+      showNotification('يرجى اختيار تاريخ التسكين', 'error');
+      return;
+    }
     
     try {
       const formData = selectedExternalWorker ? {
         ...internalWorkerForm,
+        homeMaidId: Number(selectedExternalWorker.id), // Map to homeMaidId for API
         workerId: selectedExternalWorker.id.toString(),
         workerName: selectedExternalWorker.name,
         mobile: selectedExternalWorker.phone,
+        houseentrydate: internalWorkerForm.housingDate, // Map housingDate to houseentrydate for API
+        location: internalWorkerForm.housing, // Map housing to location for API
         workerType: 'خارجية',
         employee: user,
       } : {
         ...internalWorkerForm,
+        homeMaidId: Number(internalWorkerForm.workerId), // Map workerId to homeMaidId for API
+        houseentrydate: internalWorkerForm.housingDate, // Map housingDate to houseentrydate for API
+        location: internalWorkerForm.housing, // Map housing to location for API
         workerType: 'خارجية',
         employee: user,
       };
@@ -870,13 +885,14 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       const response = await axios.post('/api/confirmhousinginformation', formData);
       showNotification(response.data.message);
       closeModal('internalWorkerModal');
-      setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false });
+      setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false, internalHousingDate: false });
       setInternalWorkerForm({
         workerId: '',
         workerName: '',
         mobile: '',
         clientName: '',
         clientMobile: '',
+        clientIdNumber: '',
         city: '',
         address: '',
         officeName: '',
@@ -916,6 +932,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
   // Handle external worker search input - similar to musanad_finacial
   const handleExternalWorkerSearch = (value: string) => {
     setExternalWorkerSearchTerm(value);
+    
     if (value.trim()) {
       searchExternalWorkers(value);
     } else {
@@ -930,12 +947,18 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
     setExternalWorkerSearchTerm(worker.name || worker.Name || '');
     setExternalWorkerSuggestions([]);
     
-    // Auto-fill form with worker data
+    // Auto-fill form with worker data AND client data from transferSponsorShips
     setInternalWorkerForm(prev => ({
       ...prev,
       workerId: worker.id.toString(),
       workerName: worker.name,
       mobile: worker.phone,
+      // Fill client data from API response (clientData from transferSponsorShips NewClient)
+      clientName: worker.clientData?.clientName || '',
+      clientMobile: worker.clientData?.clientMobile || '',
+      clientIdNumber: worker.clientData?.clientIdNumber || '',
+      city: worker.clientData?.city || '',
+      address: worker.clientData?.address || '',
     }));
   };
   // Calculate duration
@@ -2707,17 +2730,36 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     
                     {/* Selected Worker Display */}
                     {selectedExternalWorker && (
-                      <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-3 mb-4">
+                      <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-4 mb-4">
                         <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-md font-medium text-green-800">العاملة المحددة:</div>
-                            <div className="text-md text-green-700">#{selectedExternalWorker.id} - {selectedExternalWorker.name}</div>
-                            <div className="text-md text-green-600">الجنسية: {selectedExternalWorker.nationality}</div>
-                            <div className="text-md text-green-600">رقم الجواز: {selectedExternalWorker.passportNumber}</div>
-                            <div className="text-md text-green-600">العمر: {selectedExternalWorker.age} سنة</div>
-                            <div className="text-md text-green-600 font-medium">
-                              ✓ عاملة خارجية - متاحة للتسكين
+                          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Worker Info */}
+                            <div>
+                              <div className="text-lg font-semibold text-green-800 mb-2">✓ بيانات العاملة</div>
+                              <div className="space-y-1">
+                                <div className="text-md text-green-700 font-medium">#{selectedExternalWorker.id} - {selectedExternalWorker.name}</div>
+                                <div className="text-md text-green-600">الجنسية: {selectedExternalWorker.nationality}</div>
+                                <div className="text-md text-green-600">رقم الجواز: {selectedExternalWorker.passportNumber}</div>
+                                <div className="text-md text-green-600">العمر: {selectedExternalWorker.age} سنة</div>
+                                <div className="text-md text-green-600">الهاتف: {selectedExternalWorker.phone || 'غير محدد'}</div>
+                              </div>
                             </div>
+                            
+                            {/* Client Info from transferSponsorShips */}
+                            {selectedExternalWorker.clientData && (
+                              <div>
+                                <div className="text-lg font-semibold text-blue-800 mb-2">✓ بيانات العميل الجديد (نقل كفالة)</div>
+                                <div className="space-y-1">
+                                  <div className="text-md text-blue-700 font-medium">الاسم: {selectedExternalWorker.clientData.clientName || 'غير محدد'}</div>
+                                  <div className="text-md text-blue-600">الجوال: {selectedExternalWorker.clientData.clientMobile || 'غير محدد'}</div>
+                                  {selectedExternalWorker.clientData.clientIdNumber && (
+                                    <div className="text-md text-blue-600">رقم الهوية: {selectedExternalWorker.clientData.clientIdNumber}</div>
+                                  )}
+                                  <div className="text-md text-blue-600">المدينة: {selectedExternalWorker.clientData.city || 'غير محدد'}</div>
+                                  <div className="text-md text-blue-600">العنوان: {selectedExternalWorker.clientData.address || 'غير محدد'}</div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         <button
                           type="button"
@@ -2729,6 +2771,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 workerId: '',
                                 workerName: '',
                                 mobile: '',
+                                clientName: '',
+                                clientMobile: '',
+                                clientIdNumber: '',
+                                city: '',
+                                address: '',
                               }));
                             }}
                             className="text-green-600 hover:text-green-800 text-md"
@@ -2770,46 +2817,82 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Client Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">اسم العميل</label>
+                        <label className="block text-md text-gray-700 mb-2">
+                          اسم العميل {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                        </label>
                         <input
                           type="text"
                           value={internalWorkerForm.clientName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
                           placeholder="اسم العميل"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          disabled={!!selectedExternalWorker}
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
+                          }`}
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">رقم الجوال</label>
+                        <label className="block text-md text-gray-700 mb-2">
+                          رقم الجوال {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                        </label>
                         <input
                           type="text"
                           value={internalWorkerForm.clientMobile}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          disabled={!!selectedExternalWorker}
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
+                          }`}
                         />
                       </div>
                     </div>
+                    {/* Client ID Number - Only show if external worker selected and has ID */}
+                    {selectedExternalWorker && internalWorkerForm.clientIdNumber && (
+                      <div className="grid grid-cols-2 gap-8 mb-4">
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">
+                            رقم الهوية <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={internalWorkerForm.clientIdNumber}
+                            disabled
+                            className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+                    )}
                     {/* Location Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">المدينة</label>
+                        <label className="block text-md text-gray-700 mb-2">
+                          المدينة {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                        </label>
                         <input
                           type="text"
                           value={internalWorkerForm.city}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
                           placeholder="ادخل المدينة"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          disabled={!!selectedExternalWorker}
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
+                          }`}
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">العنوان</label>
+                        <label className="block text-md text-gray-700 mb-2">
+                          العنوان {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                        </label>
                         <input
                           type="text"
                           value={internalWorkerForm.address}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
                           placeholder="ادخل العنوان"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          disabled={!!selectedExternalWorker}
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
+                          }`}
                         />
                       </div>
                     </div>
@@ -2856,13 +2939,20 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Dates Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">تاريخ التسكين</label>
+                        <label className="block text-md text-gray-700 mb-2">
+                          تاريخ التسكين <span className="text-red-500">*</span>
+                        </label>
                         <div className="relative">
                           <input
                             type="date"
                             value={internalWorkerForm.housingDate}
-                            onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, housingDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
+                            onChange={(e) => {
+                              setInternalWorkerForm({ ...internalWorkerForm, housingDate: e.target.value });
+                              setValidationErrors(prev => ({ ...prev, internalHousingDate: false }));
+                            }}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md pr-8 ${
+                              validationErrors.internalHousingDate ? 'border-red-500' : 'border-gray-300'
+                            }`}
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

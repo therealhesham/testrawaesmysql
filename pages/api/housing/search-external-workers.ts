@@ -57,7 +57,17 @@ export default async function handler(
             OldClientId: true,
             EntryDate: true,
             transferStage: true,
-            createdAt: true
+            createdAt: true,
+            NewClient: {
+              select: {
+                id: true,
+                fullname: true,
+                phonenumber: true,
+                nationalId: true,
+                city: true,
+                address: true
+              }
+            }
           }
         }
       },
@@ -79,6 +89,15 @@ export default async function handler(
       country: worker.office?.Country || 'غير محدد',
       hasTransferSponsorship: worker.transferSponsorShips !== null,
       transferSponsorShips: worker.transferSponsorShips || null,
+      // Client data from transferSponsorShips NewClient
+      clientData: worker.transferSponsorShips?.NewClient ? {
+        clientId: worker.transferSponsorShips.NewClient.id,
+        clientName: worker.transferSponsorShips.NewClient.fullname || '',
+        clientMobile: worker.transferSponsorShips.NewClient.phonenumber || '',
+        clientIdNumber: worker.transferSponsorShips.NewClient.nationalId || '',
+        city: worker.transferSponsorShips.NewClient.city || '',
+        address: worker.transferSponsorShips.NewClient.address || ''
+      } : null,
       isExternal: worker.isExternal || true,
       isAvailable: true, // All workers returned are available for housing
       status: 'متاحة للتسكين - نقل كفالة'

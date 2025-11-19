@@ -63,7 +63,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         Religion,
         PhoneNumber,
         ages: age + "",
-        housed: { create: { HomeMaidId: HomemaidId } },
         paid: Paid == null ? undefined : Number(Paid),
         client: {
           connect: {
@@ -72,17 +71,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         },
         HomeMaid: { connect: { id: HomemaidId } },
-      },
-    });
-    await prisma.arrivallist.create({
-      data: {
-        // OrderId:id,
-        // SponsorName,
-        // HomemaidName,
-        // PassportNumber,
-
-
-        Order: { connect: { id:result.id } },
       },
     });
 
@@ -183,6 +171,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
+        console.log(error);
         return res.status(400).json({
           message: "البيانات التي تحاول إدخالها قد تكون مسجلة بالفعل",
           details: error.meta,
