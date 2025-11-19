@@ -32,6 +32,12 @@ export default async function handler(
               { Passportnumber: { contains: search } },
               { phone: { contains: search } }
             ]
+          },
+          {
+            // Only get homemaids that have at least one record in NewOrder table
+            NewOrder: {
+              some: {}
+            }
           }
         ]
       },

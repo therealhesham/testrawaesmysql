@@ -1,21 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface AddProfessionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  editingProfession?: { id: number; name: string } | null;
 }
 
-const AddProfessionModal = ({ isOpen, onClose, onSuccess }: AddProfessionModalProps) => {
+const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: AddProfessionModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
   });
   const [errors, setErrors] = useState<any>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Update form when editing profession changes
+  useEffect(() => {
+    if (editingProfession) {
+      setFormData({ name: editingProfession.name });
+    } else {
+      setFormData({ name: '' });
+    }
+    setErrors({});
+    setError('');
+  }, [editingProfession]);
 
   const validateForm = () => {
     const newErrors: any = {};
@@ -51,17 +63,21 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess }: AddProfessionModalPr
     setError('');
 
     try {
-      const response = await fetch('/api/professions', {
-        method: 'POST',
+      const url = '/api/professions';
+      const method = editingProfession ? 'PUT' : 'POST';
+      const body = editingProfession
+        ? { id: editingProfession.id, name: formData.name.trim() }
+        : { name: formData.name.trim() };
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'فشل في إضافة المهنة');
+        throw new Error(errorData.error || (editingProfession ? 'فشل في تعديل المهنة' : 'فشل في إضافة المهنة'));
       }
 
       // Reset form and close modal
@@ -82,7 +98,9 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess }: AddProfessionModalPr
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50" dir="rtl">
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">إضافة مهنة جديدة</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            {editingProfession ? 'تعديل المهنة' : 'إضافة مهنة جديدة'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -134,7 +152,7 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess }: AddProfessionModalPr
               className="px-6 py-2 bg-teal-800 text-white rounded-md text-sm font-medium hover:bg-teal-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
-              {loading ? 'جاري الحفظ...' : 'حفظ المهنة'}
+              {loading ? 'جاري الحفظ...' : editingProfession ? 'تحديث المهنة' : 'حفظ المهنة'}
             </button>
           </div>
         </form>

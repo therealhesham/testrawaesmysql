@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -25,53 +25,101 @@ const parseJsonField = (value: any) => {
   return value;
 };
 
-// Helper function to map Gemini data to AutomaticEmployee schema
-const mapGeminiDataToEmployee = (geminiData: any, selectedImages: string[]) => {
+// Helper function to parse date string to DateTime
+const parseDate = (dateValue: any): Date | null => {
+  if (!dateValue) return null;
+  if (dateValue instanceof Date) return dateValue;
+  if (typeof dateValue === 'string') {
+    const parsed = new Date(dateValue);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+};
+
+// Helper function to parse age to Int
+const parseAge = (ageValue: any): number | null => {
+  if (ageValue == null) return null;
+  if (typeof ageValue === 'number') return ageValue;
+  if (typeof ageValue === 'string') {
+    const parsed = parseInt(ageValue, 10);
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
+// Helper function to map Gemini data to homemaid schema
+const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
   const data = geminiData.jsonResponse || {};
   
   // Parse skills and languages_spoken if they are JSON strings
   const skills = parseJsonField(data.skills);
   const languagesSpoken = parseJsonField(data.languages_spoken);
   
-  // Extract flattened skill values
-  const skill_washing = skills?.WASHING || skills?.washing || '';
-  const skill_cooking = skills?.COOKING || skills?.cooking || '';
-  const skill_babysetting = skills?.babysetting || skills?.BABYSITTING || skills?.babysitting || '';
-  const skill_cleaning = skills?.CLEANING || skills?.cleaning || '';
-  const skill_laundry = skills?.LAUNDRY || skills?.laundry || '';
+  // Extract skill levels (matching homemaid schema)
+  const washingLevel = skills?.WASHING || skills?.washing || '';
+  const cookingLevel = skills?.COOKING || skills?.cooking || '';
+  const childcareLevel = skills?.babysetting || skills?.BABYSITTING || skills?.babysitting || '';
+  const cleaningLevel = skills?.CLEANING || skills?.cleaning || '';
+  const laundryLevel = skills?.LAUNDRY || skills?.laundry || '';
+  const ironingLevel = skills?.IRONING || skills?.ironing || '';
+  const sewingLevel = skills?.SEWING || skills?.sewing || '';
+  const elderlycareLevel = skills?.ELDERLYCARE || skills?.elderlycare || '';
   
-  // Extract flattened language values
-  const lang_english = languagesSpoken?.English || languagesSpoken?.english || '';
-  const lang_arabic = languagesSpoken?.Arabic || languagesSpoken?.arabic || '';
+  // Extract language levels
+  const englishLanguageLevel = languagesSpoken?.English || languagesSpoken?.english || '';
+  const arabicLanguageLeveL = languagesSpoken?.Arabic || languagesSpoken?.arabic || '';
+  
+  // Prepare images as JSON (homemaid uses Json type for Picture and FullPicture)
+  // Format: { url: "..." } to match the expected format
+  const profileImage = selectedImages[0] || null;
+  const fullImage = selectedImages[1] || selectedImages[0] || null;
+  
+  // Parse nationality to JSON if it's a string
+  let nationalityJson: any = null;
+  const nationalityValue = data.Nationality || data.nationality;
+  if (nationalityValue) {
+    if (typeof nationalityValue === 'string') {
+      try {
+        nationalityJson = JSON.parse(nationalityValue);
+      } catch {
+        nationalityJson = nationalityValue; // If not JSON, store as string in JSON
+      }
+    } else {
+      nationalityJson = nationalityValue;
+    }
+  }
   
   return {
-    name: data.Name || data.full_name || data.name,
-    age: data.Age || data.age,
-    religion: data.Religion || data.religion,
-    maritalStatus: data.MaritalStatus || data.marital_status || data.maritalStatus,
-    birthDate: data.BirthDate || data.birthDate || data.birth_date || data.date_of_birth,
-    nationality: data.Nationality || data.nationality,
-    officeName: data.OfficeName || data.office_name || data.officeName,
-    passportNumber: data.PassportNumber || data.passport_number || data.passportNumber,
-    passportStartDate: data.PassportStartDate || data.passport_issue_date || data.passportStartDate,
-    passportEndDate: data.PassportEndDate || data.passport_expiration || data.passportEndDate,
-    contractDuration: data.Contract_duration || data.contractDuration || data.contract_duration,
-    weight: data.Weight || data.weight,
-    height: data.height || data.Height,
-    salary: data.salary || data.Salary,
-    profileImage: selectedImages[0] || null, // First image as profile
-    fullImage: selectedImages[1] || selectedImages[0] || null, // Second image as full image
+    Name: data.Name || data.full_name || data.name || '',
+    age: parseAge(data.Age || data.age),
+    Religion: data.Religion || data.religion || '',
+    maritalstatus: data.MaritalStatus || data.marital_status || data.maritalStatus || '',
+    dateofbirth: parseDate(data.BirthDate || data.birthDate || data.birth_date || data.date_of_birth),
+    Nationality: nationalityJson,
+    Nationalitycopy: typeof nationalityValue === 'string' ? nationalityValue : (nationalityJson ? JSON.stringify(nationalityJson) : ''),
+    officeName: data.company_name || data.CompanyName || data.OfficeName || data.office_name || data.officeName ,
+  
+    Passportnumber: data.PassportNumber || data.passport_number || data.passportNumber || '',
+    PassportStart: parseDate(data.PassportStartDate || data.passport_issue_date || data.passportStartDate),
+    PassportEnd: parseDate(data.PassportEndDate || data.passport_expiration || data.passportEndDate),
+    Salary: data.salary || data.Salary || '',
+    Picture: profileImage ? { url: profileImage } : Prisma.JsonNull,
+    FullPicture: fullImage ? { url: fullImage } : Prisma.JsonNull,
+    // weight: data.weight || data.Weight || '',
+    // height: data.height || data.Height || '',
+    // Language levels
+    EnglishLanguageLevel: englishLanguageLevel || '',
+    ArabicLanguageLeveL: arabicLanguageLeveL || '',
     
-    // Flattened skill fields
-    skill_washing,
-    skill_cooking,
-    skill_babysetting,
-    skill_cleaning,
-    skill_laundry,
-    
-    // Flattened language fields
-    lang_english,
-    lang_arabic,
+    // Skill levels
+    washingLevel: washingLevel || '',
+    cookingLevel: cookingLevel || '',
+    childcareLevel: childcareLevel || '',
+    cleaningLevel: cleaningLevel || '',
+    laundryLevel: laundryLevel || '',
+    ironingLevel: ironingLevel || '',
+    sewingLevel: sewingLevel || '',
+    elderlycareLevel: elderlycareLevel || '',
   };
 };
 
@@ -95,18 +143,86 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Selected images are required' });
     }
 
-    // Map Gemini data to AutomaticEmployee schema
-    const employeeData = mapGeminiDataToEmployee(geminiData, selectedImages);
+    // Map Gemini data to homemaid schema
+    const homemaidData = mapGeminiDataToHomemaid(geminiData, selectedImages);
 
-    // Create the employee record in AutomaticEmployee table
-    const employeeRecord = await prisma.automaticEmployee.create({
-      data: employeeData
+    // Handle office relation - find office and use connect syntax
+    let officeRelation: any = undefined;
+    const officeNameValue = homemaidData.officeName;
+    
+    if (officeNameValue) {
+      const trimmedOfficeName = String(officeNameValue).trim();
+      
+      // Try exact match first
+      let office = await prisma.offices.findUnique({
+        where: { office: trimmedOfficeName }
+      });
+      
+      // If not found, try case-insensitive search
+      if (!office) {
+        const allOffices = await prisma.offices.findMany({
+          where: {
+            office: {
+              not: null
+            }
+          }
+        });
+        
+        // Try exact case-insensitive match
+        office = allOffices.find(
+          o => o.office && o.office.trim().toLowerCase() === trimmedOfficeName.toLowerCase()
+        ) || null;
+        
+        // If still not found, try partial match (contains)
+        if (!office) {
+          office = allOffices.find(
+            o => o.office && o.office.trim().toLowerCase().includes(trimmedOfficeName.toLowerCase())
+          ) || null;
+        }
+        
+        // If still not found, try reverse partial match (office name contains search term)
+        if (!office) {
+          office = allOffices.find(
+            o => o.office && trimmedOfficeName.toLowerCase().includes(o.office.trim().toLowerCase())
+          ) || null;
+        }
+      }
+      
+      if (office) {
+        // Use the relation connect syntax
+        officeRelation = {
+          connect: {
+            office: office.office
+          }
+        };
+      } else {
+        console.warn(`Office "${trimmedOfficeName}" not found in offices table. Skipping office relation.`);
+      }
+    }
+    
+    // Remove officeName from homemaidData as we'll use the relation field instead
+    delete homemaidData.officeName;
+
+    // Build the create data object
+    const createData: any = { ...homemaidData };
+    
+    // Add office relation if found
+    if (officeRelation) {
+      createData.office = officeRelation;
+    }
+
+    // Log the data being sent for debugging
+    console.log('Homemaid data to be saved:', JSON.stringify(createData, null, 2));
+
+    // Create the homemaid record in homemaid table
+    const homemaidRecord = await prisma.homemaid.create({
+      data: createData
     });
 
     return res.status(200).json({
       success: true,
-      employeeId: employeeRecord.id,
-      message: 'Employee data saved successfully'
+      homemaidId: homemaidRecord.id,
+      message: 'Employee data saved successfully to homemaid table'
     });
 
   } catch (error) {

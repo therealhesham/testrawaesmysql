@@ -311,7 +311,7 @@ export default function PDFProcessor() {
 
       // التحقق من أن office_name أو company_name موجودة في قائمة المكاتب
       const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
-      const extractedOfficeName = geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName || geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName;
+      const extractedOfficeName = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName || geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName;
       
       if (extractedOfficeName) {
         const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
@@ -319,7 +319,7 @@ export default function PDFProcessor() {
         
         if (!isValidOffice && offices.length > 0) {
           // المكتب غير موجود في القائمة
-          const officeField = geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName ? 'office_name' : 'company_name';
+          const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
           setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
         } else {
           setInvalidOffice(null);
@@ -398,7 +398,11 @@ export default function PDFProcessor() {
     } else {
       baseVal = value !== null && value !== undefined ? String(value) : '';
     }
-    setEditingField({ key, value: baseVal });
+    // إذا كان الحقل هو office_name وكان company_name موجوداً، استخدم company_name للتعديل
+    const editKey = (key === 'office_name' || key === 'OfficeName') && processingResult?.geminiData?.jsonResponse?.company_name
+      ? 'company_name'
+      : key;
+    setEditingField({ key: editKey, value: baseVal });
   };
 
   const cancelEditingField = () => {
@@ -429,7 +433,27 @@ export default function PDFProcessor() {
     
     setProcessingResult((prev) => {
       if (!prev) return prev;
-      const updatedJson = { ...prev.geminiData.jsonResponse, [key]: value };
+      const updatedJson = { ...prev.geminiData.jsonResponse };
+      
+      // إذا تم تعديل office_name، قم بتحديث company_name أيضاً إذا كان موجوداً
+      if (key === 'office_name' || key === 'OfficeName') {
+        updatedJson[key] = value;
+        updatedJson[key === 'office_name' ? 'OfficeName' : 'office_name'] = value;
+        // إذا كان company_name موجوداً، قم بتحديثه أيضاً
+        if (updatedJson.company_name || updatedJson.CompanyName) {
+          updatedJson.company_name = value;
+          updatedJson.CompanyName = value;
+        }
+      } else if (key === 'company_name' || key === 'CompanyName') {
+        // إذا تم تعديل company_name، قم بتحديث office_name أيضاً
+        updatedJson[key] = value;
+        updatedJson[key === 'company_name' ? 'CompanyName' : 'company_name'] = value;
+        updatedJson.office_name = value;
+        updatedJson.OfficeName = value;
+      } else {
+        updatedJson[key] = value;
+      }
+      
       return {
         ...prev,
         geminiData: {
@@ -454,10 +478,10 @@ export default function PDFProcessor() {
 
     // التحقق من المكتب قبل الحفظ
     const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
-    const extractedOfficeName = processingResult.geminiData.jsonResponse.office_name || 
-                                processingResult.geminiData.jsonResponse.OfficeName || 
-                                processingResult.geminiData.jsonResponse.company_name || 
-                                processingResult.geminiData.jsonResponse.CompanyName;
+    const extractedOfficeName = processingResult.geminiData.jsonResponse.company_name || 
+                                processingResult.geminiData.jsonResponse.CompanyName ||
+                                processingResult.geminiData.jsonResponse.office_name || 
+                                processingResult.geminiData.jsonResponse.OfficeName;
     
     if (extractedOfficeName && offices.length > 0) {
       const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
@@ -465,7 +489,7 @@ export default function PDFProcessor() {
       
       if (!isValidOffice) {
         setError('يجب اختيار مكتب صحيح من قائمة المكاتب قبل الحفظ');
-        const officeField = processingResult.geminiData.jsonResponse.office_name || processingResult.geminiData.jsonResponse.OfficeName ? 'office_name' : 'company_name';
+        const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
         setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
         return;
       }
@@ -1063,8 +1087,26 @@ export default function PDFProcessor() {
                               </tr>
                             </thead>
                             <tbody>
-                              {Object.entries(processingResult.geminiData.jsonResponse).map(([key, value]) => {
-                                const isEditing = editingField?.key === key;
+                              {Object.entries(processingResult.geminiData.jsonResponse)
+                                .filter(([key]) => key !== 'company_name' && key !== 'CompanyName') // إخفاء company_name من العرض
+                                .map(([key, value]) => {
+                                // إذا كان الحقل هو office_name، استخدم company_name إذا كان موجوداً
+                                const displayKey = key === 'office_name' || key === 'OfficeName' 
+                                  ? (processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName 
+                                      ? 'office_name' 
+                                      : key)
+                                  : key;
+                                
+                                // استخدام company_name كقيمة إذا كان موجوداً
+                                const displayValue = (key === 'office_name' || key === 'OfficeName') 
+                                  ? (processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName || value)
+                                  : value;
+                                
+                                // التحقق من التعديل - إذا كان office_name وكان company_name موجوداً، استخدم company_name
+                                const editKey = (key === 'office_name' || key === 'OfficeName') && processingResult.geminiData.jsonResponse.company_name
+                                  ? 'company_name'
+                                  : key;
+                                const isEditing = editingField?.key === editKey;
 
                                 const renderValue = (val: any) => {
                                   if (key === 'skills' || key === 'languages_spoken') {
@@ -1098,7 +1140,7 @@ export default function PDFProcessor() {
                                     className="hover:bg-gray-50 transition-all duration-200"
                                   >
                                     <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">
-                                      {key}
+                                      {displayKey}
                                     </td>
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
                                       {isEditing ? (
@@ -1131,7 +1173,7 @@ export default function PDFProcessor() {
                                               </button>
                                             </div>
                                           </div>
-                                        ) : key === 'office_name' || key === 'OfficeName' ? (
+                                        ) : (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
                                           <div>
                                             <div className="flex items-center gap-2">
                                               <input
@@ -1205,11 +1247,11 @@ export default function PDFProcessor() {
                                         )
                                       ) : (
                                         <div className="flex items-center justify-between gap-2">
-                                          <span>{renderValue(value)}</span>
+                                          <span>{renderValue(displayValue)}</span>
                                           <button
                                             type="button"
                                             className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs"
-                                            onClick={() => startEditingField(key, value)}
+                                            onClick={() => startEditingField(key, displayValue)}
                                           >
                                             <svg
                                               xmlns="http://www.w3.org/2000/svg"

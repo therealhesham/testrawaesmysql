@@ -30,6 +30,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProfession, setEditingProfession] = useState<{ id: number; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState('professions');
   // SLA offices state
   const [offices, setOffices] = useState<any[]>([]);
@@ -349,7 +350,10 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
         {activeTab === 'professions' && (
           <>
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setEditingProfession(null);
+                setIsModalOpen(true);
+              }}
               className="mb-5 bg-teal-800 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-teal-900 transition"
             >
               + إضافة مهنة
@@ -369,8 +373,42 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
                   {professions.map((prof) => (
                     <tr key={prof.id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-sm">
-                        <button className="text-gray-600 hover:text-teal-700 mx-1">تعديل</button>
-                        <button className="text-red-600 hover:text-red-700 mx-1 text-lg">×</button>
+                        <button 
+                          onClick={() => {
+                            setEditingProfession({ id: prof.id, name: prof.name });
+                            setIsModalOpen(true);
+                          }}
+                          className="text-gray-600 hover:text-teal-700 mx-1"
+                        >
+                          تعديل
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            if (confirm('هل أنت متأكد من حذف هذه المهنة؟')) {
+                              try {
+                                const res = await fetch('/api/professions', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: prof.id }),
+                                });
+                                if (res.ok) {
+                                  fetchProfessions();
+                                  setSuccess('تم حذف المهنة بنجاح');
+                                  setTimeout(() => setSuccess(null), 3000);
+                                } else {
+                                  setError('فشل في حذف المهنة');
+                                  setTimeout(() => setError(null), 3000);
+                                }
+                              } catch (err) {
+                                setError('حدث خطأ أثناء الحذف');
+                                setTimeout(() => setError(null), 3000);
+                              }
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700 mx-1 text-lg"
+                        >
+                          ×
+                        </button>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-800">{prof.name}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">#{prof.id}</td>
@@ -534,14 +572,19 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
         )}
         </>
         )}
-        {/* Modal for adding professions */}
+        {/* Modal for adding/editing professions */}
         <AddProfessionModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProfession(null);
+          }}
+          editingProfession={editingProfession}
           onSuccess={() => {
             fetchProfessions();
-            setSuccess('تم إضافة المهنة بنجاح');
+            setSuccess(editingProfession ? 'تم تعديل المهنة بنجاح' : 'تم إضافة المهنة بنجاح');
             setTimeout(() => setSuccess(null), 3000);
+            setEditingProfession(null);
           }}
         />
       </main>
