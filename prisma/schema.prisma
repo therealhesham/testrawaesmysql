@@ -705,7 +705,7 @@ model housedworker {
   id             Int       @id @default(autoincrement())
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
-
+isExternal Boolean? @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   homeMaid_id       Int?       @unique

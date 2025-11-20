@@ -283,7 +283,7 @@ console.log(files)
     }
     setIsSearchingHomemaids(true);
     try {
-      const response = await fetch(`/api/homemaids/suggestions?q=${encodeURIComponent(searchTerm)}`);
+      const response = await fetch(`/api/externals/suggestions?q=${encodeURIComponent(searchTerm)}`);
       if (response.ok) {
         const data = await response.json();
         setHomemaidSuggestions(data.suggestions || []);
