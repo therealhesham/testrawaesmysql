@@ -247,6 +247,10 @@ setUserName(decoded.username);
     deparatureReason: true,
   });
   const pageSize = 10;
+  const [workerType, setWorkerType] = useState<'داخلية' | 'خارجية'>('داخلية');
+useEffect(()=>{
+  console.log(workerType);
+},[workerType]);
   const [formData, setFormData] = useState({
     homeMaidId: '',
     profileStatus: '',
@@ -262,6 +266,7 @@ setUserName(decoded.username);
     reason: '',
     employee: user,
     details: '',
+    isExternal:workerType,
     isHasEntitlements: true, // إضافة حقل المستحقات
   });
   const [editWorkerForm, setEditWorkerForm] = useState<EditWorkerForm>({
@@ -280,7 +285,6 @@ setUserName(decoded.username);
   });
   const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(null);
   const [selectedWorkerName, setSelectedWorkerName] = useState<string>('');
-  const [workerType, setWorkerType] = useState<'داخلية' | 'خارجية'>('داخلية');
   const [workerSearchTerm, setWorkerSearchTerm] = useState('');
   const [workerSuggestions, setWorkerSuggestions] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);

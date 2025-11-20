@@ -34,12 +34,12 @@ export default async function handler(
               { phone: { contains: search } }
             ]
           },
-          {
-            // Only get homemaids that have a record in transferSponsorShips table
-            transferSponsorShips: {
-              isNot: null
-            }
-          }
+          // {
+            // // Only get homemaids that have a record in transferSponsorShips table
+            // transferSponsorShips: {
+            //   isNot: null
+            // }
+          // }
         ]
       },
       include: {

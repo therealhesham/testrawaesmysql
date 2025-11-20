@@ -7,12 +7,12 @@ export default async function handler(req: any, res: any) {
       homeMaidId,
       profileStatus,
       deparatureCity,
-      arrivalCity,
+      arrivalCity,workerType,
       deparatureDate,
       houseentrydate,
       deliveryDate,
       StartingDate,
-      location,
+      location,isExternal,
       startWoringDate,
       DeparatureTime,
       isHasEntitlements,
@@ -66,7 +66,7 @@ export default async function handler(req: any, res: any) {
       const search = await prisma.housedworker.findFirst({
         where: { homeMaid_id: homeMaidId },
       });
-      
+
 // const count = await prisma.inHouseLocation.findFirst({where:{id:Number(req.body.location)}})
 if (req.body.location) {
   const locationId = Number(req.body.location);
@@ -111,6 +111,8 @@ if (req.body.location) {
                 : new Date(),
             },
           },
+
+          isExternal: workerType === "خارجية" ? true : false,
           location_id: Number(req.body.location),
           employee: req.body.employee,
           Reason: req.body.reason,
