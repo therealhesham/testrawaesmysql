@@ -1,181 +1,132 @@
-"use client";
-import React, { useContext, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import cookies from "js-cookie";
-import {
-  Label,
-  Input,
-  Button,
-  WindmillContext,
-} from "@roketid/windmill-react-ui";
-import { GithubIcon, TwitterIcon } from "icons";
+//@ts-nocheck
+//@ts-ignore
+import { useContext, useState } from "react";
 import { useRouter } from "next/router";
-import { ClipLoader } from "react-spinners";
-function LoginPage() {
-  const { mode } = useContext(WindmillContext);
-  const [idnumber, setIDnumber] = useState("");
-  const [Success, setsuccess] = useState(false);
-  const [error, setError] = useState("");
-  const [password, setPassword] = useState("");
-  const imgSource =
-    mode === "dark" ? "/assets/img/rpng.png" : "/assets/img/rpng.png";
+import { signIn } from "next-auth/react";
+import { Formik, Field, Form } from "formik";
+import axios from "axios";
+import { User } from "utils/usercontext";
+import Cookies from "js-cookie";
+
+export default function Login() {
   const router = useRouter();
+  const [error, setError] = useState(null); // For handling errors
+  const [loading, setLoading] = useState(false); // Loading state
+  const userContext = useContext(User);
 
-  const TurnOffOn = () => {
-    setError("خطأ في تسجيل الدخول");
-    setsuccess(false);
-  };
-  const handleSignIn = async (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    //@ts-ignore
-    setError("");
-    setsuccess(true);
-    await fetch("./api/signin", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        idnumber,
-        password,
-      }),
-    })
-      .then(async (e) => {
-        // console.log(e);
+  // Handle form submission
+  const handleSubmit = async (values) => {
+    const { id, password } = values;
+    setLoading(true); // Start loading when form is submitted
 
-        if (e.status == 301) return TurnOffOn();
-        if (e.status != 200) return TurnOffOn();
-        if (e.status == 200) {
-          const s = await e.text();
-          cookies.set("token", s);
-          // console.log(s)
-
-          router.replace("/admin");
-        }
-      })
-      .catch((error) => {
-        TurnOffOn();
-      });
+    try {
+      const res = await axios.post("/api/login", { id, password });
+      localStorage.setItem("token", res.data);
+      if (res.status === 200) {
+        router.push("/admin/personal_page");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "error");
+    } finally {
+      setLoading(false); // Stop loading once the request is complete
+    }
   };
 
   return (
-    //@ts-nocheck
-    //@ts-ignore
-    Success ? (
-      //
-
-      <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white rounded-lg shadow-xl dark:bg-gray-800">
-        <div className="flex flex-col overflow-y-auto md:flex-row">
-          <div className="relative h-32 md:h-auto md:w-1/2">
-            <Image
-              aria-hidden="true"
-              className="hidden object-scale-down w-full h-full"
-              src={imgSource}
-              alt="شعار روائس القمم"
-              layout="fill"
-            />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center relative">
+      {/* Loading Modal */}
+      {loading && (
+        <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg flex items-center">
+            <svg
+              className="animate-spin h-8 w-8 text-teal-900"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+                fill="none"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 1 1 8 8 8 8 0 0 1-8-8z"
+              ></path>
+            </svg>
+            <span className="ml-4 text-lg font-semibold text-teal-900">
+              Logging in...
+            </span>
           </div>
-          <main className="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
-            <ClipLoader />
-          </main>
         </div>
-      </div>
-    ) : (
-      <div>
-        <div className="flex items-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-          <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white rounded-lg shadow-xl dark:bg-gray-800">
-            <div className="flex flex-col overflow-y-auto md:flex-row">
-              <div className="relative h-32 md:h-auto md:w-1/2">
-                <Image
-                  aria-hidden="true"
-                  className="hidden object-scale-down w-full h-full"
-                  src={imgSource}
-                  alt="شعار روائس القمم"
-                  layout="fill"
+      )}
+
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+        {/* Logo Section */}
+        <div className="flex justify-center mb-6">
+          <img
+            src="/assets/img/rpng.png" // Correct image path
+            alt="Logo"
+            className="w-24 h-auto"
+          />
+        </div>
+
+        {/* Formik Form */}
+        <Formik
+          initialValues={{ id: "", password: "" }}
+          onSubmit={handleSubmit}
+        >
+          {() => (
+            <Form>
+              <div className="mb-4">
+                <label
+                  htmlFor="id"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  ID
+                </label>
+                <Field
+                  type="text"
+                  id="id"
+                  name="id"
+                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-900"
+                  placeholder="Enter your id"
                 />
               </div>
-              <main className="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
-                <div className="w-full">
-                  <h1 className="mb-4 text-xl font-semibold text-gray-700 dark:text-gray-200">
-                    Login
-                  </h1>
-                  {error ? (
-                    <span style={{ color: "red" }}>خطأ في البيانات</span>
-                  ) : null}
-                  <Label>
-                    <span>ID number</span>
-                    <Input
-                      onChange={(e) => setIDnumber(e.target.value)}
-                      className="mt-1"
-                      type="number"
-                      value={idnumber}
-                      placeholder="ID Number"
-                    />
-                  </Label>
+              <div className="mb-6">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Password
+                </label>
+                <Field
+                  type="password"
+                  id="password"
+                  name="password"
+                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-900"
+                  placeholder="Enter your password"
+                />
+              </div>
+              {error && (
+                <div className="text-xs text-red-500 mb-4">{error}</div>
+              )}
+              {/* Display error */}
+              <button
+                type="submit"
+                className="w-full py-3 bg-teal-900 text-white font-semibold rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-teal-900"
+              >
+                Login
+              </button>
+            </Form>
+          )}
+        </Formik>
 
-                  <Label className="mt-4">
-                    <span>Password</span>
-                    <Input
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="mt-1"
-                      type="password"
-                      value={password}
-                      placeholder="***************"
-                    />
-                  </Label>
-
-                  {/* <Link href='/example' passHref={true}> */}
-                  <Button
-                    onClick={handleSignIn}
-                    className="mt-4"
-                    block
-                    style={{ backgroundColor: "#003749" }}
-                  >
-                    Log in
-                  </Button>
-                  {/* </Link> */}
-
-                  <hr className="my-8" />
-
-                  {/* <Button block layout='outline'>
-                <GithubIcon className='w-4 h-4 mr-2' aria-hidden='true' />
-                Github
-              </Button> */}
-                  <Button className="mt-4" block layout="outline">
-                    <TwitterIcon className="w-4 h-4 mr-2" aria-hidden="true" />
-                    Twitter
-                  </Button>
-
-                  <p className="mt-4">
-                    <Link href="/example/forgot-password">
-                      <a
-                        style={{ color: "#003749" }}
-                        className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                      >
-                        اتصل بنا
-                      </a>
-                    </Link>
-                  </p>
-                  <p className="mt-1">
-                    <Link href="/example/create-account">
-                      <a
-                        style={{ color: "#003749" }}
-                        className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline"
-                      >
-                        تسجيل حساب
-                      </a>
-                    </Link>
-                  </p>
-                </div>
-              </main>
-            </div>
-          </div>
-        </div>
       </div>
-    )
+    </div>
   );
 }
-
-export default LoginPage;
