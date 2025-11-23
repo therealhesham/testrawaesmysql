@@ -6,7 +6,7 @@ import VisaSelector from './VisaSelector';
 interface InfoCardProps {
   id?: string;
   title: string;
-  data: { label: string; value: string | JSX.Element; fieldType?: 'visa' }[];
+  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' }[];
   gridCols?: number;
   actions?: { label: string; type: 'primary' | 'secondary'; onClick: () => void; disabled?: boolean }[];
   editable?: boolean;
@@ -170,6 +170,10 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                   error={errors[item.label]}
                 />
               </div>
+            ) : editable && editMode && item.fieldType === 'file' ? (
+              <div className="border border-gray-300 rounded-md p-2 text-base text-right">
+                {typeof item.value === 'function' ? item.value(true) : item.value}
+              </div>
             ) : editable && editMode ? (
               <div className="flex flex-col">
                 <input
@@ -182,7 +186,11 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
               </div>
             ) : (
               <div className="border border-gray-300 rounded-md p-2 text-base text-right">
-                {typeof item.value === 'string' ? item.value : item.value}
+                {typeof item.value === 'string' 
+                  ? item.value 
+                  : typeof item.value === 'function' 
+                    ? item.value(false) 
+                    : item.value}
               </div>
             )}
           </div>

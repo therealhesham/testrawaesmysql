@@ -639,20 +639,124 @@ setUploadedFileNames({ orderDocument: '', contract: '' });
     }
   };
 
+//   const saudiCitiesMap: { [key: string]: string } = {
+ 
+// };
+
 const arabicRegionMap: { [key: string]: string } = {
-    'Ar Riyāḍ': 'الرياض',
-    'Makkah al Mukarramah': 'مكة المكرمة',
-    'Al Madīnah al Munawwarah': 'المدينة المنورة',
-    'Ash Sharqīyah': 'المنطقة الشرقية',
-    'Asīr': 'عسير',
-    'Tabūk': 'تبوك',
-    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+     // --- المنطقة الوسطى (الرياض) ---
+    'Riyadh': 'الرياض',
+    'Al-Kharj': 'الخرج',
+    'Ad Diriyah': 'الدرعية',
+    'Al Majma\'ah': 'المجمعة',
+    'Al Zulfi': 'الزلفي',
+    'Ad Dawadimi': 'الدوادمي',
+    'Wadi Ad Dawasir': 'وادي الدواسر',
+    'Afif': 'عفيف',
+    'Al Quway\'iyah': 'القويعية',
+    'Shaqra': 'شقراء',
+    'Hotat Bani Tamim': 'حوطة بني تميم',
+
+    // --- المنطقة الغربية (مكة المكرمة) ---
+    'Makkah': 'مكة المكرمة',
+    'Jeddah': 'جدة',
+    'Taif': 'الطائف',
+    'Rabigh': 'رابغ',
+    'Al Qunfudhah': 'القنفذة',
+    'Al Lith': 'الليث',
+    'Khulais': 'خليص',
+    'Ranyah': 'رنية',
+    'Turabah': 'تربة',
+
+    // --- المدينة المنورة ---
+    'Madinah': 'المدينة المنورة',
+    'Yanbu': 'ينبع',
+    'Al Ula': 'العلا',
+    'Badr': 'بدر',
+    'Al Hinakiyah': 'الحناكية',
+    'Mahd Al Dhahab': 'مهد الذهب',
+
+    // --- المنطقة الشرقية ---
+    'Dammam': 'الدمام',
+    'Al Khobar': 'الخبر',
+    'Dhahran': 'الظهران',
+    'Al Ahsa': 'الأحساء',
+    'Al Hufuf': 'الهفوف',
+    'Al Mubarraz': 'المبرز',
+    'Jubail': 'الجبيل',
+    'Hafr Al Batin': 'حفر الباطن',
+    'Al Khafji': 'الخفجي',
+    'Ras Tanura': 'رأس تنورة',
+    'Qatif': 'القطيف',
+    'Abqaiq': 'بقيق',
+    'Nairiyah': 'النعيرية',
+    'Qaryat Al Ulya': 'قرية العليا',
+
+    // --- القصيم ---
+    'Buraydah': 'بريدة',
+    'Unaizah': 'عنيزة',
+    'Ar Rass': 'الرس',
+    'Al Bukayriyah': 'البكيرية',
+    'Al Badaye': 'البدائع',
+    'Al Mithnab': 'المذنب',
+    'Riyad Al Khabra': 'رياض الخبراء',
+
+    // --- عسير ---
+    'Abha': 'أبها',
+    'Khamis Mushait': 'خميس مشيط',
+    'Bisha': 'بيشة',
+    'Mahayil': 'محايل عسير',
+    'Al Namas': 'النماص',
+    'Tanomah': 'تنومة',
+    'Ahad Rafidah': 'أحد رفيدة',
+    'Sarat Abidah': 'سراة عبيدة',
+    'Balqarn': 'بلقرن',
+
+    // --- تبوك ---
+    'Tabuk': 'تبوك',
+    'Duba': 'ضباء',
+    'Al Wajh': 'الوجه',
+    'Umluj': 'أملج',
+    'Tayma': 'تيماء',
+    'Haqi': 'حقل',
+
+    // --- حائل ---
+    'Hail': 'حائل',
+    'Baqa': 'بقعاء',
+    'Al Ghazalah': 'الغزالة',
+
+    // --- الحدود الشمالية ---
+    'Arar': 'عرعر',
+    'Rafha': 'رفحاء',
+    'Turaif': 'طريف',
+
+    // --- جازان ---
     'Jazan': 'جازان',
-    'Najrān': 'نجران',
-    'Al Bāḩah': 'الباحة',
-    'Al Jawf': 'الجوف',
-    'Al Qaşīm': 'القصيم',
-    'Ḩa\'il': 'حائل',
+    'Sabya': 'صبيا',
+    'Abu Arish': 'أبو عريش',
+    'Samtah': 'صامطة',
+    'Baish': 'بيش',
+    'Ad Darb': 'الدرب',
+    'Al Aridah': 'العارضة',
+    'Fifa': 'فيفاء',
+
+    // --- نجران ---
+    'Najran': 'نجران',
+    'Sharurah': 'شرورة',
+    'Hubuna': 'حبونا',
+
+    // --- الباحة ---
+    'Al Baha': 'الباحة',
+    'Baljurashi': 'بلجرشي',
+    'Al Mandq': 'المندق',
+    'Al Makhwah': 'المخواة',
+    'Qilwah': 'قلوة',
+
+    // --- الجوف ---
+    'Sakaka': 'سكاكا',
+    'Dumat Al Jandal': 'دومة الجندل',
+    'Al Qurayyat': 'القريات',
+    'Tabarjal': 'طبرجل'
   };
   const closeModal = () => {
     setShowSuccessModal(false);
