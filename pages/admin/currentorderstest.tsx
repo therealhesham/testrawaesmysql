@@ -872,9 +872,23 @@ export async function getStaticProps() {
       where: {
         typeOfContract: "recruitment",
         NOT: {
-          bookingstatus: {
-            in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-          },
+          OR: [
+            {
+              bookingstatus: {
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+              },
+            },
+            // استبعاد الطلبات التي لديها ملف استلام
+            {
+              DeliveryDetails: {
+                some: {
+                  deliveryFile: {
+                    not: null,
+                  },
+                },
+              },
+            },
+          ],
         },
       },
       take: pageSize, // Take only for the first page
@@ -908,9 +922,23 @@ export async function getStaticProps() {
       where: {
         typeOfContract: "rental",
         NOT: {
-          bookingstatus: {
-            in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-          },
+          OR: [
+            {
+              bookingstatus: {
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+              },
+            },
+            // استبعاد الطلبات التي لديها ملف استلام
+            {
+              DeliveryDetails: {
+                some: {
+                  deliveryFile: {
+                    not: null,
+                  },
+                },
+              },
+            },
+          ],
         },
       },
       take: pageSize, // Take only for the first page
@@ -939,9 +967,23 @@ export async function getStaticProps() {
       where: {
         typeOfContract: "recruitment",
         NOT: {
-          bookingstatus: {
-            in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-          },
+          OR: [
+            {
+              bookingstatus: {
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+              },
+            },
+            // استبعاد الطلبات التي لديها ملف استلام
+            {
+              DeliveryDetails: {
+                some: {
+                  deliveryFile: {
+                    not: null,
+                  },
+                },
+              },
+            },
+          ],
         },
       },
     });
@@ -950,9 +992,23 @@ export async function getStaticProps() {
       where: {
         typeOfContract: "rental",
         NOT: {
-          bookingstatus: {
-            in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-          },
+          OR: [
+            {
+              bookingstatus: {
+                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+              },
+            },
+            // استبعاد الطلبات التي لديها ملف استلام
+            {
+              DeliveryDetails: {
+                some: {
+                  deliveryFile: {
+                    not: null,
+                  },
+                },
+              },
+            },
+          ],
         },
       },
     });

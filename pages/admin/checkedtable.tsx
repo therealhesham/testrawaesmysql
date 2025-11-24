@@ -492,24 +492,30 @@ const exportToExcel = () => {
                     إعادة ضبط
                   </button>
                   
-                  <div className="flex items-center gap-1 bg-[#f7f8fa] border border-[#e0e0e0] rounded-[5px] px-[10px] py-[8px] text-md text-[#6b7280]">
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="bg-transparent border-none w-[100px] outline-none"
-                      max={new Date().toISOString().split('T')[0]}
-                    />
+                  <div className="flex items-center gap-2">
+                    <label className="text-[14px] text-[#1f2937] font-medium whitespace-nowrap">إلى:</label>
+                    <div className="flex items-center gap-1 bg-[#f7f8fa] border border-[#e0e0e0] rounded-[5px] px-[10px] py-[8px] text-md text-[#6b7280]">
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="bg-transparent border-none w-[100px] outline-none"
+                        max={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
                   </div>
                   
-                  <div className="flex items-center gap-1 bg-[#f7f8fa] border border-[#e0e0e0] rounded-[5px] px-[10px] py-[8px] text-md text-[#6b7280]">
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="bg-transparent border-none outline-none"
-                      max={endDate || new Date().toISOString().split('T')[0]}
-                    />
+                  <div className="flex items-center gap-2">
+                    <label className="text-[14px] text-[#1f2937] font-medium whitespace-nowrap">من:</label>
+                    <div className="flex items-center gap-1 bg-[#f7f8fa] border border-[#e0e0e0] rounded-[5px] px-[10px] py-[8px] text-md text-[#6b7280]">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="bg-transparent border-none outline-none"
+                        max={endDate || new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
                   </div>
                   
                   <div className="flex items-center justify-between bg-[#f7f8fa] border border-[#e0e0e0] rounded-[5px] px-[10px] py-[8px] text-md text-[#6b7280]">

@@ -106,9 +106,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: {
             ...filters,
             NOT: {
-              bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-              },
+              OR: [
+                {
+                  bookingstatus: {
+                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                  },
+                },
+                // استبعاد الطلبات التي لديها ملف استلام
+                {
+                  DeliveryDetails: {
+                    some: {
+                      deliveryFile: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ],
             },
           },
           skip: (pageNumber - 1) * pageSize,
@@ -119,9 +133,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: {
             ...filters,
             NOT: {
-              bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-              },
+              OR: [
+                {
+                  bookingstatus: {
+                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                  },
+                },
+                // استبعاد الطلبات التي لديها ملف استلام
+                {
+                  DeliveryDetails: {
+                    some: {
+                      deliveryFile: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ],
             },
           },
         }),
@@ -130,9 +158,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: {
             typeOfContract: "recruitment",
             NOT: {
-              bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-              },
+              OR: [
+                {
+                  bookingstatus: {
+                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                  },
+                },
+                // استبعاد الطلبات التي لديها ملف استلام
+                {
+                  DeliveryDetails: {
+                    some: {
+                      deliveryFile: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ],
             },
           },
         }),
@@ -141,9 +183,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: {
             typeOfContract: "rental",
             NOT: {
-              bookingstatus: {
-                in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-              },
+              OR: [
+                {
+                  bookingstatus: {
+                    in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
+                  },
+                },
+                // استبعاد الطلبات التي لديها ملف استلام
+                {
+                  DeliveryDetails: {
+                    some: {
+                      deliveryFile: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              ],
             },
           },
         }),
