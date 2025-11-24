@@ -66,6 +66,8 @@ const menuItems: MenuItem[] = [
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
       { id: 22, label: "الطلبات الحالية", link: "/admin/currentorderstest" },
+      { id: 23, label: "الطلبات المكتملة", link: "/admin/endedorders" },
+
     ],
   },
   { id: 3, label: "قائمة العملاء", icon: PeopleIcon, link: "/admin/clients" },
@@ -131,7 +133,7 @@ const menuItems: MenuItem[] = [
     ],
   },{
     id: 8000,
-    label: "AI + ML  ",
+    label: "قسم الذكاء الاصطناعي",
     icon:MachineLearningIcon,
     subItems: [
       { id: 91, label: "New CV", link: "/admin/pdf-processor" },

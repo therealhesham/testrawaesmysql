@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
-import { FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt } from 'react-icons/fa';
+import { useRouter } from 'next/router';
+import { FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic } from 'react-icons/fa';
 import { Calendar } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const AddWorkerForm: React.FC<Props> = ({ error }) => {
+  const router = useRouter();
   const [offices, setOffices] = useState<Array<{ office: string }>>([]);
   const [fileNames, setFileNames] = useState<{ [key: string]: string }>({
   travelTicket: '',
@@ -477,6 +479,14 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
           <main className="p-7 max-w-5xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-3xl font-normal text-black">إضافة عاملة</h1>
+              <button
+                type="button"
+                onClick={() => router.push('/admin/pdf-processor')}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-md hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md"
+              >
+                <FaMagic className="w-5 h-5" />
+                <span>إضافة عاملة بالذكاء الاصطناعي</span>
+              </button>
             </div>
             <section className="mb-12">
               <div className="flex flex-col sm:flex-row justify-between items-center">

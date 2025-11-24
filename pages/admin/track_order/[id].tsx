@@ -565,7 +565,7 @@ export default function TrackOrder() {
         <Head>
           <title>تتبع الطلب</title>
         </Head>
-        <main className={`max-w-7xl mx-auto px-5 py-8 ${orderData.receipt.received ? 'pb-20' : ''}`}>
+        <main className={`max-w-7xl mx-auto px-5 py-8 ${orderData.deliveryDetails?.deliveryFile ? 'pb-20' : ''}`}>
           {error && <div className="text-red-600 text-md mb-4 text-right">{error}</div>}
 
           <div className="flex justify-between items-center mb-6">
@@ -1583,8 +1583,8 @@ export default function TrackOrder() {
           />
         </main>
 
-        {/* Feedback when order reaches receipt stage */}
-        {orderData.receipt.received && (
+        {/* Feedback when order reaches receipt stage - يظهر فقط عند وجود ملف استلام */}
+        {orderData.deliveryDetails?.deliveryFile && (
           <div className="fixed bottom-0 left-0 right-0 bg-teal-800 text-white py-4 px-6 shadow-lg z-40" dir="rtl">
             <div className="max-w-7xl mx-auto flex items-center justify-center gap-3">
               <CheckCircleIcon className="w-6 h-6 text-white" />

@@ -153,7 +153,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
   const [perPage] = useState<number>(10);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [nationality, setNationality] = useState("");
+  const [nationality, setNationality] = useState("الكل");
   const [selectedDate, setSelectedDate] = useState("");
   const [nationalities, setNationalities] = useState<NationalityData[]>([{ id: "all", Country: "كل الجنسيات" }]);
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
@@ -170,7 +170,7 @@ export default function DepartureList({ onOpenModal, refreshTrigger }: Departure
         page: pageNumber.toString(),
         perPage: perPage.toString(),
         ...(filters.searchTerm && { search: filters.searchTerm }),
-        ...(filters.nationality && filters.nationality !== "كل الجنسيات" && {
+        ...(filters.nationality && filters.nationality !== "الكل" && filters.nationality !== "كل الجنسيات" && {
           nationality: filters.nationality,
         }),
         ...(filters.selectedDate && { deparatureDate: new Date(filters.selectedDate).toISOString() }),
@@ -245,10 +245,11 @@ useEffect(() => {
     const fetchOffices = async () => {
       try {
         const response = await axios.get("/api/nationalities");
-        setNationalities(response.data.nationalities || [{ id: "all", Country: "كل الجنسيات" }]);
+        const fetchedNationalities = response.data.nationalities || [];
+        setNationalities([{ id: "all", Country: "الكل" }, ...fetchedNationalities]);
       } catch (error) {
         console.error("Error fetching nationalities:", error);
-        setNationalities([{ id: "all", Country: "كل الجنسيات" }]);
+        setNationalities([{ id: "all", Country: "الكل" }]);
       }
     };
     fetchOffices();
@@ -296,7 +297,7 @@ useEffect(() => {
 
   const handleReset = () => {
     setSearchTerm("");
-    setNationality("");
+    setNationality("الكل");
     setSelectedDate("");
     setPage(1);
   };
@@ -305,7 +306,7 @@ const fetchFilteredDataExporting = async () => {
   const query = new URLSearchParams({
     perPage: "1000",
     ...(searchTerm && { search: searchTerm }),
-    ...(nationality && nationality !== "كل الجنسيات" && {
+    ...(nationality && nationality !== "الكل" && nationality !== "كل الجنسيات" && {
       nationality: nationality,
     }),
     ...(selectedDate && { deparatureDate: selectedDate }),
@@ -523,7 +524,8 @@ const router = useRouter();
                 onChange={(e) => handleNationalityChange(e.target.value)}
                 className="bg-transparent border-none w-full"
               >
-                {nationalities?.map((nat) => (
+                <option value="الكل">الكل</option>
+                {nationalities?.filter(nat => nat.Country !== "الكل").map((nat) => (
                   <option key={nat.id} value={nat.Country}>
                     {nat.Country}
                   </option>

@@ -48,17 +48,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (Nationalitycopy) filters.Nationalitycopy = { contains: (Nationalitycopy as string).toLowerCase() };
   if (typeOfContract) filters.typeOfContract = { equals: typeOfContract };
 
-  // احسب تاريخ قبل 90 يوم
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-  // جلب البيانات
+  // جلب البيانات - الطلبات المكتملة هي التي لديها ملف استلام
   const homemaids = await prisma.neworder.findMany({
     orderBy: { id: "desc" },
     where: {
-      // arrivals: { some: { KingdomentryDate: { lte: ninetyDaysAgo } } },
       ...filters,
-      bookingstatus: { in: ["received"] },
+      // الطلب مكتمل عندما يكون لديه DeliveryDetails مع deliveryFile موجود
+      DeliveryDetails: {
+        some: {
+          deliveryFile: {
+            not: null,
+          },
+        },
+      },
     },
     skip: (pageNumber - 1) * pageSize,
     take: pageSize,
@@ -66,9 +68,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const totalCount = await prisma.neworder.count({
     where: {
-      // arrivals: { some: { KingdomentryDate: { lte: ninetyDaysAgo } } },
       ...filters,
-      bookingstatus: { in: ["received"] },
+      // الطلب مكتمل عندما يكون لديه DeliveryDetails مع deliveryFile موجود
+      DeliveryDetails: {
+        some: {
+          deliveryFile: {
+            not: null,
+          },
+        },
+      },
     },
   });
 
