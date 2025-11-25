@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
-import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical } from "react-icons/fa";
+import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical, FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import Modal from "react-modal";
@@ -36,6 +36,8 @@ export default function Table() {
     age: "",
     PassportNumber: "",
   });
+  const [sortBy, setSortBy] = useState<string>("displayOrder");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   function getDate(date: any) {
     const currentDate = new Date(date); // Original date
     // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
@@ -80,6 +82,7 @@ export default function Table() {
     'PassportStart',
     'PassportEnd',
     'office',
+    'displayOrder',
   ]);
 
 
@@ -148,6 +151,40 @@ export default function Table() {
   const [exportMessage, setExportMessage] = useState("");
   const [exportType, setExportType] = useState("");
 
+  // Sort data function
+  const sortData = (dataToSort: any[], sortField: string, order: "asc" | "desc") => {
+    const sorted = [...dataToSort].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      // Handle nested fields
+      if (sortField === 'Country' || sortField === 'office') {
+        aValue = a?.office?.[sortField === 'Country' ? 'Country' : 'office'] || '';
+        bValue = b?.office?.[sortField === 'Country' ? 'Country' : 'office'] || '';
+      } else {
+        aValue = a[sortField] || '';
+        bValue = b[sortField] || '';
+      }
+
+      // Handle different data types
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return order === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+
+      // String comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      
+      if (order === 'asc') {
+        return aStr.localeCompare(bStr, 'ar');
+      } else {
+        return bStr.localeCompare(aStr, 'ar');
+      }
+    });
+
+    return sorted;
+  };
+
   const fetchData = async (page = 1) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -176,7 +213,8 @@ export default function Table() {
 
       const { data: res, totalPages: pages } = await response.json();
       if (res && res.length > 0) {
-        setData(res);
+        const sortedData = sortData(res, sortBy, sortOrder);
+        setData(sortedData);
         console.log("Data fetched successfully:", res);
         setTotalPages(pages || 1);
       } else {
@@ -220,9 +258,44 @@ export default function Table() {
     }
   };
 
+  // Handle sort click
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort field with default order
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Sort icon component
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortBy !== field) {
+      return <FaSort className="inline-block ml-1 text-gray-300" />;
+    }
+    return sortOrder === 'asc' 
+      ? <FaSortUp className="inline-block ml-1" />
+      : <FaSortDown className="inline-block ml-1" />;
+  };
+
   useEffect(() => {
     fetchData(currentPage);
   }, [currentPage, filters]);
+
+  // Sort data when sortBy or sortOrder changes
+  useEffect(() => {
+    if (data.length > 0) {
+      const sorted = sortData(data, sortBy, sortOrder);
+      // Only update if order actually changed
+      const isDifferent = sorted.some((item, index) => item.id !== data[index]?.id);
+      if (isDifferent) {
+        setData(sorted);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy, sortOrder]);
 
 
   const handleFilterChange = (e: any, column: string) => {
@@ -281,20 +354,45 @@ export default function Table() {
 
     return (
       <div className="flex justify-center mt-4 items-center">
+        {/* First Page Button */}
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className="mx-1 px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
+          title="الصفحة الأولى"
+        >
+          الأولى
+        </button>
+        
+        {/* Previous Button */}
         <button
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="mx-1 px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50"
+          className="mx-1 px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
         >
-          Previous
+          السابق
         </button>
+        
+        {/* Page Numbers */}
         {pages}
+        
+        {/* Next Button */}
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="mx-1 px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50"
+          className="mx-1 px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
         >
-          Next
+          التالي
+        </button>
+        
+        {/* Last Page Button */}
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className="mx-1 px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
+          title="الصفحة الأخيرة"
+        >
+          الأخيرة
         </button>
       </div>
     );
@@ -443,7 +541,7 @@ export default function Table() {
         style={style}
         className={`border-b hover:bg-gray-50 ${isDragging ? 'bg-gray-100' : ''}`}
       >
-        <td className="px-4 py-2 text-center">
+        {/* <td className="px-4 py-2 text-center">
           <div className="flex items-center justify-center gap-2">
             <button
               {...attributes}
@@ -472,7 +570,7 @@ export default function Table() {
               </button>
             </div>
           </div>
-        </td>
+        </td> */}
         {visibleColumns.includes('id') && (
           <td
             onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
@@ -529,6 +627,28 @@ export default function Table() {
             {item?.office?.office}
           </td>
         )}
+        {visibleColumns.includes('displayOrder') && (
+          <td className="px-4 py-2 text-center">
+            <input
+              type="number"
+              min="0"
+              defaultValue={item.displayOrder || 0}
+              onBlur={(e) => {
+                const newValue = e.target.value;
+                if (newValue !== String(item.displayOrder || 0)) {
+                  handleDisplayOrderChange(item.id, newValue);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+              className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
+              title="اضغط Enter لحفظ التغييرات"
+            />
+          </td>
+        )}
       </tr>
     );
   };
@@ -553,6 +673,7 @@ export default function Table() {
       { key: 'PassportStart', label: 'بداية الجواز' },
       { key: 'PassportEnd', label: 'نهاية الجواز' },
       { key: 'office', label: 'المكتب' },
+      { key: 'displayOrder', label: 'ترتيب العرض' },
     ];
 
     const toggleColumn = (columnKey: string) => {
@@ -673,6 +794,28 @@ useEffect(() => {
 
     if (!response.ok) {
       throw new Error('Failed to update display order');
+    }
+  };
+
+  // Handle manual display order change
+  const handleDisplayOrderChange = async (id: number, newOrder: string) => {
+    const orderValue = parseInt(newOrder);
+    if (isNaN(orderValue) || orderValue < 0) {
+      alert('الرجاء إدخال رقم صحيح');
+      return;
+    }
+
+    try {
+      await updateDisplayOrder(id, orderValue);
+      // Update local state
+      setData(data.map(item => 
+        item.id === id ? { ...item, displayOrder: orderValue } : item
+      ));
+      // Refresh data to get updated order
+      fetchData(currentPage);
+    } catch (error) {
+      console.error('Error updating display order:', error);
+      alert('حدث خطأ أثناء تحديث ترتيب العرض');
     }
   };
 const exportToPDF = async () => {
@@ -984,25 +1127,103 @@ const exportToPDF = async () => {
               </div>
             </div>
 
-            <DndContext
+            {/* <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
-            >
+            > */}
               <table className="min-w-full text-md text-left min-h-96">
                 <thead className="bg-teal-800">
                   <tr className="text-white">
-                    <th className="px-4 py-2 text-center">الترتيب</th>
-                    {visibleColumns.includes('id') && <th className="px-4 py-2 text-center">الرقم</th>}
-                    {visibleColumns.includes('Name') && <th className="px-4 py-2 text-center">الاسم</th>}
-                    {visibleColumns.includes('phone') && <th className="px-4 py-2 text-center">رقم الجوال</th>}
-                    {visibleColumns.includes('Country') && <th className="px-4 py-2 text-center">الجنسية</th>}
-                    {visibleColumns.includes('maritalstatus') && <th className="px-4 py-2 text-center">الحالة الاجتماعية</th>}
-                    {visibleColumns.includes('dateofbirth') && <th className="px-4 py-2 text-center">العمر</th>}
-                    {visibleColumns.includes('Passportnumber') && <th className="px-4 py-2 text-center">رقم جواز السفر</th>}
-                    {visibleColumns.includes('PassportStart') && <th className="px-4 py-2 text-center">بداية الجواز</th>}
-                    {visibleColumns.includes('PassportEnd') && <th className="px-4 py-2 text-center">نهاية الجواز</th>}
-                    {visibleColumns.includes('office') && <th className="px-4 py-2 text-center">المكتب</th>}
+                    {/* <th className="px-4 py-2 text-center whitespace-nowrap">الترتيب</th> */}
+                    {visibleColumns.includes('id') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('id')}
+                      >
+                        الرقم <SortIcon field="id" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('Name') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('Name')}
+                      >
+                        الاسم <SortIcon field="Name" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('phone') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('phone')}
+                      >
+                        رقم الجوال <SortIcon field="phone" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('Country') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('Country')}
+                      >
+                        الجنسية <SortIcon field="Country" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('maritalstatus') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('maritalstatus')}
+                      >
+                        الحالة الاجتماعية <SortIcon field="maritalstatus" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('dateofbirth') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('dateofbirth')}
+                      >
+                        العمر <SortIcon field="dateofbirth" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('Passportnumber') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('Passportnumber')}
+                      >
+                        رقم جواز السفر <SortIcon field="Passportnumber" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('PassportStart') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('PassportStart')}
+                      >
+                        بداية الجواز <SortIcon field="PassportStart" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('PassportEnd') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('PassportEnd')}
+                      >
+                        نهاية الجواز <SortIcon field="PassportEnd" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('office') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('office')}
+                      >
+                        المكتب <SortIcon field="office" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('displayOrder') && (
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('displayOrder')}
+                      >
+                        ترتيب العرض <SortIcon field="displayOrder" />
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-gray-50">
@@ -1027,7 +1248,7 @@ const exportToPDF = async () => {
                   )}
                 </tbody>
               </table>
-            </DndContext>
+            {/* </DndContext> */}
 
             {totalPages > 1 && renderPagination()}
             {loading && (
