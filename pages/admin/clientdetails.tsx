@@ -705,7 +705,7 @@ const arabicRegionMap: { [key: string]: string } = {
             <div className="flex flex-col gap-4">
               <button
                 className="mx-auto bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
-                onClick={() => router.push(`/financials/new?clientId=${router.query.id}`)}
+                onClick={() => router.push(`/admin/client-accounts?clientId=${router.query.id}`)}
               >
                 إضافة بيانات مالية
               </button>
