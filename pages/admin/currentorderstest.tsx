@@ -303,6 +303,14 @@ const exportedData = async ()=>{
     doc.setFontSize(16);
     doc.text("طلبات تحت الإجراء", 400, 10, { align: 'right', maxWidth: 700 });
 
+    // دالة لتقصير النص إلى كلمتين فقط
+    const truncateToTwoWords = (text: string): string => {
+      if (!text || text === 'غير متوفر') return text;
+      const words = text.trim().split(/\s+/);
+      if (words.length <= 2) return text;
+      return words.slice(0, 2).join(' ');
+    };
+
     const tableColumn = [
       'حالة الطلب',
       'اسم المكتب الخارجي',
@@ -318,17 +326,17 @@ const exportedData = async ()=>{
     ];
     const tableRows = Array.isArray(dataToExport)
       ? dataToExport.map(row => [
-        translateBookingStatus(row.bookingstatus) || 'غير متوفر',
-        row.HomeMaid?.office?.office || 'غير متوفر',
-        row.arrivals?.InternalmusanedContract || 'غير متوفر',
-        row.HomeMaid?.Passportnumber || 'غير متوفر',
-        row.HomeMaid?.office?.Country || 'غير متوفر',
-        row.HomeMaid?.Name || 'غير متوفر',
-        row.HomeMaid?.id || 'غير متوفر',
-        row.client?.nationalId || 'غير متوفر',
-        row.client?.phonenumber || 'غير متوفر',
-        row.client?.fullname || 'غير متوفر',
-        row.id || 'غير متوفر',
+        truncateToTwoWords(translateBookingStatus(row.bookingstatus) || 'غير متوفر'),
+        truncateToTwoWords(row.HomeMaid?.office?.office || 'غير متوفر'),
+        truncateToTwoWords(row.arrivals?.InternalmusanedContract || 'غير متوفر'),
+        truncateToTwoWords(row.HomeMaid?.Passportnumber || 'غير متوفر'),
+        truncateToTwoWords(row.HomeMaid?.office?.Country || 'غير متوفر'),
+        truncateToTwoWords(row.HomeMaid?.Name || 'غير متوفر'),
+        truncateToTwoWords(String(row.HomeMaid?.id || 'غير متوفر')),
+        truncateToTwoWords(row.client?.nationalId || 'غير متوفر'),
+        truncateToTwoWords(row.client?.phonenumber || 'غير متوفر'),
+        truncateToTwoWords(row.client?.fullname || 'غير متوفر'),
+        truncateToTwoWords(String(row.id || 'غير متوفر')),
       ])
       : [];
 
