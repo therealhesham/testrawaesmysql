@@ -339,19 +339,178 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                     className={`w-full bg-background-light border ${errors.city ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر المدينة</option>
-                    <option value="Ar Riyāḍ">الرياض</option>
-                    <option value="Makkah al Mukarramah">مكة المكرمة</option>
-                    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
-                    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
-                    <option value="Asīr">عسير</option>
-                    <option value="Tabūk">تبوك</option>
-                    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
-                    <option value="Jazan">جازان</option>
-                    <option value="Najrān">نجران</option>
-                    <option value="Al Bāḩah">الباحة</option>
-                    <option value="Al Jawf">الجوف</option>
-                    <option value="Al Qaşīm">القصيم</option>
-                    <option value="Ḩa'il">حائل</option>
+{/* const arabicRegionMap: { [key: string]: string } = {
+     'Riyadh': 'الرياض',
+    'Al-Kharj': 'الخرج',
+    'Ad Diriyah': 'الدرعية',
+    'Al Majma\'ah': 'المجمعة',
+    'Al Zulfi': 'الزلفي',
+    'Ad Dawadimi': 'الدوادمي',
+    'Wadi Ad Dawasir': 'وادي الدواسر',
+    'Afif': 'عفيف',
+    'Al Quway\'iyah': 'القويعية',
+    'Shaqra': 'شقراء',
+    'Hotat Bani Tamim': 'حوطة بني تميم',
+
+    'Makkah': 'مكة المكرمة',
+    'Jeddah': 'جدة',
+    'Taif': 'الطائف',
+    'Rabigh': 'رابغ',
+    'Al Qunfudhah': 'القنفذة',
+    'Al Lith': 'الليث',
+    'Khulais': 'خليص',
+    'Ranyah': 'رنية',
+    'Turabah': 'تربة',
+
+    'Madinah': 'المدينة المنورة',
+    'Yanbu': 'ينبع',
+    'Al Ula': 'العلا',
+    'Badr': 'بدر',
+    'Al Hinakiyah': 'الحناكية',
+    'Mahd Al Dhahab': 'مهد الذهب',
+
+    'Dammam': 'الدمام',
+    'Al Khobar': 'الخبر',
+    'Dhahran': 'الظهران',
+    'Al Ahsa': 'الأحساء',
+    'Al Hufuf': 'الهفوف',
+    'Al Mubarraz': 'المبرز',
+    'Jubail': 'الجبيل',
+    'Hafr Al Batin': 'حفر الباطن',
+    'Al Khafji': 'الخفجي',
+    'Ras Tanura': 'رأس تنورة',
+    'Qatif': 'القطيف',
+    'Abqaiq': 'بقيق',
+    'Nairiyah': 'النعيرية',
+    'Qaryat Al Ulya': 'قرية العليا',
+
+    'Buraydah': 'بريدة',
+    'Unaizah': 'عنيزة',
+    'Ar Rass': 'الرس',
+    'Al Bukayriyah': 'البكيرية',
+    'Al Badaye': 'البدائع',
+    'Al Mithnab': 'المذنب',
+    'Riyad Al Khabra': 'رياض الخبراء',
+
+    'Abha': 'أبها',
+    'Khamis Mushait': 'خميس مشيط',
+    'Bisha': 'بيشة',
+    'Mahayil': 'محايل عسير',
+    'Al Namas': 'النماص',
+    'Tanomah': 'تنومة',
+    'Ahad Rafidah': 'أحد رفيدة',
+    'Sarat Abidah': 'سراة عبيدة',
+    'Balqarn': 'بلقرن',
+
+    'Tabuk': 'تبوك',
+    'Duba': 'ضباء',
+    'Al Wajh': 'الوجه',
+    'Umluj': 'أملج',
+    'Tayma': 'تيماء',
+    'Haqi': 'حقل',
+
+    'Hail': 'حائل',
+    'Baqa': 'بقعاء',
+    'Al Ghazalah': 'الغزالة',
+
+    'Arar': 'عرعر',
+    'Rafha': 'رفحاء',
+    'Turaif': 'طريف',
+
+    'Jazan': 'جازان',
+    'Sabya': 'صبيا',
+    'Abu Arish': 'أبو عريش',
+    'Samtah': 'صامطة',
+    'Baish': 'بيش',
+    'Ad Darb': 'الدرب',
+    'Al Aridah': 'العارضة',
+    'Fifa': 'فيفاء',
+
+    'Najran': 'نجران',
+    'Sharurah': 'شرورة',
+    'Hubuna': 'حبونا',
+
+    'Al Baha': 'الباحة',
+    'Baljurashi': 'بلجرشي',
+    'Al Mandq': 'المندق',
+    'Al Makhwah': 'المخواة',
+    'Qilwah': 'قلوة',
+
+    'Sakaka': 'سكاكا',
+    'Dumat Al Jandal': 'دومة الجندل',
+    'Al Qurayyat': 'القريات',
+    'Tabarjal': 'طبرجل'
+  }; */}
+
+
+<option value = "Baha">الباحة</option>
+<option value = "Jawf">الجوف</option>
+<option value = "Qassim">القصيم</option>
+<option value = "Hail">حائل</option>
+<option value = "Jazan">جازان</option>
+<option value = "Najran">نجران</option>
+<option value = "Madinah">المدينة المنورة</option>
+<option value = "Riyadh">الرياض</option>
+<option value = "Al-Kharj">الخرج</option>
+<option value = "Ad Diriyah">الدرعية</option>
+<option value = "Al Majma'ah">المجمعة</option>
+<option value = "Al Zulfi">الزلفي</option>
+<option value = "Ad Dawadimi">الدوادمي</option>
+<option value = "Wadi Ad Dawasir">وادي الدواسر</option>
+<option value = "Afif">عفيف</option>
+<option value = "Al Quway'iyah">القويعية</option>
+<option value = "Shaqra">شقراء</option>
+<option value = "Hotat Bani Tamim">حوطة بني تميم</option>
+<option value = "Makkah">مكة المكرمة</option>
+<option value = "Jeddah">جدة</option>
+<option value = "Taif">الطائف</option>
+<option value = "Rabigh">رابغ</option>
+<option value = "Al Qunfudhah">القنفذة</option>
+<option value = "Al Lith">الليث</option>
+<option value = "Khulais">خليص</option>
+<option value = "Ranyah">رنية</option>
+<option value = "Turabah">تربة</option>
+<option value = "Yanbu">ينبع</option>
+<option value = "Al Ula">العلا</option>
+<option value = "Badr">بدر</option>
+<option value = "Al Hinakiyah">الحناكية</option>
+<option value = "Mahd Al Dhahab">مهد الذهب</option>
+<option value = "Dammam">الدمام</option>
+<option value = "Al Khobar">الخبر</option>
+<option value = "Dhahran">الظهران</option>
+<option value = "Al Ahsa">الأحساء</option>
+<option value = "Al Hufuf">الهفوف</option>
+<option value = "Al Mubarraz">المبرز</option>
+<option value = "Jubail">الجبيل</option>
+<option value = "Hafr Al Batin">حفر الباطن</option>
+<option value = "Al Khafji">الخفجي</option>
+<option value = "Ras Tanura">رأس تنورة</option>
+<option value = "Qatif">القطيف</option>
+<option value = "Abqaiq">بقيق</option>
+<option value = "Nairiyah">النعيرية</option>
+<option value = "Qaryat Al Ulya">قرية العليا</option>
+<option value = "Buraydah">بريدة</option>
+<option value = "Unaizah">عنيزة</option>
+<option value = "Ar Rass">الرس</option>
+<option value = "Al Bukayriyah">البكيرية</option>
+<option value = "Al Badaye">البدائع</option>
+<option value = "Al Mithnab">المذنب</option>
+<option value = "Riyad Al Khabra">رياض الخبراء</option>
+<option value = "Abha">أبها</option>
+<option value = "Khamis Mushait">خميس مشيط</option>
+<option value = "Bisha">بيشة</option>
+<option value = "Mahayil">محايل عسير</option>
+<option value = "Al Namas">النماص</option>
+<option value = "Tanomah">تنومة</option>
+<option value = "Ahad Rafidah">أحد رفيدة</option>
+<option value = "Sarat Abidah">سراة عبيدة</option>
+<option value = "Balqarn">بلقرن</option>
+<option value = "Tabuk">تبوك</option>
+<option value = "Duba">ضباء</option>
+<option value = "Al Wajh">الوجه</option>
+<option value = "Umluj">أملج</option>
+<option value = "Tayma">تيماء</option>
+<option value = "Haqi">حقل</option>
                   </select>
                 </div>
                 {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
