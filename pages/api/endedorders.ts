@@ -48,10 +48,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (Nationalitycopy) filters.Nationalitycopy = { contains: (Nationalitycopy as string).toLowerCase() };
   if (typeOfContract) filters.typeOfContract = { equals: typeOfContract };
 
+  // Filter by HomeMaid office Country (where nationality is actually stored)
+  if (Nationality) {
+    filters.AND = [
+      ...(filters.AND || []),
+      {
+        HomeMaid: {
+          office: {
+            Country: {
+              contains: Nationality as string,
+            },
+          },
+        },
+      },
+    ];
+  }
+
   // جلب البيانات - الطلبات المكتملة هي التي لديها ملف استلام
   const homemaids = await prisma.neworder.findMany({
     include: {
-      HomeMaid: true,
+      HomeMaid: {
+        include: {
+          office: true,
+        },
+      },
       client: true,
       ratings: true,
     },

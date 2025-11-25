@@ -35,6 +35,9 @@ interface OrderData {
     Name?: string | null;
     Nationality?: string | null;
     Passportnumber?: string | null;
+    office?: {
+      Country?: string | null;
+    } | null;
   } | null;
   ratings?: OrderRating[];
 }
@@ -47,52 +50,102 @@ export default function Dashboard() {
   const [contractType, setContractType] = useState('recruitment');
   const [recruitmentCount, setRecruitmentCount] = useState(0);
   const [rentalCount, setRentalCount] = useState(0);
+  const [nationality, setNationality] = useState('');
+  const [nationalities, setNationalities] = useState<{ id: number; Country: string }[]>([]);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedOrderRating, setSelectedOrderRating] = useState<{ isRated: boolean; reason: string } | null>(null);
   const pageSize = 10;
   const router = useRouter();
-  async function fetchData(page = 1) {
+  async function fetchData(page = 1, signal?: AbortSignal) {
     try {
-      const res = await fetch(`/api/endedorders?page=${page}&typeOfContract=${contractType}`);
+      const url = new URL(`/api/endedorders`, window.location.origin);
+      url.searchParams.set('page', page.toString());
+      url.searchParams.set('typeOfContract', contractType);
+      if (nationality) {
+        url.searchParams.set('Nationality', nationality);
+      }
+      const res = await fetch(url.toString(), { signal });
+      if (signal?.aborted) return;
       const { homemaids, totalCount, totalPages } = await res.json();
+      if (signal?.aborted) return;
       setData(homemaids);
       setTotalCount(totalCount);
       setTotalPages(totalPages);
       setCurrentPage(page);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') return;
       console.error('Error fetching bookings:', error);
-      setData([]);
-      setTotalCount(0);
-      setTotalPages(1);
+      if (!signal?.aborted) {
+        setData([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     }
   }
 
-  async function fetchCounts() {
+  async function fetchCounts(signal?: AbortSignal) {
     try {
       const [recruitmentRes, rentalRes] = await Promise.all([
-        fetch(`/api/endedorders?page=1&typeOfContract=recruitment`),
-        fetch(`/api/endedorders?page=1&typeOfContract=rental`)
+        fetch(`/api/endedorders?page=1&typeOfContract=recruitment`, { signal }),
+        fetch(`/api/endedorders?page=1&typeOfContract=rental`, { signal })
       ]);
+      
+      if (signal?.aborted) return;
       
       const recruitmentData = await recruitmentRes.json();
       const rentalData = await rentalRes.json();
       
+      if (signal?.aborted) return;
+      
       setRecruitmentCount(recruitmentData.totalCount || 0);
       setRentalCount(rentalData.totalCount || 0);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') return;
       console.error('Error fetching counts:', error);
     }
   }
 
   useEffect(() => {
-    fetchData();
-    fetchCounts();
-  }, [contractType]);
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+    
+    fetchData(1, signal);
+    fetchCounts(signal);
+    
+    return () => {
+      abortController.abort();
+    };
+  }, [contractType, nationality]);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+    
+    const fetchNationalities = async () => {
+      try {
+        const response = await fetch('/api/nationalities', { signal });
+        if (signal.aborted) return;
+        const data = await response.json();
+        if (signal.aborted) return;
+        setNationalities(data.nationalities || []);
+      } catch (error: any) {
+        if (error.name === 'AbortError') return;
+        console.error('Error fetching nationalities:', error);
+      }
+    };
+    fetchNationalities();
+    
+    return () => {
+      abortController.abort();
+    };
+  }, []);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
-      fetchData(page);
+      // Create a new abort controller for page change
+      const abortController = new AbortController();
+      fetchData(page, abortController.signal);
     }
   };
 
@@ -205,7 +258,7 @@ export default function Dashboard() {
       booking.clientID || 'غير متوفر',
       booking.HomeMaid?.id || booking.HomemaidId || 'غير متوفر',
       booking.HomeMaid?.Name || 'غير متوفر',
-      booking.HomeMaid?.Nationality || 'غير متوفر',
+      booking.HomeMaid?.office?.Country || booking.HomeMaid?.Nationality || 'غير متوفر',
       booking.HomeMaid?.Passportnumber || 'غير متوفر',
       booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
       'غير متوفر',
@@ -287,7 +340,7 @@ export default function Dashboard() {
             e.preventDefault();
             handlePageChange(i);
           }}
-          className={`px-2.5 py-1 border rounded text-xs ${
+          className={`px-2.5 py-1 border rounded text-md ${
             i === currentPage
               ? 'border-teal-900 bg-teal-900 text-white'
               : 'border-gray-300 bg-gray-50 text-gray-800'
@@ -309,7 +362,7 @@ export default function Dashboard() {
             <h1 className="text-3xl md:text-4xl font-normal text-black mb-6 text-right">
               الطلبات المكتملة
             </h1>
-            <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
+            <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-md">
               <div className="flex justify-between items-start border-b border-gray-300 mb-6 flex-col sm:flex-row gap-4">
                 <div className="flex gap-10">
                   <a
@@ -318,11 +371,11 @@ export default function Dashboard() {
                       e.preventDefault();
                       setContractType('recruitment');
                     }}
-                    className={`text-sm text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
                       contractType === 'recruitment' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات الاستقدام <span className="text-xs align-super">{recruitmentCount}</span>
+                    طلبات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
                   </a>
                   <a
                     href="#"
@@ -330,24 +383,24 @@ export default function Dashboard() {
                       e.preventDefault();
                       setContractType('rental');
                     }}
-                    className={`text-sm text-gray-500 pb-4 relative flex items-center gap-1 ${
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 ${
                       contractType === 'rental' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات التأجير <span className="text-xs align-super">{rentalCount}</span>
+                    طلبات التأجير <span className="text-md align-super">{rentalCount}</span>
                   </a>
                 </div>
                 <div className="flex gap-2">
                   <button 
                     onClick={exportToPDF}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
                   >
                     <DocumentDownloadIcon className="w-4 h-4" />
                     PDF
                   </button>
                   <button 
                     onClick={exportToExcel}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-xs font-tajawal"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
                   >
                     <TableIcon className="w-4 h-4" />
                     Excel
@@ -360,16 +413,33 @@ export default function Dashboard() {
                     <input
                       type="text"
                       placeholder="بحث"
-                      className="border-none bg-transparent outline-none text-right font-tajawal text-sm text-gray-500"
+                      className="border-none bg-transparent outline-none text-right font-tajawal text-md text-gray-500"
                     />
                     <Search className="w-4 h-4 text-gray-500" />
                   </div>
-                  <div className="flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-sm text-gray-500 cursor-pointer">
-                    <span>كل الجنسيات</span>
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <div className="relative flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer min-w-[150px]">
+                    <select
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      className="bg-transparent border-none outline-none w-full text-right appearance-none cursor-pointer"
+                    >
+                      <option value="">كل الجنسيات</option>
+                      {nationalities.map((nat) => (
+                        <option key={nat.id} value={nat.Country}>
+                          {nat.Country}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-500 pointer-events-none flex-shrink-0" />
                   </div>
                 </div>
-                <button className="bg-teal-900 text-white border-none rounded px-4 py-2 text-sm font-tajawal cursor-pointer">
+                <button 
+                  onClick={() => {
+                    setNationality('');
+                    setCurrentPage(1);
+                  }}
+                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-md font-tajawal cursor-pointer"
+                >
                   اعادة ضبط
                 </button>
               </div>
@@ -378,7 +448,7 @@ export default function Dashboard() {
                   <thead>
                     <tr className="bg-teal-900">
                       {['#', 'اسم العميل', 'جوال العميل', 'هوية العميل', 'رقم العاملة', 'اسم العاملة', 'الجنسية', 'رقم جواز السفر', 'المتبقي من الضمان', 'مدة المعاملة', 'التقييم'].map((header) => (
-                        <th key={header} className="text-white text-xs font-normal p-4 text-right">
+                        <th key={header} className="text-white text-md font-normal p-4 text-right">
                           {header}
                         </th>
                       ))}
@@ -387,17 +457,17 @@ export default function Dashboard() {
                   <tbody>
                     {data.map((booking) => (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-xs text-gray-800 text-right" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right whitespace-normal">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">غير متوفر</td>
-                        <td className="p-4 text-xs text-right">
+                        <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right whitespace-normal">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">{booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر'}</td>
+                        <td className="p-4 text-md text-gray-800 text-right">غير متوفر</td>
+                        <td className="p-4 text-md text-right">
                           <button
                             onClick={() => {
                               const existingRating = booking.ratings?.[0];
@@ -433,7 +503,7 @@ export default function Dashboard() {
                       e.preventDefault();
                       handlePageChange(currentPage - 1);
                     }}
-                    className={`px-2.5 py-1 border rounded text-xs ${
+                    className={`px-2.5 py-1 border rounded text-md ${
                       currentPage === 1 ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
@@ -446,7 +516,7 @@ export default function Dashboard() {
                       e.preventDefault();
                       handlePageChange(currentPage + 1);
                     }}
-                    className={`px-2.5 py-1 border rounded text-xs ${
+                    className={`px-2.5 py-1 border rounded text-md ${
                       currentPage === totalPages ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
