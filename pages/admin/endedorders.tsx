@@ -10,6 +10,7 @@ import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/router';
 import RatingModal from 'components/RatingModal';
+import AlertModal from 'components/AlertModal';
 
 interface OrderRating {
   id: number;
@@ -55,8 +56,28 @@ export default function Dashboard() {
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedOrderRating, setSelectedOrderRating] = useState<{ isRated: boolean; reason: string } | null>(null);
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
   const pageSize = 10;
   const router = useRouter();
+
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+    setAlertModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+    });
+  };
   async function fetchData(page = 1, signal?: AbortSignal) {
     try {
       const url = new URL(`/api/endedorders`, window.location.origin);
@@ -163,7 +184,7 @@ export default function Dashboard() {
     try {
       const orderId = parseInt(form.idOrder);
       if (isNaN(orderId)) {
-        alert('رقم الطلب غير صحيح');
+        showAlert('error', 'خطأ', 'رقم الطلب غير صحيح');
         return;
       }
 
@@ -202,7 +223,7 @@ export default function Dashboard() {
       }
 
       if (response.ok) {
-        alert('تم حفظ التقييم بنجاح');
+        showAlert('success', 'نجح', 'تم حفظ التقييم بنجاح');
         setIsRatingModalOpen(false);
         setSelectedOrderId(null);
         setSelectedOrderRating(null);
@@ -210,11 +231,11 @@ export default function Dashboard() {
         fetchData(currentPage);
       } else {
         const error = await response.json();
-        alert(`خطأ في حفظ التقييم: ${error.error || 'حدث خطأ'}`);
+        showAlert('error', 'خطأ', `خطأ في حفظ التقييم: ${error.error || 'حدث خطأ'}`);
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
-      alert('حدث خطأ في حفظ التقييم');
+      showAlert('error', 'خطأ', 'حدث خطأ في حفظ التقييم');
     }
   };
 
@@ -538,6 +559,13 @@ export default function Dashboard() {
         onSubmit={handleRatingSubmit}
         orderId={selectedOrderId || undefined}
         initialData={selectedOrderRating || undefined}
+      />
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
       />
     </Layout>
   );
