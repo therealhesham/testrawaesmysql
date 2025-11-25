@@ -5,12 +5,13 @@ import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/router';
 import RatingModal from 'components/RatingModal';
 import AlertModal from 'components/AlertModal';
+import Head from 'next/head';
 
 interface OrderRating {
   id: number;
@@ -53,6 +54,7 @@ export default function Dashboard() {
   const [rentalCount, setRentalCount] = useState(0);
   const [nationality, setNationality] = useState('');
   const [nationalities, setNationalities] = useState<{ id: number; Country: string }[]>([]);
+  const [userName, setUserName] = useState('');
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedOrderRating, setSelectedOrderRating] = useState<{ isRated: boolean; reason: string } | null>(null);
@@ -138,6 +140,12 @@ export default function Dashboard() {
       abortController.abort();
     };
   }, [contractType, nationality]);
+
+  useEffect(() => {
+    const authToken = localStorage.getItem('token');
+    const decoder = authToken ? jwtDecode(authToken) as any : null;
+    setUserName(decoder?.username || '');
+  }, []);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -239,11 +247,33 @@ export default function Dashboard() {
     }
   };
 
+  const exportedData = async () => {
+    const query = new URLSearchParams({
+      perPage: "1000",
+      ...(nationality && { Nationality: nationality }),
+      ...(contractType && { typeOfContract: contractType }),
+    }).toString();
+    const res = await fetch(`/api/endedorders?${query}`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+    const data = await res.json();
+    return data.homemaids;
+  };
+
+  // Export to PDF
   const exportToPDF = async () => {
-    const doc = new jsPDF();
+    let dataToExport = await exportedData();
+    const doc = new jsPDF({ orientation: "landscape" });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // 🔷 تحميل شعار مرة واحدة (لكن نستخدمه في كل صفحة)
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
     
     try {
-      // تحميل خط Amiri بشكل صحيح
+      doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
       const response = await fetch('/fonts/Amiri-Regular.ttf');
       if (!response.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await response.arrayBuffer();
@@ -255,91 +285,178 @@ export default function Dashboard() {
       doc.setFont('Amiri', 'normal');
     } catch (error) {
       console.error('Error loading Amiri font:', error);
-      // استخدام الخط الافتراضي في حالة فشل تحميل Amiri
-      doc.setFont('helvetica', 'normal');
+      return;
     }
 
     doc.setLanguage('ar');
     doc.setFontSize(16);
-    doc.text(contractType === 'recruitment' ? 'طلبات الاستقدام' : 'طلبات التأجير', 200, 10, { align: 'center' });
-    
-    // Define table columns
-    const columns = [
-      '#', 'اسم العميل', 'جوال العميل', 'هوية العميل', 
-      'رقم العاملة', 'اسم العاملة', 'الجنسية', 
-      'رقم جواز السفر', 'المتبقي من الضمان', 
-      'مدة المعاملة', 'التقييم'
-    ];
-    
-    // Prepare table data
-    const tableData = data.map(booking => [
-      `#${booking.id}`,
-      booking.client?.fullname || booking.ClientName || 'غير متوفر',
-      booking.client?.phonenumber || booking.clientphonenumber || 'غير متوفر',
-      booking.clientID || 'غير متوفر',
-      booking.HomeMaid?.id || booking.HomemaidId || 'غير متوفر',
-      booking.HomeMaid?.Name || 'غير متوفر',
-      booking.HomeMaid?.office?.Country || booking.HomeMaid?.Nationality || 'غير متوفر',
-      booking.HomeMaid?.Passportnumber || 'غير متوفر',
-      booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
-      'غير متوفر',
-      booking.isContractEnded ? 'لا' : 'نعم'
-    ]);
+    doc.text("الطلبات المكتملة", 400, 10, { align: 'right', maxWidth: 700 });
 
-    // Add table to PDF
+    const tableColumn = [
+      'التقييم',
+      'مدة المعاملة',
+      'المتبقي من الضمان',
+      'رقم جواز السفر',
+      'الجنسية',
+      'اسم العاملة',
+      'رقم العاملة',
+      'هوية العميل',
+      'جوال العميل',
+      'اسم العميل',
+      'رقم الطلب',
+    ];
+    const tableRows = Array.isArray(dataToExport)
+      ? dataToExport.map(row => [
+        row.ratings?.[0]?.isRated ? 'تم التقييم' : row.isContractEnded ? 'لا' : 'تقييم',
+        'غير متوفر',
+        row.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
+        row.HomeMaid?.Passportnumber || 'غير متوفر',
+        row.HomeMaid?.office?.Country || row.HomeMaid?.Nationality || 'غير متوفر',
+        row.HomeMaid?.Name || 'غير متوفر',
+        row.HomeMaid?.id || row.HomemaidId || 'غير متوفر',
+        row.client?.id || row.clientID || 'غير متوفر',
+        row.client?.phonenumber || row.clientphonenumber || 'غير متوفر',
+        row.client?.fullname || row.ClientName || 'غير متوفر',
+        row.id || 'غير متوفر',
+      ])
+      : [];
+
     doc.autoTable({
-      head: [columns],
-      body: tableData,
-      startY: 25,
+      head: [tableColumn],
+      body: tableRows,
       styles: {
-        font: Style["tajawal-bold"],
+        font: 'Amiri',
         halign: 'right',
         fontSize: 10,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
       },
       headStyles: {
-        fillColor: [0, 105, 92], // Teal color
+        fillColor: [26, 77, 79],
         textColor: [255, 255, 255],
+        overflow:'hidden',
+        halign: 'right',
       },
-      margin: { right: 10, left: 10 },
-      theme: 'grid',
+      columnStyles: {
+        0: { cellWidth: 'auto', overflow: 'hidden' },
+        1: { cellWidth: 'auto', overflow: 'hidden' },
+        2: { cellWidth: 'auto', overflow: 'hidden' },
+        3: { cellWidth: 'auto', overflow: 'hidden' },
+        4: { cellWidth: 'auto', overflow: 'hidden' },
+        5: { cellWidth: 'auto', overflow: 'hidden' },
+        6: { cellWidth: 'auto', overflow: 'hidden' },
+        7: { cellWidth: 'auto', overflow: 'hidden' },
+        8: { cellWidth: 'auto', overflow: 'hidden' },
+        9: { cellWidth: 'auto', overflow: 'hidden' },
+        10: { cellWidth: 'auto', overflow: 'hidden' },
+      },
+      margin: { top: 40, right: 10, left: 10 },
+      didDrawPage: (data: any) => {
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+
+        // 🔷 إضافة اللوجو أعلى الصفحة (في كل صفحة)
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+        // 🔹 كتابة العنوان في أول صفحة فقط (اختياري)
+        if (doc.getCurrentPageInfo().pageNumber === 1) {
+          doc.setFontSize(12);
+          doc.setFont('Amiri', 'normal');
+          doc.text('الطلبات المكتملة', pageWidth / 2, 20, { align: 'right' });
+        }
+
+        // 🔸 الفوتر
+        doc.setFontSize(10);
+        doc.setFont('Amiri', 'normal');
+
+        doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+        const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+        doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        const dateText =
+          "التاريخ: " +
+          new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }) +
+          "  الساعة: " +
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+      },
+      didParseCell: (data: any) => {
+        data.cell.styles.halign = 'right';
+      },
     });
 
-    // Save the PDF
-    doc.save(`orders_${contractType}.pdf`);
+    doc.save('ended_orders.pdf');
   };
 
-  const exportToExcel = () => {
-    // Prepare data for Excel
-    const worksheetData = data.map(booking => ({
-      '#': booking.id,
-      'اسم العميل': booking.client?.fullname || booking.ClientName || 'غير متوفر',
-      'جوال العميل': booking.client?.phonenumber || booking.clientphonenumber || 'غير متوفر',
-      'هوية العميل': booking.clientID || 'غير متوفر',
-      'رقم العاملة': booking.HomeMaid?.id || booking.HomemaidId || 'غير متوفر',
-      'اسم العاملة': booking.HomeMaid?.Name || 'غير متوفر',
-      'الجنسية': booking.HomeMaid?.Nationality || 'غير متوفر',
-      'رقم جواز السفر': booking.HomeMaid?.Passportnumber || 'غير متوفر',
-      'المتبقي من الضمان': booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
-      'مدة المعاملة': 'غير متوفر',
-      'التقييم': booking.isContractEnded ? 'لا' : 'نعم'
-    }));
+  // Export to Excel
+  const exportToExcel = async () => {
+    let dataToExport = await exportedData();
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('الطلبات المكتملة', { properties: { defaultColWidth: 20 } });
 
-    // Create worksheet
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-    
-    // Set column widths
-    worksheet['!cols'] = [
-      { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
-      { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
-      { wch: 20 }, { wch: 15 }, { wch: 10 }
+    worksheet.columns = [
+      { header: 'رقم الطلب', key: 'id', width: 15 },
+      { header: 'اسم العميل', key: 'clientName', width: 20 },
+      { header: 'جوال العميل', key: 'clientPhone', width: 15 },
+      { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
+      { header: 'رقم العاملة', key: 'maidId', width: 15 },
+      { header: 'اسم العاملة', key: 'maidName', width: 20 },
+      { header: 'الجنسية', key: 'nationality', width: 15 },
+      { header: 'رقم جواز السفر', key: 'passport', width: 15 },
+      { header: 'المتبقي من الضمان', key: 'warranty', width: 20 },
+      { header: 'مدة المعاملة', key: 'duration', width: 15 },
+      { header: 'التقييم', key: 'rating', width: 15 },
     ];
 
-    // Create workbook and add worksheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, contractType === 'recruitment' ? 'طلبات الاستقدام' : 'طلبات التأجير');
+    worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+    worksheet.getRow(1).alignment = { horizontal: 'right' };
+    worksheet.columns = [
+      { header: 'رقم الطلب', key: 'id', width: 10 },
+      { header: 'اسم العميل', key: 'clientName', width: 20 },
+      { header: 'جوال العميل', key: 'clientPhone', width: 15 },
+      { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
+      { header: 'رقم العاملة', key: 'maidId', width: 15 },
+      { header: 'اسم العاملة', key: 'maidName', width: 20 },
+      { header: 'الجنسية', key: 'nationality', width: 15 },
+      { header: 'رقم جواز السفر', key: 'passport', width: 15 },
+      { header: 'المتبقي من الضمان', key: 'warranty', width: 20 },
+      { header: 'مدة المعاملة', key: 'duration', width: 15 },
+      { header: 'التقييم', key: 'rating', width: 10 }
+    ];
 
-    // Export to Excel
-    XLSX.writeFile(workbook, `orders_${contractType}.xlsx`);
+    Array.isArray(dataToExport) &&
+      dataToExport.forEach(row => {
+        worksheet.addRow({
+          id: row.id || 'غير متوفر',
+          clientName: row.client?.fullname || row.ClientName || 'غير متوفر',
+          clientPhone: row.client?.phonenumber || row.clientphonenumber || 'غير متوفر',
+          clientNationalId: row.client?.id || row.clientID || 'غير متوفر',
+          maidId: row.HomeMaid?.id || row.HomemaidId || 'غير متوفر',
+          maidName: row.HomeMaid?.Name || 'غير متوفر',
+          nationality: row.HomeMaid?.office?.Country || row.HomeMaid?.Nationality || 'غير متوفر',
+          passport: row.HomeMaid?.Passportnumber || 'غير متوفر',
+          warranty: row.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
+          duration: 'غير متوفر',
+          rating: row.ratings?.[0]?.isRated ? 'تم التقييم' : row.isContractEnded ? 'لا' : 'تقييم',
+        }).alignment = { horizontal: 'right' };
+      });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ended_orders.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const renderPagination = () => {
@@ -377,7 +494,11 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <section id="dashboard" className={`flex flex-row mx-auto min-h-screen ${Style["tajawal-regular"]}`}>
+      <Head>
+        <title>الطلبات المكتملة</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      </Head>
+      <section id="dashboard" className={`flex flex-row mx-auto min-h-screen ${Style["tajawal-regular"]}`} dir="rtl">
         <div className="flex-1 flex flex-col w-full">
           <main className="p-6 md:p-8">
             <h1 className="text-3xl md:text-4xl font-normal text-black mb-6 text-right">

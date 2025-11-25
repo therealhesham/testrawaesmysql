@@ -1155,4 +1155,7 @@ model AccountSystemLogs  {
   actionUser User? @relation(fields: [actionUserId], references: [id])
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
+
+  @@index([actionClientId])
+  @@index([actionUserId])
 }

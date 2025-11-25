@@ -45,6 +45,8 @@ export default function PDFProcessor() {
   const [editingField, setEditingField] = useState<{ key: string; value: string } | null>(null);
   const [offices, setOffices] = useState<{ id: number; office: string | null }[]>([]);
   const [invalidOffice, setInvalidOffice] = useState<{ field: string; value: string } | null>(null);
+  const [nationalities, setNationalities] = useState<{ id: number; Country: string | null }[]>([]);
+  const [invalidNationality, setInvalidNationality] = useState<{ field: string; value: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -63,7 +65,23 @@ export default function PDFProcessor() {
       }
     };
 
+    const fetchNationalities = async () => {
+      try {
+        const res = await fetch('/api/nationalities');
+        if (!res.ok) {
+          return;
+        }
+        const data = await res.json();
+        if (data && Array.isArray(data.nationalities)) {
+          setNationalities(data.nationalities);
+        }
+      } catch (e) {
+        console.error('Error fetching nationalities list:', e);
+      }
+    };
+
     fetchOffices();
+    fetchNationalities();
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -328,6 +346,24 @@ export default function PDFProcessor() {
         setInvalidOffice(null);
       }
 
+      // التحقق من أن nationality موجودة في قائمة الجنسيات
+      const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
+      const extractedNationality = geminiData.jsonResponse.nationality || geminiData.jsonResponse.Nationality;
+      
+      if (extractedNationality) {
+        const normalizedExtracted = String(extractedNationality).toLowerCase().trim();
+        const isValidNationality = nationalityNames.some(nationalityName => nationalityName === normalizedExtracted);
+        
+        if (!isValidNationality && nationalities.length > 0) {
+          // الجنسية غير موجودة في القائمة
+          setInvalidNationality({ field: 'nationality', value: String(extractedNationality) });
+        } else {
+          setInvalidNationality(null);
+        }
+      } else {
+        setInvalidNationality(null);
+      }
+
       setProcessingResult((prev) =>
         prev
           ? { ...prev, geminiData }
@@ -386,6 +422,23 @@ export default function PDFProcessor() {
     setInvalidOffice(null);
   };
 
+  const handleNationalitySelection = (selectedNationality: string) => {
+    if (!processingResult || !invalidNationality) return;
+    
+    const updatedData = { ...processingResult.geminiData.jsonResponse };
+    
+    // تحديث الحقل nationality
+    updatedData.nationality = selectedNationality;
+    updatedData.Nationality = selectedNationality;
+    
+    setProcessingResult({
+      ...processingResult,
+      geminiData: { jsonResponse: updatedData }
+    });
+    
+    setInvalidNationality(null);
+  };
+
   const startEditingField = (key: string, value: any) => {
     let baseVal = '';
     if (key === 'skills' || key === 'languages_spoken') {
@@ -430,6 +483,22 @@ export default function PDFProcessor() {
         setInvalidOffice(null);
       }
     }
+
+    // التحقق من الجنسية إذا كان الحقل المُعدل هو nationality
+    if ((key === 'nationality' || key === 'Nationality') && value) {
+      const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
+      const normalizedValue = String(value).toLowerCase().trim();
+      const isValidNationality = nationalityNames.some(nationalityName => nationalityName === normalizedValue);
+      
+      if (!isValidNationality && nationalities.length > 0) {
+        setError('الجنسية المُدخلة غير موجودة في قائمة الجنسيات. يرجى اختيار جنسية صحيحة.');
+        setInvalidNationality({ field: 'nationality', value: String(value) });
+        setEditingField(null);
+        return;
+      } else {
+        setInvalidNationality(null);
+      }
+    }
     
     setProcessingResult((prev) => {
       if (!prev) return prev;
@@ -450,6 +519,10 @@ export default function PDFProcessor() {
         updatedJson[key === 'company_name' ? 'CompanyName' : 'company_name'] = value;
         updatedJson.office_name = value;
         updatedJson.OfficeName = value;
+      } else if (key === 'nationality' || key === 'Nationality') {
+        // إذا تم تعديل nationality، قم بتحديث Nationality أيضاً
+        updatedJson[key] = value;
+        updatedJson[key === 'nationality' ? 'Nationality' : 'nationality'] = value;
       } else {
         updatedJson[key] = value;
       }
@@ -491,6 +564,22 @@ export default function PDFProcessor() {
         setError('يجب اختيار مكتب صحيح من قائمة المكاتب قبل الحفظ');
         const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
         setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+        return;
+      }
+    }
+
+    // التحقق من الجنسية قبل الحفظ
+    const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
+    const extractedNationality = processingResult.geminiData.jsonResponse.nationality || 
+                                  processingResult.geminiData.jsonResponse.Nationality;
+    
+    if (extractedNationality && nationalities.length > 0) {
+      const normalizedExtracted = String(extractedNationality).toLowerCase().trim();
+      const isValidNationality = nationalityNames.some(nationalityName => nationalityName === normalizedExtracted);
+      
+      if (!isValidNationality) {
+        setError('يجب اختيار جنسية صحيحة من قائمة الجنسيات قبل الحفظ');
+        setInvalidNationality({ field: 'nationality', value: String(extractedNationality) });
         return;
       }
     }
@@ -1056,6 +1145,54 @@ export default function PDFProcessor() {
                           </div>
                           <button
                             onClick={() => setInvalidOffice(null)}
+                            className="flex-shrink-0 text-yellow-600 hover:text-yellow-800"
+                          >
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nationality Validation Warning */}
+                  {invalidNationality && (
+                    <div className="mb-6">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="mr-3 flex-1">
+                            <h3 className="text-lg font-medium text-yellow-800 mb-2 text-right">
+                              تحذير: الجنسية غير موجودة في القائمة
+                            </h3>
+                            <p className="text-sm text-yellow-700 mb-4 text-right">
+                              الجنسية المستخرجة: <span className="font-semibold">{invalidNationality.value}</span> غير موجودة في قاعدة البيانات. يرجى اختيار جنسية صحيحة من القائمة أدناه.
+                            </p>
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
+                                اختر الجنسية الصحيحة:
+                              </label>
+                              <select
+                                onChange={(e) => handleNationalitySelection(e.target.value)}
+                                className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
+                                defaultValue=""
+                              >
+                                <option value="">-- اختر جنسية من القائمة --</option>
+                                {nationalities.map((nationality) => (
+                                  <option key={nationality.id} value={nationality.Country || ''}>
+                                    {nationality.Country}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setInvalidNationality(null)}
                             className="flex-shrink-0 text-yellow-600 hover:text-yellow-800"
                           >
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
