@@ -86,10 +86,7 @@ export default async function handler(
         },
       },
       where: filters,
-      orderBy: [
-        { displayOrder: "desc" },
-        { id: "desc" }
-      ],
+      orderBy:{displayOrder: "desc"} ,
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,
     });
@@ -105,6 +102,7 @@ export default async function handler(
       Passportnumber: homemaid.Passportnumber || "",
       PassportStart: homemaid.PassportStart || "",
       PassportEnd: homemaid.PassportEnd || "",
+      displayOrder: homemaid.displayOrder || 0,
       office: homemaid.office
         ? {
             office: homemaid.office.office || "",
