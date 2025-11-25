@@ -896,21 +896,7 @@ const EditClientModal: React.FC<{
   setNotification: (notification: Notification | null) => void;
 }> = ({ isOpen, onClose, client, onSubmit, cities, setNotification }) => {
   const [formData, setFormData] = useState<Client>(client);
-const arabicRegionMap: { [key: string]: string } = {
-    'Ar Riyāḍ': 'الرياض',
-    'Makkah al Mukarramah': 'مكة المكرمة',
-    'Al Madīnah al Munawwarah': 'المدينة المنورة',
-    'Ash Sharqīyah': 'المنطقة الشرقية',
-    'Asīr': 'عسير',
-    'Tabūk': 'تبوك',
-    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
-    'Jazan': 'جازان',
-    'Najrān': 'نجران',
-    'Al Bāḩah': 'الباحة',
-    'Al Jawf': 'الجوف',
-    'Al Qaşīm': 'القصيم',
-    'Ḩa\'il': 'حائل',
-  };
+
   useEffect(() => {
     setFormData(client);
   }, [client]);
@@ -971,20 +957,67 @@ const arabicRegionMap: { [key: string]: string } = {
               className="w-full bg-gray-50 border border-border-color rounded-md py-2  text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
             >
               <option value="">اختر المدينة</option>
-                    <option value="Ar Riyāḍ">الرياض</option>
-                    <option value="Makkah al Mukarramah">مكة المكرمة</option>
-                    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
-                    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
-                    <option value="Asīr">عسير</option>
-                    <option value="Tabūk">تبوك</option>
-                    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
-                    <option value="Jazan">جازان</option>
-                    <option value="Najrān">نجران</option>
-                    <option value="Al Bāḩah">الباحة</option>
-                    <option value="Al Jawf">الجوف</option>
-                    <option value="Al Qaşīm">القصيم</option>
-                    <option value="Ḩa'il">حائل</option>
-                 
+<option value = "Baha">الباحة</option>
+<option value = "Jawf">الجوف</option>
+<option value = "Qassim">القصيم</option>
+<option value = "Hail">حائل</option>
+<option value = "Jazan">جازان</option>
+<option value = "Najran">نجران</option>
+<option value = "Madinah">المدينة المنورة</option>
+<option value = "Riyadh">الرياض</option>
+<option value = "Al-Kharj">الخرج</option>
+<option value = "Ad Diriyah">الدرعية</option>
+<option value = "Al Majma'ah">المجمعة</option>
+<option value = "Al Zulfi">الزلفي</option>
+<option value = "Ad Dawadimi">الدوادمي</option>
+<option value = "Wadi Ad Dawasir">وادي الدواسر</option>
+<option value = "Afif">عفيف</option>
+<option value = "Al Quway'iyah">القويعية</option>
+<option value = "Shaqra">شقراء</option>
+<option value = "Hotat Bani Tamim">حوطة بني تميم</option>
+<option value = "Makkah">مكة المكرمة</option>
+<option value = "Jeddah">جدة</option>
+<option value = "Taif">الطائف</option>
+<option value = "Rabigh">رابغ</option>
+<option value = "Al Qunfudhah">القنفذة</option>
+<option value = "Al Lith">الليث</option>
+<option value = "Khulais">خليص</option>
+<option value = "Ranyah">رنية</option>
+<option value = "Turabah">تربة</option>
+<option value = "Yanbu">ينبع</option>
+<option value = "Al Ula">العلا</option>
+<option value = "Badr">بدر</option>
+<option value = "Al Hinakiyah">الحناكية</option>
+<option value = "Mahd Al Dhahab">مهد الذهب</option>
+<option value = "Dammam">الدمام</option>
+<option value = "Al Khobar">الخبر</option>
+<option value = "Dhahran">الظهران</option>
+<option value = "Al Ahsa">الأحساء</option>
+<option value = "Al Hufuf">الهفوف</option>
+<option value = "Al Mubarraz">المبرز</option>
+<option value = "Jubail">الجبيل</option>
+<option value = "Hafr Al Batin">حفر الباطن</option>
+<option value = "Al Khafji">الخفجي</option>
+<option value = "Ras Tanura">رأس تنورة</option>
+<option value = "Qatif">القطيف</option>
+<option value = "Abqaiq">بقيق</option>
+<option value = "Nairiyah">النعيرية</option>
+<option value = "Qaryat Al Ulya">قرية العليا</option>
+<option value = "Buraydah">بريدة</option>
+<option value = "Unaizah">عنيزة</option>
+<option value = "Ar Rass">الرس</option>
+<option value = "Al Bukayriyah">البكيرية</option>
+<option value = "Al Badaye">البدائع</option>
+<option value = "Al Mithnab">المذنب</option>
+<option value = "Riyad Al Khabra">رياض الخبراء</option>
+<option value = "Abha">أبها</option>
+<option value = "Khamis Mushait">خميس مشيط</option>
+<option value = "Bisha">بيشة</option>
+<option value = "Mahayil">محايل عسير</option>
+<option value = "Al Namas">النماص</option>
+<option value = "Tanomah">تنومة</option>
+<option value = "Ahad Rafidah">أحد رفيدة</option>
+<option value = "Sarat Abidah">سراة عبيدة</option>
             </select>
           </div>
           <div className="flex justify-end gap-2">
