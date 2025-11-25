@@ -8,17 +8,50 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
+import { useRouter } from 'next/router';
+import RatingModal from 'components/RatingModal';
+
+interface OrderRating {
+  id: number;
+  idOrder: number | null;
+  isRated: boolean;
+  reason: string | null;
+}
+
+interface OrderData {
+  id: number;
+  ClientName?: string | null;
+  clientphonenumber?: string | null;
+  clientID?: number | null;
+  HomemaidId?: number | null;
+  isContractEnded?: boolean | null;
+  client?: {
+    id: number;
+    fullname?: string | null;
+    phonenumber?: string | null;
+  } | null;
+  HomeMaid?: {
+    id: number;
+    Name?: string | null;
+    Nationality?: string | null;
+    Passportnumber?: string | null;
+  } | null;
+  ratings?: OrderRating[];
+}
 
 export default function Dashboard() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<OrderData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [contractType, setContractType] = useState('recruitment');
   const [recruitmentCount, setRecruitmentCount] = useState(0);
   const [rentalCount, setRentalCount] = useState(0);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedOrderRating, setSelectedOrderRating] = useState<{ isRated: boolean; reason: string } | null>(null);
   const pageSize = 10;
-
+  const router = useRouter();
   async function fetchData(page = 1) {
     try {
       const res = await fetch(`/api/endedorders?page=${page}&typeOfContract=${contractType}`);
@@ -63,6 +96,75 @@ export default function Dashboard() {
     }
   };
 
+  const handleRatingClick = (orderId: number, existingRating?: { isRated: boolean; reason: string }) => {
+    setSelectedOrderId(orderId);
+    if (existingRating) {
+      setSelectedOrderRating(existingRating);
+    } else {
+      setSelectedOrderRating(null);
+    }
+    setIsRatingModalOpen(true);
+  };
+
+  const handleRatingSubmit = async (form: { idOrder: string; isRated: boolean; reason: string }) => {
+    try {
+      const orderId = parseInt(form.idOrder);
+      if (isNaN(orderId)) {
+        alert('رقم الطلب غير صحيح');
+        return;
+      }
+
+      // Check if rating already exists for this order
+      const existingRatingRes = await fetch(`/api/ratings`);
+      const allRatings = await existingRatingRes.json();
+      const existingRating = allRatings.find((r: any) => r.idOrder === orderId);
+
+      let response;
+      if (existingRating) {
+        // Update existing rating
+        response = await fetch(`/api/ratings/${existingRating.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idOrder: orderId,
+            isRated: form.isRated,
+            reason: form.reason,
+          }),
+        });
+      } else {
+        // Create new rating
+        response = await fetch('/api/ratings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            idOrder: orderId,
+            isRated: form.isRated,
+            reason: form.reason,
+          }),
+        });
+      }
+
+      if (response.ok) {
+        alert('تم حفظ التقييم بنجاح');
+        setIsRatingModalOpen(false);
+        setSelectedOrderId(null);
+        setSelectedOrderRating(null);
+        // Refresh data to show updated rating
+        fetchData(currentPage);
+      } else {
+        const error = await response.json();
+        alert(`خطأ في حفظ التقييم: ${error.error || 'حدث خطأ'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('حدث خطأ في حفظ التقييم');
+    }
+  };
+
   const exportToPDF = async () => {
     const doc = new jsPDF();
     
@@ -98,13 +200,13 @@ export default function Dashboard() {
     // Prepare table data
     const tableData = data.map(booking => [
       `#${booking.id}`,
-      booking.ClientName || 'غير متوفر',
-      booking.clientphonenumber || 'غير متوفر',
+      booking.client?.fullname || booking.ClientName || 'غير متوفر',
+      booking.client?.phonenumber || booking.clientphonenumber || 'غير متوفر',
       booking.clientID || 'غير متوفر',
-      booking.HomemaidId || 'غير متوفر',
-      booking.Name || 'غير متوفر',
-      booking.Nationality || 'غير متوفر',
-      booking.Passportnumber || 'غير متوفر',
+      booking.HomeMaid?.id || booking.HomemaidId || 'غير متوفر',
+      booking.HomeMaid?.Name || 'غير متوفر',
+      booking.HomeMaid?.Nationality || 'غير متوفر',
+      booking.HomeMaid?.Passportnumber || 'غير متوفر',
       booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
       'غير متوفر',
       booking.isContractEnded ? 'لا' : 'نعم'
@@ -136,13 +238,13 @@ export default function Dashboard() {
     // Prepare data for Excel
     const worksheetData = data.map(booking => ({
       '#': booking.id,
-      'اسم العميل': booking.ClientName || 'غير متوفر',
-      'جوال العميل': booking.clientphonenumber || 'غير متوفر',
+      'اسم العميل': booking.client?.fullname || booking.ClientName || 'غير متوفر',
+      'جوال العميل': booking.client?.phonenumber || booking.clientphonenumber || 'غير متوفر',
       'هوية العميل': booking.clientID || 'غير متوفر',
-      'رقم العاملة': booking.HomemaidId || 'غير متوفر',
-      'اسم العاملة': booking.Name || 'غير متوفر',
-      'الجنسية': booking.Nationality || 'غير متوفر',
-      'رقم جواز السفر': booking.Passportnumber || 'غير متوفر',
+      'رقم العاملة': booking.HomeMaid?.id || booking.HomemaidId || 'غير متوفر',
+      'اسم العاملة': booking.HomeMaid?.Name || 'غير متوفر',
+      'الجنسية': booking.HomeMaid?.Nationality || 'غير متوفر',
+      'رقم جواز السفر': booking.HomeMaid?.Passportnumber || 'غير متوفر',
       'المتبقي من الضمان': booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
       'مدة المعاملة': 'غير متوفر',
       'التقييم': booking.isContractEnded ? 'لا' : 'نعم'
@@ -285,20 +387,35 @@ export default function Dashboard() {
                   <tbody>
                     {data.map((booking) => (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-xs text-gray-800 text-right">#{booking.id}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.ClientName || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.clientphonenumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.clientID || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomemaidId || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right whitespace-normal">{booking.Name || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.Nationality || 'غير متوفر'}</td>
-                        <td className="p-4 text-xs text-gray-800 text-right">{booking.Passportnumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{booking.client?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right whitespace-normal">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
+                        <td className="p-4 text-xs text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">{booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر'}</td>
                         <td className="p-4 text-xs text-gray-800 text-right">غير متوفر</td>
                         <td className="p-4 text-xs text-right">
-                          <span className={`inline-block px-3 py-1 rounded-lg ${booking.isContractEnded ? 'text-red-600' : 'text-teal-900'}`}>
-                            {booking.isContractEnded ? 'لا' : 'نعم'}
-                          </span>
+                          <button
+                            onClick={() => {
+                              const existingRating = booking.ratings?.[0];
+                              handleRatingClick(booking.id, existingRating ? {
+                                isRated: existingRating.isRated,
+                                reason: existingRating.reason || ''
+                              } : undefined);
+                            }}
+                            className={`inline-block px-3 py-1 rounded-lg cursor-pointer transition-colors ${
+                              booking.ratings?.[0]?.isRated 
+                                ? 'bg-teal-900 text-white hover:bg-teal-800' 
+                                : booking.isContractEnded 
+                                  ? 'text-red-600 hover:bg-red-50' 
+                                  : 'text-teal-900 hover:bg-teal-50'
+                            }`}
+                          >
+                            {booking.ratings?.[0]?.isRated ? 'تم التقييم' : booking.isContractEnded ? 'لا' : 'تقييم'}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -341,19 +458,30 @@ export default function Dashboard() {
           </main>
         </div>
       </section>
+      <RatingModal
+        isOpen={isRatingModalOpen}
+        onClose={() => {
+          setIsRatingModalOpen(false);
+          setSelectedOrderId(null);
+          setSelectedOrderRating(null);
+        }}
+        onSubmit={handleRatingSubmit}
+        orderId={selectedOrderId || undefined}
+        initialData={selectedOrderRating || undefined}
+      />
     </Layout>
   );
 }
 
 
-export async function getServerSideProps ({ req }) {
+export async function getServerSideProps ({ req }: { req: any }) {
   try {
     console.log("sss")
     // 🔹 Extract cookies
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(";").forEach((cookie) => {
+      cookieHeader.split(";").forEach((cookie: string) => {
         const [key, value] = cookie.trim().split("=");
         cookies[key] = decodeURIComponent(value);
       });
@@ -367,17 +495,19 @@ export async function getServerSideProps ({ req }) {
     }
 
     // 🔹 Decode JWT
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
 
     // 🔹 Fetch user & role with Prisma
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
-console.log(findUser.role?.permissions?.["إدارة الطلبات"])
+    
+    const permissions = findUser?.role?.permissions as any;
+    console.log(permissions?.["إدارة الطلبات"])
     if (
       !findUser ||
-      !findUser.role?.permissions?.["إدارة الطلبات"]?.["عرض"]
+      !permissions?.["إدارة الطلبات"]?.["عرض"]
     ) {
       return {
         redirect: { destination: "/admin/home", permanent: false }, // or show 403

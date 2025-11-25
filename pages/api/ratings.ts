@@ -74,6 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).end(`Method ${method} Not Allowed`);
     }
   } catch (error) {
+    console.error('Error in ratings API:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   } finally {
     await prisma.$disconnect();

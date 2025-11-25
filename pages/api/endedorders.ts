@@ -50,6 +50,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // جلب البيانات - الطلبات المكتملة هي التي لديها ملف استلام
   const homemaids = await prisma.neworder.findMany({
+    include: {
+      HomeMaid: true,
+      client: true,
+      ratings: true,
+    },
     orderBy: { id: "desc" },
     where: {
       ...filters,
