@@ -376,8 +376,8 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             if (updatedData['رقم عقد إدارة المكاتب']) {
               arrivalUpdate.InternalmusanedContract = updatedData['رقم عقد إدارة المكاتب'];
             }
-            if (updatedData['تاريخ مساند']) {
-              arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ مساند']);
+            if (updatedData['تاريخ العقد']) {
+              arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ العقد']);
             }
             break;
           case 'externalOfficeInfo':
@@ -471,6 +471,30 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
                   ...deliveryData,
                   newOrderId: Number(id),
                 },
+              });
+            }
+            break;
+          case 'clientInfo':
+            // Handle client info updates (email, name, phone)
+            if (!order.clientId) {
+              return res.status(400).json({ error: 'No client associated with this order' });
+            }
+            
+            const clientUpdateData: any = {};
+            if (updatedData['البريد الإلكتروني']) {
+              clientUpdateData.email = updatedData['البريد الإلكتروني'];
+            }
+            if (updatedData['اسم العميل']) {
+              clientUpdateData.fullname = updatedData['اسم العميل'];
+            }
+            if (updatedData['رقم الهاتف']) {
+              clientUpdateData.phonenumber = updatedData['رقم الهاتف'];
+            }
+            
+            if (Object.keys(clientUpdateData).length > 0) {
+              await prisma.client.update({
+                where: { id: order.clientId },
+                data: clientUpdateData,
               });
             }
             break;

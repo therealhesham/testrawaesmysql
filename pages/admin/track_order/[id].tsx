@@ -599,6 +599,9 @@ export default function TrackOrder() {
               { label: 'رقم الطلب', value: orderData.orderId },
             ]}
             gridCols={3}
+            editable={true}
+            clientID={orderData.clientInfo?.id ? Number(orderData.clientInfo.id) : undefined}
+            onSave={(updatedData) => handleSaveEdits('clientInfo', updatedData)}
           />
 
           <InfoCard
@@ -628,7 +631,7 @@ export default function TrackOrder() {
               { label: 'هوية العميل', value: orderData.officeLinkInfo.nationalId },
               { label: 'رقم التأشيرة', value: orderData.officeLinkInfo.visaNumber, fieldType: 'visa' },
               { label: 'رقم عقد إدارة المكاتب', value: orderData.officeLinkInfo.internalMusanedContract },
-              { label: 'تاريخ مساند', value: orderData.officeLinkInfo.musanedDate},
+              { label: 'تاريخ العقد', value: orderData.officeLinkInfo.musanedDate},
             ]}
             gridCols={3}
             editable={true}
@@ -955,8 +958,8 @@ export default function TrackOrder() {
             id="destinations"
             title="10- الوجهات"
             data={[
-              { label: 'مدينة المغادرة', value: orderData.destinations.departureCity },
-              { label: 'مدينة الوصول', value: orderData.destinations.arrivalCity },
+              { label: 'مدينة المغادرة', value: orderData.destinations.departureCity, fieldType: 'city' },
+              { label: 'مدينة الوصول', value: orderData.destinations.arrivalCity, fieldType: 'saudiCity' },
               {
                 label: 'تاريخ ووقت المغادرة',
                 value: (

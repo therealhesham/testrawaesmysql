@@ -70,6 +70,7 @@ case "expert":
   const [selectedClient, setSelectedClient] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [originalDateOfBirth, setOriginalDateOfBirth] = useState<string | null>(null);
 
   // معالجة التغييرات في الحقول
   const handleChange = (e: any) => {
@@ -93,12 +94,28 @@ const handleChangeDate = (e: any) => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // التأكد من أن تاريخ الميلاد ليس فارغاً - استخدام التاريخ الأصلي إذا كان فارغاً
+      const dateToSend = formData.dateofbirth && formData.dateofbirth.trim() !== "" 
+        ? formData.dateofbirth 
+        : originalDateOfBirth;
+      
+      if (!dateToSend) {
+        alert('يرجى إدخال تاريخ الميلاد');
+        setSaving(false);
+        return;
+      }
+      
+      const dataToSend = {
+        ...formData,
+        dateofbirth: dateToSend
+      };
+      
       const response = await fetch(`/api/hommeaidfind?id=${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
       
       if (!response.ok) throw new Error('فشل في حفظ البيانات');
@@ -148,13 +165,24 @@ const handleChangeDate = (e: any) => {
           const response = await fetch(`/api/hommeaidfind?id=${id}`);
           if (!response.ok) throw new Error("فشل في جلب البيانات");
           const data = await response.json();
+          
+          // حفظ التاريخ الأصلي وتحويله إلى تنسيق YYYY-MM-DD للعرض في حقل date
+          const birthDate = data.dateofbirth ? new Date(data.dateofbirth) : null;
+          const formattedDateForInput = birthDate ? 
+            `${birthDate.getFullYear()}-${String(birthDate.getMonth() + 1).padStart(2, '0')}-${String(birthDate.getDate()).padStart(2, '0')}` : 
+            "";
+          const formattedDateForDisplay = birthDate ? birthDate.toLocaleDateString('ar-EG') : "";
+          
+          // حفظ التاريخ الأصلي
+          setOriginalDateOfBirth(formattedDateForInput);
+          
           setFormData({
             Name: data.Name || "",
             Religion: data.Religion || "",
             Nationalitycopy: data.Nationalitycopy || "",
             maritalstatus: data.maritalstatus || "",
             // childrenCount: data.childrenCount || "",
-            dateofbirth: new Date(data.dateofbirth).toLocaleDateString('ar-EG') || "",
+            dateofbirth: formattedDateForDisplay,
             Passportnumber: data.Passportnumber || "",
             phone: data.phone || "",
             Education: data.Education || "",
@@ -185,7 +213,7 @@ const handleChangeDate = (e: any) => {
       fetchClients();
     }
   }, [id]);
-const [officesnames, setOfficesnames] = useState([]);
+const [officesnames, setOfficesnames] = useState<any[]>([]);
 
 const fetchofficesnames = async () => {
   try {
@@ -266,7 +294,13 @@ useEffect(() => {
           {!isEditing ? (
             <button
               className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                // عند تفعيل وضع التعديل، تحويل تاريخ الميلاد إلى تنسيق YYYY-MM-DD
+                if (originalDateOfBirth) {
+                  setFormData({ ...formData, dateofbirth: originalDateOfBirth });
+                }
+                setIsEditing(true);
+              }}
             >
               تعديل
             </button>
@@ -281,7 +315,55 @@ useEffect(() => {
               </button>
               <button
                 className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  // عند الإلغاء، إعادة تحميل البيانات
+                  if (id) {
+                    const fetchPersonalInfo = async () => {
+                      try {
+                        const response = await fetch(`/api/hommeaidfind?id=${id}`);
+                        if (!response.ok) throw new Error("فشل في جلب البيانات");
+                        const data = await response.json();
+                        
+                        const birthDate = data.dateofbirth ? new Date(data.dateofbirth) : null;
+                        const formattedDateForDisplay = birthDate ? birthDate.toLocaleDateString('ar-EG') : "";
+                        const formattedDateForInput = birthDate ? 
+                          `${birthDate.getFullYear()}-${String(birthDate.getMonth() + 1).padStart(2, '0')}-${String(birthDate.getDate()).padStart(2, '0')}` : 
+                          "";
+                        
+                        setOriginalDateOfBirth(formattedDateForInput);
+                        
+                        setFormData({
+                          Name: data.Name || "",
+                          Religion: data.Religion || "",
+                          Nationalitycopy: data.Nationalitycopy || "",
+                          maritalstatus: data.maritalstatus || "",
+                          dateofbirth: formattedDateForDisplay,
+                          Passportnumber: data.Passportnumber || "",
+                          phone: data.phone || "",
+                          Education: data.Education || "",
+                          ArabicLanguageLeveL: data.ArabicLanguageLeveL || "",
+                          EnglishLanguageLevel: data.EnglishLanguageLevel || "",
+                          Experience: data.Experience || "",
+                          washingLevel: data.washingLevel || "",
+                          ExperienceYears: data.ExperienceYears || "",
+                          ironingLevel: data.ironingLevel || "",
+                          cleaningLevel: data.cleaningLevel || "",
+                          cookingLevel: data.cookingLevel || "",
+                          sewingLevel: data.sewingLevel || "",
+                          childcareLevel: data.childcareLevel || "",
+                          elderlycareLevel: data.elderlycareLevel || "",
+                          officeName: data.office?.office || "",
+                          salary: data.Salary || "",
+                          logs: data.logs || [],
+                        });
+                      } catch (error) {
+                        console.error("Error fetching data:", error);
+                      }
+                    };
+                    fetchPersonalInfo();
+                  }
+                  setIsEditing(false);
+                }}
               >
                 إلغاء
               </button>

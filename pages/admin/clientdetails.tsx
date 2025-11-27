@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import Layout from 'example/containers/Layout';
 import { useRouter } from 'next/router';
 import React from 'react';
+import { EditIcon, TrashIcon } from 'icons';
 
 interface ClientInfo {
   id: string;
@@ -311,6 +312,10 @@ export default function Home() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [editingVisaId, setEditingVisaId] = useState<number | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    isOpen: boolean;
+    visaId: number | null;
+  }>({ isOpen: false, visaId: null });
 
   const router = useRouter();
 
@@ -346,6 +351,31 @@ export default function Home() {
     setVisaInfo(visa);
     setEditingVisaId(visa.id);
     setIsHidden(false);
+  };
+
+  const handleDeleteVisa = (visaId: number) => {
+    setDeleteConfirmModal({ isOpen: true, visaId });
+  };
+
+  const confirmDeleteVisa = async () => {
+    if (!deleteConfirmModal.visaId) return;
+    
+    try {
+      const response = await fetch(`/api/visadata?id=${deleteConfirmModal.visaId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setNotification({ message: 'تم حذف التأشيرة بنجاح', type: 'success' });
+        fetchVisas();
+        setDeleteConfirmModal({ isOpen: false, visaId: null });
+      } else {
+        throw new Error('فشل في حذف التأشيرة');
+      }
+    } catch (error) {
+      console.error(error);
+      setNotification({ message: 'فشل في حذف التأشيرة', type: 'error' });
+      setDeleteConfirmModal({ isOpen: false, visaId: null });
+    }
   };
 
   useEffect(() => {
@@ -404,6 +434,45 @@ export default function Home() {
           >
             إغلاق
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  function DeleteConfirmModal({
+    isOpen,
+    onClose,
+    onConfirm,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+  }) {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex items-center justify-center transition-opacity duration-300">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+          <h2 className="text-xl font-semibold text-red-800 mb-4 text-center">
+            تأكيد الحذف
+          </h2>
+          <p className="text-center text-gray-700 mb-6">
+            هل أنت متأكد من حذف هذه التأشيرة؟ لا يمكن التراجع عن هذا الإجراء.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition"
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+            >
+              حذف
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -490,6 +559,11 @@ const arabicRegionMap: { [key: string]: string } = {
             onClose={() => setNotification(null)}
           />
         )}
+        <DeleteConfirmModal
+          isOpen={deleteConfirmModal.isOpen}
+          onClose={() => setDeleteConfirmModal({ isOpen: false, visaId: null })}
+          onConfirm={confirmDeleteVisa}
+        />
 
         <div className="max-w-7xl mx-auto">
           <p className="text-right text-xl text-gray-600 mb-8">
@@ -638,12 +712,22 @@ const arabicRegionMap: { [key: string]: string } = {
                             )}
                           </td>
                           <td className="p-3 border">
-                            <button
-                              onClick={() => handleEditVisa(visa)}
-                              className="text-teal-600 hover:underline"
-                            >
-                              تعديل
-                            </button>
+                            <div className="flex gap-3 justify-center items-center">
+                              <button
+                                onClick={() => handleEditVisa(visa)}
+                                className="text-teal-600 hover:text-teal-800 transition-colors"
+                                title="تعديل"
+                              >
+                                <EditIcon className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteVisa(visa.id)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                                title="حذف"
+                              >
+                                <TrashIcon className="w-5 h-5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

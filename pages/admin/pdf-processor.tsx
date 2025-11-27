@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import Layout from 'example/containers/Layout';
 import AutomaticPreview from '../../components/AutomaticPreview';
+import { useToast } from '../../components/GlobalToast';
 
 interface ExtractedData {
   jsonResponse: Record<string, string>;
@@ -27,6 +28,7 @@ const normalizeImageUrl = (url: string) => {
 };
 
 export default function PDFProcessor() {
+  const { showToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
@@ -43,7 +45,9 @@ export default function PDFProcessor() {
   const [currentModel, setCurrentModel] = useState('gemini-2.5-flash');
   const [isRetryingWithPro, setIsRetryingWithPro] = useState(false);
   const [editingField, setEditingField] = useState<{ key: string; value: string } | null>(null);
-  const [offices, setOffices] = useState<{ id: number; office: string | null }[]>([]);
+  const [offices, setOffices] = useState<{ id: number; office: string | null; Country: string | null }[]>([]);
+  const [filteredOffices, setFilteredOffices] = useState<{ id: number; office: string | null; Country: string | null }[]>([]);
+  const [selectedNationality, setSelectedNationality] = useState<string | null>(null);
   const [invalidOffice, setInvalidOffice] = useState<{ field: string; value: string } | null>(null);
   const [nationalities, setNationalities] = useState<{ id: number; Country: string | null }[]>([]);
   const [invalidNationality, setInvalidNationality] = useState<{ field: string; value: string } | null>(null);
@@ -59,6 +63,8 @@ export default function PDFProcessor() {
         const data = await res.json();
         if (data && Array.isArray(data.offices)) {
           setOffices(data.offices);
+          // في البداية، عرض جميع المكاتب
+          setFilteredOffices(data.offices);
         }
       } catch (e) {
         console.error('Error fetching offices list:', e);
@@ -83,6 +89,19 @@ export default function PDFProcessor() {
     fetchOffices();
     fetchNationalities();
   }, []);
+
+  // تصفية المكاتب بناءً على الجنسية المختارة
+  useEffect(() => {
+    if (selectedNationality) {
+      const filtered = offices.filter(office => 
+        office.Country?.toLowerCase().trim() === selectedNationality.toLowerCase().trim()
+      );
+      setFilteredOffices(filtered);
+    } else {
+      // إذا لم يتم اختيار جنسية، عرض جميع المكاتب
+      setFilteredOffices(offices);
+    }
+  }, [selectedNationality, offices]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -327,41 +346,82 @@ export default function PDFProcessor() {
       const geminiResult = await geminiResponse.json();
       const geminiData = { jsonResponse: geminiResult.jsonResponse };
 
-      // التحقق من أن office_name أو company_name موجودة في قائمة المكاتب
-      const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
-      const extractedOfficeName = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName || geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName;
-      
-      if (extractedOfficeName) {
-        const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
-        const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
-        
-        if (!isValidOffice && offices.length > 0) {
-          // المكتب غير موجود في القائمة
-          const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
-          setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
-        } else {
-          setInvalidOffice(null);
-        }
-      } else {
-        setInvalidOffice(null);
-      }
-
-      // التحقق من أن nationality موجودة في قائمة الجنسيات
+      // أولاً: التحقق من الجنسية والتعرف عليها
       const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
       const extractedNationality = geminiData.jsonResponse.nationality || geminiData.jsonResponse.Nationality;
       
       if (extractedNationality) {
         const normalizedExtracted = String(extractedNationality).toLowerCase().trim();
-        const isValidNationality = nationalityNames.some(nationalityName => nationalityName === normalizedExtracted);
+        const matchedNationality = nationalities.find(n => 
+          n.Country?.toLowerCase().trim() === normalizedExtracted
+        );
         
-        if (!isValidNationality && nationalities.length > 0) {
+        if (matchedNationality && matchedNationality.Country) {
+          // تم التعرف على الجنسية - تصفية المكاتب بناءً عليها
+          const nationalityCountry = matchedNationality.Country;
+          setSelectedNationality(nationalityCountry);
+          setInvalidNationality(null);
+          
+          // تصفية المكاتب للجنسية المختارة
+          const filtered = offices.filter(office => 
+            office.Country?.toLowerCase().trim() === nationalityCountry.toLowerCase().trim()
+          );
+          setFilteredOffices(filtered);
+          
+          // التحقق من أن المكتب المستخرج ينتمي للجنسية المختارة
+          const extractedOfficeName = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName || geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName;
+          
+          if (extractedOfficeName) {
+            const normalizedOffice = String(extractedOfficeName).toLowerCase().trim();
+            const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedOffice);
+            
+            if (!matchedOffice && filtered.length > 0) {
+              // المكتب غير موجود في قائمة مكاتب هذه الجنسية
+              const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+              setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+            } else if (!matchedOffice && filtered.length === 0) {
+              // لا توجد مكاتب لهذه الجنسية
+              const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+              setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+            } else {
+              setInvalidOffice(null);
+            }
+          } else {
+            setInvalidOffice(null);
+          }
+        } else if (nationalities.length > 0) {
           // الجنسية غير موجودة في القائمة
           setInvalidNationality({ field: 'nationality', value: String(extractedNationality) });
+          setSelectedNationality(null);
+          setFilteredOffices(offices); // عرض جميع المكاتب
+          setInvalidOffice(null);
         } else {
           setInvalidNationality(null);
+          setSelectedNationality(null);
+          setFilteredOffices(offices);
         }
       } else {
+        // لم يتم استخراج جنسية
+        setSelectedNationality(null);
+        setFilteredOffices(offices);
         setInvalidNationality(null);
+        
+        // التحقق من المكتب بدون تصفية
+        const extractedOfficeName = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName || geminiData.jsonResponse.office_name || geminiData.jsonResponse.OfficeName;
+        if (extractedOfficeName) {
+          const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+          const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
+          const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
+          
+          if (!isValidOffice && offices.length > 0) {
+            const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+            setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+          } else {
+            setInvalidOffice(null);
+          }
+        } else {
+          setInvalidOffice(null);
+        }
       }
 
       setProcessingResult((prev) =>
@@ -403,6 +463,15 @@ export default function PDFProcessor() {
   const handleOfficeSelection = (selectedOffice: string) => {
     if (!processingResult || !invalidOffice) return;
     
+    // التحقق من أن المكتب ينتمي للجنسية المختارة (إن وجدت)
+    if (selectedNationality) {
+      const selectedOfficeObj = offices.find(o => o.office?.toLowerCase().trim() === selectedOffice.toLowerCase().trim());
+      if (selectedOfficeObj && selectedOfficeObj.Country?.toLowerCase().trim() !== selectedNationality.toLowerCase().trim()) {
+        setError('المكتب المختار لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
+        return;
+      }
+    }
+    
     const updatedData = { ...processingResult.geminiData.jsonResponse };
     
     // تحديث الحقل المناسب (office_name أو company_name)
@@ -436,6 +505,32 @@ export default function PDFProcessor() {
       geminiData: { jsonResponse: updatedData }
     });
     
+    // تصفية المكاتب بناءً على الجنسية المختارة
+    setSelectedNationality(selectedNationality);
+    const filtered = offices.filter(office => 
+      office.Country?.toLowerCase().trim() === selectedNationality.toLowerCase().trim()
+    );
+    setFilteredOffices(filtered);
+    
+    // التحقق من المكتب المستخرج - إذا كان موجوداً، التحقق من أنه ينتمي للجنسية الجديدة
+    const extractedOfficeName = updatedData.company_name || updatedData.CompanyName || updatedData.office_name || updatedData.OfficeName;
+    if (extractedOfficeName) {
+      const normalizedOffice = String(extractedOfficeName).toLowerCase().trim();
+      const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedOffice);
+      
+      if (!matchedOffice && filtered.length > 0) {
+        // المكتب لا ينتمي للجنسية المختارة
+        const officeField = updatedData.company_name || updatedData.CompanyName ? 'company_name' : 'office_name';
+        setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+      } else if (!matchedOffice && filtered.length === 0) {
+        // لا توجد مكاتب لهذه الجنسية
+        const officeField = updatedData.company_name || updatedData.CompanyName ? 'company_name' : 'office_name';
+        setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+      } else {
+        setInvalidOffice(null);
+      }
+    }
+    
     setInvalidNationality(null);
   };
 
@@ -467,36 +562,97 @@ export default function PDFProcessor() {
 
     const { key, value } = editingField;
     
-    // التحقق من المكتب إذا كان الحقل المُعدل هو office_name أو company_name
-    if ((key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') && value) {
-      const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
-      const normalizedValue = String(value).toLowerCase().trim();
-      const isValidOffice = officeNames.some(officeName => officeName === normalizedValue);
-      
-      if (!isValidOffice && offices.length > 0) {
-        setError('المكتب المُدخل غير موجود في قائمة المكاتب. يرجى اختيار مكتب صحيح.');
-        const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
-        setInvalidOffice({ field: officeField, value: String(value) });
-        setEditingField(null);
-        return;
-      } else {
-        setInvalidOffice(null);
-      }
-    }
-
-    // التحقق من الجنسية إذا كان الحقل المُعدل هو nationality
+    // التحقق من الجنسية أولاً إذا كان الحقل المُعدل هو nationality
     if ((key === 'nationality' || key === 'Nationality') && value) {
       const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
       const normalizedValue = String(value).toLowerCase().trim();
-      const isValidNationality = nationalityNames.some(nationalityName => nationalityName === normalizedValue);
+      const matchedNationality = nationalities.find(n => 
+        n.Country?.toLowerCase().trim() === normalizedValue
+      );
       
-      if (!isValidNationality && nationalities.length > 0) {
+      if (matchedNationality && matchedNationality.Country) {
+        // تم التعرف على الجنسية - تصفية المكاتب بناءً عليها
+        const nationalityCountry = matchedNationality.Country;
+        setSelectedNationality(nationalityCountry);
+        setInvalidNationality(null);
+        
+        // تصفية المكاتب للجنسية المختارة
+        const filtered = offices.filter(office => 
+          office.Country?.toLowerCase().trim() === nationalityCountry.toLowerCase().trim()
+        );
+        setFilteredOffices(filtered);
+        
+        // التحقق من المكتب الحالي - إذا كان موجوداً، التحقق من أنه ينتمي للجنسية الجديدة
+        const currentOffice = processingResult.geminiData.jsonResponse.company_name || 
+                             processingResult.geminiData.jsonResponse.CompanyName || 
+                             processingResult.geminiData.jsonResponse.office_name || 
+                             processingResult.geminiData.jsonResponse.OfficeName;
+        if (currentOffice) {
+          const normalizedOffice = String(currentOffice).toLowerCase().trim();
+          const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedOffice);
+          
+          if (!matchedOffice && filtered.length > 0) {
+            // المكتب لا ينتمي للجنسية الجديدة
+            const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+            setInvalidOffice({ field: officeField, value: String(currentOffice) });
+          } else if (!matchedOffice && filtered.length === 0) {
+            // لا توجد مكاتب لهذه الجنسية
+            const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+            setInvalidOffice({ field: officeField, value: String(currentOffice) });
+          } else {
+            setInvalidOffice(null);
+          }
+        }
+      } else if (nationalities.length > 0) {
         setError('الجنسية المُدخلة غير موجودة في قائمة الجنسيات. يرجى اختيار جنسية صحيحة.');
         setInvalidNationality({ field: 'nationality', value: String(value) });
         setEditingField(null);
         return;
       } else {
         setInvalidNationality(null);
+      }
+    }
+
+    // التحقق من المكتب إذا كان الحقل المُعدل هو office_name أو company_name
+    if ((key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') && value) {
+      const normalizedValue = String(value).toLowerCase().trim();
+      
+      // إذا كانت هناك جنسية مختارة، تحقق من أن المكتب ينتمي لها
+      if (selectedNationality) {
+        const filtered = offices.filter(office => 
+          office.Country?.toLowerCase().trim() === selectedNationality.toLowerCase().trim()
+        );
+        const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedValue);
+        
+        if (!matchedOffice && filtered.length > 0) {
+          setError('المكتب المُدخل لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
+          const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
+          setInvalidOffice({ field: officeField, value: String(value) });
+          setEditingField(null);
+          return;
+        } else if (!matchedOffice && filtered.length === 0) {
+          setError('لا توجد مكاتب للجنسية المحددة.');
+          const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
+          setInvalidOffice({ field: officeField, value: String(value) });
+          setEditingField(null);
+          return;
+        } else {
+          setInvalidOffice(null);
+        }
+      } else {
+        // لا توجد جنسية مختارة - التحقق من وجود المكتب في القائمة العامة
+        const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+        const isValidOffice = officeNames.some(officeName => officeName === normalizedValue);
+        
+        if (!isValidOffice && offices.length > 0) {
+          setError('المكتب المُدخل غير موجود في قائمة المكاتب. يرجى اختيار مكتب صحيح.');
+          const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
+          setInvalidOffice({ field: officeField, value: String(value) });
+          setEditingField(null);
+          return;
+        } else {
+          setInvalidOffice(null);
+        }
       }
     }
     
@@ -549,38 +705,64 @@ export default function PDFProcessor() {
       return;
     }
 
-    // التحقق من المكتب قبل الحفظ
-    const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+    // التحقق من الجنسية أولاً قبل الحفظ
+    const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
+    const extractedNationality = processingResult.geminiData.jsonResponse.nationality || 
+                                  processingResult.geminiData.jsonResponse.Nationality;
+    
+    let validNationality: string | null = null;
+    if (extractedNationality && nationalities.length > 0) {
+      const normalizedExtracted = String(extractedNationality).toLowerCase().trim();
+      const matchedNationality = nationalities.find(n => 
+        n.Country?.toLowerCase().trim() === normalizedExtracted
+      );
+      
+      if (matchedNationality && matchedNationality.Country) {
+        validNationality = matchedNationality.Country;
+      } else {
+        setError('يجب اختيار جنسية صحيحة من قائمة الجنسيات قبل الحفظ');
+        setInvalidNationality({ field: 'nationality', value: String(extractedNationality) });
+        return;
+      }
+    }
+
+    // التحقق من المكتب قبل الحفظ - يجب أن ينتمي للجنسية المختارة
     const extractedOfficeName = processingResult.geminiData.jsonResponse.company_name || 
                                 processingResult.geminiData.jsonResponse.CompanyName ||
                                 processingResult.geminiData.jsonResponse.office_name || 
                                 processingResult.geminiData.jsonResponse.OfficeName;
     
-    if (extractedOfficeName && offices.length > 0) {
+    if (extractedOfficeName) {
       const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
-      const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
       
-      if (!isValidOffice) {
-        setError('يجب اختيار مكتب صحيح من قائمة المكاتب قبل الحفظ');
-        const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
-        setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
-        return;
-      }
-    }
-
-    // التحقق من الجنسية قبل الحفظ
-    const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
-    const extractedNationality = processingResult.geminiData.jsonResponse.nationality || 
-                                  processingResult.geminiData.jsonResponse.Nationality;
-    
-    if (extractedNationality && nationalities.length > 0) {
-      const normalizedExtracted = String(extractedNationality).toLowerCase().trim();
-      const isValidNationality = nationalityNames.some(nationalityName => nationalityName === normalizedExtracted);
-      
-      if (!isValidNationality) {
-        setError('يجب اختيار جنسية صحيحة من قائمة الجنسيات قبل الحفظ');
-        setInvalidNationality({ field: 'nationality', value: String(extractedNationality) });
-        return;
+      if (validNationality) {
+        // التحقق من أن المكتب ينتمي للجنسية المختارة
+        const filtered = offices.filter(office => 
+          office.Country?.toLowerCase().trim() === validNationality!.toLowerCase().trim()
+        );
+        const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedExtracted);
+        
+        if (!matchedOffice) {
+          if (filtered.length > 0) {
+            setError('المكتب المختار لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
+          } else {
+            setError('لا توجد مكاتب متاحة للجنسية المحددة.');
+          }
+          const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+          setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+          return;
+        }
+      } else {
+        // لا توجد جنسية - التحقق من وجود المكتب في القائمة العامة
+        const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+        const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
+        
+        if (!isValidOffice && offices.length > 0) {
+          setError('يجب اختيار مكتب صحيح من قائمة المكاتب قبل الحفظ');
+          const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+          setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+          return;
+        }
       }
     }
 
@@ -608,16 +790,30 @@ export default function PDFProcessor() {
         throw new Error(errorData.error || 'Failed to save data');
       }
 
-        setSaveMessage('تم حفظ بيانات الموظف بنجاح!');
-      setFile(null);
-      setProcessingResult(null);
-      setSelectedImages([]);
-      setNotes('');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      // إظهار رسالة النجاح
+      const successMessage = 'تم حفظ بيانات الموظف بنجاح! ✓';
+      setSaveMessage(successMessage);
+      showToast(successMessage, 'success');
+
+      // إعادة تعيين النموذج بعد 2 ثانية
+      setTimeout(() => {
+        setFile(null);
+        setProcessingResult(null);
+        setSelectedImages([]);
+        setSelectedProfileImage('');
+        setSelectedFullImage('');
+        setUploadedImageUrls([]);
+        setNotes('');
+        setSaveMessage('');
+        setCurrentStep('upload');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while saving');
+      const errorMessage = err instanceof Error ? err.message : 'حدث خطأ أثناء الحفظ';
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -1125,6 +1321,16 @@ export default function PDFProcessor() {
                             <p className="text-sm text-yellow-700 mb-4 text-right">
                               المكتب المستخرج: <span className="font-semibold">{invalidOffice.value}</span> غير موجود في قاعدة البيانات. يرجى اختيار مكتب صحيح من القائمة أدناه.
                             </p>
+                            {selectedNationality && (
+                              <p className="text-sm text-blue-700 mb-2 text-right">
+                                <span className="font-semibold">ملاحظة:</span> تم تصفية المكاتب بناءً على الجنسية المحددة: <span className="font-semibold">{selectedNationality}</span>
+                              </p>
+                            )}
+                            {selectedNationality && filteredOffices.length === 0 && (
+                              <p className="text-sm text-red-700 mb-2 text-right">
+                                <span className="font-semibold">تحذير:</span> لا توجد مكاتب متاحة للجنسية المحددة ({selectedNationality})
+                              </p>
+                            )}
                             <div className="mt-4">
                               <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
                                 اختر المكتب الصحيح:
@@ -1135,11 +1341,15 @@ export default function PDFProcessor() {
                                 defaultValue=""
                               >
                                 <option value="">-- اختر مكتب من القائمة --</option>
-                                {offices.map((office) => (
-                                  <option key={office.id} value={office.office || ''}>
-                                    {office.office}
-                                  </option>
-                                ))}
+                                {filteredOffices.length > 0 ? (
+                                  filteredOffices.map((office) => (
+                                    <option key={office.id} value={office.office || ''}>
+                                      {office.office}
+                                    </option>
+                                  ))
+                                ) : (
+                                  <option value="" disabled>لا توجد مكاتب متاحة للجنسية المحددة</option>
+                                )}
                               </select>
                             </div>
                           </div>
@@ -1326,7 +1536,7 @@ export default function PDFProcessor() {
                                                 placeholder="اختر مكتباً أو اكتب للبحث"
                                               />
                                               <datalist id="office-list">
-                                                {offices.map((o) => (
+                                                {filteredOffices.map((o) => (
                                                   <option key={o.id} value={o.office || ''} />
                                                 ))}
                                               </datalist>
@@ -1632,8 +1842,18 @@ export default function PDFProcessor() {
                   </div>
 
                   {saveMessage && (
-                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm text-green-600">{saveMessage}</p>
+                    <div className="mt-4 p-6 bg-green-50 border-2 border-green-400 rounded-xl shadow-lg animate-fade-in">
+                      <div className="flex items-center justify-end gap-3">
+                        <div className="flex-1 text-right">
+                          <div className="flex items-center gap-2 justify-end">
+                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-lg font-semibold text-green-800">{saveMessage}</p>
+                          </div>
+                          <p className="text-sm text-green-600 mt-2">سيتم إعادة تعيين النموذج تلقائياً...</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
