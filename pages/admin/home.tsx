@@ -1285,7 +1285,7 @@ export default function Home({
                     onClick={(e) => {
                       e.stopPropagation();
                       setAlertModal({ ...alertModal, isOpen: false });
-                      router.push('/admin/housedarrivals');
+                      router.push('/admin/arrival-list');
                     }}
                     title="اضغط للذهاب إلى صفحة الوصول"
                   >
