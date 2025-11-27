@@ -1290,7 +1290,7 @@ export default function Home({
                     title="اضغط للذهاب إلى صفحة الوصول"
                   >
                     <span className="font-semibold text-blue-900">وصول #{arrival.id}</span>
-                    <span className="text-blue-700 mr-2">من {arrival.ArrivalCity || 'غير محدد'}</span>
+                    <span className="text-blue-700 mr-2">من {arrival.deparatureCityCountry || 'غير محدد'}</span>
                   </li>
                 ))}
               </ul>
@@ -1316,7 +1316,7 @@ export default function Home({
                     title="اضغط للذهاب إلى صفحة المغادرات"
                   >
                     <span className="font-semibold text-orange-900">مغادرة #{departure.id}</span>
-                    <span className="text-orange-700 mr-2">إلى {departure.finaldestination || 'غير محدد'}</span>
+                    <span className="text-orange-700 mr-2">إلى {departure.internalArrivalCity || departure.externalArrivalCity || 'غير محدد'}</span>
                   </li>
                 ))}
               </ul>
