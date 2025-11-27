@@ -84,6 +84,7 @@ export default function TrackOrder() {
     cost: '',
   });
   const [deliveryDetailsErrors, setDeliveryDetailsErrors] = useState<Record<string, string>>({});
+  const [isDeliveryDetailsEditMode, setIsDeliveryDetailsEditMode] = useState(false);
 
   // --- Modal States ---
   const [showConfirmModal, setShowConfirmModal] = useState({
@@ -406,6 +407,7 @@ export default function TrackOrder() {
       }
 
       await fetchOrderData();
+      setIsDeliveryDetailsEditMode(false); // إغلاق وضع التعديل بعد الحفظ
       setShowAlertModal({
         isOpen: true,
         message: 'تم حفظ بيانات الاستلام بنجاح',
@@ -1211,7 +1213,8 @@ export default function TrackOrder() {
               ...(orderData.receipt.received && orderData.receipt.method ? [
                 {
                   label: 'تاريخ الاستلام',
-                  value: (
+                  value: isDeliveryDetailsEditMode ? (
+                    // Editable mode - حقل إدخال
                     <div className="flex flex-col">
                       <input
                         type="date"
@@ -1236,22 +1239,34 @@ export default function TrackOrder() {
                         </span>
                       )}
                     </div>
+                  ) : (
+                    // Non-editable mode - عرض البيانات المحفوظة
+                    <div className="text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
+                      {orderData.deliveryDetails?.deliveryDate || 'غير محدد'}
+                    </div>
                   ),
                 },
                 {
                   label: 'وقت الاستلام',
-                  value: (
+                  value: isDeliveryDetailsEditMode ? (
+                    // Editable mode
                     <input
                       type="time"
                       value={deliveryDetails.deliveryTime}
                       onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryTime: e.target.value })}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
                     />
+                  ) : (
+                    // Non-editable mode
+                    <div className="text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
+                      {orderData.deliveryDetails?.deliveryTime || 'غير محدد'}
+                    </div>
                   ),
                 },
                 {
                   label: 'التكلفة',
-                  value: (
+                  value: isDeliveryDetailsEditMode ? (
+                    // Editable mode
                     <input
                       type="number"
                       step="0.01"
@@ -1260,11 +1275,17 @@ export default function TrackOrder() {
                       placeholder="0.00"
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
                     />
+                  ) : (
+                    // Non-editable mode
+                    <div className="text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
+                      {orderData.deliveryDetails?.cost || 'غير محدد'}
+                    </div>
                   ),
                 },
                 {
                   label: 'ملاحظات الاستلام',
-                  value: (
+                  value: isDeliveryDetailsEditMode ? (
+                    // Editable mode
                     <textarea
                       value={deliveryDetails.deliveryNotes}
                       onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryNotes: e.target.value })}
@@ -1272,6 +1293,11 @@ export default function TrackOrder() {
                       placeholder="أدخل ملاحظات الاستلام..."
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
                     />
+                  ) : (
+                    // Non-editable mode
+                    <div className="text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 whitespace-pre-wrap min-h-[80px]">
+                      {orderData.deliveryDetails?.deliveryNotes || 'لا توجد ملاحظات'}
+                    </div>
                   ),
                 },
                 {
@@ -1279,7 +1305,18 @@ export default function TrackOrder() {
                   value: (
                     <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                       <span className="text-gray-500 text-md pr-2 flex items-center gap-2">
-                        {deliveryDetails.deliveryFile ? (
+                        {orderData.deliveryDetails?.deliveryFile ? (
+                          // Non-editable mode - عرض الملف المحفوظ فقط
+                          <a
+                            href={orderData.deliveryDetails.deliveryFile}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-800 hover:underline"
+                          >
+                            {orderData.deliveryDetails.deliveryFile.split('/').pop()}
+                          </a>
+                        ) : isDeliveryDetailsEditMode && deliveryDetails.deliveryFile ? (
+                          // Editable mode - ملف تم رفعه مؤقتاً (قبل الحفظ)
                           <>
                             <a
                               href={deliveryDetails.deliveryFile}
@@ -1316,76 +1353,123 @@ export default function TrackOrder() {
                             </button>
                           </>
                         ) : (
-                          'إرفاق ملف الاستلام'
+                          // Editable mode - لا يوجد ملف
+                          isDeliveryDetailsEditMode ? 'إرفاق ملف الاستلام' : 'لا يوجد ملف'
                         )}
                       </span>
-                      <input
-                        type="file"
-                        id="file-upload-delivery"
-                        className="hidden"
-                        accept="application/pdf,image/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setUpdating(true);
-                            try {
-                              const res = await fetch(`/api/upload-presigned-url/${id}`);
-                              if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
-                              const { url, filePath } = await res.json();
+                      {isDeliveryDetailsEditMode && !orderData.deliveryDetails?.deliveryFile && (
+                        // Editable mode - زر رفع الملف يظهر فقط في وضع التعديل
+                        <>
+                          <input
+                            type="file"
+                            id="file-upload-delivery"
+                            className="hidden"
+                            accept="application/pdf,image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setUpdating(true);
+                                try {
+                                  const res = await fetch(`/api/upload-presigned-url/${id}`);
+                                  if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                                  const { url, filePath } = await res.json();
 
-                              const uploadRes = await fetch(url, {
-                                method: 'PUT',
-                                body: file,
-                                headers: {
-                                  'Content-Type': file.type || 'application/octet-stream',
-                                  'x-amz-acl': 'public-read',
-                                },
-                              });
+                                  const uploadRes = await fetch(url, {
+                                    method: 'PUT',
+                                    body: file,
+                                    headers: {
+                                      'Content-Type': file.type || 'application/octet-stream',
+                                      'x-amz-acl': 'public-read',
+                                    },
+                                  });
 
-                              if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+                                  if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
 
-                              setDeliveryDetails({ ...deliveryDetails, deliveryFile: filePath });
-                              await fetch(`/api/track_order/${id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  section: 'deliveryDetails',
-                                  updatedData: { ...deliveryDetails, deliveryFile: filePath },
-                                }),
-                              });
+                                  setDeliveryDetails({ ...deliveryDetails, deliveryFile: filePath });
+                                  await fetch(`/api/track_order/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      section: 'deliveryDetails',
+                                      updatedData: { ...deliveryDetails, deliveryFile: filePath },
+                                    }),
+                                  });
 
-                              await fetchOrderData();
-                              setShowAlertModal({ isOpen: true, message: 'تم رفع ملف الاستلام بنجاح' });
-                            } catch (error: any) {
-                              console.error('Error uploading delivery file:', error);
-                              setShowErrorModal({
-                                isOpen: true,
-                                title: 'خطأ في رفع الملف',
-                                message: error.message || 'حدث خطأ أثناء رفع الملف',
-                              });
-                            } finally {
-                              setUpdating(false);
-                            }
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor="file-upload-delivery"
-                        className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
-                      >
-                        اختيار ملف
-                      </label>
+                                  await fetchOrderData();
+                                  setShowAlertModal({ isOpen: true, message: 'تم رفع ملف الاستلام بنجاح' });
+                                } catch (error: any) {
+                                  console.error('Error uploading delivery file:', error);
+                                  setShowErrorModal({
+                                    isOpen: true,
+                                    title: 'خطأ في رفع الملف',
+                                    message: error.message || 'حدث خطأ أثناء رفع الملف',
+                                  });
+                                } finally {
+                                  setUpdating(false);
+                                }
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="file-upload-delivery"
+                            className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
+                          >
+                            اختيار ملف
+                          </label>
+                        </>
+                      )}
                     </div>
                   ),
                 },
               ] : []),
             ]}
             actions={[
-              ...(orderData.receipt.received && orderData.receipt.method ? [
+              // في وضع Non-editable - زر التعديل
+              ...(orderData.receipt.received && orderData.receipt.method && !isDeliveryDetailsEditMode ? [
+                {
+                  label: 'تعديل',
+                  type: 'primary' as const,
+                  onClick: () => {
+                    // تحديث deliveryDetails من orderData عند فتح وضع التعديل
+                    if (orderData.deliveryDetails) {
+                      setDeliveryDetails({
+                        deliveryDate: orderData.deliveryDetails.deliveryDate || '',
+                        deliveryTime: orderData.deliveryDetails.deliveryTime || '',
+                        deliveryFile: orderData.deliveryDetails.deliveryFile || null,
+                        deliveryNotes: orderData.deliveryDetails.deliveryNotes || '',
+                        cost: orderData.deliveryDetails.cost?.toString() || '',
+                      });
+                    }
+                    setIsDeliveryDetailsEditMode(true);
+                  },
+                  disabled: updating,
+                },
+              ] : []),
+              // في وضع Editable - زر الحفظ
+              ...(orderData.receipt.received && orderData.receipt.method && isDeliveryDetailsEditMode ? [
                 {
                   label: 'حفظ بيانات الاستلام',
                   type: 'primary' as const,
                   onClick: handleSaveDeliveryDetails,
+                  disabled: updating,
+                },
+                {
+                  label: 'إلغاء',
+                  type: 'secondary' as const,
+                  onClick: () => {
+                    setIsDeliveryDetailsEditMode(false);
+                    // إعادة تعيين البيانات من orderData
+                    if (orderData.deliveryDetails) {
+                      setDeliveryDetails({
+                        deliveryDate: orderData.deliveryDetails.deliveryDate || '',
+                        deliveryTime: orderData.deliveryDetails.deliveryTime || '',
+                        deliveryFile: orderData.deliveryDetails.deliveryFile || null,
+                        deliveryNotes: orderData.deliveryDetails.deliveryNotes || '',
+                        cost: orderData.deliveryDetails.cost?.toString() || '',
+                      });
+                    }
+                    setDeliveryDetailsErrors({});
+                  },
                   disabled: updating,
                 },
               ] : []),
