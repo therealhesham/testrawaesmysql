@@ -600,6 +600,7 @@ guaranteeStatus               String?  @db.VarChar(100)
   receiptMethod            String?   @db.VarChar(50) // طريقة الاستلام: direct, indirect, intermediary
   approvalPayment           String?   @db.VarChar(191)
   additionalfiles           Json?
+  customTimelineStages      Json?    // حالات المراحل المخصصة: {fieldName: {completed: boolean, date: DateTime}}
   
 }
 
@@ -1158,4 +1159,18 @@ model AccountSystemLogs  {
 
   @@index([actionClientId])
   @@index([actionUserId])
+}
+
+// Custom Timeline for specific countries
+model CustomTimeline {
+  id                Int       @id @default(autoincrement())
+  country           String    @db.VarChar(255) // الدولة
+  name              String?   @db.VarChar(255) // اسم الـ timeline (اختياري)
+  stages            Json      // Array of stages: [{label: string, field: string, order: number}]
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([country])
+  @@unique([country])
 }

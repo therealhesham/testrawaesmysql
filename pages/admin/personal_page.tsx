@@ -37,6 +37,23 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
   const [slaRules, setSlaRules] = useState<any[]>([]);
   const [isSlaModalOpen, setIsSlaModalOpen] = useState(false);
   const [slaForm, setSlaForm] = useState<{ officeName: string; stage: string; days: string }>({ officeName: '', stage: '', days: '' });
+  
+  // Custom Timeline states
+  const [customTimelines, setCustomTimelines] = useState<any[]>([]);
+  const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
+  const [editingTimeline, setEditingTimeline] = useState<any | null>(null);
+  const [timelineForm, setTimelineForm] = useState<{
+    country: string;
+    name: string;
+    stages: Array<{ label: string; field: string; order: number }>;
+    isActive: boolean;
+  }>({
+    country: '',
+    name: '',
+    stages: [],
+    isActive: true,
+  });
+  const [uniqueCountries, setUniqueCountries] = useState<Array<{ value: string; label: string }>>([]);
 
   const stages = [
     { value: 'medicalCheck', label: 'كشف طبي' },
@@ -64,10 +81,40 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
       console.error('فشل جلب SLA');
     }
   };
+
+  const fetchCustomTimelines = async () => {
+    try {
+      const res = await fetch('/api/custom-timeline');
+      const data = await res.json();
+      setCustomTimelines(data.items || []);
+    } catch (e) {
+      console.error('فشل جلب custom timelines');
+    }
+  };
+  const fetchUniqueCountries = async () => {
+    try {
+      const res = await fetch('/api/nationalities');
+      const data = await res.json();
+      if (data.success && data.nationalities) {
+        const countries = data.nationalities.map((nat: any) => ({
+          value: nat.Country || nat.value,
+          label: nat.Country || nat.label,
+        }));
+        setUniqueCountries(countries);
+      }
+    } catch (e) {
+      console.error('فشل جلب الدول');
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'offices') {
       fetchOffices();
       fetchSlaRules();
+    }
+    if (activeTab === 'timeline') {
+      fetchCustomTimelines();
+      fetchUniqueCountries();
     }
   }, [activeTab]);
 
@@ -342,6 +389,16 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           >
             إدارة المكاتب الخارجية
           </button>
+          <button 
+            onClick={() => setActiveTab('timeline')}
+            className={`pb-3 px-6 font-medium text-sm transition ${
+              activeTab === 'timeline' 
+                ? 'text-teal-700 border-b-2 border-teal-700' 
+                : 'text-gray-600 hover:text-teal-700'
+            }`}
+          >
+            تخصيص الجدول الزمني
+          </button>
         </div>
         </>
 )}
@@ -570,6 +627,113 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
 
           </div>
         )}
+
+        {activeTab === 'timeline' && (
+          <div className="bg-white rounded-lg p-8 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-800 mb-6">تخصيص الجدول الزمني</h3>
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-sm text-gray-600">تخصيص جدول زمني مخصص لدول معينة</div>
+              <button
+                onClick={() => {
+                  setEditingTimeline(null);
+                  setTimelineForm({
+                    country: '',
+                    name: '',
+                    stages: [],
+                    isActive: true,
+                  });
+                  setIsTimelineModalOpen(true);
+                }}
+                className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900"
+              >
+                + إضافة جدول زمني
+              </button>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-teal-800 text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-right">الدولة</th>
+                    <th className="px-4 py-3 text-right">الاسم</th>
+                    <th className="px-4 py-3 text-right">عدد المراحل</th>
+                    <th className="px-4 py-3 text-right">الحالة</th>
+                    <th className="px-4 py-3 text-right">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customTimelines.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                        لا توجد جداول زمنية مخصصة
+                      </td>
+                    </tr>
+                  ) : (
+                    customTimelines.map((tl: any) => (
+                      <tr key={tl.id} className="odd:bg-gray-50">
+                        <td className="px-4 py-3">{tl.country}</td>
+                        <td className="px-4 py-3">{tl.name || '-'}</td>
+                        <td className="px-4 py-3">
+                          {Array.isArray(tl.stages) ? tl.stages.length : 0}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              tl.isActive
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
+                          >
+                            {tl.isActive ? 'نشط' : 'غير نشط'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="text-teal-600 hover:text-teal-700 mx-1"
+                            onClick={() => {
+                              setEditingTimeline(tl);
+                              setTimelineForm({
+                                country: tl.country,
+                                name: tl.name || '',
+                                stages: Array.isArray(tl.stages) ? tl.stages : [],
+                                isActive: tl.isActive,
+                              });
+                              setIsTimelineModalOpen(true);
+                            }}
+                          >
+                            تعديل
+                          </button>
+                          <button
+                            className="text-red-600 hover:text-red-700 mx-1"
+                            onClick={async () => {
+                              if (confirm('هل أنت متأكد من حذف هذا الجدول الزمني؟')) {
+                                try {
+                                  const res = await fetch(`/api/custom-timeline/${tl.id}`, {
+                                    method: 'DELETE',
+                                  });
+                                  if (res.ok) {
+                                    fetchCustomTimelines();
+                                    setSuccess('تم الحذف بنجاح');
+                                    setTimeout(() => setSuccess(null), 2000);
+                                  }
+                                } catch (e) {
+                                  setError('فشل في الحذف');
+                                  setTimeout(() => setError(null), 3000);
+                                }
+                              }
+                            }}
+                          >
+                            حذف
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         </>
         )}
         {/* Modal for adding/editing professions */}
@@ -587,6 +751,198 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
             setEditingProfession(null);
           }}
         />
+
+        {/* Modal for adding/editing custom timeline */}
+        {isTimelineModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            onClick={() => setIsTimelineModalOpen(false)}
+          >
+            <div
+              className="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 max-h-[90vh] overflow-y-auto p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 className="text-lg font-semibold mb-4 text-right">
+                {editingTimeline ? 'تعديل الجدول الزمني' : 'إضافة جدول زمني جديد'}
+              </h4>
+
+              <div className="space-y-4 text-right">
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">الدولة *</label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
+                    value={timelineForm.country}
+                    onChange={(e) =>
+                      setTimelineForm((p) => ({ ...p, country: e.target.value }))
+                    }
+                    disabled={!!editingTimeline}
+                  >
+                    <option value="">اختر الدولة</option>
+                    {uniqueCountries.map((country) => (
+                      <option key={country.value} value={country.value}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">اسم الجدول الزمني (اختياري)</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
+                    value={timelineForm.name}
+                    onChange={(e) =>
+                      setTimelineForm((p) => ({ ...p, name: e.target.value }))
+                    }
+                    placeholder="مثال: جدول زمني للفلبين"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-700 mb-2">المراحل *</label>
+                  <div className="space-y-2">
+                    {timelineForm.stages.map((stage, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
+                          placeholder="اسم المرحلة (عربي)"
+                          value={stage.label}
+                          onChange={(e) => {
+                            const newStages = [...timelineForm.stages];
+                            newStages[idx].label = e.target.value;
+                            setTimelineForm((p) => ({ ...p, stages: newStages }));
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
+                          placeholder="اسم الحقل (إنجليزي)"
+                          value={stage.field}
+                          onChange={(e) => {
+                            const newStages = [...timelineForm.stages];
+                            newStages[idx].field = e.target.value;
+                            setTimelineForm((p) => ({ ...p, stages: newStages }));
+                          }}
+                        />
+                        <input
+                          type="number"
+                          className="w-20 border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
+                          placeholder="ترتيب"
+                          value={stage.order}
+                          onChange={(e) => {
+                            const newStages = [...timelineForm.stages];
+                            newStages[idx].order = Number(e.target.value);
+                            setTimelineForm((p) => ({ ...p, stages: newStages }));
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700"
+                          onClick={() => {
+                            const newStages = timelineForm.stages.filter((_, i) => i !== idx);
+                            setTimelineForm((p) => ({ ...p, stages: newStages }));
+                          }}
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="bg-teal-600 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-700"
+                      onClick={() => {
+                        const newOrder =
+                          timelineForm.stages.length > 0
+                            ? Math.max(...timelineForm.stages.map((s) => s.order)) + 1
+                            : 1;
+                        setTimelineForm((p) => ({
+                          ...p,
+                          stages: [
+                            ...p.stages,
+                            { label: '', field: '', order: newOrder },
+                          ],
+                        }));
+                      }}
+                    >
+                      + إضافة مرحلة
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={timelineForm.isActive}
+                      onChange={(e) =>
+                        setTimelineForm((p) => ({ ...p, isActive: e.target.checked }))
+                      }
+                    />
+                    نشط
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  className="px-4 py-2 border border-gray-300 rounded-md"
+                  onClick={() => {
+                    setIsTimelineModalOpen(false);
+                    setEditingTimeline(null);
+                  }}
+                >
+                  إلغاء
+                </button>
+                <button
+                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                  onClick={async () => {
+                    if (!timelineForm.country || timelineForm.stages.length === 0) {
+                      setError('الدولة والمراحل مطلوبة');
+                      setTimeout(() => setError(null), 3000);
+                      return;
+                    }
+
+                    try {
+                      const url = editingTimeline
+                        ? `/api/custom-timeline/${editingTimeline.id}`
+                        : '/api/custom-timeline';
+                      const method = editingTimeline ? 'PUT' : 'POST';
+
+                      const res = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(timelineForm),
+                      });
+
+                      if (res.ok) {
+                        setIsTimelineModalOpen(false);
+                        setEditingTimeline(null);
+                        fetchCustomTimelines();
+                        setSuccess(
+                          editingTimeline
+                            ? 'تم التعديل بنجاح'
+                            : 'تم الإضافة بنجاح'
+                        );
+                        setTimeout(() => setSuccess(null), 2000);
+                      } else {
+                        const errorData = await res.json();
+                        setError(errorData.error || 'فشل في الحفظ');
+                        setTimeout(() => setError(null), 3000);
+                      }
+                    } catch (e) {
+                      setError('حدث خطأ أثناء الحفظ');
+                      setTimeout(() => setError(null), 3000);
+                    }
+                  }}
+                >
+                  حفظ
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   </Layout>
