@@ -3,6 +3,7 @@ import { de } from 'date-fns/locale';
 import { Calendar } from 'lucide-react';
 import { useState } from 'react';
 import AlertModal from './AlertModal';
+import CityAutocomplete from './CityAutocomplete';
 
 interface FormStepExternal2Props {
   onPrevious: () => void;
@@ -270,9 +271,6 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
     if (!formData.externalArrivalCity.trim()) {
       newErrors.externalArrivalCity = 'وجهة الوصول مطلوبة';
       isValid = false;
-    } else if (!cityRegex.test(formData.externalArrivalCity.trim())) {
-      newErrors.externalArrivalCity = 'وجهة الوصول يجب أن تحتوي على حروف فقط';
-      isValid = false;
     }
 
     // Validate departure date
@@ -432,15 +430,13 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="arrival-destination" className="text-xs text-gray-500 text-right font-inter">الى</label>
-            <input 
-              type="text" 
-              id="arrival-destination" 
-              className={`bg-gray-50 border ${errors.externalArrivalCity ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`} 
-              placeholder="وجهة الوصول" 
-              value={formData.externalArrivalCity} 
-              onChange={(e) => setFormData({ ...formData, externalArrivalCity: e.target.value })} 
+            <CityAutocomplete
+              value={formData.externalArrivalCity}
+              onChange={(value) => setFormData({ ...formData, externalArrivalCity: value })}
+              placeholder="ابحث عن مدينة"
+              className={`bg-gray-50 border ${errors.externalArrivalCity ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`}
+              error={errors.externalArrivalCity}
             />
-            {errors.externalArrivalCity && <span className="text-red-500 text-xs text-right">{errors.externalArrivalCity}</span>}
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="departure-date" className="text-xs text-gray-500 text-right font-inter">تاريخ المغادرة</label>

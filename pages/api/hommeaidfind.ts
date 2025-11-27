@@ -46,12 +46,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { logs, ...updateFields } = updateData;
       
       // Filter out any fields that don't exist in the schema or are relations
+      // معالجة تاريخ الميلاد - التأكد من أنه صالح قبل التحويل
+      let dateOfBirthValue = undefined;
+      if (updateFields.dateofbirth && updateFields.dateofbirth.trim() !== "") {
+        const dateObj = new Date(updateFields.dateofbirth);
+        if (!isNaN(dateObj.getTime())) {
+          dateOfBirthValue = dateObj.toISOString();
+        }
+      }
+      
       const allowedFields = {
         Name: updateFields.Name,
         Religion: updateFields.Religion,
         Nationalitycopy: updateFields.Nationalitycopy,
         maritalstatus: updateFields.maritalstatus,
-        dateofbirth: new Date(updateFields.dateofbirth).toISOString(),
+        dateofbirth: dateOfBirthValue,
         Passportnumber: updateFields.Passportnumber,
         phone: updateFields.phone,
         Education: updateFields.Education,

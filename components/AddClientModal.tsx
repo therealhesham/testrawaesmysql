@@ -103,9 +103,9 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       newErrors.profession = 'المهنة مطلوبة';
     }
 
-    if (!formData.visaFile) {
-      newErrors.visaFile = 'ملف التأشيرة مطلوب';
-    }
+    // if (!formData.visaFile) {
+    //   newErrors.visaFile = 'ملف التأشيرة مطلوب';
+    // }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

@@ -22,13 +22,37 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
 
     const entryDate = new Date(data?.KingdomentryDate);
     const currentDate = new Date();
-    const diffTime = Math.abs(currentDate.getTime() - entryDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // تحويل الفرق إلى أيام
+    
+    // إزالة الوقت من التواريخ للمقارنة الصحيحة
+    entryDate.setHours(0, 0, 0, 0);
+    currentDate.setHours(0, 0, 0, 0);
+    
+    // حساب الفرق بالأيام (بدون Math.abs لنعرف إذا كان في الماضي أو المستقبل)
+    const diffTime = currentDate.getTime() - entryDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    let status: string;
+    let remainingDays: number;
+    
+    // إذا كان تاريخ الدخول في المستقبل
+    if (diffDays < 0) {
+      status = 'لم يبدأ بعد';
+      remainingDays = Math.abs(diffDays);
+    } 
+    // إذا كان تاريخ الدخول في الماضي
+    else if (diffDays > 90) {
+      status = 'منتهي';
+      remainingDays = diffDays;
+    } 
+    // إذا كان الضمان ساري (أقل من أو يساوي 90 يوم)
+    else {
+      status = 'ساري';
+      remainingDays = 90 - diffDays; // الأيام المتبقية من الضمان
+    }
+    
+    const formattedDate = entryDate.toLocaleDateString('ar-SA');
 
-    const status = diffDays > 90 ? 'منتهي' : 'ساري';
-    const formattedDate = entryDate.toLocaleDateString(); // تنسيق التاريخ بالتقويم الهجري أو حسب الحاجة
-
-    return { status, date: formattedDate, remainingDays: diffDays };
+    return { status, date: formattedDate, remainingDays };
   }, [data?.KingdomentryDate]);
 
   const arabicRegionMap: { [key: string]: string } = {
@@ -173,7 +197,8 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
               onBlur={handleInputBlur}
               onFocus={() => id.length >= 1 && setShowSuggestions(true)}
               value={id}
-              placeholder="ابحث برقم الطلب أو اسم العاملة" 
+              placeholder="ابحث برقم الطلب أو اسم العاملة"
+              autoComplete="off"
             />
             {isSearching && (
               <div className="absolute right-3 top-3">

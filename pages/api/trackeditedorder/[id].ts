@@ -230,8 +230,8 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             if (updatedData['رقم عقد إدارة المكاتب']) {
               arrivalUpdate.InternalmusanedContract = updatedData['رقم عقد إدارة المكاتب'];
             }
-            if (updatedData['تاريخ مساند']) {
-              arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ مساند']);
+            if (updatedData['تاريخ العقد']) {
+              arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ العقد']);
             }
             break;
           case 'externalOfficeInfo':

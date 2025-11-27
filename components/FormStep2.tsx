@@ -529,19 +529,19 @@ const arabicRegionMap: { [key: string]: string } = {
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="ticket-upload" className="text-xs text-gray-500 text-right font-inter">ارفاق التذكرة</label>
-            <div className={`flex items-center justify-between bg-gray-50 border ${errors.internalTicketFile ? 'border-red-500' : 'border-gray-300'} rounded p-1 pl-3`}>
-              <span className="text-md text-gray-500 font-tajawal flex items-center gap-2 flex-1 min-w-0">
+            <div className={`flex items-center justify-between bg-gray-50 border ${errors.internalTicketFile ? 'border-red-500' : 'border-gray-300'} rounded p-1 pl-3 overflow-hidden w-full max-w-full`}>
+              <span className="text-md text-gray-500 font-tajawal flex items-center gap-2 flex-1 min-w-0 overflow-hidden max-w-full">
                 {isUploading && (
                   <svg className="animate-spin h-5 w-5 text-teal-800 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 )}
-                <span className="truncate">{fileName ? fileName : 'ارفاق ملف التذكرة'}</span>
+                <span className="truncate block overflow-hidden text-ellipsis whitespace-nowrap max-w-full">{fileName ? fileName : 'ارفاق ملف التذكرة'}</span>
               </span>
               <label 
                 htmlFor="ticket-upload-btn" 
-                className={`bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded ${isUploading ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} flex-shrink-0`}
+                className={`bg-teal-800 text-white text-xs font-tajawal px-4 py-2 rounded ${isUploading ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} flex-shrink-0 ml-2`}
               >
                 {isUploading ? 'جاري الرفع...' : (fileUploaded ? 'تغيير الملف' : 'اختيار ملف')}
               </label>

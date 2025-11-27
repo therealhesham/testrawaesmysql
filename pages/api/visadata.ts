@@ -57,16 +57,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // if (req.method === 'DELETE') {
-  //   const { id } = req.query;
-  //   try {
-  //     const visa = await prisma.visa.delete({
-  //       where: { id: Number(id) },
-  //     });
-  //     res.status(200).json({ message: 'Visa deleted successfully' });
-  //   } catch (error) {
-  //     console.error(error);
-  //     res.status(500).json({ error: 'Failed to delete visa' });
-  //   }
-  // }
+  if (req.method === 'DELETE') {
+    const { id } = req.query;
+    try {
+      const visa = await prisma.visa.delete({
+        where: { id: Number(id) },
+      });
+      res.status(200).json({ message: 'Visa deleted successfully' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to delete visa' });
+    }
+  }
 }

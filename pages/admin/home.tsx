@@ -1914,7 +1914,7 @@ export default function Home({
                           key={`arrival-${arrivalIndex}`}
                           className="text-xs font-light px-1 py-0.5 rounded bg-blue-100 text-blue-600 cursor-pointer hover:bg-blue-200"
                           title={`وصول: من ${arrival.ArrivalCity || 'غير محدد'}`}
-                          onClick={() => router.push('/admin/housedarrivals')}
+                          // onClick={() => router.push('/admin/housedarrivals')}
                         >
                           وصول #{arrival.id}
                         </div>

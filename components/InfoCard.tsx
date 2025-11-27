@@ -2,11 +2,13 @@
 import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import VisaSelector from './VisaSelector';
+import CityAutocomplete from './CityAutocomplete';
+import SaudiCityAutocomplete from './SaudiCityAutocomplete';
 
 interface InfoCardProps {
   id?: string;
   title: string;
-  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' }[];
+  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' | 'city' | 'saudiCity' }[];
   gridCols?: number;
   actions?: { label: string; type: 'primary' | 'secondary'; onClick: () => void; disabled?: boolean }[];
   editable?: boolean;
@@ -32,13 +34,26 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   const [isSaving, setIsSaving] = useState(false);
 
   const validateInput = (key: string, value: string): string | null => {
-  // Check if "تاريخ مساند" is required
-  if (key === 'تاريخ مساند' && value == 'N/A') {
-    return 'تاريخ مساند مطلوب';
+  // Check if "تاريخ العقد" is required
+  if (key === 'تاريخ العقد' && value == 'N/A') {
+    return 'تاريخ العقد مطلوب';
+  }
+
+  // Email validation
+  if ((key.includes('البريد الإلكتروني') || key.includes('ايميل')) && value && value !== 'N/A') {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) {
+      return 'صيغة البريد الإلكتروني غير صحيحة';
+    }
   }
 
   // Check if the key is related to a date field
   if (key.includes('تاريخ') && value) {
+    // Allow past dates for "تاريخ العقد" in office management link
+    if (key === 'تاريخ العقد') {
+      return null; // Allow any date (past or future) for تاريخ العقد
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
     const inputDate = new Date(value);
@@ -174,10 +189,30 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
               <div className="border border-gray-300 rounded-md p-2 text-base text-right">
                 {typeof item.value === 'function' ? item.value(true) : item.value}
               </div>
+            ) : editable && editMode && item.fieldType === 'city' ? (
+              <div className="flex flex-col">
+                <CityAutocomplete
+                  value={formData[item.label] || ''}
+                  onChange={(value) => handleInputChange(item.label, value)}
+                  placeholder="ابحث عن مدينة"
+                  className="border border-gray-300 rounded-md text-base text-right"
+                  error={errors[item.label]}
+                />
+              </div>
+            ) : editable && editMode && item.fieldType === 'saudiCity' ? (
+              <div className="flex flex-col">
+                <SaudiCityAutocomplete
+                  value={formData[item.label] || ''}
+                  onChange={(value) => handleInputChange(item.label, value)}
+                  placeholder="ابحث عن مدينة سعودية"
+                  className="border border-gray-300 rounded-md text-base text-right"
+                  error={errors[item.label]}
+                />
+              </div>
             ) : editable && editMode ? (
               <div className="flex flex-col">
                 <input
-                  type="text"
+                  type={item.label.includes('البريد الإلكتروني') || item.label.includes('ايميل') ? 'email' : 'text'}
                   value={formData[item.label] || ''}
                   onChange={(e) => handleInputChange(item.label, e.target.value)}
                   className="border border-gray-300 rounded-md p-2 text-base text-right"
