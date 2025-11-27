@@ -133,6 +133,24 @@ export default function TrackOrder() {
         // مسح الأخطاء عند تحديث البيانات
         setDeliveryDetailsErrors({});
       }
+      
+      // التحقق من وجود custom timeline وإعادة التوجيه
+      if (data.nationality) {
+        try {
+          const timelineRes = await fetch(`/api/custom-timeline/by-country/${encodeURIComponent(data.nationality)}`);
+          if (timelineRes.ok) {
+            // يوجد custom timeline، إعادة التوجيه
+            setTimeout(() => {
+              router.replace(`/admin/track_timeline/${id}`);
+            }, 100);
+            return; // إيقاف التنفيذ هنا لتجنب عرض الصفحة العادية
+          }
+        } catch (error) {
+          // لا يوجد custom timeline، استمر في الصفحة العادية
+          console.log('No custom timeline found, using default');
+        }
+      }
+      
       setError(null);
     } catch (error: any) {
       console.error('Error fetching order:', error);

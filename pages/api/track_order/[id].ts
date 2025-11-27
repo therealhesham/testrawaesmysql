@@ -59,6 +59,7 @@ console.log(id)
               KingdomentryDate: true,
               KingdomentryTime: true,
               receiptMethod: true,
+              customTimelineStages: true,
             } as any,
           },
           DeliveryDetails: {
@@ -161,6 +162,7 @@ console.log(id)
           deliveryNotes: order.DeliveryDetails[0].deliveryNotes || undefined,
           cost: order.DeliveryDetails[0].cost ? order.DeliveryDetails[0].cost.toString() : undefined,
         } : undefined,
+        customTimelineStages: order.arrivals[0]?.customTimelineStages || {},
       };
 const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
@@ -231,8 +233,35 @@ const cookieHeader = req.headers.cookie;
           'bookingStatus',
         ];
 
+        // إذا كان الحقل غير موجود في validFields، قد يكون حقل مخصص
         if (!validFields.includes(field)) {
-          return res.status(400).json({ error: 'Invalid field' });
+          // معالجة الحقول المخصصة - تخزينها في customTimelineStages
+          const arrival = await prisma.arrivallist.findFirst({
+            where: { OrderId: Number(id) },
+          });
+
+          if (!arrival) {
+            return res.status(404).json({ error: 'Order or arrival data not found' });
+          }
+
+          // جلب البيانات الحالية
+          const currentStages = (arrival.customTimelineStages as any) || {};
+          
+          // تحديث حالة المرحلة المخصصة
+          currentStages[field] = {
+            completed: value,
+            date: value ? new Date() : null,
+          };
+
+          // حفظ البيانات المحدثة
+          await prisma.arrivallist.updateMany({
+            where: { OrderId: Number(id) },
+            data: {
+              customTimelineStages: currentStages,
+            },
+          });
+
+          return res.status(200).json({ message: 'Custom field updated successfully' });
         }
 
         const updateData: any = {};
