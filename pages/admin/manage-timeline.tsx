@@ -153,9 +153,17 @@ function SortableStageItem({ stage, index, onEdit, onDelete, isEditing }: Sortab
   );
 }
 
+interface CountryTimeline {
+  country: string;
+  hasCustomTimeline: boolean;
+  timeline?: CustomTimeline;
+  stagesCount: number;
+}
+
 export default function ManageTimeline() {
   const router = useRouter();
   const [timelines, setTimelines] = useState<CustomTimeline[]>([]);
+  const [countryTimelines, setCountryTimelines] = useState<CountryTimeline[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -168,6 +176,7 @@ export default function ManageTimeline() {
   const [success, setSuccess] = useState<string | null>(null);
   const [countries, setCountries] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingCountries, setLoadingCountries] = useState(false);
+  const [viewMode, setViewMode] = useState<'mapping' | 'list'>('mapping');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -180,6 +189,12 @@ export default function ManageTimeline() {
     fetchTimelines();
     fetchCountries();
   }, []);
+
+  useEffect(() => {
+    if (countries.length > 0 && timelines.length >= 0) {
+      buildCountryTimelinesMapping();
+    }
+  }, [countries, timelines]);
 
   const fetchCountries = async () => {
     setLoadingCountries(true);
@@ -216,7 +231,20 @@ export default function ManageTimeline() {
     }
   };
 
-  const handleOpenModal = (timeline?: CustomTimeline) => {
+  const buildCountryTimelinesMapping = () => {
+    const mapping: CountryTimeline[] = countries.map((country) => {
+      const customTimeline = timelines.find((t) => t.country === country.value);
+      return {
+        country: country.value,
+        hasCustomTimeline: !!customTimeline,
+        timeline: customTimeline,
+        stagesCount: customTimeline ? customTimeline.stages.length : DEFAULT_STAGES.length,
+      };
+    });
+    setCountryTimelines(mapping);
+  };
+
+  const handleOpenModal = (timeline?: CustomTimeline, countryName?: string) => {
     if (timeline) {
       setEditingTimeline(timeline);
       setStages([...timeline.stages]);
@@ -224,7 +252,7 @@ export default function ManageTimeline() {
       // عند إضافة تايم لاين جديد، نستخدم المراحل الافتراضية
       setEditingTimeline({
         id: 0,
-        country: '',
+        country: countryName || '',
         name: null,
         stages: [],
         isActive: true,
@@ -239,13 +267,23 @@ export default function ManageTimeline() {
     setSuccess(null);
   };
 
+  const handleCountryClick = (countryTimeline: CountryTimeline) => {
+    if (countryTimeline.hasCustomTimeline && countryTimeline.timeline) {
+      // فتح التايم لاين المخصص للتعديل
+      handleOpenModal(countryTimeline.timeline);
+    } else {
+      // فتح تايم لاين جديد بالدولة المحددة والمراحل الافتراضية
+      handleOpenModal(undefined, countryTimeline.country);
+    }
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingTimeline(null);
     setStages([]);
     setEditingStageIndex(null);
     setShowStageModal(false);
-    setStageForm({ label: '', field: '' });
+    setStageForm({ label: '', field: '', icon: 'CheckCircle' });
     setError(null);
     setSuccess(null);
   };
@@ -421,13 +459,37 @@ export default function ManageTimeline() {
         <main className="max-w-7xl mx-auto px-5 py-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">إدارة التايم لاين المخصص</h1>
-            <button
-              onClick={() => handleOpenModal()}
-              className="bg-teal-800 text-white px-6 py-3 rounded-lg hover:bg-teal-900 transition-colors flex items-center gap-2"
-            >
-              <Plus size={20} />
-              إضافة تايم لاين جديد
-            </button>
+            <div className="flex gap-3">
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('mapping')}
+                  className={`px-4 py-2 rounded-md transition-colors ${
+                    viewMode === 'mapping'
+                      ? 'bg-teal-800 text-white'
+                      : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  عرض جميع الدول
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-4 py-2 rounded-md transition-colors ${
+                    viewMode === 'list'
+                      ? 'bg-teal-800 text-white'
+                      : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  التايم لاين المخصصة فقط
+                </button>
+              </div>
+              {/* <button
+                onClick={() => handleOpenModal()}
+                className="bg-teal-800 text-white px-6 py-3 rounded-lg hover:bg-teal-900 transition-colors flex items-center gap-2"
+              >
+                <Plus size={20} />
+                إضافة تايم لاين جديد
+              </button> */}
+            </div>
           </div>
 
           {error && (
@@ -444,10 +506,108 @@ export default function ManageTimeline() {
             </div>
           )}
 
-          {loading ? (
+          {loading || loadingCountries ? (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-900"></div>
             </div>
+          ) : viewMode === 'mapping' ? (
+            // عرض جميع الدول مع التايم لاين في grid
+            countryTimelines.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-500 text-lg">لا توجد دول متاحة</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+                {countryTimelines.map((countryTimeline, index) => (
+                  <div
+                    key={index}
+                    className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                    onClick={() => handleCountryClick(countryTimeline)}
+                  >
+                    <div className="p-6">
+                      {/* اسم الدولة */}
+                      <div className="mb-4">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">
+                          {countryTimeline.country}
+                        </h3>
+                        
+                        {/* نوع التايم لاين */}
+                        <div className="mb-3">
+                          {countryTimeline.hasCustomTimeline ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-teal-100 text-teal-800">
+                              مخصص
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                              افتراضي
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* عدد المراحل */}
+                      <div className="mb-4 pb-4 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">عدد المراحل:</span>
+                          <span className="text-lg font-semibold text-gray-900">
+                            {countryTimeline.stagesCount}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* الحالة */}
+                      <div className="mb-4">
+                        {countryTimeline.hasCustomTimeline && countryTimeline.timeline ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleActive(countryTimeline.timeline!);
+                            }}
+                            className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                              countryTimeline.timeline.isActive
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {countryTimeline.timeline.isActive ? '✓ نشط' : '✗ غير نشط'}
+                          </button>
+                        ) : (
+                          <div className="w-full px-3 py-2 rounded-md text-sm text-gray-400 bg-gray-50 text-center">
+                            افتراضي
+                          </div>
+                        )}
+                      </div>
+
+                      {/* أزرار الإجراءات */}
+                      <div className="flex gap-2 pt-4 border-t border-gray-200">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCountryClick(countryTimeline);
+                          }}
+                          className="flex-1 bg-teal-800 text-white px-4 py-2 rounded-md hover:bg-teal-900 transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                          <Edit size={16} />
+                          تعديل
+                        </button>
+                        {countryTimeline.hasCustomTimeline && countryTimeline.timeline && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTimeline(countryTimeline.timeline!.id);
+                            }}
+                            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors flex items-center justify-center"
+                            title="حذف"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : timelines.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <p className="text-gray-500 text-lg">لا توجد تايم لاين مخصصة</p>
@@ -567,7 +727,7 @@ export default function ManageTimeline() {
                     )}
                   </div>
 
-                  <div className="mb-6">
+                  {/* <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">اسم التايم لاين (اختياري)</label>
                     <input
                       type="text"
@@ -581,7 +741,7 @@ export default function ManageTimeline() {
                       className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                       placeholder="مثال: تايم لاين مصر 2024"
                     />
-                  </div>
+                  </div> */}
 
                   <div className="mb-6">
                     <div className="flex justify-between items-center mb-4">
