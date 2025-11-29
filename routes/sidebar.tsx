@@ -59,6 +59,11 @@ const routes: IRoute[] = [
         icon: "CardsIcon",
         name: "اضافة عمالة ذكور",
       },
+      {
+        path: "/admin/manage-timeline",
+        icon: "CardsIcon",
+        name: "إدارة التايم لاين",
+      },
     ],
   },
   {

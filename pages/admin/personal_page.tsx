@@ -775,7 +775,6 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
                     onChange={(e) =>
                       setTimelineForm((p) => ({ ...p, country: e.target.value }))
                     }
-                    disabled={!!editingTimeline}
                   >
                     <option value="">اختر الدولة</option>
                     {uniqueCountries.map((country) => (
