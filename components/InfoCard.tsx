@@ -35,9 +35,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
 
   const validateInput = (key: string, value: string): string | null => {
   // Check if "تاريخ العقد" is required
-  if (key === 'تاريخ العقد' && value == 'N/A') {
-    return 'تاريخ العقد مطلوب';
-  }
+  // if (key === 'تاريخ العقد' && value == 'N/A') {
+  //   return 'تاريخ العقد مطلوب';
+  // }
 
   // Email validation
   if ((key.includes('البريد الإلكتروني') || key.includes('ايميل')) && value && value !== 'N/A') {
@@ -59,9 +59,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
     const inputDate = new Date(value);
 
     // Ensure the date is not in the past
-    if (inputDate < today) {
-      return 'لا يمكن اختيار تاريخ في الماضي';
-    }
+    // if (inputDate < today) {
+    //   return 'لا يمكن اختيار تاريخ في الماضي';
+    // }
 
     // Optional: Ensure the date format is valid (YYYY-MM-DD)
     // if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {

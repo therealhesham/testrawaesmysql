@@ -98,6 +98,7 @@ const scrollToTop = () => {
               alt="rawaeslogo"
               className="w-32"
             />
+            
             <div className="flex gap-6">
               <a
                 href="#"
@@ -120,8 +121,10 @@ const scrollToTop = () => {
               {/* </a> */}
               <FacebookFilled />
             </div>
+            
           </div>
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            
             {/* <div>
         <h6 className="text-lg font-medium text-cyan-900">Company</h6>
         <ul className="mt-4 list-inside space-y-4">
@@ -196,8 +199,14 @@ const scrollToTop = () => {
       </div> */}
           </div>
 
-
-       
+          <div className="flex justify-between text-white items-center rounded-md bg-teal-800 px-4 py-3 text-gray-600 mt-8">
+            <span dir="rtl">
+              &copy; {new Date().getFullYear()} جميع الحقوق محفوظة
+            </span>
+            <span className="font-medium">
+              {process.env.NEXT_PUBLIC_VERSION || '0.1.0'}  version
+            </span>
+          </div>
         </div>
       </footer>
     </main>

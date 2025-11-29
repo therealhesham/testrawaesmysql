@@ -61,7 +61,7 @@ const menuItems: MenuItem[] = [
   { id: 1, label: "الرئيسية", icon: HomeIcon, link: "/admin/home" },
   {
     id: 2,
-    label: "ادارة الطلبات",
+    label: " الطلبات",
     icon: DocumentTextIcon,
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
@@ -73,7 +73,7 @@ const menuItems: MenuItem[] = [
   { id: 3, label: "قائمة العملاء", icon: PeopleIcon, link: "/admin/clients" },
   {
     id: 4,
-    label: "ادارة العاملات",
+    label: " العاملات",
     icon: PeopleIcon,
     subItems: [
       { id: 41, label: "قائمة العاملات", link: "/admin/fulllist" },
@@ -84,7 +84,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: 5,
-    label: "شئون الاقامة",
+    label: "شؤون الاقامة",
     icon: FaBuilding,
     subItems: [
       { id: 51, label: "التسكين", link: "/admin/housedarrivals" },
@@ -107,7 +107,7 @@ const menuItems: MenuItem[] = [
   { id: 8, label: "القوالب", icon: TemplateIcon, link: "/admin/templates" },
   {
     id: 9,
-    label: "ادارة المراسلات",
+    label: " المراسلات",
     icon: FaEnvelope,
     subItems: [
       { id: 91, label: "قائمة المراسلات", link: "/admin/messages" },
@@ -116,7 +116,7 @@ const menuItems: MenuItem[] = [
     ],
   },{
     id: 254,
-    label: "ادارة المحاسبة",
+    label: " المحاسبة",
     icon:CurrencyDollarIcon,
     subItems: [
       { id: 91, label: "كشف حساب المكاتب الخارجية", link: "/admin/foreign_offices_financial" },
@@ -125,7 +125,7 @@ const menuItems: MenuItem[] = [
       { id: 94, label: "التقرير المالي لمساند", link: "/admin/musanad_finacial" },
       { id: 94, label: "التسوية المالية", link: "/admin/settlement" },
       { id: 2145, label: "الاقرارات الضريبية", link: "/admin/taxation" },
-      { id: 2145, label: "ادارة الموظفين", link: "/admin/employees" },
+      { id: 2145, label: " الموظفين", link: "/admin/employees" },
 
       { id: 92, label: "قائمة الدخل", link: "/admin/incomestatments-updated" },
       { id: 95, label: "سجل النظام المحاسبي", link: "/admin/account-systemlogs" },
@@ -149,9 +149,9 @@ const menuItems: MenuItem[] = [
     icon: FaCog,
     subItems: [
       // { id: 91, label: "الملف الشخصي", link: "/admin/messages_list" },
-      // { id: 92, label: "ادارة المحاسبين", link: "/admin/send_message_to_office" },
+      // { id: 92, label: " المحاسبين", link: "/admin/send_message_to_office" },
       { id: 93, label: "سجل العمليات", link: "/admin/systemlogs" },
-      { id: 94, label: "إدارة المستخدمين", link: "/admin/authorizations" },
+      { id: 94, label: " المستخدمين", link: "/admin/authorizations" },
       { id: 98, label: "الملف الشخصي", link: "/admin/personal_page" },
     ],
   },
