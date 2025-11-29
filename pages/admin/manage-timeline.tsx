@@ -177,6 +177,12 @@ export default function ManageTimeline() {
   const [countries, setCountries] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingCountries, setLoadingCountries] = useState(false);
   const [viewMode, setViewMode] = useState<'mapping' | 'list'>('mapping');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'deleteStage' | 'deleteTimeline' | 'resetStages';
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -335,12 +341,19 @@ export default function ManageTimeline() {
   };
 
   const handleDeleteStage = (index: number) => {
-    if (confirm('هل أنت متأكد من حذف هذه المرحلة؟')) {
-      const updatedStages = stages
-        .filter((_, i) => i !== index)
-        .map((stage, i) => ({ ...stage, order: i }));
-      setStages(updatedStages);
-    }
+    setConfirmAction({
+      type: 'deleteStage',
+      message: 'هل أنت متأكد من حذف هذه المرحلة؟',
+      onConfirm: () => {
+        const updatedStages = stages
+          .filter((_, i) => i !== index)
+          .map((stage, i) => ({ ...stage, order: i }));
+        setStages(updatedStages);
+        setShowConfirmModal(false);
+        setConfirmAction(null);
+      },
+    });
+    setShowConfirmModal(true);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -417,20 +430,29 @@ export default function ManageTimeline() {
   };
 
   const handleDeleteTimeline = async (id: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذا التايم لاين؟')) return;
+    setConfirmAction({
+      type: 'deleteTimeline',
+      message: 'هل أنت متأكد من حذف هذا التايم لاين؟',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/custom-timeline/${id}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const res = await fetch(`/api/custom-timeline/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) throw new Error('فشل في حذف التايم لاين');
-      
-      setSuccess('تم حذف التايم لاين بنجاح');
-      await fetchTimelines();
-    } catch (error: any) {
-      setError(error.message || 'حدث خطأ أثناء حذف التايم لاين');
-    }
+          if (!res.ok) throw new Error('فشل في حذف التايم لاين');
+          
+          setSuccess('تم حذف التايم لاين بنجاح');
+          await fetchTimelines();
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        } catch (error: any) {
+          setError(error.message || 'حدث خطأ أثناء حذف التايم لاين');
+          setShowConfirmModal(false);
+          setConfirmAction(null);
+        }
+      },
+    });
+    setShowConfirmModal(true);
   };
 
   const handleToggleActive = async (timeline: CustomTimeline) => {
@@ -696,9 +718,9 @@ export default function ManageTimeline() {
                 <div className="p-6">
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      الدولة <span className="text-red-500">*</span>
+                  دولة {editingTimeline?.country}
                     </label>
-                    {loadingCountries ? (
+                    {/* {loadingCountries ? (
                       <div className="w-full border border-gray-300 rounded-md px-4 py-2 bg-gray-50 text-gray-500">
                         جاري تحميل الجنسيات...
                       </div>
@@ -721,7 +743,7 @@ export default function ManageTimeline() {
                           </option>
                         ))}
                       </select>
-                    )}
+                    )} */}
                     {editingTimeline?.id && (
                       <p className="text-xs text-gray-500 mt-1">لا يمكن تغيير الدولة بعد الإنشاء</p>
                     )}
@@ -747,20 +769,27 @@ export default function ManageTimeline() {
                     <div className="flex justify-between items-center mb-4">
                       <label className="block text-sm font-medium text-gray-700">
                         المراحل <span className="text-red-500">*</span>
-                        {!editingTimeline?.id && stages.length > 0 && (
+                        {/* {!editingTimeline?.id && stages.length > 0 && (
                           <span className="text-xs text-gray-500 font-normal mr-2">
                             (تم تحميل المراحل الافتراضية)
                           </span>
-                        )}
+                        )} */}
                       </label>
                       <div className="flex gap-2">
                         {!editingTimeline?.id && (
                           <button
                             onClick={() => {
-                              if (confirm('هل تريد إعادة تعيين المراحل إلى الافتراضية؟ سيتم حذف جميع التعديلات.')) {
-                                setStages([...DEFAULT_STAGES]);
-                                setError(null);
-                              }
+                              setConfirmAction({
+                                type: 'resetStages',
+                                message: 'هل تريد إعادة تعيين المراحل إلى الافتراضية؟ سيتم حذف جميع التعديلات.',
+                                onConfirm: () => {
+                                  setStages([...DEFAULT_STAGES]);
+                                  setError(null);
+                                  setShowConfirmModal(false);
+                                  setConfirmAction(null);
+                                },
+                              });
+                              setShowConfirmModal(true);
                             }}
                             className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2"
                             title="إعادة تعيين المراحل إلى الافتراضية"
@@ -927,6 +956,71 @@ export default function ManageTimeline() {
                   >
                     <Save size={18} />
                     حفظ
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Confirm Modal */}
+          {showConfirmModal && confirmAction && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="bg-white rounded-lg shadow-xl w-11/12 md:w-1/2 max-w-md">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-gray-900">تأكيد الإجراء</h3>
+                    <button
+                      onClick={() => {
+                        setShowConfirmModal(false);
+                        setConfirmAction(null);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <XCircle className="w-6 h-6 text-red-600" />
+                      </div>
+                      <p className="text-lg text-gray-900 font-medium">{confirmAction.message}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowConfirmModal(false);
+                      setConfirmAction(null);
+                    }}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    onClick={confirmAction.onConfirm}
+                    className={`px-6 py-2 rounded-md transition-colors flex items-center gap-2 ${
+                      confirmAction.type === 'deleteTimeline' || confirmAction.type === 'deleteStage'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-teal-800 text-white hover:bg-teal-900'
+                    }`}
+                  >
+                    {confirmAction.type === 'deleteTimeline' || confirmAction.type === 'deleteStage' ? (
+                      <>
+                        <Trash2 size={18} />
+                        حذف
+                      </>
+                    ) : (
+                      <>
+                        <X size={18} />
+                        إعادة تعيين
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
