@@ -911,7 +911,7 @@ export default function ManageTimeline() {
                     <p className="text-xs text-gray-500 mt-1">يستخدم لتحديد المرحلة في الكود</p>
                   </div>
 
-                  <div className="mb-4">
+                  {/* <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       الأيقونة
                     </label>
@@ -935,7 +935,7 @@ export default function ManageTimeline() {
                       <span className="text-xs text-gray-500">معاينة:</span>
                       {getIconComponent(stageForm.icon || 'CheckCircle')}
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
