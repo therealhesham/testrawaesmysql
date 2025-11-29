@@ -130,7 +130,6 @@ function SortableStageItem({ stage, index, onEdit, onDelete, isEditing }: Sortab
           {stage.icon && (
             <p className="text-xs text-gray-500 mt-1">Icon: {stage.icon}</p>
           )}
-          <p className="text-xs text-gray-500 mt-1">Order: {stage.order}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -744,9 +743,9 @@ export default function ManageTimeline() {
                         ))}
                       </select>
                     )} */}
-                    {editingTimeline?.id && (
+                    {/* {editingTimeline?.id && (
                       <p className="text-xs text-gray-500 mt-1">لا يمكن تغيير الدولة بعد الإنشاء</p>
-                    )}
+                    )} */}
                   </div>
 
                   {/* <div className="mb-6">
