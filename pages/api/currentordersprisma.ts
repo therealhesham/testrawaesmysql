@@ -72,10 +72,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         filters.OR = [
           { HomeMaid:{Name:{contains:searchTerm}}  },
           { ClientName: { contains: searchTerm as string } },
+<<<<<<< HEAD
           { client: { fullname: { contains: searchTerm as string } } },
           { Passportnumber: { contains: searchTerm as string } },
           { clientphonenumber: { contains: searchTerm as string } },
           { client: { phonenumber: { contains: searchTerm as string } } },
+=======
+          { Passportnumber: { contains: searchTerm as string } },
+          { clientphonenumber: { contains: searchTerm as string } },
+          {}
+>>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
         ];
       }
 
