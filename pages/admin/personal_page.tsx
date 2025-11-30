@@ -1510,7 +1510,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       let isAdmin = false;
 const token = jwtDecode(cookies.authToken) as any;
       const detecIsAdmin = await prisma.user.findUnique({where:{id:Number(token.id)},include:{role:true}})
-if(detecIsAdmin?.role?.name == "owner" || detecIsAdmin?.role?.name == "manager" || detecIsAdmin?.role?.name == "Owner" || detecIsAdmin?.role?.name == "Manager" ){
+if(detecIsAdmin?.role?.name == "manager"|| detecIsAdmin?.role?.name == "Manager" ){
   isAdmin = true;
 }
   if (!cookies.authToken) {
