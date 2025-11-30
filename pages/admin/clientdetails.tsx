@@ -60,23 +60,17 @@ const VisaModal = React.memo(
   }) => {
     const visaNumberRef = useRef<HTMLInputElement>(null);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
-<<<<<<< HEAD
     const [uploading, setUploading] = useState(false);
     const [uploadedFileName, setUploadedFileName] = useState<string>('');
-=======
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
 
     useEffect(() => {
       if (!isHidden && visaNumberRef.current) {
         visaNumberRef.current.focus();
       }
-<<<<<<< HEAD
       // Reset uploaded file name when modal opens/closes
       if (isHidden) {
         setUploadedFileName('');
       }
-=======
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
     }, [isHidden]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -252,7 +246,6 @@ const VisaModal = React.memo(
               <label className="block text-sm text-gray-600 mb-1">الملف</label>
               <input
                 type="file"
-<<<<<<< HEAD
                 accept="application/pdf,image/*"
                 disabled={uploading}
                 onChange={async (e) => {
@@ -268,31 +261,16 @@ const VisaModal = React.memo(
                     
                     const { url, filePath } = await res.json();
 
-=======
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  try {
-                    const addFile = await fetch(`/api/upload-presigned-url/visaFile`, {
-                      method: 'GET',
-                    });
-                    const { url, filePath } = await addFile.json();
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
                     const uploadRes = await fetch(url, {
                       method: 'PUT',
                       body: file,
                       headers: {
-<<<<<<< HEAD
                         'Content-Type': file.type || 'application/octet-stream',
-=======
-                        'Content-Type': file.type,
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
                         'x-amz-acl': 'public-read',
                       },
                     });
 
                     if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-<<<<<<< HEAD
                     
                     setVisaInfo({ ...visaInfo, visaFile: filePath });
                     setUploadedFileName(file.name);
@@ -353,17 +331,6 @@ const VisaModal = React.memo(
                   </a>
                 </div>
               )}
-=======
-                    setVisaInfo({ ...visaInfo, visaFile: filePath });
-                    setNotification({ message: 'تم رفع الملف بنجاح', type: 'success' });
-                  } catch (error) {
-                    console.error(error);
-                    setNotification({ message: 'فشل في رفع الملف', type: 'error' });
-                  }
-                }}
-                className="w-full border border-gray-300 rounded-md"
-              />
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
             </div>
             <div className="flex justify-end gap-2">
               <button
@@ -721,7 +688,6 @@ const arabicRegionMap: { [key: string]: string } = {
                     }
                     required
                   >
-<<<<<<< HEAD
              
           <option value="">اختر المدينة</option>
 <option value = "Baha">الباحة</option>
@@ -786,21 +752,6 @@ const arabicRegionMap: { [key: string]: string } = {
 <option value = "Ahad Rafidah">أحد رفيدة</option>
 <option value = "Sarat Abidah">سراة عبيدة</option>
 
-=======
-                    <option value="Ar Riyāḍ">الرياض</option>
-                    <option value="Makkah al Mukarramah">مكة المكرمة</option>
-                    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
-                    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
-                    <option value="Asīr">عسير</option>
-                    <option value="Tabūk">تبوك</option>
-                    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
-                    <option value="Jazan">جازان</option>
-                    <option value="Najrān">نجران</option>
-                    <option value="Al Bāḩah">الباحة</option>
-                    <option value="Al Jawf">الجوف</option>
-                    <option value="Al Qaşīm">القصيم</option>
-                    <option value="Ḩa'il">حائل</option>
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
                   </select>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import Styles from 'styles/Home.module.css';
 import { GetServerSidePropsContext } from 'next';
 import { jwtDecode } from 'jwt-decode';
@@ -16,6 +17,7 @@ interface UserData {
 }
 
 export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean  }) {
+  const router = useRouter();
   const [formData, setFormData] = useState<UserData>({
     id: '',
     jobTitle: '',
@@ -390,7 +392,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
             إدارة المكاتب الخارجية
           </button>
           <button 
-            onClick={() => setActiveTab('timeline')}
+            onClick={() => router.push('/admin/manage-timeline')}
             className={`pb-3 px-6 font-medium text-sm transition ${
               activeTab === 'timeline' 
                 ? 'text-teal-700 border-b-2 border-teal-700' 
