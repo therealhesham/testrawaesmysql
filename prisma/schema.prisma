@@ -136,6 +136,8 @@ model User {
   updatedAt     DateTime? @updatedAt
 
   AccountSystemLogs AccountSystemLogs[]
+  createdComplaints Complaint[] @relation("ComplaintCreatedBy")
+  assignedComplaints Complaint[] @relation("ComplaintAssignedTo")
 }
 
 
@@ -1173,4 +1175,26 @@ model CustomTimeline {
 
   @@index([country])
   @@unique([country])
+}
+
+// Complaints Model
+model Complaint {
+  id                Int       @id @default(autoincrement())
+  title             String?   @db.VarChar(255) // عنوان الشكوى
+  description       String?   @db.Text // وصف الشكوى
+  screenshot         String?   @db.VarChar(1024) // رابط screenshot
+  status            String    @default("pending") @db.VarChar(50) // حالة الشكوى: pending, in_progress, resolved, closed
+  createdById       Int       // منشئ الشكوى (Admin)
+  createdBy         User      @relation("ComplaintCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedToId      Int?      // المسؤول عن حل الشكوى (IT User)
+  assignedTo        User?     @relation("ComplaintAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  resolutionNotes   String?   @db.Text // ملاحظات الحل
+  resolvedAt        DateTime? // تاريخ الحل
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([createdAt])
 }

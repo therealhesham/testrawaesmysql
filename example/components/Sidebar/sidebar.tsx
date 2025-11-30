@@ -11,14 +11,13 @@ import {
   HomeIcon,
   LogoutIcon,
 } from "../../../components/icons";
-import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen, FaExclamationTriangle } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import { AlertOutlined, BellFilled, BellOutlined, DollarCircleFilled, FileWordOutlined, MessageOutlined, NotificationFilled, NotificationOutlined } from "@ant-design/icons";
 import { CurrencyDollarIcon, DocumentAddIcon, DocumentIcon, DocumentTextIcon, TemplateIcon } from "@heroicons/react/outline";
 import { PeopleIcon } from "icons";
 import ReportsIcon from "components/icons/reports";
-
 interface MenuItem {
   id: number;
   label: string;
@@ -154,6 +153,11 @@ const menuItems: MenuItem[] = [
       { id: 94, label: " المستخدمين", link: "/admin/authorizations" },
       { id: 98, label: "الملف الشخصي", link: "/admin/personal_page" },
     ],
+  },{
+    id: 11,
+    label: "الشكاوى",
+    icon: FaExclamationTriangle,
+    link: "/admin/complaints",
   },
 ];
 
