@@ -60,10 +60,16 @@ const VisaModal = React.memo(
   }) => {
     const visaNumberRef = useRef<HTMLInputElement>(null);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const [uploading, setUploading] = useState(false);
+    const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
     useEffect(() => {
       if (!isHidden && visaNumberRef.current) {
         visaNumberRef.current.focus();
+      }
+      // Reset uploaded file name when modal opens/closes
+      if (isHidden) {
+        setUploadedFileName('');
       }
     }, [isHidden]);
 
@@ -240,33 +246,91 @@ const VisaModal = React.memo(
               <label className="block text-sm text-gray-600 mb-1">الملف</label>
               <input
                 type="file"
+                accept="application/pdf,image/*"
+                disabled={uploading}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  
+                  setUploading(true);
+                  setUploadedFileName('');
                   try {
-                    const addFile = await fetch(`/api/upload-presigned-url/visaFile`, {
-                      method: 'GET',
-                    });
-                    const { url, filePath } = await addFile.json();
+                    // Use visaFile identifier (matching AddClientModal pattern)
+                    const res = await fetch(`/api/upload-presigned-url/visaFile`);
+                    if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                    
+                    const { url, filePath } = await res.json();
+
                     const uploadRes = await fetch(url, {
                       method: 'PUT',
                       body: file,
                       headers: {
-                        'Content-Type': file.type,
+                        'Content-Type': file.type || 'application/octet-stream',
                         'x-amz-acl': 'public-read',
                       },
                     });
 
                     if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+                    
                     setVisaInfo({ ...visaInfo, visaFile: filePath });
+                    setUploadedFileName(file.name);
                     setNotification({ message: 'تم رفع الملف بنجاح', type: 'success' });
-                  } catch (error) {
-                    console.error(error);
-                    setNotification({ message: 'فشل في رفع الملف', type: 'error' });
+                    
+                    // Reset input
+                    e.target.value = '';
+                  } catch (error: any) {
+                    console.error('Error uploading file:', error);
+                    setUploadedFileName('');
+                    setNotification({ 
+                      message: error.message || 'فشل في رفع الملف', 
+                      type: 'error' 
+                    });
+                  } finally {
+                    setUploading(false);
                   }
                 }}
-                className="w-full border border-gray-300 rounded-md"
+                className="w-full border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               />
+              {uploading && (
+                <p className="text-sm text-teal-600 mt-1 flex items-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  جاري رفع الملف...
+                </p>
+              )}
+              {!uploading && uploadedFileName && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-800 flex items-center gap-2">
+                    <span className="text-green-600">✓</span>
+                    تم رفع الملف بنجاح: <span className="font-semibold">{uploadedFileName}</span>
+                  </p>
+                  {visaInfo.visaFile && (
+                    <a
+                      href={visaInfo.visaFile}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-teal-600 hover:underline mt-1 block"
+                    >
+                      عرض الملف
+                    </a>
+                  )}
+                </div>
+              )}
+              {!uploading && visaInfo.visaFile && !uploadedFileName && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800 flex items-center gap-2">
+                    <span className="text-blue-600">ℹ</span>
+                    يوجد ملف مرفوع مسبقاً
+                  </p>
+                  <a
+                    href={visaInfo.visaFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-teal-600 hover:underline mt-1 block"
+                  >
+                    عرض الملف
+                  </a>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <button
@@ -624,19 +688,70 @@ const arabicRegionMap: { [key: string]: string } = {
                     }
                     required
                   >
-                    <option value="Ar Riyāḍ">الرياض</option>
-                    <option value="Makkah al Mukarramah">مكة المكرمة</option>
-                    <option value="Al Madīnah al Munawwarah">المدينة المنورة</option>
-                    <option value="Ash Sharqīyah">المنطقة الشرقية</option>
-                    <option value="Asīr">عسير</option>
-                    <option value="Tabūk">تبوك</option>
-                    <option value="Al Ḩudūd ash Shamālīyah">الحدود الشمالية</option>
-                    <option value="Jazan">جازان</option>
-                    <option value="Najrān">نجران</option>
-                    <option value="Al Bāḩah">الباحة</option>
-                    <option value="Al Jawf">الجوف</option>
-                    <option value="Al Qaşīm">القصيم</option>
-                    <option value="Ḩa'il">حائل</option>
+             
+          <option value="">اختر المدينة</option>
+<option value = "Baha">الباحة</option>
+<option value = "Jawf">الجوف</option>
+<option value = "Qassim">القصيم</option>
+<option value = "Hail">حائل</option>
+<option value = "Jazan">جازان</option>
+<option value = "Najran">نجران</option>
+<option value = "Madinah">المدينة المنورة</option>
+<option value = "Riyadh">الرياض</option>
+<option value = "Al-Kharj">الخرج</option>
+<option value = "Ad Diriyah">الدرعية</option>
+<option value = "Al Majma'ah">المجمعة</option>
+<option value = "Al Zulfi">الزلفي</option>
+<option value = "Ad Dawadimi">الدوادمي</option>
+<option value = "Wadi Ad Dawasir">وادي الدواسر</option>
+<option value = "Afif">عفيف</option>
+<option value = "Al Quway'iyah">القويعية</option>
+<option value = "Shaqra">شقراء</option>
+<option value = "Hotat Bani Tamim">حوطة بني تميم</option>
+<option value = "Makkah">مكة المكرمة</option>
+<option value = "Jeddah">جدة</option>
+<option value = "Taif">الطائف</option>
+<option value = "Rabigh">رابغ</option>
+<option value = "Al Qunfudhah">القنفذة</option>
+<option value = "Al Lith">الليث</option>
+<option value = "Khulais">خليص</option>
+<option value = "Ranyah">رنية</option>
+<option value = "Turabah">تربة</option>
+<option value = "Yanbu">ينبع</option>
+<option value = "Al Ula">العلا</option>
+<option value = "Badr">بدر</option>
+<option value = "Al Hinakiyah">الحناكية</option>
+<option value = "Mahd Al Dhahab">مهد الذهب</option>
+<option value = "Dammam">الدمام</option>
+<option value = "Al Khobar">الخبر</option>
+<option value = "Dhahran">الظهران</option>
+<option value = "Al Ahsa">الأحساء</option>
+<option value = "Al Hufuf">الهفوف</option>
+<option value = "Al Mubarraz">المبرز</option>
+<option value = "Jubail">الجبيل</option>
+<option value = "Hafr Al Batin">حفر الباطن</option>
+<option value = "Al Khafji">الخفجي</option>
+<option value = "Ras Tanura">رأس تنورة</option>
+<option value = "Qatif">القطيف</option>
+<option value = "Abqaiq">بقيق</option>
+<option value = "Nairiyah">النعيرية</option>
+<option value = "Qaryat Al Ulya">قرية العليا</option>
+<option value = "Buraydah">بريدة</option>
+<option value = "Unaizah">عنيزة</option>
+<option value = "Ar Rass">الرس</option>
+<option value = "Al Bukayriyah">البكيرية</option>
+<option value = "Al Badaye">البدائع</option>
+<option value = "Al Mithnab">المذنب</option>
+<option value = "Riyad Al Khabra">رياض الخبراء</option>
+<option value = "Abha">أبها</option>
+<option value = "Khamis Mushait">خميس مشيط</option>
+<option value = "Bisha">بيشة</option>
+<option value = "Mahayil">محايل عسير</option>
+<option value = "Al Namas">النماص</option>
+<option value = "Tanomah">تنومة</option>
+<option value = "Ahad Rafidah">أحد رفيدة</option>
+<option value = "Sarat Abidah">سراة عبيدة</option>
+
                   </select>
                 </div>
               </div>
