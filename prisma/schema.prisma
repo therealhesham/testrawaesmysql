@@ -448,11 +448,7 @@ id Int @id @default(autoincrement())
 visaNumber String? @db.VarChar(255)
 gender String? @db.VarChar(255)
 profession String? @db.VarChar(255)
-<<<<<<< HEAD
 visaFile String? @db.VarChar(1024)
-=======
-visaFile String? @db.VarChar(255)
->>>>>>> 166baa542aae02ebb22841a81bcb0cf4f139289a
 nationality String? @db.VarChar(255)
 clientID Int?
 client Client? @relation(fields: [clientID], references: [id])
