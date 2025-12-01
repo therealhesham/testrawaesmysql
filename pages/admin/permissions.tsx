@@ -53,8 +53,18 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     'إدارة المهن',
     'إدارة المكاتب الخارجية',
     'إدارة الصلاحيات',
+    'إدارة الشكاوى',
   ];
-  const permissionItems = ['عرض', 'إضافة', 'تعديل', 'حذف'];
+  
+  // دالة لإرجاع الصلاحيات المناسبة لكل قسم
+  const getPermissionItems = (section: string) => {
+    // قسم الشكاوى له صلاحيات مختلفة
+    if (section === 'إدارة الشكاوى') {
+      return [ 'حل'];
+    }
+    // باقي الأقسام لها الصلاحيات الافتراضية
+    return ['عرض', 'إضافة', 'تعديل', 'حذف'];
+  };
 
   // Fetch roles
   const fetchRoles = async () => {
@@ -221,7 +231,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                         </div>
                       </td>
                     </tr>
-                    {permissionItems.map((perm, idx) => (
+                    {getPermissionItems(section).map((perm, idx) => (
                       <tr key={idx} className="bg-gray-200 border-gray-300">
                         <td className="p-4 text-black text-center min-w-8">{perm}</td>
                         {roles.map((role) => (
@@ -300,7 +310,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                             {section}
                           </div>
                           <div className="flex flex-col gap-4">
-                            {permissionItems.map((perm) => (
+                            {getPermissionItems(section).map((perm) => (
                               <label
                                 key={perm}
                                 className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
@@ -404,7 +414,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                             {section}
                           </div>
                           <div className="flex flex-col gap-4">
-                            {permissionItems.map((perm) => (
+                            {getPermissionItems(section).map((perm) => (
                               <label
                                 key={perm}
                                 className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"

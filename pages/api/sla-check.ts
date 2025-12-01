@@ -27,7 +27,6 @@ function isStageCompleted(stage: string, rec: any): boolean {
       return false;
   }
 }
-
 // Determine the start date based on the previous stage completion
 function getStartDateForStage(stage: string, rec: any): Date | null {
   // Mapping: previous stage completion date fields available in arrivallist

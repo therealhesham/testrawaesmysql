@@ -170,6 +170,35 @@ interface ProfilePermissions {
   canManageTimeline: boolean;
   canManageProfessions: boolean;
   canManageOffices: boolean;
+  canManageComplaints: boolean;
+}
+
+interface Complaint {
+  id: number;
+  title: string;
+  description: string;
+  screenshot: string | null;
+  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt: Date | null;
+  resolutionNotes: string | null;
+  createdBy: {
+    id: number;
+    username: string;
+    pictureurl: string | null;
+    role: {
+      name: string;
+    } | null;
+  };
+  assignedTo: {
+    id: number;
+    username: string;
+    pictureurl: string | null;
+    role: {
+      name: string;
+    } | null;
+  } | null;
 }
 
 export default function Profile({ id, permissions }: { id: number, permissions: ProfilePermissions }) {
@@ -194,9 +223,21 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     if (permissions.canManageProfessions) return 'professions';
     if (permissions.canManageOffices) return 'offices';
     if (permissions.canManageTimeline) return 'timeline';
-    return 'professions';
+    return 'complaints'; // Default to complaints for all users
   };
   const [activeTab, setActiveTab] = useState(getDefaultTab());
+  
+  // Complaints state
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [loadingComplaints, setLoadingComplaints] = useState(false);
+  const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
+  const [complaintForm, setComplaintForm] = useState({
+    title: '',
+    description: '',
+    screenshot: ''
+  });
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [complaintStats, setComplaintStats] = useState<any>({});
   // SLA offices state
   const [offices, setOffices] = useState<any[]>([]);
   const [slaRules, setSlaRules] = useState<any[]>([]);
@@ -300,6 +341,137 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     setCountryTimelines(mapping);
   };
 
+  // Complaints functions
+  const fetchComplaints = async () => {
+    setLoadingComplaints(true);
+    try {
+      const res = await fetch('/api/complaints?myComplaints=true');
+      const data = await res.json();
+      if (data.success) {
+        setComplaints(data.complaints || []);
+        setComplaintStats(data.stats || {});
+      }
+    } catch (e) {
+      console.error('فشل جلب الدعم فني');
+      setError('فشل في جلب الدعم فني');
+    } finally {
+      setLoadingComplaints(false);
+    }
+  };
+
+  const handleOpenComplaintModal = () => {
+    setComplaintForm({ title: '', description: '', screenshot: '' });
+    setIsComplaintModalOpen(true);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleCloseComplaintModal = () => {
+    setIsComplaintModalOpen(false);
+    setComplaintForm({ title: '', description: '', screenshot: '' });
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingScreenshot(true);
+    setError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setError('الملف ليس صورة صالحة');
+      setUploadingScreenshot(false);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('حجم الصورة أكبر من 10 ميغابايت');
+      setUploadingScreenshot(false);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+
+      try {
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64, filename: file.name }),
+        });
+
+        const json = await res.json();
+
+        if (res.ok && json.url) {
+          setComplaintForm((prev) => ({ ...prev, screenshot: json.url }));
+          setSuccess('تم رفع الصورة بنجاح!');
+          setTimeout(() => setSuccess(null), 2000);
+        } else {
+          setError(json.error || 'فشل في رفع الصورة');
+        }
+      } catch (err) {
+        setError('خطأ في الاتصال بالخادم');
+      } finally {
+        setUploadingScreenshot(false);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitComplaint = async () => {
+    if (!complaintForm.title.trim() || !complaintForm.description.trim()) {
+      setError('العنوان والوصف مطلوبان');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch('/api/complaints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(complaintForm),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'فشل في إرسال الشكوى');
+      }
+
+      setSuccess('تم إرسال الشكوى بنجاح! سيتم الرد عليك قريباً');
+      await fetchComplaints();
+      setTimeout(() => {
+        handleCloseComplaintModal();
+      }, 1500);
+    } catch (error: any) {
+      setError(error.message || 'حدث خطأ أثناء إرسال الشكوى');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: any = {
+      pending: { label: 'قيد الانتظار', color: 'bg-yellow-100 text-yellow-800' },
+      in_progress: { label: 'قيد المعالجة', color: 'bg-blue-100 text-blue-800' },
+      resolved: { label: 'تم الحل', color: 'bg-green-100 text-green-800' },
+      closed: { label: 'مغلقة', color: 'bg-gray-100 text-gray-800' },
+    };
+    const config = statusConfig[status] || statusConfig.pending;
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.color}`}>
+        {config.label}
+      </span>
+    );
+  };
+
   useEffect(() => {
     if (activeTab === 'offices') {
       fetchOffices();
@@ -308,6 +480,9 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     if (activeTab === 'timeline') {
       fetchCustomTimelines();
       fetchUniqueCountries();
+    }
+    if (activeTab === 'complaints') {
+      fetchComplaints();
     }
   }, [activeTab]);
 
@@ -768,10 +943,18 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
             حفظ التغييرات
           </button>
         </div>
-{(permissions.canManageProfessions || permissions.canManageTimeline || permissions.canManageOffices) && (
-  <>
         {/* Tabs */}
         <div className="flex gap-6 mb-5 border-b border-gray-200">
+          <button 
+            onClick={() => setActiveTab('complaints')}
+            className={`pb-3 px-6 font-medium text-sm transition ${
+              activeTab === 'complaints' 
+                ? 'text-teal-700 border-b-2 border-teal-700' 
+                : 'text-gray-600 hover:text-teal-700'
+            }`}
+          >
+            الدعم فني
+          </button>
           {permissions.canManageProfessions && (
           <button 
             onClick={() => setActiveTab('professions')}
@@ -809,8 +992,124 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           </button>
           )}
         </div>
-        </>
-)}
+        {/* Complaints Tab */}
+        {activeTab === 'complaints' && (
+          <div className="bg-white rounded-lg p-8 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">دعم فني</h3>
+                <p className="text-sm text-gray-600 mt-1">يمكنك إرسال شكوى للدعم الفني وتتبع حالتها</p>
+              </div>
+              <button
+                onClick={handleOpenComplaintModal}
+                className="bg-teal-800 text-white px-6 py-3 rounded-md hover:bg-teal-900 transition-colors flex items-center gap-2 text-sm font-medium"
+              >
+                <Plus size={18} />
+                إرسال شكوى جديدة
+              </button>
+            </div>
+
+            {/* Statistics */}
+            {complaintStats.total > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-gray-900">{complaintStats.total || 0}</div>
+                  <div className="text-sm text-gray-600">إجمالي الدعم فني</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-yellow-800">{complaintStats.byStatus?.pending || 0}</div>
+                  <div className="text-sm text-yellow-700">قيد الانتظار</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-800">{complaintStats.byStatus?.in_progress || 0}</div>
+                  <div className="text-sm text-blue-700">قيد المعالجة</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-green-800">{complaintStats.byStatus?.resolved || 0}</div>
+                  <div className="text-sm text-green-700">تم الحل</div>
+                </div>
+              </div>
+            )}
+
+            {loadingComplaints ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-900"></div>
+              </div>
+            ) : complaints.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-500 text-lg">لا توجد دعم فني حتى الآن</p>
+                <p className="text-gray-400 text-sm mt-2">يمكنك إرسال شكوى جديدة من الزر أعلاه</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {complaints.map((complaint) => (
+                  <div
+                    key={complaint.id}
+                    className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="text-lg font-semibold text-gray-900">{complaint.title}</h4>
+                          {getStatusBadge(complaint.status)}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">{complaint.description}</p>
+                        {complaint.screenshot && (
+                          <div className="mb-3">
+                            <a
+                              href={complaint.screenshot}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-teal-700 hover:text-teal-800 underline"
+                            >
+                              عرض الصورة المرفقة
+                            </a>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>تاريخ الإرسال: {new Date(complaint.createdAt).toLocaleDateString('ar-SA')}</span>
+                          {complaint.resolvedAt && (
+                            <span>تاريخ الحل: {new Date(complaint.resolvedAt).toLocaleDateString('ar-SA')}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {complaint.assignedTo && (
+                      <div className="bg-blue-50 rounded-lg p-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          {complaint.assignedTo.pictureurl ? (
+                            <img
+                              src={complaint.assignedTo.pictureurl}
+                              alt={complaint.assignedTo.username}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-teal-800 flex items-center justify-center text-white text-sm">
+                              {complaint.assignedTo.username.charAt(0)}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">مُسند إلى: {complaint.assignedTo.username}</p>
+                            <p className="text-xs text-gray-600">{complaint.assignedTo.role?.name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {complaint.resolutionNotes && (
+                      <div className="bg-green-50 rounded-lg p-4 border-r-4 border-green-500">
+                        <p className="text-sm font-medium text-green-900 mb-1">ملاحظات الحل:</p>
+                        <p className="text-sm text-green-800">{complaint.resolutionNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {permissions.canManageProfessions && (
           <>  
         {activeTab === 'professions' && (
@@ -1427,6 +1726,114 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           </div>
         )}
 
+        {/* Complaint Modal */}
+        {isComplaintModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-lg shadow-xl w-11/12 md:w-2/3 lg:w-1/2 max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">إرسال شكوى جديدة</h2>
+                  <button
+                    onClick={handleCloseComplaintModal}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    عنوان الشكوى <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={complaintForm.title}
+                    onChange={(e) => setComplaintForm({ ...complaintForm, title: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="مثال: مشكلة في تسجيل الدخول"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    وصف المشكلة <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={complaintForm.description}
+                    onChange={(e) => setComplaintForm({ ...complaintForm, description: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[120px]"
+                    placeholder="اشرح المشكلة بالتفصيل..."
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    صورة توضيحية (اختياري)
+                  </label>
+                  {complaintForm.screenshot && (
+                    <div className="mb-3">
+                      <img
+                        src={complaintForm.screenshot}
+                        alt="Screenshot"
+                        className="w-full max-h-64 object-contain rounded-lg border"
+                      />
+                      <button
+                        onClick={() => setComplaintForm({ ...complaintForm, screenshot: '' })}
+                        className="mt-2 text-sm text-red-600 hover:text-red-700"
+                      >
+                        إزالة الصورة
+                      </button>
+                    </div>
+                  )}
+                  <label
+                    htmlFor="screenshot-upload"
+                    className="block w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md text-center text-sm text-gray-700 cursor-pointer hover:bg-gray-50 transition"
+                  >
+                    {uploadingScreenshot ? 'جاري الرفع...' : 'اضغط لرفع صورة'}
+                  </label>
+                  <input
+                    id="screenshot-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScreenshotUpload}
+                    className="hidden"
+                    disabled={uploadingScreenshot}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">يمكنك رفع صورة توضيحية للمشكلة (حد أقصى 10 ميجابايت)</p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+                <button
+                  onClick={handleCloseComplaintModal}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleSubmitComplaint}
+                  disabled={saving || !complaintForm.title.trim() || !complaintForm.description.trim()}
+                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      جاري الإرسال...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      إرسال الشكوى
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Confirm Modal */}
         {showConfirmModal && confirmAction && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -1528,6 +1935,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       canManageTimeline: !!rolePermissions?.["إدارة التايم لاين"]?.["تعديل"],
       canManageProfessions: !!rolePermissions?.["إدارة المهن"]?.["تعديل"],
       canManageOffices: !!rolePermissions?.["إدارة المكاتب الخارجية"]?.["تعديل"],
+      canManageComplaints: !!rolePermissions?.["إدارة الدعم فني"]?.["حل"],
     };
 
     return { props: { id: Number(token.id), permissions } };
