@@ -360,7 +360,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
-                className="bg-gray-200 rounded-lg p-8 max-w-4xl w-full relative"
+                className="bg-gray-200 rounded-lg p-8 max-w-4xl w-full relative max-h-[90vh] overflow-y-auto"
               >
                 <h1 id="edit-role-title" className="text-2xl font-normal text-black mb-8 text-center">
                   تعديل مسمى وظيفي
