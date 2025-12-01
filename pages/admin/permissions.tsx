@@ -9,7 +9,22 @@ import Layout from 'example/containers/Layout';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { useRouter } from 'next/router';
-const PermissionsManagement = ({ currentUserRoleId }: { currentUserRoleId: number }) => {
+const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { currentUserRoleId: number; currentUserRoleName: string }) => {
+  
+  // دالة للتحقق من إمكانية تعديل الدور
+  const canEditRole = (role: any) => {
+    const isOwner = currentUserRoleName?.toLowerCase() === 'owner';
+    const isTargetOwner = role.name?.toLowerCase() === 'owner';
+    
+    // Owner يقدر يعدل أي حد بما فيه نفسه
+    if (isOwner) return true;
+    
+    // Manager مش يقدر يعدل Owner
+    if (isTargetOwner) return false;
+    
+    // Manager يقدر يعدل أي حد تاني ما عدا Owner
+    return true;
+  };
   // State for modals
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
@@ -170,7 +185,7 @@ const PermissionsManagement = ({ currentUserRoleId }: { currentUserRoleId: numbe
                   {roles.map((role) => (
                     <th key={role.id} className="p-4 text-xl font-normal text-black">
                       {role.name}
-                      {role.id !== currentUserRoleId ? (
+                      {canEditRole(role) ? (
                         <button
                           onClick={() => {
                             setSelectedRole(role);
@@ -186,7 +201,7 @@ const PermissionsManagement = ({ currentUserRoleId }: { currentUserRoleId: numbe
                       ) : (
                         <span 
                           className="mr-2 inline-block" 
-                          title="لا يمكنك تعديل صلاحيات دورك الحالي"
+                          title={role.name?.toLowerCase() === 'owner' ? "لا يمكنك تعديل صلاحيات المالك" : "لا يمكنك تعديل هذا الدور"}
                         >
                           <Edit className="w-4 h-4 text-gray-400 cursor-not-allowed" />
                         </span>
@@ -507,7 +522,12 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    return { props: { currentUserRoleId: findUser.roleId } };
+    return { 
+      props: { 
+        currentUserRoleId: findUser.roleId,
+        currentUserRoleName: findUser.role?.name || ''
+      } 
+    };
   } catch (err) {
     console.error('Authorization error:', err);
     return {
