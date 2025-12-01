@@ -115,6 +115,18 @@ useEffect(() => {
     return roles.filter((role) => role.name?.toLowerCase() !== 'owner');
   };
 
+  // التحقق من إمكانية تعديل/حذف المستخدم - owner فقط يقدر يعدل على owner
+  const canEditUser = (user: any) => {
+    const isCurrentUserOwner = currentUserRole === 'owner';
+    const isTargetUserOwner = user.role?.name?.toLowerCase() === 'owner';
+    
+    // إذا كان المستخدم المستهدف owner، فقط owner يقدر يعدله
+    if (isTargetUserOwner && !isCurrentUserOwner) {
+      return false;
+    }
+    return true;
+  };
+
   // Handle user form submission
   const handleAddUser = async () => {
     try {
@@ -436,31 +448,42 @@ const handleExportPDF = async () => {
                       {new Date(user.createdAt).toLocaleDateString('ar-SA')}
                     </div>
                     <div className="text-center flex justify-center gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setNewUser({
-                            username: user.username,
-                            phonenumber: user.phonenumber,
-                            idnumber: user.idnumber,
-                            password: '',
-                            roleId: user.roleId || '',
-                          });
-                          setIsEditUserModalOpen(true);
-                        }}
-                        className="bg-transparent border-none cursor-pointer"
-                      >
-                        <Edit className="w-5 h-5 text-teal-800 hover:text-teal-600" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setIsDeleteUserModalOpen(true);
-                        }}
-                        className="bg-transparent border-none cursor-pointer"
-                      >
-                        <Trash className="w-5 h-5 text-red-600 hover:text-red-800" />
-                      </button>
+                      {canEditUser(user) ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setNewUser({
+                                username: user.username,
+                                phonenumber: user.phonenumber,
+                                idnumber: user.idnumber,
+                                password: '',
+                                roleId: user.roleId || '',
+                              });
+                              setIsEditUserModalOpen(true);
+                            }}
+                            className="bg-transparent border-none cursor-pointer"
+                          >
+                            <Edit className="w-5 h-5 text-teal-800 hover:text-teal-600" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setIsDeleteUserModalOpen(true);
+                            }}
+                            className="bg-transparent border-none cursor-pointer"
+                          >
+                            <Trash className="w-5 h-5 text-red-600 hover:text-red-800" />
+                          </button>
+                        </>
+                      ) : (
+                        <span 
+                          className="text-gray-400 text-xs"
+                          title="لا يمكنك تعديل أو حذف هذا المستخدم"
+                        >
+                          محمي
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
