@@ -283,33 +283,41 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                     />
                   </div>
                   <div className="grid grid-cols-4 gap-8">
-                    {permissionSections.map((section) => (
-                      <div
-                        key={section}
-                        className="border border-gray-300 rounded p-4 bg-gray-200 flex flex-col items-center gap-4"
-                      >
-                        <div className="bg-gray-200 border border-gray-300 rounded px-3 py-1 text-sm text-gray-800">
-                          {section}
+                    {permissionSections
+                      .filter((section) => {
+                        // إخفاء قسم "إدارة الصلاحيات" عن غير الـ owner
+                        if (section === 'إدارة الصلاحيات' && currentUserRoleName?.toLowerCase() !== 'owner') {
+                          return false;
+                        }
+                        return true;
+                      })
+                      .map((section) => (
+                        <div
+                          key={section}
+                          className="border border-gray-300 rounded p-4 bg-gray-200 flex flex-col items-center gap-4"
+                        >
+                          <div className="bg-gray-200 border border-gray-300 rounded px-3 py-1 text-sm text-gray-800">
+                            {section}
+                          </div>
+                          <div className="flex flex-col gap-4">
+                            {permissionItems.map((perm) => (
+                              <label
+                                key={perm}
+                                className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
+                              >
+                                <span>{perm}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={newRole.permissions[section]?.[perm] || false}
+                                  onChange={(e) => handlePermissionChange(section, perm, e.target.checked)}
+                                  className="w-5 h-5"
+                                  disabled={isLoading}
+                                />
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-4">
-                          {permissionItems.map((perm) => (
-                            <label
-                              key={perm}
-                              className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
-                            >
-                              <span>{perm}</span>
-                              <input
-                                type="checkbox"
-                                checked={newRole.permissions[section]?.[perm] || false}
-                                onChange={(e) => handlePermissionChange(section, perm, e.target.checked)}
-                                className="w-5 h-5"
-                                disabled={isLoading}
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                   <div className="flex justify-center gap-4 pt-8 border-t border-gray-300">
                     <button
@@ -379,33 +387,41 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                     />
                   </div>
                   <div className="grid grid-cols-4 gap-8">
-                    {permissionSections.map((section) => (
-                      <div
-                        key={section}
-                        className="border border-gray-300 rounded p-4 bg-gray-200 flex flex-col items-center gap-4"
-                      >
-                        <div className="bg-gray-200 border border-gray-300 rounded px-3 py-1 text-sm text-gray-800">
-                          {section}
+                    {permissionSections
+                      .filter((section) => {
+                        // إخفاء قسم "إدارة الصلاحيات" عن غير الـ owner
+                        if (section === 'إدارة الصلاحيات' && currentUserRoleName?.toLowerCase() !== 'owner') {
+                          return false;
+                        }
+                        return true;
+                      })
+                      .map((section) => (
+                        <div
+                          key={section}
+                          className="border border-gray-300 rounded p-4 bg-gray-200 flex flex-col items-center gap-4"
+                        >
+                          <div className="bg-gray-200 border border-gray-300 rounded px-3 py-1 text-sm text-gray-800">
+                            {section}
+                          </div>
+                          <div className="flex flex-col gap-4">
+                            {permissionItems.map((perm) => (
+                              <label
+                                key={perm}
+                                className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
+                              >
+                                <span>{perm}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={newRole.permissions[section]?.[perm] || false}
+                                  onChange={(e) => handlePermissionChange(section, perm, e.target.checked)}
+                                  className="w-5 h-5"
+                                  disabled={isLoading}
+                                />
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-4">
-                          {permissionItems.map((perm) => (
-                            <label
-                              key={perm}
-                              className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
-                            >
-                              <span>{perm}</span>
-                              <input
-                                type="checkbox"
-                                checked={newRole.permissions[section]?.[perm] || false}
-                                onChange={(e) => handlePermissionChange(section, perm, e.target.checked)}
-                                className="w-5 h-5"
-                                disabled={isLoading}
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                   <div className="flex justify-center gap-4 pt-8 border-t border-gray-300">
                     <button
