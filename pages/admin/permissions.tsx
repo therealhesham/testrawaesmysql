@@ -52,6 +52,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     'إدارة التايم لاين',
     'إدارة المهن',
     'إدارة المكاتب الخارجية',
+    'إدارة الصلاحيات',
   ];
   const permissionItems = ['عرض', 'إضافة', 'تعديل', 'حذف'];
 
@@ -508,15 +509,21 @@ export async function getServerSideProps({ req }) {
       include: { role: true },
     });
 
-    // التحقق من أن المستخدم موجود وأن دوره هو manager أو admin فقط
-    const allowedRoles = ['manager', 'owner'];
+    // التحقق من أن المستخدم موجود
+    if (!findUser) {
+      return {
+        redirect: { destination: '/admin/home', permanent: false },
+      };
+    }
+
     const userRoleName = findUser?.role?.name?.toLowerCase();
+    const userPermissions = findUser?.role?.permissions as any;
     
-    if (
-      !findUser ||
-      !userRoleName ||
-      !allowedRoles.includes(userRoleName)
-    ) {
+    // Owner يدخل دائماً - أو المستخدم لديه صلاحية "عرض" في "إدارة الصلاحيات"
+    const isOwner = userRoleName === 'owner';
+    const hasPermissionAccess = userPermissions?.['إدارة الصلاحيات']?.['عرض'] === true;
+    
+    if (!isOwner && !hasPermissionAccess) {
       return {
         redirect: { destination: '/admin/home', permanent: false },
       };
