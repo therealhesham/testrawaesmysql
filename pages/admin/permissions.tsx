@@ -9,7 +9,7 @@ import Layout from 'example/containers/Layout';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { useRouter } from 'next/router';
-const PermissionsManagement = () => {
+const PermissionsManagement = ({ currentUserRoleId }: { currentUserRoleId: number }) => {
   // State for modals
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
@@ -34,6 +34,9 @@ const PermissionsManagement = () => {
     'إدارة التقارير',
     'إدارة المستخدمين',
     'إدارة القوالب',
+    'إدارة التايم لاين',
+    'إدارة المهن',
+    'إدارة المكاتب الخارجية',
   ];
   const permissionItems = ['عرض', 'إضافة', 'تعديل', 'حذف'];
 
@@ -167,18 +170,27 @@ const PermissionsManagement = () => {
                   {roles.map((role) => (
                     <th key={role.id} className="p-4 text-xl font-normal text-black">
                       {role.name}
-                      <button
-                        onClick={() => {
-                          setSelectedRole(role);
-                          setNewRole({ name: role.name, permissions: role.permissions || {} });
-                          setIsEditRoleModalOpen(true);
-                        }}
-                        className="mr-2 bg-transparent border-none cursor-pointer"
-                        disabled={isLoading}
-                        aria-label={`تعديل دور ${role.name}`}
-                      >
-                        <Edit className="w-4 h-4 text-teal-800 hover:text-teal-600" />
-                      </button>
+                      {role.id !== currentUserRoleId ? (
+                        <button
+                          onClick={() => {
+                            setSelectedRole(role);
+                            setNewRole({ name: role.name, permissions: role.permissions || {} });
+                            setIsEditRoleModalOpen(true);
+                          }}
+                          className="mr-2 bg-transparent border-none cursor-pointer"
+                          disabled={isLoading}
+                          aria-label={`تعديل دور ${role.name}`}
+                        >
+                          <Edit className="w-4 h-4 text-teal-800 hover:text-teal-600" />
+                        </button>
+                      ) : (
+                        <span 
+                          className="mr-2 inline-block" 
+                          title="لا يمكنك تعديل صلاحيات دورك الحالي"
+                        >
+                          <Edit className="w-4 h-4 text-gray-400 cursor-not-allowed" />
+                        </span>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -481,16 +493,21 @@ export async function getServerSideProps({ req }) {
       include: { role: true },
     });
 
+    // التحقق من أن المستخدم موجود وأن دوره هو manager أو admin فقط
+    const allowedRoles = ['manager', 'owner'];
+    const userRoleName = findUser?.role?.name?.toLowerCase();
+    
     if (
       !findUser ||
-      !findUser.role?.permissions?.['إدارة المستخدمين']?.['إضافة']
+      !userRoleName ||
+      !allowedRoles.includes(userRoleName)
     ) {
       return {
         redirect: { destination: '/admin/home', permanent: false },
       };
     }
 
-    return { props: {} };
+    return { props: { currentUserRoleId: findUser.roleId } };
   } catch (err) {
     console.error('Authorization error:', err);
     return {

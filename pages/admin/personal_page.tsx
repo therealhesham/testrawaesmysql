@@ -166,7 +166,13 @@ function SortableStageItem({ stage, index, onEdit, onDelete, isEditing }: Sortab
   );
 }
 
-export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean  }) {
+interface ProfilePermissions {
+  canManageTimeline: boolean;
+  canManageProfessions: boolean;
+  canManageOffices: boolean;
+}
+
+export default function Profile({ id, permissions }: { id: number, permissions: ProfilePermissions }) {
   const router = useRouter();
   const [formData, setFormData] = useState<UserData>({
     id: '',
@@ -183,7 +189,14 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfession, setEditingProfession] = useState<{ id: number; name: string } | null>(null);
-  const [activeTab, setActiveTab] = useState('professions');
+  // Set default active tab based on permissions
+  const getDefaultTab = () => {
+    if (permissions.canManageProfessions) return 'professions';
+    if (permissions.canManageOffices) return 'offices';
+    if (permissions.canManageTimeline) return 'timeline';
+    return 'professions';
+  };
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
   // SLA offices state
   const [offices, setOffices] = useState<any[]>([]);
   const [slaRules, setSlaRules] = useState<any[]>([]);
@@ -755,10 +768,11 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
             حفظ التغييرات
           </button>
         </div>
-{isAdmin && (
+{(permissions.canManageProfessions || permissions.canManageTimeline || permissions.canManageOffices) && (
   <>
         {/* Tabs */}
         <div className="flex gap-6 mb-5 border-b border-gray-200">
+          {permissions.canManageProfessions && (
           <button 
             onClick={() => setActiveTab('professions')}
             className={`pb-3 px-6 font-medium text-sm transition ${
@@ -769,16 +783,8 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           >
             إدارة المهن
           </button>
-          {/* <button 
-            onClick={() => setActiveTab('statements')}
-            className={`pb-3 px-6 font-medium text-sm transition ${
-              activeTab === 'statements' 
-                ? 'text-teal-700 border-b-2 border-teal-700' 
-                : 'text-gray-600 hover:text-teal-700'
-            }`}
-          >
-            إدارة البيان
-          </button> */}
+          )}
+          {permissions.canManageOffices && (
           <button 
             onClick={() => setActiveTab('offices')}
             className={`pb-3 px-6 font-medium text-sm transition ${
@@ -789,6 +795,8 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           >
             إدارة المكاتب الخارجية
           </button>
+          )}
+          {permissions.canManageTimeline && (
           <button 
             onClick={() => setActiveTab('timeline')}
             className={`pb-3 px-6 font-medium text-sm transition ${
@@ -799,10 +807,11 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
           >
             تخصيص الجدول الزمني
           </button>
+          )}
         </div>
         </>
 )}
-        {isAdmin && (
+        {permissions.canManageProfessions && (
           <>  
         {activeTab === 'professions' && (
           <>
@@ -879,18 +888,7 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
         </>
         )}
 
-        {isAdmin && (
-          <>
-         
-         
-        {/* {activeTab === 'statements' && (
-          <div className="bg-white rounded-lg p-8 shadow-sm">
-          </div>
-        )} */}
- </>
-        )}
-
-        {isAdmin && (
+        {permissions.canManageOffices && (
           <>
 
           {activeTab === 'offices' && (
@@ -1027,7 +1025,11 @@ export default function Profile({ id, isAdmin }: { id: number, isAdmin: boolean 
 
           </div>
         )}
-
+        </>
+        )}
+        
+        {permissions.canManageTimeline && (
+          <>
         {activeTab === 'timeline' && (
           <div className="bg-white rounded-lg p-8 shadow-sm">
             <div className="flex justify-between items-center mb-6">
@@ -1507,18 +1509,28 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       cookies[key] = decodeURIComponent(value);
     });
   }
-      let isAdmin = false;
-const token = jwtDecode(cookies.authToken) as any;
-      const detecIsAdmin = await prisma.user.findUnique({where:{id:Number(token.id)},include:{role:true}})
-if(detecIsAdmin?.role?.name == "owner" || detecIsAdmin?.role?.name == "manager"|| detecIsAdmin?.role?.name == "Manager" ){
-  isAdmin = true;
-}
+
   if (!cookies.authToken) {
     return { redirect: { destination: '/admin/login', permanent: false } };
   }
 
   try {
-    return { props: { id: Number(token.id), isAdmin } };
+    const token = jwtDecode(cookies.authToken) as any;
+    const findUser = await prisma.user.findUnique({
+      where: { id: Number(token.id) },
+      include: { role: true }
+    });
+
+    // Check specific permissions from the role's permissions JSON
+    const rolePermissions = findUser?.role?.permissions as any;
+    
+    const permissions: ProfilePermissions = {
+      canManageTimeline: !!rolePermissions?.["إدارة التايم لاين"]?.["تعديل"],
+      canManageProfessions: !!rolePermissions?.["إدارة المهن"]?.["تعديل"],
+      canManageOffices: !!rolePermissions?.["إدارة المكاتب الخارجية"]?.["تعديل"],
+    };
+
+    return { props: { id: Number(token.id), permissions } };
   } catch (err) {
     return { redirect: { destination: '/admin/login', permanent: false } };
   }

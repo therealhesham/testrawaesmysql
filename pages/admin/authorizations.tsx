@@ -16,7 +16,7 @@ import 'jspdf-autotable';
 
 import html2canvas from 'html2canvas';
 
-const UserManagement = () => {
+const UserManagement = ({ currentUserRole }: { currentUserRole: string }) => {
   // State for modals and visibility
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
@@ -105,6 +105,15 @@ useEffect(() => {
     fetchUsers();
     fetchRoles();
   }, [searchTerm, roleFilter, currentPage]);
+
+  // فلترة الأدوار المتاحة - إخفاء دور owner إذا المستخدم الحالي ليس owner
+  const getAvailableRoles = () => {
+    if (currentUserRole === 'owner') {
+      return roles; // الـ owner يرى كل الأدوار
+    }
+    // غير الـ owner لا يستطيع اختيار دور owner
+    return roles.filter((role) => role.name?.toLowerCase() !== 'owner');
+  };
 
   // Handle user form submission
   const handleAddUser = async () => {
@@ -528,7 +537,7 @@ const handleExportPDF = async () => {
                     className=" border border-gray-300 rounded text-right"
                   >
                     <option value="">اختر الدور</option>
-                    {roles.map((role) => (
+                    {getAvailableRoles().map((role) => (
                       <option key={role.id} value={role.id}>
                         {role.name}
                       </option>
@@ -605,7 +614,7 @@ const handleExportPDF = async () => {
                     className=" border border-gray-300 rounded text-right"
                   >
                     <option value="">اختر الدور</option>
-                    {roles.map((role) => (
+                    {getAvailableRoles().map((role) => (
                       <option key={role.id} value={role.id}>
                         {role.name}
                       </option>
@@ -732,7 +741,7 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    return { props: {} };
+    return { props: { currentUserRole: findUser.role?.name?.toLowerCase() || '' } };
   } catch (err) {
     console.error('Authorization error:', err);
     return {
