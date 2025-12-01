@@ -205,6 +205,61 @@ export default function TrackTimeline() {
     return fieldMap[field] || false;
   };
 
+  // دالة للتحقق من أن موعد الوصول قد مر
+  const isArrivalDatePassed = (): boolean => {
+    if (!orderData?.destinations?.arrivalDateTime) return false;
+    
+    const arrivalDateTime = new Date(orderData.destinations.arrivalDateTime);
+    const now = new Date();
+    
+    return now >= arrivalDateTime;
+  };
+
+  // دالة للتحقق مما إذا كان يمكن إكمال مرحلة معينة (المرحلة السابقة يجب أن تكون مكتملة)
+  const canCompleteStage = (stageIndex: number, stages: typeof sortedStages): boolean => {
+    // المرحلة الأولى يمكن إكمالها دائماً
+    if (stageIndex === 0) return true;
+    
+    // التحقق من أن جميع المراحل السابقة مكتملة
+    for (let i = 0; i < stageIndex; i++) {
+      if (!getFieldValue(stages[i].field)) {
+        return false;
+      }
+    }
+    
+    // التحقق الإضافي لمرحلة الاستلام: يجب أن يكون موعد الوصول قد مر
+    if (stages[stageIndex].field === 'receipt') {
+      if (!isArrivalDatePassed()) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  // دالة للحصول على سبب عدم إمكانية إكمال المرحلة
+  const getBlockingReason = (stageIndex: number, stages: typeof sortedStages): string | null => {
+    if (stageIndex === 0) return null;
+    
+    // التحقق من المراحل السابقة
+    for (let i = 0; i < stageIndex; i++) {
+      if (!getFieldValue(stages[i].field)) {
+        return `يجب إكمال: ${stages[i].label}`;
+      }
+    }
+    
+    // التحقق من موعد الوصول لمرحلة الاستلام
+    if (stages[stageIndex].field === 'receipt' && !isArrivalDatePassed()) {
+      if (!orderData?.destinations?.arrivalDateTime) {
+        return '⚠️ يجب تحديد موعد الوصول أولاً';
+      }
+      const arrivalDate = new Date(orderData.destinations.arrivalDateTime);
+      return `⏰ لا يمكن الاستلام قبل موعد الوصول (${arrivalDate.toLocaleDateString('ar-SA')} ${arrivalDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })})`;
+    }
+    
+    return null;
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -276,33 +331,33 @@ export default function TrackTimeline() {
           {/* Custom Timeline Stepper */}
           <section className="p-5 mb-6">
             <h2 className="text-3xl font-normal text-center mb-10">تتبع الطلب</h2>
-            <div className="flex no-wrap justify-center gap-5 overflow-x-auto">
+            <div className="flex items-center justify-between w-full">
               {sortedStages.map((stage, index) => {
                 const isCompleted = getFieldValue(stage.field);
                 const isActive = index === sortedStages.findIndex((s) => !getFieldValue(s.field));
 
                 return (
-                  <div key={index} className="flex items-start flex-shrink-0">
-                    <div className="flex flex-col items-center w-24 text-center">
+                  <div key={index} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center text-center flex-shrink-0">
                       <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center border ${
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
                           isCompleted
                             ? 'bg-teal-800 border-teal-800 text-white'
                             : isActive
                             ? 'bg-teal-600 border-teal-600 text-white'
-                            : 'border-teal-800 text-teal-800'
-                        } text-sm hover:scale-110 transition-transform`}
+                            : 'border-teal-800 text-teal-800 bg-white'
+                        } text-sm hover:scale-110 transition-transform shadow-md`}
                       >
                         {getIconComponent(stage.icon)}
                       </div>
-                      <p className="text-xs mt-2 text-gray-900 hover:text-teal-800 transition-colors">
+                      <p className="text-xs mt-2 text-gray-900 hover:text-teal-800 transition-colors max-w-[80px] leading-tight">
                         {stage.label}
                       </p>
                     </div>
                     {index < sortedStages.length - 1 && (
                       <div
-                        className={`flex-1 h-0.5 my-3.5 mx-2.5 ${
-                          isCompleted ? 'bg-teal-800' : 'bg-gray-500'
+                        className={`flex-1 h-1 mx-1 rounded-full ${
+                          isCompleted ? 'bg-teal-800' : 'bg-gray-300'
                         }`}
                       ></div>
                     )}
@@ -338,8 +393,33 @@ export default function TrackTimeline() {
           {sortedStages.map((stage, index) => {
             const fieldValue = getFieldValue(stage.field);
             
+            const canComplete = canCompleteStage(index, sortedStages);
+            
             // إذا كانت المرحلة هي destinations، نعرض جميع الحقول
             if (stage.field === 'destinations') {
+              // إذا كانت المرحلة مقفلة (المرحلة السابقة لم تكتمل)
+              if (!canComplete) {
+                return (
+                  <InfoCard
+                    key={index}
+                    id={`stage-${index}`}
+                    title={`${index + 1}- ${stage.label}`}
+                    data={[
+                      {
+                        label: '',
+                        value: (
+                          <div className="text-center py-4">
+                            <span className="text-gray-500 text-md">
+                              🔒 يجب إكمال المرحلة السابقة أولاً
+                            </span>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                );
+              }
+              
               return (
                 <InfoCard
                   key={index}
@@ -466,6 +546,29 @@ export default function TrackTimeline() {
 
             // إذا كانت المرحلة هي documentUpload، نعرض قسم رفع المستندات
             if (stage.field === 'documentUpload') {
+              // إذا كانت المرحلة مقفلة (المرحلة السابقة لم تكتمل)
+              if (!canComplete) {
+                return (
+                  <InfoCard
+                    key={index}
+                    id={`stage-${index}`}
+                    title={`${index + 1}- ${stage.label}`}
+                    data={[
+                      {
+                        label: '',
+                        value: (
+                          <div className="text-center py-4">
+                            <span className="text-gray-500 text-md">
+                              🔒 يجب إكمال المرحلة السابقة أولاً
+                            </span>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                );
+              }
+              
               return (
                 <InfoCard
                   key={index}
@@ -649,6 +752,7 @@ export default function TrackTimeline() {
             }
             
             // المراحل العادية
+            const blockingReason = getBlockingReason(index, sortedStages);
             return (
               <InfoCard
                 key={index}
@@ -659,6 +763,18 @@ export default function TrackTimeline() {
                     label: `هل تم إكمال ${stage.label}؟`,
                     value: fieldValue ? (
                       <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الإكمال" />
+                    ) : !canComplete ? (
+                      <div className="text-center">
+                        <span className="text-red-600 text-sm block mb-2">
+                          {blockingReason || 'يجب إكمال المرحلة السابقة أولاً'}
+                        </span>
+                        <button
+                          className="bg-gray-400 text-white px-4 py-2 rounded-md text-md cursor-not-allowed"
+                          disabled
+                        >
+                          تأكيد الإكمال
+                        </button>
+                      </div>
                     ) : (
                       <button
                         className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"

@@ -107,6 +107,112 @@ export default function TrackOrder() {
 
   const [currentStep, setCurrentStep] = useState(0);
 
+  // دالة للتحقق من اكتمال مرحلة معينة
+  const isStepCompleted = (stepName: string): boolean => {
+    if (!orderData) return false;
+    
+    switch (stepName) {
+      case 'officeLinkInfo':
+        // الربط مع إدارة المكاتب - مكتمل إذا كان هناك رقم تأشيرة أو رقم عقد
+        return !!(orderData.officeLinkInfo.visaNumber || orderData.officeLinkInfo.internalMusanedContract);
+      case 'externalOfficeInfo':
+        // المكتب الخارجي - مكتمل إذا كان هناك اسم مكتب
+        return !!orderData.externalOfficeInfo.officeName;
+      case 'externalOfficeApproval':
+        return orderData.externalOfficeApproval.approved;
+      case 'medicalCheck':
+        return orderData.medicalCheck.passed;
+      case 'foreignLaborApproval':
+        return orderData.foreignLaborApproval.approved;
+      case 'agencyPayment':
+        return orderData.agencyPayment.paid;
+      case 'saudiEmbassyApproval':
+        return orderData.saudiEmbassyApproval.approved;
+      case 'visaIssuance':
+        return orderData.visaIssuance.issued;
+      case 'travelPermit':
+        return orderData.travelPermit.issued;
+      case 'destinations':
+        // الوجهات - مكتمل إذا كان هناك تاريخ مغادرة أو وصول
+        return !!(orderData.destinations.departureDateTime || orderData.destinations.arrivalDateTime);
+      case 'receipt':
+        return orderData.receipt.received;
+      default:
+        return false;
+    }
+  };
+
+  // ترتيب المراحل
+  const stepsOrder = [
+    'officeLinkInfo',
+    'externalOfficeInfo', 
+    'externalOfficeApproval',
+    'medicalCheck',
+    'foreignLaborApproval',
+    'agencyPayment',
+    'saudiEmbassyApproval',
+    'visaIssuance',
+    'travelPermit',
+    'destinations',
+    'receipt'
+  ];
+
+  // دالة للتحقق من أن موعد الوصول قد مر
+  const isArrivalDatePassed = (): boolean => {
+    if (!orderData?.destinations?.arrivalDateTime) return false;
+    
+    const arrivalDateTime = new Date(orderData.destinations.arrivalDateTime);
+    const now = new Date();
+    
+    return now >= arrivalDateTime;
+  };
+
+  // دالة للتحقق من أن المرحلة السابقة مكتملة
+  const canCompleteStep = (stepName: string): boolean => {
+    const stepIndex = stepsOrder.indexOf(stepName);
+    if (stepIndex === 0) return true; // المرحلة الأولى يمكن إكمالها دائماً
+    if (stepIndex === -1) return false;
+    
+    // التحقق من أن كل المراحل السابقة مكتملة
+    for (let i = 0; i < stepIndex; i++) {
+      if (!isStepCompleted(stepsOrder[i])) {
+        return false;
+      }
+    }
+    
+    // التحقق الإضافي لمرحلة الاستلام: يجب أن يكون موعد الوصول قد مر
+    if (stepName === 'receipt') {
+      if (!isArrivalDatePassed()) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  // دالة للحصول على اسم المرحلة السابقة غير المكتملة
+  const getPreviousIncompleteStep = (stepName: string): string | null => {
+    const stepIndex = stepsOrder.indexOf(stepName);
+    if (stepIndex <= 0) return null;
+    
+    for (let i = 0; i < stepIndex; i++) {
+      if (!isStepCompleted(stepsOrder[i])) {
+        return fieldNames[stepsOrder[i]] || stepsOrder[i];
+      }
+    }
+    
+    // التحقق الإضافي لمرحلة الاستلام: إذا لم يحن موعد الوصول بعد
+    if (stepName === 'receipt' && !isArrivalDatePassed()) {
+      if (!orderData?.destinations?.arrivalDateTime) {
+        return 'تحديد موعد الوصول أولاً';
+      }
+      const arrivalDate = new Date(orderData.destinations.arrivalDateTime);
+      return `موعد الوصول (${arrivalDate.toLocaleDateString('ar-SA')} ${arrivalDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })})`;
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
     if (id) {
       fetchOrderData();
@@ -681,13 +787,19 @@ export default function TrackOrder() {
                 value: orderData.externalOfficeApproval.approved ? (
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('externalOfficeApproval', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الموافقة
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('externalOfficeApproval', true)}
+                      disabled={updating || !canCompleteStep('externalOfficeApproval')}
+                      title={!canCompleteStep('externalOfficeApproval') ? `يجب إكمال: ${getPreviousIncompleteStep('externalOfficeApproval')}` : ''}
+                    >
+                      تأكيد الموافقة
+                    </button>
+                    {!canCompleteStep('externalOfficeApproval') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('externalOfficeApproval')}</span>
+                    )}
+                  </div>
                 ),
               },
             ]}
@@ -710,13 +822,19 @@ export default function TrackOrder() {
                 value: orderData.medicalCheck.passed ? (
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الاجتياز" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('medicalCheck', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الاجتياز
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('medicalCheck', true)}
+                      disabled={updating || !canCompleteStep('medicalCheck')}
+                      title={!canCompleteStep('medicalCheck') ? `يجب إكمال: ${getPreviousIncompleteStep('medicalCheck')}` : ''}
+                    >
+                      تأكيد الاجتياز
+                    </button>
+                    {!canCompleteStep('medicalCheck') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('medicalCheck')}</span>
+                    )}
+                  </div>
                 ),
               },
               {
@@ -838,13 +956,19 @@ export default function TrackOrder() {
                 value: orderData.foreignLaborApproval.approved ? (
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الموافقة" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('foreignLaborApproval', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الموافقة
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('foreignLaborApproval', true)}
+                      disabled={updating || !canCompleteStep('foreignLaborApproval')}
+                      title={!canCompleteStep('foreignLaborApproval') ? `يجب إكمال: ${getPreviousIncompleteStep('foreignLaborApproval')}` : ''}
+                    >
+                      تأكيد الموافقة
+                    </button>
+                    {!canCompleteStep('foreignLaborApproval') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('foreignLaborApproval')}</span>
+                    )}
+                  </div>
                 ),
               },
             ]}
@@ -867,13 +991,19 @@ export default function TrackOrder() {
                 value: orderData.agencyPayment.paid ? (
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الدفع" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('agencyPayment', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الدفع
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('agencyPayment', true)}
+                      disabled={updating || !canCompleteStep('agencyPayment')}
+                      title={!canCompleteStep('agencyPayment') ? `يجب إكمال: ${getPreviousIncompleteStep('agencyPayment')}` : ''}
+                    >
+                      تأكيد الدفع
+                    </button>
+                    {!canCompleteStep('agencyPayment') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('agencyPayment')}</span>
+                    )}
+                  </div>
                 ),
               },
             ]}
@@ -896,13 +1026,19 @@ export default function TrackOrder() {
                 value: orderData.saudiEmbassyApproval.approved ? (
                   <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('saudiEmbassyApproval', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الموافقة
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('saudiEmbassyApproval', true)}
+                      disabled={updating || !canCompleteStep('saudiEmbassyApproval')}
+                      title={!canCompleteStep('saudiEmbassyApproval') ? `يجب إكمال: ${getPreviousIncompleteStep('saudiEmbassyApproval')}` : ''}
+                    >
+                      تأكيد الموافقة
+                    </button>
+                    {!canCompleteStep('saudiEmbassyApproval') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('saudiEmbassyApproval')}</span>
+                    )}
+                  </div>
                 ),
               },
             ]}
@@ -925,13 +1061,19 @@ export default function TrackOrder() {
                 value: orderData.visaIssuance.issued ? (
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الإصدار" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('visaIssuance', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الإصدار
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('visaIssuance', true)}
+                      disabled={updating || !canCompleteStep('visaIssuance')}
+                      title={!canCompleteStep('visaIssuance') ? `يجب إكمال: ${getPreviousIncompleteStep('visaIssuance')}` : ''}
+                    >
+                      تأكيد الإصدار
+                    </button>
+                    {!canCompleteStep('visaIssuance') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('visaIssuance')}</span>
+                    )}
+                  </div>
                 ),
               },
             ]}
@@ -954,13 +1096,19 @@ export default function TrackOrder() {
                 value: orderData.travelPermit.issued ? (
                   <CheckCircleIcon className="w-8 h-8 text-teal-800 mx-auto" aria-label="تم الإصدار" />
                 ) : (
-                  <button
-                    className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
-                    onClick={() => handleStatusUpdate('travelPermit', true)}
-                    disabled={updating}
-                  >
-                    تأكيد الإصدار
-                  </button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('travelPermit', true)}
+                      disabled={updating || !canCompleteStep('travelPermit')}
+                      title={!canCompleteStep('travelPermit') ? `يجب إكمال: ${getPreviousIncompleteStep('travelPermit')}` : ''}
+                    >
+                      تأكيد الإصدار
+                    </button>
+                    {!canCompleteStep('travelPermit') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('travelPermit')}</span>
+                    )}
+                  </div>
                 ),
               },
             ]}
@@ -1115,114 +1263,129 @@ export default function TrackOrder() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2 flex flex-row justify-center gap-6" >
-                    <div className="flex items-center  gap-2 text-right">
-                      <input
-                        type="radio"
-                        id="receipt-direct"
-                        name="receipt-method"
-                        value="direct"
-                        className="ml-2"
-                        checked={orderData.receipt.method === 'direct'}
-                        onChange={async (e) => {
-                          if (e.target.checked) {
-                            // تأكيد الاستلام تلقائياً عند اختيار الطريقة
-                            setUpdating(true);
-                            try {
-                              const res = await fetch(`/api/track_order/${id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                  field: 'receipt', 
-                                  value: true,
-                                  section: 'receipt',
-                                  updatedData: { method: 'direct' }
-                                }),
-                              });
-                              if (res.ok) {
-                                await fetchOrderData();
+                  <div className="flex flex-col items-center gap-3">
+                    {!canCompleteStep('receipt') && (
+                      <span className="text-red-600 text-sm">
+                        {!isArrivalDatePassed() && orderData.destinations?.arrivalDateTime
+                          ? `⏰ لا يمكن الاستلام قبل موعد الوصول (${new Date(orderData.destinations.arrivalDateTime).toLocaleDateString('ar-SA')} ${new Date(orderData.destinations.arrivalDateTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })})`
+                          : !orderData.destinations?.arrivalDateTime
+                            ? '⚠️ يجب تحديد موعد الوصول أولاً'
+                            : `يجب إكمال: ${getPreviousIncompleteStep('receipt')}`
+                        }
+                      </span>
+                    )}
+                    <div className={`space-y-2 flex flex-row justify-center gap-6 ${!canCompleteStep('receipt') ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className="flex items-center  gap-2 text-right">
+                        <input
+                          type="radio"
+                          id="receipt-direct"
+                          name="receipt-method"
+                          value="direct"
+                          className="ml-2"
+                          checked={orderData.receipt.method === 'direct'}
+                          disabled={!canCompleteStep('receipt')}
+                          onChange={async (e) => {
+                            if (e.target.checked && canCompleteStep('receipt')) {
+                              // تأكيد الاستلام تلقائياً عند اختيار الطريقة
+                              setUpdating(true);
+                              try {
+                                const res = await fetch(`/api/track_order/${id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ 
+                                    field: 'receipt', 
+                                    value: true,
+                                    section: 'receipt',
+                                    updatedData: { method: 'direct' }
+                                  }),
+                                });
+                                if (res.ok) {
+                                  await fetchOrderData();
+                                }
+                              } catch (error) {
+                                console.error('Error updating receipt:', error);
+                              } finally {
+                                setUpdating(false);
                               }
-                            } catch (error) {
-                              console.error('Error updating receipt:', error);
-                            } finally {
-                              setUpdating(false);
                             }
-                          }
-                        }}
-                      />
-                      <label htmlFor="receipt-direct" className="text-gray-700">مباشر</label>
-                    </div>
-                    <div className="flex items-center gap-2 text-right">
-                      <input
-                        type="radio"
-                        id="receipt-indirect"
-                        name="receipt-method"
-                        value="indirect"
-                        className="ml-2"
-                        checked={orderData.receipt.method === 'indirect'}
-                        onChange={async (e) => {
-                          if (e.target.checked) {
-                            // تأكيد الاستلام تلقائياً عند اختيار الطريقة
-                            setUpdating(true);
-                            try {
-                              const res = await fetch(`/api/track_order/${id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                  field: 'receipt', 
-                                  value: true,
-                                  section: 'receipt',
-                                  updatedData: { method: 'indirect' }
-                                }),
-                              });
-                              if (res.ok) {
-                                await fetchOrderData();
+                          }}
+                        />
+                        <label htmlFor="receipt-direct" className="text-gray-700">مباشر</label>
+                      </div>
+                      <div className="flex items-center gap-2 text-right">
+                        <input
+                          type="radio"
+                          id="receipt-indirect"
+                          name="receipt-method"
+                          value="indirect"
+                          className="ml-2"
+                          checked={orderData.receipt.method === 'indirect'}
+                          disabled={!canCompleteStep('receipt')}
+                          onChange={async (e) => {
+                            if (e.target.checked && canCompleteStep('receipt')) {
+                              // تأكيد الاستلام تلقائياً عند اختيار الطريقة
+                              setUpdating(true);
+                              try {
+                                const res = await fetch(`/api/track_order/${id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ 
+                                    field: 'receipt', 
+                                    value: true,
+                                    section: 'receipt',
+                                    updatedData: { method: 'indirect' }
+                                  }),
+                                });
+                                if (res.ok) {
+                                  await fetchOrderData();
+                                }
+                              } catch (error) {
+                                console.error('Error updating receipt:', error);
+                              } finally {
+                                setUpdating(false);
                               }
-                            } catch (error) {
-                              console.error('Error updating receipt:', error);
-                            } finally {
-                              setUpdating(false);
                             }
-                          }
-                        }}
-                      />
-                      <label htmlFor="receipt-indirect" className="text-gray-700">غير مباشر</label>
-                    </div>
-                    <div className="flex items-center gap-2 text-right">
-                      <input
-                        type="radio"
-                        id="receipt-intermediary"
-                        name="receipt-method"
-                        value="intermediary"
-                        className="ml-2"
-                        checked={orderData.receipt.method === 'intermediary'}
-                        onChange={async (e) => {
-                          if (e.target.checked) {
-                            // تأكيد الاستلام تلقائياً عند اختيار الطريقة
-                            setUpdating(true);
-                            try {
-                              const res = await fetch(`/api/track_order/${id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                  field: 'receipt', 
-                                  value: true,
-                                  section: 'receipt',
-                                  updatedData: { method: 'intermediary' }
-                                }),
-                              });
-                              if (res.ok) {
-                                await fetchOrderData();
+                          }}
+                        />
+                        <label htmlFor="receipt-indirect" className="text-gray-700">غير مباشر</label>
+                      </div>
+                      <div className="flex items-center gap-2 text-right">
+                        <input
+                          type="radio"
+                          id="receipt-intermediary"
+                          name="receipt-method"
+                          value="intermediary"
+                          className="ml-2"
+                          checked={orderData.receipt.method === 'intermediary'}
+                          disabled={!canCompleteStep('receipt')}
+                          onChange={async (e) => {
+                            if (e.target.checked && canCompleteStep('receipt')) {
+                              // تأكيد الاستلام تلقائياً عند اختيار الطريقة
+                              setUpdating(true);
+                              try {
+                                const res = await fetch(`/api/track_order/${id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ 
+                                    field: 'receipt', 
+                                    value: true,
+                                    section: 'receipt',
+                                    updatedData: { method: 'intermediary' }
+                                  }),
+                                });
+                                if (res.ok) {
+                                  await fetchOrderData();
+                                }
+                              } catch (error) {
+                                console.error('Error updating receipt:', error);
+                              } finally {
+                                setUpdating(false);
                               }
-                            } catch (error) {
-                              console.error('Error updating receipt:', error);
-                            } finally {
-                              setUpdating(false);
                             }
-                          }
-                        }}
-                      />
-                      <label htmlFor="receipt-intermediary" className="text-gray-700">عن طريق وسيط</label>
+                          }}
+                        />
+                        <label htmlFor="receipt-intermediary" className="text-gray-700">عن طريق وسيط</label>
+                      </div>
                     </div>
                   </div>
                 ),
