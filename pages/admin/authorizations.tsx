@@ -45,7 +45,8 @@ useEffect(() => {
   const [totalPages, setTotalPages] = useState(1);
 
   // State for form inputs
-  const [newUser, setNewUser] = useState({ username: '', phonenumber: '', idnumber: '', password: '', roleId: '' });
+  const [newUser, setNewUser] = useState({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Ref for the table
   const tableRef = useRef(null);
@@ -132,7 +133,7 @@ useEffect(() => {
     try {
       await axios.post('/api/users', newUser);
       setIsAddUserModalOpen(false);
-      setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', roleId: '' });
+      setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
       fetchUsers();
       showNotification('تمت إضافة المستخدم بنجاح.');
     } catch (error) {
@@ -145,7 +146,7 @@ useEffect(() => {
     try {
       await axios.put(`/api/users/${selectedUser.id}`, newUser);
       setIsEditUserModalOpen(false);
-      setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', roleId: '' });
+      setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
       setSelectedUser(null);
       fetchUsers();
       showNotification('تم تعديل المستخدم بنجاح.');
@@ -172,6 +173,45 @@ useEffect(() => {
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
+    }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // التحقق من نوع الملف
+    if (!file.type.startsWith('image/')) {
+      showNotification('يرجى اختيار صورة فقط', 'error');
+      return;
+    }
+
+    // التحقق من حجم الملف (أقل من 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('حجم الصورة يجب أن يكون أقل من 5 ميجابايت', 'error');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      // تحويل الصورة إلى Base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setNewUser({ ...newUser, pictureurl: base64String });
+        setUploadingImage(false);
+      };
+      reader.onerror = () => {
+        showNotification('حدث خطأ أثناء قراءة الصورة', 'error');
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showNotification('حدث خطأ أثناء رفع الصورة', 'error');
+      setUploadingImage(false);
     }
   };
 
@@ -348,40 +388,43 @@ const handleExportPDF = async () => {
 
   return (
     <Layout>
-      <div className={`min-h-screen bg-gray-100 font-tajawal p-8 dir-rtl ${Style['tajawal-regular']}`}>
+      <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-tajawal p-8 dir-rtl ${Style['tajawal-regular']}`}>
         <Head>
           <title>إدارة المستخدمين</title>
         </Head>
         <section className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-normal text-black">إدارة المستخدمين</h1>
-            <div className="flex gap-4">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">إدارة المستخدمين</h1>
+              <p className="text-gray-600 text-sm">إدارة وتحكم في حسابات المستخدمين والصلاحيات</p>
+            </div>
+            <div className="flex gap-3">
               <button
                 onClick={() => setIsAddUserModalOpen(true)}
-                className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-700"
+                className="flex items-center gap-2 bg-gradient-to-r from-teal-700 to-teal-800 text-white px-6 py-3 rounded-lg text-sm font-medium hover:from-teal-800 hover:to-teal-900 transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 <span>إضافة مستخدم</span>
               </button>
               <Link href="/admin/permissions">
-                <a className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-700">
+                <a className="flex items-center gap-2 bg-white text-teal-800 border-2 border-teal-800 px-6 py-3 rounded-lg text-sm font-medium hover:bg-teal-50 transition-all duration-200 shadow-md hover:shadow-lg">
                   <span>إدارة الصلاحيات</span>
                 </a>
               </Link>
             </div>
           </div>
-          <div className="bg-gray-100 border border-gray-300 rounded-md p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <div className="flex gap-3">
                 <button
                   onClick={handleExportExcel}
-                  className="flex items-center gap-2 bg-teal-800 text-white px-3 py-2 rounded-md text-xs hover:bg-teal-700"
+                  className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <FileExcelFilled />
                   Excel
                 </button>
                 <button
                   onClick={() => handleExportPDF()}
-                  className="flex items-center gap-2 bg-teal-800 text-white px-3 py-2 rounded-md text-xs hover:bg-teal-700"
+                  className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-700 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <FilePdfFilled />
                   PDF
@@ -394,15 +437,15 @@ const handleExportPDF = async () => {
                     setRoleFilter('');
                     setCurrentPage(1);
                   }}
-                  className="bg-teal-800 text-white px-3 py-2 rounded-md text-xs hover:bg-teal-700"
+                  className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all duration-200 border border-gray-300"
                 >
                   إعادة ضبط
                 </button>
-                <div className="flex items-center gap-2 bg-gray-200 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 bg-white border-2 border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:border-teal-500 focus-within:border-teal-600 transition-all duration-200 shadow-sm">
                   <select
                     value={roleFilter}
                     onChange={(e) => setRoleFilter(e.target.value)}
-                    className="bg-transparent border-none text-right"
+                    className="bg-transparent border-none text-right outline-none cursor-pointer"
                   >
                     <option value="">المسمى الوظيفي</option>
                     {roles.map((role) => (
@@ -412,19 +455,19 @@ const handleExportPDF = async () => {
                     ))}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 bg-gray-200 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                <div className="flex items-center gap-2 bg-white border-2 border-gray-300 rounded-lg px-4 py-2 text-sm hover:border-teal-500 focus-within:border-teal-600 transition-all duration-200 shadow-sm">
                   <input
                     type="text"
                     placeholder="بحث"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-transparent border-none text-right placeholder-gray-500"
+                    className="bg-transparent border-none text-right placeholder-gray-400 outline-none w-40"
                   />
                 </div>
               </div>
             </div>
-            <div className="border border-gray-300 rounded-md overflow-hidden" ref={tableRef}>
-              <div className="grid grid-cols-[0.5fr_1.5fr_1fr_1.2fr_1fr_1fr_0.8fr] bg-teal-800 text-white text-sm h-12 items-center px-4">
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm" ref={tableRef}>
+              <div className="grid grid-cols-[0.5fr_2fr_1fr_1.2fr_1fr_1fr_0.8fr] bg-gradient-to-r from-teal-700 to-teal-800 text-white text-sm font-semibold h-14 items-center px-6">
                 <div>#</div>
                 <div>الاسم</div>
                 <div>ID</div>
@@ -434,20 +477,45 @@ const handleExportPDF = async () => {
                 <div className="text-center">الإجراءات</div>
               </div>
               <div className="flex flex-col">
-                {users.map((user) => (
+                {users.map((user, index) => (
                   <div
                     key={user.id}
-                    className="grid grid-cols-[0.5fr_1.5fr_1fr_1.2fr_1fr_1fr_0.8fr] bg-gray-200 h-12 items-center px-4 border-b border-gray-300 last:border-b-0 text-sm"
+                    className={`grid grid-cols-[0.5fr_2fr_1fr_1.2fr_1fr_1fr_0.8fr] ${
+                      index % 2 === 0 ? 'bg-gray-50' : 'bg-white'
+                    } h-16 items-center px-6 border-b border-gray-200 last:border-b-0 text-sm hover:bg-teal-50 transition-colors duration-150`}
                   >
-                    <div>{user.id}</div>
-                    <div>{user.username}</div>
-                    <div>{user.idnumber}</div>
-                    <div>{user.phonenumber}</div>
-                    <div className="text-center text-xs">{user.role?.name || 'غير محدد'}</div>
-                    <div className="text-center text-xs">
+                    <div className="text-gray-600 font-medium">{user.id}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        {user.pictureurl ? (
+                          <img
+                            src={user.pictureurl}
+                            alt={user.username}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-teal-600 shadow-sm"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23047857"%3E%3Cpath d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/%3E%3C/svg%3E';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center text-white font-bold text-sm shadow-sm border-2 border-teal-600">
+                            {user.username?.charAt(0)?.toUpperCase() || '؟'}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-gray-800 font-medium">{user.username}</div>
+                    </div>
+                    <div className="text-gray-700">{user.idnumber}</div>
+                    <div className="text-gray-700">{user.phonenumber}</div>
+                    <div className="text-center">
+                      <span className="inline-block bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-xs font-medium">
+                        {user.role?.name || 'غير محدد'}
+                      </span>
+                    </div>
+                    <div className="text-center text-xs text-gray-600">
                       {new Date(user.createdAt).toLocaleDateString('ar-SA')}
                     </div>
-                    <div className="text-center flex justify-center gap-2">
+                    <div className="text-center flex justify-center gap-3">
                       {canEditUser(user) ? (
                         <>
                           <button
@@ -458,27 +526,31 @@ const handleExportPDF = async () => {
                                 phonenumber: user.phonenumber,
                                 idnumber: user.idnumber,
                                 password: '',
+                                email: user.email || '',
                                 roleId: user.roleId || '',
+                                pictureurl: user.pictureurl || '',
                               });
                               setIsEditUserModalOpen(true);
                             }}
-                            className="bg-transparent border-none cursor-pointer"
+                            className="bg-transparent border-none cursor-pointer p-1.5 rounded-lg hover:bg-teal-100 transition-colors duration-150"
+                            title="تعديل"
                           >
-                            <Edit className="w-5 h-5 text-teal-800 hover:text-teal-600" />
+                            <Edit className="w-5 h-5 text-teal-700 hover:text-teal-900" />
                           </button>
                           <button
                             onClick={() => {
                               setSelectedUser(user);
                               setIsDeleteUserModalOpen(true);
                             }}
-                            className="bg-transparent border-none cursor-pointer"
+                            className="bg-transparent border-none cursor-pointer p-1.5 rounded-lg hover:bg-red-100 transition-colors duration-150"
+                            title="حذف"
                           >
                             <Trash className="w-5 h-5 text-red-600 hover:text-red-800" />
                           </button>
                         </>
                       ) : (
                         <span 
-                          className="text-gray-400 text-xs"
+                          className="inline-block bg-gray-200 text-gray-500 px-3 py-1 rounded-full text-xs font-medium"
                           title="لا يمكنك تعديل أو حذف هذا المستخدم"
                         >
                           محمي
@@ -489,16 +561,15 @@ const handleExportPDF = async () => {
                 ))}
               </div>
             </div>
-            <div className="flex justify-between items-center pt-12">
-              <p className="text-base text-black">
-     عرض {(currentPage - 1) * 8 + 1}-{Math.min(currentPage * 8, users.length)} من {users.length} نتيجة
-
+            <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
+              <p className="text-sm text-gray-600 font-medium">
+                عرض {(currentPage - 1) * 8 + 1}-{Math.min(currentPage * 8, users.length)} من {users.length} نتيجة
               </p>
-              <nav className="flex gap-1">
+              <nav className="flex gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="flex items-center justify-center min-w-[18px] h-[18px] px-2 border border-gray-300 bg-gray-200 rounded text-xs text-gray-800 disabled:opacity-50"
+                  className="flex items-center justify-center px-4 py-2 border-2 border-gray-300 bg-white rounded-lg text-sm text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-teal-600 transition-all duration-200"
                 >
                   السابق
                 </button>
@@ -506,10 +577,10 @@ const handleExportPDF = async () => {
                   <button
                     key={i}
                     onClick={() => handlePageChange(i + 1)}
-                    className={`flex items-center justify-center min-w-[18px] h-[18px] px-2 border rounded text-xs ${
+                    className={`flex items-center justify-center min-w-[40px] h-[40px] px-3 border-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       currentPage === i + 1
-                        ? 'border-teal-800 bg-teal-800 text-white'
-                        : 'border-gray-300 bg-gray-200 text-gray-800'
+                        ? 'border-teal-800 bg-teal-800 text-white shadow-md'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-teal-600'
                     }`}
                   >
                     {i + 1}
@@ -518,7 +589,7 @@ const handleExportPDF = async () => {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="flex items-center justify-center min-w-[18px] h-[18px] px-2 border border-gray-300 bg-gray-200 rounded text-xs text-gray-800 disabled:opacity-50"
+                  className="flex items-center justify-center px-4 py-2 border-2 border-gray-300 bg-white rounded-lg text-sm text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-teal-600 transition-all duration-200"
                 >
                   التالي
                 </button>
@@ -528,36 +599,93 @@ const handleExportPDF = async () => {
         </section>
         {/* Add User Modal */}
         {isAddUserModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-gray-200 rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-xl font-normal mb-5 text-gray-800">إضافة مستخدم</h3>
-              <div className="grid grid-cols-2 gap-4">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center backdrop-blur-sm z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b border-gray-200 pb-4">إضافة مستخدم جديد</h3>
+              
+              {/* صورة المستخدم */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative mb-4">
+                  {uploadingImage ? (
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-teal-600 shadow-lg">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+                    </div>
+                  ) : newUser.pictureurl ? (
+                    <img
+                      src={newUser.pictureurl}
+                      alt="صورة المستخدم"
+                      className="w-24 h-24 rounded-full object-cover border-4 border-teal-600 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center text-white font-bold text-3xl shadow-lg border-4 border-teal-600">
+                      {newUser.username?.charAt(0)?.toUpperCase() || '👤'}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-center gap-3 w-full">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                    <div className="bg-gradient-to-r from-teal-600 to-teal-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:from-teal-700 hover:to-teal-800 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>رفع صورة</span>
+                    </div>
+                  </label>
+                  
+                  {newUser.pictureurl && (
+                    <button
+                      type="button"
+                      onClick={() => setNewUser({ ...newUser, pictureurl: '' })}
+                      className="text-red-600 text-sm hover:text-red-800 transition-colors duration-200 flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>حذف الصورة</span>
+                    </button>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 text-center">
+                    الحد الأقصى: 5 ميجابايت | الصيغ المدعومة: JPG, PNG, GIF
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-5">
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">الاسم</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">الاسم</label>
                   <input
                     type="text"
                     placeholder="الاسم الكامل"
                     value={newUser.username}
                     onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">ID</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">رقم الهوية</label>
                   <input
                     type="text"
                     placeholder="رقم الهوية"
                     value={newUser.idnumber}
                     onChange={(e) => setNewUser({ ...newUser, idnumber: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">المسمى الوظيفي</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">المسمى الوظيفي</label>
                   <select
                     value={newUser.roleId}
                     onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
-                    className=" border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200 cursor-pointer"
                   >
                     <option value="">اختر الدور</option>
                     {getAvailableRoles().map((role) => (
@@ -568,36 +696,46 @@ const handleExportPDF = async () => {
                   </select>
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">رقم الجوال</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">رقم الجوال</label>
                   <input
                     type="text"
                     placeholder="رقم الجوال"
                     value={newUser.phonenumber}
                     onChange={(e) => setNewUser({ ...newUser, phonenumber: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">كلمة المرور</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    placeholder="example@email.com"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium mb-2 text-gray-700">كلمة المرور</label>
                   <input
                     type="password"
                     placeholder="كلمة المرور"
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
               </div>
-              <div className="flex justify-center gap-3 mt-5">
+              <div className="flex justify-center gap-4 mt-8 pt-6 border-t border-gray-200">
                 <button
                   onClick={handleAddUser}
-                  className="bg-teal-800 text-white px-5 py-2 rounded text-sm hover:bg-teal-700"
+                  className="bg-gradient-to-r from-teal-700 to-teal-800 text-white px-8 py-3 rounded-lg text-sm font-medium hover:from-teal-800 hover:to-teal-900 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   حفظ
                 </button>
                 <button
                   onClick={() => setIsAddUserModalOpen(false)}
-                  className="bg-white text-teal-800 border border-teal-800 px-5 py-2 rounded text-sm hover:bg-gray-100"
+                  className="bg-white text-gray-700 border-2 border-gray-300 px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   إلغاء
                 </button>
@@ -607,34 +745,91 @@ const handleExportPDF = async () => {
         )}
         {/* Edit User Modal */}
         {isEditUserModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-gray-200 rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-xl font-normal mb-5 text-gray-800">تعديل بيانات مستخدم</h3>
-              <div className="grid grid-cols-2 gap-4">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center backdrop-blur-sm z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b border-gray-200 pb-4">تعديل بيانات مستخدم</h3>
+              
+              {/* صورة المستخدم */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative mb-4">
+                  {uploadingImage ? (
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-teal-600 shadow-lg">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+                    </div>
+                  ) : newUser.pictureurl ? (
+                    <img
+                      src={newUser.pictureurl}
+                      alt="صورة المستخدم"
+                      className="w-24 h-24 rounded-full object-cover border-4 border-teal-600 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-600 to-teal-700 flex items-center justify-center text-white font-bold text-3xl shadow-lg border-4 border-teal-600">
+                      {newUser.username?.charAt(0)?.toUpperCase() || '👤'}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-center gap-3 w-full">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                    <div className="bg-gradient-to-r from-teal-600 to-teal-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:from-teal-700 hover:to-teal-800 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>رفع صورة</span>
+                    </div>
+                  </label>
+                  
+                  {newUser.pictureurl && (
+                    <button
+                      type="button"
+                      onClick={() => setNewUser({ ...newUser, pictureurl: '' })}
+                      className="text-red-600 text-sm hover:text-red-800 transition-colors duration-200 flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>حذف الصورة</span>
+                    </button>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 text-center">
+                    الحد الأقصى: 5 ميجابايت | الصيغ المدعومة: JPG, PNG, GIF
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-5">
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">الاسم</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">الاسم</label>
                   <input
                     type="text"
                     value={newUser.username}
                     onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">ID</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">رقم الهوية</label>
                   <input
                     type="text"
                     value={newUser.idnumber}
                     onChange={(e) => setNewUser({ ...newUser, idnumber: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">المسمى الوظيفي</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">المسمى الوظيفي</label>
                   <select
                     value={newUser.roleId}
                     onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
-                    className=" border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200 cursor-pointer"
                   >
                     <option value="">اختر الدور</option>
                     {getAvailableRoles().map((role) => (
@@ -645,29 +840,39 @@ const handleExportPDF = async () => {
                   </select>
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">رقم الجوال</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">رقم الجوال</label>
                   <input
                     type="text"
                     value={newUser.phonenumber}
                     onChange={(e) => setNewUser({ ...newUser, phonenumber: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm mb-2">كلمة المرور (اختياري)</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    placeholder="example@email.com"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium mb-2 text-gray-700">كلمة المرور (اختياري)</label>
                   <input
                     type="password"
                     placeholder="أدخل كلمة مرور جديدة (اختياري)"
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="p-2 border border-gray-300 rounded text-right"
+                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
               </div>
-              <div className="flex justify-center gap-3 mt-5">
+              <div className="flex justify-center gap-4 mt-8 pt-6 border-t border-gray-200">
                 <button
                   onClick={handleEditUser}
-                  className="bg-teal-800 text-white px-5 py-2 rounded text-sm hover:bg-teal-700"
+                  className="bg-gradient-to-r from-teal-700 to-teal-800 text-white px-8 py-3 rounded-lg text-sm font-medium hover:from-teal-800 hover:to-teal-900 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   حفظ
                 </button>
@@ -676,7 +881,7 @@ const handleExportPDF = async () => {
                     setIsEditUserModalOpen(false);
                     setSelectedUser(null);
                   }}
-                  className="bg-white text-teal-800 border border-teal-800 px-5 py-2 rounded text-sm hover:bg-gray-100"
+                  className="bg-white text-gray-700 border-2 border-gray-300 px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   إلغاء
                 </button>
@@ -686,15 +891,22 @@ const handleExportPDF = async () => {
         )}
         {/* Delete User Confirmation Modal */}
         {isDeleteUserModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-gray-200 rounded-lg p-6 w-full max-w-sm text-center">
-              <p className="text-base mb-5">
-                هل أنت متأكد أنك تريد حذف المستخدم "{selectedUser?.username}"؟
-              </p>
-              <div className="flex justify-center gap-3">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center backdrop-blur-sm z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md text-center transform transition-all">
+              <div className="mb-6">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                  <Trash className="h-8 w-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3">تأكيد الحذف</h3>
+                <p className="text-base text-gray-600">
+                  هل أنت متأكد أنك تريد حذف المستخدم <span className="font-bold text-gray-800">"{selectedUser?.username}"</span>؟
+                </p>
+                <p className="text-sm text-gray-500 mt-2">لا يمكن التراجع عن هذا الإجراء</p>
+              </div>
+              <div className="flex justify-center gap-4">
                 <button
                   onClick={handleDeleteUser}
-                  className="bg-teal-800 text-white px-5 py-2 rounded text-sm hover:bg-teal-700"
+                  className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-3 rounded-lg text-sm font-medium hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   تأكيد الحذف
                 </button>
@@ -703,7 +915,7 @@ const handleExportPDF = async () => {
                     setIsDeleteUserModalOpen(false);
                     setSelectedUser(null);
                   }}
-                  className="bg-white text-teal-800 border border-teal-800 px-5 py-2 rounded text-sm hover:bg-gray-100"
+                  className="bg-white text-gray-700 border-2 border-gray-300 px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   إلغاء
                 </button>
@@ -713,15 +925,34 @@ const handleExportPDF = async () => {
         )}
         {/* Notification Modal */}
         {isNotificationModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-gray-200 rounded-lg p-6 w-full max-w-sm text-center">
-              <p className={`text-base mb-5 ${notificationType === 'error' ? 'text-red-600' : 'text-teal-800'}`}>
-                {notificationMessage}
-              </p>
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center backdrop-blur-sm z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md text-center transform transition-all">
+              <div className="mb-6">
+                <div className={`mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-4 ${
+                  notificationType === 'error' ? 'bg-red-100' : 'bg-green-100'
+                }`}>
+                  {notificationType === 'error' ? (
+                    <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <p className={`text-lg font-medium ${notificationType === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+                  {notificationMessage}
+                </p>
+              </div>
               <div className="flex justify-center">
                 <button
                   onClick={() => setIsNotificationModalOpen(false)}
-                  className="bg-teal-800 text-white px-5 py-2 rounded text-sm hover:bg-teal-700"
+                  className={`px-8 py-3 rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg ${
+                    notificationType === 'error' 
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800'
+                      : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800'
+                  }`}
                 >
                   موافق
                 </button>

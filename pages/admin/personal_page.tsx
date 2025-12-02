@@ -32,6 +32,7 @@ interface UserData {
   jobTitle: string;
   name: string;
   phone: string;
+  email: string;
   pictureurl: string;
 }
 
@@ -208,6 +209,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     jobTitle: '',
     name: '',
     phone: '',
+    email: '',
     pictureurl: '',
   });
 
@@ -218,12 +220,18 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProfession, setEditingProfession] = useState<{ id: number; name: string } | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [originalFormData, setOriginalFormData] = useState<UserData>({
+    id: '',
+    jobTitle: '',
+    name: '',
+    phone: '',
+    email: '',
+    pictureurl: '',
+  });
   // Set default active tab based on permissions
   const getDefaultTab = () => {
-    if (permissions.canManageProfessions) return 'professions';
-    if (permissions.canManageOffices) return 'offices';
-    if (permissions.canManageTimeline) return 'timeline';
-    return 'complaints'; // Default to complaints for all users
+    return 'complaints'; // Default to complaints (الدعم الفني) for all users
   };
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   
@@ -513,13 +521,16 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
       try {
         const res = await fetch(`/api/users/${id}`);
         const data = await res.json();
-        setFormData({
+        const userData = {
           id: data.id?.toString() || '',
           jobTitle: data.role?.name || '',
           name: data.username || '',
           phone: data.phonenumber || '',
+          email: data.email || '',
           pictureurl: data.pictureurl || '',
-        });
+        };
+        setFormData(userData);
+        setOriginalFormData(userData);
       } catch (err) {
         console.error('فشل جلب بيانات المستخدم');
       }
@@ -584,6 +595,22 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     reader.readAsDataURL(file);
   };
 
+  // تفعيل وضع التعديل
+  const handleStartEdit = () => {
+    setIsEditingProfile(true);
+    setError(null);
+    setSuccess(null);
+  };
+
+  // إلغاء التعديل
+  const handleCancelEdit = () => {
+    setFormData(originalFormData);
+    setIsEditingProfile(false);
+    setFileName('ارفاق ملف');
+    setError(null);
+    setSuccess(null);
+  };
+
   // حفظ التعديلات
   const handleSave = async () => {
     setError(null);
@@ -595,14 +622,17 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: formData.name,
-          // idnumber: formData.id,
           phonenumber: formData.phone,
+          email: formData.email,
           pictureurl: formData.pictureurl,
         }),
       });
 
       if (res.ok) {
         setSuccess('تم حفظ التغييرات بنجاح');
+        setOriginalFormData(formData);
+        setIsEditingProfile(false);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
         const data = await res.json();
         setError(data.error || 'فشل في الحفظ');
@@ -828,129 +858,217 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
   return (
     <Layout>
-    <div className={`${Styles['tajawal-regular']} min-h-screen p-8`} dir="rtl">
-      <main className="max-w-5xl mx-auto">
+    <div className={`${Styles['tajawal-regular']} min-h-screen bg-gradient-to-br from-gray-50 via-teal-50/30 to-gray-50 p-8`} dir="rtl">
+      <main className="max-w-6xl mx-auto">
 
         {/* رسائل النجاح أو الخطأ */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border-r-4 border-red-500 text-red-800 rounded-lg shadow-sm flex items-center gap-3 animate-in slide-in-from-top">
+            <XCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">{error}</span>
           </div>
         )}
         {success && (
-          <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md text-sm">
-            {success}
+          <div className="mb-6 p-4 bg-green-50 border-r-4 border-green-500 text-green-800 rounded-lg shadow-sm flex items-center gap-3 animate-in slide-in-from-top">
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">{success}</span>
           </div>
         )}
 
         {/* بطاقة معلومات الحساب */}
-        <div className="bg-white rounded-lg p-10 shadow-sm mb-8">
-          <h2 className="text-center text-2xl font-semibold text-teal-700 mb-10">
-            معلومات الحساب
-          </h2>
+        <div className="bg-white rounded-2xl p-10 shadow-lg mb-10 border border-teal-100 hover:shadow-xl transition-shadow duration-300">
+          <div className="flex items-center justify-center mb-10">
+            <div className="relative">
+              <h2 className="text-center text-3xl font-bold text-teal-800">
+                معلومات الحساب
+              </h2>
+              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-teal-600 rounded-full"></div>
+            </div>
+          </div>
 
           {/* الصف الأول */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <label className="block text-sm text-gray-700 mb-2">ID</label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                ID
+              </label>
               <input
                 type="text"
                 value={formData.id}
                 readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-600 cursor-not-allowed transition-all"
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-2">المسمى الوظيفي</label>
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                المسمى الوظيفي
+              </label>
               <input
                 type="text"
                 value={formData.jobTitle}
                 readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-600 cursor-not-allowed transition-all"
               />
             </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-2">الاسم</label>
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                الاسم
+              </label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                disabled={!isEditingProfile}
+                className={`w-full px-4 py-3 border border-gray-200 rounded-lg text-sm transition-all ${
+                  isEditingProfile 
+                    ? 'bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent hover:border-teal-300' 
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
               />
             </div>
           </div>
 
           {/* الصف الثاني */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <label className="block text-sm text-gray-700 mb-2">رقم الهاتف</label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                رقم الهاتف
+              </label>
               <input
                 type="text"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                disabled={!isEditingProfile}
+                className={`w-full px-4 py-3 border border-gray-200 rounded-lg text-sm transition-all ${
+                  isEditingProfile 
+                    ? 'bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent hover:border-teal-300' 
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
+              />
+            </div>
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                البريد الإلكتروني
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={!isEditingProfile}
+                placeholder="example@email.com"
+                className={`w-full px-4 py-3 border border-gray-200 rounded-lg text-sm transition-all ${
+                  isEditingProfile 
+                    ? 'bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent hover:border-teal-300' 
+                    : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+                }`}
               />
             </div>
 
             {/* رفع الصورة */}
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
-                <label className="block text-sm text-gray-700 mb-2">صورة الملف الشخصي</label>
-                
+            <div className="group">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                صورة الملف الشخصي
+              </label>
+              <div className="flex items-center gap-4">
                 {/* عرض الصورة إذا وُجدت */}
                 {formData.pictureurl && (
-                  <div className="mb-3">
+                  <div className="flex-shrink-0">
                     <img
                       src={formData.pictureurl}
                       alt="الصورة الشخصية"
-                      className="w-24 h-24 object-cover rounded-full border"
+                      className="w-16 h-16 object-cover rounded-full border-2 border-teal-200 shadow-sm"
                     />
                   </div>
                 )}
 
-                <label
-                  htmlFor="file-upload"
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100 transition"
-                >
-                  {uploading ? 'جاري الرفع...' : fileName}
-                </label>
-                <input
-                  id="file-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={uploadImageToBackend}
-                  className="hidden"
-                  disabled={uploading}
-                />
+                <div className="flex-1">
+                  {isEditingProfile ? (
+                    <>
+                      <label
+                        htmlFor="file-upload"
+                        className="block w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 text-center text-sm text-gray-700 cursor-pointer hover:bg-teal-50 hover:border-teal-400 transition-all"
+                      >
+                        {uploading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                            جاري الرفع...
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            <Plus size={16} />
+                            {fileName === 'ارفاق ملف' ? 'اختيار صورة' : fileName}
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={uploadImageToBackend}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </>
+                  ) : (
+                    <div className="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 text-center text-sm text-gray-400">
+                      <span className="flex items-center justify-center gap-2">
+                        <Plus size={16} />
+                        اختيار صورة
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              <label
-                htmlFor="file-upload"
-                className="bg-teal-800 text-white px-8 py-2 rounded-md text-sm cursor-pointer hover:bg-teal-900 transition whitespace-nowrap"
-              >
-                اختيار ملف
-              </label>
             </div>
           </div>
 
-          {/* زر الحفظ */}
-          <button
-            onClick={handleSave}
-            className="block mx-auto bg-teal-800 text-white px-12 py-3 rounded-md text-base font-medium hover:bg-teal-900 transition"
-          >
-            حفظ التغييرات
-          </button>
+          {/* أزرار التعديل والحفظ */}
+          <div className="flex justify-center gap-4">
+            {!isEditingProfile ? (
+              <button
+                onClick={handleStartEdit}
+                className="group relative bg-teal-700 text-white px-16 py-4 rounded-xl text-base font-semibold hover:bg-teal-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
+              >
+                <Edit size={20} />
+                تعديل البيانات
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleCancelEdit}
+                  className="group relative bg-gray-600 text-white px-12 py-4 rounded-xl text-base font-semibold hover:bg-gray-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
+                >
+                  <X size={20} />
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="group relative bg-teal-700 text-white px-12 py-4 rounded-xl text-base font-semibold hover:bg-teal-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-3"
+                >
+                  <Save size={20} />
+                  حفظ التغييرات
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {/* Tabs */}
-        <div className="flex gap-6 mb-5 border-b border-gray-200">
+        <div className="flex gap-2 mb-6 bg-white rounded-xl p-2 shadow-md border border-teal-100">
           <button 
             onClick={() => setActiveTab('complaints')}
-            className={`pb-3 px-6 font-medium text-sm transition ${
+            className={`flex-1 py-3 px-6 font-semibold text-sm rounded-lg transition-all duration-200 ${
               activeTab === 'complaints' 
-                ? 'text-teal-700 border-b-2 border-teal-700' 
-                : 'text-gray-600 hover:text-teal-700'
+                ? 'bg-teal-700 text-white shadow-md' 
+                : 'text-gray-600 hover:text-teal-700 hover:bg-teal-50'
             }`}
           >
             الدعم فني
@@ -958,10 +1076,10 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           {permissions.canManageProfessions && (
           <button 
             onClick={() => setActiveTab('professions')}
-            className={`pb-3 px-6 font-medium text-sm transition ${
+            className={`flex-1 py-3 px-6 font-semibold text-sm rounded-lg transition-all duration-200 ${
               activeTab === 'professions' 
-                ? 'text-teal-700 border-b-2 border-teal-700' 
-                : 'text-gray-600 hover:text-teal-700'
+                ? 'bg-teal-700 text-white shadow-md' 
+                : 'text-gray-600 hover:text-teal-700 hover:bg-teal-50'
             }`}
           >
             إدارة المهن
@@ -970,10 +1088,10 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           {permissions.canManageOffices && (
           <button 
             onClick={() => setActiveTab('offices')}
-            className={`pb-3 px-6 font-medium text-sm transition ${
+            className={`flex-1 py-3 px-6 font-semibold text-sm rounded-lg transition-all duration-200 ${
               activeTab === 'offices' 
-                ? 'text-teal-700 border-b-2 border-teal-700' 
-                : 'text-gray-600 hover:text-teal-700'
+                ? 'bg-teal-700 text-white shadow-md' 
+                : 'text-gray-600 hover:text-teal-700 hover:bg-teal-50'
             }`}
           >
             إدارة المكاتب الخارجية
@@ -982,10 +1100,10 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           {permissions.canManageTimeline && (
           <button 
             onClick={() => setActiveTab('timeline')}
-            className={`pb-3 px-6 font-medium text-sm transition ${
+            className={`flex-1 py-3 px-6 font-semibold text-sm rounded-lg transition-all duration-200 ${
               activeTab === 'timeline' 
-                ? 'text-teal-700 border-b-2 border-teal-700' 
-                : 'text-gray-600 hover:text-teal-700'
+                ? 'bg-teal-700 text-white shadow-md' 
+                : 'text-gray-600 hover:text-teal-700 hover:bg-teal-50'
             }`}
           >
             تخصيص الجدول الزمني
@@ -994,58 +1112,62 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
         </div>
         {/* Complaints Tab */}
         {activeTab === 'complaints' && (
-          <div className="bg-white rounded-lg p-8 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-teal-100">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">دعم فني</h3>
-                <p className="text-sm text-gray-600 mt-1">يمكنك إرسال شكوى للدعم الفني وتتبع حالتها</p>
+                <h3 className="text-3xl font-bold text-teal-800 mb-2">دعم فني</h3>
+                <p className="text-sm text-gray-600">يمكنك إرسال شكوى للدعم الفني وتتبع حالتها</p>
               </div>
               <button
                 onClick={handleOpenComplaintModal}
-                className="bg-teal-800 text-white px-6 py-3 rounded-md hover:bg-teal-900 transition-colors flex items-center gap-2 text-sm font-medium"
+                className="group bg-teal-700 text-white px-6 py-3 rounded-xl hover:bg-teal-800 transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-semibold transform hover:-translate-y-0.5"
               >
-                <Plus size={18} />
+                <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
                 إرسال شكوى جديدة
               </button>
             </div>
 
             {/* Statistics */}
             {complaintStats.total > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-gray-900">{complaintStats.total || 0}</div>
-                  <div className="text-sm text-gray-600">إجمالي الدعم فني</div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="text-3xl font-bold text-gray-900 mb-1">{complaintStats.total || 0}</div>
+                  <div className="text-sm font-medium text-gray-600">إجمالي الدعم فني</div>
                 </div>
-                <div className="bg-yellow-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-yellow-800">{complaintStats.byStatus?.pending || 0}</div>
-                  <div className="text-sm text-yellow-700">قيد الانتظار</div>
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200 hover:shadow-md transition-shadow">
+                  <div className="text-3xl font-bold text-yellow-800 mb-1">{complaintStats.byStatus?.pending || 0}</div>
+                  <div className="text-sm font-medium text-yellow-700">قيد الانتظار</div>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-blue-800">{complaintStats.byStatus?.in_progress || 0}</div>
-                  <div className="text-sm text-blue-700">قيد المعالجة</div>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200 hover:shadow-md transition-shadow">
+                  <div className="text-3xl font-bold text-blue-800 mb-1">{complaintStats.byStatus?.in_progress || 0}</div>
+                  <div className="text-sm font-medium text-blue-700">قيد المعالجة</div>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-green-800">{complaintStats.byStatus?.resolved || 0}</div>
-                  <div className="text-sm text-green-700">تم الحل</div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200 hover:shadow-md transition-shadow">
+                  <div className="text-3xl font-bold text-green-800 mb-1">{complaintStats.byStatus?.resolved || 0}</div>
+                  <div className="text-sm font-medium text-green-700">تم الحل</div>
                 </div>
               </div>
             )}
 
             {loadingComplaints ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-900"></div>
+              <div className="flex flex-col justify-center items-center py-16">
+                <div className="animate-spin rounded-full h-14 w-14 border-4 border-teal-200 border-t-teal-800 mb-4"></div>
+                <p className="text-gray-600 text-sm">جاري التحميل...</p>
               </div>
             ) : complaints.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <p className="text-gray-500 text-lg">لا توجد دعم فني حتى الآن</p>
-                <p className="text-gray-400 text-sm mt-2">يمكنك إرسال شكوى جديدة من الزر أعلاه</p>
+              <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <XCircle className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-600 text-lg font-semibold mb-2">لا توجد دعم فني حتى الآن</p>
+                <p className="text-gray-400 text-sm">يمكنك إرسال شكوى جديدة من الزر أعلاه</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {complaints.map((complaint) => (
                   <div
                     key={complaint.id}
-                    className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:border-teal-200"
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
@@ -1119,37 +1241,40 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                 setEditingProfession(null);
                 setIsModalOpen(true);
               }}
-              className="mb-5 bg-teal-800 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-teal-900 transition"
+              className="mb-6 bg-teal-700 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-teal-800 transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 transform hover:-translate-y-0.5"
             >
-              + إضافة مهنة
+              <Plus size={18} />
+              إضافة مهنة
             </button>
 
             {/* جدول المهن */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-teal-100">
               <table className="w-full">
-                <thead className="bg-teal-800 text-white">
+                <thead className="bg-teal-700 text-white">
                   <tr>
-                    <th className="px-6 py-4 text-right text-sm font-medium">إجراءات</th>
-                    <th className="px-6 py-4 text-right text-sm font-medium">المهنة</th>
-                    <th className="px-6 py-4 text-right text-sm font-medium">#</th>
+                    <th className="px-6 py-5 text-right text-sm font-semibold">إجراءات</th>
+                    <th className="px-6 py-5 text-right text-sm font-semibold">المهنة</th>
+                    <th className="px-6 py-5 text-right text-sm font-semibold">#</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {professions.map((prof) => (
-                    <tr key={prof.id} className="hover:bg-gray-50 transition">
+                <tbody className="divide-y divide-gray-100">
+                  {professions.map((prof, index) => (
+                    <tr key={prof.id} className={`hover:bg-teal-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                       <td className="px-6 py-4 text-sm">
-                        <button 
-                          onClick={() => {
-                            setEditingProfession({ id: prof.id, name: prof.name });
-                            setIsModalOpen(true);
-                          }}
-                          className="text-gray-600 hover:text-teal-700 mx-1"
-                        >
-                          تعديل
-                        </button>
-                        <button 
-                          onClick={async () => {
-                            if (confirm('هل أنت متأكد من حذف هذه المهنة؟')) {
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => {
+                              setEditingProfession({ id: prof.id, name: prof.name });
+                              setIsModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium flex items-center gap-1"
+                          >
+                            <Edit size={14} />
+                            تعديل
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (confirm('هل أنت متأكد من حذف هذه المهنة؟')) {
                               try {
                                 const res = await fetch('/api/professions', {
                                   method: 'DELETE',
@@ -1170,13 +1295,15 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                               }
                             }
                           }}
-                          className="text-red-600 hover:text-red-700 mx-1 text-lg"
+                          className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium flex items-center gap-1"
                         >
-                          ×
+                          <Trash2 size={14} />
+                          حذف
                         </button>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">{prof.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">#{prof.id}</td>
+                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">{prof.name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 font-mono">#{prof.id}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1191,45 +1318,55 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           <>
 
           {activeTab === 'offices' && (
-          <div className="bg-white rounded-lg p-8 shadow-sm">
-            <h3 className="text-xl font-semibold text-gray-800 mb-6">إدارة المكاتب الخارجية</h3>
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-sm text-gray-600">تخصيص مهلة المراحل لكل مكتب خارجي</div>
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-teal-100">
+            <div className="mb-8">
+              <h3 className="text-3xl font-bold text-teal-800 mb-2">إدارة المكاتب الخارجية</h3>
+              <p className="text-sm text-gray-600">تخصيص مهلة المراحل لكل مكتب خارجي</p>
+            </div>
+            <div className="flex justify-end mb-6">
               <button
                 onClick={() => {
                   setSlaForm({ officeName: '', stage: '', days: '' });
                   setIsSlaModalOpen(true);
                 }}
-                className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-900"
+                className="bg-teal-700 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-teal-800 transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 transform hover:-translate-y-0.5"
               >
-                تخصيص
+                <Plus size={18} />
+                تخصيص جديد
               </button>
             </div>
 
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="border border-teal-200 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
-                <thead className="bg-teal-800 text-white">
+                <thead className="bg-teal-700 text-white">
                   <tr>
-                    <th className="px-4 py-3 text-right">المكتب</th>
-                    <th className="px-4 py-3 text-right">المرحلة</th>
-                    <th className="px-4 py-3 text-right">المدة (يوم)</th>
-                    <th className="px-4 py-3 text-right">#</th>
+                    <th className="px-6 py-4 text-right font-semibold">المكتب</th>
+                    <th className="px-6 py-4 text-right font-semibold">المرحلة</th>
+                    <th className="px-6 py-4 text-right font-semibold">المدة (يوم)</th>
+                    <th className="px-6 py-4 text-right font-semibold">#</th>
                   </tr>
                 </thead>
                 <tbody>
                   {slaRules.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center text-gray-500">لا توجد إعدادات</td>
+                      <td colSpan={4} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center">
+                          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-3">
+                            <XCircle className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <p className="text-gray-500 font-medium">لا توجد إعدادات</p>
+                        </div>
+                      </td>
                     </tr>
                   ) : (
-                    slaRules.map((r: any) => (
-                      <tr key={r.id} className="odd:bg-gray-50">
-                        <td className="px-4 py-3">{r.officeName}</td>
-                        <td className="px-4 py-3">{stages.find(s => s.value === r.stage)?.label || r.stage}</td>
-                        <td className="px-4 py-3">{r.days}</td>
-                        <td className="px-4 py-3">
+                    slaRules.map((r: any, index: number) => (
+                      <tr key={r.id} className={`hover:bg-teal-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                        <td className="px-6 py-4 font-medium text-gray-800">{r.officeName}</td>
+                        <td className="px-6 py-4 text-gray-700">{stages.find(s => s.value === r.stage)?.label || r.stage}</td>
+                        <td className="px-6 py-4 text-gray-700">{r.days}</td>
+                        <td className="px-6 py-4">
                           <button
-                            className="text-red-600 hover:text-red-700"
+                            className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium flex items-center gap-1"
                             onClick={async () => {
                               try {
                                 const qs = new URLSearchParams({ id: r.id }).toString();
@@ -1242,6 +1379,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                               } catch {}
                             }}
                           >
+                            <Trash2 size={14} />
                             حذف
                           </button>
                         </td>
@@ -1253,14 +1391,20 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
             </div>
 
             {isSlaModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setIsSlaModalOpen(false)}>
-                <div className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 p-6" onClick={(e) => e.stopPropagation()}>
-                  <h4 className="text-lg font-semibold mb-4 text-right">تخصيص مهلة مرحلة</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-right">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" onClick={() => setIsSlaModalOpen(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-2/3 max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                  <div className="bg-teal-700 p-6">
+                    <h4 className="text-2xl font-bold text-white text-right">تخصيص مهلة مرحلة</h4>
+                  </div>
+                  <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-right">
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">المكتب</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                        المكتب
+                      </label>
                       <select
-                        className="w-full border border-gray-300 rounded-md  py-2 bg-gray-50"
+                        className="w-full border border-gray-200 rounded-lg py-3 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                         value={slaForm.officeName}
                         onChange={(e) => setSlaForm((p) => ({ ...p, officeName: e.target.value }))}
                       >
@@ -1271,9 +1415,12 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">المرحلة</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                        المرحلة
+                      </label>
                       <select
-                        className="w-full border border-gray-300 rounded-md  py-2 bg-gray-50"
+                        className="w-full border border-gray-200 rounded-lg  py-3 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                         value={slaForm.stage}
                         onChange={(e) => setSlaForm((p) => ({ ...p, stage: e.target.value }))}
                       >
@@ -1284,20 +1431,24 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-700 mb-1">المدة بالأيام</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                        المدة بالأيام
+                      </label>
                       <input
                         type="number"
                         min={1}
-                        className="w-full border border-gray-300 rounded-md  py-2 bg-gray-50"
+                        className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                         value={slaForm.days}
                         onChange={(e) => setSlaForm((p) => ({ ...p, days: e.target.value }))}
                       />
                     </div>
                   </div>
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button className="px-4 py-2 border border-gray-300 rounded-md" onClick={() => setIsSlaModalOpen(false)}>إلغاء</button>
+                  </div>
+                  <div className="flex justify-end gap-3 px-6 pb-6 pt-4 bg-teal-50 border-t border-teal-200">
+                    <button className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium" onClick={() => setIsSlaModalOpen(false)}>إلغاء</button>
                     <button
-                      className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                      className="px-6 py-2.5 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-all shadow-md hover:shadow-lg font-semibold flex items-center gap-2"
                       onClick={async () => {
                         if (!slaForm.officeName || !slaForm.stage || !slaForm.days) return;
                         try {
@@ -1315,6 +1466,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                         } catch (e) {}
                       }}
                     >
+                      <Save size={18} />
                       حفظ
                     </button>
                   </div>
@@ -1330,27 +1482,30 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
         {permissions.canManageTimeline && (
           <>
         {activeTab === 'timeline' && (
-          <div className="bg-white rounded-lg p-8 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">إدارة التايم لاين المخصص</h3>
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-teal-100">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+              <div>
+                <h3 className="text-3xl font-bold text-teal-800 mb-2">إدارة التايم لاين المخصص</h3>
+                <p className="text-sm text-gray-600">تخصيص الجدول الزمني لكل دولة</p>
+              </div>
               <div className="flex gap-3">
-                <div className="flex bg-gray-100 rounded-lg p-1">
+                <div className="flex bg-teal-50 rounded-xl p-1.5 shadow-inner border border-teal-200">
                   <button
                     onClick={() => setViewMode('mapping')}
-                    className={`px-4 py-2 rounded-md transition-colors text-sm ${
+                    className={`px-5 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold ${
                       viewMode === 'mapping'
-                        ? 'bg-teal-800 text-white'
-                        : 'text-gray-700 hover:bg-gray-200'
+                        ? 'bg-teal-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-teal-100'
                     }`}
                   >
                     عرض جميع الدول
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-4 py-2 rounded-md transition-colors text-sm ${
+                    className={`px-5 py-2.5 rounded-lg transition-all duration-200 text-sm font-semibold ${
                       viewMode === 'list'
-                        ? 'bg-teal-800 text-white'
-                        : 'text-gray-700 hover:bg-gray-200'
+                        ? 'bg-teal-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-teal-100'
                     }`}
                   >
                     التايم لاين المخصصة فقط
@@ -1360,20 +1515,24 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
             </div>
 
             {loadingTimelines ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-900"></div>
+              <div className="flex flex-col justify-center items-center py-16">
+                <div className="animate-spin rounded-full h-14 w-14 border-4 border-teal-200 border-t-teal-800 mb-4"></div>
+                <p className="text-gray-600 text-sm">جاري التحميل...</p>
               </div>
             ) : viewMode === 'mapping' ? (
               countryTimelines.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <p className="text-gray-500 text-lg">لا توجد دول متاحة</p>
+                <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <XCircle className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 text-lg font-semibold">لا توجد دول متاحة</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {countryTimelines.map((countryTimeline, index) => (
                     <div
                       key={index}
-                      className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                      className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group hover:border-teal-300 hover:-translate-y-1"
                       onClick={() => handleCountryClick(countryTimeline)}
                     >
                       <div className="p-6">
@@ -1537,21 +1696,22 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
         {/* Modal for adding/editing custom timeline */}
         {isTimelineModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-3/4 lg:w-2/3 max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="bg-teal-700 p-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-white">
                     {editingTimeline ? 'تعديل التايم لاين' : 'إضافة تايم لاين جديد'}
                   </h2>
                   <button
                     onClick={handleCloseTimelineModal}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-white hover:bg-teal-800 rounded-lg p-2 transition-colors"
                   >
                     <X size={24} />
                   </button>
                 </div>
               </div>
+              <div className="overflow-y-auto flex-1">
 
               <div className="p-6">
                 <div className="mb-6">
@@ -1623,21 +1783,22 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              </div>
+              <div className="p-6 bg-teal-50 border-t border-teal-200 flex justify-end gap-3">
                 <button
                   onClick={handleCloseTimelineModal}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={handleSaveTimeline}
                   disabled={saving || !editingTimeline?.country?.trim() || timelineStages.length === 0}
-                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-2.5 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
                 >
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                       جاري الحفظ...
                     </>
                   ) : (
@@ -1654,11 +1815,11 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
         {/* Modal for Add/Edit Stage */}
         {showStageModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-xl w-11/12 md:w-1/2 max-w-md">
-              <div className="p-6 border-b border-gray-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-1/2 max-w-md overflow-hidden">
+              <div className="bg-teal-700 p-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-gray-900">
+                  <h3 className="text-xl font-bold text-white">
                     {editingStageIndex !== null ? 'تعديل المرحلة' : 'إضافة مرحلة جديدة'}
                   </h3>
                   <button
@@ -1667,7 +1828,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                       setStageForm({ label: '', field: '', icon: 'CheckCircle' });
                       setEditingStageIndex(null);
                     }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-white hover:bg-teal-800 rounded-lg p-2 transition-colors"
                   >
                     <X size={24} />
                   </button>
@@ -1675,48 +1836,53 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
               </div>
 
               <div className="p-6">
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
                     اسم المرحلة <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={stageForm.label}
                     onChange={(e) => setStageForm({ ...stageForm, label: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                     placeholder="مثال: الفحص الطبي"
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
                     Field Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={stageForm.field}
                     onChange={(e) => setStageForm({ ...stageForm, field: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono transition-all"
                     placeholder="مثال: medicalCheck"
                   />
-                  <p className="text-xs text-gray-500 mt-1">يستخدم لتحديد المرحلة في الكود</p>
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                    يستخدم لتحديد المرحلة في الكود
+                  </p>
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <div className="p-6 bg-teal-50 border-t border-teal-200 flex justify-end gap-3">
                 <button
                   onClick={() => {
                     setShowStageModal(false);
                     setStageForm({ label: '', field: '', icon: 'CheckCircle' });
                     setEditingStageIndex(null);
                   }}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={handleSaveStage}
-                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition-colors flex items-center gap-2"
+                  className="px-6 py-2.5 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-semibold"
                 >
                   <Save size={18} />
                   حفظ
@@ -1728,70 +1894,85 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
         {/* Complaint Modal */}
         {isComplaintModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-xl w-11/12 md:w-2/3 lg:w-1/2 max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="bg-teal-700 p-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-gray-900">إرسال شكوى جديدة</h2>
+                  <h2 className="text-2xl font-bold text-white">إرسال شكوى جديدة</h2>
                   <button
                     onClick={handleCloseComplaintModal}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-white hover:bg-teal-800 rounded-lg p-2 transition-colors"
                   >
                     <X size={24} />
                   </button>
                 </div>
               </div>
+              <div className="overflow-y-auto flex-1">
 
               <div className="p-6">
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
                     عنوان الشكوى <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={complaintForm.title}
                     onChange={(e) => setComplaintForm({ ...complaintForm, title: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                     placeholder="مثال: مشكلة في تسجيل الدخول"
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
                     وصف المشكلة <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={complaintForm.description}
                     onChange={(e) => setComplaintForm({ ...complaintForm, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[120px]"
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[120px] transition-all resize-none"
                     placeholder="اشرح المشكلة بالتفصيل..."
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
                     صورة توضيحية (اختياري)
                   </label>
                   {complaintForm.screenshot && (
-                    <div className="mb-3">
+                    <div className="mb-3 relative">
                       <img
                         src={complaintForm.screenshot}
                         alt="Screenshot"
-                        className="w-full max-h-64 object-contain rounded-lg border"
+                        className="w-full max-h-64 object-contain rounded-xl border-2 border-gray-200"
                       />
                       <button
                         onClick={() => setComplaintForm({ ...complaintForm, screenshot: '' })}
-                        className="mt-2 text-sm text-red-600 hover:text-red-700"
+                        className="absolute top-2 left-2 bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-red-700 transition-colors font-medium shadow-md flex items-center gap-1"
                       >
-                        إزالة الصورة
+                        <X size={14} />
+                        إزالة
                       </button>
                     </div>
                   )}
                   <label
                     htmlFor="screenshot-upload"
-                    className="block w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md text-center text-sm text-gray-700 cursor-pointer hover:bg-gray-50 transition"
+                    className="block w-full px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl text-center text-sm text-gray-700 cursor-pointer hover:bg-teal-50 hover:border-teal-400 transition-all"
                   >
-                    {uploadingScreenshot ? 'جاري الرفع...' : 'اضغط لرفع صورة'}
+                    {uploadingScreenshot ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-teal-600 border-t-transparent"></div>
+                        جاري الرفع...
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Plus size={16} />
+                        اضغط لرفع صورة
+                      </span>
+                    )}
                   </label>
                   <input
                     id="screenshot-upload"
@@ -1801,25 +1982,28 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                     className="hidden"
                     disabled={uploadingScreenshot}
                   />
-                  <p className="text-xs text-gray-500 mt-1">يمكنك رفع صورة توضيحية للمشكلة (حد أقصى 10 ميجابايت)</p>
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                    يمكنك رفع صورة توضيحية للمشكلة (حد أقصى 10 ميجابايت)
+                  </p>
                 </div>
               </div>
-
-              <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              </div>
+              <div className="p-6 bg-teal-50 border-t border-teal-200 flex justify-end gap-3">
                 <button
                   onClick={handleCloseComplaintModal}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={handleSubmitComplaint}
                   disabled={saving || !complaintForm.title.trim() || !complaintForm.description.trim()}
-                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-2.5 bg-teal-700 text-white rounded-lg hover:bg-teal-800 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
                 >
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                       جاري الإرسال...
                     </>
                   ) : (

@@ -117,9 +117,10 @@ model User {
   id            Int       @id @default(autoincrement())
   phonenumber   String?   @unique @db.VarChar(15)
   admin         Boolean?  @default(false)
-  pictureurl    String?   @default("") @db.VarChar(1024)
+  pictureurl    String?   @default("") @db.LongText
   username      String    @unique @db.VarChar(191)
   password      String    @db.VarChar(191)
+  email         String?   @db.VarChar(191)
   roleId        Int?      // Foreign key to Role model
   idnumber      Int?      @unique
   role          Role?     @relation(fields: [roleId], references: [id])

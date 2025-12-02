@@ -27,7 +27,7 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
 
     case 'PUT':
       try {
-        const { username, phonenumber, idnumber, password, roleId, pictureurl } = req.body;
+        const { username, phonenumber, idnumber, password, email, roleId, pictureurl } = req.body;
         console.log(id)
         const userFinder = await prisma.user.findUnique({
           where: { id: parseInt(id) },
@@ -39,6 +39,7 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
              username:username ? username : userFinder?.username  ,
             phonenumber:phonenumber ? phonenumber : userFinder?.phonenumber  ,
             pictureurl:pictureurl ? pictureurl : userFinder?.pictureurl  ,
+            email: email !== undefined ? email : userFinder?.email,
             idnumber:userFinder?.idnumber  ,
             password:password ? await bcrypt.hash(password, 10) : userFinder?.password  ,
             roleId: roleId ? parseInt(roleId) : userFinder?.roleId  ,

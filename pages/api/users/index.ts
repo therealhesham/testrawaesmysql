@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
     case 'POST':
       try {
-        const { username, phonenumber, idnumber, password, roleId } = req.body;
+        const { username, phonenumber, idnumber, password, email, roleId, pictureurl } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await prisma.user.create({
@@ -63,7 +63,9 @@ export default async function handler(req, res) {
             phonenumber,
             idnumber: Number(idnumber),
             password: hashedPassword,
+            email: email || null,
             roleId: Number(roleId),
+            pictureurl: pictureurl || '',
             createdAt: new Date(),
           },
         });
