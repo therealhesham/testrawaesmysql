@@ -38,7 +38,7 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
           data: {
              username:username ? username : userFinder?.username  ,
             phonenumber:phonenumber ? phonenumber : userFinder?.phonenumber  ,
-            pictureurl:pictureurl ? pictureurl : userFinder?.pictureurl  ,
+            pictureurl: pictureurl !== undefined ? pictureurl : userFinder?.pictureurl,
             email: email !== undefined ? email : userFinder?.email,
             idnumber:userFinder?.idnumber  ,
             password:password ? await bcrypt.hash(password, 10) : userFinder?.password  ,

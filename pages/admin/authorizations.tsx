@@ -677,15 +677,15 @@ const handleExportPDF = async () => {
                     placeholder="رقم الهوية"
                     value={newUser.idnumber}
                     onChange={(e) => setNewUser({ ...newUser, idnumber: e.target.value })}
-                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
+                    className=" border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
-                <div className="flex flex-col">
-                  <label className="text-sm font-medium mb-2 text-gray-700">المسمى الوظيفي</label>
+                <div className="flex  flex-col">
+                  <label className="text-sm  font-medium mb-2  text-gray-700">المسمى الوظيفي</label>
                   <select
                     value={newUser.roleId}
                     onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
-                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200 cursor-pointer"
+                    className=" border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200 cursor-pointer"
                   >
                     <option value="">اختر الدور</option>
                     {getAvailableRoles().map((role) => (
@@ -825,11 +825,11 @@ const handleExportPDF = async () => {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium mb-2 text-gray-700">المسمى الوظيفي</label>
+                  <label className="text-sm  font-medium mb-2  text-gray-700">المسمى الوظيفي</label>
                   <select
                     value={newUser.roleId}
                     onChange={(e) => setNewUser({ ...newUser, roleId: e.target.value })}
-                    className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200 cursor-pointer"
+                    className="px-9 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200 cursor-pointer"
                   >
                     <option value="">اختر الدور</option>
                     {getAvailableRoles().map((role) => (
@@ -880,6 +880,7 @@ const handleExportPDF = async () => {
                   onClick={() => {
                     setIsEditUserModalOpen(false);
                     setSelectedUser(null);
+                    setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
                   }}
                   className="bg-white text-gray-700 border-2 border-gray-300 px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
