@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { file, filename } = req.body;
+  const { file, filename, contentType } = req.body;
 
   if (!file || !filename) {
     return res.status(400).json({ error: 'ملف واسم الملف مطلوبان' });
@@ -53,11 +53,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const buffer = Buffer.from(file, 'base64');
     const key = `profile-images/${uuidv4()}-${filename}`;
 
+    // تحديد نوع المحتوى بناءً على امتداد الملف أو القيمة المرسلة
+    let fileContentType = contentType || 'image/jpeg';
+    if (!contentType) {
+      const ext = filename.toLowerCase().split('.').pop();
+      if (ext === 'png') fileContentType = 'image/png';
+      else if (ext === 'gif') fileContentType = 'image/gif';
+      else if (ext === 'webp') fileContentType = 'image/webp';
+    }
+
     const result = await s3.upload({
       Bucket: process.env.DO_SPACES_BUCKET,
       Key: key,
       Body: buffer,
-      ContentType: 'image/jpeg',
+      ContentType: fileContentType,
       ACL: 'public-read',
     }).promise();
 

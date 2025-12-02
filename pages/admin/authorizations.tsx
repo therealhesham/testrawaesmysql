@@ -196,12 +196,40 @@ useEffect(() => {
     setUploadingImage(true);
 
     try {
-      // تحويل الصورة إلى Base64
+      // تحويل الصورة إلى Base64 للرفع
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setNewUser({ ...newUser, pictureurl: base64String });
-        setUploadingImage(false);
+      reader.onloadend = async () => {
+        try {
+          const base64String = (reader.result as string).split(',')[1]; // إزالة البادئة data:image/...;base64,
+          
+          // رفع الصورة إلى Digital Ocean Spaces
+          const response = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              file: base64String,
+              filename: file.name,
+              contentType: file.type,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('فشل رفع الصورة');
+          }
+
+          const data = await response.json();
+          
+          // حفظ رابط الصورة من Digital Ocean
+          setNewUser({ ...newUser, pictureurl: data.url });
+          showNotification('تم رفع الصورة بنجاح', 'success');
+          setUploadingImage(false);
+        } catch (uploadError) {
+          console.error('Error uploading to Digital Ocean:', uploadError);
+          showNotification('حدث خطأ أثناء رفع الصورة', 'error');
+          setUploadingImage(false);
+        }
       };
       reader.onerror = () => {
         showNotification('حدث خطأ أثناء قراءة الصورة', 'error');
