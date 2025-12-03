@@ -535,17 +535,7 @@ export default function PDFProcessor() {
   };
 
   const startEditingField = (key: string, value: any) => {
-    let baseVal = '';
-    if (key === 'skills' || key === 'languages_spoken') {
-      baseVal =
-        typeof value === 'string'
-          ? value
-          : value !== null && value !== undefined
-          ? JSON.stringify(value, null, 2)
-          : '';
-    } else {
-      baseVal = value !== null && value !== undefined ? String(value) : '';
-    }
+    const baseVal = value !== null && value !== undefined ? String(value) : '';
     // إذا كان الحقل هو office_name وكان company_name موجوداً، استخدم company_name للتعديل
     const editKey = (key === 'office_name' || key === 'OfficeName') && processingResult?.geminiData?.jsonResponse?.company_name
       ? 'company_name'
@@ -679,6 +669,31 @@ export default function PDFProcessor() {
         // إذا تم تعديل nationality، قم بتحديث Nationality أيضاً
         updatedJson[key] = value;
         updatedJson[key === 'nationality' ? 'Nationality' : 'nationality'] = value;
+      } else if (key.startsWith('skill_')) {
+        // تحديث مهارة محددة داخل كائن skills
+        const skillName = key.replace('skill_', '').toUpperCase();
+        try {
+          const currentSkills = typeof updatedJson.skills === 'string' 
+            ? JSON.parse(updatedJson.skills) 
+            : (updatedJson.skills || {});
+          currentSkills[skillName] = value;
+          updatedJson.skills = JSON.stringify(currentSkills);
+        } catch {
+          updatedJson.skills = JSON.stringify({ [skillName]: value });
+        }
+      } else if (key.startsWith('lang_')) {
+        // تحديث لغة محددة داخل كائن languages_spoken
+        const langName = key.replace('lang_', '');
+        const capitalizedLangName = langName.charAt(0).toUpperCase() + langName.slice(1);
+        try {
+          const currentLanguages = typeof updatedJson.languages_spoken === 'string' 
+            ? JSON.parse(updatedJson.languages_spoken) 
+            : (updatedJson.languages_spoken || {});
+          currentLanguages[capitalizedLangName] = value;
+          updatedJson.languages_spoken = JSON.stringify(currentLanguages);
+        } catch {
+          updatedJson.languages_spoken = JSON.stringify({ [capitalizedLangName]: value });
+        }
       } else {
         updatedJson[key] = value;
       }
@@ -1434,9 +1449,53 @@ export default function PDFProcessor() {
                               </tr>
                             </thead>
                             <tbody>
-                              {Object.entries(processingResult.geminiData.jsonResponse)
-                                .filter(([key]) => key !== 'company_name' && key !== 'CompanyName') // إخفاء company_name من العرض
-                                .map(([key, value]) => {
+                              {(() => {
+                                // استخراج المهارات واللغات وتحويلها لحقول منفصلة
+                                const allEntries = Object.entries(processingResult.geminiData.jsonResponse);
+                                const expandedEntries: [string, any][] = [];
+
+                                allEntries.forEach(([key, value]) => {
+                                  // تخطي company_name من العرض
+                                  if (key === 'company_name' || key === 'CompanyName') {
+                                    return;
+                                  }
+
+                                  // توسيع المهارات إلى حقول منفصلة
+                                  if (key === 'skills') {
+                                    try {
+                                      const skills = typeof value === 'string' ? JSON.parse(value) : value;
+                                      if (typeof skills === 'object' && skills !== null) {
+                                        Object.entries(skills).forEach(([skillKey, skillValue]) => {
+                                          expandedEntries.push([`skill_${skillKey.toLowerCase()}`, skillValue]);
+                                        });
+                                        return;
+                                      }
+                                    } catch {
+                                      // إذا فشل التحليل، أضف كما هو
+                                    }
+                                  }
+
+                                  // توسيع اللغات إلى حقول منفصلة
+                                  if (key === 'languages_spoken') {
+                                    try {
+                                      const languages = typeof value === 'string' ? JSON.parse(value) : value;
+                                      if (typeof languages === 'object' && languages !== null) {
+                                        Object.entries(languages).forEach(([langKey, langValue]) => {
+                                          expandedEntries.push([`lang_${langKey.toLowerCase()}`, langValue]);
+                                        });
+                                        return;
+                                      }
+                                    } catch {
+                                      // إذا فشل التحليل، أضف كما هو
+                                    }
+                                  }
+
+                                  // إضافة الحقول العادية
+                                  expandedEntries.push([key, value]);
+                                });
+
+                                return expandedEntries;
+                              })().map(([key, value]) => {
                                 // إذا كان الحقل هو office_name، استخدم company_name إذا كان موجوداً
                                 const displayKey = key === 'office_name' || key === 'OfficeName' 
                                   ? (processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName 
@@ -1455,30 +1514,31 @@ export default function PDFProcessor() {
                                   : key;
                                 const isEditing = editingField?.key === editKey;
 
-                                const renderValue = (val: any) => {
-                                  if (key === 'skills' || key === 'languages_spoken') {
-                                    try {
-                                      const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-                                      if (typeof parsed === 'object' && parsed !== null) {
-                                        return (
-                                          <div className="space-y-2">
-                                            {Object.entries(parsed).map(([skillKey, skillValue]) => (
-                                              <div
-                                                key={skillKey}
-                                                className="flex justify-between items-center bg-gray-50 p-2 rounded"
-                                              >
-                                                <span className="font-medium text-gray-800">{skillKey}:</span>
-                                                <span className="text-gray-600">{String(skillValue)}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        );
-                                      }
-                                    } catch {
-                                      return String(val);
-                                    }
+                                // تحليل المهارات واللغات وعرضها كحقول منفصلة
+                                const parseSkillsOrLanguages = (val: any) => {
+                                  try {
+                                    return typeof val === 'string' ? JSON.parse(val) : val;
+                                  } catch {
+                                    return val;
                                   }
+                                };
+
+                                const renderValue = (val: any) => {
                                   return String(val);
+                                };
+
+                                // تحسين عرض أسماء الحقول
+                                const getDisplayLabel = (fieldKey: string) => {
+                                  const labelMap: Record<string, string> = {
+                                    'skill_washing': 'مهارة: الغسيل',
+                                    'skill_cooking': 'مهارة: الطبخ',
+                                    'skill_babysitting': 'مهارة: رعاية الأطفال',
+                                    'skill_cleaning': 'مهارة: التنظيف',
+                                    'skill_laundry': 'مهارة: الغسيل والكي',
+                                    'lang_english': 'لغة: الإنجليزية',
+                                    'lang_arabic': 'لغة: العربية',
+                                  };
+                                  return labelMap[fieldKey] || fieldKey;
                                 };
 
                                 return (
@@ -1487,40 +1547,11 @@ export default function PDFProcessor() {
                                     className="hover:bg-gray-50 transition-all duration-200"
                                   >
                                     <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">
-                                      {displayKey}
+                                      {getDisplayLabel(displayKey)}
                                     </td>
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
                                       {isEditing ? (
-                                        key === 'skills' || key === 'languages_spoken' ? (
-                                          <div>
-                                            <textarea
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                              rows={4}
-                                              value={editingField?.value ?? ''}
-                                              onChange={(e) =>
-                                                setEditingField((prev) =>
-                                                  prev ? { ...prev, value: e.target.value } : prev
-                                                )
-                                              }
-                                            />
-                                            <div className="mt-2 flex justify-end gap-2 text-xs">
-                                              <button
-                                                type="button"
-                                                className="px-3 py-1 rounded-md bg-green-600 text-white hover:bg-green-700"
-                                                onClick={saveEditingField}
-                                              >
-                                                حفظ
-                                              </button>
-                                              <button
-                                                type="button"
-                                                className="px-3 py-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300"
-                                                onClick={cancelEditingField}
-                                              >
-                                                إلغاء
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
+                                        (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
                                           <div>
                                             <div className="flex items-center gap-2">
                                               <input
