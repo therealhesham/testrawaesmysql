@@ -23,16 +23,15 @@ NEXT15_APP
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
+
 # local env files
 .env.local
 .env
 .env.development.local
 .env.test.local
 .env.production.local
-package-lock.json
+
 # vercel
 .vercel
-package-lock.json
-package-lock.json
+
 NEXT15_APP
