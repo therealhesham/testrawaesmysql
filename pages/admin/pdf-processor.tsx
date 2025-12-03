@@ -52,6 +52,7 @@ export default function PDFProcessor() {
   const [nationalities, setNationalities] = useState<{ id: number; Country: string | null }[]>([]);
   const [invalidNationality, setInvalidNationality] = useState<{ field: string; value: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+ const [professions, setProfessions] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     const fetchOffices = async () => {
@@ -85,6 +86,42 @@ export default function PDFProcessor() {
         console.error('Error fetching nationalities list:', e);
       }
     };
+    
+   const fetchProfessions = async () => {
+      console.log("🔵 Client: Starting fetch request..."); // تتبع 1
+      
+      try {
+        const res = await fetch('/api/professions');
+        console.log("🔵 Client: Response status:", res.status); // تتبع 2
+
+        if (!res.ok) {
+          console.error('Failed to fetch professions');
+          return;
+        }
+        
+        const data = await res.json();
+        console.log("🔵 Client: Data received:", data); // تتبع 3: هذا أهم سطر لنعرف شكل البيانات
+
+        // التحقق من نوع البيانات وتعيينها
+        if (Array.isArray(data)) {
+            console.log("✅ Data is Array, setting state...");
+            setProfessions(data);
+        } 
+        else if (data && Array.isArray(data.professions)) {
+            console.log("✅ Data is Object {professions: []}, setting state...");
+            setProfessions(data.professions);
+        } 
+        else {
+            console.error("⚠️ Data format is unknown:", data);
+        }
+
+      } catch (e) {
+        console.error('Error fetching professions list:', e);
+      }
+    };
+
+  
+    fetchProfessions(); // استدعاء الدالة
 
     fetchOffices();
     fetchNationalities();
@@ -709,8 +746,9 @@ export default function PDFProcessor() {
     setEditingField(null);
   };
 
-  const handleSave = async () => {
-    if (!processingResult) {
+const handleSave = async () => {
+    // التحقق من وجود البيانات
+    if (!processingResult || !processingResult.geminiData) {
       setError('No data to save');
       return;
     }
@@ -720,10 +758,10 @@ export default function PDFProcessor() {
       return;
     }
 
-    // التحقق من الجنسية أولاً قبل الحفظ
-    const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
-    const extractedNationality = processingResult.geminiData.jsonResponse.nationality || 
-                                  processingResult.geminiData.jsonResponse.Nationality;
+    // --- 1. التحقق من الجنسية ---
+    // نستخدم Optional Chaining (?.) لتجنب الأخطاء إذا كانت jsonResponse غير موجودة
+    const jsonResponse = processingResult.geminiData.jsonResponse || {};
+    const extractedNationality = jsonResponse.nationality || jsonResponse.Nationality;
     
     let validNationality: string | null = null;
     if (extractedNationality && nationalities.length > 0) {
@@ -741,40 +779,34 @@ export default function PDFProcessor() {
       }
     }
 
-    // التحقق من المكتب قبل الحفظ - يجب أن ينتمي للجنسية المختارة
-    const extractedOfficeName = processingResult.geminiData.jsonResponse.company_name || 
-                                processingResult.geminiData.jsonResponse.CompanyName ||
-                                processingResult.geminiData.jsonResponse.office_name || 
-                                processingResult.geminiData.jsonResponse.OfficeName;
+    // --- 2. التحقق من المكتب ---
+    const extractedOfficeName = jsonResponse.company_name || 
+                                jsonResponse.CompanyName ||
+                                jsonResponse.office_name || 
+                                jsonResponse.OfficeName;
     
     if (extractedOfficeName) {
       const normalizedExtracted = String(extractedOfficeName).toLowerCase().trim();
       
       if (validNationality) {
-        // التحقق من أن المكتب ينتمي للجنسية المختارة
         const filtered = offices.filter(office => 
           office.Country?.toLowerCase().trim() === validNationality!.toLowerCase().trim()
         );
         const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedExtracted);
         
         if (!matchedOffice) {
-          if (filtered.length > 0) {
-            setError('المكتب المختار لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
-          } else {
-            setError('لا توجد مكاتب متاحة للجنسية المحددة.');
-          }
-          const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+          setError('المكتب المختار لا ينتمي للجنسية المحددة أو غير موجود.');
+          const officeField = jsonResponse.company_name ? 'company_name' : 'office_name';
           setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
           return;
         }
       } else {
-        // لا توجد جنسية - التحقق من وجود المكتب في القائمة العامة
         const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
         const isValidOffice = officeNames.some(officeName => officeName === normalizedExtracted);
         
         if (!isValidOffice && offices.length > 0) {
           setError('يجب اختيار مكتب صحيح من قائمة المكاتب قبل الحفظ');
-          const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
+          const officeField = jsonResponse.company_name ? 'company_name' : 'office_name';
           setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
           return;
         }
@@ -787,13 +819,119 @@ export default function PDFProcessor() {
     try {
       const sessionId = `pdf-session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+      // ✨✨ الإصلاح الجذري: دالة تحليل آمنة جداً ✨✨
+      // هذه الدالة تضمن إرجاع كائن {} دائماً حتى لو كان الدخل null أو "null" أو undefined
+      const safeParseJson = (field: any): Record<string, any> => {
+        if (!field) return {}; // undefined, null, "", 0
+        
+        let parsed = field;
+        if (typeof field === 'string') {
+          try {
+            parsed = JSON.parse(field);
+          } catch {
+            return {}; // إذا فشل التحليل نرجع كائن فارغ
+          }
+        }
+        
+        // أهم خطوة: التأكد أن النتيجة كائن حقيقي وليست null (لأن JSON.parse("null") تعطي null)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed;
+        }
+        
+        return {}; // في أي حالة أخرى نرجع كائن فارغ لتجنب انهيار التطبيق
+      };
+
+      const rawJson = jsonResponse; // تم التأكد منه في الأعلى
+      const flattenedData: any = { ...rawJson };
+
+      const skillsObj = safeParseJson(rawJson.skills);
+      const langsObj = safeParseJson(rawJson.languages_spoken);
+
+      console.log("🔍 Skills Parsed Safely:", skillsObj);
+
+      // 1. توحيد المفاتيح (Normalization)
+      const normalizedSkills: Record<string, string> = {};
+      Object.keys(skillsObj).forEach(key => {
+        if (key) normalizedSkills[key.toLowerCase().trim()] = String(skillsObj[key]);
+      });
+
+      const normalizedLangs: Record<string, string> = {};
+      Object.keys(langsObj).forEach(key => {
+        if (key) normalizedLangs[key.toLowerCase().trim()] = String(langsObj[key]);
+      });
+
+      // دالة البحث
+      const getSkill = (keys: string[]) => {
+        for (const key of keys) {
+          if (normalizedSkills[key]) return normalizedSkills[key];
+        }
+        return "";
+      };
+
+      const getLang = (keys: string[]) => {
+        for (const key of keys) {
+          if (normalizedLangs[key]) return normalizedLangs[key];
+        }
+        return "";
+      };
+
+      // 2. تعبئة البيانات (الأولوية للمهارة المستخرجة من الكائن skills)
+      // الغسيل
+      const washing = getSkill(['washing', 'laundry', 'washinglevel']) || flattenedData.washingLevel || "";
+      flattenedData.washingLevel = washing;
+      flattenedData.WashingLevel = washing;
+
+      // الطبخ
+      const cooking = getSkill(['cooking', 'cookinglevel']) || flattenedData.cookingLevel || "";
+      flattenedData.cookingLevel = cooking;
+      flattenedData.CookingLevel = cooking;
+
+      // التنظيف
+      const cleaning = getSkill(['cleaning', 'cleaninglevel']) || flattenedData.cleaningLevel || "";
+      flattenedData.cleaningLevel = cleaning;
+      flattenedData.CleaningLevel = cleaning;
+
+      // الكوي
+      const ironing = getSkill(['ironing', 'ironinglevel']) || flattenedData.ironingLevel || "";
+      flattenedData.ironingLevel = ironing;
+      flattenedData.IroningLevel = ironing;
+
+      // الخياطة
+      const sewing = getSkill(['sewing', 'sewinglevel']) || flattenedData.sewingLevel || "";
+      flattenedData.sewingLevel = sewing;
+      flattenedData.SewingLevel = sewing;
+
+      // رعاية الأطفال
+      const childcare = getSkill(['babysitter', 'babysitting', 'childcare', 'child_care', 'childcarelevel']) || flattenedData.childcareLevel || "";
+      flattenedData.childcareLevel = childcare;
+      flattenedData.ChildcareLevel = childcare;
+
+      // رعاية كبار السن
+      const elderly = getSkill(['elderly_care', 'elderlycare', 'elderly', 'elderlycarelevel']) || flattenedData.elderlycareLevel || "";
+      flattenedData.elderlycareLevel = elderly;
+      flattenedData.ElderlycareLevel = elderly;
+
+      // الغسيل والكي (Laundry)
+      const laundry = getSkill(['laundry', 'washing', 'laundrylevel']) || flattenedData.laundryLevel || "";
+      flattenedData.laundryLevel = laundry;
+      flattenedData.LaundryLevel = laundry;
+
+      // اللغات
+      const english = getLang(['english', 'englishlanguagelevel']) || flattenedData.EnglishLanguageLevel || "";
+      flattenedData.EnglishLanguageLevel = english;
+
+      const arabic = getLang(['arabic', 'arabiclanguagelevel']) || flattenedData.ArabicLanguageLeveL || "";
+      flattenedData.ArabicLanguageLeveL = arabic;
+
+      console.log("🚀 Data Sent to Server:", flattenedData);
+
       const response = await fetch('/api/save-pdf-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId,
           selectedImages: uploadedImageUrls.length > 0 ? uploadedImageUrls : selectedImages,
-          geminiData: processingResult.geminiData,
+          geminiData: { jsonResponse: flattenedData },
           originalFileName: file?.name || 'document.pdf',
           notes,
           processedBy: 'Admin User',
@@ -805,27 +943,15 @@ export default function PDFProcessor() {
         throw new Error(errorData.error || 'Failed to save data');
       }
 
-      // إظهار رسالة النجاح
       const successMessage = 'تم حفظ بيانات الموظف بنجاح! ✓';
       setSaveMessage(successMessage);
       showToast(successMessage, 'success');
 
-      // إعادة تعيين النموذج بعد 2 ثانية
       setTimeout(() => {
-        setFile(null);
-        setProcessingResult(null);
-        setSelectedImages([]);
-        setSelectedProfileImage('');
-        setSelectedFullImage('');
-        setUploadedImageUrls([]);
-        setNotes('');
-        setSaveMessage('');
-        setCurrentStep('upload');
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
+        resetForm();
       }, 2000);
     } catch (err) {
+      console.error("Save Error:", err);
       const errorMessage = err instanceof Error ? err.message : 'حدث خطأ أثناء الحفظ';
       setError(errorMessage);
       showToast(errorMessage, 'error');
@@ -1351,6 +1477,7 @@ export default function PDFProcessor() {
                                 اختر المكتب الصحيح:
                               </label>
                               <select
+                               dir="rtl"
                                 onChange={(e) => handleOfficeSelection(e.target.value)}
                                 className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
                                 defaultValue=""
@@ -1550,101 +1677,306 @@ export default function PDFProcessor() {
                                       {getDisplayLabel(displayKey)}
                                     </td>
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
-                                      {isEditing ? (
-                                        (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
-                                          <div>
-                                            <div className="flex items-center gap-2">
-                                              <input
-                                                type="text"
-                                                list="office-list"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                value={editingField?.value ?? ''}
-                                                onChange={(e) =>
-                                                  setEditingField((prev) =>
-                                                    prev ? { ...prev, value: e.target.value } : prev
-                                                  )
-                                                }
-                                                placeholder="اختر مكتباً أو اكتب للبحث"
-                                              />
-                                              <datalist id="office-list">
-                                                {filteredOffices.map((o) => (
-                                                  <option key={o.id} value={o.office || ''} />
-                                                ))}
-                                              </datalist>
-                                            </div>
-                                            <div className="mt-2 flex justify-end gap-2 text-xs">
-                                              <button
-                                                type="button"
-                                                className="px-3 py-1 rounded-md bg-green-600 text-white hover:bg-green-700"
-                                                onClick={saveEditingField}
-                                              >
-                                                حفظ
-                                              </button>
-                                              <button
-                                                type="button"
-                                                className="px-3 py-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300"
-                                                onClick={cancelEditingField}
-                                              >
-                                                إلغاء
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div className="flex items-center gap-2">
-                                            <input
-                                              type="text"
-                                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                              value={editingField?.value ?? ''}
-                                              onChange={(e) =>
-                                                setEditingField((prev) =>
-                                                  prev ? { ...prev, value: e.target.value } : prev
-                                                )
-                                              }
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                  e.preventDefault();
-                                                  saveEditingField();
-                                                }
-                                              }}
-                                            />
-                                            <button
-                                              type="button"
-                                              className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700"
-                                              onClick={saveEditingField}
-                                            >
-                                              حفظ
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300"
-                                              onClick={cancelEditingField}
-                                            >
-                                              إلغاء
-                                            </button>
-                                          </div>
-                                        )
-                                      ) : (
-                                        <div className="flex items-center justify-between gap-2">
-                                          <span>{renderValue(displayValue)}</span>
-                                          <button
-                                            type="button"
-                                            className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs"
-                                            onClick={() => startEditingField(key, displayValue)}
-                                          >
-                                            <svg
-                                              xmlns="http://www.w3.org/2000/svg"
-                                              viewBox="0 0 20 20"
-                                              fill="currentColor"
-                                              className="w-4 h-4"
-                                            >
-                                              <path d="M15.414 2.586a2 2 0 00-2.828 0L4 11.172V14h2.828l8.586-8.586a2 2 0 000-2.828z" />
-                                              <path d="M3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-                                            </svg>
-                                            تعديل
-                                          </button>
-                                        </div>
-                                      )}
-                                    </td>
+  {isEditing ? (
+    // ---------------------------------------------------------
+    // 1. الحالة الأولى: تعديل اسم المكتب (قائمة مكاتب)
+    // ---------------------------------------------------------
+    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
+      <div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            list="office-list"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+            placeholder="اختر مكتباً أو اكتب للبحث"
+          />
+          <datalist id="office-list">
+            {filteredOffices.map((o) => (
+              <option key={o.id} value={o.office || ''} />
+            ))}
+          </datalist>
+        </div>
+        <div className="mt-2 flex justify-end gap-2 text-xs">
+          <button
+            type="button"
+            className="px-3 py-1 rounded-md bg-green-600 text-white hover:bg-green-700"
+            onClick={saveEditingField}
+          >
+            حفظ
+          </button>
+          <button
+            type="button"
+            className="px-3 py-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300"
+            onClick={cancelEditingField}
+          >
+            إلغاء
+          </button>
+        </div>
+      </div>
+    ) : 
+    // ---------------------------------------------------------
+    // 2. الحالة الثانية: تعديل المهنة (Job Title / Profession)
+    // ---------------------------------------------------------
+    (key === 'job_title' || key === 'profession' || key === 'job' || key === 'Job') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر المهنة</option>
+            {professions.map((prof) => (
+              <option key={prof.id} value={prof.name}>
+                {prof.name}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 3. الحالة الثالثة: تعديل الديانة (Religion)
+    // ---------------------------------------------------------
+    (key === 'religion' || key === 'Religion') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر الديانة</option>
+            <option value="Islam - الإسلام">Islam - الإسلام</option>
+            <option value="Non-Muslim - غير مسلم">Non-Muslim - غير مسلم</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 4. الحالة الرابعة (الجديدة): الحالة الاجتماعية (Marital Status) ✨
+    // ---------------------------------------------------------
+    (key === 'marital_status' || key === 'MaritalStatus') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر الحالة الاجتماعية</option>
+            <option value="Single - عازبة">Single - عازبة</option>
+            <option value="Married - متزوجة">Married - متزوجة</option>
+            <option value="Divorced - مطلقة">Divorced - مطلقة</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 5. الحالة الخامسة: تعديل المهارات أو اللغات
+    // ---------------------------------------------------------
+    (key.startsWith('skill_') || key.startsWith('lang_')) ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر المستوى</option>
+            <option value="Expert - ممتاز">Expert - ممتاز</option>
+            <option value="Advanced - جيد جداً">Advanced - جيد جداً</option>
+            <option value="Intermediate - جيد">Intermediate - جيد</option>
+            <option value="Beginner - مبتدأ">Beginner - مبتدأ</option>
+            <option value="Non - لا تجيد">Non - لا تجيد</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 6. الحالة السادسة: باقي الحقول (مربع نص عادي)
+    // ---------------------------------------------------------
+    (
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+          value={editingField?.value ?? ''}
+          onChange={(e) =>
+            setEditingField((prev) =>
+              prev ? { ...prev, value: e.target.value } : prev
+            )
+          }
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              saveEditingField();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    )
+  ) : (
+    // ---------------------------------------------------------
+    // وضع العرض (Display Mode)
+    // ---------------------------------------------------------
+    <div className="flex items-center justify-between gap-2">
+      <span>{renderValue(displayValue)}</span>
+      <button
+        type="button"
+        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs"
+        onClick={() => startEditingField(key, displayValue)}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="w-4 h-4"
+        >
+          <path d="M15.414 2.586a2 2 0 00-2.828 0L4 11.172V14h2.828l8.586-8.586a2 2 0 000-2.828z" />
+          <path d="M3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
+        </svg>
+        تعديل
+      </button>
+    </div>
+  )}
+</td>
                                   </tr>
                                 );
                               })}

@@ -3,29 +3,28 @@ import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Helper function to normalize boolean values
-const normalizeBoolean = (value: any) => {
-  if (typeof value === 'boolean') return value;
-  if (value == null) return undefined;
-  const v = String(value).trim().toLowerCase();
-  if (["yes", "y", "true", "1", "نعم"].includes(v)) return true;
-  if (["no", "n", "false", "0", "لا"].includes(v)) return false;
-  return undefined;
+// 1. دالة ذكية لاستخراج الأرقام من النصوص (للطول والوزن)
+// تحول "152cm" -> 152, "55 kg" -> 55, "60.5" -> 61
+const parsePhysicalStat = (value: any): number | null => {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return Math.round(value);
+  
+  // تنظيف النص: حذف أي شيء ليس رقماً أو نقطة عشرية
+  const str = String(value).trim().toLowerCase().replace(/[^\d.]/g, ''); 
+  const num = parseFloat(str);
+  
+  return isNaN(num) ? null : Math.round(num); // التقريب لأقرب عدد صحيح لأن الداتا بيس Int
 };
 
-// Helper function to parse JSON strings for skills and languages
+// 2. دالة تحليل النصوص JSON
 const parseJsonField = (value: any) => {
   if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch (e) {
-      return value;
-    }
+    try { return JSON.parse(value); } catch (e) { return value; }
   }
-  return value;
+  return value || {};
 };
 
-// Helper function to parse date string to DateTime
+// 3. دالة تحليل التواريخ
 const parseDate = (dateValue: any): Date | null => {
   if (!dateValue) return null;
   if (dateValue instanceof Date) return dateValue;
@@ -36,90 +35,104 @@ const parseDate = (dateValue: any): Date | null => {
   return null;
 };
 
-// Helper function to parse age to Int
+// 4. دالة تحليل العمر
 const parseAge = (ageValue: any): number | null => {
   if (ageValue == null) return null;
   if (typeof ageValue === 'number') return ageValue;
-  if (typeof ageValue === 'string') {
-    const parsed = parseInt(ageValue, 10);
-    return isNaN(parsed) ? null : parsed;
+  // استخراج أول رقم موجود في النص (في حال كان النص "25 years")
+  const match = String(ageValue).match(/\d+/);
+  if (match) {
+    return parseInt(match[0], 10);
   }
   return null;
 };
 
-// Helper function to map Gemini data to homemaid schema
+// دالة الربط الرئيسية (Mapping)
 const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
   const data = geminiData.jsonResponse || {};
   
-  // Parse skills and languages_spoken if they are JSON strings
+  // معالجة المهارات واللغات
   const skills = parseJsonField(data.skills);
   const languagesSpoken = parseJsonField(data.languages_spoken);
   
-  // Extract skill levels (matching homemaid schema)
-  const washingLevel = skills?.WASHING || skills?.washing || '';
-  const cookingLevel = skills?.COOKING || skills?.cooking || '';
-  const childcareLevel = skills?.babysetting || skills?.BABYSITTING || skills?.babysitting || '';
-  const cleaningLevel = skills?.CLEANING || skills?.cleaning || '';
-  const laundryLevel = skills?.LAUNDRY || skills?.laundry || '';
-  const ironingLevel = skills?.IRONING || skills?.ironing || '';
-  const sewingLevel = skills?.SEWING || skills?.sewing || '';
-  const elderlycareLevel = skills?.ELDERLYCARE || skills?.elderlycare || '';
-  
-  // Extract language levels
-  const englishLanguageLevel = languagesSpoken?.English || languagesSpoken?.english || '';
-  const arabicLanguageLeveL = languagesSpoken?.Arabic || languagesSpoken?.arabic || '';
-  
-  // Prepare images as JSON (homemaid uses Json type for Picture and FullPicture)
-  // Format: { url: "..." } to match the expected format
+  // دالة مساعدة للبحث عن قيمة داخل عدة احتمالات للمفاتيح
+  const findValue = (keys: string[], sourceObj: any = data) => {
+    for (const key of keys) {
+      if (sourceObj[key] !== undefined && sourceObj[key] !== null && sourceObj[key] !== "") {
+        return sourceObj[key];
+      }
+    }
+    return '';
+  };
+
+  // استخراج المهارات (بحث شامل في المستوى الأول وداخل كائن skills)
+  const getSkill = (keys: string[]) => {
+    // 1. ابحث في data مباشرة
+    let val = findValue(keys, data);
+    if (val) return val;
+    // 2. ابحث داخل skills object
+    if (skills) val = findValue(keys, skills);
+    return val || '';
+  };
+
+  // تجهيز الصور
   const profileImage = selectedImages[0] || null;
   const fullImage = selectedImages[1] || selectedImages[0] || null;
   
-  // Parse nationality to JSON if it's a string
+  // تجهيز الجنسية
   let nationalityJson: any = null;
-  const nationalityValue = data.Nationality || data.nationality;
+  const nationalityValue = findValue(['Nationality', 'nationality']);
   if (nationalityValue) {
     if (typeof nationalityValue === 'string') {
-      try {
-        nationalityJson = JSON.parse(nationalityValue);
-      } catch {
-        nationalityJson = nationalityValue; // If not JSON, store as string in JSON
-      }
+      try { nationalityJson = JSON.parse(nationalityValue); } catch { nationalityJson = nationalityValue; }
     } else {
       nationalityJson = nationalityValue;
     }
   }
   
   return {
-    Name: data.Name || data.full_name || data.name || '',
-    age: parseAge(data.Age || data.age),
-    Religion: data.Religion || data.religion || '',
-    maritalstatus: data.MaritalStatus || data.marital_status || data.maritalStatus || '',
-    dateofbirth: parseDate(data.BirthDate || data.birthDate || data.birth_date || data.date_of_birth),
+    // البيانات الأساسية
+    Name: findValue(['Name', 'name', 'full_name', 'FullName']),
+    age: parseAge(findValue(['Age', 'age'])),
+    Religion: findValue(['Religion', 'religion']),
+    maritalstatus: findValue(['MaritalStatus', 'marital_status', 'maritalStatus']),
+    dateofbirth: parseDate(findValue(['BirthDate', 'birthDate', 'birth_date', 'date_of_birth'])),
+    
     Nationality: nationalityJson,
     Nationalitycopy: typeof nationalityValue === 'string' ? nationalityValue : (nationalityJson ? JSON.stringify(nationalityJson) : ''),
-    officeName: data.company_name || data.CompanyName || data.OfficeName || data.office_name || data.officeName ,
-  
-    Passportnumber: data.PassportNumber || data.passport_number || data.passportNumber || '',
-    PassportStart: parseDate(data.PassportStartDate || data.passport_issue_date || data.passportStartDate),
-    PassportEnd: parseDate(data.PassportEndDate || data.passport_expiration || data.passportEndDate),
-    Salary: data.salary || data.Salary || '',
+    
+    // بيانات المكتب والوظيفة
+    officeName: findValue(['company_name', 'CompanyName', 'OfficeName', 'office_name', 'officeName']),
+    job: findValue(['job_title', 'JobTitle', 'profession', 'job']), 
+
+    // بيانات الجواز
+    Passportnumber: findValue(['PassportNumber', 'passport_number', 'passportNumber']),
+    PassportStart: parseDate(findValue(['PassportStartDate', 'passport_issue_date', 'passportStartDate'])),
+    PassportEnd: parseDate(findValue(['PassportEndDate', 'passport_expiration', 'passportEndDate'])),
+    
+    Salary: findValue(['Salary', 'salary']),
+    
+    // ✨✨ الطول والوزن (تم تفعيلها وإضافة التحليل الذكي) ✨✨
+    weight: parsePhysicalStat(findValue(['Weight', 'weight'])),
+    height: parsePhysicalStat(findValue(['Height', 'height'])),
+
+    // الصور
     Picture: profileImage ? { url: profileImage } : Prisma.JsonNull,
     FullPicture: fullImage ? { url: fullImage } : Prisma.JsonNull,
-    // weight: data.weight || data.Weight || '',
-    // height: data.height || data.Height || '',
-    // Language levels
-    EnglishLanguageLevel: englishLanguageLevel || '',
-    ArabicLanguageLeveL: arabicLanguageLeveL || '',
     
-    // Skill levels
-    washingLevel: washingLevel || '',
-    cookingLevel: cookingLevel || '',
-    childcareLevel: childcareLevel || '',
-    cleaningLevel: cleaningLevel || '',
-    laundryLevel: laundryLevel || '',
-    ironingLevel: ironingLevel || '',
-    sewingLevel: sewingLevel || '',
-    elderlycareLevel: elderlycareLevel || '',
+    // اللغات
+    EnglishLanguageLevel: findValue(['EnglishLanguageLevel', 'English'], data) || findValue(['English', 'english'], languagesSpoken),
+    ArabicLanguageLeveL: findValue(['ArabicLanguageLeveL', 'ArabicLanguageLevel', 'Arabic'], data) || findValue(['Arabic', 'arabic'], languagesSpoken),
+    
+    // المهارات (باستخدام الدالة الذكية للبحث في كل مكان)
+    washingLevel: getSkill(['washingLevel', 'WashingLevel', 'WASHING', 'washing', 'Washing']),
+    cookingLevel: getSkill(['cookingLevel', 'CookingLevel', 'COOKING', 'cooking', 'Cooking']),
+    childcareLevel: getSkill(['childcareLevel', 'ChildcareLevel', 'babysitting', 'BABYSITTING', 'babysetting', 'BabySitter', 'childcare']),
+    cleaningLevel: getSkill(['cleaningLevel', 'CleaningLevel', 'CLEANING', 'cleaning', 'Cleaning']),
+    laundryLevel: getSkill(['laundryLevel', 'LaundryLevel', 'LAUNDRY', 'laundry', 'Laundry']),
+    ironingLevel: getSkill(['ironingLevel', 'IroningLevel', 'IRONING', 'ironing', 'Ironing']),
+    sewingLevel: getSkill(['sewingLevel', 'SewingLevel', 'SEWING', 'sewing', 'Sewing']),
+    elderlycareLevel: getSkill(['elderlycareLevel', 'ElderlycareLevel', 'ELDERLYCARE', 'elderlycare', 'ElderlyCare', 'elderly_care']),
   };
 };
 
@@ -129,92 +142,98 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { sessionId, selectedImages, geminiData, originalFileName, notes, processedBy } = req.body;
+    const { sessionId, selectedImages, geminiData } = req.body;
 
-    if (!sessionId) {
-      return res.status(400).json({ error: 'Session ID is required' });
-    }
-
-    if (!geminiData || !geminiData.jsonResponse) {
-      return res.status(400).json({ error: 'Gemini data is required' });
-    }
-
-    if (!selectedImages || selectedImages.length === 0) {
-      return res.status(400).json({ error: 'Selected images are required' });
+    if (!sessionId || !geminiData || !geminiData.jsonResponse) {
+      return res.status(400).json({ error: 'Missing required data' });
     }
 
     // Map Gemini data to homemaid schema
-    const homemaidData = mapGeminiDataToHomemaid(geminiData, selectedImages);
+    const homemaidData = mapGeminiDataToHomemaid(geminiData, selectedImages || []);
 
-    // Handle office relation - find office and use connect syntax
+    // -------------------------------------------------------
+    // 1. معالجة ربط المكتب (Office Relation)
+    // -------------------------------------------------------
     let officeRelation: any = undefined;
     const officeNameValue = homemaidData.officeName;
     
     if (officeNameValue) {
       const trimmedOfficeName = String(officeNameValue).trim();
       
-      // Try exact match first
+      // البحث الدقيق
       let office = await prisma.offices.findUnique({
         where: { office: trimmedOfficeName }
       });
       
-      // If not found, try case-insensitive search
+      // البحث المرن (Case Insensitive & Partial)
       if (!office) {
         const allOffices = await prisma.offices.findMany({
-          where: {
-            office: {
-              not: null
-            }
-          }
+          where: { office: { not: null } }
         });
         
-        // Try exact case-insensitive match
-        office = allOffices.find(
-          o => o.office && o.office.trim().toLowerCase() === trimmedOfficeName.toLowerCase()
-        ) || null;
+        // تطابق تام مع تجاهل الحالة
+        office = allOffices.find(o => o.office?.trim().toLowerCase() === trimmedOfficeName.toLowerCase()) || null;
         
-        // If still not found, try partial match (contains)
+        // تطابق جزئي
         if (!office) {
-          office = allOffices.find(
-            o => o.office && o.office.trim().toLowerCase().includes(trimmedOfficeName.toLowerCase())
-          ) || null;
+          office = allOffices.find(o => o.office?.trim().toLowerCase().includes(trimmedOfficeName.toLowerCase())) || null;
         }
-        
-        // If still not found, try reverse partial match (office name contains search term)
+        // تطابق جزئي عكسي
         if (!office) {
-          office = allOffices.find(
-            o => o.office && trimmedOfficeName.toLowerCase().includes(o.office.trim().toLowerCase())
-          ) || null;
+          office = allOffices.find(o => o.office && trimmedOfficeName.toLowerCase().includes(o.office.trim().toLowerCase())) || null;
         }
       }
       
       if (office) {
-        // Use the relation connect syntax
-        officeRelation = {
-          connect: {
-            office: office.office
-          }
-        };
+        officeRelation = { connect: { office: office.office } };
       } else {
-        console.warn(`Office "${trimmedOfficeName}" not found in offices table. Skipping office relation.`);
+        console.warn(`Office "${trimmedOfficeName}" not found.`);
       }
     }
     
-    // Remove officeName from homemaidData as we'll use the relation field instead
+    // حذف الاسم النصي لأننا سنستخدم العلاقة
     delete homemaidData.officeName;
 
-    // Build the create data object
+    // -------------------------------------------------------
+    // 2. معالجة ربط المهنة (Job Title Relation)
+    // -------------------------------------------------------
+    let professionRelation: any = undefined;
+    const professionNameValue = homemaidData.job; 
+
+    if (professionNameValue) {
+        const trimmedProfName = String(professionNameValue).trim();
+        
+        // البحث الدقيق
+        let profession = await prisma.professions.findFirst({
+            where: { name: trimmedProfName }
+        });
+
+        // البحث المرن
+        if (!profession) {
+             const allProfs = await prisma.professions.findMany();
+             profession = allProfs.find(
+                p => p.name.toLowerCase().includes(trimmedProfName.toLowerCase()) || 
+                     trimmedProfName.toLowerCase().includes(p.name.toLowerCase())
+             ) || null;
+        }
+
+        if (profession) {
+            professionRelation = { connect: { id: profession.id } };
+        }
+    }
+    // حذف الحقل النصي إذا لم يكن موجوداً في السكيما، أو تركه إذا كان موجوداً
+    // (حسب السكيما لديك يوجد حقل job وأيضاً professionId، سنترك job للنص ونضيف العلاقة)
+
+    // -------------------------------------------------------
+    // 3. الحفظ النهائي
+    // -------------------------------------------------------
     const createData: any = { ...homemaidData };
     
-    // Add office relation if found
-    if (officeRelation) {
-      createData.office = officeRelation;
-    }
+    if (officeRelation) createData.office = officeRelation;
+    if (professionRelation) createData.profession = professionRelation;
 
-    // Log the data being sent for debugging
-    console.log('Homemaid data to be saved:', JSON.stringify(createData, null, 2));
+    console.log('Final Data Saving to DB:', JSON.stringify(createData, null, 2));
 
-    // Create the homemaid record in homemaid table
     const homemaidRecord = await prisma.homemaid.create({
       data: createData
     });
@@ -222,7 +241,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       success: true,
       homemaidId: homemaidRecord.id,
-      message: 'Employee data saved successfully to homemaid table'
+      message: 'Employee data saved successfully'
     });
 
   } catch (error) {
