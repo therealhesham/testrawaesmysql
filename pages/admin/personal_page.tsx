@@ -212,6 +212,10 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     email: '',
     pictureurl: '',
   });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: ''
+  });
 
   const [professions, setProfessions] = useState<any[]>([]);
   const [fileName, setFileName] = useState('ارفاق ملف');
@@ -229,6 +233,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     email: '',
     pictureurl: '',
   });
+  
   // Set default active tab based on permissions
   const getDefaultTab = () => {
     return 'complaints'; // Default to complaints (الدعم الفني) for all users
@@ -464,6 +469,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
       setSaving(false);
     }
   };
+  
 
   const getStatusBadge = (status: string) => {
     const statusConfig: any = {
@@ -604,6 +610,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
   // إلغاء التعديل
   const handleCancelEdit = () => {
+    setPasswordData({ currentPassword: '', newPassword: '' }); // إعادة تعيين الباسورد
     setFormData(originalFormData);
     setIsEditingProfile(false);
     setFileName('ارفاق ملف');
@@ -611,10 +618,16 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     setSuccess(null);
   };
 
-  // حفظ التعديلات
+// حفظ التعديلات
   const handleSave = async () => {
     setError(null);
     setSuccess(null);
+
+    // التحقق البسيط إذا تم إدخال كلمة مرور جديدة
+    if (passwordData.newPassword && !passwordData.currentPassword) {
+        setError('يرجى إدخال كلمة المرور الحالية لتأكيد التغيير');
+        return;
+    }
 
     try {
       const res = await fetch(`/api/users/${id}`, {
@@ -625,16 +638,23 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           phonenumber: formData.phone,
           email: formData.email,
           pictureurl: formData.pictureurl,
+          // إرسال كلمات المرور فقط إذا كانت موجودة
+          ...(passwordData.newPassword ? {
+              currentPassword: passwordData.currentPassword,
+              newPassword: passwordData.newPassword
+          } : {})
         }),
       });
+
+      const data = await res.json(); // قراءة الرد دائماً لمعرفة الخطأ
 
       if (res.ok) {
         setSuccess('تم حفظ التغييرات بنجاح');
         setOriginalFormData(formData);
+        setPasswordData({ currentPassword: '', newPassword: '' }); // تصفير الحقول بعد النجاح
         setIsEditingProfile(false);
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        const data = await res.json();
         setError(data.error || 'فشل في الحفظ');
       }
     } catch (err) {
@@ -1030,6 +1050,40 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
               </div>
             </div>
           </div>
+          {/* قسم تغيير كلمة المرور - يظهر فقط عند التعديل */}
+          {isEditingProfile && (
+            <div className="mt-6 pt-6 border-t border-gray-100 animate-in fade-in slide-in-from-top-2">
+                <h3 className="text-lg font-bold text-teal-800 mb-4">تغيير كلمة المرور (اختياري)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="group">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                            كلمة المرور الحالية
+                        </label>
+                        <input
+                            type="password"
+                            placeholder="أدخل كلمة المرور الحالية"
+                            value={passwordData.currentPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                        />
+                    </div>
+                    <div className="group">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                            كلمة المرور الجديدة
+                        </label>
+                        <input
+                            type="password"
+                            placeholder="أدخل كلمة المرور الجديدة"
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                        />
+                    </div>
+                </div>
+            </div>
+          )}
 
           {/* أزرار التعديل والحفظ */}
           <div className="flex justify-center gap-4">

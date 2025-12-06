@@ -35,6 +35,7 @@ model homemaid {
   SewingLevel String? @db.VarChar(255)
   weight Int?
   height Int?
+  children Int?
   CleaningLevel String? @db.VarChar(255)
   CookingLevel String? @db.VarChar(255)
   WashingLevel String? @db.VarChar(255)
@@ -53,7 +54,6 @@ model homemaid {
   experienceType    String?    @db.VarChar(100)
  PassportStart DateTime?
   PassportEnd       DateTime?
-  OldPeopleCare     Boolean?
   Salary            String?    @db.VarChar(20)
   Housed            housing[]
   inHouse           housedworker[]
@@ -72,6 +72,7 @@ ironingLevel String? @db.VarChar(100)
 childcareLevel String? @db.VarChar(100)
 elderlycareLevel String? @db.VarChar(100)
 laundryLevel String? @db.VarChar(100)
+BabySitterLevel String? @db.VarChar(100)
 
 }
 

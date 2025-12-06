@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcrypt';
+
 const prisma = new PrismaClient();
-export default async function handler(req:NextApiRequest, res:NextApiResponse) {
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query as { id: string };
   const { method } = req;
 
@@ -16,7 +18,6 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
         if (!user) {
           return res.status(404).json({ error: 'User not found' });
         }
-        // console.log(user);
         res.status(200).json(user);
       } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user' });
@@ -27,28 +28,72 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
 
     case 'PUT':
       try {
-        const { username, phonenumber, idnumber, password, email, roleId, pictureurl } = req.body;
-        console.log(id)
+        const { 
+          username, 
+          phonenumber, 
+          email, 
+          roleId, 
+          pictureurl,
+          currentPassword, 
+          newPassword 
+        } = req.body;
+
+        console.log("🔍 Update Request for User ID:", id);
+
         const userFinder = await prisma.user.findUnique({
           where: { id: parseInt(id) },
         });
-        console.log(userFinder?.roleId)
+
+        if (!userFinder) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        let updatedPassword = userFinder.password;
+
+        // منطق تغيير كلمة المرور
+        if (newPassword) {
+          if (!currentPassword) {
+            return res.status(400).json({ error: 'يرجى إدخال كلمة المرور الحالية لتغيير كلمة المرور' });
+          }
+
+         
+
+          // 1. محاولة المقارنة كـ Hash (الوضع الطبيعي)
+          let isPasswordValid = await bcrypt.compare(currentPassword, userFinder.password);
+          // isPasswordValid = true; // 🔴 تجاوز الفحص إجبارياً لإصلاح الهاش الفاسد
+
+          // 2. (إصلاح مؤقت) إذا فشل الهاش، نجرب مقارنة نص عادي (في حال تم إدخال اليوزر يدوياً)
+          if (!isPasswordValid && currentPassword === userFinder.password) {
+             console.log("⚠️ Warning: Password matched as plain text! Updating to hash now.");
+             isPasswordValid = true;
+          }
+
+          if (!isPasswordValid) {
+            
+            return res.status(400).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+          }
+
+          
+          updatedPassword = await bcrypt.hash(newPassword, 10);
+        }
+
         const user = await prisma.user.update({
           where: { id: parseInt(id) },
           data: {
-             username:username ? username : userFinder?.username  ,
-            phonenumber:phonenumber ? phonenumber : userFinder?.phonenumber  ,
-            pictureurl: pictureurl !== undefined ? pictureurl : userFinder?.pictureurl,
-            email: email !== undefined ? email : userFinder?.email,
-            idnumber:userFinder?.idnumber  ,
-            password:password ? await bcrypt.hash(password, 10) : userFinder?.password  ,
-            roleId: roleId ? parseInt(roleId) : userFinder?.roleId  ,
+            username: username || userFinder.username,
+            phonenumber: phonenumber || userFinder.phonenumber,
+            pictureurl: pictureurl !== undefined ? pictureurl : userFinder.pictureurl,
+            email: email !== undefined ? email : userFinder.email,
+            idnumber: userFinder.idnumber,
+            password: updatedPassword, // سيتم حفظ الباسورد الجديد المشفر
+            roleId: roleId ? parseInt(roleId) : userFinder.roleId,
             updatedAt: new Date(),
           },
         });
+
         res.status(200).json(user);
       } catch (error) {
-        console.log(error)
+        console.error("SERVER ERROR:", error);
         res.status(500).json({ error: 'Failed to update user' });
       } finally {
         await prisma.$disconnect();
@@ -62,7 +107,7 @@ export default async function handler(req:NextApiRequest, res:NextApiResponse) {
         });
         res.status(204).end();
       } catch (error) {
-        console.log(error)
+        console.log(error);
         res.status(500).json({ error: 'Failed to delete user' });
       } finally {
         await prisma.$disconnect();

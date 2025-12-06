@@ -20,6 +20,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   travelTicket: '',
   passportcopy: '',
 });
+
   const [formData, setFormData] = useState({
     name: '',
     religion: '',
@@ -28,6 +29,10 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     age: '',
     passport: '',
     mobile: '',
+    weight: '',
+    height: '',
+    children: '', 
+    BabySitterLevel: '',
     passportStart: '',
     passportEnd: '',
     educationLevel: '',
@@ -66,6 +71,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [nationalities, setNationalities] = useState<Array<{ id: number; Country: string }>>([]);
 
   const fileInputRefs = {
     travelTicket: useRef<HTMLInputElement>(null),
@@ -120,6 +126,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
         'x-amz-acl': 'public-read',
       },
     });
+    
+
 
     if (!uploadRes.ok) {
       throw new Error('فشل في رفع الملف');
@@ -235,7 +243,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       newErrors.name = 'الاسم يجب أن يحتوي على حروف فقط وأكثر من حرفين';
     }
 
-    if (formData.nationality && !/^[a-zA-Z\s\u0600-\u06FF]+$/.test(formData.nationality)) {
+   // السماح بالحروف العربية والإنجليزية والمسافات والشرطة (-)
+    if (formData.nationality && !/^[a-zA-Z\s\u0600-\u06FF-]+$/.test(formData.nationality)) {
       newErrors.nationality = 'الجنسية يجب أن تحتوي على حروف فقط';
     }
 
@@ -277,10 +286,17 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     if (formData.salary && (isNaN(Number(formData.salary)) || Number(formData.salary) <= 0)) {
       newErrors.salary = 'الراتب يجب أن يكون رقمًا إيجابيًا';
     }
-
-    if (formData.experienceYears && (isNaN(Number(formData.experienceYears)) || Number(formData.experienceYears) < 0)) {
-      newErrors.experienceYears = 'سنوات الخبرة يجب أن تكون رقمًا غير سالب';
+    // ✨ الإضافات الجديدة للتحقق:
+    if (formData.weight && (isNaN(Number(formData.weight)) || Number(formData.weight) <= 0)) {
+      newErrors.weight = 'الوزن يجب أن يكون رقمًا صحيحًا';
     }
+    if (formData.height && (isNaN(Number(formData.height)) || Number(formData.height) <= 0)) {
+      newErrors.height = 'الطول يجب أن يكون رقمًا صحيحًا';
+    }
+    if (formData.children && isNaN(Number(formData.children))) {
+      newErrors.children = 'عدد الأطفال يجب أن يكون رقمًا';
+    }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -295,6 +311,21 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       console.error('Error fetching offices:', error);
     }
   };
+      // دالة جلب الجنسيات من الـ API
+  const fetchNationalities = async () => {
+    try {
+      const res = await fetch('/api/nationalities');
+      if (res.ok) {
+        const data = await res.json();
+        // التأكد من وجود المصفوفة في الاستجابة
+        if (data && Array.isArray(data.nationalities)) {
+          setNationalities(data.nationalities);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching nationalities:', error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!validateForm()) {
@@ -305,6 +336,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
 
     setIsLoading(true);
     try {
+      const payload = {
+        ...formData,
+        weight: formData.weight ? parseInt(formData.weight) : null,
+        height: formData.height ? parseInt(formData.height) : null,
+        children: formData.children ? parseInt(formData.children) : null,
+      };
       const response = await fetch('/api/newhomemaids', {
         method: 'POST',
         body: JSON.stringify(formData),
@@ -325,6 +362,10 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
         age: '',
         passport: '',
         mobile: '',
+        weight: '',
+         height: '',
+         children: '',
+         BabySitterLevel: '',
         passportStart: '',
         passportEnd: '',
         educationLevel: '',
@@ -374,8 +415,75 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   useEffect(() => {
     if (!error) {
       fetchOffices();
+      fetchNationalities();
     }
   }, [error]);
+
+  // --- قوائم الخيارات الموحدة ---
+  const skillLevels = [
+    "Expert - ممتاز",
+    "Advanced - جيد جداً",
+    "Intermediate - جيد",
+    "Beginner - مبتدأ",
+    "Non - لا تجيد"
+  ];
+
+  const educationOptions = [
+    "Diploma - دبلوم",
+    "High school - ثانوي",
+    "Illiterate - غير متعلم",
+    "Literate - القراءة والكتابة",
+    "Primary school - ابتدائي",
+    "University level - جامعي"
+  ];
+
+  const experienceOptions = [
+    "Novice | مدربة بدون خبرة",
+    "Intermediate | مدربة بخبرة متوسطة",
+    "Well-experienced | خبرة جيدة",
+    "Expert | خبرة ممتازة"
+  ];
+
+  const maritalStatusOptions = [
+    "Single - عازبة",
+    "Married - متزوجة",
+    "Divorced - مطلقة"
+  ];
+
+  const religionOptions = [
+    "Islam - الإسلام",
+    "Non-Muslim - غير مسلم"
+  ];
+
+  // --- دالة معالجة تغيير الخبرة (تلقائية السنوات) ---
+  const handleExperienceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedExperience = e.target.value;
+    let autoYears = "";
+
+    switch (selectedExperience) {
+      case "Novice | مدربة بدون خبرة":
+        autoYears = "مدربة-Training";
+        break;
+      case "Intermediate | مدربة بخبرة متوسطة":
+        autoYears = "1-2 Years - سنوات";
+        break;
+      case "Well-experienced | خبرة جيدة":
+        autoYears = "3-4 Years - سنوات";
+        break;
+      case "Expert | خبرة ممتازة":
+        autoYears = "5 and More - وأكثر";
+        break;
+      default:
+        autoYears = "";
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      experienceField: selectedExperience, // تخزين مستوى الخبرة
+      experienceYears: autoYears,          // تخزين السنوات تلقائياً
+    }));
+    setErrors((prev) => ({ ...prev, experienceField: '' }));
+  };
 
   return (
     <Layout>
@@ -528,6 +636,10 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       age: '',
       passport: '',
       mobile: '',
+      weight: '',
+         height: '',
+         children: '',
+         BabySitterLevel: '',
       passportStart: '',
       passportEnd: '',
       educationLevel: '',
@@ -597,48 +709,77 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                       />
                       {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                     </div>
-                    <div className="flex flex-col">
+                   <div className="flex flex-col">
                       <label htmlFor="religion" className="text-gray-500 text-sm mb-1">الديانة</label>
                       <select
                         id="religion"
                         value={formData.religion}
                         onChange={handleChange}
                         className={`border ${errors.religion ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        dir="ltr" // تنسيق اتجاه النص ليظهر الإنجليزي على اليسار والعربي على اليمين
                       >
                         <option value="" disabled>اختر الديانة</option>
-                        <option value="muslim">مسلمة</option>
-                        <option value="christian">مسيحية</option>
-                        <option value="other">أخرى</option>
+                        {religionOptions.map(rel => (
+                          <option key={rel} value={rel}>{rel}</option>
+                        ))}
                       </select>
                       {errors.religion && <p className="text-red-500 text-xs mt-1">{errors.religion}</p>}
                     </div>
                     <div className="flex flex-col">
                       <label htmlFor="nationality" className="text-gray-500 text-sm mb-1">الجنسية</label>
-                      <input
-                        type="text"
+                      <select
                         id="nationality"
                         value={formData.nationality}
                         onChange={handleChange}
-                        placeholder="أدخل الجنسية"
                         className={`border ${errors.nationality ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      />
+                        dir="ltr" // لجعل النصوص (إنجليزي - عربي) تظهر بشكل مرتب
+                      >
+                        <option value="" disabled>اختر الجنسية</option>
+                        {nationalities.map((nat) => (
+                          <option key={nat.id} value={nat.Country}>
+                            {nat.Country}
+                          </option>
+                        ))}
+                      </select>
                       {errors.nationality && <p className="text-red-500 text-xs mt-1">{errors.nationality}</p>}
                     </div>
-                    <div className="flex flex-col">
+                   <div className="flex flex-col">
                       <label htmlFor="maritalStatus" className="text-gray-500 text-sm mb-1">الحالة الاجتماعية</label>
                       <select
                         id="maritalStatus"
                         value={formData.maritalStatus}
                         onChange={handleChange}
                         className={`border ${errors.maritalStatus ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        dir="ltr"
                       >
                         <option value="" disabled>اختر الحالة</option>
-                        <option value="single">عزباء</option>
-                        <option value="married">متزوجة</option>
-                        <option value="divorced">مطلقة</option>
+                        {maritalStatusOptions.map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
                       </select>
                       {errors.maritalStatus && <p className="text-red-500 text-xs mt-1">{errors.maritalStatus}</p>}
                     </div>
+
+                    {/* ✨ الحقول الجديدة */}
+                    <div className="flex flex-col">
+                      <label htmlFor="children" className="text-gray-500 text-sm mb-1">عدد الأطفال</label>
+                      <input type="number" id="children" value={formData.children} onChange={handleChange} placeholder="0" className={`border ${errors.children ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
+                      {errors.children && <p className="text-red-500 text-xs mt-1">{errors.children}</p>}
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label htmlFor="weight" className="text-gray-500 text-sm mb-1">الوزن (كجم)</label>
+                      <input type="number" id="weight" value={formData.weight} onChange={handleChange} placeholder="مثال: 60" className={`border ${errors.weight ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
+                      {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight}</p>}
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label htmlFor="height" className="text-gray-500 text-sm mb-1">الطول (سم)</label>
+                      <input type="number" id="height" value={formData.height} onChange={handleChange} placeholder="مثال: 160" className={`border ${errors.height ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
+                      {errors.height && <p className="text-red-500 text-xs mt-1">{errors.height}</p>}
+                    </div>
+                    {/* ✨ نهاية الحقول الجديدة */}
+
                     <div className="flex flex-col">
                       <label htmlFor="age" className="text-gray-500 text-sm mb-1">تاريخ الميلاد</label>
                       <input
@@ -715,11 +856,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                         value={formData.educationLevel}
                         onChange={handleChange}
                         className={`border ${errors.educationLevel ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        dir="ltr"
                       >
                         <option value="" disabled>اختر مستوى التعليم</option>
-                        <option value="secondary">ثانوي</option>
-                        <option value="university">جامعي</option>
-                        <option value="diploma">دبلوم</option>
+                        {educationOptions.map(edu => (
+                          <option key={edu} value={edu}>{edu}</option>
+                        ))}
                       </select>
                       {errors.educationLevel && <p className="text-red-500 text-xs mt-1">{errors.educationLevel}</p>}
                     </div>
@@ -730,11 +872,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                         value={formData.arabicLevel}
                         onChange={handleChange}
                         className={`border ${errors.arabicLevel ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        dir="ltr"
                       >
                         <option value="" disabled>اختر المستوى</option>
-                        <option value="beginner">مبتدئ</option>
-                        <option value="intermediate">متوسط</option>
-                        <option value="advanced">ممتاز</option>
+                        {skillLevels.map(level => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
                       </select>
                       {errors.arabicLevel && <p className="text-red-500 text-xs mt-1">{errors.arabicLevel}</p>}
                     </div>
@@ -745,11 +888,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                         value={formData.englishLevel}
                         onChange={handleChange}
                         className={`border ${errors.englishLevel ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        dir="ltr"
                       >
                         <option value="" disabled>اختر المستوى</option>
-                        <option value="beginner">مبتدئ</option>
-                        <option value="intermediate">متوسط</option>
-                        <option value="advanced">ممتاز</option>
+                        {skillLevels.map(level => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
                       </select>
                       {errors.englishLevel && <p className="text-red-500 text-xs mt-1">{errors.englishLevel}</p>}
                     </div>
@@ -759,26 +903,31 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                   <legend className="text-2xl font-normal text-center text-black mb-6">الخبرة</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col">
-                      <label htmlFor="experienceField" className="text-gray-500 text-sm mb-1">الخبرة</label>
-                      <input
-                        type="text"
+                      <label htmlFor="experienceField" className="text-gray-500 text-sm mb-1">مستوى الخبرة</label>
+                      <select
                         id="experienceField"
                         value={formData.experienceField}
-                        onChange={handleChange}
-                        placeholder="أدخل نوع الخبرة"
+                        onChange={handleExperienceChange} // استخدام الدالة الخاصة هنا
                         className={`border ${errors.experienceField ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      />
+                        dir="ltr"
+                      >
+                        <option value="" disabled>اختر الخبرة</option>
+                        {experienceOptions.map(exp => (
+                          <option key={exp} value={exp}>{exp}</option>
+                        ))}
+                      </select>
                       {errors.experienceField && <p className="text-red-500 text-xs mt-1">{errors.experienceField}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="experienceYears" className="text-gray-500 text-sm mb-1">سنوات الخبرة</label>
+                      <label htmlFor="experienceYears" className="text-gray-500 text-sm mb-1">سنوات الخبرة (تلقائي)</label>
                       <input
-                        type="number"
+                        type="text" // تغيير النوع إلى نص لأن القيم أصبحت نصية (مثل: 1-2 Years)
                         id="experienceYears"
                         value={formData.experienceYears}
                         onChange={handleChange}
-                        placeholder="أدخل عدد السنوات"
-                        className={`border ${errors.experienceYears ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        placeholder="يتم التعبئة تلقائياً"
+                        className={`border ${errors.experienceYears ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-100 text-right`}
+                        dir="ltr"
                       />
                       {errors.experienceYears && <p className="text-red-500 text-xs mt-1">{errors.experienceYears}</p>}
                     </div>
@@ -786,119 +935,34 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                 </fieldset>
                 <fieldset>
                   <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="flex flex-col">
-                      <label htmlFor='cookingLevel' className="text-gray-500 text-sm mb-1">الطبخ</label>
-                      <select
-                        id='cookingLevel'
-                        value={formData.cookingLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['cookingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['cookingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cookingLevel']}</p>}
-                    </div>
-                    <div className="flex flex-col">
-                      <label htmlFor='washingLevel' className="text-gray-500 text-sm mb-1">الغسيل</label>
-                      <select
-                        id='washingLevel'
-                        value={formData.washingLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['washingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['washingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['washingLevel']}</p>}
-                    </div>
-                    <div className="flex flex-col">
-                      <label htmlFor='ironingLevel' className="text-gray-500 text-sm mb-1">الكوي</label>
-                      <select
-                        id='ironingLevel'
-                        value={formData.ironingLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['ironingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['ironingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['ironingLevel']}</p>}
-                    </div>
-                    <div className="flex flex-col">
-                      <label htmlFor='cleaningLevel' className="text-gray-500 text-sm mb-1">التنظيف</label>
-                      <select
-                        id='cleaningLevel'
-                        value={formData.cleaningLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['cleaningLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['cleaningLevel'] && <p className="text-red-500 text-xs mt-1">{errors['cleaningLevel']}</p>}
-                    </div>
-                    <div className="flex flex-col">
-                      <label htmlFor='sewingLevel' className="text-gray-500 text-sm mb-1">الخياطة</label>
-                      <select
-                        id='sewingLevel'
-                        value={formData.sewingLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['sewingLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['sewingLevel'] && <p className="text-red-500 text-xs mt-1">{errors['sewingLevel']}</p>}
-                    </div>
-                    <div className="flex flex-col">
-                      <label htmlFor='elderlycareLevel' className="text-gray-500 text-sm mb-1">رعاية كبار السن</label>
-                      <select
-                        id='elderlycareLevel'
-                        value={formData.elderlycareLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['elderlycareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['elderlycareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['elderlycareLevel']}</p>}
-                    </div>
-                    <div className="flex flex-col">
-                      <label htmlFor='childcareLevel' className="text-gray-500 text-sm mb-1">العناية بالأطفال</label>
-                      <select
-                        id='childcareLevel'
-                        value={formData.childcareLevel}
-                        onChange={handleChange}
-                        className={`border ${errors['childcareLevel'] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
-                      >
-                        <option value="" disabled>اختر المستوى</option>
-                        <option value="trained_no_experience">مدربة بدون خبرة</option>
-                        <option value="good">جيد</option>
-                        <option value="very_good">جيد جدا</option>
-                        <option value="excellent">ممتاز</option>
-                      </select>
-                      {errors['childcareLevel'] && <p className="text-red-500 text-xs mt-1">{errors['childcareLevel']}</p>}
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[
+                      { id: 'cookingLevel', label: 'الطبخ' },
+                      { id: 'washingLevel', label: 'الغسيل' },
+                      { id: 'ironingLevel', label: 'الكوي' },
+                      { id: 'cleaningLevel', label: 'التنظيف' },
+                      { id: 'sewingLevel', label: 'الخياطة' },
+                      { id: 'elderlycareLevel', label: 'رعاية كبار السن' },
+                      { id: 'childcareLevel', label: 'العناية بالأطفال' },
+                      { id: 'BabySitterLevel', label: 'العناية بالرضع' },
+                    ].map((skill) => (
+                      <div className="flex flex-col" key={skill.id}>
+                        <label htmlFor={skill.id} className="text-gray-500 text-sm mb-1">{skill.label}</label>
+                        <select
+                          id={skill.id}
+                          value={formData[skill.id as keyof typeof formData] as string}
+                          onChange={handleChange}
+                          className={`border ${errors[skill.id] ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                          dir="ltr"
+                        >
+                          <option value="" disabled>اختر المستوى</option>
+                          {skillLevels.map(level => (
+                            <option key={level} value={level}>{level}</option>
+                          ))}
+                        </select>
+                        {errors[skill.id] && <p className="text-red-500 text-xs mt-1">{errors[skill.id]}</p>}
+                      </div>
+                    ))}
                   </div>
                 </fieldset>
                 <fieldset>

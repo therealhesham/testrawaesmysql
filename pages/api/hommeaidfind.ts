@@ -42,44 +42,94 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Worker ID is required' });
       }
 
-      // Remove fields that shouldn't be updated directly
       const { logs, ...updateFields } = updateData;
       
-      // Filter out any fields that don't exist in the schema or are relations
-      // معالجة تاريخ الميلاد - التأكد من أنه صالح قبل التحويل
-      let dateOfBirthValue = undefined;
-      if (updateFields.dateofbirth && updateFields.dateofbirth.trim() !== "") {
-        const dateObj = new Date(updateFields.dateofbirth);
-        if (!isNaN(dateObj.getTime())) {
-          dateOfBirthValue = dateObj.toISOString();
+      // معالجة التواريخ (تاريخ الميلاد وتواريخ الجواز)
+      const parseDate = (dateString: any) => {
+        if (dateString && typeof dateString === 'string' && dateString.trim() !== "") {
+            const dateObj = new Date(dateString);
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj.toISOString();
+            }
         }
-      }
-      
+        return undefined;
+      };
+
+      const dateOfBirthValue = parseDate(updateFields.dateofbirth);
+      const passportStartValue = parseDate(updateFields.passportStartDate);
+      const passportEndValue = parseDate(updateFields.passportEndDate);
+
+      // تحويل القيم الرقمية (الطول، الوزن، الأطفال)
+      const parseIntValue = (val: any) => {
+        if (val === "" || val === null) return null;
+        const num = parseInt(val);
+        return isNaN(num) ? undefined : num;
+      };
+
+      // ✨ بناء كائن التحديث مع كافة الحقول المطلوبة ✨
       const allowedFields = {
         Name: updateFields.Name,
         Religion: updateFields.Religion,
         Nationalitycopy: updateFields.Nationalitycopy,
         maritalstatus: updateFields.maritalstatus,
+        
+    
+        // إذا كان العمود اسمه children، استخدم السطر التالي بدلاً من السابق:
+        children: parseIntValue(updateFields.childrenCount), 
+        
+        weight: parseIntValue(updateFields.weight),
+        height: parseIntValue(updateFields.height),
+
+        // ✅ التواريخ
         dateofbirth: dateOfBirthValue,
+        PassportStart: passportStartValue,
+        PassportEnd: passportEndValue,
+
         Passportnumber: updateFields.Passportnumber,
         phone: updateFields.phone,
         Education: updateFields.Education,
+        
+        // اللغات
         ArabicLanguageLeveL: updateFields.ArabicLanguageLeveL,
         EnglishLanguageLevel: updateFields.EnglishLanguageLevel,
+        
+        // الخبرة
         Experience: updateFields.Experience,
         ExperienceYears: updateFields.ExperienceYears,
+        
+        // ✨ المهارات (تحديث النسختين Small & Capital) ✨
         washingLevel: updateFields.washingLevel,
+        WashingLevel: updateFields.washingLevel, 
+
         ironingLevel: updateFields.ironingLevel,
+        IroningLevel: updateFields.ironingLevel, 
+
         cleaningLevel: updateFields.cleaningLevel,
+        CleaningLevel: updateFields.cleaningLevel, 
+
         cookingLevel: updateFields.cookingLevel,
+        CookingLevel: updateFields.cookingLevel, 
+
         sewingLevel: updateFields.sewingLevel,
+        SewingLevel: updateFields.sewingLevel, 
+
         childcareLevel: updateFields.childcareLevel,
+        ChildcareLevel: updateFields.childcareLevel, 
+
+        // ✅ العناية بالرضع
+        BabySitterLevel: updateFields.babySitterLevel, 
+
         elderlycareLevel: updateFields.elderlycareLevel,
+        ElderlycareLevel: updateFields.elderlycareLevel, 
+
+        laundryLevel: updateFields.laundryLevel,
+        LaundryLevel: updateFields.laundryLevel, 
+
         officeName: updateFields.officeName,
-        Salary: updateFields.salary || updateFields.Salary
+        Salary: updateFields.salary || updateFields.Salary 
       };
 
-      // Remove undefined values
+      // إزالة القيم undefined فقط
       const filteredFields = Object.fromEntries(
         Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
       );
