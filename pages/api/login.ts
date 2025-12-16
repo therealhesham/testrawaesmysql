@@ -35,19 +35,15 @@ export default async function handler(
       return res.status(401).json({ message: "البيانات غير صحيحة" });
     }
 
-    // if (!user?.idnumber) {
-    //   return res.status(401).json({ message: "Invalid credentials" });
-    // }
+    if (!user?.idnumber) {
+      return res.status(401).json({ message: "الرقم التعريفي غير صحيح" });
+    }
 
     // const decryptedPassword = await bcrypt.compare(password, user.password);
     // if (!decryptedPassword) {
-    //   return res.status(401).json({ message: "Invalid credentials" });
+    //   return res.status(401).json({ message: "كلمة المرور غير صحيحة" });
     // }
-    // Check password (if you want to validate the password)
-    // const passwordMatch = await bcrypt.compare(password, user.password);
-    // if (!passwordMatch) {
-    //   return res.status(401).json({ message: "Invalid credentials" });
-    // }
+   
 
     // Create JWT token
     const token = jwt.sign(

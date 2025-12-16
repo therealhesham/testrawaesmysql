@@ -8,6 +8,8 @@ import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import jsPDF from 'jspdf';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 interface Props {
   error?: string;
@@ -87,6 +89,11 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     }
     setFormData((prev) => ({ ...prev, [id]: filteredValue }));
     setErrors((prev) => ({ ...prev, [id]: '' }));
+  };
+
+  const handlePhoneChange = (value: string | undefined) => {
+    setFormData((prev) => ({ ...prev, mobile: value || '' }));
+    setErrors((prev) => ({ ...prev, mobile: '' }));
   };
 
   const handleSkillChange = (skill: string, value: string) => {
@@ -261,8 +268,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       }
     }
 
-    if (formData.mobile && !/^\d{10,15}$/.test(formData.mobile)) {
-      newErrors.mobile = 'رقم الجوال يجب أن يحتوي على 10-15 رقمًا';
+    if (formData.mobile) {
+      // التحقق من أن الرقم يحتوي على + ورمز الدولة وأرقام فقط (مع السماح بالمسافات)
+      const cleanedMobile = formData.mobile.replace(/\s/g, '');
+      if (!/^\+\d{7,15}$/.test(cleanedMobile)) {
+        newErrors.mobile = 'رقم الجوال غير صحيح. يجب أن يحتوي على رمز الدولة والرقم';
+      }
     }
 
     if (formData.age) {
@@ -811,13 +822,13 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
                     </div>
                     <div className="flex flex-col">
                       <label htmlFor="mobile" className="text-gray-500 text-sm mb-1">رقم الجوال</label>
-                      <input
-                        type="tel"
-                        id="mobile"
+                      <PhoneInput
+                        international
+                        defaultCountry="SA"
                         value={formData.mobile}
-                        onChange={handleChange}
+                        onChange={handlePhoneChange}
                         placeholder="أدخل رقم الجوال"
-                        className={`border ${errors.mobile ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        className={`phone-input-custom ${errors.mobile ? 'border-red-500' : ''}`}
                       />
                       {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
                     </div>
