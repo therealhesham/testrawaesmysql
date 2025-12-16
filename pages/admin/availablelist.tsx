@@ -9,6 +9,7 @@ import prisma from 'lib/prisma';
 import Modal from 'components/modal';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useRouter } from 'next/router';
 
 // Modal
 interface Homemaid {
@@ -32,6 +33,8 @@ interface ApiResponse {
 
 export default function Home() {
 const [userName, setUserName] = useState('');
+const router =useRouter()
+
 useEffect(() => {
   const token = localStorage.getItem('token');
   const decoded = jwtDecode(token);
@@ -619,7 +622,7 @@ const exportToPDF = async () => {
                 {homemaids.map((homemaid, index) => (
                   <div key={homemaid.id} className={`contents ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
                     {visibleColumns.id && (
-                      <div className="p-4 border-b border-gray-300 text-md  text-center">{homemaid.id}</div>
+                      <div className="p-4 border-b border-gray-300 text-md  text-center cursor-pointer" onClick={()=>router.push("/admin/homemaidinfo?id="+homemaid.id)} >{homemaid.id}</div>
                     )}
                     {visibleColumns.Name && (
                       <div className="p-4 border-b border-gray-300 text-md  text-center">{homemaid.Name}</div>

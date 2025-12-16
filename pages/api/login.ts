@@ -11,16 +11,30 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Only allow POST method
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "الطريقة غير مسموحة" });
+  }
+
   try {
     const { id, password } = req.body;
-    // Find user by username
-    
+
+    // Validate input
+    if (!id) {
+      return res.status(400).json({ message: "الرقم التعريفي مطلوب" });
+    }
+
+    // Find user by idnumber
     const user = await prisma.user.findUnique({
       where: {
         idnumber: Number(id),
       },
     });
-    console.log(user);
+
+    if (!user) {
+      return res.status(401).json({ message: "البيانات غير صحيحة" });
+    }
+
     // if (!user?.idnumber) {
     //   return res.status(401).json({ message: "Invalid credentials" });
     // }
@@ -49,8 +63,39 @@ export default async function handler(
     );
     // Respond with success message
     res.status(200).json(token);
-  } catch (e) {
+  } catch (e: any) {
     console.log(e);
-    res.status(405).json({ message: "Method Not Allowed" });
+    
+    // Check if it's a Prisma database error
+    if (e.code && e.code.startsWith('P')) {
+      // Prisma error codes
+      if (e.code === 'P2002') {
+        return res.status(409).json({ message: "خطأ في قاعدة البيانات: البيانات مكررة" });
+      }
+      if (e.code === 'P2025') {
+        return res.status(404).json({ message: "خطأ في قاعدة البيانات: السجل غير موجود" });
+      }
+      if (e.code === 'P1001' || e.code === 'P1002' || e.code === 'P1003') {
+        return res.status(503).json({ message: "خطأ في قاعدة البيانات: لا يمكن الاتصال بقاعدة البيانات" });
+      }
+      if (e.code === 'P2003') {
+        return res.status(400).json({ message: "خطأ في قاعدة البيانات: انتهاك القيود المرجعية" });
+      }
+      // Generic Prisma error
+      return res.status(500).json({ message: `خطأ في قاعدة البيانات: ${e.message || "حدث خطأ غير متوقع"}` });
+    }
+
+    // Check if it's a JWT error
+    if (e.name === 'JsonWebTokenError' || e.name === 'TokenExpiredError') {
+      return res.status(500).json({ message: "خطأ في إنشاء رمز الدخول" });
+    }
+
+    // Check if it's a validation error
+    if (e.name === 'ValidationError') {
+      return res.status(400).json({ message: `خطأ في البيانات: ${e.message}` });
+    }
+
+    // Generic error
+    return res.status(500).json({ message: "حدث خطأ في الخادم" });
   }
 }

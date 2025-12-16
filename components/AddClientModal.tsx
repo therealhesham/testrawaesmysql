@@ -272,7 +272,12 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                   name="fullname"
                   placeholder="ادخل اسم العميل"
                   value={formData.fullname}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[0-9]/g, ""); // يمنع الأرقام
+                    handleInputChange({
+                      target: { name: "fullname", value },
+                    });
+                  }}
                   className={`w-full bg-background-light border ${errors.fullname ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
                 {errors.fullname && <p className="text-red-500 text-xs mt-1">{errors.fullname}</p>}

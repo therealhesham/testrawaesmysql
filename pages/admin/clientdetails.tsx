@@ -380,6 +380,14 @@ export default function Home() {
     isOpen: boolean;
     visaId: number | null;
   }>({ isOpen: false, visaId: null });
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [originalClientInfo, setOriginalClientInfo] = useState<ClientInfo>({
+    id: '',
+    fullname: '',
+    phonenumber: '',
+    nationalId: '',
+    city: '',
+  });
 
   const router = useRouter();
 
@@ -390,7 +398,9 @@ export default function Home() {
       const response = await fetch(`/api/clientinfo?id=${router.query.id}`);
       const data = await response.json();
       setClientInfo(data);
+      setOriginalClientInfo(data);
       setOrders(data.orders);
+      setIsEditMode(false);
     } catch (error) {
       console.error(error);
       setNotification({ message: 'فشل في جلب بيانات العميل', type: 'error' });
@@ -447,6 +457,15 @@ export default function Home() {
     fetchVisas();
   }, [router.query.id]);
 
+  const handleEditClick = () => {
+    setIsEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setClientInfo(originalClientInfo);
+    setIsEditMode(false);
+  };
+
   const updateClientInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -457,6 +476,8 @@ export default function Home() {
       });
       if (response.ok) {
         setNotification({ message: 'تم تحديث بيانات العميل بنجاح', type: 'success' });
+        setOriginalClientInfo(clientInfo);
+        setIsEditMode(false);
         fetchClientInfo();
       } else {
         throw new Error('فشل في تحديث البيانات');
@@ -480,7 +501,7 @@ export default function Home() {
       <div className="fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex items-center justify-center transition-opacity duration-300">
         <div
           className={`rounded-lg p-6 w-full max-w-sm shadow-xl ${
-            type === 'success' ? 'bg-teal-100' : 'bg-red-100'
+            type === 'success' ? 'bg-white' : 'bg-red-100'
           }`}
         >
           <p
@@ -635,21 +656,34 @@ const arabicRegionMap: { [key: string]: string } = {
           </p>
 
           <div className="bg-white rounded-lg p-6 mb-6 shadow-md">
-            <h2 className="text-xl md:text-2xl font-semibold text-teal-800 text-center mb-6">
-              المعلومات الشخصية
-            </h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl md:text-2xl font-semibold text-teal-800 text-center flex-1">
+                المعلومات الشخصية
+              </h2>
+              {!isEditMode && (
+                <button
+                  onClick={handleEditClick}
+                  className="text-teal-600 hover:text-teal-800 transition-colors p-2"
+                  title="تعديل"
+                >
+                  <EditIcon className="w-6 h-6" />
+                </button>
+              )}
+            </div>
             <form onSubmit={updateClientInfo}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">اسم العميل</label>
                   <input
                     type="text"
-                    className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                      !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                     value={clientInfo.fullname}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, fullname: e.target.value })
                     }
-                    readOnly
+                    readOnly={!isEditMode}
                     required
                   />
                 </div>
@@ -657,11 +691,14 @@ const arabicRegionMap: { [key: string]: string } = {
                   <label className="text-sm text-gray-600 mb-1">رقم الهاتف</label>
                   <input
                     type="text"
-                    className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                      !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                     value={clientInfo.phonenumber}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, phonenumber: e.target.value })
                     }
+                    readOnly={!isEditMode}
                     required
                   />
                 </div>
@@ -669,23 +706,28 @@ const arabicRegionMap: { [key: string]: string } = {
                   <label className="text-sm text-gray-600 mb-1">رقم الهوية</label>
                   <input
                     type="number"
-                    className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                      !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                     value={clientInfo.nationalId}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, nationalId: e.target.value })
                     }
-                    // readOnly
+                    readOnly={!isEditMode}
                     required
                   />
                 </div>
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">المدينة</label>
                   <select
-                    className="p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                      !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                     value={clientInfo.city}
                     onChange={(e) =>
                       setClientInfo({ ...clientInfo, city: e.target.value })
                     }
+                    disabled={!isEditMode}
                     required
                   >
              
@@ -755,12 +797,23 @@ const arabicRegionMap: { [key: string]: string } = {
                   </select>
                 </div>
               </div>
-              <button
-                type="submit"
-                className="mt-6 bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition mx-auto block"
-              >
-                حفظ التعديلات
-              </button>
+              {isEditMode && (
+                <div className="flex justify-center gap-4 mt-6">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="bg-gray-500 text-white py-2 px-8 rounded-md hover:bg-gray-600 transition"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
+                  >
+                    حفظ التعديلات
+                  </button>
+                </div>
+              )}
             </form>
           </div>
 

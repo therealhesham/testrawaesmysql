@@ -2,6 +2,7 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
 import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic } from "react-icons/fa";
+import AlertModal from "components/AlertModal";
 
 function HomeMaidInfo() {
   const router = useRouter();
@@ -71,6 +72,14 @@ function HomeMaidInfo() {
   const [selectedClient, setSelectedClient] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // حالة الـ modal للتنبيهات
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    type: 'info' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: ''
+  });
 
   // قوائم البيانات الخارجية
   const [nationalities, setNationalities] = useState<Array<{ id: number; Country: string }>>([]);
@@ -174,7 +183,12 @@ function HomeMaidInfo() {
     setSaving(true);
     try {
       if (!formData.dateofbirth) {
-        alert('يرجى إدخال تاريخ الميلاد');
+        setAlertModal({
+          isOpen: true,
+          type: 'warning',
+          title: 'تحذير',
+          message: 'يرجى إدخال تاريخ الميلاد'
+        });
         setSaving(false);
         return;
       }
@@ -197,10 +211,20 @@ function HomeMaidInfo() {
       if (!response.ok) throw new Error('فشل في حفظ البيانات');
       
       setIsEditing(false);
-      alert('تم حفظ البيانات بنجاح');
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: 'تم حفظ البيانات بنجاح'
+      });
     } catch (error) {
       console.error('Error saving data:', error);
-      alert('حدث خطأ أثناء حفظ البيانات');
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء حفظ البيانات'
+      });
     } finally {
       setSaving(false);
     }
@@ -331,7 +355,12 @@ function HomeMaidInfo() {
 
   const handleBooking = async () => {
     if (!selectedClient) {
-      alert('يرجى اختيار عميل');
+      setAlertModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'تحذير',
+        message: 'يرجى اختيار عميل'
+      });
       return;
     }
     try {
@@ -341,13 +370,23 @@ function HomeMaidInfo() {
         body: JSON.stringify({ workerId: id, clientId: selectedClient }),
       });
       if (!response.ok) throw new Error('فشل في إنشاء الحجز');
-      alert('تم حجز العاملة بنجاح');
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: 'تم حجز العاملة بنجاح'
+      });
       setShowBookingModal(false);
       setSelectedClient('');
       checkExistingOrder();
     } catch (error) {
       console.error('Error creating booking:', error);
-      alert('حدث خطأ أثناء إنشاء الحجز');
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء إنشاء الحجز'
+      });
     }
   };
 
@@ -660,6 +699,15 @@ function HomeMaidInfo() {
             </div>
           </div>
         )}
+
+        {/* مودال التنبيهات */}
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+          type={alertModal.type}
+          title={alertModal.title}
+          message={alertModal.message}
+        />
       </div>
     </Layout>
   );

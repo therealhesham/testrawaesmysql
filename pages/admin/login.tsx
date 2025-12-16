@@ -78,9 +78,28 @@ export default function Login() {
         {/* Formik Form */}
         <Formik
           initialValues={{ id: "", password: "" }}
+          validate={(values) => {
+            const errors = {};
+            
+            // Validate ID field
+            if (!values.id) {
+              errors.id = "ID is required";
+            } else if (values.id.length < 3) {
+              errors.id = "ID must be at least 3 characters";
+            }
+            
+            // Validate Password field
+            // if (!values.password) {
+            //   errors.password = "Password is required";
+            // } else if (values.password.length < 6) {
+            //   errors.password = "Password must be at least 6 characters";
+            // }
+            
+            return errors;
+          }}
           onSubmit={handleSubmit}
         >
-          {() => (
+          {({ errors, touched }) => (
             <Form>
               <div className="mb-4">
                 <label
@@ -93,9 +112,16 @@ export default function Login() {
                   type="text"
                   id="id"
                   name="id"
-                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-900"
+                  className={`mt-2 p-3 w-full border rounded-lg focus:ring-2 focus:ring-teal-900 ${
+                    errors.id && touched.id
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Enter your id"
                 />
+                {errors.id && touched.id && (
+                  <div className="text-xs text-red-500 mt-1">{errors.id}</div>
+                )}
               </div>
               <div className="mb-6">
                 <label
@@ -108,12 +134,21 @@ export default function Login() {
                   type="password"
                   id="password"
                   name="password"
-                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-900"
+                  className={`mt-2 p-3 w-full border rounded-lg focus:ring-2 focus:ring-teal-900 ${
+                    errors.password && touched.password
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Enter your password"
                 />
+                {errors.password && touched.password && (
+                  <div className="text-xs text-red-500 mt-1">{errors.password}</div>
+                )}
               </div>
               {error && (
-                <div className="text-xs text-red-500 mb-4">{error}</div>
+                <div className="text-sm text-red-500 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  {error}
+                </div>
               )}
               {/* Display error */}
               <button

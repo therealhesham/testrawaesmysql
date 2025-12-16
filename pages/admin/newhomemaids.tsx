@@ -80,7 +80,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    // Filter to only allow letters (English and Arabic) and spaces for name field
+    let filteredValue = value;
+    if (id === 'name') {
+      filteredValue = value.replace(/[^a-zA-Z\u0600-\u06FF\s]/g, '');
+    }
+    setFormData((prev) => ({ ...prev, [id]: filteredValue }));
     setErrors((prev) => ({ ...prev, [id]: '' }));
   };
 

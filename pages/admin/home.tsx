@@ -201,10 +201,10 @@ const HousingTab = ({ housing, count, onItemClick }) => (
     {housing.slice(0, 3).map((item) => (
       <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/housedarrivals')}>
         <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">تسكين #{item.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العاملة: {item.Order.Name}</p>
+          <p className="item-title text-sm font-semibold text-gray-900">تسكين #{item?.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">العاملة: {item?.Order?.Name}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسكين: {getDate(item.houseentrydate)} <FieldTimeOutlined />
+            تاريخ التسكين: {getDate(item?.houseentrydate)} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -2974,7 +2974,7 @@ export async function getStaticProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`https:/wasl.rawaes.com/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -3006,22 +3006,22 @@ export async function getStaticProps(context) {
       foreignOfficesRes,
       rejectedOrdersRes,
     ] = await Promise.all([
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/neworderlistprisma/1`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/endedorders/`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/deparatures`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/housed`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/sessions`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/clients`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/transfersponsorships`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/bookedlist?page=1`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/availablelist?page=1`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`https:/wasl.rawaes.com/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/endedorders/`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/deparatures`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/sessions`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/clients`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/transfersponsorships`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/bookedlist?page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/availablelist?page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 
