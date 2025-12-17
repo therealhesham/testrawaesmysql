@@ -1,6 +1,7 @@
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
+import type { ChangeEvent } from "react";
 import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic } from "react-icons/fa";
 import AlertModal from "components/AlertModal";
 
@@ -31,6 +32,10 @@ function HomeMaidInfo() {
     Religion: "",
     Nationalitycopy: "",
     maritalstatus: "",
+
+    // ✅ الصور
+    Picture: "",
+    FullPicture: "",
     
     // الحقول الجديدة
     childrenCount: "", 
@@ -96,6 +101,24 @@ function HomeMaidInfo() {
     passportcopy: useRef<HTMLInputElement>(null),
   };
 
+  // ✅ صور العاملة (رفع/تعديل)
+  const [imageUploading, setImageUploading] = useState<{ Picture: boolean; FullPicture: boolean }>({
+    Picture: false,
+    FullPicture: false,
+  });
+  const [imageErrors, setImageErrors] = useState<{ Picture: string; FullPicture: string }>({
+    Picture: "",
+    FullPicture: "",
+  });
+  const [imageFileNames, setImageFileNames] = useState<{ Picture: string; FullPicture: string }>({
+    Picture: "",
+    FullPicture: "",
+  });
+  const imageInputRefs = {
+    Picture: useRef<HTMLInputElement>(null),
+    FullPicture: useRef<HTMLInputElement>(null),
+  };
+
   // --- القوائم الثابتة الموحدة ---
   const skillLevels = [
     "Expert - ممتاز",
@@ -134,6 +157,18 @@ function HomeMaidInfo() {
   ];
 
   // --- دوال المعالجة (Handlers) ---
+  const extractImageUrl = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) {
+      const first = value?.[0];
+      if (typeof first === "string") return first;
+      if (first && typeof first === "object" && typeof first.url === "string") return first.url;
+      return "";
+    }
+    if (typeof value === "object" && typeof value.url === "string") return value.url;
+    return "";
+  };
 
   const normalizeToWesternDigits = (value: string) => {
     if (!value) return "";
@@ -232,6 +267,9 @@ function HomeMaidInfo() {
         childrenCount: formData.childrenCount ? Number(formData.childrenCount) : null,
         height: formData.height ? Number(formData.height) : null,
         weight: formData.weight ? Number(formData.weight) : null,
+        // الصور: نرسل null لو فاضية علشان نقدر نمسحها
+        Picture: formData.Picture ? formData.Picture : null,
+        FullPicture: formData.FullPicture ? formData.FullPicture : null,
       };
       
       const response = await fetch(`/api/hommeaidfind?id=${id}`, {
@@ -319,6 +357,73 @@ function HomeMaidInfo() {
   const handleFileChange = async (e: any, fileId: any) => {};
   const handleButtonClick = (fileId: any) => {};
 
+  const allowedHomemaidImageTypes = ['image/jpeg'];
+
+  const handleHomemaidImageChange = async (
+    e: ChangeEvent<HTMLInputElement>,
+    fieldId: "Picture" | "FullPicture",
+    type: "profile" | "full"
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      setImageErrors((prev) => ({ ...prev, [fieldId]: "لم يتم اختيار صورة" }));
+      setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+      return;
+    }
+
+    const file = files[0];
+    if (!allowedHomemaidImageTypes.includes(file.type)) {
+      setImageErrors((prev) => ({ ...prev, [fieldId]: "نوع الصورة غير مدعوم (JPEG فقط)" }));
+      setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+      return;
+    }
+
+    const previousUrl = (formData as any)[fieldId] as string;
+    const previewUrl = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, [fieldId]: previewUrl }));
+    setImageFileNames((prev) => ({ ...prev, [fieldId]: file.name }));
+
+    try {
+      setImageUploading((prev) => ({ ...prev, [fieldId]: true }));
+      setImageErrors((prev) => ({ ...prev, [fieldId]: "" }));
+
+      const res = await fetch(`/api/upload-homemaid-image?type=${type}`);
+      if (!res.ok) throw new Error("فشل في الحصول على رابط الرفع");
+      const { url, filePath } = await res.json();
+
+      const uploadRes = await fetch(url, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+          "x-amz-acl": "public-read",
+        },
+      });
+
+      if (!uploadRes.ok) throw new Error("فشل في رفع الصورة");
+
+      URL.revokeObjectURL(previewUrl);
+      setFormData((prev) => ({ ...prev, [fieldId]: filePath }));
+      setImageErrors((prev) => ({ ...prev, [fieldId]: "" }));
+
+      const ref = imageInputRefs[fieldId];
+      if (ref?.current) ref.current.value = "";
+    } catch (err: any) {
+      console.error("Error uploading image:", err);
+      URL.revokeObjectURL(previewUrl);
+      setFormData((prev) => ({ ...prev, [fieldId]: previousUrl || "" }));
+      setImageErrors((prev) => ({ ...prev, [fieldId]: err?.message || "حدث خطأ أثناء رفع الصورة" }));
+      setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+    } finally {
+      setImageUploading((prev) => ({ ...prev, [fieldId]: false }));
+    }
+  };
+
+  const handleImageButtonClick = (fieldId: "Picture" | "FullPicture") => {
+    const ref = imageInputRefs[fieldId];
+    if (ref?.current) ref.current.click();
+  };
+
   // --- التأثير الرئيسي (Effect) لجلب بيانات العاملة ---
   useEffect(() => {
     if (id) {
@@ -338,6 +443,9 @@ function HomeMaidInfo() {
             Religion: data.Religion || "",
             Nationalitycopy: data.Nationalitycopy || "",
             maritalstatus: data.maritalstatus || "",
+
+            Picture: extractImageUrl(data.Picture) || "",
+            FullPicture: extractImageUrl(data.FullPicture) || "",
             
             childrenCount: data.childrenCount || data.ChildrenCount || data.children || "", 
             height: data.height || data.Height || "", 
@@ -465,6 +573,102 @@ function HomeMaidInfo() {
             </div>
           )}
         </div>
+
+        {/* ✅ الصور */}
+        <section className="mb-8">
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">الصور</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { id: "Picture" as const, label: "الصورة الشخصية", uploadType: "profile" as const },
+              { id: "FullPicture" as const, label: "صورة بالطول", uploadType: "full" as const },
+            ].map((img) => {
+              const url = (formData as any)[img.id] as string;
+              return (
+                <div key={img.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-gray-700 font-medium">{img.label}</span>
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-teal-800 hover:underline"
+                      >
+                        فتح
+                      </a>
+                    ) : null}
+                  </div>
+
+                  <div className="flex justify-end">
+                    {url ? (
+                      <img
+                        src={url}
+                        alt={img.label}
+                        className="w-48 h-48 object-cover rounded-lg border border-gray-200 bg-gray-50"
+                        onError={(e) => {
+                          e.currentTarget.src = "/images/img.jpeg";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-48 h-48 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-500 text-sm">
+                        لا توجد صورة
+                      </div>
+                    )}
+                  </div>
+
+                  {isEditing && (
+                    <div className="mt-4">
+                      <input
+                        type="file"
+                        accept="image/jpeg"
+                        ref={imageInputRefs[img.id]}
+                        className="hidden"
+                        onChange={(e) => handleHomemaidImageChange(e, img.id, img.uploadType)}
+                      />
+
+                      <div className="flex justify-end gap-2">
+                        {url ? (
+                          <button
+                            type="button"
+                            className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, [img.id]: "" }));
+                              setImageFileNames((prev) => ({ ...prev, [img.id]: "" }));
+                              setImageErrors((prev) => ({ ...prev, [img.id]: "" }));
+                            }}
+                          >
+                            إزالة
+                          </button>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          className="px-3 py-2 text-sm bg-teal-800 text-white rounded-lg hover:bg-teal-900 disabled:opacity-60"
+                          onClick={() => handleImageButtonClick(img.id)}
+                          disabled={imageUploading[img.id]}
+                        >
+                          {imageUploading[img.id] ? "جاري الرفع..." : "تعديل الصورة"}
+                        </button>
+                      </div>
+
+                      {imageFileNames[img.id] ? (
+                        <div className="mt-2 text-right text-xs text-gray-600">
+                          {imageFileNames[img.id]}
+                        </div>
+                      ) : null}
+
+                      {imageErrors[img.id] ? (
+                        <div className="mt-2 text-right text-xs text-red-600">
+                          {imageErrors[img.id]}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* 1. المعلومات الشخصية */}
         <section className="mb-8">

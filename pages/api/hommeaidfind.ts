@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -72,6 +73,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         Religion: updateFields.Religion,
         Nationalitycopy: updateFields.Nationalitycopy,
         maritalstatus: updateFields.maritalstatus,
+
+        // ✅ الصور (Json)
+        // نقبل: string (URL) / null (مسح) / undefined (عدم التعديل)
+        Picture:
+          updateFields.Picture === undefined
+            ? undefined
+            : updateFields.Picture
+            ? ({ url: updateFields.Picture } as Prisma.JsonObject)
+            : Prisma.JsonNull,
+        FullPicture:
+          updateFields.FullPicture === undefined
+            ? undefined
+            : updateFields.FullPicture
+            ? ({ url: updateFields.FullPicture } as Prisma.JsonObject)
+            : Prisma.JsonNull,
         
     
         // إذا كان العمود اسمه children، استخدم السطر التالي بدلاً من السابق:
@@ -159,4 +175,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-}
+ }
