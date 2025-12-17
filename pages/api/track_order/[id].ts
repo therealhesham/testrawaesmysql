@@ -98,6 +98,10 @@ console.log(id)
             ? new Date(order.createdAt.getTime() + (3 * 60 * 60 * 1000)).toISOString().split('T')[1]?.split('.')[0] || 'N/A'
             : 'N/A',
         },
+        orderFiles: {
+          orderDocument: order.orderDocument || null,
+          contract: order.contract || null,
+        },
         officeLinkInfo: {
           nationalId: order.client?.nationalId|| 'N/A',
           visaNumber: order.arrivals[0]?.visaNumber || 'N/A',
@@ -293,7 +297,7 @@ const cookieHeader = req.headers.cookie;
             updateData.bookingstatus = value ? 'embassy_approved' : 'pending_embassy';
             break;
           case 'visaIssuance':
-            arrivalUpdate.visaNumber = value ? `VISA-${id}-${Date.now()}` : null;
+            // arrivalUpdate.visaNumber = value ? `VISA-${id}-${Date.now()}` : null;
             arrivalUpdate.visaIssuanceDate = value ? new Date() : null;
             updateData.bookingstatus = value ? 'visa_issued' : 'pending_visa';
             break;
@@ -366,6 +370,31 @@ const cookieHeader = req.headers.cookie;
 
 
         switch (section) {
+          case 'orderFiles': {
+            // Update attachments stored directly on neworder
+            if (Object.prototype.hasOwnProperty.call(updatedData, 'orderDocument')) {
+              const raw = updatedData.orderDocument;
+              const normalized =
+                raw === null || raw === undefined
+                  ? null
+                  : typeof raw === 'string'
+                    ? (raw.trim() ? raw.trim() : null)
+                    : String(raw);
+              updateData.orderDocument = normalized;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(updatedData, 'contract')) {
+              const raw = updatedData.contract;
+              const normalized =
+                raw === null || raw === undefined
+                  ? null
+                  : typeof raw === 'string'
+                    ? (raw.trim() ? raw.trim() : null)
+                    : String(raw);
+              updateData.contract = normalized;
+            }
+            break;
+          }
           case 'medical':
             if (updatedData.medicalCheckFile) {
               arrivalUpdate.medicalCheckFile = updatedData.medicalCheckFile;
@@ -400,7 +429,24 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
               updateData.nationalId = updatedData['هوية العميل'];
             }
             if (updatedData['رقم التأشيرة']) {
-              arrivalUpdate.visaNumber = updatedData['رقم التأشيرة'];
+              const visaRaw = updatedData['رقم التأشيرة'];
+              const visa = typeof visaRaw === 'string' ? visaRaw.trim() : String(visaRaw ?? '').trim();
+
+              // Normalize display placeholder
+              if (!visa || visa === 'N/A') {
+                arrivalUpdate.visaNumber = null;
+              } else {
+                if (!/^\d+$/.test(visa)) {
+                  return res.status(400).json({ error: 'رقم التأشيرة يجب أن يحتوي على أرقام فقط' });
+                }
+                if (!visa.startsWith('190')) {
+                  return res.status(400).json({ error: 'رقم التأشيرة يجب أن يبدأ بـ 190' });
+                }
+                if (visa.length !== 10) {
+                  return res.status(400).json({ error: 'رقم التأشيرة يجب أن يكون 10 أرقام' });
+                }
+                arrivalUpdate.visaNumber = visa;
+              }
             }
             if (updatedData['رقم عقد إدارة المكاتب']) {
               arrivalUpdate.InternalmusanedContract = updatedData['رقم عقد إدارة المكاتب'];
@@ -505,7 +551,7 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             break;
           case 'clientInfo':
             // Handle client info updates (email, name, phone)
-            if (!order.clientId) {
+            if (!order.clientID) {
               return res.status(400).json({ error: 'No client associated with this order' });
             }
             
@@ -522,7 +568,7 @@ HomemaidId: updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId,
             
             if (Object.keys(clientUpdateData).length > 0) {
               await prisma.client.update({
-                where: { id: order.clientId },
+                where: { id: order.clientID },
                 data: clientUpdateData,
               });
             }

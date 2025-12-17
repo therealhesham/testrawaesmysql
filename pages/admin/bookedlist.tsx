@@ -740,7 +740,23 @@ exportdata = await fetchExportData()
                     </td>
                   </tr>
                 ) : (
-                  data.map((item) => (
+                  data
+                    .filter((item) => {
+                      // التحقق من وجود بيانات في الصف
+                      return (
+                        item?.HomeMaid?.id ||
+                        item?.HomeMaid?.Name ||
+                        item?.HomeMaid?.phone ||
+                        item?.HomeMaid?.office?.Country ||
+                        item?.HomeMaid?.maritalstatus ||
+                        item?.client?.fullname ||
+                        item?.HomeMaid?.Passportnumber ||
+                        item?.HomeMaid?.PassportStart ||
+                        item?.HomeMaid?.PassportEnd ||
+                        item?.HomeMaid?.office?.office
+                      );
+                    })
+                    .map((item) => (
                     <tr key={item.id} className="border-b hover:bg-gray-50">
                       <td
                         onClick={() => router.push("/admin/homemaidinfo?id=" + item.HomeMaid?.id)}

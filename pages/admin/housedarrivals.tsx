@@ -49,6 +49,7 @@ interface EditWorkerForm {
   Date: string;
   deliveryDate: string;
   isHasEntitlements: boolean;
+  entitlementsCost?: string;
 }
 interface DepartureForm {
   deparatureHousingDate: string;
@@ -267,7 +268,8 @@ useEffect(()=>{
     employee: user,
     details: '',
     isExternal:workerType,
-    isHasEntitlements: true, // إضافة حقل المستحقات
+    isHasEntitlements: false, // إضافة حقل المستحقات
+    entitlementsCost: '', // قيمة المستحقات
   });
   const [editWorkerForm, setEditWorkerForm] = useState<EditWorkerForm>({
     location_id: 0,
@@ -276,7 +278,8 @@ useEffect(()=>{
     employee: '',
     Date: '',
     deliveryDate: '',
-    isHasEntitlements: true,
+    isHasEntitlements: false,
+    entitlementsCost: '', // قيمة المستحقات
   });
   const [departureForm, setDepartureForm] = useState<DepartureForm>({
     deparatureHousingDate: '',
@@ -708,7 +711,7 @@ const fetchDepartedHousedforExporting = async () => {
         employee: worker.employee || user,
         Date: worker.houseentrydate ? worker.houseentrydate.split('T')[0] : '',
         deliveryDate: worker.deparatureHousingDate ? worker.deparatureHousingDate.split('T')[0] : '',
-        isHasEntitlements: worker.isHasEntitlements !== undefined ? worker.isHasEntitlements : true,
+        isHasEntitlements: worker.isHasEntitlements !== undefined ? worker.isHasEntitlements : false,
       };
       console.log('Setting edit form data:', formData);
       setEditWorkerForm(formData);
@@ -789,13 +792,16 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         deparatureDate: '',
         houseentrydate: '',
         deliveryDate: '',
+        notes: '',
         StartingDate: '',
         location: '',
         DeparatureTime: '',
         reason: '',
         employee: user,
         details: '',
-        isHasEntitlements: true,
+        isExternal: workerType,
+        isHasEntitlements: false,
+        entitlementsCost: '',
       });
       // Clear selected worker and search term
       setSelectedWorker(null);
@@ -2253,13 +2259,28 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             name="isHasEntitlements"
                             value="false"
                             checked={formData.isHasEntitlements === false}
-                            onChange={() => setFormData({ ...formData, isHasEntitlements: false })}
+                            onChange={() => setFormData({ ...formData, isHasEntitlements: false, entitlementsCost: '' })}
                             className="w-4 h-4 text-teal-600"
                           />
                           <span className="text-md text-gray-700">لا</span>
                         </label>
                       </div>
                     </div>
+                    {/* حقل قيمة المستحقات - يظهر فقط عند اختيار نعم */}
+                    {formData.isHasEntitlements === true && (
+                      <div className="mb-6">
+                        <label className="block text-md text-gray-700 mb-2">قيمة المستحقات</label>
+                        <input
+                          type="number"
+                          placeholder="أدخل قيمة المستحقات"
+                          value={formData.entitlementsCost}
+                          onChange={(e) => setFormData({ ...formData, entitlementsCost: e.target.value })}
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    )}
                     {/* Action Buttons */}
                     <div className="flex justify-center gap-4">
                       <button
@@ -2426,13 +2447,28 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             name="editIsHasEntitlements"
                             value="false"
                             checked={editWorkerForm.isHasEntitlements === false}
-                            onChange={() => setEditWorkerForm({ ...editWorkerForm, isHasEntitlements: false })}
+                            onChange={() => setEditWorkerForm({ ...editWorkerForm, isHasEntitlements: false, entitlementsCost: '' })}
                             className="w-4 h-4 text-teal-600"
                           />
                           <span className="text-md text-textDark">لا</span>
                         </label>
                       </div>
                     </div>
+                    {/* حقل قيمة المستحقات - يظهر فقط عند اختيار نعم */}
+                    {editWorkerForm.isHasEntitlements === true && (
+                      <div className="mb-4 col-span-2">
+                        <label className="block text-md mb-2 text-textDark">قيمة المستحقات</label>
+                        <input
+                          type="number"
+                          placeholder="أدخل قيمة المستحقات"
+                          value={editWorkerForm.entitlementsCost}
+                          onChange={(e) => setEditWorkerForm({ ...editWorkerForm, entitlementsCost: e.target.value })}
+                          className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    )}
                     <div className="flex justify-end gap-4">
                       <button
                         type="button"

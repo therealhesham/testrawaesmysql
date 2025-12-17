@@ -1,6 +1,7 @@
 import { CheckIcon } from '@heroicons/react/outline';
 import { Calendar } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import Select from 'react-select';
 import AlertModal from './AlertModal';
 
 interface FormStep2Props {
@@ -296,6 +297,75 @@ const arabicRegionMap: { [key: string]: string } = {
   const convertToArabicRegion = (region: string) => {
     return arabicRegionMap[region] || region;
   };
+
+  const cityOptions = useMemo(
+    () =>
+      Object.keys(arabicRegionMap).map((region) => ({
+        value: region,
+        label: convertToArabicRegion(region),
+      })),
+    // arabicRegionMap ثابتة داخل هذا الكومبوننت، نثبّت الـ options لتقليل إعادة الحساب
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const getCitySelectStyles = (hasError: boolean) => ({
+    control: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: '#f9fafb', // bg-gray-50
+      border: hasError ? '1px solid #ef4444' : '1px solid #d1d5db', // red-500 / gray-300
+      borderRadius: '0.25rem',
+      minHeight: '44px',
+      boxShadow: state.isFocused ? (hasError ? '0 0 0 1px #ef4444' : '0 0 0 1px #115e59') : 'none',
+      '&:hover': {
+        border: hasError ? '1px solid #ef4444' : '1px solid #9ca3af',
+      },
+      direction: 'rtl' as const,
+    }),
+    valueContainer: (provided: any) => ({
+      ...provided,
+      padding: '0 12px',
+    }),
+    input: (provided: any) => ({
+      ...provided,
+      margin: 0,
+      padding: 0,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    placeholder: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      color: '#6b7280', // text-gray-500
+    }),
+    singleValue: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      color: '#1f2937',
+    }),
+    menuPortal: (provided: any) => ({
+      ...provided,
+      zIndex: 9999,
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      zIndex: 9999,
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      backgroundColor: state.isSelected ? '#115e59' : state.isFocused ? '#f0fdfa' : 'white',
+      color: state.isSelected ? 'white' : '#1f2937',
+      '&:hover': {
+        backgroundColor: state.isSelected ? '#115e59' : '#f0fdfa',
+      },
+    }),
+  });
   const handleTicketFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
@@ -442,20 +512,24 @@ const arabicRegionMap: { [key: string]: string } = {
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="departure-from" className="text-xs text-gray-500 text-right font-inter">من</label>
-          <select 
-            value={formData.ArrivalCity || ''}
-            onChange={(e) => {
-              const newFormData = { ...formData, ArrivalCity: e.target.value };
-              setFormData(newFormData);
-              validateFields(newFormData, 'ArrivalCity');
-            }}
-            className={`bg-gray-50 border ${errors.ArrivalCity ? 'border-red-500' : 'border-gray-300'} rounded  text-gray-800 text-md`}
-          >
-            <option value="">اختر المدينة</option>
-            {Object.keys(arabicRegionMap).map((region) => (
-              <option value={region} key={region}>{convertToArabicRegion(region)}</option>
-            ))}
-          </select>
+            <Select
+              inputId="departure-from"
+              value={cityOptions.find((opt) => opt.value === (formData.ArrivalCity || '')) || null}
+              onChange={(selected: any) => {
+                const value = selected ? selected.value : '';
+                const newFormData = { ...formData, ArrivalCity: value };
+                setFormData(newFormData);
+                validateFields(newFormData, 'ArrivalCity');
+              }}
+              options={cityOptions}
+              placeholder="اختر المدينة"
+              isClearable
+              isSearchable
+              styles={getCitySelectStyles(!!errors.ArrivalCity)}
+              menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined}
+              noOptionsMessage={() => 'لا توجد نتائج'}
+              loadingMessage={() => 'جاري البحث...'}
+            />
           
             
             {errors.ArrivalCity && (
@@ -466,21 +540,24 @@ const arabicRegionMap: { [key: string]: string } = {
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="arrival-destination" className="text-xs text-gray-500 text-right font-inter">الى</label>
-            <select 
-              value={formData.finaldestination || ''}
-              onChange={(e) => {
-                const newFormData = { ...formData, finaldestination: e.target.value };
+            <Select
+              inputId="arrival-destination"
+              value={cityOptions.find((opt) => opt.value === (formData.finaldestination || '')) || null}
+              onChange={(selected: any) => {
+                const value = selected ? selected.value : '';
+                const newFormData = { ...formData, finaldestination: value };
                 setFormData(newFormData);
                 validateFields(newFormData, 'finaldestination');
               }}
-              className={`bg-gray-50 border ${errors.finaldestination ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`}
-            >
-            <option value="">اختر المدينة</option>
-              {Object.keys(arabicRegionMap).map((region) => (
-          
-          <option value={region} key={region}>{convertToArabicRegion(region)}</option>
-              ))}
-            </select>
+              options={cityOptions}
+              placeholder="اختر المدينة"
+              isClearable
+              isSearchable
+              styles={getCitySelectStyles(!!errors.finaldestination)}
+              menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined}
+              noOptionsMessage={() => 'لا توجد نتائج'}
+              loadingMessage={() => 'جاري البحث...'}
+            />
             {errors.finaldestination && (
               <span className="text-red-500 text-xs text-right">{errors.finaldestination}</span>
             )}

@@ -27,7 +27,7 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   error
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(value && value !== 'N/A' ? value : '');
   const [visas, setVisas] = useState<Visa[]>([]);
   const [filteredVisas, setFilteredVisas] = useState<Visa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,27 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const sanitizeVisaCandidate = (raw: string, previous: string) => {
+    let digits = raw.replace(/\D/g, '');
+    if (digits === '') return '';
+
+    // Enforce max length (10 digits)
+    if (digits.length > 10) digits = digits.slice(0, 10);
+
+    // Allow progressive typing of 190 (1 -> 19 -> 190)
+    if (digits.length <= 3) {
+      return '190'.startsWith(digits) ? digits : previous;
+    }
+
+    // Once user typed >= 4 digits, enforce prefix 190
+    return digits.startsWith('190') ? digits : previous;
+  };
+
+  // Keep input in sync with external value (e.g., when opening edit mode)
+  useEffect(() => {
+    setSearchTerm(value && value !== 'N/A' ? value : '');
+  }, [value]);
 
   // Fetch visas when component mounts or clientID changes
   useEffect(() => {
@@ -97,16 +118,17 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setSearchTerm(newValue);
-    onChange(newValue);
+    const next = sanitizeVisaCandidate(e.target.value, searchTerm);
+    setSearchTerm(next);
+    onChange(next);
     setIsOpen(true);
   };
 
   const handleVisaSelect = (visa: Visa) => {
     setSelectedVisa(visa);
-    setSearchTerm(visa.visaNumber);
-    onChange(visa.visaNumber);
+    const normalized = sanitizeVisaCandidate(visa.visaNumber, '');
+    setSearchTerm(normalized);
+    onChange(normalized);
     setIsOpen(false);
   };
 
@@ -122,8 +144,7 @@ const addNewVisa = async () => {
   console.log("response", response);
 };
   const handleOtherSubmit = async () => {
-    
-    if (otherVisaNumber.trim()) {
+    if (otherVisaNumber.trim() && /^190\d{7}$/.test(otherVisaNumber)) {
       setSearchTerm(otherVisaNumber);
       onChange(otherVisaNumber);
       setShowOtherModal(false);
@@ -158,6 +179,9 @@ const addNewVisa = async () => {
           error ? 'border-red-500' : 'border-gray-300'
         } ${className}`}
         dir="rtl"
+        inputMode="numeric"
+        pattern="190\\d{7}"
+        maxLength={10}
       />
       
       {error && (
@@ -220,11 +244,14 @@ const addNewVisa = async () => {
                 <input
                   type="text"
                   value={otherVisaNumber}
-                  onChange={(e) => setOtherVisaNumber(e.target.value)}
+                  onChange={(e) => setOtherVisaNumber((prev) => sanitizeVisaCandidate(e.target.value, prev))}
                   placeholder="أدخل رقم التأشيرة"
                   className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
                   dir="rtl"
                   autoFocus
+                  inputMode="numeric"
+                  pattern="190\\d{7}"
+                  maxLength={10}
                 />
               </div>
               <div className="flex gap-3 justify-end">
@@ -236,7 +263,7 @@ const addNewVisa = async () => {
                 </button>
                 <button
                   onClick={handleOtherSubmit}
-                  disabled={!otherVisaNumber.trim()}
+                  disabled={!/^190\d{7}$/.test(otherVisaNumber)}
                   className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   إضافة

@@ -495,8 +495,8 @@ export default function Home({
           setUser(data.user);
           setIsAuthenticated(true);
           
-          // Set userforbutton based on role from token
-          setUserforbutton(data.user.role === 1);
+          // Show "Add Task" button for all authenticated users
+          setUserforbutton(true);
         } else {
           router.push('/admin/login');
         }

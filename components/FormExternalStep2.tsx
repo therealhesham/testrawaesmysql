@@ -1,7 +1,6 @@
 import { CheckIcon } from '@heroicons/react/outline';
-import { de } from 'date-fns/locale';
-import { Calendar } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import Select from 'react-select';
 import AlertModal from './AlertModal';
 import CityAutocomplete from './CityAutocomplete';
 
@@ -119,6 +118,75 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
   const convertToArabicRegion = (region: string) => {
     return arabicRegionMap[region] || region;
   };
+
+  const saudiCityOptions = useMemo(
+    () =>
+      Object.keys(arabicRegionMap).map((region) => ({
+        value: region,
+        label: convertToArabicRegion(region),
+      })),
+    // arabicRegionMap ثابتة داخل هذا الكومبوننت
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const getCitySelectStyles = (hasError: boolean) => ({
+    control: (provided: any, state: any) => ({
+      ...provided,
+      backgroundColor: '#f9fafb', // bg-gray-50
+      border: hasError ? '1px solid #ef4444' : '1px solid #d1d5db', // red-500 / gray-300
+      borderRadius: '0.25rem',
+      minHeight: '40px',
+      boxShadow: state.isFocused ? (hasError ? '0 0 0 1px #ef4444' : '0 0 0 1px #115e59') : 'none',
+      '&:hover': {
+        border: hasError ? '1px solid #ef4444' : '1px solid #9ca3af',
+      },
+      direction: 'rtl' as const,
+    }),
+    valueContainer: (provided: any) => ({
+      ...provided,
+      padding: '0 12px',
+    }),
+    input: (provided: any) => ({
+      ...provided,
+      margin: 0,
+      padding: 0,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    placeholder: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      color: '#6b7280', // text-gray-500
+    }),
+    singleValue: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      color: '#1f2937',
+    }),
+    menuPortal: (provided: any) => ({
+      ...provided,
+      zIndex: 9999,
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      zIndex: 9999,
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      backgroundColor: state.isSelected ? '#115e59' : state.isFocused ? '#f0fdfa' : 'white',
+      color: state.isSelected ? 'white' : '#1f2937',
+      '&:hover': {
+        backgroundColor: state.isSelected ? '#115e59' : '#f0fdfa',
+      },
+    }),
+  });
 
   const [formData, setFormData] = useState({
     externaldeparatureCity: '',
@@ -414,16 +482,23 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
           </div>
           <div className="flex-1 flex flex-col gap-2">
             <label htmlFor="departure-from" className="text-xs text-gray-500 text-right font-inter">من</label>
-            <select 
-              value={formData.externaldeparatureCity || ''}
-              onChange={(e) => setFormData({ ...formData, externaldeparatureCity: e.target.value })}
-              className={`bg-gray-50 border ${errors.externaldeparatureCity ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`}
-            >
-              <option >اختر المدينة</option>
-              {Object.keys(arabicRegionMap).map((region) => (
-                <option value={region} key={region}>{convertToArabicRegion(region)}</option>
-              ))}
-            </select>
+            <Select
+              inputId="departure-from"
+              value={saudiCityOptions.find((opt) => opt.value === (formData.externaldeparatureCity || '')) || null}
+              onChange={(selected: any) => {
+                const value = selected ? selected.value : '';
+                setFormData({ ...formData, externaldeparatureCity: value });
+                setErrors((prev) => ({ ...prev, externaldeparatureCity: '' }));
+              }}
+              options={saudiCityOptions}
+              placeholder="اختر المدينة"
+              isClearable
+              isSearchable
+              styles={getCitySelectStyles(!!errors.externaldeparatureCity)}
+              menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined}
+              noOptionsMessage={() => 'لا توجد نتائج'}
+              loadingMessage={() => 'جاري البحث...'}
+            />
             {errors.externaldeparatureCity && <span className="text-red-500 text-xs text-right">{errors.externaldeparatureCity}</span>}
           </div>
         </div>
@@ -432,7 +507,10 @@ export default function FormStepExternal2({ onPrevious, onClose, data }: FormSte
             <label htmlFor="arrival-destination" className="text-xs text-gray-500 text-right font-inter">الى</label>
             <CityAutocomplete
               value={formData.externalArrivalCity}
-              onChange={(value) => setFormData({ ...formData, externalArrivalCity: value })}
+              onChange={(value) => {
+                setFormData({ ...formData, externalArrivalCity: value });
+                setErrors((prev) => ({ ...prev, externalArrivalCity: '' }));
+              }}
               placeholder="ابحث عن مدينة"
               className={`bg-gray-50 border ${errors.externalArrivalCity ? 'border-red-500' : 'border-gray-300'} rounded text-gray-800 text-md`}
               error={errors.externalArrivalCity}

@@ -62,6 +62,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientphonenumber,
         Religion,
         PhoneNumber,
+        orderDocument: orderDocument || null,
+        contract: contract || null,
         ages: age + "",
         paid: Paid == null ? undefined : Number(Paid),
         client: {

@@ -183,7 +183,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                 name="title"
                 value={formData.title}
                 onChange={handleInputChange}
-                placeholder="ادخل عنوان القالب"
+                placeholder="ادخل عنوان المهمة"
                 className="w-full border-none outline-none bg-transparent text-right text-gray-600 text-sm"
                 dir="rtl"
                 required

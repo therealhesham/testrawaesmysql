@@ -135,8 +135,28 @@ function HomeMaidInfo() {
 
   // --- دوال المعالجة (Handlers) ---
 
+  const normalizeToWesternDigits = (value: string) => {
+    if (!value) return "";
+    // Arabic-Indic digits (٠-٩) + Eastern Arabic/Persian digits (۰-۹)
+    const arabicIndic = "٠١٢٣٤٥٦٧٨٩";
+    const easternArabic = "۰۱۲۳۴۵۶۷۸۹";
+    return value
+      .replace(/[٠-٩]/g, (d) => String(arabicIndic.indexOf(d)))
+      .replace(/[۰-۹]/g, (d) => String(easternArabic.indexOf(d)));
+  };
+
   const handleChange = (e: any) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // Salary: numbers only (prevent any text)
+    if (name === "salary") {
+      const normalized = normalizeToWesternDigits(String(value));
+      const digitsOnly = normalized.replace(/[^\d]/g, "");
+      setFormData((prev) => ({ ...prev, salary: digitsOnly }));
+      return;
+    }
+
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleChangeDate = (e: any) => {
@@ -193,8 +213,22 @@ function HomeMaidInfo() {
         return;
       }
       
+      // Ensure salary is numeric-only before saving (extra guard)
+      const sanitizedSalary = normalizeToWesternDigits(String(formData.salary || "")).replace(/[^\d]/g, "");
+      if (formData.salary && !/^\d+$/.test(sanitizedSalary)) {
+        setAlertModal({
+          isOpen: true,
+          type: "warning",
+          title: "تحذير",
+          message: "الراتب يجب أن يكون أرقام فقط",
+        });
+        setSaving(false);
+        return;
+      }
+
       const dataToSend = {
         ...formData,
+        salary: sanitizedSalary,
         childrenCount: formData.childrenCount ? Number(formData.childrenCount) : null,
         height: formData.height ? Number(formData.height) : null,
         weight: formData.weight ? Number(formData.weight) : null,
@@ -632,7 +666,16 @@ function HomeMaidInfo() {
                 ) : field.label === "اسم المكتب" ? (
                     <input type="text" value={field.value || ""} readOnly className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100" />
                 ) : (
-                  <input type="text" name={field.name} value={field.value || ""} onChange={handleChange} readOnly={!isEditing} className={`w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`} />
+                  <input
+                    type="text"
+                    name={field.name}
+                    value={field.value || ""}
+                    onChange={handleChange}
+                    readOnly={!isEditing}
+                    inputMode={field.name === "salary" ? "numeric" : undefined}
+                    pattern={field.name === "salary" ? "[0-9]*" : undefined}
+                    className={`w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
+                  />
                 )}
               </div>
             ))}

@@ -4,6 +4,7 @@ import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
 import { ArrowDown, Plus, Search, X, ChevronUp, ChevronDown, User } from 'lucide-react';
 import Head from 'next/head';
+import type { GetServerSideProps } from 'next';
 import { useEffect, useState } from 'react';
 import Select from 'react-select';
 import { MoreHorizontal } from 'lucide-react';
@@ -41,8 +42,8 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    const decoded = jwtDecode(token);
-    setUserName(decoded.username);
+    const decoded = jwtDecode<{ username?: string }>(token);
+    setUserName(decoded.username || '');
   }, []);
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const [allOrders] = useState(initialData?.newOrders || []);
@@ -1379,7 +1380,7 @@ const serializeDates = (obj: any): any => {
   return obj;
 };
 
-export async function getStaticProps() {
+export const getServerSideProps: GetServerSideProps<DashboardProps> = async () => {
   try {
     // Fetch all the data needed for the page
     const [newOrders, clients, homemaids, offices, exportData] = await Promise.all([
@@ -1483,13 +1484,12 @@ export async function getStaticProps() {
 
     return {
       props: {
-        hasPermission: true, // Static pages can't check auth, handle in component
+        hasPermission: true, // Auth is handled client-side (token in localStorage)
         initialData: serializedData
       },
-      revalidate: 15, // Revalidate every 30 seconds
     };
   } catch (err) {
-    console.error("Static generation error:", err);
+    console.error("SSR data fetch error:", err);
     return {
       props: {
         hasPermission: false,
@@ -1503,4 +1503,4 @@ export async function getStaticProps() {
       },
     };
   }
-}
+};

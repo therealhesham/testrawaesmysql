@@ -3,7 +3,7 @@ import AddClientModal from 'components/AddClientModal';
 import AddNotesModal from 'components/AddNotesModal';
 import Style from "styles/Home.module.css";
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp, Edit2 } from 'lucide-react';
+import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp, Edit2, Trash2 } from 'lucide-react';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { DocumentTextIcon, DownloadIcon } from '@heroicons/react/outline';
 import Layout from 'example/containers/Layout';
@@ -37,6 +37,7 @@ interface Client {
 
 interface Props {
   hasPermission: boolean;
+  hasDeletePermission: boolean;
 }
 
 interface Notification {
@@ -44,7 +45,7 @@ interface Notification {
   type: 'success' | 'error';
 }
 
-const Customers = ({ hasPermission }: Props) => {
+const Customers = ({ hasPermission, hasDeletePermission }: Props) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
@@ -56,6 +57,8 @@ const Customers = ({ hasPermission }: Props) => {
   const [totalClients, setTotalClients] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [userName, setUserName] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<number | null>(null);
   useEffect(() => {
     const authToken = localStorage.getItem('token');
     const decoder = authToken ? jwtDecode(authToken) : null;
@@ -82,7 +85,8 @@ const Customers = ({ hasPermission }: Props) => {
     remainingAmount: true,
     notes: true,
     view: true,
-    edit: true
+    edit: true,
+    delete: hasDeletePermission
   });
 
 
@@ -205,7 +209,8 @@ const arabicRegionMap: { [key: string]: string } = {
     { key: 'remainingAmount', label: 'المبلغ المتبقي' },
     { key: 'notes', label: 'ملاحظات' },
     { key: 'view', label: 'عرض' },
-    { key: 'edit', label: 'تعديل' }
+    { key: 'edit', label: 'تعديل' },
+    ...(hasDeletePermission ? [{ key: 'delete', label: 'حذف' }] : [])
   ];
 
   const fetchCities = async () => {
@@ -302,6 +307,35 @@ const arabicRegionMap: { [key: string]: string } = {
 
   const handleNotesSuccess = () => {
     fetchClients(currentPage);
+  };
+
+  const handleDeleteClient = async () => {
+    if (!clientToDelete) return;
+    
+    try {
+      const response = await fetch(`/api/clients/${clientToDelete}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setNotification({ message: 'تم حذف العميل بنجاح', type: 'success' });
+        fetchClients(currentPage);
+        setIsDeleteModalOpen(false);
+        setClientToDelete(null);
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        throw new Error('فشل في حذف العميل');
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      setNotification({ message: 'فشل في حذف العميل', type: 'error' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const openDeleteModal = (clientId: number) => {
+    setClientToDelete(clientId);
+    setIsDeleteModalOpen(true);
   };
 
   const translateBookingStatus = (status: string) => {
@@ -706,6 +740,7 @@ const arabicRegionMap: { [key: string]: string } = {
                         {visibleColumns.notes && <th className="text-nowrap text-center p-4 w-[10%]">ملاحظات</th>}
                         {visibleColumns.view && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">عرض</th>}
                         {visibleColumns.edit && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">تعديل</th>}
+                        {visibleColumns.delete && hasDeletePermission && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">حذف</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border-color">
@@ -787,6 +822,16 @@ const arabicRegionMap: { [key: string]: string } = {
                                     onClick={() => handleEditClient(client)}
                                   >
                                     <Edit2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              )}
+                              {visibleColumns.delete && hasDeletePermission && (
+                                <td className="text-nowrap text-center p-4">
+                                  <button 
+                                    className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50"
+                                    onClick={() => openDeleteModal(client.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
                                   </button>
                                 </td>
                               )}
@@ -932,6 +977,31 @@ const arabicRegionMap: { [key: string]: string } = {
             cities={cities}
             setNotification={setNotification}
           />
+        )}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+              <h2 className="text-xl font-semibold text-text-dark mb-4">تأكيد الحذف</h2>
+              <p className="text-text-muted mb-6">هل أنت متأكد من حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setClientToDelete(null);
+                  }}
+                  className="bg-gray-200 text-text-dark px-4 py-2 rounded-md text-md font-medium hover:bg-gray-300"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleDeleteClient}
+                  className="bg-red-500 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-red-600"
+                >
+                  حذف
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </Layout>
@@ -1121,13 +1191,22 @@ export async function getServerSideProps({ req }: any) {
     const hasPermission = findUser && findUser.role?.permissions && 
       (findUser.role.permissions as any)["إدارة العملاء"]?.["عرض"];
 
+    const hasDeletePermission = findUser && findUser.role?.permissions && 
+      (findUser.role.permissions as any)["إدارة العملاء"]?.["حذف"];
+
     return {
-      props: { hasPermission: !!hasPermission },
+      props: { 
+        hasPermission: !!hasPermission,
+        hasDeletePermission: !!hasDeletePermission
+      },
     };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
-      props: { hasPermission: false },
+      props: { 
+        hasPermission: false,
+        hasDeletePermission: false
+      },
     };
   }
 }

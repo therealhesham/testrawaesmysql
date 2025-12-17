@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import type { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic } from 'react-icons/fa';
@@ -19,8 +20,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   const router = useRouter();
   const [offices, setOffices] = useState<Array<{ office: string }>>([]);
   const [fileNames, setFileNames] = useState<{ [key: string]: string }>({
-  travelTicket: '',
-  passportcopy: '',
+  Picture: '',
+  FullPicture: '',
 });
 
   const [formData, setFormData] = useState({
@@ -60,13 +61,13 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       childcare: '',
       elderlycare: '',
     },
-    travelTicket: '',
-    passportcopy: '',
+    Picture: '',
+    FullPicture: '',
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [fileUploaded, setFileUploaded] = useState<{ [key: string]: boolean }>({
-    travelTicket: false,
-    passportcopy: false,
+    Picture: false,
+    FullPicture: false,
   });
   const [showModal, setShowModal] = useState(!!error);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -76,8 +77,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   const [nationalities, setNationalities] = useState<Array<{ id: number; Country: string }>>([]);
 
   const fileInputRefs = {
-    travelTicket: useRef<HTMLInputElement>(null),
-    passportcopy: useRef<HTMLInputElement>(null),
+    Picture: useRef<HTMLInputElement>(null),
+    FullPicture: useRef<HTMLInputElement>(null),
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -104,30 +105,42 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     setErrors((prev) => ({ ...prev, [`skill-${skill}`]: '' }));
   };
 
-  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+  const allowedHomemaidImageTypes = ['image/jpeg'];
 
- const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: string) => {
+const handleHomemaidImageChange = async (
+  e: React.ChangeEvent<HTMLInputElement>,
+  fieldId: 'Picture' | 'FullPicture',
+  type: 'profile' | 'full'
+) => {
   const files = e.target.files;
   if (!files || files.length === 0) {
-    setErrors((prev) => ({ ...prev, [fileId]: 'لم يتم اختيار ملف' }));
-    setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-    setFileNames((prev) => ({ ...prev, [fileId]: '' }));
+    setErrors((prev) => ({ ...prev, [fieldId]: 'لم يتم اختيار صورة' }));
+    setFileUploaded((prev) => ({ ...prev, [fieldId]: false }));
+    setFileNames((prev) => ({ ...prev, [fieldId]: '' }));
+    setFormData((prev) => ({ ...prev, [fieldId]: '' }));
     return;
   }
 
   const file = files[0];
-  if (!allowedFileTypes.includes(file.type)) {
-    setErrors((prev) => ({ ...prev, [fileId]: 'نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)' }));
-    setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-    setFileNames((prev) => ({ ...prev, [fileId]: '' }));
+  if (!allowedHomemaidImageTypes.includes(file.type)) {
+    setErrors((prev) => ({ ...prev, [fieldId]: 'نوع الصورة غير مدعوم (JPEG فقط)' }));
+    setFileUploaded((prev) => ({ ...prev, [fieldId]: false }));
+    setFileNames((prev) => ({ ...prev, [fieldId]: '' }));
+    setFormData((prev) => ({ ...prev, [fieldId]: '' }));
     return;
   }
 
+  // عرض معاينة فورية للصورة قبل الرفع
+  const previewUrl = URL.createObjectURL(file);
+  setFormData((prev) => ({ ...prev, [fieldId]: previewUrl }));
+  setFileNames((prev) => ({ ...prev, [fieldId]: file.name }));
+
   try {
-    const res = await fetch(`/api/upload-presigned-url/${fileId}`);
+    const res = await fetch(`/api/upload-homemaid-image?type=${type}`);
     if (!res.ok) {
-      throw new Error('فشل في الحصول على رابط الرفع');
+      throw new Error('فشل في الحصول على رابط رفع الصورة');
     }
+
     const { url, filePath } = await res.json();
 
     const uploadRes = await fetch(url, {
@@ -138,27 +151,28 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
         'x-amz-acl': 'public-read',
       },
     });
-    
-
 
     if (!uploadRes.ok) {
-      throw new Error('فشل في رفع الملف');
+      throw new Error('فشل في رفع الصورة');
     }
 
-    setFormData((prev) => ({ ...prev, [fileId]: filePath }));
-    setErrors((prev) => ({ ...prev, [fileId]: '' }));
-    setFileUploaded((prev) => ({ ...prev, [fileId]: true }));
-    setFileNames((prev) => ({ ...prev, [fileId]: file.name })); // تخزين اسم الملف
+    // تحديث الرابط بعد الرفع الناجح
+    URL.revokeObjectURL(previewUrl); // تنظيف الرابط المؤقت
+    setFormData((prev) => ({ ...prev, [fieldId]: filePath }));
+    setErrors((prev) => ({ ...prev, [fieldId]: '' }));
+    setFileUploaded((prev) => ({ ...prev, [fieldId]: true }));
 
-    const ref = fileInputRefs[fileId as keyof typeof fileInputRefs];
-    if (ref && ref.current) {
+    const ref = fileInputRefs[fieldId];
+    if (ref?.current) {
       ref.current.value = '';
     }
   } catch (error: any) {
-    console.error('Error uploading file:', error);
-    setErrors((prev) => ({ ...prev, [fileId]: error.message || 'حدث خطأ أثناء رفع الملف' }));
-    setFileUploaded((prev) => ({ ...prev, [fileId]: false }));
-    setFileNames((prev) => ({ ...prev, [fileId]: '' }));
+    console.error('Error uploading homemaid image:', error);
+    URL.revokeObjectURL(previewUrl); // تنظيف الرابط المؤقت في حالة الخطأ
+    setErrors((prev) => ({ ...prev, [fieldId]: error.message || 'حدث خطأ أثناء رفع الصورة' }));
+    setFileUploaded((prev) => ({ ...prev, [fieldId]: false }));
+    setFileNames((prev) => ({ ...prev, [fieldId]: '' }));
+    setFormData((prev) => ({ ...prev, [fieldId]: '' }));
   }
 };
   const handleButtonClick = (fileId: string) => {
@@ -223,7 +237,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     const newErrors: { [key: string]: string } = {};
     const today = new Date();
 
-    const requiredFields = [
+    const requiredFields: Array<{ id: keyof typeof formData; label: string }> = [
       { id: 'name', label: 'الاسم' },
       { id: 'religion', label: 'الديانة' },
       { id: 'nationality', label: 'الجنسية' },
@@ -360,7 +374,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
       };
       const response = await fetch('/api/newhomemaids', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -407,15 +421,19 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
           childcare: '',
           elderlycare: '',
         },
-        travelTicket: '',
-        passportcopy: '',
+        Picture: '',
+        FullPicture: '',
       });
       setFileUploaded({
-        travelTicket: false,
-        passportcopy: false,
+        Picture: false,
+        FullPicture: false,
       });
-      if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
-      if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
+      if (fileInputRefs.Picture.current) fileInputRefs.Picture.current.value = '';
+      if (fileInputRefs.FullPicture.current) fileInputRefs.FullPicture.current.value = '';
+      setFileNames({
+        Picture: '',
+        FullPicture: '',
+      });
       setErrors({});
       setModalMessage('تم إضافة العاملة بنجاح!');
       setShowSuccessModal(true);
@@ -681,19 +699,19 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
         childcare: '',
         elderlycare: '',
       },
-      travelTicket: '',
-      passportcopy: '',
+      Picture: '',
+      FullPicture: '',
     });
     setFileUploaded({
-      travelTicket: false,
-      passportcopy: false,
+      Picture: false,
+      FullPicture: false,
     });
     setFileNames({
-      travelTicket: '',
-      passportcopy: '',
+      Picture: '',
+      FullPicture: '',
     });
-    if (fileInputRefs.travelTicket.current) fileInputRefs.travelTicket.current.value = '';
-    if (fileInputRefs.passportcopy.current) fileInputRefs.passportcopy.current.value = '';
+    if (fileInputRefs.Picture.current) fileInputRefs.Picture.current.value = '';
+    if (fileInputRefs.FullPicture.current) fileInputRefs.FullPicture.current.value = '';
     setErrors({});
   }}
 >
@@ -1019,8 +1037,8 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   <legend className="text-2xl font-normal text-center text-black mb-6">الملفات</legend>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     {[
-      { id: 'travelTicket', label: 'تذكرة السفر' },
-      { id: 'passportcopy', label: 'جواز السفر' },
+      { id: 'Picture', label: 'صورة الوجه' },
+      { id: 'FullPicture', label: 'صورة الطول' },
     ].map((file) => (
       <div key={file.id} className="flex flex-col">
         <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">{file.label}</label>
@@ -1037,8 +1055,11 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
             id={file.id}
             ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
             className="hidden"
-            accept="application/pdf,image/jpeg,image/png"
-            onChange={(e) => handleFileChange(e, file.id)}
+            accept="image/jpeg"
+            onChange={(e) => {
+              if (file.id === 'Picture') return handleHomemaidImageChange(e, 'Picture', 'profile');
+              return handleHomemaidImageChange(e, 'FullPicture', 'full');
+            }}
           />
           <button
             type="button"
@@ -1049,6 +1070,34 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
           </button>
         </div>
         {errors[file.id] && <p className="text-red-500 text-xs mt-1">{errors[file.id]}</p>}
+        {file.id === 'Picture' && formData.Picture && (
+          <div className="mt-3 flex justify-end">
+            <div className="relative">
+              <img
+                src={formData.Picture}
+                alt="صورة الوجه"
+                className="w-40 h-40 object-cover rounded-lg border-2 border-teal-800 shadow-md"
+              />
+              <div className="absolute top-2 right-2 bg-teal-800 text-white text-xs px-2 py-1 rounded">
+                معاينة
+              </div>
+            </div>
+          </div>
+        )}
+        {file.id === 'FullPicture' && formData.FullPicture && (
+          <div className="mt-3 flex justify-end">
+            <div className="relative">
+              <img
+                src={formData.FullPicture}
+                alt="صورة الطول"
+                className="w-40 h-40 object-cover rounded-lg border-2 border-teal-800 shadow-md"
+              />
+              <div className="absolute top-2 right-2 bg-teal-800 text-white text-xs px-2 py-1 rounded">
+                معاينة
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     ))}
   </div>
@@ -1063,12 +1112,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   );
 };
 
-export async function getServerSideProps({ req }) {
+export const getServerSideProps: GetServerSideProps<Props> = async ({ req }) => {
   try {
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(';').forEach((cookie) => {
+      cookieHeader.split(';').forEach((cookie: string) => {
         const [key, value] = cookie.trim().split('=');
         cookies[key] = decodeURIComponent(value);
       });
@@ -1080,14 +1129,19 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode<{ id: number | string }>(cookies.authToken);
+    const userId = typeof token.id === 'string' ? parseInt(token.id, 10) : token.id;
+    if (!userId || Number.isNaN(userId as number)) {
+      return { props: { error: 'رمز مصادقة غير صالح.' } };
+    }
 
     const findUser = await prisma.user.findUnique({
-      where: { id: token.id },
+      where: { id: userId as number },
       include: { role: true },
     });
 
-    if (!findUser || !findUser.role?.permissions?.['إدارة العاملات']?.['إضافة']) {
+    const canAdd = (findUser as any)?.role?.permissions?.['إدارة العاملات']?.['إضافة'];
+    if (!findUser || !canAdd) {
       return {
         props: { error: 'غير مصرح لك بإضافة العاملات.' },
       };
@@ -1100,6 +1154,6 @@ export async function getServerSideProps({ req }) {
       props: { error: 'حدث خطأ أثناء التحقق من الصلاحيات.' },
     };
   }
-}
+};
 
 export default AddWorkerForm;

@@ -1,5 +1,77 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { X, ChevronDown, CheckCircle } from 'lucide-react';
+import Select from 'react-select';
+
+const clientCityOptions: Array<{ value: string; label: string }> = [
+  { value: 'Baha', label: 'الباحة' },
+  { value: 'Jawf', label: 'الجوف' },
+  { value: 'Qassim', label: 'القصيم' },
+  { value: 'Hail', label: 'حائل' },
+  { value: 'Jazan', label: 'جازان' },
+  { value: 'Najran', label: 'نجران' },
+  { value: 'Madinah', label: 'المدينة المنورة' },
+  { value: 'Riyadh', label: 'الرياض' },
+  { value: 'Al-Kharj', label: 'الخرج' },
+  { value: 'Ad Diriyah', label: 'الدرعية' },
+  { value: "Al Majma'ah", label: 'المجمعة' },
+  { value: 'Al Zulfi', label: 'الزلفي' },
+  { value: 'Ad Dawadimi', label: 'الدوادمي' },
+  { value: 'Wadi Ad Dawasir', label: 'وادي الدواسر' },
+  { value: 'Afif', label: 'عفيف' },
+  { value: "Al Quway'iyah", label: 'القويعية' },
+  { value: 'Shaqra', label: 'شقراء' },
+  { value: 'Hotat Bani Tamim', label: 'حوطة بني تميم' },
+  { value: 'Makkah', label: 'مكة المكرمة' },
+  { value: 'Jeddah', label: 'جدة' },
+  { value: 'Taif', label: 'الطائف' },
+  { value: 'Rabigh', label: 'رابغ' },
+  { value: 'Al Qunfudhah', label: 'القنفذة' },
+  { value: 'Al Lith', label: 'الليث' },
+  { value: 'Khulais', label: 'خليص' },
+  { value: 'Ranyah', label: 'رنية' },
+  { value: 'Turabah', label: 'تربة' },
+  { value: 'Yanbu', label: 'ينبع' },
+  { value: 'Al Ula', label: 'العلا' },
+  { value: 'Badr', label: 'بدر' },
+  { value: 'Al Hinakiyah', label: 'الحناكية' },
+  { value: 'Mahd Al Dhahab', label: 'مهد الذهب' },
+  { value: 'Dammam', label: 'الدمام' },
+  { value: 'Al Khobar', label: 'الخبر' },
+  { value: 'Dhahran', label: 'الظهران' },
+  { value: 'Al Ahsa', label: 'الأحساء' },
+  { value: 'Al Hufuf', label: 'الهفوف' },
+  { value: 'Al Mubarraz', label: 'المبرز' },
+  { value: 'Jubail', label: 'الجبيل' },
+  { value: 'Hafr Al Batin', label: 'حفر الباطن' },
+  { value: 'Al Khafji', label: 'الخفجي' },
+  { value: 'Ras Tanura', label: 'رأس تنورة' },
+  { value: 'Qatif', label: 'القطيف' },
+  { value: 'Abqaiq', label: 'بقيق' },
+  { value: 'Nairiyah', label: 'النعيرية' },
+  { value: 'Qaryat Al Ulya', label: 'قرية العليا' },
+  { value: 'Buraydah', label: 'بريدة' },
+  { value: 'Unaizah', label: 'عنيزة' },
+  { value: 'Ar Rass', label: 'الرس' },
+  { value: 'Al Bukayriyah', label: 'البكيرية' },
+  { value: 'Al Badaye', label: 'البدائع' },
+  { value: 'Al Mithnab', label: 'المذنب' },
+  { value: 'Riyad Al Khabra', label: 'رياض الخبراء' },
+  { value: 'Abha', label: 'أبها' },
+  { value: 'Khamis Mushait', label: 'خميس مشيط' },
+  { value: 'Bisha', label: 'بيشة' },
+  { value: 'Mahayil', label: 'محايل عسير' },
+  { value: 'Al Namas', label: 'النماص' },
+  { value: 'Tanomah', label: 'تنومة' },
+  { value: 'Ahad Rafidah', label: 'أحد رفيدة' },
+  { value: 'Sarat Abidah', label: 'سراة عبيدة' },
+  { value: 'Balqarn', label: 'بلقرن' },
+  { value: 'Tabuk', label: 'تبوك' },
+  { value: 'Duba', label: 'ضباء' },
+  { value: 'Al Wajh', label: 'الوجه' },
+  { value: 'Umluj', label: 'أملج' },
+  { value: 'Tayma', label: 'تيماء' },
+  { value: 'Haqi', label: 'حقل' },
+];
 
 interface AddClientModalProps {
   isOpen: boolean;
@@ -30,6 +102,8 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     visaFile: false,
   });
   const [visaFileName, setVisaFileName] = useState(''); // Store file name
+  const [showCustomSourceModal, setShowCustomSourceModal] = useState(false);
+  const [customSource, setCustomSource] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -47,7 +121,8 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   const validateStep1 = () => {
     const newErrors: any = {};
     const nameRegex = /^[a-zA-Z\s\u0600-\u06FF]+$/; // Arabic letters and english letters only
-    const phoneRegex = /^\d{9}$/; // 10 digits for Saudi phone numbers
+    const phoneRegex = /^5\d{8}$/; // 9 digits, starts with 5 (without country code)
+    const nationalIdRegex = /^\d{10}$/; // 10 digits
 
     if (!formData.fullname) {
       newErrors.fullname = 'الاسم مطلوب';
@@ -60,11 +135,13 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     if (!formData.phonenumber) {
       newErrors.phonenumber = 'رقم الهاتف مطلوب';
     } else if (!phoneRegex.test(formData.phonenumber)) {
-      newErrors.phonenumber = 'رقم الهاتف يجب أن يكون 9 أرقام';
+      newErrors.phonenumber = 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بـ 5';
     }
 
     if (!formData.nationalId) {
       newErrors.nationalId = 'رقم الهوية مطلوب';
+    } else if (!nationalIdRegex.test(formData.nationalId)) {
+      newErrors.nationalId = 'رقم الهوية يجب أن يكون 10 أرقام';
     }
 
     if (!formData.city) {
@@ -81,12 +158,13 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
 
   const validateStep2 = () => {
     const newErrors: any = {};
-    const visaNumberRegex = /^\d{1,10}$/; // at least 1 digit and at most 10 digits
+    // يجب أن يبدأ بـ 190 ثم 10 أرقام (الإجمالي 13 رقم)
+    const visaNumberRegex = /^190\d{10}$/;
 
     if (!formData.visaNumber) {
       newErrors.visaNumber = 'رقم التأشيرة مطلوب';
     } else if (!visaNumberRegex.test(formData.visaNumber)) {
-      newErrors.visaNumber = 'رقم التأشيرة يجب أن يكون على الأكثر 1 أرقام';
+      newErrors.visaNumber = 'رقم التأشيرة يجب أن يبدأ بـ 190 ثم 10 أرقام';
     } 
 
 
@@ -112,12 +190,115 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e:
+      | React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+      | { target: { name: string; value: string } }
   ) => {
     const { name, value } = e.target;
+
+    // رقم التأشيرة: أرقام فقط + يجب أن يبدأ بـ 190 + طول أقصى 13 رقم
+    if (name === 'visaNumber') {
+      const digitsOnly = String(value).replace(/\D/g, '').slice(0, 13);
+      const isValidPartial =
+        digitsOnly === '' ||
+        '190'.startsWith(digitsOnly) ||
+        /^190\d{0,10}$/.test(digitsOnly);
+
+      if (!isValidPartial) return;
+
+      setFormData((prev) => ({ ...prev, visaNumber: digitsOnly }));
+      setErrors((prev: any) => ({ ...prev, visaNumber: '' }));
+      return;
+    }
+    
+    // إذا اختار المستخدم "أخرى" في المصدر، افتح المودال
+    if (name === 'clientSource' && value === 'other') {
+      setShowCustomSourceModal(true);
+      return;
+    }
+    
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error for the field when user starts typing
     setErrors((prev: any) => ({ ...prev, [name]: '' }));
+  };
+
+  const selectedCityOption = useMemo(() => {
+    if (!formData.city) return null;
+    const found = clientCityOptions.find((c) => c.value === formData.city);
+    return found || { value: formData.city, label: formData.city };
+  }, [formData.city]);
+
+  const getCitySelectStyles = (hasError: boolean) => ({
+    control: (provided: any, state: any) => ({
+      ...provided,
+      width: '100%',
+      backgroundColor: '#f9fafb',
+      border: hasError ? '1px solid #ef4444' : '1px solid #d1d5db',
+      borderRadius: '0.375rem',
+      minHeight: '40px',
+      boxShadow: state.isFocused ? (hasError ? '0 0 0 1px #ef4444' : '0 0 0 1px #115e59') : 'none',
+      '&:hover': {
+        border: hasError ? '1px solid #ef4444' : '1px solid #9ca3af',
+      },
+      direction: 'rtl' as const,
+    }),
+    valueContainer: (provided: any) => ({
+      ...provided,
+      padding: '0 12px',
+    }),
+    input: (provided: any) => ({
+      ...provided,
+      margin: 0,
+      padding: 0,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+    }),
+    placeholder: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      color: '#6b7280',
+    }),
+    singleValue: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      color: '#111827',
+    }),
+    menuPortal: (provided: any) => ({
+      ...provided,
+      zIndex: 9999,
+    }),
+    menu: (provided: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      zIndex: 9999,
+    }),
+    option: (provided: any, state: any) => ({
+      ...provided,
+      textAlign: 'right' as const,
+      direction: 'rtl' as const,
+      backgroundColor: state.isSelected ? '#115e59' : state.isFocused ? '#f0fdfa' : 'white',
+      color: state.isSelected ? 'white' : '#111827',
+      '&:hover': {
+        backgroundColor: state.isSelected ? '#115e59' : '#f0fdfa',
+      },
+    }),
+  });
+
+  const handleCustomSourceSubmit = () => {
+    if (customSource.trim()) {
+      setFormData((prev) => ({ ...prev, clientSource: customSource.trim() }));
+      setErrors((prev: any) => ({ ...prev, clientSource: '' }));
+      setShowCustomSourceModal(false);
+      setCustomSource('');
+    }
+  };
+
+  const handleCustomSourceCancel = () => {
+    setShowCustomSourceModal(false);
+    setCustomSource('');
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,8 +422,49 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-gray-100 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+    <>
+      {/* Custom Source Modal */}
+      {showCustomSourceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[60]">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-medium text-text-dark mb-4">أدخل مصدر العميل</h3>
+            <input
+              type="text"
+              value={customSource}
+              onChange={(e) => setCustomSource(e.target.value)}
+              placeholder="اكتب مصدر العميل"
+              className="w-full bg-background-light border border-border-color rounded-md py-2 px-4 text-sm text-text-dark mb-4"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleCustomSourceSubmit();
+                }
+              }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCustomSourceCancel}
+                className="bg-gray-300 text-text-dark px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-400"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleCustomSourceSubmit}
+                className="bg-primary-dark text-text-light px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90"
+                disabled={!customSource.trim()}
+              >
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Modal */}
+      <div className="fixed inset-0 bg-opacity-50 flex justify-center items-center z-50">
+        <div className="bg-gray-100 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
         <X
           className="absolute top-4 left-4 text-2xl cursor-pointer text-primary-dark"
           onClick={onClose}
@@ -297,6 +519,8 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       name="phonenumber"
       placeholder="5XXXXXXXX"
       value={formData.phonenumber}
+      inputMode="numeric"
+      maxLength={9}
       onChange={(e) => {
         const value = e.target.value.replace(/\D/g, ""); // يمنع غير الأرقام
         if (value.startsWith("5") || value === "") {
@@ -328,7 +552,14 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                   name="nationalId"
                   placeholder="ادخل هوية العميل"
                   value={formData.nationalId}
-                  onChange={handleInputChange}
+                  inputMode="numeric"
+                  maxLength={10}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, ""); // يمنع غير الأرقام
+                    handleInputChange({
+                      target: { name: "nationalId", value },
+                    });
+                  }}
                   className={`w-full bg-background-light border ${errors.nationalId ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
                 {errors.nationalId && <p className="text-red-500 text-xs mt-1">{errors.nationalId}</p>}
@@ -336,187 +567,23 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
               <div className="space-y-2">
                 <label htmlFor="city" className="block text-sm font-medium text-text-dark">المدينة</label>
                 <div className="relative">
-                  <select
-                    id="city"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    className={`w-full bg-background-light border ${errors.city ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
-                  >
-                    <option value="">اختر المدينة</option>
-{/* const arabicRegionMap: { [key: string]: string } = {
-     'Riyadh': 'الرياض',
-    'Al-Kharj': 'الخرج',
-    'Ad Diriyah': 'الدرعية',
-    'Al Majma\'ah': 'المجمعة',
-    'Al Zulfi': 'الزلفي',
-    'Ad Dawadimi': 'الدوادمي',
-    'Wadi Ad Dawasir': 'وادي الدواسر',
-    'Afif': 'عفيف',
-    'Al Quway\'iyah': 'القويعية',
-    'Shaqra': 'شقراء',
-    'Hotat Bani Tamim': 'حوطة بني تميم',
-
-    'Makkah': 'مكة المكرمة',
-    'Jeddah': 'جدة',
-    'Taif': 'الطائف',
-    'Rabigh': 'رابغ',
-    'Al Qunfudhah': 'القنفذة',
-    'Al Lith': 'الليث',
-    'Khulais': 'خليص',
-    'Ranyah': 'رنية',
-    'Turabah': 'تربة',
-
-    'Madinah': 'المدينة المنورة',
-    'Yanbu': 'ينبع',
-    'Al Ula': 'العلا',
-    'Badr': 'بدر',
-    'Al Hinakiyah': 'الحناكية',
-    'Mahd Al Dhahab': 'مهد الذهب',
-
-    'Dammam': 'الدمام',
-    'Al Khobar': 'الخبر',
-    'Dhahran': 'الظهران',
-    'Al Ahsa': 'الأحساء',
-    'Al Hufuf': 'الهفوف',
-    'Al Mubarraz': 'المبرز',
-    'Jubail': 'الجبيل',
-    'Hafr Al Batin': 'حفر الباطن',
-    'Al Khafji': 'الخفجي',
-    'Ras Tanura': 'رأس تنورة',
-    'Qatif': 'القطيف',
-    'Abqaiq': 'بقيق',
-    'Nairiyah': 'النعيرية',
-    'Qaryat Al Ulya': 'قرية العليا',
-
-    'Buraydah': 'بريدة',
-    'Unaizah': 'عنيزة',
-    'Ar Rass': 'الرس',
-    'Al Bukayriyah': 'البكيرية',
-    'Al Badaye': 'البدائع',
-    'Al Mithnab': 'المذنب',
-    'Riyad Al Khabra': 'رياض الخبراء',
-
-    'Abha': 'أبها',
-    'Khamis Mushait': 'خميس مشيط',
-    'Bisha': 'بيشة',
-    'Mahayil': 'محايل عسير',
-    'Al Namas': 'النماص',
-    'Tanomah': 'تنومة',
-    'Ahad Rafidah': 'أحد رفيدة',
-    'Sarat Abidah': 'سراة عبيدة',
-    'Balqarn': 'بلقرن',
-
-    'Tabuk': 'تبوك',
-    'Duba': 'ضباء',
-    'Al Wajh': 'الوجه',
-    'Umluj': 'أملج',
-    'Tayma': 'تيماء',
-    'Haqi': 'حقل',
-
-    'Hail': 'حائل',
-    'Baqa': 'بقعاء',
-    'Al Ghazalah': 'الغزالة',
-
-    'Arar': 'عرعر',
-    'Rafha': 'رفحاء',
-    'Turaif': 'طريف',
-
-    'Jazan': 'جازان',
-    'Sabya': 'صبيا',
-    'Abu Arish': 'أبو عريش',
-    'Samtah': 'صامطة',
-    'Baish': 'بيش',
-    'Ad Darb': 'الدرب',
-    'Al Aridah': 'العارضة',
-    'Fifa': 'فيفاء',
-
-    'Najran': 'نجران',
-    'Sharurah': 'شرورة',
-    'Hubuna': 'حبونا',
-
-    'Al Baha': 'الباحة',
-    'Baljurashi': 'بلجرشي',
-    'Al Mandq': 'المندق',
-    'Al Makhwah': 'المخواة',
-    'Qilwah': 'قلوة',
-
-    'Sakaka': 'سكاكا',
-    'Dumat Al Jandal': 'دومة الجندل',
-    'Al Qurayyat': 'القريات',
-    'Tabarjal': 'طبرجل'
-  }; */}
-
-
-<option value = "Baha">الباحة</option>
-<option value = "Jawf">الجوف</option>
-<option value = "Qassim">القصيم</option>
-<option value = "Hail">حائل</option>
-<option value = "Jazan">جازان</option>
-<option value = "Najran">نجران</option>
-<option value = "Madinah">المدينة المنورة</option>
-<option value = "Riyadh">الرياض</option>
-<option value = "Al-Kharj">الخرج</option>
-<option value = "Ad Diriyah">الدرعية</option>
-<option value = "Al Majma'ah">المجمعة</option>
-<option value = "Al Zulfi">الزلفي</option>
-<option value = "Ad Dawadimi">الدوادمي</option>
-<option value = "Wadi Ad Dawasir">وادي الدواسر</option>
-<option value = "Afif">عفيف</option>
-<option value = "Al Quway'iyah">القويعية</option>
-<option value = "Shaqra">شقراء</option>
-<option value = "Hotat Bani Tamim">حوطة بني تميم</option>
-<option value = "Makkah">مكة المكرمة</option>
-<option value = "Jeddah">جدة</option>
-<option value = "Taif">الطائف</option>
-<option value = "Rabigh">رابغ</option>
-<option value = "Al Qunfudhah">القنفذة</option>
-<option value = "Al Lith">الليث</option>
-<option value = "Khulais">خليص</option>
-<option value = "Ranyah">رنية</option>
-<option value = "Turabah">تربة</option>
-<option value = "Yanbu">ينبع</option>
-<option value = "Al Ula">العلا</option>
-<option value = "Badr">بدر</option>
-<option value = "Al Hinakiyah">الحناكية</option>
-<option value = "Mahd Al Dhahab">مهد الذهب</option>
-<option value = "Dammam">الدمام</option>
-<option value = "Al Khobar">الخبر</option>
-<option value = "Dhahran">الظهران</option>
-<option value = "Al Ahsa">الأحساء</option>
-<option value = "Al Hufuf">الهفوف</option>
-<option value = "Al Mubarraz">المبرز</option>
-<option value = "Jubail">الجبيل</option>
-<option value = "Hafr Al Batin">حفر الباطن</option>
-<option value = "Al Khafji">الخفجي</option>
-<option value = "Ras Tanura">رأس تنورة</option>
-<option value = "Qatif">القطيف</option>
-<option value = "Abqaiq">بقيق</option>
-<option value = "Nairiyah">النعيرية</option>
-<option value = "Qaryat Al Ulya">قرية العليا</option>
-<option value = "Buraydah">بريدة</option>
-<option value = "Unaizah">عنيزة</option>
-<option value = "Ar Rass">الرس</option>
-<option value = "Al Bukayriyah">البكيرية</option>
-<option value = "Al Badaye">البدائع</option>
-<option value = "Al Mithnab">المذنب</option>
-<option value = "Riyad Al Khabra">رياض الخبراء</option>
-<option value = "Abha">أبها</option>
-<option value = "Khamis Mushait">خميس مشيط</option>
-<option value = "Bisha">بيشة</option>
-<option value = "Mahayil">محايل عسير</option>
-<option value = "Al Namas">النماص</option>
-<option value = "Tanomah">تنومة</option>
-<option value = "Ahad Rafidah">أحد رفيدة</option>
-<option value = "Sarat Abidah">سراة عبيدة</option>
-<option value = "Balqarn">بلقرن</option>
-<option value = "Tabuk">تبوك</option>
-<option value = "Duba">ضباء</option>
-<option value = "Al Wajh">الوجه</option>
-<option value = "Umluj">أملج</option>
-<option value = "Tayma">تيماء</option>
-<option value = "Haqi">حقل</option>
-                  </select>
+                  <Select
+                    inputId="city"
+                    value={selectedCityOption}
+                    onChange={(selected: any) =>
+                      handleInputChange({
+                        target: { name: 'city', value: selected ? selected.value : '' },
+                      })
+                    }
+                    options={clientCityOptions}
+                    placeholder="اختر المدينة"
+                    isClearable
+                    isSearchable
+                    styles={getCitySelectStyles(!!errors.city)}
+                    menuPortalTarget={typeof window !== 'undefined' ? document.body : undefined}
+                    noOptionsMessage={() => 'لا توجد نتائج'}
+                    loadingMessage={() => 'جاري البحث...'}
+                  />
                 </div>
                 {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
               </div>
@@ -526,13 +593,17 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                   <select
                     id="clientSource"
                     name="clientSource"
-                    value={formData.clientSource}
+                    value={formData.clientSource === 'تسويق' || formData.clientSource === 'إعلان' || formData.clientSource === '' ? formData.clientSource : 'custom'}
                     onChange={handleInputChange}
                     className={`w-full bg-background-light border ${errors.clientSource ? 'border-red-500' : 'border-border-color'} rounded-md py-2 text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر مصدر العميل</option>
                     <option value="تسويق">تسويق</option>
                     <option value="إعلان">إعلان</option>
+                    <option value="other">أخرى</option>
+                    {formData.clientSource && formData.clientSource !== 'تسويق' && formData.clientSource !== 'إعلان' && (
+                      <option value="custom">{formData.clientSource}</option>
+                    )}
                   </select>
                 </div>
                 {errors.clientSource && <p className="text-red-500 text-xs mt-1">{errors.clientSource}</p>}
@@ -603,6 +674,9 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                   id="visaNumber"
                   name="visaNumber"
                   placeholder="ادخل رقم التأشيرة"
+                  inputMode="numeric"
+                  maxLength={13}
+                  pattern="190\d{10}"
                   value={formData.visaNumber}
                   onChange={handleInputChange}
                   className={`w-full bg-background-light border ${errors.visaNumber ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
@@ -733,8 +807,9 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
             </div>
           </section>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

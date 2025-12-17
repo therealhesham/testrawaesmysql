@@ -39,6 +39,31 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   //   return 'تاريخ العقد مطلوب';
   // }
 
+  // Visa number validation: 10 digits, must start with 190
+  if ((key === 'رقم التأشيرة' || key.includes('التأشيرة')) && value && value !== 'N/A') {
+    const visa = value.trim();
+
+    if (!/^\d+$/.test(visa)) {
+      return 'رقم التأشيرة يجب أن يحتوي على أرقام فقط';
+    }
+
+    // Allow progressive typing of 190 (1 -> 19 -> 190)
+    if (visa.length < 3) {
+      if (!'190'.startsWith(visa)) {
+        return 'رقم التأشيرة يجب أن يبدأ بـ 190';
+      }
+      return null;
+    }
+
+    if (!visa.startsWith('190')) {
+      return 'رقم التأشيرة يجب أن يبدأ بـ 190';
+    }
+
+    if (visa.length !== 10) {
+      return 'رقم التأشيرة يجب أن يكون 10 أرقام';
+    }
+  }
+
   // Email validation
   if ((key.includes('البريد الإلكتروني') || key.includes('ايميل')) && value && value !== 'N/A') {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -6,14 +6,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const token = req.cookies.authToken
-  console.log("token",token);
-  const decoded = jwt.verify(token, "rawaesecret") as any
-  const findUserByID = await prisma.user.findUnique({where:{id:decoded.id}})
-  if(Number(findUserByID?.roleId) !== 1) return res.status(401).json({ error: 'لا تملك صلاحية كافية لاضافة مهمة' });
   try {
+    const token = req.cookies.authToken;
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, "rawaesecret") as any;
+    } catch (e) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const currentUser = await prisma.user.findUnique({ where: { id: decoded?.id } });
+    if (!currentUser) return res.status(401).json({ error: "Unauthorized" });
+
     const { 
-      userId, 
       title, 
       description, 
       taskDeadline, 
@@ -32,34 +39,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } = req.body;
 
     // Validate required fields
-    if (!userId || !title || !description || !taskDeadline) {
+    if (!title || !description || !taskDeadline) {
       return res.status(400).json({ 
-        error: 'userId, title, description, and taskDeadline are required' 
+        error: 'title, description, and taskDeadline are required' 
       });
     }
 
+    const assignedByUserId = Number(currentUser.id);
+
     // Use the specific assignee if provided, otherwise fall back to current user
-    let selectedUserId = parseInt(userId); // Default to current user
+    let selectedUserId = assignedByUserId; // Default to current user
     
     if (assignee && assignee !== '') {
       // If a specific assignee is provided, use that user
       // The assignee field should contain the user ID or username
-      if (assignee.startsWith('user')) {
+      if (typeof assignee === "string" && assignee.startsWith('user')) {
         // Handle cases where assignee is like "user1", "user2", etc.
         const assigneeId = assignee.replace('user', '');
-        selectedUserId = parseInt(assigneeId);
+        const parsed = Number(assigneeId);
+        if (!Number.isNaN(parsed)) selectedUserId = parsed;
       } else {
         // Try to find user by username or ID
-        const user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { id: parseInt(assignee) },
-              { username: assignee }
-            ]
+        const assigneeAsNumber = typeof assignee === "string" ? Number(assignee) : Number.NaN;
+        const orConditions = [
+          ...(Number.isNaN(assigneeAsNumber) ? [] : [{ id: assigneeAsNumber }]),
+          ...(typeof assignee === "string" ? [{ username: assignee }] : []),
+        ];
+        if (orConditions.length > 0) {
+          const user = await prisma.user.findFirst({
+            where: { OR: orConditions }
+          });
+          if (user) {
+            selectedUserId = user.id;
           }
-        });
-        if (user) {
-          selectedUserId = user.id;
         }
       }
     }
@@ -67,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Prepare task data
     const taskData: any = {
       userId: selectedUserId,
-      assignedBy: parseInt(userId),
+      assignedBy: assignedByUserId,
       description,
       Title: title,
       taskDeadline: new Date(taskDeadline).toISOString(),

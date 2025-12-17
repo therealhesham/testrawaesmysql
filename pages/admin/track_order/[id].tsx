@@ -26,6 +26,7 @@ interface OrderData {
   clientInfo: { id?: string; name: string; phone: string; email: string };
   homemaidInfo: { id: string; name: string; passportNumber: string; nationality: string; externalOffice: string };
   applicationInfo: { applicationDate: string; applicationTime: string };
+  orderFiles?: { orderDocument?: string | null; contract?: string | null };
   officeLinkInfo: { nationalId: string; visaNumber: string; internalMusanedContract: string; musanedDate: string };
   externalOfficeInfo: { officeName: string; country: string; externalMusanedContract: string };
   externalOfficeApproval: { approved: boolean };
@@ -546,6 +547,49 @@ export default function TrackOrder() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleDeleteDeliveryFile = async () => {
+    if (!orderData?.deliveryDetails?.deliveryFile && !deliveryDetails.deliveryFile) return;
+
+    setShowConfirmModal({
+      isOpen: true,
+      title: 'حذف ملف الاستلام',
+      message: 'هل أنت متأكد من حذف ملف الاستلام؟',
+      onConfirm: async () => {
+        setUpdating(true);
+        try {
+          // Update local state immediately for better UX
+          setDeliveryDetails((prev) => ({ ...prev, deliveryFile: null }));
+
+          const res = await fetch(`/api/track_order/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              section: 'deliveryDetails',
+              updatedData: { deliveryFile: null },
+            }),
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error((errorData as any)?.error || 'فشل في حذف ملف الاستلام');
+          }
+
+          await fetchOrderData();
+          setShowAlertModal({ isOpen: true, message: 'تم حذف ملف الاستلام بنجاح' });
+        } catch (error: any) {
+          console.error('Error deleting delivery file:', error);
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في حذف الملف',
+            message: error.message || 'حدث خطأ أثناء حذف ملف الاستلام',
+          });
+        } finally {
+          setUpdating(false);
+        }
+      },
+    });
   };
 
   // Format homemaids for react-select
@@ -1486,59 +1530,38 @@ export default function TrackOrder() {
                   value: (
                     <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
                       <span className="text-gray-500 text-md pr-2 flex items-center gap-2">
-                        {orderData.deliveryDetails?.deliveryFile ? (
-                          // Non-editable mode - عرض الملف المحفوظ فقط
-                          <a
-                            href={orderData.deliveryDetails.deliveryFile}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-teal-800 hover:underline"
-                          >
-                            {orderData.deliveryDetails.deliveryFile.split('/').pop()}
-                          </a>
-                        ) : isDeliveryDetailsEditMode && deliveryDetails.deliveryFile ? (
-                          // Editable mode - ملف تم رفعه مؤقتاً (قبل الحفظ)
-                          <>
-                            <a
-                              href={deliveryDetails.deliveryFile}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-teal-800 hover:underline"
-                            >
-                              {deliveryDetails.deliveryFile.split('/').pop()}
-                            </a>
-                            <button
-                              aria-label="حذف ملف الاستلام"
-                              className="text-red-600 hover:text-red-700 text-lg font-bold"
-                              onClick={async () => {
-                                setUpdating(true);
-                                try {
-                                  setDeliveryDetails({ ...deliveryDetails, deliveryFile: null });
-                                  await fetch(`/api/track_order/${id}`, {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      section: 'deliveryDetails',
-                                      updatedData: { ...deliveryDetails, deliveryFile: null },
-                                    }),
-                                  });
-                                  await fetchOrderData();
-                                } catch (error) {
-                                  console.error('Error deleting delivery file:', error);
-                                } finally {
-                                  setUpdating(false);
-                                }
-                              }}
-                            >
-                              ×
-                            </button>
-                          </>
-                        ) : (
-                          // Editable mode - لا يوجد ملف
-                          isDeliveryDetailsEditMode ? 'إرفاق ملف الاستلام' : 'لا يوجد ملف'
-                        )}
+                        {(() => {
+                          const deliveryFileToShow =
+                            orderData.deliveryDetails?.deliveryFile ?? deliveryDetails.deliveryFile;
+
+                          if (deliveryFileToShow) {
+                            return (
+                              <>
+                                <a
+                                  href={deliveryFileToShow}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-teal-800 hover:underline"
+                                >
+                                  {deliveryFileToShow.split('/').pop()}
+                                </a>
+                                <button
+                                  aria-label="حذف ملف الاستلام"
+                                  className="text-red-600 hover:text-red-700 text-lg font-bold disabled:opacity-50"
+                                  onClick={handleDeleteDeliveryFile}
+                                  disabled={updating}
+                                >
+                                  ×
+                                </button>
+                              </>
+                            );
+                          }
+
+                          return isDeliveryDetailsEditMode ? 'إرفاق ملف الاستلام' : 'لا يوجد ملف';
+                        })()}
                       </span>
-                      {isDeliveryDetailsEditMode && !orderData.deliveryDetails?.deliveryFile && (
+                      {isDeliveryDetailsEditMode &&
+                        !(orderData.deliveryDetails?.deliveryFile ?? deliveryDetails.deliveryFile) && (
                         // Editable mode - زر رفع الملف يظهر فقط في وضع التعديل
                         <>
                           <input
@@ -1848,6 +1871,261 @@ export default function TrackOrder() {
               { label: 'تأكيد', type: 'primary', onClick: () => console.log('تأكيد رفع المستندات') },
               { label: 'إلغاء التعديل', type: 'secondary', onClick: () => console.log('إلغاء تعديل المستندات') },
             ]}
+          />
+
+          <InfoCard
+            title="مرفقات الطلب"
+            data={[
+              {
+                label: 'ملف سند الأمر',
+                value: (
+                  <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
+                    <span className="text-gray-700 text-sm pr-2 flex items-center gap-2">
+                      {orderData.orderFiles?.orderDocument ? (
+                        <>
+                          <a
+                            href={orderData.orderFiles.orderDocument}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-800 hover:underline"
+                          >
+                            {orderData.orderFiles.orderDocument.split('/').pop() || 'فتح الملف'}
+                          </a>
+                          <button
+                            aria-label="حذف ملف سند الأمر"
+                            className="text-red-600 hover:text-red-700 text-lg font-bold"
+                            disabled={updating}
+                            onClick={() => {
+                              setShowConfirmModal({
+                                isOpen: true,
+                                title: 'حذف ملف سند الأمر',
+                                message: 'هل أنت متأكد من حذف ملف سند الأمر؟',
+                                onConfirm: async () => {
+                                  setUpdating(true);
+                                  try {
+                                    const res = await fetch(`/api/track_order/${id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        section: 'orderFiles',
+                                        updatedData: { orderDocument: null },
+                                      }),
+                                    });
+                                    if (!res.ok) {
+                                      const errorData = await res.json();
+                                      throw new Error((errorData as any)?.error || 'فشل في حذف الملف');
+                                    }
+                                    await fetchOrderData();
+                                    setShowAlertModal({ isOpen: true, message: 'تم حذف الملف بنجاح' });
+                                  } catch (error: any) {
+                                    console.error('Error deleting orderDocument:', error);
+                                    setShowErrorModal({
+                                      isOpen: true,
+                                      title: 'خطأ في حذف الملف',
+                                      message: error.message || 'حدث خطأ أثناء حذف الملف',
+                                    });
+                                  } finally {
+                                    setUpdating(false);
+                                  }
+                                },
+                              });
+                            }}
+                          >
+                            ×
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-gray-500">لا يوجد</span>
+                      )}
+                    </span>
+
+                    <input
+                      type="file"
+                      id="file-upload-orderDocument"
+                      className="hidden"
+                      accept="application/pdf"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUpdating(true);
+                        try {
+                          const res = await fetch(`/api/upload-presigned-url/${id}`);
+                          if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                          const { url, filePath } = await res.json();
+
+                          const uploadRes = await fetch(url, {
+                            method: 'PUT',
+                            body: file,
+                            headers: {
+                              'Content-Type': file.type || 'application/pdf',
+                              'x-amz-acl': 'public-read',
+                            },
+                          });
+                          if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+                          const saveRes = await fetch(`/api/track_order/${id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              section: 'orderFiles',
+                              updatedData: { orderDocument: filePath },
+                            }),
+                          });
+                          if (!saveRes.ok) {
+                            const errorData = await saveRes.json();
+                            throw new Error((errorData as any)?.error || 'فشل في حفظ رابط الملف');
+                          }
+
+                          await fetchOrderData();
+                          e.target.value = '';
+                          setShowAlertModal({ isOpen: true, message: 'تم رفع ملف سند الأمر بنجاح' });
+                        } catch (error: any) {
+                          console.error('Error uploading orderDocument:', error);
+                          setShowErrorModal({
+                            isOpen: true,
+                            title: 'خطأ في رفع الملف',
+                            message: error.message || 'حدث خطأ أثناء رفع الملف',
+                          });
+                        } finally {
+                          setUpdating(false);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="file-upload-orderDocument"
+                      className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      اختيار ملف
+                    </label>
+                  </div>
+                ),
+              },
+              {
+                label: 'ملف العقد',
+                value: (
+                  <div className="file-upload-display border border-none rounded-md p-1 flex justify-between items-center">
+                    <span className="text-gray-700 text-sm pr-2 flex items-center gap-2">
+                      {orderData.orderFiles?.contract ? (
+                        <>
+                          <a
+                            href={orderData.orderFiles.contract}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-800 hover:underline"
+                          >
+                            {orderData.orderFiles.contract.split('/').pop() || 'فتح الملف'}
+                          </a>
+                          <button
+                            aria-label="حذف ملف العقد"
+                            className="text-red-600 hover:text-red-700 text-lg font-bold"
+                            disabled={updating}
+                            onClick={() => {
+                              setShowConfirmModal({
+                                isOpen: true,
+                                title: 'حذف ملف العقد',
+                                message: 'هل أنت متأكد من حذف ملف العقد؟',
+                                onConfirm: async () => {
+                                  setUpdating(true);
+                                  try {
+                                    const res = await fetch(`/api/track_order/${id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        section: 'orderFiles',
+                                        updatedData: { contract: null },
+                                      }),
+                                    });
+                                    if (!res.ok) {
+                                      const errorData = await res.json();
+                                      throw new Error((errorData as any)?.error || 'فشل في حذف الملف');
+                                    }
+                                    await fetchOrderData();
+                                    setShowAlertModal({ isOpen: true, message: 'تم حذف الملف بنجاح' });
+                                  } catch (error: any) {
+                                    console.error('Error deleting contract:', error);
+                                    setShowErrorModal({
+                                      isOpen: true,
+                                      title: 'خطأ في حذف الملف',
+                                      message: error.message || 'حدث خطأ أثناء حذف الملف',
+                                    });
+                                  } finally {
+                                    setUpdating(false);
+                                  }
+                                },
+                              });
+                            }}
+                          >
+                            ×
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-gray-500">لا يوجد</span>
+                      )}
+                    </span>
+
+                    <input
+                      type="file"
+                      id="file-upload-contract"
+                      className="hidden"
+                      accept="application/pdf"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUpdating(true);
+                        try {
+                          const res = await fetch(`/api/upload-presigned-url/${id}`);
+                          if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                          const { url, filePath } = await res.json();
+
+                          const uploadRes = await fetch(url, {
+                            method: 'PUT',
+                            body: file,
+                            headers: {
+                              'Content-Type': file.type || 'application/pdf',
+                              'x-amz-acl': 'public-read',
+                            },
+                          });
+                          if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+                          const saveRes = await fetch(`/api/track_order/${id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              section: 'orderFiles',
+                              updatedData: { contract: filePath },
+                            }),
+                          });
+                          if (!saveRes.ok) {
+                            const errorData = await saveRes.json();
+                            throw new Error((errorData as any)?.error || 'فشل في حفظ رابط الملف');
+                          }
+
+                          await fetchOrderData();
+                          e.target.value = '';
+                          setShowAlertModal({ isOpen: true, message: 'تم رفع ملف العقد بنجاح' });
+                        } catch (error: any) {
+                          console.error('Error uploading contract:', error);
+                          setShowErrorModal({
+                            isOpen: true,
+                            title: 'خطأ في رفع الملف',
+                            message: error.message || 'حدث خطأ أثناء رفع الملف',
+                          });
+                        } finally {
+                          setUpdating(false);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="file-upload-contract"
+                      className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50 pointer-events-none' : ''}`}
+                    >
+                      اختيار ملف
+                    </label>
+                  </div>
+                ),
+              },
+            ]}
+            actions={[]}
           />
         </main>
 
