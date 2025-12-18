@@ -98,6 +98,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [nationalities, setNationalities] = useState<any[]>([]);
+  const [professions, setProfessions] = useState<{ id: number; name: string }[]>([]);
   const [fileUploaded, setFileUploaded] = useState({
     visaFile: false,
   });
@@ -114,8 +115,22 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     setNationalities(data.nationalities);
   };
 
+  const fetchProfessions = async () => {
+    try {
+      const response = await fetch('/api/professions');
+      const data = await response.json();
+      // API returns array directly
+      if (Array.isArray(data)) {
+        setProfessions(data);
+      }
+    } catch (error) {
+      console.error('Error fetching professions:', error);
+    }
+  };
+
   useEffect(() => {
     fetchNationalities();
+    fetchProfessions();
   }, []);
 
   const validateStep1 = () => {
@@ -158,13 +173,13 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
 
   const validateStep2 = () => {
     const newErrors: any = {};
-    // يجب أن يبدأ بـ 190 ثم 10 أرقام (الإجمالي 13 رقم)
-    const visaNumberRegex = /^190\d{10}$/;
+    // يجب أن يبدأ بـ 190 ثم 7 أرقام (الإجمالي 10 أرقام)
+    const visaNumberRegex = /^190\d{7}$/;
 
     if (!formData.visaNumber) {
       newErrors.visaNumber = 'رقم التأشيرة مطلوب';
     } else if (!visaNumberRegex.test(formData.visaNumber)) {
-      newErrors.visaNumber = 'رقم التأشيرة يجب أن يبدأ بـ 190 ثم 10 أرقام';
+      newErrors.visaNumber = 'رقم التأشيرة يجب أن يبدأ بـ 190 ثم 7 أرقام (الإجمالي 10 أرقام)';
     } 
 
 
@@ -196,13 +211,13 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   ) => {
     const { name, value } = e.target;
 
-    // رقم التأشيرة: أرقام فقط + يجب أن يبدأ بـ 190 + طول أقصى 13 رقم
+    // رقم التأشيرة: أرقام فقط + يجب أن يبدأ بـ 190 + طول أقصى 10 أرقام
     if (name === 'visaNumber') {
-      const digitsOnly = String(value).replace(/\D/g, '').slice(0, 13);
+      const digitsOnly = String(value).replace(/\D/g, '').slice(0, 10);
       const isValidPartial =
         digitsOnly === '' ||
         '190'.startsWith(digitsOnly) ||
-        /^190\d{0,10}$/.test(digitsOnly);
+        /^190\d{0,7}$/.test(digitsOnly);
 
       if (!isValidPartial) return;
 
@@ -639,7 +654,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
             <div className="flex justify-end">
               <button
                 type="button"
-                className="bg-primary-dark text-text-light px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90"
+                className="bg-teal-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800"
                 onClick={() => {
                   if (validateStep1()) {
                     formData.hasVisa === 'yes' ? setStep(2) : handleSubmit();
@@ -673,14 +688,15 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                   type="text"
                   id="visaNumber"
                   name="visaNumber"
-                  placeholder="ادخل رقم التأشيرة"
+                  placeholder="190XXXXXXX"
                   inputMode="numeric"
-                  maxLength={13}
-                  pattern="190\d{10}"
+                  maxLength={10}
+                  pattern="190\d{7}"
                   value={formData.visaNumber}
                   onChange={handleInputChange}
                   className={`w-full bg-background-light border ${errors.visaNumber ? 'border-red-500' : 'border-border-color'} rounded-md py-2 px-4 text-sm text-text-dark`}
                 />
+                <p className="text-gray-500 text-xs mt-1">ملاحظة: رقم التأشيرة يبدأ بـ 190 ثم 7 أرقام (الإجمالي 10 أرقام)</p>
                 {errors.visaNumber && <p className="text-red-500 text-xs mt-1">{errors.visaNumber}</p>}
               </div>
               <div className="space-y-2">
@@ -740,8 +756,11 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                     className={`w-full bg-background-light border ${errors.profession ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر المهنة</option>
-                    <option value="عاملة منزلية">عاملة منزلية</option>
-                    <option value="سائق">سائق</option>
+                    {professions.map((profession) => (
+                      <option key={profession.id} value={profession.name}>
+                        {profession.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {errors.profession && <p className="text-red-500 text-xs mt-1">{errors.profession}</p>}
@@ -790,7 +809,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
             <div className="flex justify-between">
               <button
                 type="button"
-                className="bg-primary-dark text-text-light px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90"
+                className="bg-teal-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90"
                 onClick={() => setStep(1)}
                 disabled={loading}
               >
@@ -798,7 +817,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
               </button>
               <button
                 type="button"
-                className="bg-primary-dark text-text-light px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90 min-w-[155px]"
+                className="bg-teal-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90 min-w-[155px]"
                 onClick={handleSubmit}
                 disabled={loading}
               >

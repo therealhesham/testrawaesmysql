@@ -9,10 +9,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query;
 
   if (!id || isNaN(Number(id))) {
-    return res.status(400).json({ message: "معرف العميل غير صالح" });
+    return res.status(400).json({ message: "معرف العاملة غير صالح" });
   }
 
-  const clientId = parseInt(id as string);
+  const homemaidId = parseInt(id as string);
 
   if (req.method === "DELETE") {
     try {
@@ -38,33 +38,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       const hasDeletePermission = findUser && findUser.role?.permissions && 
-        (findUser.role.permissions as any)["إدارة العملاء"]?.["حذف"];
+        (findUser.role.permissions as any)["إدارة العاملات"]?.["حذف"];
 
       if (!hasDeletePermission) {
-        return res.status(403).json({ message: "ليس لديك صلاحية لحذف العملاء" });
+        return res.status(403).json({ message: "ليس لديك صلاحية لحذف العاملات" });
       }
 
-      // التحقق من وجود العميل وحذفه
-      const client = await prisma.client.delete({
-        where: { id: clientId }
+      // التحقق من وجود العاملة وحذفها
+      const homemaid = await prisma.homemaid.findUnique({
+        where: { id: homemaidId },
+        select: { id: true, Name: true }
+      });
+
+      if (!homemaid) {
+        return res.status(404).json({ message: "العاملة غير موجودة" });
+      }
+
+      await prisma.homemaid.delete({
+        where: { id: homemaidId }
       });
 
       // تسجيل الحدث
       eventBus.emit('ACTION', {
-        type: `حذف العميل #${clientId} - ${client.fullname}`,
+        type: `حذف العاملة #${homemaidId} - ${homemaid.Name}`,
         actionType: 'delete',
         userId: Number(token.id),
       });
 
       res.status(200).json({ 
-        message: "تم حذف العميل بنجاح",
-        deletedClient: {
-          id: client.id,
-          fullname: client.fullname
+        message: "تم حذف العاملة بنجاح",
+        deletedHomemaid: {
+          id: homemaid.id,
+          Name: homemaid.Name
         }
       });
     } catch (error) {
-      console.error("Error deleting client:", error);
+      console.error("Error deleting homemaid:", error);
       res.status(500).json({ message: "خطأ في الخادم الداخلي" });
     } finally {
       await prisma.$disconnect();

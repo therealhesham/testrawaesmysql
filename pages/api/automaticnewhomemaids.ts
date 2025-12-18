@@ -3,6 +3,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
 import { jwtDecode } from 'jwt-decode';
+import eventBus from 'lib/eventBus';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -207,9 +208,22 @@ console.log(Number(id))
         return res.status(403).json({ error: 'Permission denied' });
       }
 
+      const homemaid = await prisma.automaticEmployee.findUnique({
+        where: { id: Number(id as string) },
+      });
+
       await prisma.automaticEmployee.delete({
         where: { id: Number(id as string) },
       });
+
+      // تسجيل الحدث
+      if (homemaid) {
+        eventBus.emit('ACTION', {
+          type: `حذف عاملة تلقائية #${id} - ${homemaid.name || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: Number(token.id),
+        });
+      }
 
       res.status(200).json({ message: 'Homemaid deleted successfully' });
     } catch (error: any) {

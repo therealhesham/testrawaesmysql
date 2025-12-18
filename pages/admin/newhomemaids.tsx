@@ -327,6 +327,10 @@ const handleHomemaidImageChange = async (
       newErrors.children = 'عدد الأطفال يجب أن يكون رقمًا';
     }
 
+    // التحقق من أن صورة الوجه مطلوبة
+    if (!formData.Picture || !fileUploaded.Picture) {
+      newErrors.Picture = 'صورة الوجه إجبارية';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -860,7 +864,7 @@ const handleHomemaidImageChange = async (
                           onChange={handleChange}
                           className={`border ${errors.passportStart ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right w-full`}
                         />
-                        <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        {/* <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" /> */}
                       </div>
                       {errors.passportStart && <p className="text-red-500 text-xs mt-1">{errors.passportStart}</p>}
                     </div>
@@ -874,7 +878,7 @@ const handleHomemaidImageChange = async (
                           onChange={handleChange}
                           className={`border ${errors.passportEnd ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right w-full`}
                         />
-                        <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        {/* <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" /> */}
                       </div>
                       {errors.passportEnd && <p className="text-red-500 text-xs mt-1">{errors.passportEnd}</p>}
                     </div>
@@ -1037,11 +1041,14 @@ const handleHomemaidImageChange = async (
   <legend className="text-2xl font-normal text-center text-black mb-6">الملفات</legend>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     {[
-      { id: 'Picture', label: 'صورة الوجه' },
-      { id: 'FullPicture', label: 'صورة الطول' },
+      { id: 'Picture', label: 'صورة الوجه', required: true },
+      { id: 'FullPicture', label: 'صورة الطول', required: false },
     ].map((file) => (
       <div key={file.id} className="flex flex-col">
-        <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">{file.label}</label>
+        <label htmlFor={file.id} className="text-gray-500 text-sm mb-1">
+          {file.label}
+          {file.required && <span className="text-red-500 mr-1">*</span>}
+        </label>
         <div className="file-upload-display border border-gray-300 rounded-md p-2 flex justify-between items-center">
           <span className="text-gray-500 text-sm pr-2 truncate max-w-[200px]">
             {fileNames[file.id] ? (

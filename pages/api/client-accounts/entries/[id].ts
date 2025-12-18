@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -134,9 +136,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } else if (req.method === 'DELETE') {
     try {
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
       // Get entry before deletion to know statementId
       const entryToDelete = await prisma.clientAccountEntry.findUnique({
-        where: { id: Number(id) }
+        where: { id: Number(id) },
+        include: {
+          statement: {
+            include: {
+              client: {
+                select: {
+                  fullname: true
+                }
+              }
+            }
+          }
+        }
       });
 
       if (!entryToDelete) {
@@ -151,6 +183,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Recalculate totals after deleting entry
       await recalculateStatementTotals(entryToDelete.statementId);
+
+      // تسجيل الحدث
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف قيد حساب عميل #${id} - ${entryToDelete.statement?.client?.fullname || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
 
       res.status(200).json({ message: 'Client account entry deleted successfully' });
     } catch (error) {

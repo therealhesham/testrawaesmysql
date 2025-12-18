@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import prisma from "lib/prisma";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse){
   const { id } = req.query;
@@ -20,9 +22,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if(req.method === 'DELETE'){
     const { id } = req.body;
+    
+    // Get user info for logging
+    const cookieHeader = req.headers.cookie;
+    let userId: number | null = null;
+    if (cookieHeader) {
+      try {
+        const cookies: { [key: string]: string } = {};
+        cookieHeader.split(";").forEach((cookie) => {
+          const [key, value] = cookie.trim().split("=");
+          cookies[key] = decodeURIComponent(value);
+        });
+        if (cookies.authToken) {
+          const token = jwtDecode(cookies.authToken) as any;
+          userId = Number(token.id);
+        }
+      } catch (e) {
+        // Ignore token errors
+      }
+    }
+
     const client = await prisma.client.delete({
       where: { id: Number(id) },
     });
+
+    // تسجيل الحدث
+    if (userId) {
+      eventBus.emit('ACTION', {
+        type: `حذف عميل #${id} - ${client.fullname || 'غير محدد'}`,
+        actionType: 'delete',
+        userId: userId,
+      });
+    }
+
   res.status(200).json({data:client});
   }
   if(req.method === 'PUT'){

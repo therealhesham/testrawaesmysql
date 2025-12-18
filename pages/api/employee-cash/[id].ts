@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -292,6 +294,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const transactionId = Number(id);
 
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
       // First, check if the record exists in EmployeeCashDetail
       const detailRecord = await prisma.employeeCashDetail.findUnique({
         where: { id: transactionId }
@@ -304,6 +325,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             id: transactionId
           }
         });
+
+        // تسجيل الحدث
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف سجل عهدة موظف #${transactionId} - ${detailRecord.client || 'غير محدد'}`,
+            actionType: 'delete',
+            userId: userId,
+          });
+        }
 
         return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
       }
@@ -320,6 +350,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             id: transactionId
           }
         });
+
+        // تسجيل الحدث
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف سجل عهدة موظف #${transactionId}`,
+            actionType: 'delete',
+            userId: userId,
+          });
+        }
 
         return res.status(200).json({ message: 'تم حذف السجل بنجاح' });
       }

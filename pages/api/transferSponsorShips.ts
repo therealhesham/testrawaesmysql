@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -222,9 +224,45 @@ WorkDuration,
           return res.status(400).json({ error: 'معرف المعاملة مطلوب' });
         }
 
+        // Get user info for logging
+        const cookieHeader = req.headers.cookie;
+        let userId: number | null = null;
+        if (cookieHeader) {
+          try {
+            const cookies: { [key: string]: string } = {};
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+            if (cookies.authToken) {
+              const token = jwtDecode(cookies.authToken) as any;
+              userId = Number(token.id);
+            }
+          } catch (e) {
+            // Ignore token errors
+          }
+        }
+
+        const transfer = await prisma.transferSponsorShips.findUnique({
+          where: { id: Number(id) },
+          include: {
+            HomeMaid: { select: { Name: true } },
+            NewClient: { select: { fullname: true } },
+          },
+        });
+
         await prisma.transferSponsorShips.delete({
           where: { id: Number(id) },
         });
+
+        // تسجيل الحدث
+        if (transfer && userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف معاملة نقل كفالة #${id} - ${transfer.TransferOperationNumber || 'غير محدد'}`,
+            actionType: 'delete',
+            userId: userId,
+          });
+        }
 
         return res.status(204).end();
       } catch (error) {

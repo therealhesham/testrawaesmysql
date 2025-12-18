@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import prisma from 'lib/prisma'
 import { Prisma } from '@prisma/client'
+import eventBus from 'lib/eventBus'
+import { jwtDecode } from 'jwt-decode'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const idParam = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id
@@ -31,7 +33,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'DELETE') {
-      await prisma.incomeStatement.delete({ where: { id } })
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
+      const statement = await prisma.incomeStatement.findUnique({
+        where: { id },
+      });
+
+      await prisma.incomeStatement.delete({ where: { id } });
+
+      // تسجيل الحدث
+      if (statement && userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف بيان دخل #${id} - ${statement.mainCategory || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
+
       return res.status(200).json({ success: true })
     }
 

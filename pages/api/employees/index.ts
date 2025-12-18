@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -177,6 +179,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'معرف الموظف مطلوب' });
       }
 
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
       // Check if employee exists
       const employee = await prisma.employee.findUnique({
         where: { id: Number(id) },
@@ -205,6 +226,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await prisma.employee.delete({
         where: { id: Number(id) }
       });
+
+      // تسجيل الحدث
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف موظف #${id} - ${employee.name || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
 
       res.status(200).json({ 
         message: 'تم حذف الموظف بنجاح'

@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import prisma from "./globalprisma";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 export default async function handler(
   req: NextApiRequest,
@@ -108,6 +110,25 @@ const search =
         return res.status(400).json({ message: "التاريخ مطلوب ويجب أن يكون نصًا." });
       }
 
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
       // تحويل التاريخ إلى تنسيق صالح (YYYY-MM-DD)
       const formattedDate = new Date(date);
       if (isNaN(formattedDate.getTime())) {
@@ -120,6 +141,15 @@ const search =
         DELETE FROM CheckIn
         WHERE DATE(CheckDate) = ${dateString};
       `;
+
+      // تسجيل الحدث
+      if (userId && deleteResult) {
+        eventBus.emit('ACTION', {
+          type: `حذف ${deleteResult} سجل من جدول الحضور - التاريخ: ${dateString}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
 
       res.status(200).json({
         message: `تم حذف ${deleteResult} سجل بنجاح.`,

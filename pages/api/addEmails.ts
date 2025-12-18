@@ -1,4 +1,6 @@
 import prisma from "./globalprisma";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
@@ -142,9 +144,42 @@ export default async function handler(req, res) {
     }
 
     try {
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
+      const email = await prisma.emaillist.findUnique({
+        where: { id: parseInt(id) },
+      });
+
       await prisma.emaillist.delete({
         where: { id: parseInt(id) },
       });
+
+      // تسجيل الحدث
+      if (email && userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف بريد إلكتروني #${id} - ${email.email || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
+
       return res.status(200).json({ message: "Email deleted successfully" });
     } catch (error) {
       console.error("Error deleting email:", error);

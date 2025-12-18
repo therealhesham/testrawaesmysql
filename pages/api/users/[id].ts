@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcrypt';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -102,9 +104,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     case 'DELETE':
       try {
+        // Get user info for logging
+        const cookieHeader = req.headers.cookie;
+        let userId: number | null = null;
+        if (cookieHeader) {
+          try {
+            const cookies: { [key: string]: string } = {};
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+            if (cookies.authToken) {
+              const token = jwtDecode(cookies.authToken) as any;
+              userId = Number(token.id);
+            }
+          } catch (e) {
+            // Ignore token errors
+          }
+        }
+
+        const userToDelete = await prisma.user.findUnique({
+          where: { id: parseInt(id) },
+        });
+
         await prisma.user.delete({
           where: { id: parseInt(id) },
         });
+
+        // تسجيل الحدث
+        if (userToDelete && userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف مستخدم #${id} - ${userToDelete.username || 'غير محدد'}`,
+            actionType: 'delete',
+            userId: userId,
+          });
+        }
+
         res.status(204).end();
       } catch (error) {
         console.log(error);

@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 type SlaRule = {
   id: number;
@@ -42,7 +44,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'DELETE') {
       const { id } = (req.query || {}) as { id?: string };
       if (!id) return res.status(400).json({ success: false, message: 'id مطلوب' });
+      
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
+      const rule = await (prisma as any).officeSlaRule.findUnique({
+        where: { id: Number(id) },
+      });
+
       await (prisma as any).officeSlaRule.delete({ where: { id: Number(id) } });
+
+      // تسجيل الحدث
+      if (rule && userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف قاعدة SLA #${id} - ${rule.officeName || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
+
       return res.status(200).json({ success: true });
     }
 

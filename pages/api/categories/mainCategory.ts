@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import prisma from 'lib/prisma'
+import eventBus from 'lib/eventBus'
+import { jwtDecode } from 'jwt-decode'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -27,7 +29,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'DELETE') {
       const { id } = req.body as { id?: number }
       if (!id) return res.status(400).json({ success: false, message: 'id is required' })
+      
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
+      const category = await prisma.mainCategory.findUnique({
+        where: { id: Number(id) },
+      });
+
       await prisma.mainCategory.delete({ where: { id: Number(id) } })
+
+      // تسجيل الحدث
+      if (category && userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف فئة رئيسية #${id} - ${category.name || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
+
       return res.status(200).json({ success: true })
     }
 

@@ -14,7 +14,7 @@ import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
-import { Calendar } from 'lucide-react';
+import { Calendar, AlarmClock } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
@@ -1284,9 +1284,14 @@ export default function TrackOrder() {
               },
             ]}
             gridCols={2}
-            editable={true}
+            editable={canCompleteStep('destinations')}
             onSave={(updatedData) => handleSaveEdits('destinations', updatedData)}
           />
+          {!canCompleteStep('destinations') && (
+            <div className="flex flex-col items-center gap-2 mt-2 mb-6">
+              <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('destinations')}</span>
+            </div>
+          )}
 
           <InfoCard
             id="receipt"
@@ -1309,9 +1314,26 @@ export default function TrackOrder() {
                 ) : (
                   <div className="flex flex-col items-center gap-3">
                     {!canCompleteStep('receipt') && (
-                      <span className="text-red-600 text-sm">
+                      <span className="text-red-600 text-sm flex items-center gap-1">
                         {!isArrivalDatePassed() && orderData.destinations?.arrivalDateTime
-                          ? `⏰ لا يمكن الاستلام قبل موعد الوصول (${new Date(orderData.destinations.arrivalDateTime).toLocaleDateString('ar-SA')} ${new Date(orderData.destinations.arrivalDateTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })})`
+                          ? (() => {
+                              const arrivalDate = new Date(orderData.destinations.arrivalDateTime);
+                              const isValidDate = !isNaN(arrivalDate.getTime());
+                              if (isValidDate) {
+                                return (
+                                  <>
+                                    <AlarmClock className="inline-block w-4 h-4" />
+                                    لا يمكن الاستلام قبل موعد الوصول ({arrivalDate.toLocaleDateString('ar-SA')} {arrivalDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })})
+                                  </>
+                                );
+                              }
+                              return (
+                                <>
+                                  <AlarmClock className="inline-block w-4 h-4" />
+                                  لا يمكن الاستلام قبل موعد الوصول
+                                </>
+                              );
+                            })()
                           : !orderData.destinations?.arrivalDateTime
                             ? '⚠️ يجب تحديد موعد الوصول أولاً'
                             : `يجب إكمال: ${getPreviousIncompleteStep('receipt')}`

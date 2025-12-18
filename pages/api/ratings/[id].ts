@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -57,9 +59,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(404).json({ error: 'Rating not found' });
         }
 
+        // Get user info for logging
+        const cookieHeader = req.headers.cookie;
+        let userId: number | null = null;
+        if (cookieHeader) {
+          try {
+            const cookies: { [key: string]: string } = {};
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+            if (cookies.authToken) {
+              const token = jwtDecode(cookies.authToken) as any;
+              userId = Number(token.id);
+            }
+          } catch (e) {
+            // Ignore token errors
+          }
+        }
+
         await prisma.rating.delete({
           where: { id: Number(id) },
         });
+
+        // تسجيل الحدث
+        if (userId) {
+          eventBus.emit('ACTION', {
+            type: `حذف تقييم #${id}`,
+            actionType: 'delete',
+            userId: userId,
+          });
+        }
+
         return res.status(204).end();
 
       default:

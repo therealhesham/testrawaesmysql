@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -83,6 +85,25 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid location ID is required' });
       }
 
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
       // Check if location exists and get current occupancy
       const existingLocation = await prisma.inHouseLocation.findUnique({
         where: { id: Number(id) },
@@ -114,6 +135,15 @@ export default async function handler(req, res) {
       await prisma.inHouseLocation.delete({
         where: { id: Number(id) }
       });
+
+      // تسجيل الحدث
+      if (userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف موقع سكني #${id} - ${existingLocation.location || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
 
       res.status(200).json({ message: 'تم حذف السكن بنجاح' });
     } catch (error) {

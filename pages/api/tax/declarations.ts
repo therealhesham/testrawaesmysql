@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import eventBus from 'lib/eventBus';
+import { jwtDecode } from 'jwt-decode';
 
 const prisma = new PrismaClient();
 
@@ -160,9 +162,41 @@ async function updateTaxDeclaration(req: NextApiRequest, res: NextApiResponse) {
 async function deleteTaxDeclaration(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
 
+  // Get user info for logging
+  const cookieHeader = req.headers.cookie;
+  let userId: number | null = null;
+  if (cookieHeader) {
+    try {
+      const cookies: { [key: string]: string } = {};
+      cookieHeader.split(";").forEach((cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+      if (cookies.authToken) {
+        const token = jwtDecode(cookies.authToken) as any;
+        userId = Number(token.id);
+      }
+    } catch (e) {
+      // Ignore token errors
+    }
+  }
+
+  const declaration = await prisma.taxDeclaration.findUnique({
+    where: { id: parseInt(id as string) },
+  });
+
   await prisma.taxDeclaration.delete({
     where: { id: parseInt(id as string) },
   });
+
+  // تسجيل الحدث
+  if (declaration && userId) {
+    eventBus.emit('ACTION', {
+      type: `حذف إقرار ضريبي #${id} - ${declaration.period || declaration.year + '/' + declaration.month || 'غير محدد'}`,
+      actionType: 'delete',
+      userId: userId,
+    });
+  }
 
   return res.status(200).json({ message: 'Tax declaration deleted successfully' });
 }

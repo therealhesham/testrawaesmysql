@@ -5,11 +5,13 @@ import Style from "styles/Home.module.css";
 import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical, FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
+import { Trash2 } from "lucide-react";
 import Modal from "react-modal";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { jwtDecode } from "jwt-decode";
+import prisma from "lib/prisma";
 import {
   DndContext,
   closestCenter,
@@ -30,7 +32,11 @@ import { CSS } from '@dnd-kit/utilities';
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
 
-export default function Table() {
+interface Props {
+  hasDeletePermission: boolean;
+}
+
+export default function Table({ hasDeletePermission }: Props) {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
@@ -146,10 +152,14 @@ export default function Table() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const isFetchingRef = useRef(false);
+  const isInitialMount = useRef(true);
   const [exportedData, setExportedData] = useState<any[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [exportType, setExportType] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [homemaidToDelete, setHomemaidToDelete] = useState<number | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Sort data function
   const sortData = (dataToSort: any[], sortField: string, order: "asc" | "desc") => {
@@ -309,6 +319,55 @@ export default function Table() {
   };
 
   const router = useRouter();
+
+  // قراءة رقم الصفحة والفلاتر من URL عند التحميل الأول فقط
+  useEffect(() => {
+    if (router.isReady && isInitialMount.current) {
+      isInitialMount.current = false;
+      
+      const pageFromUrl = router.query.page ? parseInt(router.query.page as string) : 1;
+      if (pageFromUrl >= 1) {
+        setCurrentPage(pageFromUrl);
+      }
+      
+      // قراءة الفلاتر من URL
+      const urlFilters = {
+        Name: router.query.Name ? decodeURIComponent(router.query.Name as string) : '',
+        age: router.query.age ? decodeURIComponent(router.query.age as string) : '',
+        PassportNumber: router.query.PassportNumber ? decodeURIComponent(router.query.PassportNumber as string) : '',
+      };
+      
+      setFilters(urlFilters);
+    }
+  }, [router.isReady, router.query]);
+
+  // تحديث URL عند تغيير الصفحة أو الفلاتر
+  useEffect(() => {
+    if (!router.isReady || isInitialMount.current) return;
+    
+    const queryParams = new URLSearchParams();
+    // إضافة رقم الصفحة دائماً للـ URL
+    queryParams.set('page', currentPage.toString());
+    if (filters.Name) {
+      queryParams.set('Name', filters.Name);
+    }
+    if (filters.age) {
+      queryParams.set('age', filters.age);
+    }
+    if (filters.PassportNumber) {
+      queryParams.set('PassportNumber', filters.PassportNumber);
+    }
+
+    const newUrl = queryParams.toString() 
+      ? `${router.pathname}?${queryParams.toString()}`
+      : router.pathname;
+
+    // تحديث URL فقط إذا كان مختلفاً لتجنب التكرار
+    if (router.asPath !== newUrl) {
+      router.replace(newUrl, undefined, { shallow: true });
+    }
+  }, [currentPage, filters, router.isReady, router.pathname, router.asPath]);
+
   const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);
   };
@@ -649,6 +708,20 @@ export default function Table() {
             />
           </td>
         )}
+        {hasDeletePermission && (
+          <td className="px-4 py-2 text-center">
+            <button 
+              className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                openDeleteModal(item.id);
+              }}
+              title="حذف"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </td>
+        )}
       </tr>
     );
   };
@@ -816,6 +889,36 @@ useEffect(() => {
     } catch (error) {
       console.error('Error updating display order:', error);
       alert('حدث خطأ أثناء تحديث ترتيب العرض');
+    }
+  };
+
+  const openDeleteModal = (homemaidId: number) => {
+    setHomemaidToDelete(homemaidId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteHomemaid = async () => {
+    if (!homemaidToDelete) return;
+    
+    try {
+      const response = await fetch(`/api/homemaidprisma/${homemaidToDelete}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setNotification({ message: 'تم حذف العاملة بنجاح', type: 'success' });
+        fetchData(currentPage);
+        setIsDeleteModalOpen(false);
+        setHomemaidToDelete(null);
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'فشل في حذف العاملة');
+      }
+    } catch (error) {
+      console.error('Error deleting homemaid:', error);
+      setNotification({ message: error instanceof Error ? error.message : 'فشل في حذف العاملة', type: 'error' });
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 const exportToPDF = async () => {
@@ -1057,6 +1160,11 @@ const exportToPDF = async () => {
   return (
     <Layout>
       <div className={`container mx-auto p-4 ${Style["almarai-regular"]}`}>
+        {notification && (
+          <div className={`fixed top-4 right-4 p-4 rounded-md text-white z-50 ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+            {notification.message}
+          </div>
+        )}
         <div className="space-y-4">
           <div className="overflow-x-auto   ">
             <div className="flex items-center justify-between p-4">
@@ -1224,13 +1332,16 @@ const exportToPDF = async () => {
                         ترتيب العرض <SortIcon field="displayOrder" />
                       </th>
                     )}
+                    {hasDeletePermission && (
+                      <th className="px-4 py-2 text-center whitespace-nowrap">حذف</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-gray-50">
                   {data.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={visibleColumns.length + 1}
+                        colSpan={visibleColumns.length + (hasDeletePermission ? 1 : 0)}
                         className="px-4 py-2 text-center text-gray-500"
                       >
                         لا توجد نتائج
@@ -1337,7 +1448,76 @@ const exportToPDF = async () => {
             )}
           </div>
         </Modal>
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+              <h2 className="text-xl font-semibold text-text-dark mb-4">تأكيد الحذف</h2>
+              <p className="text-text-muted mb-6">هل أنت متأكد من حذف هذه العاملة؟ لا يمكن التراجع عن هذا الإجراء.</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setHomemaidToDelete(null);
+                  }}
+                  className="bg-gray-200 text-text-dark px-4 py-2 rounded-md text-md font-medium hover:bg-gray-300"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleDeleteHomemaid}
+                  className="bg-red-500 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-red-600"
+                >
+                  حذف
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
+}
+
+export async function getServerSideProps({ req }: any) {
+  try {
+    const cookieHeader = req.headers.cookie;
+    let cookies: { [key: string]: string } = {};
+    if (cookieHeader) {
+      cookieHeader.split(";").forEach((cookie: string) => {
+        const [key, value] = cookie.trim().split("=");
+        cookies[key] = decodeURIComponent(value);
+      });
+    }
+
+    if (!cookies.authToken) {
+      return {
+        redirect: { destination: "/admin/login", permanent: false },
+      };
+    }
+
+    const token = jwtDecode(cookies.authToken) as any;
+
+    const findUser = await prisma.user.findUnique({
+      where: { id: token.id },
+      include: { role: true },
+    });
+
+    const hasDeletePermission = findUser && findUser.role?.permissions && 
+      (findUser.role.permissions as any)["إدارة العاملات"]?.["حذف"];
+
+    return {
+      props: { 
+        hasDeletePermission: !!hasDeletePermission
+      },
+    };
+  } catch (err) {
+    console.error("Authorization error:", err);
+    return {
+      props: { 
+        hasDeletePermission: false
+      },
+    };
+  }
 }

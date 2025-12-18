@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import prisma from "lib/prisma";
+import eventBus from "lib/eventBus";
+import { jwtDecode } from "jwt-decode";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -60,9 +62,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'DELETE') {
     const { id } = req.query;
     try {
-      const visa = await prisma.visa.delete({
+      // Get user info for logging
+      const cookieHeader = req.headers.cookie;
+      let userId: number | null = null;
+      if (cookieHeader) {
+        try {
+          const cookies: { [key: string]: string } = {};
+          cookieHeader.split(";").forEach((cookie) => {
+            const [key, value] = cookie.trim().split("=");
+            cookies[key] = decodeURIComponent(value);
+          });
+          if (cookies.authToken) {
+            const token = jwtDecode(cookies.authToken) as any;
+            userId = Number(token.id);
+          }
+        } catch (e) {
+          // Ignore token errors
+        }
+      }
+
+      const visa = await prisma.visa.findUnique({
         where: { id: Number(id) },
       });
+
+      await prisma.visa.delete({
+        where: { id: Number(id) },
+      });
+
+      // تسجيل الحدث
+      if (visa && userId) {
+        eventBus.emit('ACTION', {
+          type: `حذف تأشيرة #${id} - ${visa.visaNumber || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: userId,
+        });
+      }
+
       res.status(200).json({ message: 'Visa deleted successfully' });
     } catch (error) {
       console.error(error);

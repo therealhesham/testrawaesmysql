@@ -66,9 +66,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         filters.id = parseInt(clientId as string);
       } else {
         // تطبيق الفلاتر الأخرى لجلب قائمة العملاء
-        if (fullname) filters.fullname = { contains: fullname as string };
-        if (phonenumber) filters.phonenumber = { contains: phonenumber as string };
-        if (city && city !== "all") filters.city = city as string;
+        if (fullname) filters.fullname = { contains: decodeURIComponent(fullname as string) };
+        if (phonenumber) filters.phonenumber = { contains: decodeURIComponent(phonenumber as string) };
+        if (city && city !== "all" && city !== "") {
+          const decodedCity = decodeURIComponent(city as string);
+          console.log('City filter:', decodedCity);
+          filters.city = decodedCity;
+        }
         if (date && !isNaN(new Date(date as string).getTime())) {
           const start = new Date(date as string);
           start.setHours(0, 0, 0, 0);

@@ -1,8 +1,6 @@
 /* @ts-ignore */
 
 import React, { useEffect, useState } from "react";
-import RoundIcon from "example/components/RoundIcon";
-import { TwitterIcon } from "icons";
 import {
   Avatar,
   Badge,
@@ -15,11 +13,6 @@ import {
   DropdownItem,
   WindmillContext,
 } from "@roketid/windmill-react-ui";
-import {
-  TwitchOutlined,
-  TwitterOutlined,
-  FacebookFilled,
-} from "@ant-design/icons";
 interface IMain {
   children: React.ReactNode;
 }
@@ -88,124 +81,36 @@ const scrollToTop = () => {
   </svg>
   </button>         
   </div>
-      <footer className="rounded-xl bg-inherit-100">
-        <div className="container m-auto space-y-8 px-6 py-16 text-gray-600 md:px-12 lg:px-20">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-8">
-            <img
-              width="100"
-              height="42"
-              src="https://res.cloudinary.com/duo8svqci/image/upload/v1716302380/dkqowbgajxgcy8auxskm.svg"
-              alt="rawaeslogo"
-              className="w-32"
-            />
-            
-            <div className="flex gap-6">
-              <a
-                href="#"
-                target="blank"
-                aria-label="github"
-                className="hover:text-cyan-600"
-              >
-                <link
-                  rel="shortcut icon"
-                  href="https://res.cloudinary.com/duo8svqci/image/upload/v1716302380/dkqowbgajxgcy8auxskm.svg"
-                />
-              </a>
-              {/* <a href="#" target="blank" aria-label="twitter" className="hover:text-cyan-600"> */}
-              {/* <h1> */}
-              {/* <RoundIcon icon={}/> */}
-              {/* <TwitterIcon/> */}
-              <TwitterOutlined />
-
-              {/* </h1> */}
-              {/* </a> */}
-              <FacebookFilled />
+      <footer className="mt-12 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-6 py-12 md:px-12 lg:px-20">
+          <div className="flex flex-col space-y-8" dir="ltr">
+            <div className="flex flex-col items-end space-y-4">
+              <img
+                width="120"
+                height="50"
+                src="https://res.cloudinary.com/duo8svqci/image/upload/v1716302380/dkqowbgajxgcy8auxskm.svg"
+                alt="rawaeslogo"
+                className="w-36 h-auto transition-transform hover:scale-105"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-right max-w-md">
+                نظام إدارة متكامل لتقديم أفضل الخدمات
+              </p>
             </div>
-            
-          </div>
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            
-            {/* <div>
-        <h6 className="text-lg font-medium text-cyan-900">Company</h6>
-        <ul className="mt-4 list-inside space-y-4">
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">About</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Customers</a>
-          </li>
-          <li>
 
-            <a href="#" className="transition hover:text-cyan-600">Enterprise</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Partners</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Jobs</a>
-          </li>
-        </ul>
-      </div> */}
-            <div>
-              {/* <h6 className="text-lg font-medium text-cyan-900">Products</h6> */}
-              <ul className="mt-4 list-inside space-y-4">
-                <li>
-                  {/* <a href="#" className="transition hover:text-cyan-600">About</a> */}
-                </li>
-                <li>
-                  {/* <a href="#" className="transition hover:text-cyan-600">Jobs</a> */}
-                </li>
-              </ul>
+            <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                </svg>
+                &copy; {new Date().getFullYear()} جميع الحقوق محفوظة
+              </span>
+              <span className="flex items-center gap-2 font-medium text-teal-600 dark:text-teal-400">
+               
+                الإصدار {process.env.NEXT_PUBLIC_VERSION || '0.1.0'}
+              </span>
             </div>
-            {/* <div>
-        <h6 className="text-lg font-medium text-cyan-900">Developers</h6>
-        <ul className="mt-4 list-inside space-y-4">
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">About</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Customers</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Enterprise</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Partners</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Jobs</a>
-          </li>
-        </ul>
-      </div> */}
-            {/* <div>
-        <h6 className="text-lg font-medium text-cyan-900">Ressources</h6>
-        <ul className="mt-4 list-inside space-y-4">
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">About</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Customers</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Enterprise</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Partners</a>
-          </li>
-          <li>
-            <a href="#" className="transition hover:text-cyan-600">Jobs</a>
-          </li>
-        </ul>
-      </div> */}
-          </div>
-
-          <div className="flex justify-between text-white items-center rounded-md bg-teal-800 px-4 py-3 text-gray-600 mt-8">
-            <span dir="rtl">
-              &copy; {new Date().getFullYear()} جميع الحقوق محفوظة
-            </span>
-            <span className="font-medium">
-              {process.env.NEXT_PUBLIC_VERSION || '0.1.0'}  version
-            </span>
           </div>
         </div>
       </footer>

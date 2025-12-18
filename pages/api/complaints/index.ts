@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { jwtDecode } from 'jwt-decode';
+import eventBus from 'lib/eventBus';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -288,6 +289,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       await prisma.complaint.delete({
         where: { id: Number(id) }
+      });
+
+      // تسجيل الحدث
+      eventBus.emit('ACTION', {
+        type: `حذف الشكوى #${id} - ${complaint.title}`,
+        actionType: 'delete',
+        userId: userId,
       });
 
       return res.status(200).json({

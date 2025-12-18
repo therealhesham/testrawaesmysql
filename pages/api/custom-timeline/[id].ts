@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { jwtDecode } from 'jwt-decode';
+import eventBus from 'lib/eventBus';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -56,9 +57,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'DELETE') {
     try {
+      const timeline = await prisma.customTimeline.findUnique({
+        where: { id: Number(id) },
+      });
+
       await prisma.customTimeline.delete({
         where: { id: Number(id) },
       });
+
+      // تسجيل الحدث
+      if (timeline) {
+        eventBus.emit('ACTION', {
+          type: `حذف الجدول الزمني #${id} - ${timeline.name || timeline.country || 'غير محدد'}`,
+          actionType: 'delete',
+          userId: Number(token.id),
+        });
+      }
 
       return res.status(200).json({ message: 'Timeline deleted successfully' });
     } catch (error: any) {

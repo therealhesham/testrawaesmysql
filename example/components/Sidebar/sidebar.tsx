@@ -161,7 +161,7 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-const Sidebar = (props) => {
+const Sidebar = (props: any) => {
   const { toggleCollapse, setToggleCollapse } = useSidebar();
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const router = useRouter();
@@ -169,6 +169,7 @@ const Sidebar = (props) => {
   const [info, setInfo] = useState();
   const [role, setRole] = useState();
   const [showSplash, setShowSplash] = useState(true);
+  const [canResolveComplaints, setCanResolveComplaints] = useState(false);
 
   const activeMenu = useMemo(
     () =>
@@ -247,7 +248,11 @@ const Sidebar = (props) => {
     if (!localStorage.getItem("token")) router.push("/admin/login");
     try {
       const token = localStorage.getItem("token");
-      const info = jwtDecode(token);
+      if (!token) {
+        router.push("/admin/login");
+        return;
+      }
+      const info = jwtDecode(token) as any;
       console.log("Decoded JWT:", info);
       // if (isJwtExpired(token)) return router.push("/admin/login");
       setImage(info.picture);
@@ -257,6 +262,25 @@ const Sidebar = (props) => {
       console.error("Error decoding token:", error);  
       router.push("/admin/login");
     }
+  }, []);
+
+  useEffect(() => {
+    // جلب صلاحيات المستخدم
+    const fetchUserPermissions = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          const permissions = data.user?.permissions || {};
+          // التحقق من صلاحية حل الشكاوى
+          const canResolve = !!permissions?.["إدارة الشكاوى"]?.["حل"];
+          setCanResolveComplaints(canResolve);
+        }
+      } catch (error) {
+        console.error("Error fetching user permissions:", error);
+      }
+    };
+    fetchUserPermissions();
   }, []);
 
   useEffect(() => {
@@ -330,9 +354,18 @@ const Sidebar = (props) => {
 
       {/* Menu Items */}
       <nav className="flex flex-col mt-8 flex-grow overflow-y-auto pb-28">
-        {menuItems.map(({ icon: Icon, subItems, ...menu }) => {
-          const classes = getNavItemClasses(menu);
-          const isOpen = openMenu === menu.id;
+        {menuItems
+          .filter((menu): menu is MenuItem => {
+            // إخفاء خيار الشكاوى إذا لم يكن لدى المستخدم صلاحية حل الشكاوى
+            if (menu.id === 11 && !canResolveComplaints) {
+              return false;
+            }
+            return true;
+          })
+          .map((menuItem) => {
+          const { icon: Icon, subItems, ...menu } = menuItem;
+          const classes = getNavItemClasses(menuItem as MenuItem);
+          const isOpen = openMenu === menuItem.id;
 
           return (
             <div key={menu.id}>

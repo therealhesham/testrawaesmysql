@@ -196,6 +196,59 @@ const arabicRegionMap: { [key: string]: string } = {
 
   const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null);
   const router = useRouter();
+  const isInitialMount = useRef(true);
+
+  // قراءة رقم الصفحة والفلاتر من URL عند التحميل الأول فقط
+  useEffect(() => {
+    if (router.isReady && isInitialMount.current) {
+      isInitialMount.current = false;
+      
+      const pageFromUrl = router.query.page ? parseInt(router.query.page as string) : 1;
+      if (pageFromUrl >= 1) {
+        setCurrentPage(pageFromUrl);
+      }
+      
+      // قراءة الفلاتر من URL
+      const urlFilters = {
+        fullname: router.query.fullname ? decodeURIComponent(router.query.fullname as string) : '',
+        phonenumber: router.query.phonenumber ? decodeURIComponent(router.query.phonenumber as string) : '',
+        city: (router.query.city as string && router.query.city !== 'all') ? decodeURIComponent(router.query.city as string) : 'all',
+        date: (router.query.date as string) || '',
+      };
+      
+      setFilters(urlFilters);
+    }
+  }, [router.isReady]);
+
+  // تحديث URL عند تغيير الصفحة أو الفلاتر
+  useEffect(() => {
+    if (!router.isReady || isInitialMount.current) return;
+    
+    const queryParams = new URLSearchParams();
+    // إضافة رقم الصفحة دائماً للـ URL
+    queryParams.set('page', currentPage.toString());
+    if (filters.fullname) {
+      queryParams.set('fullname', filters.fullname);
+    }
+    if (filters.phonenumber) {
+      queryParams.set('phonenumber', filters.phonenumber);
+    }
+    if (filters.city && filters.city !== 'all' && filters.city !== '') {
+      queryParams.set('city', filters.city);
+    }
+    if (filters.date) {
+      queryParams.set('date', filters.date);
+    }
+
+    const newUrl = queryParams.toString() 
+      ? `${router.pathname}?${queryParams.toString()}`
+      : router.pathname;
+
+    // تحديث URL فقط إذا كان مختلفاً لتجنب التكرار
+    if (router.asPath !== newUrl) {
+      router.replace(newUrl, undefined, { shallow: true });
+    }
+  }, [currentPage, filters, router.isReady]);
 
   const columnDefinitions = [
     { key: 'id', label: 'الرقم' },
@@ -233,7 +286,7 @@ const arabicRegionMap: { [key: string]: string } = {
         page: page.toString(),
         ...(filters.fullname && { fullname: filters.fullname }),
         ...(filters.phonenumber && { phonenumber: filters.phonenumber }),
-        ...(filters.city !== 'all' && { city: filters.city }),
+        ...(filters.city && filters.city !== 'all' && filters.city !== '' && { city: filters.city }),
         ...(filters.date && { date: filters.date }),
       }).toString();
 
@@ -617,10 +670,7 @@ const arabicRegionMap: { [key: string]: string } = {
                         onChange={(e) => handleFilterChange('city', e.target.value)}
                         className="bg-transparent w-full text-md text-text-muted focus:outline-none border-none"
                       >
-                        {/* <option value="all">كل المدن</option> */}
-          
-
-          <option value="">اختر المدينة</option>
+                        <option value="all">كل المدن</option>
 <option value = "Baha">الباحة</option>
 <option value = "Jawf">الجوف</option>
 <option value = "Qassim">القصيم</option>
