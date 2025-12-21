@@ -1,526 +1,0 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تقرير التعديلات الأخيرة - Commit Report</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.8;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px;
-            background-color: #f5f5f5;
-            direction: rtl;
-        }
-        .container {
-            background-color: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #2c3e50;
-            border-bottom: 4px solid #3498db;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
-            font-size: 32px;
-        }
-        h2 {
-            color: #34495e;
-            background-color: #ecf0f1;
-            padding: 12px 20px;
-            border-right: 5px solid #3498db;
-            margin-top: 30px;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-        h3 {
-            color: #2980b9;
-            margin-top: 25px;
-            margin-bottom: 15px;
-            font-size: 20px;
-        }
-        .info-box {
-            background-color: #e8f4f8;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .info-box strong {
-            color: #2c3e50;
-            display: inline-block;
-            min-width: 150px;
-        }
-        .stats-box {
-            background-color: #d5f4e6;
-            border: 2px solid #27ae60;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .stats-box h3 {
-            color: #27ae60;
-            margin-top: 0;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-top: 15px;
-        }
-        .stat-item {
-            background-color: white;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            color: #27ae60;
-        }
-        .stat-label {
-            color: #7f8c8d;
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        ul {
-            list-style-type: none;
-            padding-right: 0;
-        }
-        ul li {
-            background-color: #f8f9fa;
-            margin: 10px 0;
-            padding: 15px;
-            border-right: 4px solid #3498db;
-            border-radius: 4px;
-        }
-        ul li strong {
-            color: #2c3e50;
-            font-size: 16px;
-        }
-        ul li ul {
-            margin-top: 10px;
-        }
-        ul li ul li {
-            background-color: white;
-            border-right: 3px solid #95a5a6;
-            padding: 10px;
-            font-size: 14px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        th {
-            background-color: #3498db;
-            color: white;
-            padding: 15px;
-            text-align: right;
-            font-weight: bold;
-        }
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #ecf0f1;
-            text-align: right;
-        }
-        tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-        tr:hover {
-            background-color: #e8f4f8;
-        }
-        .badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin: 0 5px;
-        }
-        .badge-success {
-            background-color: #d5f4e6;
-            color: #27ae60;
-        }
-        .badge-info {
-            background-color: #e8f4f8;
-            color: #3498db;
-        }
-        .badge-warning {
-            background-color: #fff3cd;
-            color: #f39c12;
-        }
-        .benefits-list {
-            background-color: #fff9e6;
-            border: 2px solid #f39c12;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .benefits-list h3 {
-            color: #f39c12;
-            margin-top: 0;
-        }
-        .emoji {
-            font-size: 24px;
-            margin-left: 10px;
-        }
-        .file-change {
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px 15px;
-            margin: 8px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .file-name {
-            font-family: 'Courier New', monospace;
-            color: #2c3e50;
-            font-weight: bold;
-        }
-        .file-stats {
-            font-size: 14px;
-            color: #7f8c8d;
-        }
-        .additions {
-            color: #27ae60;
-            font-weight: bold;
-        }
-        .deletions {
-            color: #e74c3c;
-            font-weight: bold;
-        }
-        .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #ecf0f1;
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 14px;
-        }
-        @media print {
-            body {
-                background-color: white;
-            }
-            .container {
-                box-shadow: none;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1><span class="emoji">📋</span>تقرير التعديلات الأخيرة - Commit Report</h1>
-        
-        <div class="info-box">
-            <p><strong>رقم الـ Commit:</strong> <code>67432259e6377c26fc81c93de440485baa7258f9</code></p>
-            <p><strong>التاريخ:</strong> الأحد 21 ديسمبر 2025 - الساعة 12:48:45</p>
-            <p><strong>المطور:</strong> your.email@example.com</p>
-        </div>
-
-        <div class="stats-box">
-            <h3><span class="emoji">📊</span>إحصائيات التعديلات</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-number">12</div>
-                    <div class="stat-label">ملف معدل</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number additions">+1,356</div>
-                    <div class="stat-label">سطر مضاف</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number deletions">-195</div>
-                    <div class="stat-label">سطر محذوف</div>
-                </div>
-            </div>
-        </div>
-
-        <h2><span class="emoji">📝</span>وصف التعديلات</h2>
-        <p style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; line-height: 2;">
-            تحسين مكونات الإدارة: تم تحديث fulllist.tsx لدعم معاملات الترتيب من URL، مما يحسن إدارة البيانات. 
-            إعادة هيكلة homemaidinfo.tsx لتبسيط جلب البيانات وإضافة تسجيل للتحديثات. تحسين newhomemaids.tsx 
-            مع مؤشرات الحقول المطلوبة لتوجيه أفضل للمستخدم. تحسين systemlogs.tsx لاستخراج وعرض مسارات الصفحات 
-            لتتبع أفضل للتنقل. تحديث نقاط نهاية API لتشمل تسجيل إضافي وميزات معالجة البيانات، مما يضمن التتبع 
-            الشامل للتغييرات. تعديل schema.prisma لفرض ترتيب عرض فريد لإدخالات العاملات المنزليات.
-        </p>
-
-        <h2><span class="emoji">🎯</span>التحسينات الرئيسية</h2>
-
-        <h3>1️⃣ صفحات الإدارة (Admin Pages)</h3>
-        <ul>
-            <li>
-                <strong>fulllist.tsx</strong> <span class="badge badge-info">21 تعديل</span>
-                <ul>
-                    <li>إضافة دعم معاملات الترتيب (sorting) من الـ URL</li>
-                    <li>تحسين إدارة البيانات والتصفية</li>
-                    <li>تحسين تجربة المستخدم في عرض القوائم</li>
-                </ul>
-            </li>
-            <li>
-                <strong>homemaidinfo.tsx</strong> <span class="badge badge-warning">129 تعديل</span>
-                <ul>
-                    <li>إعادة هيكلة جلب البيانات (data fetching)</li>
-                    <li>إضافة نظام تسجيل (logging) للتحديثات</li>
-                    <li>تحسين الأداء وتبسيط الكود</li>
-                    <li>تحسين معالجة الأخطاء</li>
-                </ul>
-            </li>
-            <li>
-                <strong>newhomemaids.tsx</strong> <span class="badge badge-info">47 تعديل</span>
-                <ul>
-                    <li>إضافة مؤشرات للحقول المطلوبة (*)</li>
-                    <li>تحسين تجربة المستخدم في إدخال البيانات</li>
-                    <li>تحسين التحقق من صحة البيانات</li>
-                </ul>
-            </li>
-            <li>
-                <strong>systemlogs.tsx</strong> <span class="badge badge-info">33 تعديل</span>
-                <ul>
-                    <li>استخراج وعرض مسارات الصفحات (page routes)</li>
-                    <li>تحسين تتبع التنقل في النظام</li>
-                    <li>عرض أفضل للسجلات والأحداث</li>
-                </ul>
-            </li>
-        </ul>
-
-        <h3>2️⃣ واجهات برمجة التطبيقات (API Endpoints)</h3>
-        <ul>
-            <li>
-                <strong>clients.ts</strong> <span class="badge badge-info">تعديل بسيط</span>
-                <ul>
-                    <li>إضافة ميزات تسجيل إضافية</li>
-                </ul>
-            </li>
-            <li>
-                <strong>hommeaidfind.ts</strong> <span class="badge badge-success">ملف جديد - 197 سطر</span>
-                <ul>
-                    <li>واجهة جديدة للبحث عن العاملات المنزليات</li>
-                    <li>دعم البحث المتقدم والتصفية</li>
-                    <li>تحسين أداء الاستعلامات</li>
-                </ul>
-            </li>
-            <li>
-                <strong>newhomemaids.ts</strong> <span class="badge badge-info">14 تعديل</span>
-                <ul>
-                    <li>تحسين معالجة البيانات والتحقق منها</li>
-                    <li>إضافة تسجيل للعمليات</li>
-                </ul>
-            </li>
-            <li>
-                <strong>track_order/[id].ts</strong> <span class="badge badge-warning">397 تعديل كبير</span>
-                <ul>
-                    <li>تحسينات شاملة في نظام تتبع الطلبات</li>
-                    <li>إضافة تسجيل شامل للتغييرات</li>
-                    <li>تحسين معالجة البيانات والأخطاء</li>
-                    <li>إضافة ميزات جديدة للتتبع</li>
-                </ul>
-            </li>
-        </ul>
-
-        <h3>3️⃣ التوثيق الجديد (Documentation)</h3>
-        <p style="background-color: #e8f4f8; padding: 15px; border-radius: 5px;">
-            تم إضافة <strong>3 ملفات توثيق شاملة</strong> بإجمالي <strong>710 سطر</strong> من التوثيق الاحترافي:
-        </p>
-        <ul>
-            <li>
-                <strong>CHANGELOG.md</strong> <span class="badge badge-success">140 سطر</span>
-                <ul>
-                    <li>سجل كامل بالتغييرات والتحديثات</li>
-                    <li>توثيق تاريخ المشروع</li>
-                </ul>
-            </li>
-            <li>
-                <strong>LOGS_QUERY_EXAMPLES.md</strong> <span class="badge badge-success">359 سطر</span>
-                <ul>
-                    <li>أمثلة على استعلامات السجلات</li>
-                    <li>دليل استخدام نظام التسجيل</li>
-                    <li>أمثلة عملية ومفصلة</li>
-                </ul>
-            </li>
-            <li>
-                <strong>README.md</strong> <span class="badge badge-success">211 سطر</span>
-                <ul>
-                    <li>دليل شامل للمطورين</li>
-                    <li>شرح البنية والاستخدام</li>
-                    <li>معلومات التثبيت والإعداد</li>
-                </ul>
-            </li>
-        </ul>
-
-        <h3>4️⃣ قاعدة البيانات (Database Schema)</h3>
-        <ul>
-            <li>
-                <strong>schema.prisma</strong> <span class="badge badge-info">تعديل بسيط</span>
-                <ul>
-                    <li>فرض ترتيب عرض فريد (unique display order) لسجلات العاملات المنزليات</li>
-                    <li>منع التكرار في ترتيب العرض</li>
-                    <li>تحسين سلامة البيانات</li>
-                </ul>
-            </li>
-        </ul>
-
-        <h2><span class="emoji">📁</span>تفاصيل الملفات المعدلة</h2>
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <div class="file-change">
-                <span class="file-name">pages/admin/fulllist.tsx</span>
-                <span class="file-stats">21 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/admin/homemaidinfo.tsx</span>
-                <span class="file-stats">129 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/admin/newhomemaids.tsx</span>
-                <span class="file-stats">47 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/admin/systemlogs.tsx</span>
-                <span class="file-stats">33 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/clients.ts</span>
-                <span class="file-stats">1 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/hommeaidfind.ts</span>
-                <span class="file-stats"><span class="additions">+197</span> (ملف جديد)</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/newhomemaids.ts</span>
-                <span class="file-stats">14 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/track_order/CHANGELOG.md</span>
-                <span class="file-stats"><span class="additions">+140</span> (ملف جديد)</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/track_order/LOGS_QUERY_EXAMPLES.md</span>
-                <span class="file-stats"><span class="additions">+359</span> (ملف جديد)</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/track_order/README.md</span>
-                <span class="file-stats"><span class="additions">+211</span> (ملف جديد)</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">pages/api/track_order/[id].ts</span>
-                <span class="file-stats">397 تعديل</span>
-            </div>
-            <div class="file-change">
-                <span class="file-name">prisma/schema.prisma</span>
-                <span class="file-stats">2 تعديل</span>
-            </div>
-        </div>
-
-        <h2><span class="emoji">📊</span>جدول الإحصائيات التفصيلي</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>الفئة</th>
-                    <th>عدد الملفات</th>
-                    <th>الإضافات</th>
-                    <th>الحذف</th>
-                    <th>الإجمالي</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>صفحات الإدارة</strong></td>
-                    <td>4</td>
-                    <td class="additions">+230</td>
-                    <td class="deletions">-100</td>
-                    <td>330</td>
-                </tr>
-                <tr>
-                    <td><strong>واجهات API</strong></td>
-                    <td>5</td>
-                    <td class="additions">+600</td>
-                    <td class="deletions">-90</td>
-                    <td>690</td>
-                </tr>
-                <tr>
-                    <td><strong>التوثيق</strong></td>
-                    <td>3</td>
-                    <td class="additions">+710</td>
-                    <td class="deletions">0</td>
-                    <td>710</td>
-                </tr>
-                <tr>
-                    <td><strong>قاعدة البيانات</strong></td>
-                    <td>1</td>
-                    <td class="additions">+1</td>
-                    <td class="deletions">-1</td>
-                    <td>2</td>
-                </tr>
-                <tr style="background-color: #e8f4f8; font-weight: bold;">
-                    <td><strong>الإجمالي</strong></td>
-                    <td><strong>12</strong></td>
-                    <td class="additions"><strong>+1,356</strong></td>
-                    <td class="deletions"><strong>-195</strong></td>
-                    <td><strong>1,551</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="benefits-list">
-            <h3><span class="emoji">✅</span>الفوائد الرئيسية من هذه التعديلات</h3>
-            <ul style="list-style-type: disc; padding-right: 20px;">
-                <li><strong>تحسين تجربة المستخدم:</strong> مؤشرات واضحة للحقول المطلوبة وواجهة أسهل في الاستخدام</li>
-                <li><strong>نظام تسجيل شامل:</strong> تتبع كامل لجميع التغييرات والعمليات في النظام</li>
-                <li><strong>توثيق احترافي:</strong> دليل كامل للمطورين والمستخدمين بأكثر من 700 سطر</li>
-                <li><strong>أداء أفضل:</strong> تحسين جلب ومعالجة البيانات مع تقليل الأخطاء</li>
-                <li><strong>منع الأخطاء:</strong> قيود على قاعدة البيانات لضمان سلامة البيانات</li>
-                <li><strong>سهولة الصيانة:</strong> كود أكثر تنظيماً وسهولة في الفهم والتطوير</li>
-                <li><strong>قابلية التوسع:</strong> بنية محسنة تسهل إضافة ميزات جديدة مستقبلاً</li>
-            </ul>
-        </div>
-
-        <h2><span class="emoji">🔍</span>التأثير على النظام</h2>
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <h3 style="color: #27ae60; margin-top: 0;">التأثيرات الإيجابية:</h3>
-            <ul style="list-style-type: disc; padding-right: 20px;">
-                <li>تحسين ملحوظ في سرعة الاستجابة للصفحات</li>
-                <li>تقليل احتمالية حدوث أخطاء في إدخال البيانات</li>
-                <li>سهولة تتبع المشاكل وحلها بفضل نظام التسجيل الشامل</li>
-                <li>توثيق كامل يسهل على المطورين الجدد فهم النظام</li>
-                <li>حماية أفضل لسلامة البيانات في قاعدة البيانات</li>
-            </ul>
-
-            <h3 style="color: #3498db; margin-top: 20px;">المناطق المتأثرة:</h3>
-            <ul style="list-style-type: disc; padding-right: 20px;">
-                <li><strong>لوحة التحكم الإدارية:</strong> جميع صفحات الإدارة الرئيسية</li>
-                <li><strong>نظام تتبع الطلبات:</strong> تحسينات كبيرة في الأداء والوظائف</li>
-                <li><strong>إدارة العاملات المنزليات:</strong> إضافة ميزات بحث وتصفية جديدة</li>
-                <li><strong>نظام السجلات:</strong> تحسين عرض وتتبع الأحداث</li>
-            </ul>
-        </div>
-
-        <h2><span class="emoji">🚀</span>التوصيات والخطوات التالية</h2>
-        <div style="background-color: #fff9e6; padding: 20px; border-radius: 8px; border: 2px solid #f39c12;">
-            <ol style="padding-right: 20px; line-height: 2;">
-                <li><strong>اختبار شامل:</strong> يُنصح بإجراء اختبارات شاملة على جميع الصفحات المعدلة</li>
-                <li><strong>مراجعة الأداء:</strong> مراقبة أداء النظام بعد التحديثات</li>
-                <li><strong>تدريب المستخدمين:</strong> إعلام المستخدمين بالميزات الجديدة</li>
-                <li><strong>النسخ الاحتياطي:</strong> التأكد من وجود نسخة احتياطية قبل النشر</li>
-                <li><strong>المراقبة المستمرة:</strong> متابعة السجلات للتأكد من عدم وجود مشاكل</li>
-            </ol>
-        </div>
-
-        <div class="footer">
-            <p><strong>تاريخ إنشاء التقرير:</strong> الأحد 21 ديسمبر 2025</p>
-            <p>هذا التقرير تم إنشاؤه تلقائياً من سجلات Git</p>
-            <p style="margin-top: 20px; color: #3498db; font-weight: bold;">
-                للاستفسارات أو المزيد من المعلومات، يرجى التواصل مع فريق التطوير
-            </p>
-        </div>
-    </div>
-</body>
-</html>
