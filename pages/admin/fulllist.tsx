@@ -320,7 +320,7 @@ export default function Table({ hasDeletePermission }: Props) {
 
   const router = useRouter();
 
-  // قراءة رقم الصفحة والفلاتر من URL عند التحميل الأول فقط
+  // قراءة رقم الصفحة والفلاتر و معاملات الترتيب من URL عند التحميل الأول فقط
   useEffect(() => {
     if (router.isReady && isInitialMount.current) {
       isInitialMount.current = false;
@@ -338,10 +338,18 @@ export default function Table({ hasDeletePermission }: Props) {
       };
       
       setFilters(urlFilters);
+      
+      // قراءة معاملات الترتيب من URL
+      if (router.query.sortBy) {
+        setSortBy(router.query.sortBy as string);
+      }
+      if (router.query.sortOrder && (router.query.sortOrder === 'asc' || router.query.sortOrder === 'desc')) {
+        setSortOrder(router.query.sortOrder as 'asc' | 'desc');
+      }
     }
   }, [router.isReady, router.query]);
 
-  // تحديث URL عند تغيير الصفحة أو الفلاتر
+  // تحديث URL عند تغيير الصفحة أو الفلاتر أو معاملات الترتيب
   useEffect(() => {
     if (!router.isReady || isInitialMount.current) return;
     
@@ -357,6 +365,13 @@ export default function Table({ hasDeletePermission }: Props) {
     if (filters.PassportNumber) {
       queryParams.set('PassportNumber', filters.PassportNumber);
     }
+    // إضافة معاملات الترتيب
+    if (sortBy) {
+      queryParams.set('sortBy', sortBy);
+    }
+    if (sortOrder) {
+      queryParams.set('sortOrder', sortOrder);
+    }
 
     const newUrl = queryParams.toString() 
       ? `${router.pathname}?${queryParams.toString()}`
@@ -366,7 +381,7 @@ export default function Table({ hasDeletePermission }: Props) {
     if (router.asPath !== newUrl) {
       router.replace(newUrl, undefined, { shallow: true });
     }
-  }, [currentPage, filters, router.isReady, router.pathname, router.asPath]);
+  }, [currentPage, filters, sortBy, sortOrder, router.isReady, router.pathname, router.asPath]);
 
   const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);

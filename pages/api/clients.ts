@@ -121,6 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(200).json({
         data: clients,
         totalPages: clientId ? 1 : Math.ceil(totalClients / pageSize),
+        totalClients: totalClients,
       });
     } catch (error) {
       console.error("Error fetching clients data:", error);

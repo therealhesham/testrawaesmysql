@@ -732,11 +732,16 @@ const handleHomemaidImageChange = async (
                 </div>     
 
               <form className="space-y-6" dir="rtl" onSubmit={(e) => e.preventDefault()}>
+                {/* <div className="mb-4 p-3 bg-blue-50 border-r-4 border-blue-500 rounded">
+                  <p className="text-sm text-gray-700">
+                    <span className="text-red-500 font-semibold">*</span> الحقول المميزة بهذه العلامة إجبارية
+                  </p>
+                </div> */}
                 <fieldset>
                   <legend className="text-2xl font-normal text-center text-black mb-6">المعلومات الشخصية</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div className="flex flex-col">
-                      <label htmlFor="name" className="text-gray-500 text-sm mb-1">الاسم</label>
+                      <label htmlFor="name" className="text-gray-500 text-sm mb-1">الاسم <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         id="name"
@@ -748,7 +753,7 @@ const handleHomemaidImageChange = async (
                       {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                     </div>
                    <div className="flex flex-col">
-                      <label htmlFor="religion" className="text-gray-500 text-sm mb-1">الديانة</label>
+                      <label htmlFor="religion" className="text-gray-500 text-sm mb-1">الديانة <span className="text-red-500">*</span></label>
                       <select
                         id="religion"
                         value={formData.religion}
@@ -764,7 +769,7 @@ const handleHomemaidImageChange = async (
                       {errors.religion && <p className="text-red-500 text-xs mt-1">{errors.religion}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="nationality" className="text-gray-500 text-sm mb-1">الجنسية</label>
+                      <label htmlFor="nationality" className="text-gray-500 text-sm mb-1">الجنسية <span className="text-red-500">*</span></label>
                       <select
                         id="nationality"
                         value={formData.nationality}
@@ -782,7 +787,7 @@ const handleHomemaidImageChange = async (
                       {errors.nationality && <p className="text-red-500 text-xs mt-1">{errors.nationality}</p>}
                     </div>
                    <div className="flex flex-col">
-                      <label htmlFor="maritalStatus" className="text-gray-500 text-sm mb-1">الحالة الاجتماعية</label>
+                      <label htmlFor="maritalStatus" className="text-gray-500 text-sm mb-1">الحالة الاجتماعية <span className="text-red-500">*</span></label>
                       <select
                         id="maritalStatus"
                         value={formData.maritalStatus}
@@ -819,7 +824,7 @@ const handleHomemaidImageChange = async (
                     {/* ✨ نهاية الحقول الجديدة */}
 
                     <div className="flex flex-col">
-                      <label htmlFor="age" className="text-gray-500 text-sm mb-1">تاريخ الميلاد</label>
+                      <label htmlFor="age" className="text-gray-500 text-sm mb-1">تاريخ الميلاد <span className="text-red-500">*</span></label>
                       <input
                         type="date"
                         id="age"
@@ -831,7 +836,7 @@ const handleHomemaidImageChange = async (
                       {errors.age && <p className="text-red-500 text-xs mt-1">{errors.age}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="passport" className="text-gray-500 text-sm mb-1">رقم جواز السفر</label>
+                      <label htmlFor="passport" className="text-gray-500 text-sm mb-1">رقم جواز السفر <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         id="passport"
@@ -843,7 +848,7 @@ const handleHomemaidImageChange = async (
                       {errors.passport && <p className="text-red-500 text-xs mt-1">{errors.passport}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="mobile" className="text-gray-500 text-sm mb-1">رقم الجوال</label>
+                      <label htmlFor="mobile" className="text-gray-500 text-sm mb-1">رقم الجوال <span className="text-red-500">*</span></label>
                       <PhoneInput
                         international
                         defaultCountry="SA"
@@ -855,7 +860,7 @@ const handleHomemaidImageChange = async (
                       {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="passportStart" className="text-gray-500 text-sm mb-1">بداية الجواز</label>
+                      <label htmlFor="passportStart" className="text-gray-500 text-sm mb-1">بداية الجواز <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <input
                           type="date"
@@ -869,7 +874,7 @@ const handleHomemaidImageChange = async (
                       {errors.passportStart && <p className="text-red-500 text-xs mt-1">{errors.passportStart}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="passportEnd" className="text-gray-500 text-sm mb-1">نهاية الجواز</label>
+                      <label htmlFor="passportEnd" className="text-gray-500 text-sm mb-1">نهاية الجواز <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <input
                           type="date"
@@ -888,7 +893,7 @@ const handleHomemaidImageChange = async (
                   <legend className="text-2xl font-normal text-center text-black mb-6">التعليم</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div className="flex flex-col">
-                      <label htmlFor="educationLevel" className="text-gray-500 text-sm mb-1">مستوى التعليم</label>
+                      <label htmlFor="educationLevel" className="text-gray-500 text-sm mb-1">مستوى التعليم <span className="text-red-500">*</span></label>
                       <select
                         id="educationLevel"
                         value={formData.educationLevel}
@@ -975,17 +980,17 @@ const handleHomemaidImageChange = async (
                   <legend className="text-2xl font-normal text-center text-black mb-6">المهارات</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
-                      { id: 'cookingLevel', label: 'الطبخ' },
-                      { id: 'washingLevel', label: 'الغسيل' },
-                      { id: 'ironingLevel', label: 'الكوي' },
-                      { id: 'cleaningLevel', label: 'التنظيف' },
-                      { id: 'sewingLevel', label: 'الخياطة' },
-                      { id: 'elderlycareLevel', label: 'رعاية كبار السن' },
-                      { id: 'childcareLevel', label: 'العناية بالأطفال' },
-                      { id: 'BabySitterLevel', label: 'العناية بالرضع' },
+                      { id: 'cookingLevel', label: 'الطبخ', required: true },
+                      { id: 'washingLevel', label: 'الغسيل', required: true },
+                      { id: 'ironingLevel', label: 'الكوي', required: true },
+                      { id: 'cleaningLevel', label: 'التنظيف', required: true },
+                      { id: 'sewingLevel', label: 'الخياطة', required: true },
+                      { id: 'elderlycareLevel', label: 'رعاية كبار السن', required: true },
+                      { id: 'childcareLevel', label: 'العناية بالأطفال', required: true },
+                      { id: 'BabySitterLevel', label: 'العناية بالرضع', required: false },
                     ].map((skill) => (
                       <div className="flex flex-col" key={skill.id}>
-                        <label htmlFor={skill.id} className="text-gray-500 text-sm mb-1">{skill.label}</label>
+                        <label htmlFor={skill.id} className="text-gray-500 text-sm mb-1">{skill.label} {skill.required && <span className="text-red-500">*</span>}</label>
                         <select
                           id={skill.id}
                           value={formData[skill.id as keyof typeof formData] as string}
@@ -1007,7 +1012,7 @@ const handleHomemaidImageChange = async (
                   <legend className="text-2xl font-normal text-center text-black mb-6">الراتب والمكتب</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col">
-                      <label htmlFor="officeName" className="text-gray-500 text-sm mb-1">اسم المكتب</label>
+                      <label htmlFor="officeName" className="text-gray-500 text-sm mb-1">اسم المكتب <span className="text-red-500">*</span></label>
                       <select
                         id="officeName"
                         value={formData.officeName}
@@ -1024,7 +1029,7 @@ const handleHomemaidImageChange = async (
                       {errors.officeName && <p className="text-red-500 text-xs mt-1">{errors.officeName}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="salary" className="text-gray-500 text-sm mb-1">الراتب</label>
+                      <label htmlFor="salary" className="text-gray-500 text-sm mb-1">الراتب <span className="text-red-500">*</span></label>
                       <input
                         type="number"
                         id="salary"

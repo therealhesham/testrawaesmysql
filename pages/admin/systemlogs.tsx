@@ -10,6 +10,7 @@ import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import axios, { AxiosError } from 'axios';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
+import { useRouter } from 'next/router';
 
 interface CustomJwtPayload extends JwtPayload {
   username?: string;
@@ -24,6 +25,7 @@ interface LogUser {
 interface SystemLog {
   id: string | number;
   action: string;
+  pageRoute:string;
   actionType?: string;
   createdAt: string | Date;
   updatedAt: string | Date;
@@ -40,7 +42,7 @@ export default function SystemLogs() {
   const [actionFilter, setActionFilter] = useState('');
   const [userName, setUserName] = useState('');
   const [error, setError] = useState('');
-  
+const router = useRouter();  
   useEffect(() => {
     try {
       const token = localStorage.getItem('token');
@@ -333,6 +335,31 @@ export default function SystemLogs() {
     }
   };
 
+  // Function to extract path after /admin
+  const getPathAfterAdmin = (url: string): string => {
+    if (!url) return '';
+    
+    // Extract path from full URL if it's a complete URL
+    let path = url;
+    try {
+      const urlObj = new URL(url);
+      path = urlObj.pathname;
+    } catch {
+      // If it's not a full URL, use it as is
+      path = url;
+    }
+    
+    // Find /admin in the path and extract what comes after it
+    const adminIndex = path.indexOf('/admin');
+    if (adminIndex !== -1) {
+      const afterAdmin = path.substring(adminIndex + '/admin'.length);
+      return afterAdmin || '';
+    }
+    
+    // If /admin not found, return the original path
+    return path.startsWith('/') ? path : `/${path}`;
+  };
+
   const renderPagination = () => {
     if (totalCount === 0) return null;
 
@@ -552,7 +579,9 @@ export default function SystemLogs() {
                       <th className="p-4 border">رقم السجل</th>
                       <th className="p-4 border">الإجراء</th>
                       <th className="p-4 border">تاريخ الإنشاء</th>
+
                       <th className="p-4 border">وقت الإنشاء</th>
+                      <th className="p-4 border">صفحة</th>
                       <th className="p-4 border">اسم المستخدم</th>
                     </tr>
                   </thead>
@@ -585,6 +614,8 @@ export default function SystemLogs() {
                               })
                             : 'غير متوفر'}
                         </td>
+                        <td className="p-4 border font-semibold cursor-pointer"  onClick={()=>router.push(log.pageRoute)}>{getPathAfterAdmin(log.pageRoute) || log.pageRoute}</td>
+
                         <td className="p-4 border font-semibold">{log.user?.username || 'غير متوفر'}</td>
                       </tr>
                     ))}

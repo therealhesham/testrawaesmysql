@@ -282,6 +282,9 @@ function HomeMaidInfo() {
       
       if (!response.ok) throw new Error('فشل في حفظ البيانات');
       
+      // إعادة جلب البيانات لتحديث الـ logs
+      await fetchPersonalInfo();
+      
       setIsEditing(false);
       setAlertModal({
         isOpen: true,
@@ -424,69 +427,71 @@ function HomeMaidInfo() {
     if (ref?.current) ref.current.click();
   };
 
+  // --- دالة جلب بيانات العاملة ---
+  const fetchPersonalInfo = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/hommeaidfind?id=${id}`);
+      if (!response.ok) throw new Error("فشل في جلب البيانات");
+      const data = await response.json();
+      
+      const birthInput = formatToInputDate(data.dateofbirth);
+      const passportStartInput = formatToInputDate(data.passportStartDate || data.PassportStart || data.PassportStartDate);
+      const passportEndInput = formatToInputDate(data.passportEndDate || data.PassportEnd || data.PassportEndDate);
+      
+      setFormData({
+        Name: data.Name || "",
+        Religion: data.Religion || "",
+        Nationalitycopy: data.Nationalitycopy || "",
+        maritalstatus: data.maritalstatus || "",
+
+        Picture: extractImageUrl(data.Picture) || "",
+        FullPicture: extractImageUrl(data.FullPicture) || "",
+        
+        childrenCount: data.childrenCount || data.ChildrenCount || data.children || "", 
+        height: data.height || data.Height || "", 
+        weight: data.weight || data.Weight || "",
+        
+        dateofbirth: birthInput,
+        Passportnumber: data.Passportnumber || "",
+        passportStartDate: passportStartInput,
+        passportEndDate: passportEndInput,
+        phone: data.phone || "",
+
+        Education: data.Education || "",
+        ArabicLanguageLeveL: data.ArabicLanguageLeveL || data.arabicLanguageLeveL || "",
+        EnglishLanguageLevel: data.EnglishLanguageLevel || data.englishLanguageLevel || "",
+
+        Experience: data.Experience || "",
+        ExperienceYears: data.ExperienceYears || "",
+
+        // المهارات
+        washingLevel: data.washingLevel || data.WashingLevel || "",
+        ironingLevel: data.ironingLevel || data.IroningLevel || "",
+        cleaningLevel: data.cleaningLevel || data.CleaningLevel || "",
+        cookingLevel: data.cookingLevel || data.CookingLevel || "",
+        sewingLevel: data.sewingLevel || data.SewingLevel || "",
+        childcareLevel: data.childcareLevel || data.ChildcareLevel || "", 
+        babySitterLevel: data.babySitterLevel || data.BabySitterLevel || "", 
+        elderlycareLevel: data.elderlycareLevel || data.ElderlycareLevel || "",
+        // laundryLevel تم حذفه من هنا
+
+        officeName: data.office?.office || "",
+        salary: data.Salary || "",
+        logs: data.logs || [],
+      });
+    } catch (error) {
+      setError("حدث خطأ أثناء جلب البيانات");
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- التأثير الرئيسي (Effect) لجلب بيانات العاملة ---
   useEffect(() => {
     if (id) {
-      const fetchPersonalInfo = async () => {
-        setLoading(true);
-        try {
-          const response = await fetch(`/api/hommeaidfind?id=${id}`);
-          if (!response.ok) throw new Error("فشل في جلب البيانات");
-          const data = await response.json();
-          
-          const birthInput = formatToInputDate(data.dateofbirth);
-          const passportStartInput = formatToInputDate(data.passportStartDate || data.PassportStart || data.PassportStartDate);
-          const passportEndInput = formatToInputDate(data.passportEndDate || data.PassportEnd || data.PassportEndDate);
-          
-          setFormData({
-            Name: data.Name || "",
-            Religion: data.Religion || "",
-            Nationalitycopy: data.Nationalitycopy || "",
-            maritalstatus: data.maritalstatus || "",
-
-            Picture: extractImageUrl(data.Picture) || "",
-            FullPicture: extractImageUrl(data.FullPicture) || "",
-            
-            childrenCount: data.childrenCount || data.ChildrenCount || data.children || "", 
-            height: data.height || data.Height || "", 
-            weight: data.weight || data.Weight || "",
-            
-            dateofbirth: birthInput,
-            Passportnumber: data.Passportnumber || "",
-            passportStartDate: passportStartInput,
-            passportEndDate: passportEndInput,
-            phone: data.phone || "",
-
-            Education: data.Education || "",
-            ArabicLanguageLeveL: data.ArabicLanguageLeveL || data.arabicLanguageLeveL || "",
-            EnglishLanguageLevel: data.EnglishLanguageLevel || data.englishLanguageLevel || "",
-
-            Experience: data.Experience || "",
-            ExperienceYears: data.ExperienceYears || "",
-
-            // المهارات
-            washingLevel: data.washingLevel || data.WashingLevel || "",
-            ironingLevel: data.ironingLevel || data.IroningLevel || "",
-            cleaningLevel: data.cleaningLevel || data.CleaningLevel || "",
-            cookingLevel: data.cookingLevel || data.CookingLevel || "",
-            sewingLevel: data.sewingLevel || data.SewingLevel || "",
-            childcareLevel: data.childcareLevel || data.ChildcareLevel || "", 
-            babySitterLevel: data.babySitterLevel || data.BabySitterLevel || "", 
-            elderlycareLevel: data.elderlycareLevel || data.ElderlycareLevel || "",
-            // laundryLevel تم حذفه من هنا
-
-            officeName: data.office?.office || "",
-            salary: data.Salary || "",
-            logs: data.logs || [],
-          });
-        } catch (error) {
-          setError("حدث خطأ أثناء جلب البيانات");
-          console.error("Error fetching data:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
       fetchPersonalInfo();
       checkExistingOrder();
       fetchClients();
@@ -896,7 +901,6 @@ function HomeMaidInfo() {
                   <th className="border border-gray-300 p-3 text-right">التاريخ</th>
                   <th className="border border-gray-300 p-3 text-right">الحالة</th>
                   <th className="border border-gray-300 p-3 text-right">التفاصيل</th>
-                  <th className="border border-gray-300 p-3 text-right">السبب</th>
                 </tr>
               </thead>
               <tbody>
@@ -906,12 +910,11 @@ function HomeMaidInfo() {
                       <td className="border border-gray-300 p-3 text-right">{getDate(log.createdAt)}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.Status || "غير متوفر"}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.Details || "غير متوفر"}</td>
-                      <td className="border border-gray-300 p-3 text-right">{log.reason || "غير متوفر"}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="text-center p-4 text-gray-500">لا توجد سجلات متاحة</td>
+                    <td colSpan={3} className="text-center p-4 text-gray-500">لا توجد سجلات متاحة</td>
                   </tr>
                 )}
               </tbody>

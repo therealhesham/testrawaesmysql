@@ -61,7 +61,7 @@ model homemaid {
   createdAt         DateTime?   @default(now())
   updatedAt         DateTime?  @updatedAt
   logs              logs[]
-  displayOrder      Int        @default(0) // Added field for display order
+  displayOrder      Int?       @unique // Added field for display order (auto-incremented by trigger)
   transferSponsorShips transferSponsorShips?
   isExternal          Boolean? @default(false)
 sewingLevel String? @db.VarChar(100)

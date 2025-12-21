@@ -51,12 +51,25 @@ console.log(token);
 if(!findUser?.role?.permissions["إدارة العاملات"]["إضافة"] )return;
 console.log(req.body)
 
+// جلب أعلى displayOrder من الجدول
+const maxDisplayOrder = await prisma.homemaid.findFirst({
+  orderBy: {
+    displayOrder: 'desc'
+  },
+  select: {
+    displayOrder: true
+  }
+});
+
+const newDisplayOrder = maxDisplayOrder?.displayOrder ? maxDisplayOrder.displayOrder + 1 : 1;
+
 const newHomemaid = await prisma.homemaid.create({
   data: {
     Name: name || '',
     Passportphoto: passportcopy || '',  
     Nationalitycopy: nationality || '',
     Religion: religion || '',
+    displayOrder: newDisplayOrder,
     Passportnumber: passport || '',
     maritalstatus: maritalStatus || '',
     Experience: experienceField || '',
@@ -85,7 +98,6 @@ const newHomemaid = await prisma.homemaid.create({
   },
 });
 
-console.log(newHomemaid)
       res.status(200).json(newHomemaid);
     } catch (error: any) {
       console.error('Error creating homemaid:', error);
