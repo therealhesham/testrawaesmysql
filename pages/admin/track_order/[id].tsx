@@ -1286,6 +1286,7 @@ export default function TrackOrder() {
             gridCols={2}
             editable={canCompleteStep('destinations')}
             onSave={(updatedData) => handleSaveEdits('destinations', updatedData)}
+            disabled={!canCompleteStep('destinations')}
           />
           {!canCompleteStep('destinations') && (
             <div className="flex flex-col items-center gap-2 mt-2 mb-6">
