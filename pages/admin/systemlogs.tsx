@@ -84,6 +84,19 @@ const router = useRouter();
     }
   };
 
+  // Helper function to format date correctly (DD/MM/YYYY)
+  const formatDate = (dateString: string | Date): string => {
+    if (!dateString) return 'غير متوفر';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'غير متوفر';
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  };
+
   // Fetch data for export with current filters
   const fetchFilteredLogs = async () => {
     try {
@@ -144,15 +157,12 @@ const router = useRouter();
       const headers = [['اسم المستخدم', 'وقت الإنشاء', 'تاريخ الإنشاء', 'الإجراء', 'رقم السجل']];
       const body = dataToExport.map((row: SystemLog) => [
         row.user?.username || 'غير متوفر',
-        row.createdAt ? new Date(row.createdAt).toLocaleTimeString('ar-EG', { 
+        row.createdAt ? new Date(row.createdAt).toLocaleTimeString('en-US', { 
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          hour12: false
         }) : 'غير متوفر',
-        row.createdAt ? new Date(row.createdAt).toLocaleDateString('ar-EG', { 
-          year: 'numeric', 
-          month: '2-digit', 
-          day: '2-digit'
-        }) : 'غير متوفر',
+        formatDate(row.createdAt),
         row.action || 'غير متوفر',
         row.id || 'غير متوفر',
       ]);
@@ -199,9 +209,10 @@ const router = useRouter();
             day: 'numeric',
             month: 'short',
             year: 'numeric',
-          })} الساعة: ${new Date().toLocaleTimeString('ar-EG', {
+          })} الساعة: ${new Date().toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
+            hour12: false,
           })}`;
           doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
         },
@@ -234,11 +245,7 @@ const router = useRouter();
       const worksheetData = dataToExport.map((row: SystemLog) => ({
         'رقم السجل': row.id || 'غير متوفر',
         'الإجراء': row.action || 'غير متوفر',
-        'تاريخ الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleDateString('ar-EG', { 
-          year: 'numeric', 
-          month: '2-digit', 
-          day: '2-digit'
-        }) : 'غير متوفر',
+        'تاريخ الإنشاء': formatDate(row.createdAt),
         'وقت الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleTimeString('ar-EG', { 
           hour: '2-digit',
           minute: '2-digit'
