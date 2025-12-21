@@ -5,6 +5,9 @@ import { Search, X } from 'lucide-react';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Select from 'react-select';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import axios, { AxiosError } from 'axios';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { useRouter } from 'next/router';
@@ -81,38 +84,133 @@ const router = useRouter();
     }
   };
 
-  // Export to PDF (Server Side)
+  // Fetch data for export with current filters
+  const fetchFilteredLogs = async () => {
+    try {
+      const response = await axios.get('/api/systemlogs', {
+        params: {
+          pageSize: "10000",
+          searchTerm: searchTerm || undefined,
+          action: actionFilter || undefined,
+        },
+      });
+      return response.data.logs || [];
+    } catch (err) {
+      const error = err as AxiosError;
+      console.error('Error fetching logs for export:', error.response?.data || error.message);
+      setError('حدث خطأ أثناء تصدير البيانات. يرجى المحاولة مرة أخرى.');
+      return [];
+    }
+  };
+  
+
+
+  // Export to PDF
   const exportToPDF = async () => {
     try {
       setIsLoading(true);
       setError('');
+      const dataToExport = await fetchFilteredLogs();
       
-      const params = new URLSearchParams({
-        format: 'pdf',
-        ...(searchTerm && { searchTerm }),
-        ...(actionFilter && { action: actionFilter }),
-        ...(userName && { userName }),
-      });
-
-      const response = await fetch(`/api/systemlogs/export?${params.toString()}`, {
-        method: 'GET',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'حدث خطأ أثناء تصدير PDF');
+      if (!dataToExport || dataToExport.length === 0) {
+        setError('لا توجد بيانات للتصدير.');
+        return;
       }
 
-      // Get the blob and create download link
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // تحميل شعار
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      // تحميل خط أميري
+      const fontResponse = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!fontResponse.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await fontResponse.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+
+      doc.setLanguage('ar');
+      doc.setFontSize(12);
+
+      const headers = [['اسم المستخدم', 'وقت الإنشاء', 'تاريخ الإنشاء', 'الإجراء', 'رقم السجل']];
+      const body = dataToExport.map((row: SystemLog) => [
+        row.user?.username || 'غير متوفر',
+        row.createdAt ? new Date(row.createdAt).toLocaleTimeString('ar-EG', { 
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'غير متوفر',
+        row.createdAt ? new Date(row.createdAt).toLocaleDateString('ar-EG', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit'
+        }) : 'غير متوفر',
+        row.action || 'غير متوفر',
+        row.id || 'غير متوفر',
+      ]);
+
+      doc.autoTable({
+        head: headers,
+        body: body,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 10,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [0, 105, 92],
+          textColor: [255, 255, 255],
+          halign: 'center',
+        },
+        margin: { top: 42, right: 10, left: 10 },
+        didDrawPage: () => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // إضافة اللوجو
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // العنوان
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // الفوتر
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+          const dateText = `التاريخ: ${new Date().toLocaleDateString('ar-EG', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })} الساعة: ${new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`;
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (hookData: any) => {
+          hookData.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save(`سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.pdf`);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       setError('حدث خطأ أثناء تصدير PDF. يرجى المحاولة مرة أخرى.');
@@ -121,38 +219,50 @@ const router = useRouter();
     }
   };
 
-  // Export to Excel (Server Side)
+  // Export to Excel
   const exportToExcel = async () => {
     try {
       setIsLoading(true);
       setError('');
+      const dataToExport = await fetchFilteredLogs();
       
-      const params = new URLSearchParams({
-        format: 'excel',
-        ...(searchTerm && { searchTerm }),
-        ...(actionFilter && { action: actionFilter }),
-        ...(userName && { userName }),
-      });
-
-      const response = await fetch(`/api/systemlogs/export?${params.toString()}`, {
-        method: 'GET',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'حدث خطأ أثناء تصدير Excel');
+      if (!dataToExport || dataToExport.length === 0) {
+        setError('لا توجد بيانات للتصدير.');
+        return;
       }
 
-      // Get the blob and create download link
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const worksheetData = dataToExport.map((row: SystemLog) => ({
+        'رقم السجل': row.id || 'غير متوفر',
+        'الإجراء': row.action || 'غير متوفر',
+        'تاريخ الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleDateString('ar-EG', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit'
+        }) : 'غير متوفر',
+        'وقت الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleTimeString('ar-EG', { 
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'غير متوفر',
+        'اسم المستخدم': row.user?.username || 'غير متوفر',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData, {
+        header: ['رقم السجل', 'الإجراء', 'تاريخ الإنشاء', 'وقت الإنشاء', 'اسم المستخدم'],
+      });
+      
+      // تحسين عرض الأعمدة
+      const colWidths = [
+        { wch: 15 }, // رقم السجل
+        { wch: 30 }, // الإجراء
+        { wch: 20 }, // تاريخ الإنشاء
+        { wch: 15 }, // وقت الإنشاء
+        { wch: 20 }, // اسم المستخدم
+      ];
+      worksheet['!cols'] = colWidths;
+      
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل النظام');
+      XLSX.writeFile(workbook, `سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.xlsx`, { compression: true });
     } catch (error) {
       console.error('Error exporting Excel:', error);
       setError('حدث خطأ أثناء تصدير Excel. يرجى المحاولة مرة أخرى.');
