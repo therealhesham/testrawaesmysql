@@ -100,23 +100,54 @@ const router = useRouter();
   // Fetch data for export with current filters
   const fetchFilteredLogs = async () => {
     try {
+      // Use a reasonable limit to avoid memory issues
+      // If data is too large, we'll fetch in batches
+      const maxRecords = 5000; // Reduced from 10000 to avoid memory issues
+      
       const response = await axios.get('/api/systemlogs', {
         params: {
-          pageSize: "10000",
+          pageSize: maxRecords.toString(),
           searchTerm: searchTerm || undefined,
           action: actionFilter || undefined,
         },
+        timeout: 60000, // 60 seconds timeout
       });
-      return response.data.logs || [];
+      
+      const logs = response.data.logs || [];
+      
+      // If we hit the limit and there's more data, warn the user
+      if (logs.length >= maxRecords && response.data.totalCount > maxRecords) {
+        console.warn(`تم تصدير ${maxRecords} سجل من أصل ${response.data.totalCount}. قد تحتاج إلى استخدام الفلاتر لتقليل البيانات.`);
+      }
+      
+      return logs;
     } catch (err) {
       const error = err as AxiosError;
       console.error('Error fetching logs for export:', error.response?.data || error.message);
-      setError('حدث خطأ أثناء تصدير البيانات. يرجى المحاولة مرة أخرى.');
-      return [];
+      
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        setError('انتهت مهلة الاتصال. البيانات كثيرة جداً. يرجى استخدام الفلاتر لتقليل البيانات.');
+      } else if (error.response?.status === 500) {
+        setError('حدث خطأ في الخادم. قد تكون البيانات كثيرة جداً. يرجى المحاولة مع فلاتر أكثر تحديداً.');
+      } else {
+        setError('حدث خطأ أثناء تصدير البيانات. يرجى المحاولة مرة أخرى.');
+      }
+      
+      throw error; // Re-throw to let the calling function handle it
     }
   };
   
 
+
+  // Helper function to convert ArrayBuffer to base64 (works in browser)
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
 
   // Export to PDF
   const exportToPDF = async () => {
@@ -127,6 +158,7 @@ const router = useRouter();
       
       if (!dataToExport || dataToExport.length === 0) {
         setError('لا توجد بيانات للتصدير.');
+        setIsLoading(false);
         return;
       }
 
@@ -136,16 +168,15 @@ const router = useRouter();
 
       // تحميل شعار
       const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      if (!logo.ok) throw new Error('Failed to fetch logo');
       const logoBuffer = await logo.arrayBuffer();
-      const logoBytes = new Uint8Array(logoBuffer);
-      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+      const logoBase64 = arrayBufferToBase64(logoBuffer);
 
       // تحميل خط أميري
       const fontResponse = await fetch('/fonts/Amiri-Regular.ttf');
       if (!fontResponse.ok) throw new Error('Failed to fetch font');
       const fontBuffer = await fontResponse.arrayBuffer();
-      const fontBytes = new Uint8Array(fontBuffer);
-      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+      const fontBase64 = arrayBufferToBase64(fontBuffer);
 
       doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
       doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
@@ -222,9 +253,15 @@ const router = useRouter();
       });
 
       doc.save(`سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.pdf`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting PDF:', error);
-      setError('حدث خطأ أثناء تصدير PDF. يرجى المحاولة مرة أخرى.');
+      if (error.message?.includes('timeout') || error.message?.includes('ECONNABORTED')) {
+        setError('انتهت مهلة الاتصال. البيانات كثيرة جداً. يرجى استخدام الفلاتر لتقليل البيانات.');
+      } else if (error.message?.includes('Failed to fetch')) {
+        setError('فشل تحميل الملفات المطلوبة (الشعار أو الخط). يرجى التحقق من الاتصال بالإنترنت.');
+      } else {
+        setError('حدث خطأ أثناء تصدير PDF. يرجى المحاولة مرة أخرى أو تقليل كمية البيانات باستخدام الفلاتر.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -239,6 +276,7 @@ const router = useRouter();
       
       if (!dataToExport || dataToExport.length === 0) {
         setError('لا توجد بيانات للتصدير.');
+        setIsLoading(false);
         return;
       }
 
@@ -270,9 +308,15 @@ const router = useRouter();
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل النظام');
       XLSX.writeFile(workbook, `سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.xlsx`, { compression: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting Excel:', error);
-      setError('حدث خطأ أثناء تصدير Excel. يرجى المحاولة مرة أخرى.');
+      if (error.message?.includes('timeout') || error.message?.includes('ECONNABORTED')) {
+        setError('انتهت مهلة الاتصال. البيانات كثيرة جداً. يرجى استخدام الفلاتر لتقليل البيانات.');
+      } else if (error.message?.includes('QuotaExceededError') || error.message?.includes('out of memory')) {
+        setError('البيانات كثيرة جداً وتتجاوز سعة الذاكرة. يرجى استخدام الفلاتر لتقليل البيانات.');
+      } else {
+        setError('حدث خطأ أثناء تصدير Excel. يرجى المحاولة مرة أخرى أو تقليل كمية البيانات باستخدام الفلاتر.');
+      }
     } finally {
       setIsLoading(false);
     }
