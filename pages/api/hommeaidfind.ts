@@ -17,15 +17,45 @@ const getUserFromCookies = (req: NextApiRequest) => {
   if (cookies.authToken) {
     try {
       const token = jwtDecode(cookies.authToken) as any;
-      return { userId: token.username || String(token.id) || 'system', username: token.username || 'مستخدم غير محدد' };
+      return { 
+        userId: token.username || String(token.id) || 'system', 
+        username: token.username || 'مستخدم غير محدد',
+        numericUserId: typeof token.id === 'string' ? parseInt(token.id, 10) : token.id
+      };
     } catch (error) {
       console.error('Error decoding token:', error);
-      return { userId: 'system', username: 'غير محدد' };
+      return { userId: 'system', username: 'غير محدد', numericUserId: null };
     }
   }
   
-  return { userId: 'system', username: 'غير محدد' };
+  return { userId: 'system', username: 'غير محدد', numericUserId: null };
 };
+
+// دالة مساعدة لحفظ التعديلات في systemUserLogs
+async function logToSystemLogs(
+  userId: number,
+  actionType: string,
+  action: string,
+  beneficiary: string,
+  beneficiaryId: number,
+  pageRoute: string
+) {
+  try {
+    await prisma.systemUserLogs.create({
+      data: {
+        userId,
+        actionType,
+        action,
+        beneficiary,
+        BeneficiaryId: beneficiaryId,
+        pageRoute,
+      },
+    });
+    console.log('✅ تم حفظ السجل في systemUserLogs:', action);
+  } catch (error) {
+    console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -341,7 +371,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (hasChanged) {
               const oldDisplay = oldValue || 'فارغ';
               const newDisplay = newValue || 'فارغ';
-              changedFields.push(`${mapping.label}: ${oldDisplay} → ${newDisplay}`);
+              changedFields.push(`${mapping.label}: ${oldDisplay}  الى ${newDisplay}`);
             }
           }
         }
@@ -350,6 +380,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // تبسيط التفاصيل - فقط التغييرات + بواسطة
           const details = `${changedFields.join(' | ')} | بواسطة: ${userInfo.username}`;
           
+          // تسجيل في logs (سجل أنشطة العاملة)
           await prisma.logs.create({
             data: {
               Status: 'تحديث البيانات',
@@ -358,6 +389,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               userId: userInfo.userId,
             }
           });
+
+          // تسجيل في systemUserLogs (سجل النظام)
+          if (userInfo.numericUserId) {
+            await logToSystemLogs(
+              userInfo.numericUserId,
+              'تعديل',
+              `تم تعديل بيانات العاملة: ${oldWorker.Name || 'غير محدد'} - التغييرات: ${changedFields.slice(0, 3).join(', ')}${changedFields.length > 3 ? ` و ${changedFields.length - 3} تغييرات أخرى` : ''}`,
+              'عاملة منزلية',
+              parseInt(id as string),
+              '/admin/homemaidinfo'
+            );
+          }
         }
       } catch (logError) {
         console.error('Error creating log:', logError);

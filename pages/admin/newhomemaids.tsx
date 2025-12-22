@@ -245,6 +245,8 @@ const handleHomemaidImageChange = async (
       { id: 'age', label: 'العمر' },
       { id: 'passport', label: 'رقم جواز السفر' },
       { id: 'mobile', label: 'رقم الجوال' },
+      { id: 'weight', label: 'الوزن' },
+      { id: 'height', label: 'الطول' },
       { id: 'passportStart', label: 'بداية الجواز' },
       { id: 'passportEnd', label: 'نهاية الجواز' },
       { id: 'educationLevel', label: 'مستوى التعليم' },
@@ -811,13 +813,13 @@ const handleHomemaidImageChange = async (
                     </div>
 
                     <div className="flex flex-col">
-                      <label htmlFor="weight" className="text-gray-500 text-sm mb-1">الوزن (كجم)</label>
+                      <label htmlFor="weight" className="text-gray-500 text-sm mb-1">الوزن (كجم) <span className="text-red-500">*</span></label>
                       <input type="number" id="weight" value={formData.weight} onChange={handleChange} placeholder="مثال: 60" className={`border ${errors.weight ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
                       {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight}</p>}
                     </div>
 
                     <div className="flex flex-col">
-                      <label htmlFor="height" className="text-gray-500 text-sm mb-1">الطول (سم)</label>
+                      <label htmlFor="height" className="text-gray-500 text-sm mb-1">الطول (سم) <span className="text-red-500">*</span></label>
                       <input type="number" id="height" value={formData.height} onChange={handleChange} placeholder="مثال: 160" className={`border ${errors.height ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 text-sm bg-gray-50 text-right`} />
                       {errors.height && <p className="text-red-500 text-xs mt-1">{errors.height}</p>}
                     </div>

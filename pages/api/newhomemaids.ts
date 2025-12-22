@@ -2,6 +2,56 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
 import { jwtDecode } from 'jwt-decode';
 
+// دالة مساعدة لحفظ التعديلات في systemUserLogs
+async function logToSystemLogs(
+  userId: number,
+  actionType: string,
+  action: string,
+  beneficiary: string,
+  beneficiaryId: number,
+  pageRoute: string
+) {
+  try {
+    await prisma.systemUserLogs.create({
+      data: {
+        userId,
+        actionType,
+        action,
+        beneficiary,
+        BeneficiaryId: beneficiaryId,
+        pageRoute,
+      },
+    });
+    console.log('✅ تم حفظ السجل في systemUserLogs:', action);
+  } catch (error) {
+    console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
+  }
+}
+
+// دالة مساعدة لحفظ التعديلات في سجل أنشطة العاملة (logs)
+async function logToHomemaidLogs(
+  userId: string,
+  homemaidId: number,
+  status: string,
+  details?: string,
+  reason?: string
+) {
+  try {
+    await prisma.logs.create({
+      data: {
+        userId,
+        homemaidId,
+        Status: status,
+        Details: details,
+        reason: reason,
+      },
+    });
+    console.log('✅ تم حفظ السجل في logs (العاملة):', status);
+  } catch (error) {
+    console.error('❌ خطأ في حفظ السجل في logs:', error);
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     try {
@@ -35,6 +85,9 @@ const {
   skills = {},
   Picture,
   FullPicture,
+  weight,
+  height,
+  children,
 } = req.body;
 
   const cookieHeader = req.headers.cookie;
@@ -45,10 +98,16 @@ const {
       cookies[key] = decodeURIComponent(value);
     });
   }
-const token =   jwtDecode(cookies.authToken)
-const findUser  = await prisma.user.findUnique({where:{id:token.id},include:{role:true}})
+const token = jwtDecode<{ id: number | string }>(cookies.authToken);
+const userId = typeof token.id === 'string' ? parseInt(token.id, 10) : (token.id as number);
+if (!userId || isNaN(userId)) {
+  return res.status(401).json({ error: 'رمز مصادقة غير صالح' });
+}
+const findUser = await prisma.user.findUnique({where:{id:userId},include:{role:true}})
 console.log(token);
-if(!findUser?.role?.permissions["إدارة العاملات"]["إضافة"] )return;
+if(!findUser?.role?.permissions || !(findUser.role.permissions as any)?.["إدارة العاملات"]?.["إضافة"]) {
+  return res.status(403).json({ error: 'غير مصرح لك بإضافة العاملات' });
+}
 console.log(req.body)
 
 // جلب أعلى displayOrder من الجدول
@@ -95,10 +154,53 @@ const newHomemaid = await prisma.homemaid.create({
     FullPicture: FullPicture || null,
     PassportStart: passportStart ? new Date(passportStart).toISOString() : null,
     PassportEnd: passportEnd ? new Date(passportEnd).toISOString() : null,
+    weight: weight ? parseInt(weight) : null,
+    height: height ? parseInt(height) : null,
+    children: children ? parseInt(children) : null,
   },
 });
 
-      res.status(200).json(newHomemaid);
+console.log('✅ تم إنشاء العاملة بنجاح:', { id: newHomemaid.id, name: newHomemaid.Name });
+
+// تسجيل العملية في system logs و model logs
+console.log('📝 بدء تسجيل السجلات للعاملة الجديدة...');
+
+try {
+  // تسجيل في system logs
+  console.log('🔄 جاري التسجيل في systemUserLogs...');
+  await prisma.systemUserLogs.create({
+    data: {
+      userId: userId,
+      actionType: 'إضافة',
+      action: `تم إضافة عاملة جديدة: ${name || 'غير محدد'}`,
+      beneficiary: 'عاملة منزلية',
+      BeneficiaryId: newHomemaid.id,
+      pageRoute: '/admin/newhomemaids',
+    },
+  });
+  console.log('✅ تم حفظ السجل في systemUserLogs بنجاح');
+
+  // تسجيل في model logs (logs الخاص بالعاملة)
+  console.log('🔄 جاري التسجيل في logs...');
+  const logUsername = findUser?.username || String(userId);
+  await prisma.logs.create({
+    data: {
+      userId: logUsername,
+      homemaidId: newHomemaid.id,
+      Status: 'إضافة عاملة جديدة',
+      Details: `تم إضافة العاملة ${name || 'غير محدد'} بنجاح. الجنسية: ${nationality || 'غير محدد'}, المكتب: ${officeName || 'غير محدد'}`,
+      reason: 'إضافة عاملة جديدة من خلال صفحة إضافة عاملة',
+    },
+  });
+  console.log('✅ تم حفظ السجل في logs بنجاح');
+
+  console.log('🎉 تم حفظ جميع السجلات بنجاح للعاملة:', newHomemaid.id);
+} catch (logError: any) {
+  // لا نوقف العملية إذا فشل إنشاء الـ log
+  console.error('❌ خطأ في حفظ السجلات:', logError?.message || logError);
+}
+
+res.status(200).json(newHomemaid);
     } catch (error: any) {
       console.error('Error creating homemaid:', error);
       res.status(500).json({ error: 'Error creating homemaid CV' });

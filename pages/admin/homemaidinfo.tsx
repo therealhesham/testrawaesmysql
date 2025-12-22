@@ -901,6 +901,7 @@ function HomeMaidInfo() {
                   <th className="border border-gray-300 p-3 text-right">التاريخ</th>
                   <th className="border border-gray-300 p-3 text-right">الحالة</th>
                   <th className="border border-gray-300 p-3 text-right">التفاصيل</th>
+                                    <th className="border border-gray-300 p-3 text-right">المستخدم</th>
                 </tr>
               </thead>
               <tbody>
@@ -910,6 +911,7 @@ function HomeMaidInfo() {
                       <td className="border border-gray-300 p-3 text-right">{getDate(log.createdAt)}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.Status || "غير متوفر"}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.Details || "غير متوفر"}</td>
+                      <td className="border border-gray-300 p-3 text-right">{log.userId || "غير متوفر"}</td>
                     </tr>
                   ))
                 ) : (
