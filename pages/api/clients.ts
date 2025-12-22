@@ -113,8 +113,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         ...(clientId ? {} : { skip, take: pageSize }), // إذا كان clientId موجود، لا نطبق التصفح
       });
+
+      // بناء pageRoute مع query parameters
+      // نستخدم referer إذا كان موجوداً (يحتوي على query params من المتصفح)
+      // وإلا نبني URL من query parameters
+      let pageRoute = '/admin/clients';
+      
+      if (req.headers.referer) {
+        // استخراج pathname و query string من referer
+        try {
+          const refererUrl = new URL(req.headers.referer);
+          // استخدام pathname + search (query params) + hash إذا كان موجوداً
+          pageRoute = refererUrl.pathname + refererUrl.search + (refererUrl.hash || '');
+        } catch (e) {
+          // إذا فشل parsing، نستخدم referer كما هو
+          pageRoute = req.headers.referer;
+        }
+      } else {
+        // بناء URL من query parameters
+        const queryParams = new URLSearchParams();
+        queryParams.set('page', page.toString());
+        if (fullname) queryParams.set('fullname', fullname as string);
+        if (phonenumber) queryParams.set('phonenumber', phonenumber as string);
+        if (city && city !== 'all') queryParams.set('city', city as string);
+        if (date) queryParams.set('date', date as string);
+        
+        const queryString = queryParams.toString();
+        pageRoute = queryString ? `/admin/clients?${queryString}` : '/admin/clients';
+      }
+
   eventBus.emit('ACTION', {
-           type: "عرض قائمة العملاء صفحة رقم"+ page,
+           type: "عرض قائمة العملاء صفحة رقم "+ page,
+           beneficiary: "client",
+           pageRoute: pageRoute,
+           actionType: "view",
            userId: Number(token.id),
          });  
    

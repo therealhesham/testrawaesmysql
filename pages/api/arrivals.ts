@@ -134,7 +134,7 @@ export default async function handler(
     });
 
 
-const referer = req.headers.referer;
+const referer = req.headers.referer || '/admin/arrivals';
 console.log(referer)
       
     res.status(200).json({

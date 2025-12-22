@@ -218,7 +218,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       (async () => {
         try {
           const cookieHeader = req.headers.cookie;
-          const referer = req.headers.referer;
+          const referer = req.headers.referer || '/admin/currentorders';
           let tokenId = null;
 
           if (cookieHeader) {

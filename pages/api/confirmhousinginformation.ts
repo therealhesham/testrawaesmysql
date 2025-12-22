@@ -1,5 +1,67 @@
 import { jwtDecode } from "jwt-decode";
 import prisma from "./globalprisma";
+import { getPageTitleArabic } from "lib/pageTitleHelper";
+
+// Helper function to get user info from cookies
+const getUserFromCookies = (req: any) => {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie: any) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  
+  if (cookies.authToken) {
+    try {
+      const token = jwtDecode(cookies.authToken) as any;
+      return { userId: Number(token.id), username: token.username || 'غير محدد' };
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return { userId: null, username: 'غير محدد' };
+    }
+  }
+  
+  return { userId: null, username: 'غير محدد' };
+};
+
+// دالة مساعدة لحفظ التعديلات في systemUserLogs
+async function logToSystemLogs(
+  userId: number,
+  actionType: string,
+  action: string,
+  beneficiary: string,
+  beneficiaryId: number,
+  pageRoute: string
+) {
+  try {
+    // الحصول على عنوان الصفحة بالعربي
+    const pageTitle = getPageTitleArabic(pageRoute);
+    
+    // إضافة عنوان الصفحة إلى action إذا كان موجوداً
+    let actionText = action || '';
+    if (pageTitle && actionText) {
+      actionText = `${pageTitle} - ${actionText}`;
+    } else if (pageTitle) {
+      actionText = pageTitle;
+    }
+    
+    await prisma.systemUserLogs.create({
+      data: {
+        userId,
+        actionType,
+        action: actionText,
+        beneficiary,
+        BeneficiaryId: beneficiaryId,
+        pageRoute,
+      },
+    });
+    console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
+  } catch (error) {
+    console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
+  }
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method === "POST") {
@@ -155,6 +217,24 @@ if (req.body.location) {
         },
       });
 
+      // تسجيل العملية في systemlogs
+      const userInfo = getUserFromCookies(req);
+      if (userInfo.userId) {
+        const locationName = req.body.location ? await prisma.inHouseLocation.findUnique({
+          where: { id: Number(req.body.location) },
+          select: { location: true }
+        }).then(loc => loc?.location || 'غير محدد') : 'غير محدد';
+        
+        await logToSystemLogs(
+          userInfo.userId,
+          'create',
+          `تسكين عاملة #${homeMaidId} - ${homeMaidData?.Name || 'غير محدد'} في سكن: ${locationName}`,
+          homeMaidData?.Name || 'غير محدد',
+          homeMaidId,
+          '/admin/housedarrivals'
+        );
+      }
+
       return res.status(200).json({ message: "Housing created successfully" });
     } catch (error) {
       console.error(error);
@@ -226,6 +306,29 @@ if (req.body.location) {
         },
       });
 
+      // تسجيل العملية في systemlogs
+      const userInfo = getUserFromCookies(req);
+      if (userInfo.userId) {
+        const homeMaidData = await prisma.homemaid.findUnique({
+          where: { id: homeMaidId },
+          select: { Name: true }
+        });
+        
+        const locationName = location_id ? await prisma.inHouseLocation.findUnique({
+          where: { id: Number(location_id) },
+          select: { location: true }
+        }).then(loc => loc?.location || 'غير محدد') : 'غير محدد';
+        
+        await logToSystemLogs(
+          userInfo.userId,
+          'update',
+          `تعديل بيانات تسكين عاملة #${homeMaidId} - ${homeMaidData?.Name || 'غير محدد'} في سكن: ${locationName}`,
+          homeMaidData?.Name || 'غير محدد',
+          homeMaidId,
+          '/admin/housedarrivals'
+        );
+      }
+
       return res.status(200).json({ message: "Housing updated successfully", updated });
     } catch (error) {
       console.error(error);
@@ -247,6 +350,19 @@ if (req.body.location) {
       where: { id: token.id },
       include: { role: true },
     });
+
+    // تسجيل عملية العرض في systemlogs
+    const userInfo = getUserFromCookies(req);
+    if (userInfo.userId) {
+      await logToSystemLogs(
+        userInfo.userId,
+        'view',
+        'عرض قائمة العاملات المسكنات',
+        '',
+        0,
+        '/admin/housedarrivals'
+      );
+    }
 
     const {
       Name,

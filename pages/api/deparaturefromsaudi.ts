@@ -166,7 +166,7 @@ console.log(homemaids);
       cookies[key] = decodeURIComponent(value);
     });
   }
-  const referer = req.headers.referer
+  const referer = req.headers.referer || '/admin/deparaturefromsaudi'
   const token = jwtDecode(cookies.authToken);
   eventBus.emit('ACTION', {
     type: "اضافة عاملة للمغادرة الخارجية",

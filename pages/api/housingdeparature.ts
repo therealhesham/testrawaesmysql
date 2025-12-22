@@ -1,12 +1,89 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
+import { jwtDecode } from "jwt-decode";
+import { getPageTitleArabic } from "lib/pageTitleHelper";
+
 const prisma = new PrismaClient();
+
+// Helper function to get user info from cookies
+const getUserFromCookies = (req: NextApiRequest) => {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  
+  if (cookies.authToken) {
+    try {
+      const token = jwtDecode(cookies.authToken) as any;
+      return { userId: Number(token.id), username: token.username || 'غير محدد' };
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return { userId: null, username: 'غير محدد' };
+    }
+  }
+  
+  return { userId: null, username: 'غير محدد' };
+};
+
+// دالة مساعدة لحفظ التعديلات في systemUserLogs
+async function logToSystemLogs(
+  userId: number,
+  actionType: string,
+  action: string,
+  beneficiary: string,
+  beneficiaryId: number,
+  pageRoute: string
+) {
+  try {
+    // الحصول على عنوان الصفحة بالعربي
+    const pageTitle = getPageTitleArabic(pageRoute);
+    
+    // إضافة عنوان الصفحة إلى action إذا كان موجوداً
+    let actionText = action || '';
+    if (pageTitle && actionText) {
+      actionText = `${pageTitle} - ${actionText}`;
+    } else if (pageTitle) {
+      actionText = pageTitle;
+    }
+    
+    await prisma.systemUserLogs.create({
+      data: {
+        userId,
+        actionType,
+        action: actionText,
+        beneficiary,
+        BeneficiaryId: beneficiaryId,
+        pageRoute,
+      },
+    });
+    console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
+  } catch (error) {
+    console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   if (req.method === "GET") {
+    // تسجيل عملية العرض في systemlogs
+    const userInfo = getUserFromCookies(req);
+    if (userInfo.userId) {
+      await logToSystemLogs(
+        userInfo.userId,
+        'view',
+        'عرض قائمة العاملات المغادرات',
+        '',
+        0,
+        '/admin/housedarrivals'
+      );
+    }
+
     try {
       const { page = 1, sortKey, sortDirection, contractType } = req.query;
       const pageSize = 10;
@@ -79,6 +156,16 @@ export default async function handler(
   } else if (req.method === "PUT") {
     console.log(req.body)
     try {
+      // Get worker data before update
+      const workerBeforeUpdate = await prisma.housedworker.findUnique({
+        where: { id: Number(req.body.homeMaid) },
+        include: {
+          Order: {
+            select: { Name: true }
+          }
+        }
+      });
+
       // Fetch data 
         await prisma.housedworker.update({
           where: {id: Number(req.body.homeMaid) },
@@ -94,6 +181,19 @@ export default async function handler(
             },
           },
         });
+
+        // تسجيل العملية في systemlogs
+        const userInfo = getUserFromCookies(req);
+        if (userInfo.userId && workerBeforeUpdate) {
+          await logToSystemLogs(
+            userInfo.userId,
+            'update',
+            `تسجيل مغادرة عاملة #${workerBeforeUpdate.homeMaid_id} - ${workerBeforeUpdate.Order?.Name || 'غير محدد'} - السبب: ${req.body.deparatureReason || 'غير محدد'}`,
+            workerBeforeUpdate.Order?.Name || 'غير محدد',
+            workerBeforeUpdate.homeMaid_id,
+            '/admin/housedarrivals'
+          );
+        }
 
         res.status(201).json("sss");
       

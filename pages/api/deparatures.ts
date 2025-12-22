@@ -153,7 +153,7 @@ if (deparatureDate) {
       cookies[key] = decodeURIComponent(value);
     });
   }
-  const referer = req.headers.referer
+  const referer = req.headers.referer || '/admin/deparatures'
   const token = jwtDecode(cookies.authToken);
   eventBus.emit('ACTION', {
     type: "عرض قائمة المغادرات ",

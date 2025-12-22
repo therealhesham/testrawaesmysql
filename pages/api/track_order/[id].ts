@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { jwtDecode } from 'jwt-decode';
 import eventBus from 'lib/eventBus';
 import prisma from 'lib/prisma';
+import { getPageTitleArabic } from '../../../lib/pageTitleHelper';
 
 // دالة مساعدة لحفظ التعديلات في systemUserLogs
 async function logToSystemLogs(
@@ -17,17 +18,28 @@ async function logToSystemLogs(
   pageRoute: string
 ) {
   try {
+    // الحصول على عنوان الصفحة بالعربي
+    const pageTitle = getPageTitleArabic(pageRoute);
+    
+    // إضافة عنوان الصفحة إلى action إذا كان موجوداً
+    let actionText = action || '';
+    if (pageTitle && actionText) {
+      actionText = `${pageTitle} - ${actionText}`;
+    } else if (pageTitle) {
+      actionText = pageTitle;
+    }
+    
     await prisma.systemUserLogs.create({
       data: {
         userId,
         actionType,
-        action,
+        action: actionText,
         beneficiary,
         BeneficiaryId: beneficiaryId,
         pageRoute,
       },
     });
-    console.log('✅ تم حفظ السجل في systemUserLogs:', action);
+    console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
   } catch (error) {
     console.error('❌ خطأ في حفظ السجل:', error);
   }
@@ -233,7 +245,7 @@ const cookieHeader = req.headers.cookie;
     eventBus.emit('ACTION', {
          type: "عرض صفحة تتبع طلب " + order.id,
     beneficiary: "order",
-    pageRoute: req.headers.referer,
+    pageRoute: req.headers.referer || '/admin/track_order',
     actionType: "view",
     userId: Number((token as any).id),
     BeneficiaryId: Number(id),

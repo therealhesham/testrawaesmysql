@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { jwtDecode } from 'jwt-decode';
+import { getPageTitleArabic } from '../../lib/pageTitleHelper';
 
 // Helper function to get user info from cookies
 const getUserFromCookies = (req: NextApiRequest) => {
@@ -41,17 +42,28 @@ async function logToSystemLogs(
   pageRoute: string
 ) {
   try {
+    // الحصول على عنوان الصفحة بالعربي
+    const pageTitle = getPageTitleArabic(pageRoute);
+    
+    // إضافة عنوان الصفحة إلى action إذا كان موجوداً
+    let actionText = action || '';
+    if (pageTitle && actionText) {
+      actionText = `${pageTitle} - ${actionText}`;
+    } else if (pageTitle) {
+      actionText = pageTitle;
+    }
+    
     await prisma.systemUserLogs.create({
       data: {
         userId,
         actionType,
-        action,
+        action: actionText,
         beneficiary,
         BeneficiaryId: beneficiaryId,
         pageRoute,
       },
     });
-    console.log('✅ تم حفظ السجل في systemUserLogs:', action);
+    console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
   } catch (error) {
     console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
   }

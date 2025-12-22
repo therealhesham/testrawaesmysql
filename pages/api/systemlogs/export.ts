@@ -7,32 +7,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { searchTerm, action, batchSize = '1000', cursor } = req.query;
+    const { searchTerm, action, batchSize = '1000', cursor, userId, dateFrom, dateTo } = req.query;
     
     // Build where clause
-    let where: any = {};
+    const filters: any[] = [];
 
-    if (searchTerm || action) {
-      const filters: any[] = [];
-
-      // Add search term filters
-      if (searchTerm) {
-        filters.push({
-          OR: [
-            { action: { contains: searchTerm as string, mode: 'insensitive' } },
-            { user: { username: { contains: searchTerm as string, mode: 'insensitive' } } },
-          ],
-        });
-      }
-
-      // Add action type filter
-      if (action) {
-        filters.push({ actionType: action as string });
-      }
-
-      // Combine filters with AND
-      where = filters.length === 1 ? filters[0] : { AND: filters };
+    // Add user filter
+    if (userId) {
+      filters.push({
+        user: {
+          id: parseInt(userId as string) || undefined,
+        },
+      });
     }
+
+    // Add search term filters (only if userId is not specified, to avoid conflicts)
+    if (searchTerm && !userId) {
+      filters.push({
+        OR: [
+          { action: { contains: searchTerm as string, mode: 'insensitive' } },
+          { user: { username: { contains: searchTerm as string, mode: 'insensitive' } } },
+        ],
+      });
+    } else if (searchTerm && userId) {
+      // If userId is specified, only search in action
+      filters.push({
+        action: { contains: searchTerm as string, mode: 'insensitive' },
+      });
+    }
+
+    // Add action type filter
+    if (action) {
+      filters.push({ actionType: action as string });
+    }
+
+    // Add date range filters
+    if (dateFrom || dateTo) {
+      const dateFilter: any = {};
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom as string);
+        fromDate.setHours(0, 0, 0, 0);
+        dateFilter.gte = fromDate;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo as string);
+        toDate.setHours(23, 59, 59, 999);
+        dateFilter.lte = toDate;
+      }
+      filters.push({ createdAt: dateFilter });
+    }
+
+    // Combine filters with AND
+    const where = filters.length === 0 ? {} : filters.length === 1 ? filters[0] : { AND: filters };
 
     // Add cursor for pagination
     if (cursor) {

@@ -1,8 +1,70 @@
 import { PrismaClient } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
+import { getPageTitleArabic } from 'lib/pageTitleHelper';
 
 const prisma = new PrismaClient();
+
+// Helper function to get user info from cookies
+const getUserFromCookies = (req: any) => {
+  const cookieHeader = req.headers.cookie;
+  let cookies: { [key: string]: string } = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie: any) => {
+      const [key, value] = cookie.trim().split("=");
+      cookies[key] = decodeURIComponent(value);
+    });
+  }
+  
+  if (cookies.authToken) {
+    try {
+      const token = jwtDecode(cookies.authToken) as any;
+      return { userId: Number(token.id), username: token.username || 'غير محدد' };
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return { userId: null, username: 'غير محدد' };
+    }
+  }
+  
+  return { userId: null, username: 'غير محدد' };
+};
+
+// دالة مساعدة لحفظ التعديلات في systemUserLogs
+async function logToSystemLogs(
+  userId: number,
+  actionType: string,
+  action: string,
+  beneficiary: string,
+  beneficiaryId: number,
+  pageRoute: string
+) {
+  try {
+    // الحصول على عنوان الصفحة بالعربي
+    const pageTitle = getPageTitleArabic(pageRoute);
+    
+    // إضافة عنوان الصفحة إلى action إذا كان موجوداً
+    let actionText = action || '';
+    if (pageTitle && actionText) {
+      actionText = `${pageTitle} - ${actionText}`;
+    } else if (pageTitle) {
+      actionText = pageTitle;
+    }
+    
+    await prisma.systemUserLogs.create({
+      data: {
+        userId,
+        actionType,
+        action: actionText,
+        beneficiary,
+        BeneficiaryId: beneficiaryId,
+        pageRoute,
+      },
+    });
+    console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
+  } catch (error) {
+    console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
+  }
+}
 
 export default async function handler(req, res) {
   const { id } = req.query;
@@ -66,6 +128,19 @@ export default async function handler(req, res) {
           }
         }
       });
+
+      // تسجيل العملية في systemlogs
+      const userInfo = getUserFromCookies(req);
+      if (userInfo.userId) {
+        await logToSystemLogs(
+          userInfo.userId,
+          'update',
+          `تعديل سكن #${updatedLocation.id}: ${updatedLocation.location} - السعة: ${updatedLocation.quantity}`,
+          updatedLocation.location,
+          updatedLocation.id,
+          '/admin/housedarrivals'
+        );
+      }
 
       res.status(200).json({
         id: updatedLocation.id,
@@ -136,13 +211,16 @@ export default async function handler(req, res) {
         where: { id: Number(id) }
       });
 
-      // تسجيل الحدث
+      // تسجيل الحدث في systemlogs
       if (userId) {
-        eventBus.emit('ACTION', {
-          type: `حذف موقع سكني #${id} - ${existingLocation.location || 'غير محدد'}`,
-          actionType: 'delete',
-          userId: userId,
-        });
+        await logToSystemLogs(
+          userId,
+          'delete',
+          `حذف سكن #${id}: ${existingLocation.location || 'غير محدد'}`,
+          existingLocation.location || 'غير محدد',
+          Number(id),
+          '/admin/housedarrivals'
+        );
       }
 
       res.status(200).json({ message: 'تم حذف السكن بنجاح' });

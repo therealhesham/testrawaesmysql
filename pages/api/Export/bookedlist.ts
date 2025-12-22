@@ -46,7 +46,7 @@ try {
       cookies[key] = decodeURIComponent(value);
     });
   }
-  const referer = req.headers.referer
+  const referer = req.headers.referer || '/admin/fulllist'
   const token = jwtDecode(cookies.authToken) as any;
   eventBus.emit('ACTION', {
     type: "تصدير قائمة الطلبات المحجوزة",

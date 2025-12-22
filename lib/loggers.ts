@@ -1,16 +1,28 @@
 import eventBus from './eventBus';
 import prisma from './prisma';
+import { getPageTitleArabic } from './pageTitleHelper';
 
 if (!(eventBus as any).__loggersInitialized) {
   eventBus.on('ACTION', async (data: any) => {
     try {
+      // الحصول على عنوان الصفحة بالعربي
+      const pageTitle = getPageTitleArabic(data.pageRoute);
+      
+      // إضافة عنوان الصفحة إلى action إذا كان موجوداً
+      let actionText = data.type || '';
+      if (pageTitle && actionText) {
+        actionText = `${pageTitle} - ${actionText}`;
+      } else if (pageTitle) {
+        actionText = pageTitle;
+      }
+      
       await prisma.systemUserLogs.create({
         data: {
           beneficiary: data.beneficiary,
           pageRoute: data.pageRoute,
           BeneficiaryId: data.BeneficiaryId,
           actionType: data.actionType,
-          action: data.type,
+          action: actionText,
           userId: data.userId,
         },
       });

@@ -171,7 +171,7 @@ try {
   await prisma.systemUserLogs.create({
     data: {
       userId: userId,
-      actionType: 'إضافة',
+      actionType: 'create',
       action: `تم إضافة عاملة جديدة: ${name || 'غير محدد'}`,
       beneficiary: 'عاملة منزلية',
       BeneficiaryId: newHomemaid.id,

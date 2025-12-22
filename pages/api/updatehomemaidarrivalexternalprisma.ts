@@ -186,7 +186,7 @@ try {
       cookies[key] = decodeURIComponent(value);
     });
   }
-  const referer = req.headers.referer
+  const referer = req.headers.referer || '/admin/arrivals'
   const token = jwtDecode(cookies.authToken);
   eventBus.emit('ACTION', {
     type: "تحديث بيانات المغادرة الخارجية للطلب رقم " + createarrivallist.Order?.id,
