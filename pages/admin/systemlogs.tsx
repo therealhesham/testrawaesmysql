@@ -32,6 +32,13 @@ interface SystemLog {
   user?: LogUser;
 }
 
+interface ExportResponse {
+  logs: SystemLog[];
+  cursor: string | number | null;
+  hasMore: boolean;
+  batchSize: number;
+}
+
 export default function SystemLogs() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,43 +104,44 @@ const router = useRouter();
     return `${day}/${month}/${year}`;
   };
 
-  // Fetch data for export with current filters
-  const fetchFilteredLogs = async () => {
-    try {
-      // Use a reasonable limit to avoid memory issues
-      // If data is too large, we'll fetch in batches
-      const maxRecords = 5000; // Reduced from 10000 to avoid memory issues
-      
-      const response = await axios.get('/api/systemlogs', {
-        params: {
-          pageSize: maxRecords.toString(),
-          searchTerm: searchTerm || undefined,
-          action: actionFilter || undefined,
-        },
-        timeout: 60000, // 60 seconds timeout
-      });
-      
-      const logs = response.data.logs || [];
-      
-      // If we hit the limit and there's more data, warn the user
-      if (logs.length >= maxRecords && response.data.totalCount > maxRecords) {
-        console.warn(`تم تصدير ${maxRecords} سجل من أصل ${response.data.totalCount}. قد تحتاج إلى استخدام الفلاتر لتقليل البيانات.`);
+  // Fetch data in batches using streaming (memory efficient)
+  const fetchLogsInBatches = async function* (batchSize: number = 1000) {
+    let cursor: string | number | null = null;
+    let hasMore = true;
+    let totalFetched = 0;
+
+    while (hasMore) {
+      try {
+        const response: { data: ExportResponse } = await axios.get<ExportResponse>('/api/systemlogs/export', {
+          params: {
+            batchSize: batchSize.toString(),
+            searchTerm: searchTerm || undefined,
+            action: actionFilter || undefined,
+            cursor: cursor || undefined,
+          },
+          timeout: 60000, // 60 seconds timeout
+        });
+
+        const logs = response.data.logs || [];
+        cursor = response.data.cursor;
+        hasMore = response.data.hasMore;
+        totalFetched += logs.length;
+
+        if (logs.length > 0) {
+          yield logs;
+        }
+
+        // Update progress (optional - can be used for progress bar)
+        console.log(`تم جلب ${totalFetched} سجل...`);
+
+        if (!hasMore) {
+          break;
+        }
+      } catch (err) {
+        const error = err as AxiosError;
+        console.error('Error fetching logs batch:', error.response?.data || error.message);
+        throw error;
       }
-      
-      return logs;
-    } catch (err) {
-      const error = err as AxiosError;
-      console.error('Error fetching logs for export:', error.response?.data || error.message);
-      
-      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        setError('انتهت مهلة الاتصال. البيانات كثيرة جداً. يرجى استخدام الفلاتر لتقليل البيانات.');
-      } else if (error.response?.status === 500) {
-        setError('حدث خطأ في الخادم. قد تكون البيانات كثيرة جداً. يرجى المحاولة مع فلاتر أكثر تحديداً.');
-      } else {
-        setError('حدث خطأ أثناء تصدير البيانات. يرجى المحاولة مرة أخرى.');
-      }
-      
-      throw error; // Re-throw to let the calling function handle it
     }
   };
   
@@ -149,18 +157,33 @@ const router = useRouter();
     return btoa(binary);
   };
 
-  // Export to PDF
+  // Helper function to split text into lines (25 characters per line)
+  const splitTextIntoLines = (text: string, charsPerLine: number = 50): string => {
+    if (!text || text.length <= charsPerLine) return text;
+    
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (let i = 0; i < text.length; i++) {
+      currentLine += text[i];
+      if (currentLine.length >= charsPerLine) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+    }
+    
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+    }
+    
+    return lines.join('\n');
+  };
+
+  // Export to PDF with streaming (memory efficient)
   const exportToPDF = async () => {
     try {
       setIsLoading(true);
       setError('');
-      const dataToExport = await fetchFilteredLogs();
-      
-      if (!dataToExport || dataToExport.length === 0) {
-        setError('لا توجد بيانات للتصدير.');
-        setIsLoading(false);
-        return;
-      }
 
       const doc = new jsPDF({ orientation: 'landscape' });
       const pageWidth = doc.internal.pageSize.width;
@@ -186,71 +209,101 @@ const router = useRouter();
       doc.setFontSize(12);
 
       const headers = [['اسم المستخدم', 'وقت الإنشاء', 'تاريخ الإنشاء', 'الإجراء', 'رقم السجل']];
-      const body = dataToExport.map((row: SystemLog) => [
-        row.user?.username || 'غير متوفر',
-        row.createdAt ? new Date(row.createdAt).toLocaleTimeString('en-US', { 
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }) : 'غير متوفر',
-        formatDate(row.createdAt),
-        row.action || 'غير متوفر',
-        row.id || 'غير متوفر',
-      ]);
+      let isFirstPage = true;
+      let totalRows = 0;
 
-      doc.autoTable({
-        head: headers,
-        body: body,
-        styles: {
-          font: 'Amiri',
-          halign: 'right',
-          fontSize: 10,
-          cellPadding: 2,
-          textColor: [0, 0, 0],
-        },
-        headStyles: {
-          fillColor: [0, 105, 92],
-          textColor: [255, 255, 255],
-          halign: 'center',
-        },
-        margin: { top: 42, right: 10, left: 10 },
-        didDrawPage: () => {
-          const pageHeight = doc.internal.pageSize.height;
-          const pageWidth = doc.internal.pageSize.width;
-
-          // إضافة اللوجو
-          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
-
-          // العنوان
-          if (doc.getCurrentPageInfo().pageNumber === 1) {
-            doc.setFontSize(12);
-            doc.setFont('Amiri', 'normal');
-            doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
-          }
-
-          // الفوتر
-          doc.setFontSize(10);
-          doc.setFont('Amiri', 'normal');
-          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
-
-          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
-          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-          const dateText = `التاريخ: ${new Date().toLocaleDateString('ar-EG', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          })} الساعة: ${new Date().toLocaleTimeString('en-US', {
+      // Process data in batches using streaming
+      for await (const batch of fetchLogsInBatches(1000)) {
+        const body = batch.map((row: SystemLog) => [
+          row.user?.username || 'غير متوفر',
+          row.createdAt ? new Date(row.createdAt).toLocaleTimeString('en-US', { 
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false,
-          })}`;
-          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
-        },
-        didParseCell: (hookData: any) => {
-          hookData.cell.styles.halign = 'right';
-        },
-      });
+            hour12: false
+          }) : 'غير متوفر',
+          formatDate(row.createdAt),
+          splitTextIntoLines(row.action || 'غير متوفر', 50),
+          row.id || 'غير متوفر',
+        ]);
+
+        doc.autoTable({
+          head: isFirstPage ? headers : undefined, // Only show headers on first page
+          body: body,
+          startY: isFirstPage ? 42 : undefined, // Start position only for first page
+          styles: {
+            font: 'Amiri',
+            halign: 'right',
+            fontSize: 10,
+            cellPadding: 2,
+            textColor: [0, 0, 0],
+          },
+          headStyles: {
+            fillColor: [0, 105, 92],
+            textColor: [255, 255, 255],
+            halign: 'center',
+            cellPadding: 3,
+          },
+          columnStyles: {
+            3: { // عمود الإجراء
+              cellWidth: 'auto',
+              overflow: 'linebreak',
+            },
+          },
+          margin: { top: isFirstPage ? 42 : 10, right: 10, left: 10 },
+          didDrawPage: () => {
+            const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
+
+            // إضافة اللوجو
+            doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+            // العنوان
+            if (doc.getCurrentPageInfo().pageNumber === 1) {
+              doc.setFontSize(12);
+              doc.setFont('Amiri', 'normal');
+              doc.text('سجل النظام', pageWidth / 2, 20, { align: 'right' });
+            }
+
+            // الفوتر
+            doc.setFontSize(10);
+            doc.setFont('Amiri', 'normal');
+            doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+            const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+            doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+            const dateText = `التاريخ: ${new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })} الساعة: ${new Date().toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })}`;
+            doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+          },
+          didParseCell: (hookData: any) => {
+            hookData.cell.styles.halign = 'right';
+            // منع التفاف النص في العناوين
+            if (hookData.section === 'head') {
+              hookData.cell.styles.cellWidth = 'auto';
+            }
+          },
+        });
+
+        totalRows += batch.length;
+        isFirstPage = false;
+
+        // Allow browser to process other tasks (prevents UI freezing)
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      if (totalRows === 0) {
+        setError('لا توجد بيانات للتصدير.');
+        setIsLoading(false);
+        return;
+      }
 
       doc.save(`سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.pdf`);
     } catch (error: any) {
@@ -267,34 +320,17 @@ const router = useRouter();
     }
   };
 
-  // Export to Excel
+  // Export to Excel with streaming (memory efficient)
   const exportToExcel = async () => {
     try {
       setIsLoading(true);
       setError('');
-      const dataToExport = await fetchFilteredLogs();
-      
-      if (!dataToExport || dataToExport.length === 0) {
-        setError('لا توجد بيانات للتصدير.');
-        setIsLoading(false);
-        return;
-      }
 
-      const worksheetData = dataToExport.map((row: SystemLog) => ({
-        'رقم السجل': row.id || 'غير متوفر',
-        'الإجراء': row.action || 'غير متوفر',
-        'تاريخ الإنشاء': formatDate(row.createdAt),
-        'وقت الإنشاء': row.createdAt ? new Date(row.createdAt).toLocaleTimeString('ar-EG', { 
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : 'غير متوفر',
-        'اسم المستخدم': row.user?.username || 'غير متوفر',
-      }));
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.aoa_to_sheet([
+        ['رقم السجل', 'الإجراء', 'تاريخ الإنشاء', 'وقت الإنشاء', 'اسم المستخدم']
+      ]);
 
-      const worksheet = XLSX.utils.json_to_sheet(worksheetData, {
-        header: ['رقم السجل', 'الإجراء', 'تاريخ الإنشاء', 'وقت الإنشاء', 'اسم المستخدم'],
-      });
-      
       // تحسين عرض الأعمدة
       const colWidths = [
         { wch: 15 }, // رقم السجل
@@ -304,8 +340,38 @@ const router = useRouter();
         { wch: 20 }, // اسم المستخدم
       ];
       worksheet['!cols'] = colWidths;
-      
-      const workbook = XLSX.utils.book_new();
+
+      let totalRows = 0;
+      let currentRow = 1; // Start from row 1 (0 is header)
+
+      // Process data in batches using streaming
+      for await (const batch of fetchLogsInBatches(1000)) {
+        const batchData: any[][] = batch.map((row: SystemLog) => [
+          row.id || 'غير متوفر',
+          row.action || 'غير متوفر',
+          formatDate(row.createdAt),
+          row.createdAt ? new Date(row.createdAt).toLocaleTimeString('ar-EG', { 
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : 'غير متوفر',
+          row.user?.username || 'غير متوفر',
+        ]);
+
+        // Add batch data to worksheet (origin is 1-based, row 0 is header)
+        XLSX.utils.sheet_add_aoa(worksheet, batchData, { origin: `A${currentRow + 1}` });
+        currentRow += batch.length;
+        totalRows += batch.length;
+
+        // Allow browser to process other tasks (prevents UI freezing)
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      if (totalRows === 0) {
+        setError('لا توجد بيانات للتصدير.');
+        setIsLoading(false);
+        return;
+      }
+
       XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل النظام');
       XLSX.writeFile(workbook, `سجل_النظام_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.xlsx`, { compression: true });
     } catch (error: any) {
