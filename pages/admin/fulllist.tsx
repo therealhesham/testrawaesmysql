@@ -160,6 +160,8 @@ export default function Table({ hasDeletePermission }: Props) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [homemaidToDelete, setHomemaidToDelete] = useState<number | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [showDisplayOrderTooltip, setShowDisplayOrderTooltip] = useState(false);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sort data function
   const sortData = (dataToSort: any[], sortField: string, order: "asc" | "desc") => {
@@ -907,6 +909,30 @@ useEffect(() => {
     }
   };
 
+  // Handle hover for display order tooltip
+  const handleDisplayOrderHoverEnter = () => {
+    hoverTimerRef.current = setTimeout(() => {
+      setShowDisplayOrderTooltip(true);
+    }, 2000); 
+  };
+
+  const handleDisplayOrderHoverLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setShowDisplayOrderTooltip(false);
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, []);
+
   const openDeleteModal = (homemaidId: number) => {
     setHomemaidToDelete(homemaidId);
     setIsDeleteModalOpen(true);
@@ -1181,7 +1207,7 @@ const exportToPDF = async () => {
           </div>
         )}
         <div className="space-y-4">
-          <div className="overflow-x-auto   ">
+          <div className="overflow-x-auto overflow-y-visible">
             <div className="flex items-center justify-between p-4">
               <h1
                 className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
@@ -1256,7 +1282,7 @@ const exportToPDF = async () => {
               onDragEnd={handleDragEnd}
             > */}
               <table className="min-w-full text-md text-left min-h-96">
-                <thead className="bg-teal-800">
+                <thead className="bg-teal-800 overflow-visible">
                   <tr className="text-white">
                     {/* <th className="px-4 py-2 text-center whitespace-nowrap">الترتيب</th> */}
                     {visibleColumns.includes('id') && (
@@ -1341,10 +1367,25 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('displayOrder') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap relative overflow-visible"
                         onClick={() => handleSort('displayOrder')}
+                        onMouseEnter={handleDisplayOrderHoverEnter}
+                        onMouseLeave={handleDisplayOrderHoverLeave}
                       >
                         ترتيب العرض <SortIcon field="displayOrder" />
+                        {showDisplayOrderTooltip && (
+                          <div className="absolute   top-full left-1/2 transform -translate-x-1/2 mt-2 w-72 bg-gray-900 text-white text-sm rounded-lg p-4 shadow-xl pointer-events-none z-50" >
+                            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full">
+                              <div className="border-4 border-transparent border-b-gray-900"></div>
+                            </div>
+                            <p className="text-right leading-relaxed mb-2">
+                              <strong className="text-teal-300">ترتيب العرض:</strong>
+                            </p>
+                            <p className="text-right leading-relaxed text-gray-100">
+                              يحدد الترتيب الذي تظهر به العاملة في القائمة. يمكنك تعديل الرقم مباشرة في الحقل. كلما كان الرقم أصغر، كلما ظهرت العاملة في أعلى القائمة.
+                            </p>
+                          </div>
+                        )}
                       </th>
                     )}
                     {hasDeletePermission && (
