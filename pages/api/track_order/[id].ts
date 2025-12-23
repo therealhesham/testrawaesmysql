@@ -37,7 +37,8 @@ async function logToSystemLogs(
         beneficiary,
         BeneficiaryId: beneficiaryId,
         pageRoute,
-      },
+        details: pageTitle || null, // اسم الصفحة من العنوان
+      } as any, // cast لحين إعادة توليد أنواع Prisma بعد إضافة الحقل
     });
     console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
   } catch (error) {
@@ -107,6 +108,7 @@ console.log(id)
               approvalPayment: true,
               EmbassySealing: true,
               visaNumber: true,
+              visaIssuanceDate: true,
               DeliveryDate: true,
               ticketFile: true,
               foreignLaborApproval: true,
@@ -193,7 +195,7 @@ console.log(id)
           approved: !!order.arrivals[0]?.EmbassySealing,
         },
         visaIssuance: {
-          issued: !!order.arrivals[0]?.visaNumber,
+          issued: !!order.arrivals[0]?.visaIssuanceDate,
         },
         travelPermit: {
           issued: !!order.arrivals[0]?.travelPermit,

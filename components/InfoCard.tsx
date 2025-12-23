@@ -15,9 +15,10 @@ interface InfoCardProps {
   onSave?: (updatedData: Record<string, string>) => void;
   clientID?: number;
   disabled?: boolean;
+  bottomMessage?: JSX.Element | string;
 }
 
-export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false }: InfoCardProps) {
+export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false, bottomMessage }: InfoCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>(
     data.reduce((acc, item) => {
@@ -160,6 +161,15 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   return (
     <section id={id} className="bg-gray-100  rounded-md p-6 mb-6">
       <h3 className="text-2xl font-normal text-center mb-6">{title}</h3>
+      {bottomMessage && (
+        <div className="flex justify-center items-center mb-4">
+          {typeof bottomMessage === 'string' ? (
+            <span className="text-red-600 text-sm">{bottomMessage}</span>
+          ) : (
+            bottomMessage
+          )}
+        </div>
+      )}
       {errors.global && <div className="text-red-600 text-sm mb-4 text-right">{errors.global}</div>}
       <div className={`grid grid-cols-${gridCols} gap-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
         {data.map((item, index) => (

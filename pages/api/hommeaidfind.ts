@@ -61,7 +61,8 @@ async function logToSystemLogs(
         beneficiary,
         BeneficiaryId: beneficiaryId,
         pageRoute,
-      },
+        details: pageTitle || null, // اسم الصفحة للعرض في التفاصيل
+      } as any,
     });
     console.log('✅ تم حفظ السجل في systemUserLogs:', actionText);
   } catch (error) {

@@ -259,6 +259,7 @@ const handleHomemaidImageChange = async (
       { id: 'sewingLevel', label: 'الخياطة' },
       { id: 'childcareLevel', label: 'العناية بالأطفال' },
       { id: 'elderlycareLevel', label: 'رعاية كبار السن' },
+      { id: 'BabySitterLevel', label: 'العناية بالرضع' },
     ];
 
     requiredFields.forEach((field) => {
@@ -989,7 +990,7 @@ const handleHomemaidImageChange = async (
                       { id: 'sewingLevel', label: 'الخياطة', required: true },
                       { id: 'elderlycareLevel', label: 'رعاية كبار السن', required: true },
                       { id: 'childcareLevel', label: 'العناية بالأطفال', required: true },
-                      { id: 'BabySitterLevel', label: 'العناية بالرضع', required: false },
+                      { id: 'BabySitterLevel', label: 'العناية بالرضع', required: true },
                     ].map((skill) => (
                       <div className="flex flex-col" key={skill.id}>
                         <label htmlFor={skill.id} className="text-gray-500 text-sm mb-1">{skill.label} {skill.required && <span className="text-red-500">*</span>}</label>

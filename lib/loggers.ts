@@ -23,8 +23,9 @@ if (!(eventBus as any).__loggersInitialized) {
           BeneficiaryId: data.BeneficiaryId,
           actionType: data.actionType,
           action: actionText,
+          details: pageTitle || null, // حفظ اسم الصفحة في details
           userId: data.userId,
-        },
+        } as any, // cast لتجاوز اختلاف التايب الناتج عن التغيير الجديد
       });
       
       console.log("data",data)

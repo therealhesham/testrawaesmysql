@@ -27,6 +27,7 @@ interface SystemLog {
   action: string;
   pageRoute: string;
   actionType?: string;
+  details?: string;
   createdAt: string | Date;
   updatedAt: string | Date;
   user?: LogUser;
@@ -392,7 +393,7 @@ export default function SystemLogs() {
             hour12: false
           }) : 'غير متوفر',
           formatDate(row.createdAt),
-          splitTextIntoLines(row.action || 'غير متوفر', 50),
+          splitTextIntoLines(row.action || 'غير متوفر', 30),
           row.id || 'غير متوفر',
         ]);
 
@@ -1156,6 +1157,7 @@ export default function SystemLogs() {
                     <tr className="bg-gradient-to-r from-teal-700 to-teal-800 text-white">
                       <th className="p-4 font-medium text-sm">رقم السجل</th>
                       <th className="p-4 font-medium text-sm">الإجراء</th>
+                      <th className="p-4 font-medium text-sm">عنوان الصفحة</th>
                       <th className="p-4 font-medium text-sm">تاريخ الإنشاء</th>
                       <th className="p-4 font-medium text-sm">وقت الإنشاء</th>
                       <th className="p-4 font-medium text-sm">الصفحة</th>
@@ -1173,6 +1175,11 @@ export default function SystemLogs() {
                         </td>
                         <td className="p-4">
                           {getActionBadge(log.action, log.actionType)}
+                        </td>
+                        <td className="p-4">
+                          <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg inline-block">
+                            {log.details || 'غير متوفر'}
+                          </span>
                         </td>
                         <td className="p-4">
                           <div className="flex flex-col">

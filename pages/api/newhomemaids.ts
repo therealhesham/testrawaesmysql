@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from './globalprisma';
 import { jwtDecode } from 'jwt-decode';
+import { getPageTitleArabic } from '../../lib/pageTitleHelper';
 
 // دالة مساعدة لحفظ التعديلات في systemUserLogs
 async function logToSystemLogs(
@@ -12,6 +13,9 @@ async function logToSystemLogs(
   pageRoute: string
 ) {
   try {
+    const pageTitle = getPageTitleArabic(pageRoute);
+    const details = pageTitle || null;
+
     await prisma.systemUserLogs.create({
       data: {
         userId,
@@ -20,9 +24,10 @@ async function logToSystemLogs(
         beneficiary,
         BeneficiaryId: beneficiaryId,
         pageRoute,
-      },
+        details,
+      } as any,
     });
-    console.log('✅ تم حفظ السجل في systemUserLogs:', action);
+    console.log('✅ تم حفظ السجل في systemUserLogs:', action, details);
   } catch (error) {
     console.error('❌ خطأ في حفظ السجل في systemUserLogs:', error);
   }
@@ -176,7 +181,8 @@ try {
       beneficiary: 'عاملة منزلية',
       BeneficiaryId: newHomemaid.id,
       pageRoute: '/admin/newhomemaids',
-    },
+      details: getPageTitleArabic('/admin/newhomemaids') || null,
+    } as any,
   });
   console.log('✅ تم حفظ السجل في systemUserLogs بنجاح');
 

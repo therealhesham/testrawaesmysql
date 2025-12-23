@@ -344,6 +344,7 @@ beneficiary String? @db.VarChar(255)
 action String? @db.VarChar(255)
 BeneficiaryId Int?
 pageRoute String? @db.VarChar(255)
+details String? @db.VarChar(255)
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
 userId Int

@@ -14,7 +14,7 @@ import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
-import { Calendar, AlarmClock } from 'lucide-react';
+import { Calendar, AlarmClock, ArrowRight } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
@@ -739,7 +739,17 @@ export default function TrackOrder() {
           {error && <div className="text-red-600 text-md mb-4 text-right">{error}</div>}
 
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.back()}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex items-center justify-center"
+                title="العودة للصفحة السابقة"
+                aria-label="العودة للصفحة السابقة"
+              >
+                <ArrowRight className="w-6 h-6 text-teal-800" />
+              </button>
+              <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
+            </div>
             <div className="flex gap-4">
               <button
                 className="bg-red-600 text-white px-4 py-2 rounded-md text-md hover:bg-red-700 disabled:opacity-50"
@@ -1287,12 +1297,10 @@ export default function TrackOrder() {
             editable={canCompleteStep('destinations')}
             onSave={(updatedData) => handleSaveEdits('destinations', updatedData)}
             disabled={!canCompleteStep('destinations')}
-          />
-          {!canCompleteStep('destinations') && (
-            <div className="flex flex-col items-center gap-2 mt-2 mb-6">
+            bottomMessage={!canCompleteStep('destinations') ? (
               <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('destinations')}</span>
-            </div>
-          )}
+            ) : undefined}
+          />
 
           <InfoCard
             id="receipt"
