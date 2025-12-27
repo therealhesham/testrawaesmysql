@@ -364,7 +364,7 @@ const fetchFilteredDataExporting = async () => {
       if (doc.getCurrentPageInfo().pageNumber === 1) {
         doc.setFontSize(12);
         doc.setFont('Amiri', 'normal');
-        doc.text('الطلبات المرفوضة', pageWidth / 2, 20, { align: 'right' });
+        doc.text('الطلبات المرفوضة والملغية', pageWidth / 2, 20, { align: 'right' });
       }
 
       // 🔸 الفوتر
@@ -400,7 +400,7 @@ const fetchFilteredDataExporting = async () => {
 
   const exportToExcel = async () => {
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('الطلبات المرفوضة', { properties: { defaultColWidth: 20 } });
+    const worksheet = workbook.addWorksheet('الطلبات المرفوضة والملغية', { properties: { defaultColWidth: 20 } });
     worksheet.columns = [
       { header: 'رقم الطلب', key: 'id', width: 15 },
       { header: 'اسم العميل', key: 'clientName', width: 20 },
@@ -536,7 +536,7 @@ const fetchFilteredDataExporting = async () => {
   const renderRequests = () => (
     <div className="p-6 min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-normal">الطلبات المرفوضة</h1>
+        <h1 className="text-3xl font-normal">الطلبات المرفوضة والملغية</h1>
        
       </div>
       <div className="bg-white border border-gray-300 rounded p-6">
@@ -630,14 +630,14 @@ const fetchFilteredDataExporting = async () => {
                           <span className="text-sm">استعادة</span>
                         </div>
                       </td>
-                      <td className="p-4 text-xs text-gray-800 text-center">{row.Passportnumber || 'غير متوفر'}</td>
-                      <td className="p-4 text-xs text-gray-800 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                      <td className="p-4 text-xs text-gray-800 text-center">{row.HomeMaid?.Name || 'غير متوفر'}</td>
-                      <td className="p-4 text-xs text-gray-800 text-right">{row.HomeMaid?.id || 'غير متوفر'}</td>
-                      <td className="p-4 text-xs text-gray-800 text-right">{row.client?.nationalId || 'غير متوفر'}</td>
-                      <td className="p-4 text-xs text-gray-800 text-right">{row.client?.phonenumber || 'غير متوفر'}</td>
-                      <td className="p-4 text-xs text-gray-800 text-right">{row.client?.fullname || 'غير متوفر'}</td>
-                      <td className="p-4 pl-6 text-xs text-gray-800 text-right cursor-pointer hover:text-teal-600" onClick={() => handleOrderClick(row.id)}>#{row.id}</td>
+                      <td className="p-4 text-md text-gray-800 text-center">{row.Passportnumber || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-center">{row.HomeMaid?.Name || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-right">{row.HomeMaid?.id || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-right">{row.client?.nationalId || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-right">{row.client?.phonenumber || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-right">{row.client?.fullname || 'غير متوفر'}</td>
+                      <td className="p-4 pl-6 text-md text-gray-800 text-right cursor-pointer hover:text-teal-600" onClick={() => handleOrderClick(row.id)}>#{row.id}</td>
                     </tr>
                     
                   </>

@@ -60,7 +60,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Get employee cash records (for settlements)
       const cashRecords = await prisma.employeeCash.findMany({
         where: {
-          employeeId: Number(id)
+          employeeId: Number(id),
+          isTemporary: false // استبعاد السجلات المؤقتة
         },
         orderBy: {
           transactionDate: 'desc'

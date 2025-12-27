@@ -46,7 +46,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: "العاملة محجوزة بالفعل" });
     }
 
-    // ✅ إنشاء الطلب الأساسي
+
+    // ✅ التحقق من أن العميل ليس له تأشيرة بالجنسية المحددة
+    const clientWithVisa = await prisma.client.findFirst({
+      where: { 
+        id: Number(clientID),
+        visa: { some: { nationality: Nationality } }
+      },
+      include: { visa: true }
+    });
+
+
+    if (!clientWithVisa || clientWithVisa.visa.length === 0) {
+      return res.status(400).json({ message: "العميل ليس لديه تأشيرة بهذه الجنسية" });
+    }
     const result = await prisma.neworder.create({
       include: { client: true },
       data: {

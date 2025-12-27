@@ -103,7 +103,7 @@ const ActionDropdown: React.FC<{
               onEdit(id, name);
               setIsOpen(false);
             }}
-            className="flex gap-1 flex-row w-full text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
+            className="flex gap-1 flex-row w-full text-right py-2 px-4 text-xs text-textDark hover:bg-gray-100"
           >
             <FaAddressBook />
             تعديل
@@ -113,7 +113,7 @@ const ActionDropdown: React.FC<{
               onDeparture(id, name);
               setIsOpen(false);
             }}
-            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-xs text-textDark hover:bg-gray-100"
           >
             <FaAddressBook />
             مغادرة
@@ -125,7 +125,7 @@ const ActionDropdown: React.FC<{
               setIsOpen(false);
               // openModal('sessionModal');
             }}
-            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-xs text-textDark hover:bg-gray-100"
           >
             <FaUserFriends />
             اضافة جلسة
@@ -139,7 +139,7 @@ const ActionDropdown: React.FC<{
               setIsOpen(false);
               // openModal('sessionModal');
             }}
-            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-xs text-textDark hover:bg-gray-100"
           >
             <FileTextFilled className="w-5 h-5" />
             اضافة ملاحظات
@@ -241,7 +241,7 @@ setUserName(decoded.username);
     houseentrydate: true,
     deliveryDate: true,
     duration: true,
-    employee: true,
+    employee: false,
     entitlements: true,
     notes: true,
     actions: true,
@@ -1271,7 +1271,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
               <div className="flex gap-4">
                 <button
                   onClick={() => openModal('addResidence')}
-                  className="flex items-center gap-2 bg-teal-800 text-white text-md py-2 px-4 rounded-md"
+                  className="flex items-center gap-2 bg-teal-800 text-white text-xs py-2 px-4 rounded-md"
                 >
                   <Plus className="w-5 h-5" />
                   اضافة سكن
@@ -1312,7 +1312,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 openModal('editResidence');
                                 setOpenLocationDropdown(null);
                               }}
-                              className="w-full text-right py-2 px-4 text-md text-gray-700 hover:bg-gray-100"
+                              className="w-full text-right py-2 px-4 text-xs text-gray-700 hover:bg-gray-100"
                             >
                               تعديل
                             </button>
@@ -1321,7 +1321,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 handleDeleteLocation(location);
                                 setOpenLocationDropdown(null);
                               }}
-                              className="w-full text-right py-2 px-4 text-md text-red-600 hover:bg-red-50"
+                              className="w-full text-right py-2 px-4 text-xs text-red-600 hover:bg-red-50"
                             >
                               حذف
                             </button>
@@ -1329,9 +1329,9 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         )}
                       </div>
                     </div>
-                    <h3 className="text-md font-normal mb-1">{location.location}</h3>
-                    <p className="text-md font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
-                    <div className="flex justify-between text-md mb-2">
+                    <h3 className="text-xs font-normal mb-1">{location.location}</h3>
+                    <p className="text-xs font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
+                    <div className="flex justify-between text-xs mb-2">
                       <span>{status}</span>
                       <span>{progress < 0.01 ? progress.toFixed(4) : progress < 1 ? progress.toFixed(2) : Math.round(progress)}%</span>
                     </div>
@@ -1358,7 +1358,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
   {/* هذه القائمة ستلتزم باليسار */}
   <nav className="flex gap-10">
     <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'recruitment' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('recruitment')}>
-      <span className={`text-md w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+      <span className={`text-xs w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
         activeTab === 'recruitment' 
           ? 'bg-teal-800 text-white' 
           : 'bg-gray-200 text-gray-600'
@@ -1378,7 +1378,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
       </span>
     </div>
     <div className={`flex items-center gap-2 pb-3 cursor-pointer transition-all duration-200 ${activeTab === 'rental' ? 'border-b-2 border-teal-700' : ''}`} onClick={() => handleTabChange('rental')}>
-      <span className={`text-md w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
+      <span className={`text-xs w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 ${
         activeTab === 'rental' 
           ? 'bg-teal-800 text-white' 
           : 'bg-gray-200 text-gray-600'
@@ -1402,7 +1402,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
   {/* هذا الزر سيتم دفعه إلى أقصى اليمين بسبب "ml-auto" */}
   <button
     onClick={() => openModal('workerTypeSelection')}
-    className="flex items-center gap-2 bg-teal-800 text-white text-md py-2 px-4 rounded-md ml-auto"
+    className="flex items-center gap-2 bg-teal-800 text-white text-xs py-2 px-4 rounded-md ml-auto"
   >
     <Plus className="w-5 h-5" />
     تسكين عاملة
@@ -1412,7 +1412,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
               <div className="flex justify-end gap-4 mb-4">
                 <button 
                   onClick={() => handleHousingStatusChange('housed')}
-                  className={`px-3 py-2 text-md rounded-md ${
+                  className={`px-3 py-2 text-xs rounded-md ${
                     housingStatus === 'housed' 
                       ? 'bg-teal-800 text-white' 
                       : 'bg-gray-200 text-gray-600'
@@ -1422,7 +1422,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                 </button>
                 <button 
                   onClick={() => handleHousingStatusChange('departed')}
-                  className={`px-3 py-2 text-md rounded-md ${
+                  className={`px-3 py-2 text-xs rounded-md ${
                     housingStatus === 'departed' 
                       ? 'bg-teal-800 text-white' 
                       : 'bg-gray-200 text-gray-600'
@@ -1441,13 +1441,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       placeholder="بحث"
                       value={filters.Name}
                       onChange={handleFilterChange}
-                      className="bg-transparent outline-none text-right  text-md border-none"
+                      className="bg-transparent outline-none text-right  text-xs border-none"
                     />
                     <Search className="w-5 h-5 text-gray-500" /> 
                   </div>
                   <button
                     onClick={() => openModal('columnVisibility')}
-                    className="flex items-center gap-2 bg-gray-100 text-gray-600 text-md py-2 px-4 rounded-md border border-gray-300"
+                    className="flex items-center gap-2 bg-gray-100 text-gray-600 text-xs py-2 px-4 rounded-md border border-gray-300"
                   >
                     <Settings className="w-5 h-5" />
                     كل الاعمدة
@@ -1457,7 +1457,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       name="location"
                       value={filters.location}
                       onChange={(e) => handleFilterChange(e)}
-                      className="bg-transparent outline-none text-right text-md border-none"
+                      className="bg-transparent outline-none text-right text-xs border-none"
                     >
                       <option value="">جميع السكن</option>
                       {locations.map((location) => (
@@ -1474,14 +1474,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       value={filters.houseentrydate}
                       onChange={handleFilterChange}
                       placeholder="تاريخ التسكين"
-                      className="bg-transparent outline-none text-right text-md border-none"
+                      className="bg-transparent outline-none text-right text-xs border-none"
                     />
                   </div>
                  
                  
                    <button
                     onClick={() => setFilters({ Name: '', Passportnumber: '', reason: '', id: '', location: '', houseentrydate: '' })}
-                    className="bg-teal-800 text-white text-md py-2 px-4 rounded-md"
+                    className="bg-teal-800 text-white text-xs py-2 px-4 rounded-md"
                   >
                     اعادة ضبط
                   </button>
@@ -1494,7 +1494,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
       isExporting 
         ? 'bg-gray-400 cursor-not-allowed' 
         : 'bg-teal-800 hover:bg-teal-900'
-    } text-white text-md py-2 px-4 rounded-md disabled:opacity-50`}
+    } text-white text-xs py-2 px-4 rounded-md disabled:opacity-50`}
   >
    
         <FileText className="w-5 h-5" />
@@ -1508,7 +1508,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
       isExporting 
         ? 'bg-gray-400 cursor-not-allowed' 
         : 'bg-teal-800 hover:bg-teal-900'
-    } text-white text-md py-2 px-4 rounded-md disabled:opacity-50`}
+    } text-white text-xs py-2 px-4 rounded-md disabled:opacity-50`}
   >
         {/* <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> */}
         <DocumentTextIcon className="w-5 h-5" />
@@ -1520,24 +1520,24 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-teal-800 text-white">
-                      {columnVisibility.id && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
-                      {columnVisibility.Name && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
-                      {columnVisibility.phone && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
-                      {columnVisibility.Nationalitycopy && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
-                      {columnVisibility.Passportnumber && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
-                      {columnVisibility.location && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>}
-                      {columnVisibility.Reason && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                      {columnVisibility.id && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
+                      {columnVisibility.Name && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
+                      {columnVisibility.phone && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
+                      {columnVisibility.Nationalitycopy && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
+                      {columnVisibility.Passportnumber && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
+                      {columnVisibility.location && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">السكن</th>}
+                      {columnVisibility.Reason && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
                       </th>}
-                      {columnVisibility.houseentrydate && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                      {columnVisibility.houseentrydate && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'تاريخ التسكين' : 'تاريخ المغادرة'}
                       </th>}
-                      {columnVisibility.deliveryDate && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>}
-                      {columnVisibility.duration && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>}
-                      {columnVisibility.employee && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>}
-                      {columnVisibility.entitlements && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>}
-                      {columnVisibility.notes && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>}
-                      {columnVisibility.actions && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">اجراءات</th>}
+                      {columnVisibility.deliveryDate && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>}
+                      {columnVisibility.duration && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>}
+                      {columnVisibility.employee && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap  border-teal-700">الموظف</th>}
+                      {columnVisibility.entitlements && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>}
+                      {columnVisibility.notes && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>}
+                      {columnVisibility.actions && <th className="py-4 px-4 text-right text-xs border-b no-wrap text-nowrap border-teal-700">اجراءات</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1552,28 +1552,28 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         <tr
                           className="bg-gray-50 text-nowrap border-b border-gray-300 hover:bg-gray-100 transition-colors"
                         >
-                          {columnVisibility.id && <td className="py-4 px-4 text-right cursor-pointer text-md" onClick={()=>router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</td>}
-                          {columnVisibility.Name && <td className="py-4 px-4 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>}
-                          {columnVisibility.phone && <td className="py-4 px-4 text-right text-md">{worker.Order?.phone || ''}</td>}
-                          {columnVisibility.Nationalitycopy && <td className="py-4 px-4 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>}
-                          {columnVisibility.Passportnumber && <td className="py-4 px-4 text-right text-md">{worker.Order?.Passportnumber || ''}</td>}
-                          {columnVisibility.location && <td className="py-4 px-4 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
-                          {columnVisibility.Reason && <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.id && <td className="py-4 px-4 text-right cursor-pointer text-xs" onClick={()=>router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</td>}
+                          {columnVisibility.Name && <td className="py-4 px-4 text-right text-xs leading-tight text-center">{worker.Order?.Name || ''}</td>}
+                          {columnVisibility.phone && <td className="py-4 px-4 text-right text-xs">{worker.Order?.phone || ''}</td>}
+                          {columnVisibility.Nationalitycopy && <td className="py-4 px-4 text-right text-xs">{worker.Order?.Nationalitycopy || ''}</td>}
+                          {columnVisibility.Passportnumber && <td className="py-4 px-4 text-right text-xs">{worker.Order?.Passportnumber || ''}</td>}
+                          {columnVisibility.location && <td className="py-4 px-4 text-right text-xs">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
+                          {columnVisibility.Reason && <td className="py-4 px-4 text-right text-xs">
                             {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
                           </td>}
-                          {columnVisibility.houseentrydate && <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.houseentrydate && <td className="py-4 px-4 text-right text-xs">
                             {housingStatus === 'housed' 
                               ? (worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد')
                               : (worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد')
                             }
                           </td>}
-                          {columnVisibility.deliveryDate && <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.deliveryDate && <td className="py-4 px-4 text-right text-xs">
                             {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
                           </td>}
-                          {columnVisibility.duration && <td className={`py-4 px-4 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
+                          {columnVisibility.duration && <td className={`py-4 px-4 text-right text-xs ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
                             {calculateDuration(worker.houseentrydate)}
                           </td>}
-                          {columnVisibility.employee && <td className="py-4 px-4 text-right text-md">{worker.employee}</td>}
+                          {columnVisibility.employee && <td className="py-4 px-4 text-right text-xs">{worker.employee}</td>}
                           {columnVisibility.entitlements && <td className="py-4 px-4 text-center">
                             <button
                               onClick={() => {
@@ -1595,9 +1595,9 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             >
                               ملاحظات
                               {expandedRows.has(worker.id) ? (
-                                <span className="text-md">▲</span>
+                                <span className="text-xs">▲</span>
                               ) : (
-                                <span className="text-md">▼</span>
+                                <span className="text-xs">▼</span>
                               )}
                             </button>
                           </td>}
@@ -1622,24 +1622,24 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                   <table className="w-full border-collapse">
                                     <thead>
                                       <tr className="bg-gray-100">
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">التاريخ</th>
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">الموظف</th>
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">سبب التسكين</th>
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">السبب التفصيلي</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">التاريخ</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">الموظف</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">سبب التسكين</th>
+                                        <th className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">السبب التفصيلي</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       <tr className="bg-gray-50">
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                        <td className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">
                                           {worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString('ar-SA') : 'غير محدد'}
                                         </td>
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                        <td className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">
                                           {worker.employee || 'غير محدد'}
                                         </td>
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                        <td className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">
                                           {worker.Reason || 'غير محدد'}
                                         </td>
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
+                                        <td className="py-2 px-3 text-right no-wrap text-xs border border-gray-300">
                                           {worker.Details || 'لا توجد تفاصيل إضافية'}
                                         </td>
                                       </tr>
@@ -1670,7 +1670,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <button
                     onClick={() => handlePageChange(page + 1)}
                     disabled={page === Math.ceil((housingStatus === 'housed' ? totalCount : departedTotalCount) / pageSize)}
-                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-md disabled:opacity-50"
+                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-xs disabled:opacity-50"
                   >
                     التالي
                   </button>
@@ -1680,7 +1680,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       onClick={() => handlePageChange(p)}
                       className={`border ${
                         p === page ? 'border-teal-800 bg-teal-800 text-white' : 'border-gray-300 bg-gray-100 text-gray-700'
-                      } py-1 px-2 rounded-sm text-md`}
+                      } py-1 px-2 rounded-sm text-xs`}
                     >
                       {p}
                     </button>
@@ -1688,7 +1688,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <button
                     onClick={() => handlePageChange(page - 1)}
                     disabled={page === 1}
-                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-md disabled:opacity-50"
+                    className="border border-gray-300 bg-gray-100 text-gray-700 py-1 px-2 rounded-sm text-xs disabled:opacity-50"
                   >
                     السابق
                   </button>
@@ -1730,25 +1730,25 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   >
                     <div className="grid grid-cols-2 gap-2 " >
                     <div className="mb-4 ">
-                      <label htmlFor="residence-name" className="block text-md mb-2 text-textDark">
+                      <label htmlFor="residence-name" className="block text-xs mb-2 text-textDark">
                         اسم السكن
                       </label>
                       <input
                         type="text"
                         id="residence-name"
                         placeholder="ادخل اسم السكن"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label htmlFor="residence-capacity" className="block text-md mb-2 text-textDark">
+                      <label htmlFor="residence-capacity" className="block text-xs mb-2 text-textDark">
                         السعة
                       </label>
                       <input
                         type="number"
                         id="residence-capacity"
                         placeholder="ادخل السعة"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
                       />
                     </div>
                     </div>
@@ -1756,11 +1756,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('addResidence')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
                         حفظ
                       </button>
                     </div>
@@ -1803,7 +1803,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   >
                     <div className="grid grid-cols-2 gap-2 " >
                     <div className="mb-4 ">
-                      <label htmlFor="edit-residence-name" className="block text-md mb-2 text-textDark">
+                      <label htmlFor="edit-residence-name" className="block text-xs mb-2 text-textDark">
                         اسم السكن
                       </label>
                       <input
@@ -1811,11 +1811,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         id="edit-residence-name"
                         defaultValue={editingLocation.location}
                         placeholder="ادخل اسم السكن"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label htmlFor="edit-residence-capacity" className="block text-md mb-2 text-textDark">
+                      <label htmlFor="edit-residence-capacity" className="block text-xs mb-2 text-textDark">
                         السعة
                       </label>
                       <input
@@ -1823,7 +1823,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         id="edit-residence-capacity"
                         defaultValue={editingLocation.quantity}
                         placeholder="ادخل السعة"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
                       />
                     </div>
                     </div>
@@ -1831,11 +1831,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('editResidence')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
                         حفظ
                       </button>
                     </div>
@@ -1864,14 +1864,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   >
                     <div className="grid grid-cols-2 gap-2 " >
                     <div className="mb-4 ">
-                      <label htmlFor="notes" className="block text-md mb-2 text-textDark">
+                      <label htmlFor="notes" className="block text-xs mb-2 text-textDark">
                         الملاحظة
                       </label>
                       <input
                         type="text"
                         id="notes"
                         placeholder="ادخل الملاحظة"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-md text-textDark"
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
                         value={notesForm.notes}
                         onChange={(e) => setNotesForm({ ...notesForm, notes: e.target.value })}
                       />
@@ -1882,11 +1882,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('notesModal')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
-                      <button  onClick={() => postnotes()} className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                      <button  onClick={() => postnotes()} className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
                         حفظ
                       </button>
                     </div>
@@ -1914,7 +1914,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   </div>
                   <form>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">اختر الأعمدة المرئية</label>
+                      <label className="block text-xs mb-2 text-textDark">اختر الأعمدة المرئية</label>
                       {Object.keys(columnVisibility).map((column) => (
                         <div key={column} className="flex items-center gap-2 mb-2">
                           <input
@@ -1924,7 +1924,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             onChange={() => toggleColumnVisibility(column as keyof typeof columnVisibility)}
                             className="w-4 h-4"
                           />
-                          <label htmlFor={column} className="text-md text-textDark">
+                          <label htmlFor={column} className="text-xs text-textDark">
                             {
                               {
                                 id: '#',
@@ -1952,14 +1952,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('columnVisibility')}
-                        className="bg-gray-600 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-gray-600 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
                       <button
                         type="button"
                         onClick={() => closeModal('columnVisibility')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
                       >
                         حفظ
                       </button>
@@ -2042,7 +2042,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <form onSubmit={handlenewHousingSubmit} className="space-y-4">
                     {/* Worker Search - similar to musanad_finacial */}
                     <div className="col-span-1 md:col-span-2 mb-4">
-                      <label className="block text-md font-medium text-gray-700 mb-2">البحث عن العاملة</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">البحث عن العاملة</label>
                       <div className="relative search-container">
                         <input
                           type="text"
@@ -2066,13 +2066,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 onClick={() => handleWorkerSelection(worker)}
                                 className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                               >
-                                <div className="font-medium text-md">عاملة #{worker.id}</div>
-                                <div className="text-md text-gray-600">الاسم: {worker.name}</div>
-                                <div className="text-md text-gray-600">الجنسية: {worker.nationality}</div>
-                                <div className="text-md text-gray-500">رقم الجواز: {worker.passportNumber}</div>
-                                <div className="text-md text-gray-500">العمر: {worker.age} سنة</div>
+                                <div className="font-medium text-xs">عاملة #{worker.id}</div>
+                                <div className="text-xs text-gray-600">الاسم: {worker.name}</div>
+                                <div className="text-xs text-gray-600">الجنسية: {worker.nationality}</div>
+                                <div className="text-xs text-gray-500">رقم الجواز: {worker.passportNumber}</div>
+                                <div className="text-xs text-gray-500">العمر: {worker.age} سنة</div>
                                 {/* {worker.hasOrders && (
-                                  <div className="text-md text-green-600 mt-1">
+                                  <div className="text-xs text-green-600 mt-1">
                                     ✓ لديها طلبات ({worker.orders?.length || 0}) - {worker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
                                   </div>
                                 )} */}
@@ -2082,7 +2082,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         )}
                       </div>
                       {!selectedWorker && (
-                        <div className="text-md text-red-600 mt-1">
+                        <div className="text-xs text-red-600 mt-1">
                           * يجب اختيار عاملة قبل المتابعة
                         </div>
                       )}
@@ -2092,13 +2092,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-3 mb-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <div className="text-md font-medium text-green-800">العاملة المحددة:</div>
-                            <div className="text-md text-green-700">#{selectedWorker.id} - {selectedWorker.name}</div>
-                            <div className="text-md text-green-600">الجنسية: {selectedWorker.nationality}</div>
-                            <div className="text-md text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
-                            {/* <div className="text-md text-green-600">العمر: {selectedWorker.age} سنة</div> */}
+                            <div className="text-xs font-medium text-green-800">العاملة المحددة:</div>
+                            <div className="text-xs text-green-700">#{selectedWorker.id} - {selectedWorker.name}</div>
+                            <div className="text-xs text-green-600">الجنسية: {selectedWorker.nationality}</div>
+                            <div className="text-xs text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
+                            {/* <div className="text-xs text-green-600">العمر: {selectedWorker.age} سنة</div> */}
                             {selectedWorker.hasOrders && (
-                              <div className="text-md text-green-600 font-medium">
+                              <div className="text-xs text-green-600 font-medium">
                                 {/* ✓ لديها {selectedWorker.orders?.length || 0} طلب - {selectedWorker.orders?.[0]?.typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'} */}
                               </div>
                             )}
@@ -2109,7 +2109,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setSelectedWorker(null);
                               setWorkerSearchTerm('');
                             }}
-                            className="text-green-600 hover:text-green-800 text-md"
+                            className="text-green-600 hover:text-green-800 text-xs"
                           >
                             إزالة
                           </button>
@@ -2119,28 +2119,28 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">اسم العاملة</label>
+                        <label className="block text-xs text-gray-700 mb-2">اسم العاملة</label>
                         <input
                           type="text"
                           value={selectedWorker?.name || ''}
                           disabled
-                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md"
+                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-xs"
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">الجنسية</label>
+                        <label className="block text-xs text-gray-700 mb-2">الجنسية</label>
                         <input
                           type="text"
                           value={selectedWorker?.nationality || ''}
                           disabled
-                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md"
+                          className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-xs"
                         />
                       </div>
                     </div>
                     {/* Housing Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">السكن</label>
+                        <label className="block text-xs text-gray-700 mb-2">السكن</label>
                         <div className="relative">
                           <select
                             value={formData.location}
@@ -2148,7 +2148,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setFormData({ ...formData, location: e.target.value });
                               setValidationErrors(prev => ({ ...prev, location: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 ${
                               validationErrors.location ? 'border-red-500' : 'border-gray-300'
                             }`}
                           >
@@ -2167,13 +2167,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">تاريخ التسكين</label>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ التسكين</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={formData.houseentrydate}
                             onChange={(e) => setFormData({ ...formData, houseentrydate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2186,13 +2186,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Delivery and Reason Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">تاريخ الاستلام</label>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ الاستلام</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={formData.deliveryDate}
                             onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2202,7 +2202,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">سبب التسكين</label>
+                        <label className="block text-xs text-gray-700 mb-2">سبب التسكين</label>
                         <div className="relative">
                           <select
                             value={formData.reason}
@@ -2210,7 +2210,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setFormData({ ...formData, reason: e.target.value });
                               setValidationErrors(prev => ({ ...prev, reason: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 ${
                               validationErrors.reason ? 'border-red-500' : 'border-gray-300'
                             }`}
                           >
@@ -2229,18 +2229,18 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     </div>
                     {/* Details */}
                     <div className="mb-6">
-                      <label className="block text-md text-gray-700 mb-2">التفاصيل</label>
+                      <label className="block text-xs text-gray-700 mb-2">التفاصيل</label>
                       <textarea
                         placeholder="التفاصيل"
                         value={formData.details}
                         onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
                         rows={3}
                       />
                     </div>
                     {/* Entitlements */}
                     <div className="mb-6">
-                      <label className="block text-md text-gray-700 mb-2">هل لديها مستحقات؟</label>
+                      <label className="block text-xs text-gray-700 mb-2">هل لديها مستحقات؟</label>
                       <div className="flex gap-6">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -2251,7 +2251,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             onChange={() => setFormData({ ...formData, isHasEntitlements: true })}
                             className="w-4 h-4 text-teal-600"
                           />
-                          <span className="text-md text-gray-700">نعم</span>
+                          <span className="text-xs text-gray-700">نعم</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -2262,20 +2262,20 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             onChange={() => setFormData({ ...formData, isHasEntitlements: false, entitlementsCost: '' })}
                             className="w-4 h-4 text-teal-600"
                           />
-                          <span className="text-md text-gray-700">لا</span>
+                          <span className="text-xs text-gray-700">لا</span>
                         </label>
                       </div>
                     </div>
                     {/* حقل قيمة المستحقات - يظهر فقط عند اختيار نعم */}
                     {formData.isHasEntitlements === true && (
                       <div className="mb-6">
-                        <label className="block text-md text-gray-700 mb-2">قيمة المستحقات</label>
+                        <label className="block text-xs text-gray-700 mb-2">قيمة المستحقات</label>
                         <input
                           type="number"
                           placeholder="أدخل قيمة المستحقات"
                           value={formData.entitlementsCost}
                           onChange={(e) => setFormData({ ...formData, entitlementsCost: e.target.value })}
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
                           min="0"
                           step="0.01"
                         />
@@ -2334,25 +2334,25 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   >
                     {console.log('Edit form data in modal:', editWorkerForm)}
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">اسم العاملة</label>
+                      <label className="block text-xs mb-2 text-textDark">اسم العاملة</label>
                       <input
                         type="text"
                         value={selectedWorkerName}
                         disabled
-                        className="w-full p-2 rounded-md text-right text-md text-textDark bg-gray-200"
+                        className="w-full p-2 rounded-md text-right text-xs text-textDark bg-gray-200"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">رقم العاملة</label>
+                      <label className="block text-xs mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
                         value={selectedWorkerId || ''}
                         disabled
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-200"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-200"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">السكن</label>
+                      <label className="block text-xs mb-2 text-textDark">السكن</label>
                       <select
                         value={editWorkerForm.location_id || ''}
                         onChange={(e) =>
@@ -2361,7 +2361,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             location_id: e.target.value ? Number(e.target.value) : null,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-xs text-textDark"
                       >
                         <option value="">اختر السكن</option>
                         {locations.map((loc) => (
@@ -2372,7 +2372,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       </select>
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">تاريخ التسكين</label>
+                      <label className="block text-xs mb-2 text-textDark">تاريخ التسكين</label>
                       <input
                         type="date"
                         value={editWorkerForm.Date}
@@ -2382,11 +2382,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             Date: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-xs text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">تاريخ التسليم</label>
+                      <label className="block text-xs mb-2 text-textDark">تاريخ التسليم</label>
                       <input
                         type="date"
                         value={editWorkerForm.deliveryDate}
@@ -2396,11 +2396,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             deliveryDate: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-xs text-textDark"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">سبب التسكين</label>
+                      <label className="block text-xs mb-2 text-textDark">سبب التسكين</label>
                       <input
                         type="text"
                         value={editWorkerForm.Reason}
@@ -2410,11 +2410,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             Reason: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-xs text-textDark"
                       />
                     </div>
                     <div className="mb-4 col-span-2">
-                      <label className="block text-md mb-2 text-textDark">التفاصيل</label>
+                      <label className="block text-xs mb-2 text-textDark">التفاصيل</label>
                       <textarea
                         value={editWorkerForm.Details}
                         onChange={(e) =>
@@ -2423,12 +2423,12 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             Details: e.target.value,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                        className="w-full p-2 bg-gray-200 rounded-md text-right text-xs text-textDark"
                         rows={4}
                       />
                     </div>
                     <div className="mb-4 col-span-2">
-                      <label className="block text-md mb-2 text-textDark">هل لديها مستحقات؟</label>
+                      <label className="block text-xs mb-2 text-textDark">هل لديها مستحقات؟</label>
                       <div className="flex gap-6">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -2439,7 +2439,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             onChange={() => setEditWorkerForm({ ...editWorkerForm, isHasEntitlements: true })}
                             className="w-4 h-4 text-teal-600"
                           />
-                          <span className="text-md text-textDark">نعم</span>
+                          <span className="text-xs text-textDark">نعم</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -2450,20 +2450,20 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             onChange={() => setEditWorkerForm({ ...editWorkerForm, isHasEntitlements: false, entitlementsCost: '' })}
                             className="w-4 h-4 text-teal-600"
                           />
-                          <span className="text-md text-textDark">لا</span>
+                          <span className="text-xs text-textDark">لا</span>
                         </label>
                       </div>
                     </div>
                     {/* حقل قيمة المستحقات - يظهر فقط عند اختيار نعم */}
                     {editWorkerForm.isHasEntitlements === true && (
                       <div className="mb-4 col-span-2">
-                        <label className="block text-md mb-2 text-textDark">قيمة المستحقات</label>
+                        <label className="block text-xs mb-2 text-textDark">قيمة المستحقات</label>
                         <input
                           type="number"
                           placeholder="أدخل قيمة المستحقات"
                           value={editWorkerForm.entitlementsCost}
                           onChange={(e) => setEditWorkerForm({ ...editWorkerForm, entitlementsCost: e.target.value })}
-                          className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                          className="w-full p-2 bg-gray-200 rounded-md text-right text-xs text-textDark"
                           min="0"
                           step="0.01"
                         />
@@ -2473,11 +2473,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('editWorker')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
                         حفظ
                       </button>
                     </div>
@@ -2512,25 +2512,25 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     }}
                   >
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">اسم العاملة</label>
+                      <label className="block text-xs mb-2 text-textDark">اسم العاملة</label>
                       <input
                         type="text"
                         value={selectedWorkerName}
                         disabled
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">رقم العاملة</label>
+                      <label className="block text-xs mb-2 text-textDark">رقم العاملة</label>
                       <input
                         type="number"
                         value={selectedWorkerId || ''}
                         disabled
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">سبب المغادرة</label>
+                      <label className="block text-xs mb-2 text-textDark">سبب المغادرة</label>
                       <input
                         type="text"
                         value={departureForm.deparatureReason}
@@ -2540,11 +2540,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             deparatureReason: e.target.value,
                           })
                         }
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">تاريخ المغادرة</label>
+                      <label className="block text-xs mb-2 text-textDark">تاريخ المغادرة</label>
                       <input
                         type="date"
                         value={departureForm.deparatureHousingDate}
@@ -2554,18 +2554,18 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             deparatureHousingDate: e.target.value,
                           })
                         }
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark"
                       />
                     </div>
                     <div className="flex justify-end gap-4">
                       <button
                         type="button"
                         onClick={() => closeModal('workerDeparture')}
-                        className="bg-gray-500 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-gray-500 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
                         تأكيد المغادرة
                       </button>
                     </div>
@@ -2597,49 +2597,49 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <h2 className="text-xl font-bold text-textDark">جلسة</h2>
                   <form onSubmit={handleSessionSubmit} className="space-y-4">
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">سبب الجلسة</label>
+                      <label className="block text-xs mb-2 text-textDark">سبب الجلسة</label>
                       <input
                         type="text"
                         value={sessionForm.reason}
                         onChange={(e) => setSessionForm({ ...sessionForm, reason: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">تاريخ الجلسة</label>
+                      <label className="block text-xs mb-2 text-textDark">تاريخ الجلسة</label>
                       <input
                         type="date"
                         value={sessionForm.date}
                         onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">وقت الجلسة</label>
+                      <label className="block text-xs mb-2 text-textDark">وقت الجلسة</label>
                       <input
                         type="time"
                         value={sessionForm.time}
                         onChange={(e) => setSessionForm({ ...sessionForm, time: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">المحضر</label>
+                      <label className="block text-xs mb-2 text-textDark">المحضر</label>
                       <textarea
                         value={sessionForm.result}
                         onChange={(e) => setSessionForm({ ...sessionForm, result: e.target.value })}
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full p-2 border border-border rounded-md text-right text-xs text-textDark bg-gray-100"
                       />
                     </div>
                     <div className="flex justify-center gap-4">
                       <button
                         type="button"
                         onClick={() => closeModal('sessionModal')}
-                        className="bg-gray-500 text-white py-2 px-4 rounded-md text-md"
+                        className="bg-gray-500 text-white py-2 px-4 rounded-md text-xs"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-md">
+                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
                         حفظ
                       </button>
                     </div>
@@ -2670,7 +2670,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <form className="space-y-6" onSubmit={handleEntitlementsSubmit}>
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-md text-gray-600 mb-2">المبلغ المستحق</label>
+                        <label className="block text-xs text-gray-600 mb-2">المبلغ المستحق</label>
                         <input
                           type="number"
                           value={entitlementsCost.toString()}
@@ -2680,7 +2680,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-600 mb-2">تفاصيل</label>
+                        <label className="block text-xs text-gray-600 mb-2">تفاصيل</label>
                         <input
                           type="text"
                           placeholder="سبب المبلغ المستحق"
@@ -2729,7 +2729,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
                     {/* Worker Search - similar to musanad_finacial */}
                     <div className="mb-4">
-                      <label className="block text-md text-gray-700 mb-2">البحث عن العاملة</label>
+                      <label className="block text-xs text-gray-700 mb-2">البحث عن العاملة</label>
                       <div className="relative search-container">
                         <input
                           type="text"
@@ -2753,12 +2753,12 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 onClick={() => handleExternalWorkerSelection(worker)}
                                 className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                               >
-                                <div className="font-medium text-md">عاملة #{worker.id}</div>
-                                <div className="text-md text-gray-600">الاسم: {worker.name}</div>
-                                <div className="text-md text-gray-600">الجنسية: {worker.nationality}</div>
-                                <div className="text-md text-gray-500">رقم الجواز: {worker.passportNumber}</div>
-                                <div className="text-md text-gray-500">العمر: {worker.age} سنة</div>
-                                <div className="text-md text-blue-600 mt-1">
+                                <div className="font-medium text-xs">عاملة #{worker.id}</div>
+                                <div className="text-xs text-gray-600">الاسم: {worker.name}</div>
+                                <div className="text-xs text-gray-600">الجنسية: {worker.nationality}</div>
+                                <div className="text-xs text-gray-500">رقم الجواز: {worker.passportNumber}</div>
+                                <div className="text-xs text-gray-500">العمر: {worker.age} سنة</div>
+                                <div className="text-xs text-blue-600 mt-1">
                                   ✓ عاملة متاحة للتسكين
                                 </div>
                               </div>
@@ -2777,11 +2777,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             <div>
                               <div className="text-lg font-semibold text-green-800 mb-2">✓ بيانات العاملة</div>
                               <div className="space-y-1">
-                                <div className="text-md text-green-700 font-medium">#{selectedExternalWorker.id} - {selectedExternalWorker.name}</div>
-                                <div className="text-md text-green-600">الجنسية: {selectedExternalWorker.nationality}</div>
-                                <div className="text-md text-green-600">رقم الجواز: {selectedExternalWorker.passportNumber}</div>
-                                <div className="text-md text-green-600">العمر: {selectedExternalWorker.age} سنة</div>
-                                <div className="text-md text-green-600">الهاتف: {selectedExternalWorker.phone || 'غير محدد'}</div>
+                                <div className="text-xs text-green-700 font-medium">#{selectedExternalWorker.id} - {selectedExternalWorker.name}</div>
+                                <div className="text-xs text-green-600">الجنسية: {selectedExternalWorker.nationality}</div>
+                                <div className="text-xs text-green-600">رقم الجواز: {selectedExternalWorker.passportNumber}</div>
+                                <div className="text-xs text-green-600">العمر: {selectedExternalWorker.age} سنة</div>
+                                <div className="text-xs text-green-600">الهاتف: {selectedExternalWorker.phone || 'غير محدد'}</div>
                               </div>
                             </div>
                             
@@ -2790,13 +2790,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               <div>
                                 <div className="text-lg font-semibold text-blue-800 mb-2">✓ بيانات العميل الجديد (نقل كفالة)</div>
                                 <div className="space-y-1">
-                                  <div className="text-md text-blue-700 font-medium">الاسم: {selectedExternalWorker.clientData.clientName || 'غير محدد'}</div>
-                                  <div className="text-md text-blue-600">الجوال: {selectedExternalWorker.clientData.clientMobile || 'غير محدد'}</div>
+                                  <div className="text-xs text-blue-700 font-medium">الاسم: {selectedExternalWorker.clientData.clientName || 'غير محدد'}</div>
+                                  <div className="text-xs text-blue-600">الجوال: {selectedExternalWorker.clientData.clientMobile || 'غير محدد'}</div>
                                   {selectedExternalWorker.clientData.clientIdNumber && (
-                                    <div className="text-md text-blue-600">رقم الهوية: {selectedExternalWorker.clientData.clientIdNumber}</div>
+                                    <div className="text-xs text-blue-600">رقم الهوية: {selectedExternalWorker.clientData.clientIdNumber}</div>
                                   )}
-                                  <div className="text-md text-blue-600">المدينة: {selectedExternalWorker.clientData.city || 'غير محدد'}</div>
-                                  <div className="text-md text-blue-600">العنوان: {selectedExternalWorker.clientData.address || 'غير محدد'}</div>
+                                  <div className="text-xs text-blue-600">المدينة: {selectedExternalWorker.clientData.city || 'غير محدد'}</div>
+                                  <div className="text-xs text-blue-600">العنوان: {selectedExternalWorker.clientData.address || 'غير محدد'}</div>
                                 </div>
                               </div>
                             )}
@@ -2818,7 +2818,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 address: '',
                               }));
                             }}
-                            className="text-green-600 hover:text-green-800 text-md"
+                            className="text-green-600 hover:text-green-800 text-xs"
                           >
                             إزالة
                         </button>
@@ -2828,27 +2828,27 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">اسم العاملة</label>
+                        <label className="block text-xs text-gray-700 mb-2">اسم العاملة</label>
                         <input
                           type="text"
                           value={selectedExternalWorker ? selectedExternalWorker.name : internalWorkerForm.workerName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerName: e.target.value })}
                           placeholder="ادخل اسم العاملة"
                           disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-xs ${
                             selectedExternalWorker ? 'bg-gray-200' : 'bg-gray-100'
                           }`}
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">رقم الجوال</label>
+                        <label className="block text-xs text-gray-700 mb-2">رقم الجوال</label>
                         <input
                           type="text"
                           value={selectedExternalWorker ? selectedExternalWorker.phone : internalWorkerForm.mobile}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, mobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
                           disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-xs ${
                             selectedExternalWorker ? 'bg-gray-200' : 'bg-gray-100'
                           }`}
                         />
@@ -2857,7 +2857,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Client Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">
+                        <label className="block text-xs text-gray-700 mb-2">
                           اسم العميل {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
                         </label>
                         <input
@@ -2866,13 +2866,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
                           placeholder="اسم العميل"
                           disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-xs ${
                             selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
                           }`}
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">
+                        <label className="block text-xs text-gray-700 mb-2">
                           رقم الجوال {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
                         </label>
                         <input
@@ -2881,7 +2881,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
                           disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-xs ${
                             selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
                           }`}
                         />
@@ -2891,14 +2891,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {selectedExternalWorker && internalWorkerForm.clientIdNumber && (
                       <div className="grid grid-cols-2 gap-8 mb-4">
                         <div>
-                          <label className="block text-md text-gray-700 mb-2">
+                          <label className="block text-xs text-gray-700 mb-2">
                             رقم الهوية <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>
                           </label>
                           <input
                             type="text"
                             value={internalWorkerForm.clientIdNumber}
                             disabled
-                            className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md cursor-not-allowed"
+                            className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-xs cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -2906,7 +2906,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Location Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">
+                        <label className="block text-xs text-gray-700 mb-2">
                           المدينة {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
                         </label>
                         <input
@@ -2915,13 +2915,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
                           placeholder="ادخل المدينة"
                           disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-xs ${
                             selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
                           }`}
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">
+                        <label className="block text-xs text-gray-700 mb-2">
                           العنوان {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
                         </label>
                         <input
@@ -2930,7 +2930,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
                           placeholder="ادخل العنوان"
                           disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
+                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-xs ${
                             selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
                           }`}
                         />
@@ -2939,17 +2939,17 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Office and Housing Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">اسم المكتب</label>
+                        <label className="block text-xs text-gray-700 mb-2">اسم المكتب</label>
                         <input
                           type="text"
                           value={internalWorkerForm.officeName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, officeName: e.target.value })}
                           placeholder="ادخل اسم المكتب"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
                         />
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">السكن</label>
+                        <label className="block text-xs text-gray-700 mb-2">السكن</label>
                         <div className="relative">
                           <select
                             value={internalWorkerForm.housing}
@@ -2957,7 +2957,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setInternalWorkerForm({ ...internalWorkerForm, housing: e.target.value });
                               setValidationErrors(prev => ({ ...prev, internalLocation: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 ${
                               validationErrors.internalLocation ? 'border-red-500' : 'border-gray-300'
                             }`}
                           >
@@ -2979,7 +2979,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Dates Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">
+                        <label className="block text-xs text-gray-700 mb-2">
                           تاريخ التسكين <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
@@ -2990,7 +2990,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setInternalWorkerForm({ ...internalWorkerForm, housingDate: e.target.value });
                               setValidationErrors(prev => ({ ...prev, internalHousingDate: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md pr-8 ${
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs pr-8 ${
                               validationErrors.internalHousingDate ? 'border-red-500' : 'border-gray-300'
                             }`}
                           />
@@ -3002,13 +3002,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">تاريخ الاستلام</label>
+                        <label className="block text-xs text-gray-700 mb-2">تاريخ الاستلام</label>
                         <div className="relative">
                           <input
                             type="date"
                             value={internalWorkerForm.receiptDate}
                             onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, receiptDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md pr-8"
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3021,7 +3021,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     {/* Reason and Details Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">سبب التسكين</label>
+                        <label className="block text-xs text-gray-700 mb-2">سبب التسكين</label>
                         <div className="relative">
                           <select
                             value={internalWorkerForm.reason}
@@ -3029,7 +3029,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setInternalWorkerForm({ ...internalWorkerForm, reason: e.target.value });
                               setValidationErrors(prev => ({ ...prev, internalReason: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-md appearance-none pr-8 ${
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 ${
                               validationErrors.internalReason ? 'border-red-500' : 'border-gray-300'
                             }`}
                           >
@@ -3046,12 +3046,12 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-md text-gray-700 mb-2">التفاصيل</label>
+                        <label className="block text-xs text-gray-700 mb-2">التفاصيل</label>
                         <textarea
                           value={internalWorkerForm.details}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, details: e.target.value })}
                           placeholder="التفاصيل"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
                           rows={3}
                         />
                       </div>
@@ -3137,7 +3137,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <div className="flex justify-center">
                     <button
                       onClick={() => closeModal('notification')}
-                      className="bg-teal-800 text-white py-2 px-4 rounded-md text-md hover:bg-teal-700"
+                      className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs hover:bg-teal-700"
                     >
                       موافق
                     </button>

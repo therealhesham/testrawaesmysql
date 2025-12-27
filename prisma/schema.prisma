@@ -900,8 +900,8 @@ model ClientAccountEntry {
 
 model EmployeeCash {
   id                Int       @id @default(autoincrement())
-  employeeId        Int       // ربط بالموظف
-  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId        Int?      // ربط بالموظف (اختياري للسجلات المؤقتة)
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   cashNumber        String?   @db.VarChar(100) // رقم العهدة
   receivedAmount    Decimal   @default(0) // المبلغ المستلم
   expenseAmount     Decimal   @default(0) // المصروف
@@ -909,6 +909,7 @@ model EmployeeCash {
   description       String?   @db.VarChar(500) // البيان
   attachment        String?   @db.VarChar(255) // المرفق
   transactionDate   DateTime  @default(now()) // تاريخ المعاملة
+  isTemporary       Boolean   @default(false) // سجل مؤقت (يُحذف تلقائياً إذا لم يكتمل)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }

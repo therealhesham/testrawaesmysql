@@ -3,6 +3,12 @@ import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import AlertModal from '../../components/AlertModal';
+import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
+import { jwtDecode } from 'jwt-decode';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
+import Head from 'next/head';
 interface Employee {
   id: number;
   name: string;
@@ -78,6 +84,7 @@ export default function EmployeeCash() {
   // Form state management
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [temporaryRecordId, setTemporaryRecordId] = useState<number | null>(null); // ID السجل المؤقت
   const [formData, setFormData] = useState<EmployeeCashFormData>({
     employeeId: '',
     cashNumber: '',
@@ -115,11 +122,40 @@ export default function EmployeeCash() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+  
+  // User name for export
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     fetchEmployeeCashData();
     fetchEmployees();
   }, [filters]);
+
+  useEffect(() => {
+    const authToken = localStorage.getItem('token');
+    if (authToken) {
+      try {
+        const decoder: any = jwtDecode(authToken);
+        setUserName(decoder?.username || '');
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
+
+  // تنظيف السجلات المؤقتة عند إغلاق المكوّن
+  useEffect(() => {
+    return () => {
+      // حذف السجل المؤقت عند إغلاق المكوّن إذا كان موجوداً
+      if (temporaryRecordId) {
+        fetch(`/api/employee-cash?id=${temporaryRecordId}`, {
+          method: 'DELETE',
+        }).catch(error => {
+          console.error('خطأ في حذف السجل المؤقت عند إغلاق المكوّن:', error);
+        });
+      }
+    };
+  }, [temporaryRecordId]);
 
   const fetchEmployeeCashData = async () => {
     try {
@@ -160,7 +196,7 @@ export default function EmployeeCash() {
     }
   };
 
-  const handleAddCash = () => {
+  const handleAddCash = async () => {
     setIsModalOpen(true);
     // Reset form data when opening modal
     setFormData({
@@ -175,9 +211,57 @@ export default function EmployeeCash() {
     setFormErrors({});
     setFileUploaded(false);
     setUploadedFileName('');
+
+    // إنشاء سجل مؤقت تلقائياً
+    try {
+      const response = await fetch('/api/employee-cash', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isTemporary: true,
+          receivedAmount: 0,
+          expenseAmount: 0,
+          remainingBalance: 0,
+          transactionDate: new Date().toISOString().split('T')[0]
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setTemporaryRecordId(result.employeeCashRecord.id);
+        // تحديث رقم العهدة في الـ form إذا تم توليده تلقائياً
+        if (result.employeeCashRecord.cashNumber) {
+          setFormData(prev => ({
+            ...prev,
+            cashNumber: result.employeeCashRecord.cashNumber
+          }));
+          console.log('تم تحديث رقم العهدة:', result.employeeCashRecord.cashNumber);
+        } else {
+          console.log('لم يتم العثور على رقم عهدة في السجل المؤقت');
+        }
+      } else {
+        console.error('فشل في إنشاء السجل المؤقت');
+      }
+    } catch (error) {
+      console.error('خطأ في إنشاء السجل المؤقت:', error);
+    }
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = async () => {
+    // حذف السجل المؤقت إذا كان موجوداً
+    if (temporaryRecordId) {
+      try {
+        await fetch(`/api/employee-cash?id=${temporaryRecordId}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('خطأ في حذف السجل المؤقت:', error);
+      }
+      setTemporaryRecordId(null);
+    }
+
     setIsModalOpen(false);
     // Reset form data when closing modal
     setFormData({
@@ -456,14 +540,21 @@ export default function EmployeeCash() {
     
     try {
       // Prepare form data for API
-      const submitData = {
+      const submitData: any = {
         employeeId: Number(formData.employeeId),
         cashNumber: formData.cashNumber,
         receivedAmount: Number(formData.receivedAmount),
         expenseAmount: Number(formData.expenseAmount),
         description: formData.description,
-        attachment: formData.attachment || ''
+        attachment: formData.attachment || '',
+        transactionDate: formData.transactionDate,
+        isTemporary: false // تحويل السجل من مؤقت إلى دائم
       };
+
+      // إذا كان هناك سجل مؤقت، قم بتحديثه بدلاً من إنشاء جديد
+      if (temporaryRecordId) {
+        submitData.id = temporaryRecordId;
+      }
       
       const response = await fetch('/api/employee-cash', {
         method: 'POST',
@@ -475,7 +566,21 @@ export default function EmployeeCash() {
       
       if (response.ok) {
         // Success - close modal and refresh data
-        handleCloseModal();
+        setTemporaryRecordId(null); // مسح ID السجل المؤقت
+        setIsModalOpen(false);
+        // Reset form data
+        setFormData({
+          employeeId: '',
+          cashNumber: '',
+          receivedAmount: '',
+          expenseAmount: '',
+          description: '',
+          attachment: '',
+          transactionDate: new Date().toISOString().split('T')[0]
+        });
+        setFormErrors({});
+        setFileUploaded(false);
+        setUploadedFileName('');
         fetchEmployeeCashData();
         alert('تم إضافة العهدة بنجاح');
       } else {
@@ -494,6 +599,238 @@ export default function EmployeeCash() {
     fetchEmployeeCashData();
   };
 
+  // Export data function
+  const exportedData = async () => {
+    const queryParams = new URLSearchParams();
+    if (filters.employee) queryParams.append('employee', filters.employee);
+    if (filters.fromDate) queryParams.append('fromDate', filters.fromDate);
+    if (filters.toDate) queryParams.append('toDate', filters.toDate);
+    queryParams.append('limit', '10000'); // Get all records for export
+
+    const response = await fetch(`/api/employee-cash?${queryParams}`);
+    const result = await response.json();
+    return result;
+  };
+
+  // Export to PDF
+  const exportToPDF = async () => {
+    try {
+      const dataToExport = await exportedData();
+      const doc = new jsPDF({ orientation: "landscape" });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Load logo
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      try {
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+        const response = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!response.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await response.arrayBuffer();
+        const fontBytes = new Uint8Array(fontBuffer);
+        const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (error) {
+        console.error('Error loading Amiri font:', error);
+        return;
+      }
+
+      doc.setLanguage('ar');
+      doc.setFontSize(16);
+      doc.text("كشف حساب عهدة الموظفين", 400, 10, { align: 'right', maxWidth: 700 });
+
+      // Helper function to truncate text
+      const truncateToTwoWords = (text: string): string => {
+        if (!text || text === 'غير متوفر') return text;
+        const words = text.trim().split(/\s+/);
+        if (words.length <= 2) return text;
+        return words.slice(0, 2).join(' ');
+      };
+
+      const tableColumn = [
+        '#',
+        'التاريخ',
+        'اسم الموظف',
+        'رقم العهدة',
+        'المبلغ المستلم',
+        'المصروف',
+        'الرصيد المتبقي'
+      ];
+
+      // Flatten all transactions from all employees
+      const allTransactions = dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || [];
+      
+      const tableRows = allTransactions.map((transaction: Transaction, index: number) => [
+        (index + 1).toString(),
+        truncateToTwoWords(transaction.date || 'غير متوفر'),
+        truncateToTwoWords(transaction.employeeName || 'غير متوفر'),
+        truncateToTwoWords(transaction.cashNumber || 'غير متوفر'),
+        transaction.receivedAmount?.toLocaleString() || '0',
+        transaction.expenseAmount?.toLocaleString() || '0',
+        transaction.remainingBalance?.toLocaleString() || '0',
+      ]);
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 10,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          overflow: 'hidden',
+          halign: 'right',
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto', overflow: 'hidden' },
+          1: { cellWidth: 'auto', overflow: 'hidden' },
+          2: { cellWidth: 'auto', overflow: 'hidden' },
+          3: { cellWidth: 'auto', overflow: 'hidden' },
+          4: { cellWidth: 'auto', overflow: 'hidden' },
+          5: { cellWidth: 'auto', overflow: 'hidden' },
+          6: { cellWidth: 'auto', overflow: 'hidden' },
+        },
+        margin: { top: 40, right: 10, left: 10 },
+        didDrawPage: (data: any) => {
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          // Add logo on each page
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+
+          // Add title on first page only
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(12);
+            doc.setFont('Amiri', 'normal');
+            doc.text('كشف حساب عهدة الموظفين', pageWidth / 2, 20, { align: 'right' });
+          }
+
+          // Footer
+          doc.setFontSize(10);
+          doc.setFont('Amiri', 'normal');
+
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+
+          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+          const dateText =
+            "التاريخ: " +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            "  الساعة: " +
+            new Date().toLocaleTimeString('ar-EG', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (data: any) => {
+          data.cell.styles.halign = 'right';
+        },
+      });
+
+      doc.save('employee_cash.pdf');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('حدث خطأ أثناء تصدير PDF');
+    }
+  };
+
+  // Export to Excel
+  const exportToExcel = async () => {
+    try {
+      const dataToExport = await exportedData();
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('كشف حساب عهدة الموظفين', { properties: { defaultColWidth: 20 } });
+
+      worksheet.columns = [
+        { header: '#', key: 'index', width: 10 },
+        { header: 'التاريخ', key: 'date', width: 15 },
+        { header: 'اسم الموظف', key: 'employeeName', width: 20 },
+        { header: 'رقم العهدة', key: 'cashNumber', width: 15 },
+        { header: 'المبلغ المستلم', key: 'receivedAmount', width: 15 },
+        { header: 'المصروف', key: 'expenseAmount', width: 15 },
+        { header: 'الرصيد المتبقي', key: 'remainingBalance', width: 15 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      // Flatten all transactions from all employees
+      const allTransactions = dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || [];
+
+      allTransactions.forEach((transaction: Transaction, index: number) => {
+        const row = worksheet.addRow({
+          index: index + 1,
+          date: transaction.date || 'غير متوفر',
+          employeeName: transaction.employeeName || 'غير متوفر',
+          cashNumber: transaction.cashNumber || 'غير متوفر',
+          receivedAmount: transaction.receivedAmount || 0,
+          expenseAmount: transaction.expenseAmount || 0,
+          remainingBalance: transaction.remainingBalance || 0,
+        });
+        row.alignment = { horizontal: 'right' };
+      });
+
+      // Add summary row
+      if (dataToExport.summary) {
+        worksheet.addRow({});
+        const summaryRow = worksheet.addRow({
+          index: '',
+          date: '',
+          employeeName: '',
+          cashNumber: '',
+          receivedAmount: dataToExport.summary.totalReceived || 0,
+          expenseAmount: dataToExport.summary.totalExpenses || 0,
+          remainingBalance: dataToExport.summary.totalRemaining || 0,
+        });
+        summaryRow.font = { bold: true };
+        summaryRow.alignment = { horizontal: 'right' };
+        
+        // Add label row
+        const labelRow = worksheet.addRow({
+          index: '',
+          date: '',
+          employeeName: 'الإجمالي',
+          cashNumber: '',
+          receivedAmount: '',
+          expenseAmount: '',
+          remainingBalance: '',
+        });
+        labelRow.font = { bold: true };
+        labelRow.alignment = { horizontal: 'right' };
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'employee_cash.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('حدث خطأ أثناء تصدير Excel');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -503,6 +840,10 @@ export default function EmployeeCash() {
   }
 
   return (<Layout>
+<Head>
+  <title>كشف حساب عهدة الموظفين</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</Head>
 <div className={`min-h-screen bg-gray-50 ${Style['tajawal-regular']}`} dir="rtl">
       {/* Page Content */}
       <div className="p-8">
@@ -598,6 +939,26 @@ export default function EmployeeCash() {
             <div className="bg-gray-100 rounded-lg p-5 text-center min-w-60 shadow-sm">
               <div className="text-base text-gray-700 mb-2">الأرصدة المتبقية</div>
               <div className="text-base font-normal text-gray-700 leading-8">{data?.summary.totalRemaining.toLocaleString() || '0'}</div>
+            </div>
+          </div>
+
+          {/* Export Buttons */}
+          <div className="flex justify-end items-center p-4 border-b border-gray-300">
+            <div className="flex gap-2">
+              <button
+                onClick={exportToPDF}
+                className="fl]ex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700"
+              >
+                <DocumentDownloadIcon className="w-4 h-4" />
+                PDF
+              </button>
+              <button
+                onClick={exportToExcel}
+                className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700"
+              >
+                <TableIcon className="w-4 h-4" />
+                Excel
+              </button>
             </div>
           </div>
 

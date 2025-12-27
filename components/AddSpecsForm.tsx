@@ -8,6 +8,7 @@ interface Client {
   id: string;
   fullname: string;
   phonenumber: string;
+  city?: string;
 }
 
 interface ApiOrderData {
@@ -30,12 +31,14 @@ interface FormData {
   Total: number;
   Paid: number;
   Remaining: number;
-  age: number;
-  ExperienceYears: number;
+  age: string;
+  ExperienceYears: string;
+  Experience?: string;
   notes: string;
   orderDocument: string;
   contract: string;
   selectedHomemaidId?: number;
+  city?: string;
 }
 
 interface HomemaidSuggestion {
@@ -71,8 +74,9 @@ export default function AddSpecsForm({ clients, orderId, preSelectedClient, onCa
     Total: 0,
     Paid: 0,
     Remaining: 0,
-    age: 0,
-    ExperienceYears: 0,
+    age: '',
+    ExperienceYears: '',
+    Experience: '',
     notes: '',
     orderDocument: '',
     contract: '',
@@ -101,6 +105,7 @@ const [fileNames, setFileNames] = useState({
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [suggestions, setSuggestions] = useState<HomemaidSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [nationalities, setNationalities] = useState<{ value: string; label: string; Country: string }[]>([]);
 
   const fileInputRefs = {
     orderDocument: useRef<HTMLInputElement>(null),
@@ -108,6 +113,54 @@ const [fileNames, setFileNames] = useState({
   };
 
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+  // Experience options from homemaidinfo
+  const experienceOptions = [
+    "Novice | مدربة بدون خبرة",
+    "Intermediate | مدربة بخبرة متوسطة",
+    "Well-experienced | خبرة جيدة",
+    "Expert | خبرة ممتازة"
+  ];
+
+  // Religion options from newhomemaids
+  const religionOptions = [
+    "Islam - الإسلام",
+    "Non-Muslim - غير مسلم"
+  ];
+
+  // Handle experience change - converts to ExperienceYears automatically
+  const handleExperienceChange = (selectedExperience: string) => {
+    let autoYears = "";
+
+    switch (selectedExperience) {
+      case "Novice | مدربة بدون خبرة":
+        autoYears = "مدربة-Training";
+        break;
+      case "Intermediate | مدربة بخبرة متوسطة":
+        autoYears = "1-2 Years - سنوات";
+        break;
+      case "Well-experienced | خبرة جيدة":
+        autoYears = "3-4 Years - سنوات";
+        break;
+      case "Expert | خبرة ممتازة":
+        autoYears = "5 and More - وأكثر";
+        break;
+      default:
+        autoYears = "";
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      Experience: selectedExperience,
+      ExperienceYears: autoYears,
+    }));
+    
+    setErrors((prev: any) => {
+      const newErrors = { ...prev };
+      delete newErrors.ExperienceYears;
+      return newErrors;
+    });
+  };
 
   // Validation functions
   const validatePhoneNumber = (phone: string): string => {
@@ -119,16 +172,16 @@ const [fileNames, setFileNames] = useState({
     return '';
   };
 
-  const validateAge = (age: number): string => {
-    if (age < 18 || age > 70) {
-      return 'العمر يجب أن يكون بين 18 و70 سنة';
+  const validateAge = (age: string): string => {
+    if (!age || age.trim() === '') {
+      return 'العمر مطلوب';
     }
     return '';
   };
 
-  const validateExperience = (experience: number): string => {
-    if (experience < 0 || experience > 50) {
-      return 'سنوات الخبرة يجب أن تكون بين 0 و50 سنة';
+  const validateExperience = (experience: string): string => {
+    if (!experience || experience.trim() === '') {
+      return 'سنوات الخبرة مطلوبة';
     }
     return '';
   };
@@ -151,8 +204,12 @@ const [fileNames, setFileNames] = useState({
   };
 
   const validateReligion = (religion: string): string => {
-    if (!religion || religion.trim().length < 2) {
-      return 'الديانة مطلوبة (2 أحرف على الأقل)';
+    if (!religion || religion.trim() === '') {
+      return 'الديانة مطلوبة';
+    }
+    // التحقق من أن القيمة المختارة موجودة في الخيارات
+    if (!religionOptions.includes(religion)) {
+      return 'يرجى اختيار ديانة صحيحة';
     }
     return '';
   };
@@ -184,8 +241,9 @@ const [fileNames, setFileNames] = useState({
             Total: 0, // Default
             Paid: 0,
             Remaining: 0,
-            age: 0, // Add to API if needed
-            ExperienceYears: 0,
+            age: '', // Add to API if needed
+            ExperienceYears: '',
+            Experience: '',
             notes: '', // Add to API if needed
             orderDocument: order.documentUpload.files || '',
             contract: order.ticketUpload.files || '',
@@ -205,6 +263,27 @@ const [fileNames, setFileNames] = useState({
       fetchOrder();
     }
   }, [orderId, clients]);
+
+  // Fetch nationalities from offices
+  useEffect(() => {
+    const fetchNationalities = async () => {
+      try {
+        const response = await fetch('/api/nationalities');
+        const data = await response.json();
+        if (data.success && data.nationalities) {
+          const nationalityOptions = data.nationalities.map((nat: any) => ({
+            value: nat.Country || nat.value,
+            label: nat.Country || nat.label,
+            Country: nat.Country || nat.value,
+          }));
+          setNationalities(nationalityOptions);
+        }
+      } catch (error) {
+        console.error('Error fetching nationalities:', error);
+      }
+    };
+    fetchNationalities();
+  }, []);
 
   // Handle pre-selected client
   useEffect(() => {
@@ -328,7 +407,7 @@ const handleInputChangeWithValidation = (e: React.ChangeEvent<HTMLInputElement>)
     let updatedFormData = { ...prev, [name]: value };
     
     // Handle numeric fields properly
-    if (name === 'age' || name === 'ExperienceYears' || name === 'Total' || name === 'Paid') {
+    if (name === 'Total' || name === 'Paid') {
       const numValue = parseFloat(value) || 0;
       updatedFormData = { ...updatedFormData, [name]: numValue };
       
@@ -352,35 +431,69 @@ const handleInputChangeWithValidation = (e: React.ChangeEvent<HTMLInputElement>)
 };
 // Function to fetch homemaid suggestions - النسخة الأصلية المُصححة
 const fetchSuggestions = async () => {
-  // تحويل للقيم الصحيحة للـ validation
-  const experience = parseInt(formData.ExperienceYears as any) || 0;
-  const age = parseInt(formData.age as any) || 0;
+  // استخدام ExperienceYears كـ string (مثل "1-2 Years - سنوات")
+  const experience = formData.ExperienceYears || '';
+  // استخدام الرينج الكامل للعمر (min و max)
+  const ageRange = formData.age || '';
+  let minAge = 0;
+  let maxAge = 0;
+  if (ageRange) {
+    const [min, max] = ageRange.split('-').map(Number);
+    if (!isNaN(min) && !isNaN(max)) {
+      minAge = min;
+      maxAge = max;
+    }
+  }
   
-  if (!experience || !formData.Nationalitycopy?.trim() || !formData.Religion?.trim()) {
-    setModalMessage('يرجى ملء سنوات الخبرة والجنسية والديانة أولاً');
+  // التحقق من صحة البيانات
+  if (!experience || !formData.Nationalitycopy?.trim() || !formData.Religion?.trim() || !ageRange) {
+    setModalMessage('يرجى ملء سنوات الخبرة والجنسية والديانة والعمر أولاً');
+    setShowErrorModal(true);
+    return;
+  }
+
+  // التحقق من صحة الرينج
+  if (minAge === 0 || maxAge === 0 || isNaN(minAge) || isNaN(maxAge)) {
+    setModalMessage('يرجى اختيار رينج عمر صحيح');
     setShowErrorModal(true);
     return;
   }
 
   setIsLoadingSuggestions(true);
   try {
-    const response = await fetch(
-      `/api/suggest-homemaids?experience=${experience}&nationality=${encodeURIComponent(formData.Nationalitycopy.trim())}&religion=${encodeURIComponent(formData.Religion.trim())}&age=${age}`
-    );
+    // بناء URL مع معاملات البحث - إرسال الرينج الكامل
+    const params = new URLSearchParams({
+      experience: experience,
+      nationality: formData.Nationalitycopy.trim(),
+      religion: formData.Religion.trim(),
+      minAge: minAge.toString(),
+      maxAge: maxAge.toString(),
+      ageRange: ageRange, // إرسال الرينج أيضاً للتوافق
+    });
+
+    const response = await fetch(`/api/suggest-homemaids?${params.toString()}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
     
     if (data.success) {
-      if (data.suggestions.length > 0) {
+      if (data.suggestions && data.suggestions.length > 0) {
         setSuggestions(data.suggestions);
         setShowSuggestionModal(true);
       } else {
         setModalMessage(data.message || 'لم يتم العثور على عاملات تطابق المواصفات المطلوبة');
         setShowErrorModal(true);
       }
+    } else {
+      setModalMessage(data.message || 'حدث خطأ أثناء البحث عن العاملات');
+      setShowErrorModal(true);
     }
   } catch (error) {
     console.error('Error fetching suggestions:', error);
-    setModalMessage('حدث خطأ أثناء البحث عن العاملات');
+    setModalMessage('حدث خطأ أثناء البحث عن العاملات. يرجى المحاولة مرة أخرى');
     setShowErrorModal(true);
   } finally {
     setIsLoadingSuggestions(false);
@@ -388,14 +501,38 @@ const fetchSuggestions = async () => {
 };
   // Function to handle suggestion acceptance
   const handleAcceptSuggestion = (suggestion: HomemaidSuggestion) => {
+    // تحويل العمر من رقم إلى رينج
+    let ageRange = '';
+    if (suggestion.age >= 21 && suggestion.age <= 30) {
+      ageRange = '21-30';
+    } else if (suggestion.age >= 31 && suggestion.age <= 40) {
+      ageRange = '31-40';
+    } else if (suggestion.age >= 41 && suggestion.age <= 50) {
+      ageRange = '41-50';
+    }
+    
+    // تحويل experience إلى Experience المناسب
+    let experienceOption = '';
+    const expYears = suggestion.experience || '';
+    if (expYears.includes('مدربة-Training') || expYears.includes('Training')) {
+      experienceOption = 'Novice | مدربة بدون خبرة';
+    } else if (expYears.includes('1-2') || expYears.includes('1-2 Years')) {
+      experienceOption = 'Intermediate | مدربة بخبرة متوسطة';
+    } else if (expYears.includes('3-4') || expYears.includes('3-4 Years')) {
+      experienceOption = 'Well-experienced | خبرة جيدة';
+    } else if (expYears.includes('5') || expYears.includes('More') || expYears.includes('وأكثر')) {
+      experienceOption = 'Expert | خبرة ممتازة';
+    }
+    
     setFormData((prev) => ({
       ...prev,
       selectedHomemaidId: suggestion.id,
       // Update form fields with selected homemaid data
       Nationalitycopy: suggestion.nationality,
       Religion: suggestion.religion,
-      ExperienceYears: parseInt(suggestion.experience) || 0,
-      age: suggestion.age,
+      ExperienceYears: expYears,
+      Experience: experienceOption,
+      age: ageRange,
     }));
     setShowSuggestionModal(false);
     setModalMessage(`تم اختيار العاملة: ${suggestion.name}`);
@@ -451,23 +588,15 @@ const fetchSuggestions = async () => {
     }
 
     // Age validation
-    if (formData.age === 0) {
-      newErrors.age = 'العمر مطلوب';
-    } else {
-      const ageError = validateAge(formData.age);
-      if (ageError) {
-        newErrors.age = ageError;
-      }
+    const ageError = validateAge(formData.age);
+    if (ageError) {
+      newErrors.age = ageError;
     }
 
     // Experience validation
-    if (formData.ExperienceYears === 0) {
-      newErrors.ExperienceYears = 'سنوات الخبرة مطلوبة';
-    } else {
-      const expError = validateExperience(formData.ExperienceYears);
-      if (expError) {
-        newErrors.ExperienceYears = expError;
-      }
+    const expError = validateExperience(formData.ExperienceYears);
+    if (expError) {
+      newErrors.ExperienceYears = expError;
     }
 
     // Nationality validation
@@ -494,7 +623,9 @@ const fetchSuggestions = async () => {
     }
 
     // File uploads validation
-    if (!fileUploaded.orderDocument) {
+    // ملف سند الأمر غير مطلوب إذا كان الدفع كاش
+    const isCashPayment = formData.PaymentMethod === 'cash' || formData.PaymentMethod === 'كاش';
+    if (!isCashPayment && !fileUploaded.orderDocument) {
       newErrors.orderDocument = 'ملف سند الأمر مطلوب';
     }
     if (!fileUploaded.contract) {
@@ -505,8 +636,8 @@ const fetchSuggestions = async () => {
     if (!formData.selectedHomemaidId) {
       if (!formData.Nationalitycopy) newErrors.Nationalitycopy = 'الجنسية مطلوبة';
       if (!formData.Religion) newErrors.Religion = 'الديانة مطلوبة';
-      if (formData.ExperienceYears === 0) newErrors.ExperienceYears = 'سنوات الخبرة مطلوبة';
-      if (formData.age === 0) newErrors.age = 'العمر مطلوب';
+      if (!formData.ExperienceYears || formData.ExperienceYears.trim() === '') newErrors.ExperienceYears = 'سنوات الخبرة مطلوبة';
+      if (!formData.age || formData.age.trim() === '') newErrors.age = 'العمر مطلوب';
     }
 
     setErrors(newErrors);
@@ -764,53 +895,156 @@ const arabicRegionMap: { [key: string]: string } = {
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">العمر</label>
-            <input
-              type="number"
-              name="age"
-              value={formData.age || ''}
-              onChange={handleInputChangeWithValidation}
+            <Select
+              options={[
+                { value: '21-30', label: '21-30' },
+                { value: '31-40', label: '31-40' },
+                { value: '41-50', label: '41-50' },
+              ]}
+              onChange={(selectedOption) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  age: selectedOption?.value || '',
+                }));
+                setErrors((prev: any) => {
+                  const newErrors = { ...prev };
+                  delete newErrors.age;
+                  return newErrors;
+                });
+              }}
+              value={formData.age ? { value: formData.age, label: formData.age } : null}
               placeholder="اختر العمر"
-              min="18"
-              max="70"
-              className={getInputClassName('age')}
+              className={`text-right ${errors.age ? 'border-red-500' : ''}`}
+              styles={{
+                control: (base, state) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: state.isFocused 
+                    ? '#14b8a6' 
+                    : errors.age 
+                    ? '#ef4444' 
+                    : '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                  boxShadow: state.isFocused ? '0 0 0 1px #14b8a6' : 'none',
+                }),
+                menu: (base) => ({ ...base, textAlign: 'right' }),
+                singleValue: (base) => ({ ...base, textAlign: 'right' }),
+                placeholder: (base) => ({ ...base, textAlign: 'right' }),
+              }}
             />
             {errors.age && <p className="text-red-500 text-md mt-1">{errors.age}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">سنوات الخبرة</label>
-            <input
-              type="number"
-              name="ExperienceYears"
-              value={formData.ExperienceYears || ''}
-              onChange={handleInputChangeWithValidation}
+            <Select
+              options={experienceOptions.map(exp => ({ value: exp, label: exp }))}
+              onChange={(selectedOption) => {
+                if (selectedOption) {
+                  handleExperienceChange(selectedOption.value);
+                }
+              }}
+              value={formData.Experience ? { value: formData.Experience, label: formData.Experience } : null}
               placeholder="اختر سنوات الخبرة"
-              min="0"
-              max="50"
-              className={getInputClassName('ExperienceYears')}
+              className={`text-right ${errors.ExperienceYears ? 'border-red-500' : ''}`}
+              styles={{
+                control: (base, state) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: state.isFocused 
+                    ? '#14b8a6' 
+                    : errors.ExperienceYears 
+                    ? '#ef4444' 
+                    : '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                  boxShadow: state.isFocused ? '0 0 0 1px #14b8a6' : 'none',
+                }),
+                menu: (base) => ({ ...base, textAlign: 'right' }),
+                singleValue: (base) => ({ ...base, textAlign: 'right' }),
+                placeholder: (base) => ({ ...base, textAlign: 'right' }),
+              }}
             />
+            {formData.ExperienceYears && (
+              <p className="text-sm text-gray-600 mt-1 text-right">
+                {formData.ExperienceYears}
+              </p>
+            )}
             {errors.ExperienceYears && <p className="text-red-500 text-md mt-1">{errors.ExperienceYears}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">جنسية العاملة المطلوبة</label>
-            <input
-              type="text"
-              name="Nationalitycopy"
-              value={formData.Nationalitycopy}
-              onChange={handleInputChangeWithValidation}
+            <Select
+              options={nationalities}
+              onChange={(selectedOption) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  Nationalitycopy: selectedOption?.value || '',
+                }));
+                setErrors((prev: any) => {
+                  const newErrors = { ...prev };
+                  delete newErrors.Nationalitycopy;
+                  return newErrors;
+                });
+              }}
+              value={formData.Nationalitycopy ? nationalities.find(nat => nat.value === formData.Nationalitycopy) || null : null}
               placeholder="اختر جنسية العاملة المطلوبة"
-              className={getInputClassName('Nationalitycopy')}
+              className={`text-right ${errors.Nationalitycopy ? 'border-red-500' : ''}`}
+              styles={{
+                control: (base, state) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: state.isFocused 
+                    ? '#14b8a6' 
+                    : errors.Nationalitycopy 
+                    ? '#ef4444' 
+                    : '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                  boxShadow: state.isFocused ? '0 0 0 1px #14b8a6' : 'none',
+                }),
+                menu: (base) => ({ ...base, textAlign: 'right' }),
+                singleValue: (base) => ({ ...base, textAlign: 'right' }),
+                placeholder: (base) => ({ ...base, textAlign: 'right' }),
+              }}
             />
             {errors.Nationalitycopy && <p className="text-red-500 text-md mt-1">{errors.Nationalitycopy}</p>}
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-base">الديانة</label>
-            <input
-              type="text"
-              name="Religion"
-              value={formData.Religion}
-              onChange={handleInputChangeWithValidation}
+            <Select
+              options={religionOptions.map(rel => ({ value: rel, label: rel }))}
+              onChange={(selectedOption) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  Religion: selectedOption?.value || '',
+                }));
+                setErrors((prev: any) => {
+                  const newErrors = { ...prev };
+                  delete newErrors.Religion;
+                  return newErrors;
+                });
+              }}
+              value={formData.Religion ? religionOptions.find(rel => rel === formData.Religion) ? { value: formData.Religion, label: formData.Religion } : null : null}
               placeholder="اختر الديانة"
-              className={getInputClassName('Religion')}
+              className={`text-right ${errors.Religion ? 'border-red-500' : ''}`}
+              styles={{
+                control: (base, state) => ({
+                  ...base,
+                  backgroundColor: '#F9FAFB',
+                  borderColor: state.isFocused 
+                    ? '#14b8a6' 
+                    : errors.Religion 
+                    ? '#ef4444' 
+                    : '#D1D5DB',
+                  padding: '0.5rem',
+                  textAlign: 'right',
+                  boxShadow: state.isFocused ? '0 0 0 1px #14b8a6' : 'none',
+                }),
+                menu: (base) => ({ ...base, textAlign: 'right' }),
+                singleValue: (base) => ({ ...base, textAlign: 'right' }),
+                placeholder: (base) => ({ ...base, textAlign: 'right' }),
+              }}
             />
             {errors.Religion && <p className="text-red-500 text-md mt-1">{errors.Religion}</p>}
           </div>
@@ -912,16 +1146,28 @@ const arabicRegionMap: { [key: string]: string } = {
         </div>
 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
   {[
-    { id: 'orderDocument', label: 'ملف سند الأمر' },
-    { id: 'contract', label: 'ملف العقد' },
-  ].map((file) => {
+    { id: 'orderDocument', label: 'ملف سند الأمر', required: formData.PaymentMethod !== 'cash' && formData.PaymentMethod !== 'كاش' },
+    { id: 'contract', label: 'ملف العقد', required: true },
+  ].filter(file => {
+    // إخفاء ملف سند الأمر إذا كان الدفع كاش
+    if (file.id === 'orderDocument' && (formData.PaymentMethod === 'cash' || formData.PaymentMethod === 'كاش')) {
+      return false;
+    }
+    return true;
+  }).map((file) => {
     const isUploaded = (fileUploaded as any)[file.id];
     const fileName = (fileNames as any)[file.id];
     const fileUrl = formData[file.id as keyof FormData] as string;
 
+    const isCashPayment = formData.PaymentMethod === 'cash' || formData.PaymentMethod === 'كاش';
+    const isOrderDocument = file.id === 'orderDocument';
+    
     return (
       <div key={file.id} className="flex flex-col gap-2">
-        <label htmlFor={file.id} className="text-base">{file.label}</label>
+        <label htmlFor={file.id} className="text-base">
+          {file.label}
+          {file.required && <span className="text-red-500"> *</span>}
+        </label>
         <div className={`file-upload-display border ${errors[file.id] ? 'border-red-500' : 'border-gray-300'} rounded p-3 flex flex-col gap-2 transition-colors duration-200`}>
           
           {/* عرض اسم الملف */}
@@ -970,7 +1216,7 @@ const arabicRegionMap: { [key: string]: string } = {
               </>
             ) : (
               <span className="text-gray-500 text-md">
-                {errors[file.id] ? errors[file.id] : 'لم يتم اختيار ملف'}
+                {errors[file.id] ? errors[file.id] : (isOrderDocument && isCashPayment ? 'غير مطلوب للدفع كاش' : 'لم يتم اختيار ملف')}
               </span>
             )}
           </div>
@@ -1012,7 +1258,7 @@ const arabicRegionMap: { [key: string]: string } = {
             )}
           </button>
         </div>
-        {(!isUploaded && !errors[file.id]) && (
+        {(!isUploaded && !errors[file.id] && !(isOrderDocument && isCashPayment)) && (
           <p className="text-md text-gray-500 text-right mt-1">
             يُفضل PDF أو صورة (أقل من 10 ميجابايت)
           </p>

@@ -17,7 +17,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const skip = (Number(page) - 1) * Number(limit);
 
       // Build where clause for filtering
-      const where: any = {};
+      const where: any = {
+        isTemporary: false // استبعاد السجلات المؤقتة من الاستعلامات العادية
+      };
       
       if (employee && employee !== 'all') {
         where.employeeId = Number(employee);
@@ -147,59 +149,165 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else if (req.method === 'POST') {
     try {
       const {
+        id, // ID السجل المؤقت (إن وجد)
         employeeId,
         cashNumber,
         receivedAmount,
         expenseAmount,
         description,
-        attachment
+        attachment,
+        transactionDate,
+        isTemporary = false
       } = req.body;
-
-      // Basic validation
-      if (!employeeId) {
-        return res.status(400).json({ error: 'الموظف مطلوب' });
-      }
 
       const received = Number(receivedAmount || 0);
       const expense = Number(expenseAmount || 0);
       const remaining = received - expense;
 
-      const employeeCashRecord = await prisma.employeeCash.create({
-        data: {
-          employeeId: Number(employeeId),
-          cashNumber: cashNumber || '',
-          receivedAmount: received,
-          expenseAmount: expense,
-          remainingBalance: remaining,
-          description: description || '',
-          attachment: attachment || '',
-          transactionDate: new Date()
-        },
-        include: {
-          employee: {
-            select: {
-              id: true,
-              name: true,
-              position: true,
-              department: true
+      let employeeCashRecord;
+
+      // إذا كان هناك ID، فهذا تحديث لسجل مؤقت
+      if (id) {
+        // التحقق من صحة السجل المؤقت
+        const existingRecord = await prisma.employeeCash.findUnique({
+          where: { id: Number(id) }
+        });
+
+        if (!existingRecord || !existingRecord.isTemporary) {
+          return res.status(400).json({ error: 'السجل المؤقت غير موجود' });
+        }
+
+        // التحقق من وجود الموظف إذا لم يكن مؤقتاً
+        if (!isTemporary && !employeeId) {
+          return res.status(400).json({ error: 'الموظف مطلوب' });
+        }
+
+        // تحديث السجل
+        employeeCashRecord = await prisma.employeeCash.update({
+          where: { id: Number(id) },
+          data: {
+            employeeId: employeeId ? Number(employeeId) : null,
+            cashNumber: cashNumber || '',
+            receivedAmount: received,
+            expenseAmount: expense,
+            remainingBalance: remaining,
+            description: description || '',
+            attachment: attachment || '',
+            transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+            isTemporary: isTemporary
+          },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                name: true,
+                position: true,
+                department: true
+              }
             }
           }
+        });
+      } else {
+        // إنشاء سجل جديد
+        // التحقق من وجود الموظف إذا لم يكن مؤقتاً
+        if (!isTemporary && !employeeId) {
+          return res.status(400).json({ error: 'الموظف مطلوب' });
         }
-      });
+
+        employeeCashRecord = await prisma.employeeCash.create({
+          data: {
+            employeeId: employeeId ? Number(employeeId) : null,
+            cashNumber: cashNumber || '', // سيتم تحديثه بعد الحصول على ID
+            receivedAmount: received,
+            expenseAmount: expense,
+            remainingBalance: remaining,
+            description: description || '',
+            attachment: attachment || '',
+            transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+            isTemporary: isTemporary
+          },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                name: true,
+                position: true,
+                department: true
+              }
+            }
+          }
+        });
+
+        // إذا كان سجل مؤقت ولم يكن هناك رقم عهدة، استخدم ID السجل
+        if (isTemporary && !cashNumber) {
+          const updatedCashNumber = employeeCashRecord.id.toString();
+          employeeCashRecord = await prisma.employeeCash.update({
+            where: { id: employeeCashRecord.id },
+            data: {
+              cashNumber: updatedCashNumber
+            },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  name: true,
+                  position: true,
+                  department: true
+                }
+              }
+            }
+          });
+        }
+      }
 
       res.status(201).json({ 
-        message: 'تم إضافة سجل العهدة بنجاح', 
+        message: isTemporary ? 'تم إنشاء سجل العهدة المؤقت بنجاح' : 'تم إضافة سجل العهدة بنجاح', 
         employeeCashRecord 
       });
 
     } catch (error) {
-      console.error('Error creating employee cash record:', error);
-      res.status(500).json({ error: 'Failed to create employee cash record' });
+      console.error('Error creating/updating employee cash record:', error);
+      res.status(500).json({ error: 'Failed to create/update employee cash record' });
+    } finally {
+      await prisma.$disconnect();
+    }
+  } else if (req.method === 'DELETE') {
+    try {
+      const { id } = req.query;
+
+      if (!id) {
+        return res.status(400).json({ error: 'معرف السجل مطلوب' });
+      }
+
+      // التحقق من أن السجل مؤقت
+      const existingRecord = await prisma.employeeCash.findUnique({
+        where: { id: Number(id) }
+      });
+
+      if (!existingRecord) {
+        return res.status(404).json({ error: 'السجل غير موجود' });
+      }
+
+      if (!existingRecord.isTemporary) {
+        return res.status(400).json({ error: 'يمكن حذف السجلات المؤقتة فقط' });
+      }
+
+      await prisma.employeeCash.delete({
+        where: { id: Number(id) }
+      });
+
+      res.status(200).json({ 
+        message: 'تم حذف السجل المؤقت بنجاح' 
+      });
+
+    } catch (error) {
+      console.error('Error deleting temporary employee cash record:', error);
+      res.status(500).json({ error: 'Failed to delete temporary employee cash record' });
     } finally {
       await prisma.$disconnect();
     }
   } else {
-    res.setHeader('Allow', ['GET', 'POST']);
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

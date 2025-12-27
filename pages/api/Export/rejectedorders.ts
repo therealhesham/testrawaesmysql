@@ -48,7 +48,7 @@ export default async function handler(
           },
         },
         where: {
-          bookingstatus: "rejected",
+          bookingstatus: { in: ["rejected", "cancelled"] },
    
         },
       });

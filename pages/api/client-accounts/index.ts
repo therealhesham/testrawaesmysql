@@ -72,10 +72,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? { order: { typeOfContract: String(contractType) } }
         : {};
 
+      // Ensure we only query statements with valid clients to avoid null relation errors
+      // If a specific clientId is already set, verify it exists, otherwise filter by valid IDs
+      const finalWhere: any = {
+        ...where,
+        ...orderFilter
+      };
+
+      // If no specific client filter is set, get valid client IDs and filter by them
+      if (!where.clientId) {
+        const validClientIds = await prisma.client.findMany({
+          select: { id: true }
+        }).then(clients => clients.map(c => c.id));
+        
+        if (validClientIds.length > 0) {
+          finalWhere.clientId = { in: validClientIds };
+        } else {
+          // No valid clients exist, return empty results
+          finalWhere.clientId = -1; // This will match nothing
+        }
+      } else {
+        // Verify the specific client exists
+        const clientExists = await prisma.client.findUnique({
+          where: { id: where.clientId },
+          select: { id: true }
+        });
+        
+        if (!clientExists) {
+          // Requested client doesn't exist, return empty results
+          finalWhere.clientId = -1; // This will match nothing
+        }
+      }
+
       // Get client account statements with pagination
       const [statements, total] = await Promise.all([
         prisma.clientAccountStatement.findMany({
-          where: { ...where, ...orderFilter },
+          where: finalWhere,
           include: {
             client: {
               select: {
@@ -97,12 +129,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           skip,
           take: Number(limit)
         }),
-        prisma.clientAccountStatement.count({ where: { ...where, ...orderFilter } })
+        prisma.clientAccountStatement.count({ where: finalWhere })
       ]);
 
       // Calculate summary totals
       const summary = await prisma.clientAccountStatement.aggregate({
-        where: { ...where, ...orderFilter },
+        where: finalWhere,
         _sum: {
           totalRevenue: true,
           totalExpenses: true,

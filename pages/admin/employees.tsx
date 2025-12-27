@@ -155,14 +155,42 @@ export default function Employees() {
       errors.name = 'اسم الموظف مطلوب';
     }
     
-    // Email validation if provided
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!formData.position.trim()) {
+      errors.position = 'الوظيفة مطلوبة';
+    }
+    
+    if (!formData.department.trim()) {
+      errors.department = 'القسم مطلوب';
+    }
+    
+    if (!formData.phoneNumber.trim()) {
+      errors.phoneNumber = 'رقم الهاتف مطلوب';
+    } else if (!/^[0-9+\-\s()]+$/.test(formData.phoneNumber)) {
+      errors.phoneNumber = 'رقم الهاتف غير صحيح';
+    }
+    
+    if (!formData.email.trim()) {
+      errors.email = 'البريد الإلكتروني مطلوب';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'البريد الإلكتروني غير صحيح';
     }
     
-    // Phone validation if provided
-    if (formData.phoneNumber && !/^[0-9+\-\s()]+$/.test(formData.phoneNumber)) {
-      errors.phoneNumber = 'رقم الهاتف غير صحيح';
+    if (!formData.nationalId.trim()) {
+      errors.nationalId = 'الهوية الوطنية مطلوبة';
+    }
+    
+    if (!formData.address.trim()) {
+      errors.address = 'العنوان مطلوب';
+    }
+    
+    if (!formData.hireDate) {
+      errors.hireDate = 'تاريخ التوظيف مطلوب';
+    }
+    
+    if (!formData.salary.trim()) {
+      errors.salary = 'الراتب مطلوب';
+    } else if (isNaN(Number(formData.salary)) || Number(formData.salary) < 0) {
+      errors.salary = 'الراتب يجب أن يكون رقماً صحيحاً';
     }
     
     setFormErrors(errors);
@@ -329,7 +357,7 @@ return (
               </div>
               
               <div className="flex flex-col gap-2">
-                <label className="text-md text-gray-700 text-right">المنصب</label>
+                <label className="text-md text-gray-700 text-right">الوظيفة</label>
                 <select 
                   className="w-full bg-gray-100 border border-gray-300 rounded  py-2 text-md text-gray-500 text-right"
                   value={positionFilter}
@@ -365,7 +393,7 @@ return (
                   <tr>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">#</th>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الاسم</th>
-                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">المنصب</th>
+                    <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الوظيفة</th>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">القسم</th>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الهاتف</th>
                     <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">البريد الإلكتروني</th>
@@ -464,29 +492,41 @@ return (
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">المنصب</label>
+                    <label className="text-md text-gray-500 mb-2">الوظيفة <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
-                      placeholder="ادخل المنصب" 
+                      placeholder="ادخل الوظيفة" 
                       value={formData.position}
                       onChange={(e) => handleFormFieldChange('position', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                      className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                        formErrors.position ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
                     />
+                    {formErrors.position && (
+                      <span className="text-red-500 text-sm mt-1">{formErrors.position}</span>
+                    )}
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">القسم</label>
+                    <label className="text-md text-gray-500 mb-2">القسم <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
                       placeholder="ادخل القسم" 
                       value={formData.department}
                       onChange={(e) => handleFormFieldChange('department', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                      className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                        formErrors.department ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
                     />
+                    {formErrors.department && (
+                      <span className="text-red-500 text-sm mt-1">{formErrors.department}</span>
+                    )}
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">رقم الهاتف</label>
+                    <label className="text-md text-gray-500 mb-2">رقم الهاتف <span className="text-red-500">*</span></label>
                     <input 
                       type="tel" 
                       placeholder="05xxxxxxxx" 
@@ -495,6 +535,7 @@ return (
                       className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                         formErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
                       }`}
+                      required
                     />
                     {formErrors.phoneNumber && (
                       <span className="text-red-500 text-sm mt-1">{formErrors.phoneNumber}</span>
@@ -502,7 +543,7 @@ return (
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">البريد الإلكتروني</label>
+                    <label className="text-md text-gray-500 mb-2">البريد الإلكتروني <span className="text-red-500">*</span></label>
                     <input 
                       type="email" 
                       placeholder="example@email.com" 
@@ -511,6 +552,7 @@ return (
                       className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                         formErrors.email ? 'border-red-500' : 'border-gray-300'
                       }`}
+                      required
                     />
                     {formErrors.email && (
                       <span className="text-red-500 text-sm mt-1">{formErrors.email}</span>
@@ -518,48 +560,72 @@ return (
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">الهوية الوطنية</label>
+                    <label className="text-md text-gray-500 mb-2">الهوية الوطنية <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
                       placeholder="ادخل الهوية الوطنية" 
                       value={formData.nationalId}
                       onChange={(e) => handleFormFieldChange('nationalId', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                      className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                        formErrors.nationalId ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
                     />
+                    {formErrors.nationalId && (
+                      <span className="text-red-500 text-sm mt-1">{formErrors.nationalId}</span>
+                    )}
                   </div>
                   
                   <div className="flex flex-col items-end col-span-2">
-                    <label className="text-md text-gray-500 mb-2">العنوان</label>
+                    <label className="text-md text-gray-500 mb-2">العنوان <span className="text-red-500">*</span></label>
                     <input 
                       type="text" 
                       placeholder="ادخل العنوان" 
                       value={formData.address}
                       onChange={(e) => handleFormFieldChange('address', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                      className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                        formErrors.address ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
                     />
+                    {formErrors.address && (
+                      <span className="text-red-500 text-sm mt-1">{formErrors.address}</span>
+                    )}
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">تاريخ التوظيف</label>
+                    <label className="text-md text-gray-500 mb-2">تاريخ التوظيف <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
                       value={formData.hireDate}
                       onChange={(e) => handleFormFieldChange('hireDate', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                      className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                        formErrors.hireDate ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
                     />
+                    {formErrors.hireDate && (
+                      <span className="text-red-500 text-sm mt-1">{formErrors.hireDate}</span>
+                    )}
                   </div>
                   
                   <div className="flex flex-col items-end">
-                    <label className="text-md text-gray-500 mb-2">الراتب</label>
+                    <label className="text-md text-gray-500 mb-2">الراتب <span className="text-red-500">*</span></label>
                     <input 
                       type="number" 
                       placeholder="0.00" 
                       value={formData.salary}
                       onChange={(e) => handleFormFieldChange('salary', e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                      className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                        formErrors.salary ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       min="0"
                       step="0.01"
+                      required
                     />
+                    {formErrors.salary && (
+                      <span className="text-red-500 text-sm mt-1">{formErrors.salary}</span>
+                    )}
                   </div>
                   
                   <div className="flex flex-col items-end col-span-2">

@@ -128,7 +128,7 @@ export default async function handler(
           },
         },
         where: {
-          bookingstatus: "rejected",
+          bookingstatus: { in: ["rejected", "cancelled"] },
           ...filters,
           AND: [
             ...(filters.AND || []),
@@ -160,7 +160,7 @@ export default async function handler(
       }),
       prisma.neworder.count({
         where: {
-          bookingstatus: "rejected",
+          bookingstatus: { in: ["rejected", "cancelled"] },
           ...filters,
           AND: [
             ...(filters.AND || []),

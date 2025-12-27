@@ -97,6 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             gte: periodData.start,
             lte: periodData.end,
           },
+          isTemporary: false // استبعاد السجلات المؤقتة
         },
       });
 

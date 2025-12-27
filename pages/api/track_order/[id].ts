@@ -125,6 +125,7 @@ console.log(id)
               KingdomentryTime: true,
               receiptMethod: true,
               customTimelineStages: true,
+              ExternalDateLinking: true,
             } as any,
           },
           DeliveryDetails: {
@@ -172,6 +173,9 @@ console.log(id)
           visaNumber: order.arrivals[0]?.visaNumber || 'N/A',
           internalMusanedContract: order.arrivals[0]?.InternalmusanedContract || 'N/A',
           musanedDate: order.arrivals[0]?.DateOfApplication ? (order.arrivals[0].DateOfApplication as Date).toISOString().split('T')[0] : 'N/A',
+        },
+        officeLinkApproval: {
+          approved: !!order.arrivals[0]?.ExternalDateLinking,
         },
         externalOfficeInfo: {
           officeName: order.HomeMaid?.officeName || 'N/A',
@@ -298,6 +302,7 @@ const cookieHeader = req.headers.cookie;
       // Handle existing status updates
       if (field) {
         const validFields = [
+          'officeLinkApproval',
           'externalOfficeApproval',
           'medicalCheck',
           'foreignLaborApproval',
@@ -371,7 +376,12 @@ const cookieHeader = req.headers.cookie;
         let logMessage = '';
 
         switch (field) {
-
+          case 'officeLinkApproval':
+            const oldOfficeLink = order.arrivals[0]?.ExternalDateLinking ? 'مكتمل' : 'غير مكتمل';
+            arrivalUpdate.ExternalDateLinking = value ? new Date() : null;
+            updateData.bookingstatus = value ? 'office_link_approved' : 'pending_office_link';
+            logMessage = `تعديل موافقة الربط مع إدارة المكاتب في الطلب ${id} من "${oldOfficeLink}" إلى "${value ? 'مكتمل' : 'غير مكتمل'}"`;
+            break;
           case 'externalOfficeApproval':
             const oldExtStatus = order.arrivals[0]?.externalOfficeStatus;
             arrivalUpdate.externalOfficeStatus = value ? 'approved' : 'pending';

@@ -28,6 +28,7 @@ interface OrderData {
   applicationInfo: { applicationDate: string; applicationTime: string };
   orderFiles?: { orderDocument?: string | null; contract?: string | null };
   officeLinkInfo: { nationalId: string; visaNumber: string; internalMusanedContract: string; musanedDate: string };
+  officeLinkApproval: { approved: boolean };
   externalOfficeInfo: { officeName: string; country: string; externalMusanedContract: string };
   externalOfficeApproval: { approved: boolean };
   medicalCheck: { passed: boolean };
@@ -116,6 +117,8 @@ export default function TrackOrder() {
       case 'officeLinkInfo':
         // الربط مع إدارة المكاتب - مكتمل إذا كان هناك رقم تأشيرة أو رقم عقد
         return !!(orderData.officeLinkInfo.visaNumber || orderData.officeLinkInfo.internalMusanedContract);
+      case 'officeLinkApproval':
+        return orderData.officeLinkApproval.approved;
       case 'externalOfficeInfo':
         // المكتب الخارجي - مكتمل إذا كان هناك اسم مكتب
         return !!orderData.externalOfficeInfo.officeName;
@@ -146,6 +149,7 @@ export default function TrackOrder() {
   // ترتيب المراحل
   const stepsOrder = [
     'officeLinkInfo',
+    'officeLinkApproval',
     'externalOfficeInfo', 
     'externalOfficeApproval',
     'medicalCheck',
@@ -209,6 +213,34 @@ export default function TrackOrder() {
       }
       const arrivalDate = new Date(orderData.destinations.arrivalDateTime);
       return `موعد الوصول (${arrivalDate.toLocaleDateString('ar-SA')} ${arrivalDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })})`;
+    }
+    
+    return null;
+  };
+
+  // دالة للحصول على آخر مرحلة موافق عليها
+  const getLastApprovedStage = (): string | null => {
+    if (!orderData) return null;
+    
+    // المراحل التي يمكن التراجع عنها مرتبة حسب الترتيب
+    const reversibleStages = [
+      'officeLinkApproval',
+      'externalOfficeApproval',
+      'medicalCheck',
+      'foreignLaborApproval',
+      'agencyPayment',
+      'saudiEmbassyApproval',
+      'visaIssuance',
+      'travelPermit',
+      'receipt'
+    ];
+    
+    // البحث من النهاية إلى البداية للعثور على آخر مرحلة موافق عليها
+    for (let i = reversibleStages.length - 1; i >= 0; i--) {
+      const stage = reversibleStages[i];
+      if (isStepCompleted(stage)) {
+        return stage;
+      }
     }
     
     return null;
@@ -290,6 +322,7 @@ export default function TrackOrder() {
   // خريطة لتحويل أسماء الحقول الإنجليزية إلى أسماء عربية
   const fieldNames: { [key: string]: string } = {
     'officeLinkInfo': 'الربط مع إدارة المكاتب',
+    'officeLinkApproval': 'موافقة الربط مع إدارة المكاتب',
     'externalOfficeInfo': 'المكتب الخارجي',
     'externalOfficeApproval': 'موافقة المكتب الخارجي',
     'medicalCheck': 'الفحص الطبي',
@@ -820,6 +853,41 @@ export default function TrackOrder() {
           />
 
           <InfoCard
+            id="office-link-approval"
+            title="1-1 موافقة الربط مع إدارة المكاتب"
+            data={[
+              {
+                label: 'هل تمت موافقة الربط مع إدارة المكاتب؟',
+                value: orderData.officeLinkApproval.approved ? (
+                  <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      onClick={() => handleStatusUpdate('officeLinkApproval', true)}
+                      disabled={updating || !canCompleteStep('officeLinkApproval')}
+                      title={!canCompleteStep('officeLinkApproval') ? `يجب إكمال: ${getPreviousIncompleteStep('officeLinkApproval')}` : ''}
+                    >
+                      تأكيد الموافقة
+                    </button>
+                    {!canCompleteStep('officeLinkApproval') && (
+                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('officeLinkApproval')}</span>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('officeLinkApproval', false),
+                disabled: updating || !orderData.officeLinkApproval.approved || getLastApprovedStage() !== 'officeLinkApproval',
+              },
+            ]}
+          />
+
+          <InfoCard
             id="external-office-info"
             title="2- المكتب الخارجي"
             data={[
@@ -862,7 +930,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('externalOfficeApproval', false),
-                disabled: updating || !orderData.externalOfficeApproval.approved,
+                disabled: updating || !orderData.externalOfficeApproval.approved || getLastApprovedStage() !== 'externalOfficeApproval',
               },
             ]}
           />
@@ -996,7 +1064,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('medicalCheck', false),
-                disabled: updating || !orderData.medicalCheck.passed,
+                disabled: updating || !orderData.medicalCheck.passed || getLastApprovedStage() !== 'medicalCheck',
               },
             ]}
           />
@@ -1031,7 +1099,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('foreignLaborApproval', false),
-                disabled: updating || !orderData.foreignLaborApproval.approved,
+                disabled: updating || !orderData.foreignLaborApproval.approved || getLastApprovedStage() !== 'foreignLaborApproval',
               },
             ]}
           />
@@ -1066,7 +1134,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('agencyPayment', false),
-                disabled: updating || !orderData.agencyPayment.paid,
+                disabled: updating || !orderData.agencyPayment.paid || getLastApprovedStage() !== 'agencyPayment',
               },
             ]}
           />
@@ -1101,7 +1169,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('saudiEmbassyApproval', false),
-                disabled: updating || !orderData.saudiEmbassyApproval.approved,
+                disabled: updating || !orderData.saudiEmbassyApproval.approved || getLastApprovedStage() !== 'saudiEmbassyApproval',
               },
             ]}
           />
@@ -1136,7 +1204,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('visaIssuance', false),
-                disabled: updating || !orderData.visaIssuance.issued,
+                disabled: updating || !orderData.visaIssuance.issued || getLastApprovedStage() !== 'visaIssuance',
               },
             ]}
           />
@@ -1171,7 +1239,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary',
                 onClick: () => handleStatusUpdate('travelPermit', false),
-                disabled: updating || !orderData.travelPermit.issued,
+                disabled: updating || !orderData.travelPermit.issued || getLastApprovedStage() !== 'travelPermit',
               },
             ]}
           />
@@ -1712,7 +1780,7 @@ export default function TrackOrder() {
                 label: 'تراجع',
                 type: 'secondary' as const,
                 onClick: () => handleStatusUpdate('receipt', false),
-                disabled: updating || !orderData.receipt.received,
+                disabled: updating || !orderData.receipt.received || getLastApprovedStage() !== 'receipt',
               },
             ]}
           />
