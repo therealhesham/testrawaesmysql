@@ -31,6 +31,34 @@ interface OrderData {
   createdAt: string;
 }
 
+interface ClientAccountEntry {
+  id: number;
+  date: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  entryType: string | null;
+}
+
+interface ClientAccountStatement {
+  id: number;
+  clientId: number;
+  contractNumber: string | null;
+  officeName: string | null;
+  totalRevenue: number;
+  totalExpenses: number;
+  netAmount: number;
+  commissionPercentage: number | null;
+  masandTransferAmount: number | null;
+  contractStatus: string | null;
+  notes: string | null;
+  attachment: string | null;
+  createdAt: string;
+  updatedAt: string;
+  entries: ClientAccountEntry[];
+}
+
 interface Notification {
   message: string;
   type: 'success' | 'error';
@@ -374,7 +402,9 @@ export default function Home() {
   });
   const [visas, setVisas] = useState<VisaData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
+  const [financialStatements, setFinancialStatements] = useState<ClientAccountStatement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingFinancial, setIsLoadingFinancial] = useState(false);
   const [editingVisaId, setEditingVisaId] = useState<number | null>(null);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
     isOpen: boolean;
@@ -421,6 +451,23 @@ export default function Home() {
     }
   };
 
+  const fetchFinancialStatements = async () => {
+    if (!router.query.id) return;
+    try {
+      setIsLoadingFinancial(true);
+      const response = await fetch(`/api/client-accounts?client=${router.query.id}&limit=100`);
+      const data = await response.json();
+      if (data.statements) {
+        setFinancialStatements(data.statements);
+      }
+    } catch (error) {
+      console.error(error);
+      setNotification({ message: 'فشل في جلب البيانات المالية', type: 'error' });
+    } finally {
+      setIsLoadingFinancial(false);
+    }
+  };
+
   const handleEditVisa = (visa: VisaData) => {
     setVisaInfo(visa);
     setEditingVisaId(visa.id);
@@ -455,6 +502,7 @@ export default function Home() {
   useEffect(() => {
     fetchClientInfo();
     fetchVisas();
+    fetchFinancialStatements();
   }, [router.query.id]);
 
   const handleEditClick = () => {
@@ -935,7 +983,7 @@ const arabicRegionMap: { [key: string]: string } = {
                     <tbody>
                       {orders.map((order) => (
                         <tr key={order.id} className="hover:bg-gray-50 text-center">
-                          <td className="p-3 border text-center">{order.id}</td>
+                          <td className="p-3 border text-center cursor-pointer" onClick={()=>router.push(`/admin/track_order/${order.id}`)}>{order.id}</td>
                           <td className="p-3 border text-center">{order.ClientName}</td>
                           <td className="p-3 border text-center">{order.PhoneNumber}</td>
                           <td className="p-3 border text-center">{translateBookingStatus(order.bookingstatus)}</td>
@@ -955,15 +1003,134 @@ const arabicRegionMap: { [key: string]: string } = {
 
           <CollapsibleSection title="البيانات المالية">
             <div className="flex flex-col gap-4">
-              <button
-                className="mx-auto bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
-                onClick={() => router.push(`/admin/client-accounts?clientId=${router.query.id}`)}
-              >
-                إضافة بيانات مالية
-              </button>
-              <p className="text-center text-gray-600">
-                سيتم عرض البيانات المالية هنا (كشف حساب العميل)
-              </p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  className="bg-teal-800 text-white py-2 px-8 rounded-md hover:bg-teal-900 transition"
+                  onClick={() => router.push(`/admin/client-accounts?clientId=${router.query.id}`)}
+                >
+                  إضافة بيانات مالية
+                </button>
+                <button
+                  className="bg-gray-600 text-white py-2 px-8 rounded-md hover:bg-gray-700 transition"
+                  onClick={fetchFinancialStatements}
+                  disabled={isLoadingFinancial}
+                >
+                  {isLoadingFinancial ? 'جاري التحديث...' : 'تحديث البيانات'}
+                </button>
+              </div>
+              {isLoadingFinancial ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-teal-800"></div>
+                </div>
+              ) : financialStatements.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right border-collapse">
+                    <thead>
+                      <tr className="bg-teal-800 text-white text-center">
+                        <th className="p-3 border text-center">رقم العقد</th>
+                        <th className="p-3 border text-center">اسم المكتب</th>
+                        <th className="p-3 border text-center">الإيرادات</th>
+                        <th className="p-3 border text-center">المصروفات</th>
+                        <th className="p-3 border text-center">الصافي</th>
+                        <th className="p-3 border text-center">نسبة العمولة</th>
+                        <th className="p-3 border text-center">حالة العقد</th>
+                        <th className="p-3 border text-center">تاريخ الإنشاء</th>
+                        <th className="p-3 border text-center">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {financialStatements.map((statement) => (
+                        <tr key={statement.id} className="hover:bg-gray-50 text-center">
+                          <td className="p-3 border text-center">
+                            {statement.contractNumber || '-'}
+                          </td>
+                          <td className="p-3 border text-center">
+                            {statement.officeName || '-'}
+                          </td>
+                          <td className="p-3 border text-center">
+                            {Number(statement.totalRevenue).toLocaleString('ar-SA', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} ريال
+                          </td>
+                          <td className="p-3 border text-center">
+                            {Number(statement.totalExpenses).toLocaleString('ar-SA', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} ريال
+                          </td>
+                          <td className={`p-3 border text-center font-semibold ${
+                            Number(statement.netAmount) >= 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {Number(statement.netAmount).toLocaleString('ar-SA', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} ريال
+                          </td>
+                          <td className="p-3 border text-center">
+                            {statement.commissionPercentage 
+                              ? `${Number(statement.commissionPercentage)}%` 
+                              : '-'}
+                          </td>
+                          <td className="p-3 border text-center">
+                            {statement.contractStatus || '-'}
+                          </td>
+                          <td className="p-3 border text-center">
+                            {new Date(statement.createdAt).toLocaleDateString('ar-EG', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </td>
+                          <td className="p-3 border">
+                            <div className="flex gap-3 justify-center items-center">
+                              <button
+                                onClick={() => router.push(`/admin/client-accounts/${statement.id}`)}
+                                className="text-teal-600 hover:text-teal-800 transition-colors px-2 py-1 rounded"
+                                title="عرض التفاصيل"
+                              >
+                                عرض التفاصيل
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {financialStatements.length > 1 && (
+                        <tr className="bg-teal-50 font-bold text-center">
+                          <td colSpan={2} className="p-3 border text-center">
+                            الإجمالي
+                          </td>
+                          <td className="p-3 border text-center">
+                            {financialStatements.reduce((sum, s) => sum + Number(s.totalRevenue), 0).toLocaleString('ar-SA', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} ريال
+                          </td>
+                          <td className="p-3 border text-center">
+                            {financialStatements.reduce((sum, s) => sum + Number(s.totalExpenses), 0).toLocaleString('ar-SA', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} ريال
+                          </td>
+                          <td className={`p-3 border text-center ${
+                            financialStatements.reduce((sum, s) => sum + Number(s.netAmount), 0) >= 0 
+                              ? 'text-green-600' 
+                              : 'text-red-600'
+                          }`}>
+                            {financialStatements.reduce((sum, s) => sum + Number(s.netAmount), 0).toLocaleString('ar-SA', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} ريال
+                          </td>
+                          <td colSpan={4} className="p-3 border"></td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-center text-gray-600">لا توجد بيانات مالية بعد</p>
+              )}
             </div>
           </CollapsibleSection>
         </div>

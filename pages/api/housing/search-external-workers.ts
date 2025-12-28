@@ -69,6 +69,27 @@ export default async function handler(
               }
             }
           }
+        },
+        NewOrder: {
+          select: {
+            id: true,
+            clientID: true,
+            client: {
+              select: {
+                id: true,
+                fullname: true,
+                phonenumber: true,
+                nationalId: true,
+                city: true,
+                address: true
+              }
+            },
+            createdAt: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
         }
       },
       take: limitNum,
@@ -89,14 +110,14 @@ export default async function handler(
       country: worker.office?.Country || 'غير محدد',
       hasTransferSponsorship: worker.transferSponsorShips !== null,
       transferSponsorShips: worker.transferSponsorShips || null,
-      // Client data from transferSponsorShips NewClient
-      clientData: worker.transferSponsorShips?.NewClient ? {
-        clientId: worker.transferSponsorShips.NewClient.id,
-        clientName: worker.transferSponsorShips.NewClient.fullname || '',
-        clientMobile: worker.transferSponsorShips.NewClient.phonenumber || '',
-        clientIdNumber: worker.transferSponsorShips.NewClient.nationalId || '',
-        city: worker.transferSponsorShips.NewClient.city || '',
-        address: worker.transferSponsorShips.NewClient.address || ''
+      // Client data from NewOrder.client (Order related to the worker)
+      clientData: worker.NewOrder && worker.NewOrder.length > 0 && worker.NewOrder[0].client ? {
+        clientId: worker.NewOrder[0].client.id,
+        clientName: worker.NewOrder[0].client.fullname || '',
+        clientMobile: worker.NewOrder[0].client.phonenumber || '',
+        clientIdNumber: worker.NewOrder[0].client.nationalId || '',
+        city: worker.NewOrder[0].client.city || '',
+        address: worker.NewOrder[0].client.address || ''
       } : null,
       isExternal: worker.isExternal || true,
       isAvailable: true, // All workers returned are available for housing

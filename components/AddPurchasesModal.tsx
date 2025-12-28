@@ -239,9 +239,6 @@ export default function AddPurchasesModal({ isOpen, onClose, onSuccess }: AddPur
                     placeholder="اختر التاريخ"
                     className="w-full bg-white border border-gray-300 rounded-md p-2 pr-10 text-sm"
                   />
-                  <span className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400">
-                    <Icon path="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" className="w-4 h-4" />
-                  </span>
                 </div>
               </div>
 
@@ -282,7 +279,7 @@ export default function AddPurchasesModal({ isOpen, onClose, onSuccess }: AddPur
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
-                  className="w-full bg-white border border-gray-300 rounded-md p-2 text-sm"
+                  className="w-full bg-white border border-gray-300 rounded-md text-sm"
                 >
                   <option value="مدفوعة">مدفوعة</option>
                   <option value="غير مدفوعة">غير مدفوعة</option>

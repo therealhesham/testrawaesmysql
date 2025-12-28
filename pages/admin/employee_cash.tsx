@@ -746,6 +746,23 @@ export default function EmployeeCash() {
       });
 
       doc.save('employee_cash.pdf');
+      
+      // Log export action
+      try {
+        await fetch('/api/accounting-logs/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exportType: 'employee_cash',
+            reportType: 'كشف حساب الموظفين',
+            format: 'pdf',
+            filters: { employee: filters.employee, fromDate: filters.fromDate, toDate: filters.toDate },
+            recordCount: dataToExport.length
+          })
+        });
+      } catch (error) {
+        console.error('Error logging export:', error);
+      }
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       alert('حدث خطأ أثناء تصدير PDF');
@@ -825,6 +842,23 @@ export default function EmployeeCash() {
       a.download = 'employee_cash.xlsx';
       a.click();
       window.URL.revokeObjectURL(url);
+      
+      // Log export action
+      try {
+        await fetch('/api/accounting-logs/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exportType: 'employee_cash',
+            reportType: 'كشف حساب الموظفين',
+            format: 'excel',
+            filters: { employee: filters.employee, fromDate: filters.fromDate, toDate: filters.toDate },
+            recordCount: dataToExport.length
+          })
+        });
+      } catch (error) {
+        console.error('Error logging export:', error);
+      }
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       alert('حدث خطأ أثناء تصدير Excel');
@@ -947,7 +981,7 @@ export default function EmployeeCash() {
             <div className="flex gap-2">
               <button
                 onClick={exportToPDF}
-                className="fl]ex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700"
+                className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700"
               >
                 <DocumentDownloadIcon className="w-4 h-4" />
                 PDF

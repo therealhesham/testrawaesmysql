@@ -538,6 +538,23 @@ function getDate(date: string) {
       });
 
       doc.save('client_accounts.pdf');
+      
+      // Log export action
+      try {
+        await fetch('/api/accounting-logs/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exportType: 'client_accounts',
+            reportType: 'كشف حساب العملاء',
+            format: 'pdf',
+            filters: { selectedOffice, selectedClient, fromDate, toDate, activeTab },
+            recordCount: dataToExport.length
+          })
+        });
+      } catch (error) {
+        console.error('Error logging export:', error);
+      }
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       alert('حدث خطأ أثناء تصدير PDF');
@@ -593,6 +610,23 @@ function getDate(date: string) {
       a.download = 'client_accounts.xlsx';
       a.click();
       window.URL.revokeObjectURL(url);
+      
+      // Log export action
+      try {
+        await fetch('/api/accounting-logs/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exportType: 'client_accounts',
+            reportType: 'كشف حساب العملاء',
+            format: 'excel',
+            filters: { selectedOffice, selectedClient, fromDate, toDate, activeTab },
+            recordCount: dataToExport.length
+          })
+        });
+      } catch (error) {
+        console.error('Error logging export:', error);
+      }
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       alert('حدث خطأ أثناء تصدير Excel');
@@ -747,9 +781,18 @@ function getDate(date: string) {
               </span>
             </div>
           </div>
+            <div className="flex-1 max-w-64">
+              <input
+                type="text"
+                placeholder="بحث"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-300 rounded  text-md text-gray-600"
+              />
+            </div>
 
           {/* Export and Search */}
-          <div className="flex items-center gap-2 mb-4 px-4">
+          <div className="flex items-center justify-end gap-2 mb-4 px-4">
             <button 
               onClick={exportToExcel}
               className="flex items-center gap-1 bg-teal-800 text-white rounded text-md px-3 py-1 hover:bg-teal-900 transition duration-200"
@@ -764,15 +807,6 @@ function getDate(date: string) {
               <FilePdfOutlined />
               <span>PDF</span>
             </button>
-            <div className="flex-1 max-w-64">
-              <input
-                type="text"
-                placeholder="بحث"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 rounded  text-md text-gray-600"
-              />
-            </div>
           </div>
 
           {/* Data Table */}

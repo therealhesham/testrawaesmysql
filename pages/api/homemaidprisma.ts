@@ -10,7 +10,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { SponsorName, PassportNumber, Name,OrderId, age, page, perPage } = req.query;
+  const { SponsorName, PassportNumber, Name,OrderId, age, page, perPage, contractType } = req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = parseInt(perPage as string, 10) || 10;
@@ -18,6 +18,11 @@ export default async function handler(
 
   // Build the filter object dynamically based on query parameters
   const filters: any = {};
+  
+  // Add contractType filter if provided
+  if (contractType) {
+    filters.contractType = contractType as string;
+  }
 
   if (OrderId) {
     filters.id = {
@@ -69,11 +74,30 @@ export default async function handler(
 }
 
   try {
-    // Count total records for pagination
+    // Count total records for pagination (with contractType filter)
     const totalRecords = await prisma.homemaid.count({
       where: filters,
     });
     const totalPages = Math.ceil(totalRecords / pageSize);
+
+    // Count by contract type for tabs (total counts, independent of search filters)
+    // Remove contractType from filters for total counts
+    const countFilters = { ...filters };
+    delete countFilters.contractType;
+    
+    const recruitmentCount = await prisma.homemaid.count({
+      where: {
+        ...countFilters,
+        contractType: 'recruitment',
+      },
+    });
+    
+    const rentalCount = await prisma.homemaid.count({
+      where: {
+        ...countFilters,
+        contractType: 'rental',
+      },
+    });
 
     // Fetch data with the filters and pagination
     const homemaids = await prisma.homemaid.findMany({
@@ -138,7 +162,10 @@ try {
     // Send the filtered, paginated, and formatted data as the response
     res.status(200).json({
       data: formattedData,
-      totalPages,totalRecords
+      totalPages,
+      totalCount: totalRecords,
+      recruitment: recruitmentCount,
+      rental: rentalCount,
     });
   } catch (error) {
     console.error("Error fetching data:", error);

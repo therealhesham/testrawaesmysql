@@ -327,9 +327,6 @@ export default function AddSalesModal({ isOpen, onClose, onSuccess }: AddSalesMo
                     placeholder="اختر التاريخ"
                     className="w-full bg-white border border-gray-300 rounded-md p-2 pr-10 text-sm"
                   />
-                  <span className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400">
-                    <Icon path="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" className="w-4 h-4" />
-                  </span>
                 </div>
               </div>
 
@@ -366,14 +363,21 @@ export default function AddSalesModal({ isOpen, onClose, onSuccess }: AddSalesMo
               {/* طريقة الدفع */}
               <div>
                 <label className="block text-sm text-gray-700 mb-2">طريقة الدفع</label>
-                <input
-                  type="text"
+                <select
                   name="paymentMethod"
                   value={formData.paymentMethod}
                   onChange={handleInputChange}
-                  placeholder="ادخل طريقة الدفع"
-                  className="w-full bg-white border border-gray-300 rounded-md p-2 text-sm"
-                />
+                  className="w-full bg-white border border-gray-300 rounded-md  text-sm"
+                >
+                  <option value="">اختر طريقة الدفع</option>
+                  <option value="نقدي">نقدي</option>
+                  <option value="شيك">شيك</option>
+                  <option value="تحويل بنكي">تحويل بنكي</option>
+                  <option value="بطاقة ائتمانية">بطاقة ائتمانية</option>
+                  <option value="كاش">كاش</option>
+                  <option value="دفعتين">دفعتين</option>
+                  <option value="ثلاثة دفعات">ثلاثة دفعات</option>
+                </select>
               </div>
             </div>
           </div>

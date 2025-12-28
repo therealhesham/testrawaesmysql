@@ -39,9 +39,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     }
 
+    // Filter out statements with invalid clientIds to prevent Prisma errors
+    const validClientIds = await prisma.client.findMany({
+      select: { id: true }
+    }).then(clients => clients.map(c => c.id));
+    
+    if (validClientIds.length === 0) {
+      // No valid clients exist, return empty results
+      return res.status(200).json({
+        settlements: [],
+        summary: {
+          totalContracts: 0,
+          totalContractValue: 0,
+          totalPaid: 0,
+          totalExpenses: 0,
+          totalNet: 0
+        }
+      });
+    }
+
+    // Add clientId filter to ensure we only get statements with valid clients
+    const finalWhere: any = {
+      ...where,
+      clientId: { in: validClientIds }
+    };
+
     // Fetch client account statements
     const statements = await prisma.clientAccountStatement.findMany({
-      where,
+      where: finalWhere,
       include: {
         client: {
           select: {

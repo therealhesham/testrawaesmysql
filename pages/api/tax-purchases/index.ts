@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { Prisma } from '@prisma/client';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -60,9 +61,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           attachment: null, // File upload will be handled separately if needed
           amount: new Prisma.Decimal(amount || purchasesBeforeTax),
           total: new Prisma.Decimal(total || purchasesIncludingTax),
+          category: 'مشتريات', // فئة المشتريات
+          description: `مشتريات من المورد ${supplierName}`, // وصف المشتريات
           // taxDeclarationId is optional, can be set later if needed
           taxDeclarationId: undefined,
         } as any, // Type assertion until prisma generate is run
+      });
+
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `إضافة مشتريات جديدة - المورد: ${supplierName} - المبلغ: ${purchasesBeforeTax} ريال`,
+        actionType: 'add_purchases',
+        actionStatus: 'success',
+        actionAmount: purchasesBeforeTax,
+        actionNotes: `مشتريات من المورد ${supplierName} - المبلغ قبل الضريبة: ${purchasesBeforeTax}، نسبة الضريبة: ${taxRate}، المبلغ الإجمالي: ${purchasesIncludingTax}${invoiceNumber ? ` - رقم الفاتورة: ${invoiceNumber}` : ''}`,
       });
 
       return res.status(201).json({ success: true, purchaseTax });

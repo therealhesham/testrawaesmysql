@@ -248,6 +248,23 @@ export default function Settlement() {
     });
 
     doc.save('settlement.pdf');
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'settlement',
+          reportType: 'التسوية المالية',
+          format: 'pdf',
+          filters: { client: filters.client, date: filters.date, search: filters.search, contractType: activeTab },
+          recordCount: dataToExport.length
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
   // Export to Excel
@@ -294,6 +311,23 @@ export default function Settlement() {
     a.download = 'settlement.xlsx';
     a.click();
     window.URL.revokeObjectURL(url);
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'settlement',
+          reportType: 'التسوية المالية',
+          format: 'excel',
+          filters: { client: filters.client, date: filters.date, search: filters.search, contractType: activeTab },
+          recordCount: dataToExport.length
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
 

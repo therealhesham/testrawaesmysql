@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { Prisma } from '@prisma/client';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -87,6 +88,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           attachment: null, // File upload will be handled separately if needed
           amount: new Prisma.Decimal(amount || salesBeforeTax),
           total: new Prisma.Decimal(total || salesIncludingTax),
+          category: 'مبيعات', // فئة المبيعات
+          description: `مبيعات للعميل ${customer.fullname || customerName || ''}`, // وصف المبيعات
           // taxDeclarationId is optional, can be set later if needed
           taxDeclarationId: undefined,
         } as any, // Type assertion until prisma generate is run
@@ -101,6 +104,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
           },
         } as any, // Type assertion until prisma generate is run
+      });
+
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `إضافة مبيعات جديدة - العميل: ${customer.fullname || customerName || 'غير محدد'} - المبلغ: ${salesBeforeTax} ريال`,
+        actionType: 'add_sales',
+        actionStatus: 'success',
+        actionAmount: salesBeforeTax,
+        actionClientId: Number(customerId),
+        actionNotes: `مبيعات قبل الضريبة: ${salesBeforeTax}، نسبة الضريبة: ${taxRate}، المبلغ الإجمالي: ${salesIncludingTax}`,
       });
 
       return res.status(201).json({ success: true, salesTax });

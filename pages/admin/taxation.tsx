@@ -428,6 +428,23 @@ function getDate(date: any) {
     });
 
     doc.save('sales.pdf');
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'sales',
+          reportType: 'الاقرارات الضريبية',
+          format: 'pdf',
+          filters: { dateFrom, dateTo, searchTerm },
+          recordCount: dataToExport.length
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
   // Export Sales to Excel
@@ -622,7 +639,7 @@ function getDate(date: any) {
         if (doc.getCurrentPageInfo().pageNumber === 1) {
           doc.setFontSize(12);
           doc.setFont('Amiri', 'normal');
-          doc.text('المشتريات', pageWidth / 2, 20, { align: 'right' });
+          // doc.text('المشتريات', pageWidth / 2, 20, { align: 'right' });
         }
 
         doc.setFontSize(10);
@@ -653,6 +670,23 @@ function getDate(date: any) {
     });
 
     doc.save('purchases.pdf');
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'purchases',
+          reportType: 'الاقرارات الضريبية',
+          format: 'pdf',
+          filters: { dateFrom, dateTo, searchTerm },
+          recordCount: dataToExport.length
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
   // Export Purchases to Excel
@@ -732,6 +766,23 @@ function getDate(date: any) {
     a.download = 'purchases.xlsx';
     a.click();
     window.URL.revokeObjectURL(url);
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'purchases',
+          reportType: 'الاقرارات الضريبية',
+          format: 'excel',
+          filters: { dateFrom, dateTo, searchTerm },
+          recordCount: dataToExport.length
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
   // Export VAT Summary to PDF
@@ -893,6 +944,22 @@ function getDate(date: any) {
     });
 
     doc.save('vat_summary.pdf');
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'vat_summary',
+          reportType: 'الاقرارات الضريبية',
+          format: 'pdf',
+          filters: { dateFrom, dateTo }
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
   // Export VAT Summary to Excel
@@ -983,6 +1050,22 @@ function getDate(date: any) {
     a.download = 'vat_summary.xlsx';
     a.click();
     window.URL.revokeObjectURL(url);
+    
+    // Log export action
+    try {
+      await fetch('/api/accounting-logs/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exportType: 'vat_summary',
+          reportType: 'الاقرارات الضريبية',
+          format: 'excel',
+          filters: { dateFrom, dateTo }
+        })
+      });
+    } catch (error) {
+      console.error('Error logging export:', error);
+    }
   };
 
   // Data for the summary cards (default/VAT view)
@@ -1094,26 +1177,6 @@ function getDate(date: any) {
             {/* ## Filters & Actions Section */}
             <section className="mb-5 px-4">
               <div className="flex flex-wrap items-end justify-between gap-4">
-                {/* Add Sales/Purchases Button */}
-                {activeTab === 'sales' && (
-                  <button 
-                    onClick={() => setIsAddSalesModalOpen(true)}
-                    className="bg-teal-800 hover:bg-teal-700 text-white rounded-md text-sm px-4 py-2 flex items-center gap-2 h-9 transition-colors"
-                  >
-                    <Icon path="M12 4.5v15m7.5-7.5h-15" className="w-4 h-4" />
-                    <span>اضافة مبيعات</span>
-                  </button>
-                )}
-                {activeTab === 'purchases' && (
-                  <button 
-                    onClick={() => setIsAddPurchasesModalOpen(true)}
-                    className="bg-teal-800 hover:bg-teal-700 text-white rounded-md text-sm px-4 py-2 flex items-center gap-2 h-9 transition-colors"
-                  >
-                    <Icon path="M12 4.5v15m7.5-7.5h-15" className="w-4 h-4" />
-                    <span>اضافة مشتريات</span>
-                  </button>
-                )}
-                
                 <div className="flex flex-wrap items-end gap-4 flex-grow">
                   {/* Search & Date Filters */}
                   <div className="flex flex-wrap items-end gap-4 flex-grow">
@@ -1168,6 +1231,25 @@ function getDate(date: any) {
                      </button>
                   </div>
                 </div>
+                {/* Add Sales/Purchases Button */}
+                {activeTab === 'sales' && (
+                  <button 
+                    onClick={() => setIsAddSalesModalOpen(true)}
+                    className="bg-teal-800 hover:bg-teal-700 text-white rounded-md text-sm px-4 py-2 flex items-center gap-2 h-9 transition-colors"
+                  >
+                    <Icon path="M12 4.5v15m7.5-7.5h-15" className="w-4 h-4" />
+                    <span>اضافة مبيعات</span>
+                  </button>
+                )}
+                {activeTab === 'purchases' && (
+                  <button 
+                    onClick={() => setIsAddPurchasesModalOpen(true)}
+                    className="bg-teal-800 hover:bg-teal-700 text-white rounded-md text-sm px-4 py-2 flex items-center gap-2 h-9 transition-colors"
+                  >
+                    <Icon path="M12 4.5v15m7.5-7.5h-15" className="w-4 h-4" />
+                    <span>اضافة مشتريات</span>
+                  </button>
+                )}
               </div>
                {/* Export Buttons */}
               <div className="flex gap-2 mt-5">

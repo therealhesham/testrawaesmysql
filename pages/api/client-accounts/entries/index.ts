@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
 
@@ -139,21 +140,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await recalculateStatementTotals(Number(statementId));
 
       res.status(201).json(entry);
-      try {
-        await prisma.accountSystemLogs.create({
-          data: {
-            action: `إضافة حساب عميل جديد - رقم العقد: ${entry.statement.contractNumber}`,
-            actionClientId: Number(entry.statement.clientId),
-            actionUserId: Number(userId),
-            actionType: 'entry',
-            actionStatus: 'success',
-            actionAmount: Number(entry.debit),
-            actionNotes: entry.description,
-          }
-        });
-      } catch (error) {
-        console.error('Error creating account system log:', error);
-      }
+      
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `إضافة قيد محاسبي جديد - رقم العقد: ${entry.statement.contractNumber}`,
+        actionType: 'add_client_entry',
+        actionStatus: 'success',
+        actionClientId: Number(entry.statement.clientId),
+        actionAmount: Number(entry.debit) || Number(entry.credit),
+        actionNotes: `إضافة قيد محاسبي - ${entry.description} - المدين: ${entry.debit}، الدائن: ${entry.credit}، الرصيد: ${entry.balance}`,
+      });
     } catch (error) {
       console.error('Error creating client account entry:', error);
       res.status(500).json({ error: 'Failed to create client account entry' });

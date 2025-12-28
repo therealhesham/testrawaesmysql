@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
 
@@ -191,13 +192,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
-      // Emit event for logging
-      // if (userId) {
-      //   eventBus.emit('ACTION', {
-      //     type: `تحديث حساب عميل - رقم العقد: ${contractNumber}`,
-      //     userId: userId,
-      //   });
-      // }
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `تعديل حساب عميل - رقم العقد: ${contractNumber}`,
+        actionType: 'update_client_account',
+        actionStatus: 'success',
+        actionClientId: statement.client.id,
+        actionAmount: netAmount,
+        actionNotes: `تعديل حساب عميل - الإيرادات: ${totalRevenue}، المصروفات: ${totalExpenses}، الصافي: ${netAmount}${officeName ? ` - المكتب: ${officeName}` : ''}${contractStatus ? ` - حالة العقد: ${contractStatus}` : ''}`,
+      });
 
       res.status(200).json(statement);
     } catch (error) {
@@ -223,11 +226,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
-      // Emit event for logging
-      if (userId && statementToDelete) {
-        eventBus.emit('ACTION', {
-          type: `حذف حساب عميل - العميل: ${statementToDelete.client?.fullname} - رقم العقد: ${statementToDelete.contractNumber}`,
-          userId: userId,
+      // Log accounting action
+      if (statementToDelete) {
+        await logAccountingActionFromRequest(req, {
+          action: `حذف حساب عميل - العميل: ${statementToDelete.client?.fullname || 'غير محدد'} - رقم العقد: ${statementToDelete.contractNumber}`,
+          actionType: 'delete_client_account',
+          actionStatus: 'success',
+          actionClientId: Number(id),
+          actionNotes: `حذف حساب عميل - رقم العقد: ${statementToDelete.contractNumber}`,
         });
       }
 

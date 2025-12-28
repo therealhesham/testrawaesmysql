@@ -371,14 +371,21 @@ export default function EditSalesModal({ isOpen, onClose, onSuccess, salesRecord
               {/* طريقة الدفع */}
               <div>
                 <label className="block text-sm text-gray-700 mb-2">طريقة الدفع</label>
-                <input
-                  type="text"
+                <select
                   name="paymentMethod"
                   value={formData.paymentMethod}
                   onChange={handleInputChange}
-                  placeholder="ادخل طريقة الدفع"
                   className="w-full bg-white border border-gray-300 rounded-md p-2 text-sm"
-                />
+                >
+                  <option value="">اختر طريقة الدفع</option>
+                  <option value="نقدي">نقدي</option>
+                  <option value="شيك">شيك</option>
+                  <option value="تحويل بنكي">تحويل بنكي</option>
+                  <option value="بطاقة ائتمانية">بطاقة ائتمانية</option>
+                  <option value="كاش">كاش</option>
+                  <option value="دفعتين">دفعتين</option>
+                  <option value="ثلاثة دفعات">ثلاثة دفعات</option>
+                </select>
               </div>
             </div>
           </div>

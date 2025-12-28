@@ -34,9 +34,17 @@ Modal.setAppElement("#__next");
 
 interface Props {
   hasDeletePermission: boolean;
+  initialCounts: {
+    totalCount: number;
+    totalPages: number;
+    recruitment: number;
+    rental: number;
+  };
+  recruitmentData: any[];
+  rentalData: any[];
 }
 
-export default function Table({ hasDeletePermission }: Props) {
+export default function Table({ hasDeletePermission, initialCounts, recruitmentData, rentalData }: Props) {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
@@ -44,6 +52,9 @@ export default function Table({ hasDeletePermission }: Props) {
   });
   const [sortBy, setSortBy] = useState<string>("displayOrder");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [contractType, setContractType] = useState('recruitment');
+  const [recruitmentCount, setRecruitmentCount] = useState(initialCounts?.recruitment || 0);
+  const [rentalCount, setRentalCount] = useState(initialCounts?.rental || 0);
   function getDate(date: any) {
     const currentDate = new Date(date); // Original date
     // currentDate.setDate(currentDate.getDate() + 90); // Add 90 days
@@ -147,10 +158,10 @@ export default function Table({ hasDeletePermission }: Props) {
   });
 
 
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>(contractType === 'recruitment' ? recruitmentData : rentalData);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(initialCounts?.totalPages || 1);
   const isFetchingRef = useRef(false);
   const isInitialMount = useRef(true);
   const [exportedData, setExportedData] = useState<any[]>([]);
@@ -208,6 +219,7 @@ export default function Table({ hasDeletePermission }: Props) {
         SponsorName: filters.Name, // Also send as SponsorName for API compatibility
         age: filters.age,
         PassportNumber: filters.PassportNumber,
+        contractType: contractType,
         page: String(page),
         perPage: "10",
       });
@@ -223,12 +235,14 @@ export default function Table({ hasDeletePermission }: Props) {
         method: "get",
       });
 
-      const { data: res, totalPages: pages } = await response.json();
+      const { data: res, totalPages: pages, totalCount, recruitment, rental } = await response.json();
       if (res && res.length > 0) {
         const sortedData = sortData(res, sortBy, sortOrder);
         setData(sortedData);
         console.log("Data fetched successfully:", res);
         setTotalPages(pages || 1);
+        if (recruitment !== undefined) setRecruitmentCount(recruitment);
+        if (rental !== undefined) setRentalCount(rental);
       } else {
         setData([]);
         setTotalPages(1);
@@ -247,6 +261,7 @@ export default function Table({ hasDeletePermission }: Props) {
       const queryParams = new URLSearchParams({
         page: "1",
         perPage: "10000", // Get all data for export - increased limit
+        contractType: contractType,
       });
 
       const response = await fetch(`/api/homemaidprisma?${queryParams}`, {
@@ -292,9 +307,22 @@ export default function Table({ hasDeletePermission }: Props) {
       : <FaSortDown className="inline-block ml-1" />;
   };
 
+  // Update data when contractType changes (use initial data)
+  useEffect(() => {
+    if (contractType === 'recruitment') {
+      setData(recruitmentData);
+      setTotalPages(initialCounts?.totalPages || 1);
+    } else {
+      setData(rentalData);
+      const rentalTotalPages = Math.ceil((initialCounts?.rental || 0) / 10);
+      setTotalPages(rentalTotalPages || 1);
+    }
+    setCurrentPage(1);
+  }, [contractType, recruitmentData, rentalData, initialCounts]);
+
   useEffect(() => {
     fetchData(currentPage);
-  }, [currentPage, filters]);
+  }, [currentPage, filters, contractType]);
 
   // Sort data when sortBy or sortOrder changes
   useEffect(() => {
@@ -397,7 +425,6 @@ export default function Table({ hasDeletePermission }: Props) {
       Name: "",
     });
     setCurrentPage(1);
-    setData([]);
   };
 
   const handlePageChange = (page: number) => {
@@ -703,6 +730,12 @@ export default function Table({ hasDeletePermission }: Props) {
             {item?.office?.office}
           </td>
         )}
+        
+        {/* {visibleColumns.includes('isApproved') && ( */}
+          <td className="px-4 py-2 text-center text-gray-600">
+            {item.isApproved ? 'تم الاعتماد' : 'لم يتم الاعتماد'}
+          </td>
+        {/* // )} */}
         {visibleColumns.includes('displayOrder') && (
           <td className="px-4 py-2 text-center">
             <input
@@ -1208,14 +1241,42 @@ const exportToPDF = async () => {
         )}
         <div className="space-y-4">
           <div className="overflow-x-auto overflow-y-visible">
-            <div className="flex items-center justify-between p-4">
-              <h1
-                className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
-              >
-                قائمة العاملات
-              </h1>
+            <div className="flex items-center justify-between p-4 flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <h1
+                  className={`text-2xl font-bold text-cool-gray-700 ${Style["almarai-bold"]}`}
+                >
+                  قائمة العاملات
+                </h1>
+                <div className="flex gap-10 mt-4 border-b border-gray-300">
+                  <a
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setContractType('recruitment');
+                      setCurrentPage(1);
+                    }}
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
+                      contractType === 'recruitment' ? 'border-b-2 border-black font-bold' : ''
+                    }`}
+                  >
+                    عاملات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
+                  </a>
+                  <a
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setContractType('rental');
+                      setCurrentPage(1);
+                    }}
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
+                      contractType === 'rental' ? 'border-b-2 border-black font-bold' : ''
+                    }`}
+                  >
+                    عاملات التأجير <span className="text-md align-super">{rentalCount}</span>
+                  </a>
+                </div>
+              </div>
               <button
-                onClick={()=>router.push("/admin/newhomemaids")}
+                onClick={()=>router.push(contractType === 'recruitment' ? "/admin/newhomemaids" : "/admin/newhomemaidsrental")}
                 className="bg-teal-900 py-1 flex flex-row justify-around gap-1 px-2 rounded-md"
               >
                 <PlusOutlined className="text-white" size={12} />
@@ -1365,6 +1426,14 @@ const exportToPDF = async () => {
                         المكتب <SortIcon field="office" />
                       </th>
                     )}
+                                          {/* {visibleColumns.includes('isApproved') && ( */}
+                      <th 
+                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('isApproved')}
+                      >
+                        الاعتماد <SortIcon field="isApproved" />
+                      </th>
+                    {/* )} */}
                     {visibleColumns.includes('displayOrder') && (
                       <th 
                         className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap relative overflow-visible"
@@ -1537,6 +1606,8 @@ const exportToPDF = async () => {
 }
 
 export async function getServerSideProps({ req }: any) {
+  const pageSize = 10;
+  
   try {
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
@@ -1563,16 +1634,107 @@ export async function getServerSideProps({ req }: any) {
     const hasDeletePermission = findUser && findUser.role?.permissions && 
       (findUser.role.permissions as any)["إدارة العاملات"]?.["حذف"];
 
+    // Fetch initial recruitment homemaids (first page)
+    const recruitmentHomemaids = await prisma.homemaid.findMany({
+      where: {
+        contractType: 'recruitment',
+      },
+      include: {
+        office: {
+          select: {
+            office: true,
+            Country: true,
+          },
+        },
+      },
+      orderBy: { displayOrder: "desc" },
+      take: pageSize,
+    });
+
+    // Fetch initial rental homemaids (first page)
+    const rentalHomemaids = await prisma.homemaid.findMany({
+      where: {
+        contractType: 'rental',
+      },
+      include: {
+        office: {
+          select: {
+            office: true,
+            Country: true,
+          },
+        },
+      },
+      orderBy: { displayOrder: "desc" },
+      take: pageSize,
+    });
+
+    // Format the data
+    const formatHomemaid = (homemaid: any) => ({
+      id: homemaid.id,
+      Name: homemaid.Name || "",
+      homemaidId: homemaid.id,
+      phone: homemaid.phone || "",
+      maritalstatus: homemaid.maritalstatus || "",
+      dateofbirth: homemaid.dateofbirth ? homemaid.dateofbirth.toISOString() : null,
+      Passportnumber: homemaid.Passportnumber || "",
+      PassportStart: homemaid.PassportStart ? homemaid.PassportStart.toISOString() : null,
+      PassportEnd: homemaid.PassportEnd ? homemaid.PassportEnd.toISOString() : null,
+      displayOrder: homemaid.displayOrder || 0,
+      isApproved: homemaid.isApproved || false,
+      office: homemaid.office
+        ? {
+            office: homemaid.office.office || "",
+            Country: homemaid.office.Country || "",
+          }
+        : { office: "", Country: "" },
+    });
+
+    const formattedRecruitmentData = recruitmentHomemaids.map(formatHomemaid);
+    const formattedRentalData = rentalHomemaids.map(formatHomemaid);
+
+    // Count total records by contract type
+    const recruitmentCount = await prisma.homemaid.count({
+      where: {
+        contractType: 'recruitment',
+      },
+    });
+
+    const rentalCount = await prisma.homemaid.count({
+      where: {
+        contractType: 'rental',
+      },
+    });
+
+    // Initial totalCount and totalPages for default view (recruitment)
+    const initialTotalCount = recruitmentCount;
+    const initialTotalPages = Math.ceil(initialTotalCount / pageSize);
+
     return {
       props: { 
-        hasDeletePermission: !!hasDeletePermission
+        hasDeletePermission: !!hasDeletePermission,
+        initialCounts: {
+          totalCount: initialTotalCount,
+          totalPages: initialTotalPages,
+          recruitment: recruitmentCount,
+          rental: rentalCount,
+        },
+        recruitmentData: formattedRecruitmentData,
+        rentalData: formattedRentalData,
       },
     };
   } catch (err) {
     console.error("Authorization error:", err);
     return {
       props: { 
-        hasDeletePermission: false
+        hasDeletePermission: false,
+        initialCounts: {
+          totalCount: 0,
+          totalPages: 1,
+          recruitment: 0,
+          rental: 0,
+        },
+        recruitmentData: [],
+        rentalData: [],
       },
     };
   }

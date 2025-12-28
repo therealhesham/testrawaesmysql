@@ -219,7 +219,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         LaundryLevel: updateFields.laundryLevel, 
 
         officeName: updateFields.officeName,
-        Salary: updateFields.salary || updateFields.Salary 
+        Salary: updateFields.salary || updateFields.Salary,
+        isApproved: updateFields.isApproved
       };
 
       // إزالة القيم undefined فقط
@@ -360,6 +361,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           LaundryLevel: { old: oldWorker.LaundryLevel, new: filteredFields.LaundryLevel, label: 'الغسيل والكي' },
           officeName: { old: oldWorker.officeName, new: filteredFields.officeName, label: 'اسم المكتب' },
           Salary: { old: oldWorker.Salary, new: filteredFields.Salary, label: 'الراتب' },
+          isApproved: { old: oldWorker.isApproved, new: filteredFields.isApproved, label: 'حالة الاعتماد' },
         };
 
         for (const [key, mapping] of Object.entries(fieldMappings)) {

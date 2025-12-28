@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
 
@@ -260,6 +261,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
+      // Log accounting action (only for non-temporary records)
+      if (!isTemporary && employeeCashRecord.employee) {
+        await logAccountingActionFromRequest(req, {
+          action: id ? `تعديل سجل عهدة موظف - الموظف: ${employeeCashRecord.employee.name}` : `إضافة سجل عهدة موظف جديد - الموظف: ${employeeCashRecord.employee.name}`,
+          actionType: id ? 'update_employee_cash' : 'add_employee_cash',
+          actionStatus: 'success',
+          actionAmount: received || expense,
+          actionNotes: `سجل عهدة موظف - رقم العهدة: ${employeeCashRecord.cashNumber} - المستلم: ${received}، المصروف: ${expense}، المتبقي: ${remaining}${description ? ` - الوصف: ${description}` : ''}`,
+        });
+      }
+
       res.status(201).json({ 
         message: isTemporary ? 'تم إنشاء سجل العهدة المؤقت بنجاح' : 'تم إضافة سجل العهدة بنجاح', 
         employeeCashRecord 
@@ -292,9 +304,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'يمكن حذف السجلات المؤقتة فقط' });
       }
 
+      // Get employee info before deletion for logging
+      const employeeInfo = existingRecord.employeeId ? await prisma.employee.findUnique({
+        where: { id: existingRecord.employeeId },
+        select: { name: true }
+      }) : null;
+
       await prisma.employeeCash.delete({
         where: { id: Number(id) }
       });
+
+      // Log accounting action (only for non-temporary records that had employee)
+      if (employeeInfo) {
+        await logAccountingActionFromRequest(req, {
+          action: `حذف سجل عهدة موظف - الموظف: ${employeeInfo.name}`,
+          actionType: 'delete_employee_cash',
+          actionStatus: 'success',
+          actionAmount: Number(existingRecord.receivedAmount) || Number(existingRecord.expenseAmount),
+          actionNotes: `حذف سجل عهدة موظف - رقم العهدة: ${existingRecord.cashNumber}`,
+        });
+      }
 
       res.status(200).json({ 
         message: 'تم حذف السجل المؤقت بنجاح' 

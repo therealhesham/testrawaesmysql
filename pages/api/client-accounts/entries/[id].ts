@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
 
@@ -127,6 +128,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Recalculate totals after updating entry
       await recalculateStatementTotals(currentEntry.statementId);
 
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `تعديل قيد محاسبي - رقم العقد: ${entry.statement.contractNumber}`,
+        actionType: 'update_client_entry',
+        actionStatus: 'success',
+        actionClientId: entry.statement.clientId,
+        actionAmount: Number(entry.debit) || Number(entry.credit),
+        actionNotes: `تعديل قيد محاسبي - ${description} - المدين: ${debit}، الدائن: ${credit}، الرصيد: ${newBalance}`,
+      });
+
       res.status(200).json(entry);
     } catch (error) {
       console.error('Error updating client account entry:', error);
@@ -184,14 +195,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Recalculate totals after deleting entry
       await recalculateStatementTotals(entryToDelete.statementId);
 
-      // تسجيل الحدث
-      if (userId) {
-        eventBus.emit('ACTION', {
-          type: `حذف قيد حساب عميل #${id} - ${entryToDelete.statement?.client?.fullname || 'غير محدد'}`,
-          actionType: 'delete',
-          userId: userId,
-        });
-      }
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `حذف قيد محاسبي - رقم العقد: ${entryToDelete.statement.contractNumber}`,
+        actionType: 'delete_client_entry',
+        actionStatus: 'success',
+        actionClientId: entryToDelete.statement.clientId,
+        actionAmount: Number(entryToDelete.debit) || Number(entryToDelete.credit),
+        actionNotes: `حذف قيد محاسبي - ${entryToDelete.description} - المدين: ${entryToDelete.debit}، الدائن: ${entryToDelete.credit}`,
+      });
 
       res.status(200).json({ message: 'Client account entry deleted successfully' });
     } catch (error) {

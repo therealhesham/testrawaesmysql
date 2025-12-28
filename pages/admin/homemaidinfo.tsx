@@ -77,6 +77,7 @@ function HomeMaidInfo() {
   const [selectedClient, setSelectedClient] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isApproved, setIsApproved] = useState<boolean>(false);
   
   // حالة الـ modal للتنبيهات
   const [alertModal, setAlertModal] = useState({
@@ -481,6 +482,9 @@ function HomeMaidInfo() {
         salary: data.Salary || "",
         logs: data.logs || [],
       });
+      
+      // تحديث حالة الاعتماد
+      setIsApproved(data.isApproved || false);
     } catch (error) {
       setError("حدث خطأ أثناء جلب البيانات");
       console.error("Error fetching data:", error);
@@ -499,6 +503,34 @@ function HomeMaidInfo() {
       fetchNationalities();
     }
   }, [id]);
+
+  const handleApprove = async () => {
+    try {
+      const response = await fetch(`/api/hommeaidfind?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isApproved: true }),
+      });
+      if (!response.ok) throw new Error('فشل في اعتماد العاملة');
+      setIsApproved(true);
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: 'تم اعتماد العاملة بنجاح'
+      });
+      // إعادة جلب البيانات لتحديث الـ logs
+      await fetchPersonalInfo();
+    } catch (error) {
+      console.error('Error approving worker:', error);
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء اعتماد العاملة'
+      });
+    }
+  };
 
   const handleBooking = async () => {
     if (!selectedClient) {
@@ -548,9 +580,17 @@ function HomeMaidInfo() {
         {/* الأزرار العلوية */}
         <div className="flex justify-end gap-4 mb-6">
           {!hasExistingOrder && (
-            <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition" onClick={() => setShowBookingModal(true)}>
-              حجز
-            </button>
+            <>
+              {!isApproved ? (
+                <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition" onClick={handleApprove}>
+                  اعتماد
+                </button>
+              ) : (
+                <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition" onClick={() => setShowBookingModal(true)}>
+                  حجز
+                </button>
+              )}
+            </>
           )}
           <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition" onClick={handlePrint}>
             <FaPrint /> طباعة

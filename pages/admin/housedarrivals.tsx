@@ -2785,7 +2785,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               </div>
                             </div>
                             
-                            {/* Client Info from transferSponsorShips */}
+                            {/* Client Info from transferSponsorShips
                             {selectedExternalWorker.clientData && (
                               <div>
                                 <div className="text-lg font-semibold text-blue-800 mb-2">✓ بيانات العميل الجديد (نقل كفالة)</div>
@@ -2799,7 +2799,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                   <div className="text-xs text-blue-600">العنوان: {selectedExternalWorker.clientData.address || 'غير محدد'}</div>
                                 </div>
                               </div>
-                            )}
+                            )} */}
                           </div>
                         <button
                           type="button"
@@ -2858,11 +2858,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
                         <label className="block text-xs text-gray-700 mb-2">
-                          اسم العميل {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                          اسم العميل {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
                         </label>
                         <input
                           type="text"
-                          value={internalWorkerForm.clientName}
+                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.clientName : internalWorkerForm.clientName}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
                           placeholder="اسم العميل"
                           disabled={!!selectedExternalWorker}
@@ -2873,11 +2873,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       </div>
                       <div>
                         <label className="block text-xs text-gray-700 mb-2">
-                          رقم الجوال {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                          رقم الجوال {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
                         </label>
                         <input
                           type="text"
-                          value={internalWorkerForm.clientMobile}
+                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.clientMobile : internalWorkerForm.clientMobile}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
                           placeholder="ادخل رقم الجوال"
                           disabled={!!selectedExternalWorker}
@@ -2888,15 +2888,15 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       </div>
                     </div>
                     {/* Client ID Number - Only show if external worker selected and has ID */}
-                    {selectedExternalWorker && internalWorkerForm.clientIdNumber && (
+                    {selectedExternalWorker && (selectedExternalWorker.clientData?.clientIdNumber || internalWorkerForm.clientIdNumber) && (
                       <div className="grid grid-cols-2 gap-8 mb-4">
                         <div>
                           <label className="block text-xs text-gray-700 mb-2">
-                            رقم الهوية <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>
+                            رقم الهوية <span className="text-blue-600 text-sm"></span>
                           </label>
                           <input
                             type="text"
-                            value={internalWorkerForm.clientIdNumber}
+                            value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.clientIdNumber : internalWorkerForm.clientIdNumber}
                             disabled
                             className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-xs cursor-not-allowed"
                           />
@@ -2907,11 +2907,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
                         <label className="block text-xs text-gray-700 mb-2">
-                          المدينة {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                          المدينة {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
                         </label>
                         <input
                           type="text"
-                          value={internalWorkerForm.city}
+                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.city : internalWorkerForm.city}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
                           placeholder="ادخل المدينة"
                           disabled={!!selectedExternalWorker}
@@ -2922,11 +2922,11 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       </div>
                       <div>
                         <label className="block text-xs text-gray-700 mb-2">
-                          العنوان {selectedExternalWorker && <span className="text-blue-600 text-sm">(من نقل الكفالة)</span>}
+                          العنوان {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
                         </label>
                         <input
                           type="text"
-                          value={internalWorkerForm.address}
+                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.address : internalWorkerForm.address}
                           onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
                           placeholder="ادخل العنوان"
                           disabled={!!selectedExternalWorker}

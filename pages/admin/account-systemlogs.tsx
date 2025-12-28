@@ -11,6 +11,47 @@ import * as XLSX from 'xlsx';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
+// دالة لترجمة نوع الإجراء إلى العربية
+const translateActionType = (actionType: string): string => {
+  const translations: { [key: string]: string } = {
+    // المبيعات والمشتريات
+    'add_sales': 'إضافة مبيعات',
+    'update_sales': 'تعديل مبيعات',
+    'delete_sales': 'حذف مبيعات',
+    'add_purchases': 'إضافة مشتريات',
+    'update_purchases': 'تعديل مشتريات',
+    'delete_purchases': 'حذف مشتريات',
+    
+    // حسابات العملاء
+    'create_client_account': 'إنشاء حساب عميل',
+    'update_client_account': 'تعديل حساب عميل',
+    'delete_client_account': 'حذف حساب عميل',
+    'add_client_entry': 'إضافة قيد محاسبي',
+    'update_client_entry': 'تعديل قيد محاسبي',
+    'delete_client_entry': 'حذف قيد محاسبي',
+    'entry': 'إضافة قيد محاسبي',
+    
+    // حسابات الموظفين
+    'add_employee_cash': 'إضافة عهدة موظف',
+    'update_employee_cash': 'تعديل عهدة موظف',
+    'delete_employee_cash': 'حذف عهدة موظف',
+    
+    // التصدير
+    'export_report': 'تصدير تقرير',
+    
+    // إجراءات عامة
+    'view': 'عرض',
+    'create': 'إنشاء',
+    'update': 'تحديث',
+    'delete': 'حذف',
+    'payment': 'دفع',
+    'refund': 'استرداد',
+    'adjustment': 'تعديل',
+  };
+  
+  return translations[actionType] || actionType;
+};
+
 export default function AccountSystemLogs() {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -127,7 +168,7 @@ export default function AccountSystemLogs() {
       row.actionClient?.fullname || 'غير متوفر',
       row.actionAmount ? parseFloat(row.actionAmount).toFixed(2) : 'غير متوفر',
       row.actionStatus || 'غير متوفر',
-      row.actionType || 'غير متوفر',
+      translateActionType(row.actionType || ''),
       row.actionNotes || 'غير متوفر',
       row.action || 'غير متوفر',
       row.actionUser?.username || 'غير متوفر',
@@ -205,7 +246,7 @@ export default function AccountSystemLogs() {
       ? exportedData.map(row => ({
           'رقم السجل': row.id || 'غير متوفر',
           'الإجراء': row.action || 'غير متوفر',
-          'نوع الإجراء': row.actionType || 'غير متوفر',
+          'نوع الإجراء': translateActionType(row.actionType || ''),
           'ملاحظات': row.actionNotes || 'غير متوفر',
           'الحالة': row.actionStatus || 'غير متوفر',
           'المبلغ': row.actionAmount ? parseFloat(row.actionAmount).toFixed(2) : 'غير متوفر',
@@ -234,6 +275,25 @@ export default function AccountSystemLogs() {
   // Action filter options
   const actionOptions = [
     { value: '', label: 'كل الإجراءات' },
+    // المبيعات والمشتريات
+    { value: 'add_sales', label: 'إضافة مبيعات' },
+    { value: 'update_sales', label: 'تعديل مبيعات' },
+    { value: 'add_purchases', label: 'إضافة مشتريات' },
+    { value: 'update_purchases', label: 'تعديل مشتريات' },
+    // حسابات العملاء
+    { value: 'create_client_account', label: 'إنشاء حساب عميل' },
+    { value: 'update_client_account', label: 'تعديل حساب عميل' },
+    { value: 'delete_client_account', label: 'حذف حساب عميل' },
+    { value: 'add_client_entry', label: 'إضافة قيد محاسبي' },
+    { value: 'update_client_entry', label: 'تعديل قيد محاسبي' },
+    { value: 'delete_client_entry', label: 'حذف قيد محاسبي' },
+    // حسابات الموظفين
+    { value: 'add_employee_cash', label: 'إضافة عهدة موظف' },
+    { value: 'update_employee_cash', label: 'تعديل عهدة موظف' },
+    { value: 'delete_employee_cash', label: 'حذف عهدة موظف' },
+    // التصدير
+    { value: 'export_report', label: 'تصدير تقرير' },
+    // إجراءات عامة
     { value: 'view', label: 'عرض' },
     { value: 'create', label: 'إنشاء' },
     { value: 'update', label: 'تحديث' },
@@ -434,7 +494,7 @@ export default function AccountSystemLogs() {
                         <tr key={index} className="bg-gray-50">
                           <td className="p-4">{log.id || 'غير متوفر'}</td>
                           <td className="p-4">{log.action || 'غير متوفر'}</td>
-                          <td className="p-4">{log.actionType || 'غير متوفر'}</td>
+                          <td className="p-4">{translateActionType(log.actionType || '')}</td>
                           <td className="p-4">{log.actionNotes || 'غير متوفر'}</td>
                           <td className="p-4">{log.actionStatus || 'غير متوفر'}</td>
                           <td className="p-4">

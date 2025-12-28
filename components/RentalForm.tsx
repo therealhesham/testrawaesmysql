@@ -122,9 +122,6 @@ export default function RentalForm() {
   };
 
   const validateDates = (startDate: string, endDate: string): { startError: string | null; endError: string | null } => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
     const start = new Date(startDate);
     const end = new Date(endDate);
     
@@ -133,16 +130,12 @@ export default function RentalForm() {
     
     if (!startDate) {
       startError = 'تاريخ بداية العقد مطلوب';
-    } else if (start < today) {
-      startError = 'تاريخ بداية العقد يجب أن يكون اليوم أو مستقبلاً';
     }
     
     if (!endDate) {
       endError = 'تاريخ نهاية العقد مطلوب';
     } else if (startDate && end <= start) {
       endError = 'تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية';
-    } else if (end < today) {
-      endError = 'تاريخ نهاية العقد يجب أن يكون اليوم أو مستقبلاً';
     }
     
     return { startError, endError };

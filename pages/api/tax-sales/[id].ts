@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import prisma from 'lib/prisma';
 import { Prisma } from '@prisma/client';
+import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -74,6 +75,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
           },
         } as any,
+      });
+
+      // Log accounting action
+      await logAccountingActionFromRequest(req, {
+        action: `تعديل مبيعات - العميل: ${customer.fullname || customerName || 'غير محدد'} - المبلغ: ${salesBeforeTax} ريال`,
+        actionType: 'update_sales',
+        actionStatus: 'success',
+        actionAmount: salesBeforeTax,
+        actionClientId: Number(customerId),
+        actionNotes: `تعديل مبيعات - المبلغ قبل الضريبة: ${salesBeforeTax}، نسبة الضريبة: ${taxRate}، المبلغ الإجمالي: ${salesIncludingTax}`,
       });
 
       return res.status(200).json({ success: true, salesTax });

@@ -44,6 +44,7 @@ model homemaid {
   ElderlycareLevel String? @db.VarChar(255)
   LaundryLevel String? @db.VarChar(255)
   flag              Json?
+  isApproved        Boolean? @default(false)
   phone             String?    @db.VarChar(17)
   bookingstatus     String?    @db.VarChar(255)
   ages              String?    @db.VarChar(255)
@@ -61,7 +62,7 @@ model homemaid {
   createdAt         DateTime?   @default(now())
   updatedAt         DateTime?  @updatedAt
   logs              logs[]
-  displayOrder      Int?       @unique // Added field for display order (auto-incremented by trigger)
+  displayOrder      Int?       @unique 
   transferSponsorShips transferSponsorShips?
   isExternal          Boolean? @default(false)
 sewingLevel String? @db.VarChar(100)
@@ -70,6 +71,7 @@ cookingLevel String? @db.VarChar(100)
 washingLevel String? @db.VarChar(100)
 ironingLevel String? @db.VarChar(100)
 childcareLevel String? @db.VarChar(100)
+contractType String @default("recruitment") @db.VarChar(100)
 elderlycareLevel String? @db.VarChar(100)
 laundryLevel String? @db.VarChar(100)
 BabySitterLevel String? @db.VarChar(100)

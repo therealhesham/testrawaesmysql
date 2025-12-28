@@ -227,14 +227,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
       res.status(201).json(statement);
+      
+      // Log accounting action
       try {
-      await prisma.accountSystemLogs.create({
-        data: {
-          action: `إنشاء حساب عميل جديد - رقم العقد: ${contractNumber}`,
-          actionClientId: Number(clientId),
-          actionUserId: userId,
-        }
-      });
+        await prisma.accountSystemLogs.create({
+          data: {
+            action: `إنشاء حساب عميل جديد - رقم العقد: ${contractNumber}`,
+            actionType: 'create_client_account',
+            actionStatus: 'success',
+            actionClientId: Number(clientId),
+            actionUserId: userId,
+            actionAmount: Number(netAmount),
+            actionNotes: `إنشاء حساب عميل - الإيرادات: ${totalRevenue}، المصروفات: ${totalExpenses}، الصافي: ${netAmount}${officeName ? ` - المكتب: ${officeName}` : ''}`,
+          }
+        });
       } catch (error) {
         console.error('Error creating account system log:', error);
       }
