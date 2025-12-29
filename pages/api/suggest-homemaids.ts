@@ -12,78 +12,32 @@ export default async function handler(
   }
 
   try {
-    const { experience, nationality, religion, age, minAge, maxAge, ageRange } = req.query;
-
-    // Build where clause for filtering - البحث المرن (غير صارم)
-    const whereClause: any = {
-      bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} }, // Only available homemaids
+    const { experience, nationality, religion, age, minAge, maxAge} = req.query;
+    
+    // Base condition for available homemaids (not booked/delivered)
+    const baseBookingStatusCondition = {
+      OR: [
+        { bookingstatus: null },
+        { bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered"]} } }
+      ]
     };
-
-    // بناء شروط OR مرنة - أي عاملات تطابق أي من الشروط
-    const flexibleConditions: any[] = [];
-
-    // الجنسية - أعلى أولوية لكن غير إلزامية
+    
+    // الأولوية: الجنسية والعمر معاً (AND) - دقة أعلى
+    const priorityConditions: any[] = [];
+    const secondaryConditions: any[] = [];
+    
+    // الجنسية - أولوية عالية ودقة عالية
     if (nationality) {
-      flexibleConditions.push({
+      const nationalityStr = nationality as string;
+      // البحث الدقيق من خلال Country في جدول office
+      priorityConditions.push({
         office: {
-          Country: { contains: nationality as string }
+          Country: { contains: nationalityStr }
         }
       });
-      // أيضاً البحث في Nationalitycopy كبديل
-      flexibleConditions.push({
-        Nationalitycopy: { contains: nationality as string }
-      });
     }
 
-    // الديانة - مرنة أكثر
-    if (religion) {
-      const religionStr = (religion as string).toLowerCase();
-      // البحث في القيمة الكاملة
-      flexibleConditions.push({
-        Religion: { contains: religion as string }
-      });
-      // البحث المرن - إذا كان "Islam" يبحث عن "Islam" أو "مسلم"
-      if (religionStr.includes('islam')) {
-        flexibleConditions.push({ Religion: { contains: 'Islam' } });
-        flexibleConditions.push({ Religion: { contains: 'مسلم' } });
-      }
-      // إذا كان "Non-Muslim" يبحث عن أي شيء ليس إسلام
-      if (religionStr.includes('non-muslim') || religionStr.includes('غير مسلم')) {
-        flexibleConditions.push({ Religion: { contains: 'Non-Muslim' } });
-        flexibleConditions.push({ Religion: { contains: 'غير مسلم' } });
-      }
-    }
-
-    // الخبرة - مرنة جداً
-    if (experience) {
-      const expStr = (experience as string).toLowerCase();
-      // البحث الأساسي
-      flexibleConditions.push({ ExperienceYears: { contains: experience as string } });
-      
-      // البحث المرن بناءً على نوع الخبرة
-      if (expStr.includes('1-2') || expStr.includes('1-2 years')) {
-        flexibleConditions.push({ ExperienceYears: { contains: '1-2' } });
-        flexibleConditions.push({ ExperienceYears: { contains: '1' } });
-        flexibleConditions.push({ ExperienceYears: { contains: '2' } });
-      }
-      if (expStr.includes('3-4') || expStr.includes('3-4 years')) {
-        flexibleConditions.push({ ExperienceYears: { contains: '3-4' } });
-        flexibleConditions.push({ ExperienceYears: { contains: '3' } });
-        flexibleConditions.push({ ExperienceYears: { contains: '4' } });
-      }
-      if (expStr.includes('5') || expStr.includes('more') || expStr.includes('وأكثر')) {
-        flexibleConditions.push({ ExperienceYears: { contains: '5' } });
-        flexibleConditions.push({ ExperienceYears: { contains: 'More' } });
-        flexibleConditions.push({ ExperienceYears: { contains: 'أكثر' } });
-      }
-      if (expStr.includes('مدربة') || expStr.includes('training')) {
-        flexibleConditions.push({ ExperienceYears: { contains: 'مدربة' } });
-        flexibleConditions.push({ ExperienceYears: { contains: 'Training' } });
-      }
-    }
-
-    // العمر - البحث بناءً على الرينج الكامل (minAge و maxAge)
-    // العاملات مخزنة كتاريخ ميلاد، لذا نحسب تاريخ الميلاد المناسب للرينج
+    // العمر - أولوية عالية ودقة عالية
     if (minAge && maxAge) {
       const minAgeNum = parseInt(minAge as string);
       const maxAgeNum = parseInt(maxAge as string);
@@ -91,64 +45,101 @@ export default async function handler(
       if (!isNaN(minAgeNum) && !isNaN(maxAgeNum)) {
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
-        
-        // للعثور على عاملات بعمر 21-30:
-        // - أقدم تاريخ ميلاد = تاريخ ميلاد شخص بعمر 30 (currentYear - 30) - تاريخ أقدم
-        // - أحدث تاريخ ميلاد = تاريخ ميلاد شخص بعمر 21 (currentYear - 21) - تاريخ أحدث
-        
-        // حساب السنوات: 
-        // - للعمر 30: تاريخ الميلاد = currentYear - 30 (أقدم تاريخ)
-        // - للعمر 21: تاريخ الميلاد = currentYear - 21 (أحدث تاريخ)
-        
-        // أقدم تاريخ ميلاد مسموح (للعمر 30) - تاريخ الميلاد يجب أن يكون قبل أو في هذا التاريخ
-        const oldestBirthYear = currentYear - maxAgeNum; // مثال: 2024 - 30 = 1994
-        
-        // أحدث تاريخ ميلاد مسموح (للعمر 21) - تاريخ الميلاد يجب أن يكون بعد أو في هذا التاريخ  
-        const youngestBirthYear = currentYear - minAgeNum; // مثال: 2024 - 21 = 2003
-        
-        // البحث في الرينج: تاريخ الميلاد يجب أن يكون بين oldestBirthYear و youngestBirthYear
-        // oldestBirthYear = أقدم تاريخ (للعمر الأكبر)، youngestBirthYear = أحدث تاريخ (للعمر الأصغر)
-        // مع tolerance ±2 سنوات للبحث المرن
-        flexibleConditions.push({
+        const oldestBirthYear = currentYear - maxAgeNum; 
+        const youngestBirthYear = currentYear - minAgeNum; 
+        // دقة أعلى: تقليل tolerance إلى ±1 سنة فقط
+        priorityConditions.push({
           dateofbirth: {
-            gte: new Date(`${oldestBirthYear - 2}-01-01T00:00:00.000Z`), // أقدم تاريخ ميلاد مسموح (مع tolerance)
-            lte: new Date(`${youngestBirthYear + 2}-12-31T23:59:59.999Z`), // أحدث تاريخ ميلاد مسموح (مع tolerance)
+            gte: new Date(`${oldestBirthYear - 1}-01-01T00:00:00.000Z`), 
+            lte: new Date(`${youngestBirthYear + 1}-12-31T23:59:59.999Z`), 
           }
         });
-        
-        // مثال للتوضيح: إذا كان الرينج 21-30 والسن الحالي 2024:
-        // - oldestBirthYear = 2024 - 30 = 1994 (أقدم تاريخ ميلاد للعمر 30)
-        // - youngestBirthYear = 2024 - 21 = 2003 (أحدث تاريخ ميلاد للعمر 21)
-        // - البحث: تاريخ الميلاد بين 1992 (1994-2) و 2005 (2003+2)
-        // - هذا يضمن العثور على جميع العاملات بعمر بين 19-32 (مع tolerance)
       }
     } else if (age) {
-      // Fallback للتوافق مع الطلبات القديمة التي تستخدم age فقط
       const ageNum = parseInt(age as string);
       if (!isNaN(ageNum)) {
         const currentYear = new Date().getFullYear();
         const targetBirthYear = currentYear - ageNum;
-        
-        // زيادة tolerance إلى ±5 سنوات بدلاً من ±2
-        flexibleConditions.push({
+        // دقة أعلى: تقليل tolerance إلى ±2 سنوات
+        priorityConditions.push({
           dateofbirth: {
-            gte: new Date(`${targetBirthYear - 5}-01-01T00:00:00.000Z`),
-            lte: new Date(`${targetBirthYear + 5}-12-31T23:59:59.999Z`),
+            gte: new Date(`${targetBirthYear - 2}-01-01T00:00:00.000Z`),
+            lte: new Date(`${targetBirthYear + 2}-12-31T23:59:59.999Z`),
           }
         });
       }
     }
 
-    // البحث المرن - لا يتطلب تطابق 100%
-    // إذا كانت هناك شروط، نبحث بها، وإلا نعرض جميع العاملات المتاحة
+    // الدين - أولوية متوسطة
+    if (religion) {
+      const religionStr = (religion as string).toLowerCase();
+      secondaryConditions.push({
+        Religion: { contains: religion as string }
+      });
+      if (religionStr.includes('islam')) {
+        secondaryConditions.push({ Religion: { contains: 'Islam' } });
+        secondaryConditions.push({ Religion: { contains: 'مسلم' } });
+      }
+      if (religionStr.includes('non-muslim') || religionStr.includes('غير مسلم')) {
+        secondaryConditions.push({ Religion: { contains: 'Non-Muslim' } });
+        secondaryConditions.push({ Religion: { contains: 'غير مسلم' } });
+      }
+    }
+
+    // الخبرة - أولوية أقل
+    if (experience) {
+      const expStr = (experience as string).toLowerCase();
+      secondaryConditions.push({ ExperienceYears: { contains: experience as string } });
+      
+      if (expStr.includes('1-2') || expStr.includes('1-2 years')) {
+        secondaryConditions.push({ ExperienceYears: { contains: '1-2' } });
+        secondaryConditions.push({ ExperienceYears: { contains: '1' } });
+        secondaryConditions.push({ ExperienceYears: { contains: '2' } });
+      }
+      if (expStr.includes('3-4') || expStr.includes('3-4 years')) {
+        secondaryConditions.push({ ExperienceYears: { contains: '3-4' } });
+        secondaryConditions.push({ ExperienceYears: { contains: '3' } });
+        secondaryConditions.push({ ExperienceYears: { contains: '4' } });
+      }
+      if (expStr.includes('5') || expStr.includes('more') || expStr.includes('وأكثر')) {
+        secondaryConditions.push({ ExperienceYears: { contains: '5' } });
+        secondaryConditions.push({ ExperienceYears: { contains: 'More' } });
+        secondaryConditions.push({ ExperienceYears: { contains: 'أكثر' } });
+      }
+      if (expStr.includes('مدربة') || expStr.includes('training')) {
+        secondaryConditions.push({ ExperienceYears: { contains: 'مدربة' } });
+        secondaryConditions.push({ ExperienceYears: { contains: 'Training' } });
+      }
+    }
+    
+    // بناء شروط البحث: الجنسية والعمر معاً (AND) + باقي الشروط (OR)
+    const flexibleConditions: any[] = [];
+    
+    // إذا كانت هناك جنسية وعمر، ابحث عنهما معاً (أولوية عالية)
+    if (priorityConditions.length > 0) {
+      flexibleConditions.push({
+        AND: priorityConditions
+      });
+    }
+    
+    // إضافة الشروط الثانوية
+    if (secondaryConditions.length > 0) {
+      flexibleConditions.push(...secondaryConditions);
+    }
+
     let homemaids: any[] = [];
     
-    if (flexibleConditions.length > 0) {
-      // البحث الأول: جميع الشروط
-      whereClause.OR = flexibleConditions;
+    // البحث الأول: الجنسية والعمر معاً (أولوية عالية ودقة عالية)
+    if (priorityConditions.length > 0) {
+      const exactMatchWhereClause: any = {
+        AND: [
+          baseBookingStatusCondition,
+          { AND: priorityConditions } // الجنسية والعمر معاً
+        ]
+      };
       
       homemaids = await prisma.homemaid.findMany({
-        where: whereClause,
+        where: exactMatchWhereClause,
         include: {
           office: {
             select: {
@@ -157,155 +148,76 @@ export default async function handler(
             },
           },
         },
-        take: 20, // زيادة العدد للحصول على نتائج أكثر
+        take: 30, 
       });
     }
     
-    // إذا لم توجد نتائج أو كانت قليلة، البحث بالعمر والجنسية فقط (الأولويات)
-    if (homemaids.length < 5) {
-      const priorityConditions: any[] = [];
-      const priorityWhereClause: any = {
-        bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered"]} },
+    // إذا لم توجد نتائج كافية، البحث بالجنسية أو العمر فقط
+    if (homemaids.length < 10 && flexibleConditions.length > 0) {
+      const fallbackWhereClause: any = {
+        AND: [
+          baseBookingStatusCondition,
+          { OR: flexibleConditions }
+        ]
       };
       
-      // إضافة شرط الجنسية (أعلى أولوية)
-      if (nationality) {
-        priorityConditions.push({
-          office: { Country: { contains: nationality as string } }
-        });
-        priorityConditions.push({
-          Nationalitycopy: { contains: nationality as string }
-        });
-      }
-      
-      // إضافة شرط العمر (ثاني أولوية)
-      if (minAge && maxAge) {
-        const minAgeNum = parseInt(minAge as string);
-        const maxAgeNum = parseInt(maxAge as string);
-        if (!isNaN(minAgeNum) && !isNaN(maxAgeNum)) {
-          const currentDate = new Date();
-          const currentYear = currentDate.getFullYear();
-          
-          // حساب السنوات بشكل صحيح
-          const oldestBirthYear = currentYear - maxAgeNum; // أقدم تاريخ ميلاد (للعمر الأكبر)
-          const youngestBirthYear = currentYear - minAgeNum; // أحدث تاريخ ميلاد (للعمر الأصغر)
-          
-          priorityConditions.push({
-            dateofbirth: {
-              gte: new Date(`${oldestBirthYear - 2}-01-01T00:00:00.000Z`), // أقدم تاريخ ميلاد (مع tolerance)
-              lte: new Date(`${youngestBirthYear + 2}-12-31T23:59:59.999Z`), // أحدث تاريخ ميلاد (مع tolerance)
-            }
-          });
-        }
-      } else if (age) {
-        // Fallback للتوافق مع الطلبات القديمة
-        const ageNum = parseInt(age as string);
-        if (!isNaN(ageNum)) {
-          const currentYear = new Date().getFullYear();
-          const targetBirthYear = currentYear - ageNum;
-          priorityConditions.push({
-            dateofbirth: {
-              gte: new Date(`${targetBirthYear - 5}-01-01T00:00:00.000Z`),
-              lte: new Date(`${targetBirthYear + 5}-12-31T23:59:59.999Z`),
-            }
-          });
-        }
-      }
-      
-      // البحث بالعمر والجنسية فقط
-      if (priorityConditions.length > 0) {
-        priorityWhereClause.OR = priorityConditions;
-        
-        const priorityHomemaids = await prisma.homemaid.findMany({
-          where: priorityWhereClause,
-          include: {
-            office: {
-              select: {
-                Country: true,
-                office: true,
-              },
+      const fallbackHomemaids = await prisma.homemaid.findMany({
+        where: fallbackWhereClause,
+        include: {
+          office: {
+            select: {
+              Country: true,
+              office: true,
             },
           },
-          take: 25, // جلب المزيد من العاملات
-        });
-        
-        // دمج النتائج مع إزالة التكرارات
-        const existingIds = new Set(homemaids.map(h => h.id));
-        const newHomemaids = priorityHomemaids.filter(h => !existingIds.has(h.id));
-        homemaids = [...homemaids, ...newHomemaids];
-      }
+        },
+        take: 30, 
+      });
       
-      // إذا لم توجد نتائج بعد، أضف جميع العاملات المتاحة
-      if (homemaids.length < 5) {
-        const allAvailable = await prisma.homemaid.findMany({
-          where: {
-            bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered", "cancelled","rejected"]} },
-          },
-          include: {
-            office: {
-              select: {
-                Country: true,
-                office: true,
-              },
+      const existingIds = new Set(homemaids.map(h => h.id));
+      const newHomemaids = fallbackHomemaids.filter(h => !existingIds.has(h.id));
+      homemaids = [...homemaids, ...newHomemaids];
+    }
+    
+    // إذا لم توجد نتائج بعد، جلب جميع العاملات المتاحة
+    if (homemaids.length < 5) {
+      const allAvailable = await prisma.homemaid.findMany({
+        where: baseBookingStatusCondition,
+        include: {
+          office: {
+            select: {
+              Country: true,
+              office: true,
             },
           },
-          take: 30, // جلب المزيد من العاملات
-        });
-        
-        // دمج النتائج مع إزالة التكرارات
-        const existingIds = new Set(homemaids.map(h => h.id));
-        const newHomemaids = allAvailable.filter(h => !existingIds.has(h.id));
-        homemaids = [...homemaids, ...newHomemaids];
-      }
+        },
+        take: 30, 
+      });
+      
+      const existingIds = new Set(homemaids.map(h => h.id));
+      const newHomemaids = allAvailable.filter(h => !existingIds.has(h.id));
+      homemaids = [...homemaids, ...newHomemaids];
     }
 
-    // Sort homemaids by relevance score
     const scoredHomemaids = homemaids.map((homemaid) => {
       let score = 0;
       
-      // Exact matches get highest score - NATIONALITY FIRST (highest priority) - أكثر مرونة
+      // الجنسية - أولوية عالية جداً (أعلى نقاط)
       if (nationality) {
         const nationalityLower = (nationality as string).toLowerCase();
-        // Check office Country field (where nationality is actually stored) - HIGHEST PRIORITY
-        if (homemaid.office?.Country?.toLowerCase().includes(nationalityLower) || 
-            nationalityLower.includes(homemaid.office?.Country?.toLowerCase() || '')) {
-          score += 25; // Highest score for nationality match
-        }
-        // Also check Nationalitycopy field as fallback
-        else if (homemaid.Nationalitycopy?.toLowerCase().includes(nationalityLower) ||
-                 nationalityLower.includes(homemaid.Nationalitycopy?.toLowerCase() || '')) {
-          score += 15;
-        }
-        // أي جنسية موجودة تحصل على نقاط قليلة
-        else if (homemaid.office?.Country || homemaid.Nationalitycopy) {
-          score += 5; // أي جنسية موجودة
-        }
-      }
-      // RELIGION SECOND PRIORITY - أكثر مرونة
-      if (religion && homemaid.Religion) {
-        const religionLower = (religion as string).toLowerCase();
-        const homemaidReligion = homemaid.Religion.toLowerCase();
+        const officeCountry = homemaid.office?.Country?.toLowerCase() || '';
         
-        // Exact match
-        if (homemaidReligion.includes(religionLower) || religionLower.includes(homemaidReligion)) {
-          score += 20;
+        // تطابق دقيق (exact match)
+        if (officeCountry === nationalityLower || officeCountry.includes(nationalityLower) || nationalityLower.includes(officeCountry)) {
+          score += 50; // أعلى نقاط للجنسية
         }
-        // Partial match - إذا كان البحث "Islam" والعاملة "Islam - الإسلام"
-        else if (
-          (religionLower.includes('islam') && (homemaidReligion.includes('islam') || homemaidReligion.includes('مسلم'))) ||
-          (religionLower.includes('non-muslim') && (homemaidReligion.includes('non-muslim') || homemaidReligion.includes('غير مسلم')))
-        ) {
-          score += 15; // Partial match score
-        }
-        // أي ديانة موجودة تحصل على نقاط قليلة
-        else if (homemaidReligion.length > 0) {
-          score += 3; // أي ديانة موجودة
+        else if (homemaid.office?.Country) {
+          score += 2; // أي جنسية موجودة
         }
       }
       
-      // AGE THIRD PRIORITY - أكثر مرونة - البحث بناءً على الرينج
+      // العمر - أولوية عالية (ثاني أعلى نقاط)
       if (homemaid.dateofbirth) {
-        // Calculate age from dateofbirth
         const birthDate = new Date(homemaid.dateofbirth);
         const currentDate = new Date();
         const calculatedAge = currentDate.getFullYear() - birthDate.getFullYear();
@@ -314,31 +226,48 @@ export default async function handler(
           ? calculatedAge - 1 
           : calculatedAge;
         
-        // استخدام الرينج إذا كان متوفراً (الأولوية)
         if (minAge && maxAge) {
           const minAgeNum = parseInt(minAge as string);
           const maxAgeNum = parseInt(maxAge as string);
           if (!isNaN(minAgeNum) && !isNaN(maxAgeNum)) {
-            // إذا كان العمر داخل الرينج - أعلى نقاط
+            // تطابق دقيق داخل الرينج
             if (finalAge >= minAgeNum && finalAge <= maxAgeNum) {
-              score += 20; // أعلى نقاط للعمر داخل الرينج
+              score += 40; // نقاط عالية للعمر الدقيق
             }
-            // إذا كان قريب من الرينج (±2 سنوات)
+            // قريب جداً (±1 سنة)
+            else if (finalAge >= minAgeNum - 1 && finalAge <= maxAgeNum + 1) {
+              score += 25; 
+            }
+            // قريب نسبياً (±2 سنوات)
             else if (finalAge >= minAgeNum - 2 && finalAge <= maxAgeNum + 2) {
-              score += 12; // نقاط متوسطة للعمر قريب من الرينج
-            }
-            // إذا كان قريب نسبياً (±5 سنوات)
-            else if (finalAge >= minAgeNum - 5 && finalAge <= maxAgeNum + 5) {
-              score += 5; // نقاط قليلة للعمر قريب نسبياً
+              score += 10; 
             }
           }
         } else if (age) {
-          // Fallback للتوافق مع الطلبات القديمة التي تستخدم age فقط
           const ageDiff = Math.abs(finalAge - parseInt(age as string));
-          if (ageDiff <= 2) score += 15; // High score for exact age match
-          else if (ageDiff <= 5) score += 10; // Medium score for close age
-          else if (ageDiff <= 10) score += 5; // Low score for far age
-          else if (ageDiff <= 15) score += 2; // Very low score for far age but still relevant
+          if (ageDiff === 0) score += 40; // تطابق دقيق
+          else if (ageDiff <= 1) score += 25; 
+          else if (ageDiff <= 2) score += 15; 
+          else if (ageDiff <= 5) score += 5; 
+        }
+      }
+      
+      // الدين - أولوية متوسطة
+      if (religion && homemaid.Religion) {
+        const religionLower = (religion as string).toLowerCase();
+        const homemaidReligion = homemaid.Religion.toLowerCase();
+        
+        if (homemaidReligion.includes(religionLower) || religionLower.includes(homemaidReligion)) {
+          score += 15;
+        }
+        else if (
+          (religionLower.includes('islam') && (homemaidReligion.includes('islam') || homemaidReligion.includes('مسلم'))) ||
+          (religionLower.includes('non-muslim') && (homemaidReligion.includes('non-muslim') || homemaidReligion.includes('غير مسلم')))
+        ) {
+          score += 10; 
+        }
+        else if (homemaidReligion.length > 0) {
+          score += 2; 
         }
       }
       
@@ -369,16 +298,11 @@ export default async function handler(
       return { ...homemaid, relevanceScore: score };
     });
 
-    // Sort by relevance score (highest first) - لا نفلتر حسب النقاط
-    // Priority: Nationality (25) > Religion (20) > Age (15) > Experience (12)
-    // عرض جميع النتائج مرتبة حسب النقاط حتى لو كانت النقاط 0 (لا يتطلب تطابق 100%)
     const sortedHomemaids = scoredHomemaids
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 15); // عرض 15 نتيجة مرتبة حسب النقاط
+      .slice(0, 15); 
 
-    // Transform the data for the frontend
     const suggestions = sortedHomemaids.map((homemaid) => {
-      // Calculate age from dateofbirth
       let calculatedAge = null;
       if (homemaid.dateofbirth) {
         const birthDate = new Date(homemaid.dateofbirth);
@@ -393,7 +317,7 @@ export default async function handler(
       return {
         id: homemaid.id,
         name: homemaid.Name,
-        nationality: homemaid.office?.Country || homemaid.Nationalitycopy, // Use office country as primary nationality
+        nationality: homemaid.office?.Country || null, // فقط من خلال Country في office
         religion: homemaid.Religion,
         experience: homemaid.ExperienceYears,
         age: calculatedAge,

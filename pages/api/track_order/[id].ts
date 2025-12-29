@@ -141,6 +141,35 @@ console.log(id)
         return res.status(404).json({ error: 'Order or arrival data not found' });
       }
 
+      // الموافقة التلقائية عند وجود رقم عقد إدارة المكاتب
+      if (order.arrivals && order.arrivals.length > 0) {
+        const arrival = order.arrivals[0];
+        const contractNumber = arrival?.InternalmusanedContract as string | null | undefined;
+        const hasApproval = !!arrival?.ExternalDateLinking;
+        
+        if (contractNumber && typeof contractNumber === 'string') {
+          const contractValue = contractNumber.trim();
+          if (contractValue && contractValue !== 'N/A' && contractValue !== '' && !hasApproval) {
+            // الموافقة التلقائية
+            await prisma.$transaction([
+              prisma.neworder.update({
+                where: { id: Number(id) },
+                data: { bookingstatus: 'office_link_approved' },
+              }),
+              prisma.arrivallist.updateMany({
+                where: { OrderId: Number(id) },
+                data: { ExternalDateLinking: new Date() },
+              }),
+            ]);
+            console.log('✅ تم تأكيد الموافقة تلقائياً عند تحميل الصفحة بسبب وجود رقم عقد إدارة المكاتب');
+            
+            // تحديث البيانات المحملة
+            (arrival as any).ExternalDateLinking = new Date();
+            order.bookingstatus = 'office_link_approved';
+          }
+        }
+      }
+
       const orderData = {
         orderId: order.id,
         bookingStatus: order.bookingstatus,
@@ -628,13 +657,37 @@ const cookieHeader = req.headers.cookie;
             }
             if (updatedData['رقم عقد إدارة المكاتب']) {
               const oldContract = order.arrivals[0]?.InternalmusanedContract;
-              arrivalUpdate.InternalmusanedContract = updatedData['رقم عقد إدارة المكاتب'];
-              changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${updatedData['رقم عقد إدارة المكاتب']}"`);
+              const newContract = updatedData['رقم عقد إدارة المكاتب'];
+              arrivalUpdate.InternalmusanedContract = newContract;
+              changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${newContract}"`);
             }
             if (updatedData['تاريخ العقد']) {
               const oldDate = order.arrivals[0]?.DateOfApplication;
-              arrivalUpdate.DateOfApplication = new Date(updatedData['تاريخ العقد']);
-              changes.push(`تاريخ العقد: من "${oldDate || 'فارغ'}" إلى "${updatedData['تاريخ العقد']}"`);
+              const dateValue = updatedData['تاريخ العقد'];
+              
+              // Validate date before creating Date object
+              const dateObj = new Date(dateValue);
+              if (isNaN(dateObj.getTime())) {
+                return res.status(400).json({ error: 'تاريخ العقد لازم يتكتب' });
+              }
+              
+              arrivalUpdate.DateOfApplication = dateObj;
+              changes.push(`تاريخ العقد: من "${oldDate || 'فارغ'}" إلى "${dateValue}"`);
+            }
+            
+            // الموافقة التلقائية عند وجود رقم عقد إدارة المكاتب (بعد جميع التحديثات)
+            const finalContractNumber = arrivalUpdate.InternalmusanedContract || order.arrivals[0]?.InternalmusanedContract;
+            if (finalContractNumber && typeof finalContractNumber === 'string') {
+              const contractValue = finalContractNumber.trim();
+              if (contractValue && contractValue !== 'N/A' && contractValue !== '' && contractValue !== 'null') {
+                // التحقق من أن الموافقة لم تتم بعد
+                if (!order.arrivals[0]?.ExternalDateLinking && !arrivalUpdate.ExternalDateLinking) {
+                  arrivalUpdate.ExternalDateLinking = new Date();
+                  updateData.bookingstatus = 'office_link_approved';
+                  changes.push('تم تأكيد الموافقة تلقائياً بسبب وجود رقم عقد إدارة المكاتب');
+                  console.log('✅ تم تأكيد الموافقة تلقائياً بسبب وجود رقم عقد إدارة المكاتب');
+                }
+              }
             }
             break;
           case 'externalOfficeInfo':
@@ -845,9 +898,17 @@ const cookieHeader = req.headers.cookie;
       }
 
       return res.status(400).json({ error: 'Invalid request' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating order:', error);
-      return res.status(500).json({ error:  'Internal server error' });
+      
+      // Check if it's a Prisma validation error for DateOfApplication
+      if (error?.message?.includes('DateOfApplication') || 
+          error?.message?.includes('Invalid value for argument') ||
+          error?.message?.includes('Provided Date object is invalid')) {
+        return res.status(400).json({ error: 'تاريخ العقد مطلوب' });
+      }
+      
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 

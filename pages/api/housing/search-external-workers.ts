@@ -34,6 +34,12 @@ export default async function handler(
               { phone: { contains: search } }
             ]
           },
+          {
+            // Only get homemaids that have at least one order linked
+            NewOrder: {
+              some: {}
+            }
+          }
           // {
             // // Only get homemaids that have a record in transferSponsorShips table
             // transferSponsorShips: {

@@ -1084,8 +1084,9 @@ export default function EmployeeCash() {
                     type="text" 
                     placeholder="ادخل رقم العهدة" 
                     value={formData.cashNumber}
+                    readOnly
                     onChange={(e) => handleFormFieldChange('cashNumber', e.target.value)}
-                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                    className={`w-full readonly bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       formErrors.cashNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
                   />

@@ -3083,7 +3083,7 @@ export async function getStaticProps(context) {
     return {
       props: propsData,
       // Revalidate every 60 seconds (ISR - Incremental Static Regeneration)
-      revalidate: 60,
+      revalidate: 0,
     };
   } catch (error) {
     console.log("Error in getStaticProps:", error);

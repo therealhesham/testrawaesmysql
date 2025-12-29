@@ -294,16 +294,15 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
             </button>
           </>
         )}
-        {actions.map((action, index) => (
+        {actions.filter(action => !action.disabled).map((action, index) => (
           <button
             key={index}
             className={`px-4 py-2 rounded-md self-start text-sm  ${ // ineed to be in the end
               action.type === 'primary'
                 ? 'bg-teal-800 text-white  hover:bg-teal-900'
                 : 'bg-teal-800 text-white  hover:bg-teal-900'
-            } ${action.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            }`}
             onClick={action.onClick}
-            disabled={action.disabled}
           >
             {action.label}
           </button>
