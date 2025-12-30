@@ -64,7 +64,7 @@ const [formData, setFormData] = useState<FormData>({
   PhoneNumber: '',
   Nationalitycopy: '',
   Religion: '',
-  PaymentMethod: 'كاش',
+  PaymentMethod: 'cash',
   Total: 0,
   Paid: 0,
   Remaining: 0,
@@ -155,8 +155,11 @@ const [isUploading, setIsUploading] = useState<Record<string, boolean>>({
   };
 
   const validateFiles = (): string | null => {
-    if (!fileUploaded.orderDocument && !formData.orderDocument) {
-      return 'ملف سند الأمر مطلوب';
+    // ملف سند الأمر غير مطلوب للدفع كاش
+    if (formData.PaymentMethod !== 'cash') {
+      if (!fileUploaded.orderDocument && !formData.orderDocument) {
+        return 'ملف سند الأمر مطلوب';
+      }
     }
     if (!fileUploaded.contract && !formData.contract) {
       return 'ملف العقد مطلوب';
@@ -367,7 +370,7 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             PhoneNumber: order.clientInfo.phone,
             Nationalitycopy: order.homemaidInfo.nationality || order.nationality,
             Religion: order.homemaidInfo.religion, // Not in API, default
-            PaymentMethod: 'كاش', // Default; add to API if needed
+            PaymentMethod: 'cash', // Default; add to API if needed
             Total: 0, // Default; add to API if needed
             Paid: 0,
             // religion:order.homemaidInfo.religion,
@@ -496,6 +499,12 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: 
         const paid = parseFloat(updatedFormData.Paid as any) || 0;
         updatedFormData.Remaining = total - paid;
       }
+      // إذا تم تغيير طريقة الدفع إلى كاش، امسح ملف سند الأمر
+      if (name === 'PaymentMethod' && value === 'cash') {
+        updatedFormData.orderDocument = '';
+        setFileUploaded((prev) => ({ ...prev, orderDocument: false }));
+        setUploadedFileNames((prev) => ({ ...prev, orderDocument: '' }));
+      }
       return updatedFormData;
     });
     
@@ -504,6 +513,15 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileId: 
       setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name];
+        return newErrors;
+      });
+    }
+    
+    // إذا تم تغيير طريقة الدفع إلى كاش، امسح أخطاء ملف سند الأمر
+    if (name === 'PaymentMethod' && value === 'cash') {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.orderDocument;
         return newErrors;
       });
     }
@@ -590,8 +608,11 @@ const validateForm = () => {
   }
 
   // File validation
-  if (!fileUploaded.orderDocument && !formData.orderDocument?.trim()) {
-    newErrors.orderDocument = 'ملف سند الأمر مطلوب';
+  // ملف سند الأمر غير مطلوب للدفع كاش
+  if (formData.PaymentMethod !== 'cash') {
+    if (!fileUploaded.orderDocument && !formData.orderDocument?.trim()) {
+      newErrors.orderDocument = 'ملف سند الأمر مطلوب';
+    }
   }
   if (!fileUploaded.contract && !formData.contract?.trim()) {
     newErrors.contract = 'ملف العقد مطلوب';
@@ -994,9 +1015,9 @@ const arabicRegionMap: { [key: string]: string } = {
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
   {[
-    { id: 'orderDocument', label: 'ملف سند الأمر' },
-    { id: 'contract', label: 'ملف العقد' },
-  ].map((file) => (
+    { id: 'orderDocument', label: 'ملف سند الأمر', show: formData.PaymentMethod !== 'cash' },
+    { id: 'contract', label: 'ملف العقد', show: true },
+  ].filter((file) => file.show).map((file) => (
     <div key={file.id} className="flex flex-col gap-2">
       <label htmlFor={file.id} className="text-base">{file.label}</label>
       <div className={`file-upload-display border ${

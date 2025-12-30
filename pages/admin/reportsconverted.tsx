@@ -1017,8 +1017,123 @@ export default function Home() {
     fetchReceivablesData();
   }, [receivablesPeriod, receivablesStartDate, receivablesEndDate, receivablesMonthSelection]);
 
-  // إحداثيات المناطق السعودية
-  const saudiRegionsCoordinates: { [key: string]: [number, number] } = {
+  // إحداثيات المدن السعودية (مطابقة مع arabicRegionMap)
+  const saudiCityCoordinates: { [key: string]: [number, number] } = {
+    // المنطقة الوسطى (الرياض)
+    'Riyadh': [24.7136, 46.6753],
+    'Al-Kharj': [24.1556, 47.3056],
+    'Ad Diriyah': [24.7375, 46.5753],
+    'Al Majma\'ah': [25.9000, 45.3500],
+    'Al Zulfi': [26.3000, 44.8000],
+    'Ad Dawadimi': [24.5000, 44.3833],
+    'Wadi Ad Dawasir': [20.4667, 44.7833],
+    'Afif': [23.9167, 42.9167],
+    'Al Quway\'iyah': [24.0667, 45.2833],
+    'Shaqra': [25.2500, 45.2500],
+    'Hotat Bani Tamim': [23.6333, 46.7000],
+
+    // المنطقة الغربية (مكة المكرمة)
+    'Makkah': [21.3891, 39.8579],
+    'Jeddah': [21.4858, 39.1925],
+    'Taif': [21.2703, 40.4158],
+    'Rabigh': [22.8000, 39.0333],
+    'Al Qunfudhah': [19.1333, 41.0833],
+    'Al Lith': [20.1500, 40.2833],
+    'Khulais': [21.6667, 39.2000],
+    'Ranyah': [20.0500, 42.0500],
+    'Turabah': [21.2167, 41.6333],
+
+    // المدينة المنورة
+    'Madinah': [24.5247, 39.5692],
+    'Yanbu': [24.0883, 38.0619],
+    'Al Ula': [26.6167, 37.9167],
+    'Badr': [23.7833, 38.8000],
+    'Al Hinakiyah': [24.8000, 40.2000],
+    'Mahd Al Dhahab': [23.5000, 40.8667],
+
+    // المنطقة الشرقية
+    'Dammam': [26.4207, 50.0888],
+    'Al Khobar': [26.2172, 50.1971],
+    'Dhahran': [26.2361, 50.0392],
+    'Al Ahsa': [25.4297, 49.6206],
+    'Al Hufuf': [25.3600, 49.5900],
+    'Al Mubarraz': [25.4000, 49.5833],
+    'Jubail': [27.0174, 49.6225],
+    'Hafr Al Batin': [28.4333, 45.9667],
+    'Al Khafji': [28.4167, 48.5000],
+    'Ras Tanura': [26.6500, 50.1667],
+    'Qatif': [26.5194, 49.9881],
+    'Abqaiq': [25.9333, 49.6667],
+    'Nairiyah': [27.5167, 48.4833],
+    'Qaryat Al Ulya': [27.3167, 48.4167],
+
+    // القصيم
+    'Buraydah': [26.3264, 43.9750],
+    'Unaizah': [26.0833, 43.9833],
+    'Ar Rass': [25.8667, 43.5000],
+    'Al Bukayriyah': [26.1333, 43.6500],
+    'Al Badaye': [26.4000, 44.2000],
+    'Al Mithnab': [25.8667, 44.2167],
+    'Riyad Al Khabra': [25.5167, 45.2000],
+
+    // عسير
+    'Abha': [18.2164, 42.5053],
+    'Khamis Mushait': [18.3000, 42.7333],
+    'Bisha': [20.0000, 42.6000],
+    'Mahayil': [18.5167, 42.0500],
+    'Al Namas': [19.1500, 42.1167],
+    'Tanomah': [19.1667, 42.0833],
+    'Ahad Rafidah': [18.2167, 42.8333],
+    'Sarat Abidah': [19.6167, 43.7000],
+    'Balqarn': [19.3000, 41.9500],
+
+    // تبوك
+    'Tabuk': [28.3838, 36.5550],
+    'Duba': [27.3500, 35.7000],
+    'Al Wajh': [26.2333, 36.4667],
+    'Umluj': [25.0500, 37.2667],
+    'Tayma': [27.6333, 38.5500],
+    'Haqi': [29.3000, 36.0667],
+
+    // حائل
+    'Hail': [27.5219, 41.6901],
+    'Baqa': [27.4167, 41.7000],
+    'Al Ghazalah': [27.6000, 41.7000],
+
+    // الحدود الشمالية
+    'Arar': [30.9833, 41.0167],
+    'Rafha': [29.6333, 43.5000],
+    'Turaif': [31.6833, 38.6500],
+
+    // جازان
+    'Jazan': [16.8892, 42.5511],
+    'Sabya': [17.1500, 42.6167],
+    'Abu Arish': [16.9667, 42.8333],
+    'Samtah': [16.6000, 42.9500],
+    'Baish': [17.3333, 42.7333],
+    'Ad Darb': [17.7167, 42.2500],
+    'Al Aridah': [16.9167, 42.7167],
+    'Fifa': [17.2500, 43.1000],
+
+    // نجران
+    'Najran': [17.4917, 44.1319],
+    'Sharurah': [17.5000, 47.2167],
+    'Hubuna': [17.3500, 44.2000],
+
+    // الباحة
+    'Al Baha': [20.0129, 41.4677],
+    'Baljurashi': [20.0167, 41.4500],
+    'Al Mandq': [20.0833, 41.2833],
+    'Al Makhwah': [20.0167, 41.2833],
+    'Qilwah': [20.0167, 41.4500],
+
+    // الجوف
+    'Sakaka': [29.8113, 40.2096],
+    'Dumat Al Jandal': [29.8167, 39.8667],
+    'Al Qurayyat': [31.3333, 37.3333],
+    'Tabarjal': [30.5000, 38.2167],
+
+    // إحداثيات المناطق (للتوافق مع البيانات القديمة)
     'Ar Riyāḍ': [24.7136, 46.6753],
     'Makkah al Mukarramah': [21.3891, 39.8579],
     'Al Madīnah al Munawwarah': [24.5247, 39.5692],
@@ -1026,7 +1141,6 @@ export default function Home() {
     'Asīr': [18.2164, 42.5053],
     'Tabūk': [28.3838, 36.5550],
     'Al Ḩudūd ash Shamālīyah': [30.9833, 41.0167],
-    'Jazan': [16.8892, 42.5511],
     'Najrān': [17.4917, 44.1319],
     'Al Bāḩah': [20.0129, 41.4677],
     'Al Jawf': [29.8113, 40.2096],
@@ -1040,10 +1154,11 @@ export default function Home() {
       const eng = item.city;
       const name = arabicRegionMap[eng as keyof typeof arabicRegionMap];
       const value = item._count?.id || 0;
-      const coordinates = saudiRegionsCoordinates[eng as keyof typeof saudiRegionsCoordinates];
+      // البحث في إحداثيات المدن أولاً، ثم المناطق
+      const coordinates = saudiCityCoordinates[eng as keyof typeof saudiCityCoordinates];
       
       if (!coordinates || !name) {
-        console.warn(`Skipping invalid city data: ${eng}`);
+        console.warn(`Skipping invalid city data: ${eng} - name: ${name}, coordinates: ${coordinates}`);
         return null;
       }
       
