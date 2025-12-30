@@ -98,7 +98,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [nationalities, setNationalities] = useState<any[]>([]);
-  const [professions, setProfessions] = useState<{ id: number; name: string }[]>([]);
+  const [professions, setProfessions] = useState<{ id: number; name: string; gender: string | null }[]>([]);
   const [fileUploaded, setFileUploaded] = useState({
     visaFile: false,
   });
@@ -127,6 +127,31 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       console.error('Error fetching professions:', error);
     }
   };
+
+  // Filter professions based on selected gender using useMemo
+  const filteredProfessions = useMemo(() => {
+    // If no gender is selected, show all professions
+    if (!formData.gender || !professions.length) {
+      console.log('No gender selected or no professions, showing all:', professions.length);
+      return professions;
+    }
+    // Filter: show professions that match the selected gender OR have no gender specified (available for all)
+    const filtered = professions.filter(
+      (prof) => prof.gender === null || prof.gender === '' || prof.gender === formData.gender
+    );
+    console.log('Filtered professions for gender', formData.gender, ':', filtered.length, 'out of', professions.length);
+    return filtered;
+  }, [formData.gender, professions]);
+
+  // Reset profession selection if current selection is not in filtered list
+  useEffect(() => {
+    if (formData.profession && formData.gender && filteredProfessions.length > 0) {
+      const isProfessionAvailable = filteredProfessions.some(p => p.name === formData.profession);
+      if (!isProfessionAvailable) {
+        setFormData((prev) => ({ ...prev, profession: '' }));
+      }
+    }
+  }, [formData.gender, filteredProfessions]);
 
   useEffect(() => {
     fetchNationalities();
@@ -232,7 +257,13 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       return;
     }
     
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'gender') {
+        console.log('Gender changed to:', value);
+      }
+      return updated;
+    });
     // Clear error for the field when user starts typing
     setErrors((prev: any) => ({ ...prev, [name]: '' }));
   };
@@ -756,7 +787,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
                     className={`w-full bg-background-light border ${errors.profession ? 'border-red-500' : 'border-border-color'} rounded-md py-2  text-sm text-text-dark appearance-none`}
                   >
                     <option value="">اختر المهنة</option>
-                    {professions.map((profession) => (
+                    {filteredProfessions.map((profession) => (
                       <option key={profession.id} value={profession.name}>
                         {profession.name}
                       </option>

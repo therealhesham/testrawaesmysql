@@ -13,6 +13,7 @@ interface AddProfessionModalProps {
 const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: AddProfessionModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
+    gender: '',
   });
   const [errors, setErrors] = useState<any>({});
   const [error, setError] = useState('');
@@ -21,9 +22,12 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: A
   // Update form when editing profession changes
   useEffect(() => {
     if (editingProfession) {
-      setFormData({ name: editingProfession.name });
+      setFormData({ 
+        name: editingProfession.name,
+        gender: (editingProfession as any).gender || ''
+      });
     } else {
-      setFormData({ name: '' });
+      setFormData({ name: '', gender: '' });
     }
     setErrors({});
     setError('');
@@ -45,7 +49,7 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: A
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error for the field when user starts typing
@@ -66,8 +70,8 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: A
       const url = '/api/professions';
       const method = editingProfession ? 'PUT' : 'POST';
       const body = editingProfession
-        ? { id: editingProfession.id, name: formData.name.trim() }
-        : { name: formData.name.trim() };
+        ? { id: editingProfession.id, name: formData.name.trim(), gender: formData.gender || null }
+        : { name: formData.name.trim(), gender: formData.gender || null };
 
       const response = await fetch(url, {
         method,
@@ -81,7 +85,7 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: A
       }
 
       // Reset form and close modal
-      setFormData({ name: '' });
+      setFormData({ name: '', gender: '' });
       setErrors({});
       onClose();
       onSuccess();
@@ -135,6 +139,29 @@ const AddProfessionModal = ({ isOpen, onClose, onSuccess, editingProfession }: A
             />
             {errors.name && (
               <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+              الجنس
+            </label>
+            <select
+              id="gender"
+              name="gender"
+              value={formData.gender}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+                errors.gender ? 'border-red-500' : 'border-gray-300'
+              }`}
+              disabled={loading}
+            >
+              <option value="">الكل (ذكر وأنثى)</option>
+              <option value="male">ذكر</option>
+              <option value="female">أنثى</option>
+            </select>
+            {errors.gender && (
+              <p className="text-red-500 text-xs mt-1">{errors.gender}</p>
             )}
           </div>
 

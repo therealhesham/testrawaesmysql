@@ -217,13 +217,13 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     newPassword: ''
   });
 
-  const [professions, setProfessions] = useState<any[]>([]);
+  const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender: string | null }>>([]);
   const [fileName, setFileName] = useState('ارفاق ملف');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProfession, setEditingProfession] = useState<{ id: number; name: string } | null>(null);
+  const [editingProfession, setEditingProfession] = useState<{ id: number; name: string; gender?: string | null } | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [originalFormData, setOriginalFormData] = useState<UserData>({
     id: '',
@@ -1306,19 +1306,26 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
               <table className="w-full">
                 <thead className="bg-teal-700 text-white">
                   <tr>
-                    <th className="px-6 py-5 text-right text-sm font-semibold">إجراءات</th>
-                    <th className="px-6 py-5 text-right text-sm font-semibold">المهنة</th>
                     <th className="px-6 py-5 text-right text-sm font-semibold">#</th>
+                    <th className="px-6 py-5 text-right text-sm font-semibold">الجنس</th>
+                    <th className="px-6 py-5 text-right text-sm font-semibold">المهنة</th>
+                    <th className="px-6 py-5 text-right text-sm font-semibold">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {professions.map((prof, index) => (
                     <tr key={prof.id} className={`hover:bg-teal-50/50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                      <td className="px-6 py-4 text-sm">
+                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">#{prof.id}</td>
+                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">
+                        {prof.gender === 'male' ? 'ذكر' : prof.gender === 'female' ? 'أنثى' : 'الكل'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">{prof.name}</td>
+                     
+                           <td className="px-6 py-4 text-sm">
                         <div className="flex gap-2">
                           <button 
                             onClick={() => {
-                              setEditingProfession({ id: prof.id, name: prof.name });
+                              setEditingProfession({ id: prof.id, name: prof.name, gender: prof.gender });
                               setIsModalOpen(true);
                             }}
                             className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium flex items-center gap-1"
@@ -1329,24 +1336,24 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                           <button 
                             onClick={async () => {
                               if (confirm('هل أنت متأكد من حذف هذه المهنة؟')) {
-                              try {
-                                const res = await fetch('/api/professions', {
-                                  method: 'DELETE',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ id: prof.id }),
-                                });
-                                if (res.ok) {
-                                  fetchProfessions();
-                                  setSuccess('تم حذف المهنة بنجاح');
-                                  setTimeout(() => setSuccess(null), 3000);
-                                } else {
-                                  setError('فشل في حذف المهنة');
+                                try {
+                                  const res = await fetch('/api/professions', {
+                                    method: 'DELETE',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: prof.id }),
+                                  });
+                                  if (res.ok) {
+                                    fetchProfessions();
+                                    setSuccess('تم حذف المهنة بنجاح');
+                                    setTimeout(() => setSuccess(null), 3000);
+                                  } else {
+                                    setError('فشل في حذف المهنة');
+                                    setTimeout(() => setError(null), 3000);
+                                  }
+                                } catch (err) {
+                                  setError('حدث خطأ أثناء الحذف');
                                   setTimeout(() => setError(null), 3000);
                                 }
-                              } catch (err) {
-                                setError('حدث خطأ أثناء الحذف');
-                                setTimeout(() => setError(null), 3000);
-                              }
                             }
                           }}
                           className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium flex items-center gap-1"
@@ -1356,8 +1363,6 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                         </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-800 font-medium">{prof.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 font-mono">#{prof.id}</td>
                     </tr>
                   ))}
                 </tbody>
