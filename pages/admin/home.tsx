@@ -3073,7 +3073,7 @@ export async function getStaticProps(context) {
       arrivalsLength: arrivalsRes?.arrivalsCount || 0,
       deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
       externaldeparaturesLength: countDeparaturesfromsaudi || 0,
-      homeMaidsLength: fullListRes?.totalRecords || counts.workers,
+      homeMaidsLength: fullListRes?.totalRecords ?? counts.workers ?? 0,
       officesCount: foreignOfficesRes?.dataCount || 0,
       transferSponsorshipsLength: 0,
       sessionsLength: sessionsRes?.totalResults || 0,
@@ -3083,7 +3083,7 @@ export async function getStaticProps(context) {
     return {
       props: propsData,
       // Revalidate every 60 seconds (ISR - Incremental Static Regeneration)
-      revalidate: 0,
+      revalidate: 1,
     };
   } catch (error) {
     console.log("Error in getStaticProps:", error);
