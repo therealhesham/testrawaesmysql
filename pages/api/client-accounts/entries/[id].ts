@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
 import { logAccountingActionFromRequest } from 'lib/accountingLogger';
@@ -7,8 +7,14 @@ import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 const prisma = new PrismaClient();
 
 // Helper function to recalculate totals from entries
-async function recalculateStatementTotals(statementId: number) {
-  const entries = await prisma.clientAccountEntry.findMany({
+// Now supports transactions for data integrity
+async function recalculateStatementTotals(
+  statementId: number,
+  tx?: Prisma.TransactionClient
+) {
+  const client = tx || prisma;
+  
+  const entries = await client.clientAccountEntry.findMany({
     where: { statementId }
   });
 
@@ -16,7 +22,7 @@ async function recalculateStatementTotals(statementId: number) {
   const totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
   const netAmount = totalRevenue - totalExpenses;
 
-  await prisma.clientAccountStatement.update({
+  await client.clientAccountStatement.update({
     where: { id: statementId },
     data: {
       totalRevenue,
@@ -26,6 +32,36 @@ async function recalculateStatementTotals(statementId: number) {
   });
 
   return { totalRevenue, totalExpenses, netAmount };
+}
+
+// Helper function to recalculate all balances after a specific date
+// This ensures balance integrity when entries are modified or deleted
+async function recalculateBalancesAfterDate(
+  statementId: number,
+  fromDate: Date,
+  tx?: Prisma.TransactionClient
+) {
+  const client = tx || prisma;
+  
+  // Get all entries for this statement ordered by date
+  const allEntries = await client.clientAccountEntry.findMany({
+    where: { statementId },
+    orderBy: { date: 'asc' }
+  });
+
+  // Calculate running balance
+  let runningBalance = 0;
+  for (const entry of allEntries) {
+    runningBalance = runningBalance + Number(entry.credit) - Number(entry.debit);
+    
+    // Update balance if it's after the fromDate or if balance is incorrect
+    if (entry.date >= fromDate || Number(entry.balance) !== runningBalance) {
+      await client.clientAccountEntry.update({
+        where: { id: entry.id },
+        data: { balance: runningBalance }
+      });
+    }
+  }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -72,61 +108,65 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         entryType
       } = req.body;
 
-      // Get the current entry to know its statementId
-      const currentEntry = await prisma.clientAccountEntry.findUnique({
-        where: { id: Number(id) }
-      });
-
-      if (!currentEntry) {
-        return res.status(404).json({ error: 'Entry not found' });
-      }
-
-      // Get the last entry before this one (ordered by date) to calculate balance
-      const previousEntry = await prisma.clientAccountEntry.findFirst({
-        where: {
-          statementId: currentEntry.statementId,
-          id: { not: Number(id) },
-          date: { lte: new Date(date) }
-        },
-        orderBy: {
-          date: 'desc'
-        }
-      });
-
-      // Calculate balance: previous balance + credit - debit
-      const previousBalance = previousEntry ? Number(previousEntry.balance) : 0;
+      // ✅ Validation: Check for negative numbers
       const newDebit = Number(debit) || 0;
       const newCredit = Number(credit) || 0;
-      const newBalance = previousBalance + newCredit - newDebit;
 
-      const entry = await prisma.clientAccountEntry.update({
-        where: {
-          id: Number(id)
-        },
-        data: {
-          date: new Date(date),
-          description,
-          debit: newDebit,
-          credit: newCredit,
-          balance: newBalance,
-          entryType
-        },
-        include: {
-          statement: {
-            include: {
-              client: {
-                select: {
-                  id: true,
-                  fullname: true
+      if (newDebit < 0) {
+        return res.status(400).json({ error: 'المدين لا يمكن أن يكون سالباً' });
+      }
+
+      if (newCredit < 0) {
+        return res.status(400).json({ error: 'الدائن لا يمكن أن يكون سالباً' });
+      }
+
+      // ✅ Use transaction for update and recalculation
+      const entry = await prisma.$transaction(async (tx) => {
+        // Get the current entry to know its statementId and date
+        const currentEntry = await tx.clientAccountEntry.findUnique({
+          where: { id: Number(id) }
+        });
+
+        if (!currentEntry) {
+          throw new Error('القيد غير موجود');
+        }
+
+        const entryDate = new Date(date);
+        const oldDate = currentEntry.date;
+
+        // Update the entry
+        const updatedEntry = await tx.clientAccountEntry.update({
+          where: { id: Number(id) },
+          data: {
+            date: entryDate,
+            description,
+            debit: newDebit,
+            credit: newCredit,
+            entryType
+          },
+          include: {
+            statement: {
+              include: {
+                client: {
+                  select: {
+                    id: true,
+                    fullname: true
+                  }
                 }
               }
             }
           }
-        }
-      });
+        });
 
-      // Recalculate totals after updating entry
-      await recalculateStatementTotals(currentEntry.statementId);
+        // ✅ Recalculate all balances after the earliest affected date
+        const earliestDate = entryDate < oldDate ? entryDate : oldDate;
+        await recalculateBalancesAfterDate(currentEntry.statementId, earliestDate, tx);
+
+        // Recalculate totals
+        await recalculateStatementTotals(currentEntry.statementId, tx);
+
+        return updatedEntry;
+      });
 
       // Log accounting action
       await logAccountingActionFromRequest(req, {
@@ -135,80 +175,73 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         actionStatus: 'success',
         actionClientId: entry.statement.clientId,
         actionAmount: Number(entry.debit) || Number(entry.credit),
-        actionNotes: `تعديل قيد محاسبي - ${description} - المدين: ${debit}، الدائن: ${credit}، الرصيد: ${newBalance}`,
+        actionNotes: `تعديل قيد محاسبي - ${description} - المدين: ${newDebit}، الدائن: ${newCredit}`,
       });
 
       res.status(200).json(entry);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating client account entry:', error);
-      res.status(500).json({ error: 'Failed to update client account entry' });
+      const errorMessage = error.message || 'Failed to update client account entry';
+      res.status(500).json({ error: errorMessage });
     } finally {
       await prisma.$disconnect();
     }
   } else if (req.method === 'DELETE') {
     try {
-      // Get user info for logging
-      const cookieHeader = req.headers.cookie;
-      let userId: number | null = null;
-      if (cookieHeader) {
-        try {
-          const cookies: { [key: string]: string } = {};
-          cookieHeader.split(";").forEach((cookie) => {
-            const [key, value] = cookie.trim().split("=");
-            cookies[key] = decodeURIComponent(value);
-          });
-          if (cookies.authToken) {
-            const token = jwtDecode(cookies.authToken) as any;
-            userId = Number(token.id);
-          }
-        } catch (e) {
-          // Ignore token errors
-        }
-      }
-
-      // Get entry before deletion to know statementId
-      const entryToDelete = await prisma.clientAccountEntry.findUnique({
-        where: { id: Number(id) },
-        include: {
-          statement: {
-            include: {
-              client: {
-                select: {
-                  fullname: true
+      // ✅ Use transaction for delete and recalculation
+      const deletedInfo = await prisma.$transaction(async (tx) => {
+        // Get entry before deletion to know statementId and date
+        const entryToDelete = await tx.clientAccountEntry.findUnique({
+          where: { id: Number(id) },
+          include: {
+            statement: {
+              include: {
+                client: {
+                  select: {
+                    fullname: true
+                  }
                 }
               }
             }
           }
+        });
+
+        if (!entryToDelete) {
+          throw new Error('القيد غير موجود');
         }
+
+        const statementId = entryToDelete.statementId;
+        const deletedDate = entryToDelete.date;
+
+        // Delete the entry
+        await tx.clientAccountEntry.delete({
+          where: { id: Number(id) }
+        });
+
+        // ✅ Recalculate all balances after the deleted entry's date
+        await recalculateBalancesAfterDate(statementId, deletedDate, tx);
+
+        // Recalculate totals
+        await recalculateStatementTotals(statementId, tx);
+
+        return entryToDelete;
       });
-
-      if (!entryToDelete) {
-        return res.status(404).json({ error: 'Entry not found' });
-      }
-
-      await prisma.clientAccountEntry.delete({
-        where: {
-          id: Number(id)
-        }
-      });
-
-      // Recalculate totals after deleting entry
-      await recalculateStatementTotals(entryToDelete.statementId);
 
       // Log accounting action
       await logAccountingActionFromRequest(req, {
-        action: `حذف قيد محاسبي - رقم العقد: ${entryToDelete.statement.contractNumber}`,
+        action: `حذف قيد محاسبي - رقم العقد: ${deletedInfo.statement.contractNumber}`,
         actionType: 'delete_client_entry',
         actionStatus: 'success',
-        actionClientId: entryToDelete.statement.clientId,
-        actionAmount: Number(entryToDelete.debit) || Number(entryToDelete.credit),
-        actionNotes: `حذف قيد محاسبي - ${entryToDelete.description} - المدين: ${entryToDelete.debit}، الدائن: ${entryToDelete.credit}`,
+        actionClientId: deletedInfo.statement.clientId,
+        actionAmount: Number(deletedInfo.debit) || Number(deletedInfo.credit),
+        actionNotes: `حذف قيد محاسبي - ${deletedInfo.description} - المدين: ${deletedInfo.debit}، الدائن: ${deletedInfo.credit}`,
       });
 
       res.status(200).json({ message: 'Client account entry deleted successfully' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting client account entry:', error);
-      res.status(500).json({ error: 'Failed to delete client account entry' });
+      const errorMessage = error.message || 'Failed to delete client account entry';
+      res.status(500).json({ error: errorMessage });
     } finally {
       await prisma.$disconnect();
     }

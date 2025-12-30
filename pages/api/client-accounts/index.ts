@@ -121,6 +121,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               orderBy: {
                 date: 'desc'
               }
+            },
+            order: {
+              include: {
+                arrivals: {
+                  select: {
+                    InternalmusanedContract: true
+                  },
+                  take: 1
+                }
+              }
             }
           },
           orderBy: {
@@ -131,6 +141,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }),
         prisma.clientAccountStatement.count({ where: finalWhere })
       ]);
+
+      // جلب InternalmusanedContract من arrivallist لكل سجل
+      const statementsWithInternalContract = await Promise.all(
+        statements.map(async (statement) => {
+          let internalMusanedContract = null;
+
+          // البحث في arrivallist من خلال contractNumber أو من خلال order
+          if (statement.contractNumber) {
+            const arrival = await prisma.arrivallist.findFirst({
+              where: {
+                InternalmusanedContract: statement.contractNumber,
+              },
+              select: {
+                InternalmusanedContract: true,
+              },
+            });
+            internalMusanedContract = arrival?.InternalmusanedContract || null;
+          }
+
+          // إذا لم نجد من خلال contractNumber، نجرب من خلال order
+          if (!internalMusanedContract && statement.order?.arrivals?.[0]?.InternalmusanedContract) {
+            internalMusanedContract = statement.order.arrivals[0].InternalmusanedContract;
+          }
+
+          return {
+            ...statement,
+            internalMusanedContract,
+          };
+        })
+      );
 
       // Calculate summary totals
       const summary = await prisma.clientAccountStatement.aggregate({
@@ -164,7 +204,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       res.status(200).json({
-        statements,
+        statements: statementsWithInternalContract,
         summary: {
           totalRevenue: summary._sum.totalRevenue || 0,
           totalExpenses: summary._sum.totalExpenses || 0,

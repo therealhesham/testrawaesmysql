@@ -1,12 +1,18 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { logAccountingActionFromRequest } from 'lib/accountingLogger';
 
 const prisma = new PrismaClient();
 
 // Helper function to recalculate totals from entries
-async function recalculateStatementTotals(statementId: number) {
-  const entries = await prisma.clientAccountEntry.findMany({
+// Now supports transactions for data integrity
+async function recalculateStatementTotals(
+  statementId: number, 
+  tx?: Prisma.TransactionClient
+) {
+  const client = tx || prisma;
+  
+  const entries = await client.clientAccountEntry.findMany({
     where: { statementId }
   });
 
@@ -14,7 +20,7 @@ async function recalculateStatementTotals(statementId: number) {
   const totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
   const netAmount = totalRevenue - totalExpenses;
 
-  await prisma.clientAccountStatement.update({
+  await client.clientAccountStatement.update({
     where: { id: statementId },
     data: {
       totalRevenue,
@@ -94,50 +100,107 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId
       } = req.body;
 
-      // Get the last entry before or on the new entry's date to calculate the balance
-      const entryDate = new Date(date);
-      const previousEntry = await prisma.clientAccountEntry.findFirst({
-        where: {
-          statementId: Number(statementId),
-          date: { lte: entryDate }
-        },
-        orderBy: {
-          date: 'desc'
-        }
-      });
+      // ✅ Validation: Check required fields
+      if (!statementId) {
+        return res.status(400).json({ error: 'statementId is required' });
+      }
 
-      // Calculate balance: previous balance + credit - debit
-      const previousBalance = previousEntry ? Number(previousEntry.balance) : 0;
+      if (!date) {
+        return res.status(400).json({ error: 'date is required' });
+      }
+
+      if (!description) {
+        return res.status(400).json({ error: 'description is required' });
+      }
+
+      // ✅ Validation: Check for negative numbers
       const newDebit = Number(debit) || 0;
       const newCredit = Number(credit) || 0;
-      const newBalance = previousBalance + newCredit - newDebit;
 
-      const entry = await prisma.clientAccountEntry.create({
-        data: {
-          statementId: Number(statementId),
-          date: new Date(date),
-          description,
-          debit: newDebit,
-          credit: newCredit,
-          balance: newBalance,
-          entryType
-        },
-        include: {
-          statement: {
-            include: {
-              client: {
-                select: {
-                  id: true,
-                  fullname: true
+      if (newDebit < 0) {
+        return res.status(400).json({ error: 'المدين لا يمكن أن يكون سالباً' });
+      }
+
+      if (newCredit < 0) {
+        return res.status(400).json({ error: 'الدائن لا يمكن أن يكون سالباً' });
+      }
+
+      // ✅ Validation: Check that at least one of debit or credit is provided
+      if (newDebit === 0 && newCredit === 0) {
+        return res.status(400).json({ error: 'يجب إدخال قيمة في المدين أو الدائن' });
+      }
+
+      // ✅ Validation: Check date is not in the future
+      const entryDate = new Date(date);
+      const now = new Date();
+      if (entryDate > now) {
+        return res.status(400).json({ error: 'التاريخ لا يمكن أن يكون في المستقبل' });
+      }
+
+      // ✅ Use transaction to ensure data integrity
+      const entry = await prisma.$transaction(async (tx) => {
+        // Verify statement exists
+        const statement = await tx.clientAccountStatement.findUnique({
+          where: { id: Number(statementId) },
+          include: {
+            client: {
+              select: {
+                id: true,
+                fullname: true
+              }
+            }
+          }
+        });
+
+        if (!statement) {
+          throw new Error('الحساب غير موجود');
+        }
+
+        // Get the last entry before or on the new entry's date to calculate the balance
+        const previousEntry = await tx.clientAccountEntry.findFirst({
+          where: {
+            statementId: Number(statementId),
+            date: { lte: entryDate }
+          },
+          orderBy: {
+            date: 'desc'
+          }
+        });
+
+        // Calculate balance: previous balance + credit - debit
+        const previousBalance = previousEntry ? Number(previousEntry.balance) : 0;
+        const newBalance = previousBalance + newCredit - newDebit;
+
+        // Create the entry
+        const createdEntry = await tx.clientAccountEntry.create({
+          data: {
+            statementId: Number(statementId),
+            date: entryDate,
+            description,
+            debit: newDebit,
+            credit: newCredit,
+            balance: newBalance,
+            entryType
+          },
+          include: {
+            statement: {
+              include: {
+                client: {
+                  select: {
+                    id: true,
+                    fullname: true
+                  }
                 }
               }
             }
           }
-        }
-      });
+        });
 
-      // Recalculate totals after creating entry
-      await recalculateStatementTotals(Number(statementId));
+        // Recalculate totals within the same transaction
+        await recalculateStatementTotals(Number(statementId), tx);
+
+        return createdEntry;
+      });
 
       res.status(201).json(entry);
       
@@ -150,9 +213,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         actionAmount: Number(entry.debit) || Number(entry.credit),
         actionNotes: `إضافة قيد محاسبي - ${entry.description} - المدين: ${entry.debit}، الدائن: ${entry.credit}، الرصيد: ${entry.balance}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating client account entry:', error);
-      res.status(500).json({ error: 'Failed to create client account entry' });
+      const errorMessage = error.message || 'Failed to create client account entry';
+      res.status(500).json({ error: errorMessage });
     } finally {
       await prisma.$disconnect();
     }

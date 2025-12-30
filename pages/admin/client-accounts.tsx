@@ -10,6 +10,7 @@ import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 interface ClientAccountStatement {
   id: number;
   contractNumber: string;
+  internalMusanedContract?: string; // InternalmusanedContract من arrivallist
   officeName: string;
   totalRevenue: number;
   totalExpenses: number;
@@ -207,7 +208,7 @@ const ClientAccountsPage = () => {
 
     setEditingStatement(statement);
     setEditForm({
-      contractNumber: statement.contractNumber,
+      contractNumber: statement.internalMusanedContract || statement.contractNumber,
       officeName: statement.officeName,
       totalRevenue,
       totalExpenses,
@@ -472,7 +473,7 @@ function getDate(date: string) {
             formatCurrency(row.totalExpenses || 0),
             formatCurrency(row.totalRevenue || 0),
             row.officeName || 'غير متوفر',
-            row.contractNumber || 'غير متوفر',
+            row.internalMusanedContract || 'غير متوفر',
             row.client?.fullname || 'غير متوفر',
             formatDate(row.createdAt),
             index + 1,
@@ -591,7 +592,7 @@ function getDate(date: string) {
             id: index + 1,
             date: formatDate(row.createdAt),
             clientName: row.client?.fullname || 'غير متوفر',
-            contractNumber: row.contractNumber || 'غير متوفر',
+            contractNumber: row.internalMusanedContract || 'غير متوفر',
             officeName: row.officeName || 'غير متوفر',
             totalRevenue: row.totalRevenue || 0,
             totalExpenses: row.totalExpenses || 0,
@@ -638,7 +639,7 @@ function getDate(date: string) {
     const searchLower = searchTerm.toLowerCase();
     return (
       statement.client.fullname?.toLowerCase().includes(searchLower) ||
-      statement.contractNumber?.toLowerCase().includes(searchLower) ||
+      (statement.internalMusanedContract || statement.contractNumber)?.toLowerCase().includes(searchLower) ||
       statement.officeName?.toLowerCase().includes(searchLower)
     );
   });
@@ -852,7 +853,7 @@ function getDate(date: string) {
                       </button>
                     </div>
                     <div className="flex-1 text-center text-md text-gray-700">
-                      {statement.contractNumber}
+                      {statement.internalMusanedContract || '-'}
                     </div>
                     <div className="flex-1 text-center text-md text-gray-700">
                       {statement.officeName}

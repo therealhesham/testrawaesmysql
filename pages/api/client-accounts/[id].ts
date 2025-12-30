@@ -146,10 +146,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (hasManualTotals) {
         totalRevenue = Number(providedRevenue) || 0;
         totalExpenses = Number(providedExpenses) || 0;
+        
+        // ✅ Calculate netAmount with commission deduction
+        const commissionPercentage = req.body.commissionPercentage !== undefined 
+          ? Number(req.body.commissionPercentage) 
+          : 0;
+        const commissionAmount = totalRevenue * (commissionPercentage / 100);
+        
         netAmount =
           providedNetAmount !== undefined
             ? Number(providedNetAmount) || 0
-            : totalRevenue - totalExpenses;
+            : totalRevenue - totalExpenses - commissionAmount;
       } else {
         // Recalculate totals from entries instead of using provided values
         const entries = await prisma.clientAccountEntry.findMany({
@@ -157,7 +164,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
         totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
         totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
-        netAmount = totalRevenue - totalExpenses;
+        
+        // ✅ Get current commission percentage from database
+        const currentStatement = await prisma.clientAccountStatement.findUnique({
+          where: { id: Number(id) },
+          select: { commissionPercentage: true }
+        });
+        const commissionPercentage = currentStatement?.commissionPercentage 
+          ? Number(currentStatement.commissionPercentage) 
+          : 0;
+        const commissionAmount = totalRevenue * (commissionPercentage / 100);
+        
+        netAmount = totalRevenue - totalExpenses - commissionAmount;
       }
 
       const updateData: any = {
