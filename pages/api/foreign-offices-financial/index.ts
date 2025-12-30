@@ -60,6 +60,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         prisma.foreignOfficeFinancial.count({ where })
       ])
 
+      // جلب InternalmusanedContract من arrivallist لكل سجل
+      const itemsWithInternalContract = await Promise.all(
+        items.map(async (item) => {
+          if (!item.contractNumber) {
+            return { ...item, internalMusanedContract: null };
+          }
+
+          // البحث في arrivallist من خلال InternalmusanedContract
+          const arrival = await prisma.arrivallist.findFirst({
+            where: {
+              InternalmusanedContract: item.contractNumber,
+            },
+            select: {
+              InternalmusanedContract: true,
+            },
+          });
+
+          return {
+            ...item,
+            internalMusanedContract: arrival?.InternalmusanedContract || null,
+          };
+        })
+      );
+
       const pagination = {
         page: pageNum,
         limit: limitNum,
@@ -67,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         totalPages: Math.ceil(total / limitNum)
       }
       
-      return res.status(200).json({ success: true, items, pagination })
+      return res.status(200).json({ success: true, items: itemsWithInternalContract, pagination })
     }
 
     if (req.method === 'POST') {

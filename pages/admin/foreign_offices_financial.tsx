@@ -23,6 +23,7 @@ interface FinancialRecord {
   date: string;
   clientName: string;
   contractNumber: string;
+  internalMusanedContract?: string; // InternalmusanedContract من arrivallist
   payment: string;
   description: string;
   credit: number;
@@ -284,7 +285,7 @@ export default function ForeignOfficesFinancial() {
         row.credit > 0 ? formatCurrency(row.credit) : '-',
         row.debit > 0 ? formatCurrency(row.debit) : '-',
         row.description || 'غير متوفر',
-        row.contractNumber || 'غير متوفر',
+        row.internalMusanedContract || 'غير متوفر',
         row.clientName || 'غير متوفر',
         row.office?.office || 'غير متوفر',
         row.office?.Country || 'غير متوفر',
@@ -393,7 +394,7 @@ export default function ForeignOfficesFinancial() {
           country: row.office?.Country || 'غير متوفر',
           office: row.office?.office || 'غير متوفر',
           clientName: row.clientName || 'غير متوفر',
-          contractNumber: row.contractNumber || 'غير متوفر',
+          contractNumber: row.internalMusanedContract || 'غير متوفر',
           description: row.description || 'غير متوفر',
           debit: row.debit > 0 ? formatCurrency(row.debit) : '-',
           credit: row.credit > 0 ? formatCurrency(row.credit) : '-',
@@ -596,16 +597,23 @@ export default function ForeignOfficesFinancial() {
   const fetchContractData = async (contractNumber: string) => {
     try {
       const response = await axios.get(`/api/contracts/${contractNumber}`);
-      if (response.data) {
+      if (response.data && response.status !== 404) {
         setNewRecord(prev => ({
           ...prev,
           clientName: response.data.client?.fullname || '',
           date: response.data.createdAt ? new Date(response.data.createdAt).toISOString().split('T')[0] : prev.date
         }));
+      } else {
+        // إذا لم يتم العثور على بيانات العميل، لا نعرض رسالة خطأ
+        // فقط نترك الحقول كما هي
+        console.log('Contract data not fully available');
       }
-    } catch (error) {
-      console.error('Contract not found:', error);
-      showAlert('لم يتم العثور على العقد', 'error');
+    } catch (error: any) {
+      // إذا كان الخطأ 404، لا نعرض رسالة خطأ لأن المستخدم قد يريد إدخال رقم عقد جديد
+      if (error.response?.status !== 404) {
+        console.error('Error fetching contract:', error);
+        showAlert('حدث خطأ أثناء جلب بيانات العقد', 'error');
+      }
     }
   };
 
@@ -940,7 +948,7 @@ export default function ForeignOfficesFinancial() {
                             {record.clientName}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
-                            {record.contractNumber || '-'}
+                            {record.internalMusanedContract || '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.description || '-'}
@@ -1435,7 +1443,7 @@ export default function ForeignOfficesFinancial() {
               </p>
               <p className="text-md text-center mb-6 text-gray-600">
                 {recordToDelete.clientName && `العميل: ${recordToDelete.clientName}`}
-                {recordToDelete.contractNumber && ` - العقد: ${recordToDelete.contractNumber}`}
+                {recordToDelete.internalMusanedContract && ` - العقد: ${recordToDelete.internalMusanedContract}`}
               </p>
               
               {/* Buttons */}

@@ -15,36 +15,36 @@ export default async function handler(
     }
 
     try {
-      const query = (q as string).toLowerCase();
+      const query = q as string;
 
-      // البحث في أرقام العقود
-      const contracts = await prisma.clientAccountStatement.findMany({
+      // البحث فقط في InternalmusanedContract من arrivallist
+      const arrivals = await prisma.arrivallist.findMany({
         where: {
-          OR: [
-            {
-              contractNumber: {
-                contains: query,
-                // mode: "insensitive",
-              },
-            },
-          ],
-        },
-        select: {
-          contractNumber: true,
-          client: {
-            select: {
-              fullname: true,
-            },
+          InternalmusanedContract: {
+            contains: query,
+            // mode: "insensitive", // إذا كان Prisma يدعم case-insensitive
           },
         },
-        take: 10,
+        select: {
+          InternalmusanedContract: true,
+        },
+        take: 20, // زيادة العدد للحصول على نتائج أكثر
+        orderBy: {
+          createdAt: 'desc', // الأحدث أولاً
+        },
       });
 
-      // إنشاء قائمة الاقتراحات
+      // إنشاء قائمة الاقتراحات مع تصفية case-insensitive
       const suggestions = new Set<string>();
-      contracts.forEach((contract) => {
-        if (contract.contractNumber) {
-          suggestions.add(contract.contractNumber);
+      const queryLower = query.toLowerCase();
+      
+      arrivals.forEach((arrival) => {
+        if (arrival.InternalmusanedContract) {
+          const contract = arrival.InternalmusanedContract;
+          // تصفية case-insensitive يدوياً
+          if (contract.toLowerCase().includes(queryLower)) {
+            suggestions.add(contract);
+          }
         }
       });
 
