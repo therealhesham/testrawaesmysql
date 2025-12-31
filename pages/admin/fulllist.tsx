@@ -756,8 +756,12 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         )}
         
         {/* {visibleColumns.includes('isApproved') && ( */}
-          <td className="px-4 py-2 text-center text-gray-600">
-            {item.isApproved ? 'تم الاعتماد' : 'لم يتم الاعتماد'}
+          <td className="px-4 py-2 text-center">
+            {item.isApproved ? (
+              <span className="text-green-600 font-semibold">تم الاعتماد</span>
+            ) : (
+              <span className="text-red-600 font-semibold">لم يتم الاعتماد</span>
+            )}
           </td>
         {/* // )} */}
         {visibleColumns.includes('displayOrder') && (
