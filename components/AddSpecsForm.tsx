@@ -1366,9 +1366,9 @@ const arabicRegionMap: { [key: string]: string } = {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 items-stretch">
               {suggestions.map((suggestion, index) => (
-                <div key={suggestion.id} className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                <div key={suggestion.id} className={`flex flex-col border rounded-lg p-4 hover:shadow-md transition-shadow ${
                   index === 0 ? 'border-green-500 bg-green-50' : 
                   index === 1 ? 'border-blue-500 bg-blue-50' : 
                   'border-gray-200'
@@ -1421,7 +1421,7 @@ const arabicRegionMap: { [key: string]: string } = {
                       <span>{suggestion.office}</span>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-2 mt-auto pt-4">
                     <button
                       onClick={() => handleAcceptSuggestion(suggestion)}
                       className={`flex-1 px-3 py-2 rounded transition-colors ${

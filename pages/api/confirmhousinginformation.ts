@@ -89,7 +89,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (!homeMaidId) {
-      return res.status(400).json({ error: "HomeMaidId is required" });
+      return res.status(400).json({ error: "معرف العاملة مطلوب" });
     }
 
 
@@ -162,7 +162,7 @@ if (req.body.location) {
         console.log(search);
         return res
           .status(400)
-          .json({ error: "Housing record already exists, use PUT to update" });
+          .json({ error: "سجل التسكين موجود بالفعل، استخدم PUT للتحديث" });
       }
 
       await prisma.housedworker.create({
@@ -236,10 +236,10 @@ if (req.body.location) {
         );
       }
 
-      return res.status(200).json({ message: "Housing created successfully" });
+      return res.status(200).json({ message: "تم إنشاء التسكين بنجاح" });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: "Error creating housing" });
+      return res.status(500).json({ error: "خطأ في إنشاء التسكين" });
     }
 
   } else if (req.method === "PUT") {
@@ -255,7 +255,7 @@ if (req.body.location) {
     } = req.body;
 
     if (!homeMaidId) {
-      return res.status(400).json({ error: "HomeMaidId is required" });
+      return res.status(400).json({ error: "معرف العاملة مطلوب" });
     }
 
     try {
@@ -264,7 +264,7 @@ if (req.body.location) {
       });
 
       if (!search) {
-        return res.status(404).json({ error: "Housing record not found" });
+        return res.status(404).json({ error: "سجل التسكين غير موجود" });
       }
 
       if (location_id && location_id !== 0) {
@@ -273,7 +273,7 @@ if (req.body.location) {
         });
 
         if (!locationExists) {
-          return res.status(400).json({ error: "Invalid location_id provided" });
+          return res.status(400).json({ error: "معرف الموقع غير صحيح" });
         }
       }
 
@@ -330,10 +330,10 @@ if (req.body.location) {
         );
       }
 
-      return res.status(200).json({ message: "Housing updated successfully", updated });
+      return res.status(200).json({ message: "تم تحديث التسكين بنجاح", updated });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: "Error updating housing" });
+      return res.status(500).json({ error: "خطأ في تحديث التسكين" });
     }
 
   } else if (req.method === "GET") {
@@ -452,9 +452,9 @@ if (req.body.location) {
       return res.status(200).json({ housing, totalCount });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: "Error fetching housing" });
+      return res.status(500).json({ error: "خطأ في جلب بيانات التسكين" });
     }
   } else {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "الطريقة غير مسموحة" });
   }
 }
