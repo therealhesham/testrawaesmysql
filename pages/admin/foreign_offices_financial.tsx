@@ -74,9 +74,10 @@ export default function ForeignOfficesFinancial() {
     date: new Date().toISOString().split('T')[0]
   });
   const [lastBalance, setLastBalance] = useState<number>(0);
-  const [contractSuggestions, setContractSuggestions] = useState<string[]>([]);
+  const [contractSuggestions, setContractSuggestions] = useState<Array<{ contractNumber: string; officeName: string }>>([]);
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
+  const [selectedOfficeName, setSelectedOfficeName] = useState<string>('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRecord, setEditRecord] = useState<FinancialRecord | null>(null);
   const [editForm, setEditForm] = useState({
@@ -620,6 +621,7 @@ export default function ForeignOfficesFinancial() {
   const handleContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setNewRecord(prev => ({ ...prev, contractNumber: value }));
+    setSelectedOfficeName(''); // مسح اسم المكتب عند تغيير رقم العقد
     
     if (value.trim()) {
       searchContracts(value);
@@ -629,10 +631,11 @@ export default function ForeignOfficesFinancial() {
     }
   };
 
-  const handleContractSuggestionClick = async (suggestion: string) => {
-    setNewRecord(prev => ({ ...prev, contractNumber: suggestion }));
+  const handleContractSuggestionClick = async (suggestion: { contractNumber: string; officeName: string }) => {
+    setNewRecord(prev => ({ ...prev, contractNumber: suggestion.contractNumber }));
+    setSelectedOfficeName(suggestion.officeName);
     setShowContractSuggestions(false);
-    await fetchContractData(suggestion);
+    await fetchContractData(suggestion.contractNumber);
   };
 
   const handleContractInputBlur = () => {
@@ -769,6 +772,7 @@ export default function ForeignOfficesFinancial() {
                 onClick={async () => {
                   const defaultOfficeId = filters.officeId ? parseInt(filters.officeId) : (offices.length > 0 ? offices[0].id : 1);
                   await fetchLastBalance(defaultOfficeId);
+                  setSelectedOfficeName(''); // مسح اسم المكتب عند فتح modal جديد
                   setShowAddModal(true);
                 }}
               >
@@ -1074,13 +1078,23 @@ export default function ForeignOfficesFinancial() {
                           className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                         >
                           <div className="font-medium text-md">
-                            <span className="text-gray-700">رقم العقد: {suggestion}</span>
+                            <span className="text-gray-700">رقم العقد: {suggestion.contractNumber}</span>
+                            <span className="text-gray-500 mr-2">• {suggestion.officeName}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+                
+                {/* Display Selected Office Name */}
+                {selectedOfficeName && newRecord.contractNumber && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <span className="text-sm text-blue-800">
+                      <strong>المكتب:</strong> {selectedOfficeName}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Form Grid */}

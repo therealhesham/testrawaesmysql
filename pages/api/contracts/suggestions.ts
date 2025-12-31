@@ -27,6 +27,19 @@ export default async function handler(
         },
         select: {
           InternalmusanedContract: true,
+          Order: {
+            select: {
+              HomeMaid: {
+                select: {
+                  office: {
+                    select: {
+                      office: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
         take: 20, // زيادة العدد للحصول على نتائج أكثر
         orderBy: {
@@ -35,7 +48,7 @@ export default async function handler(
       });
 
       // إنشاء قائمة الاقتراحات مع تصفية case-insensitive
-      const suggestions = new Set<string>();
+      const suggestionsMap = new Map<string, { contractNumber: string; officeName: string }>();
       const queryLower = query.toLowerCase();
       
       arrivals.forEach((arrival) => {
@@ -43,12 +56,18 @@ export default async function handler(
           const contract = arrival.InternalmusanedContract;
           // تصفية case-insensitive يدوياً
           if (contract.toLowerCase().includes(queryLower)) {
-            suggestions.add(contract);
+            const officeName = arrival.Order?.HomeMaid?.office?.office || 'غير محدد';
+            if (!suggestionsMap.has(contract)) {
+              suggestionsMap.set(contract, {
+                contractNumber: contract,
+                officeName: officeName,
+              });
+            }
           }
         }
       });
 
-      const suggestionsArray = Array.from(suggestions).slice(0, 10);
+      const suggestionsArray = Array.from(suggestionsMap.values()).slice(0, 10);
       res.status(200).json({ suggestions: suggestionsArray });
     } catch (error) {
       console.error("Error fetching contract suggestions:", error);

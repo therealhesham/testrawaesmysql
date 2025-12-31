@@ -313,18 +313,55 @@ export default function EmployeeCash() {
   const validateEmployeeForm = (): boolean => {
     const errors: Record<string, string> = {};
     
+    // Name validation - required and no numbers allowed
     if (!employeeFormData.name.trim()) {
       errors.name = 'اسم الموظف مطلوب';
+    } else if (/\d/.test(employeeFormData.name)) {
+      errors.name = 'اسم الموظف لا يجب أن يحتوي على أرقام';
     }
     
-    // Email validation if provided
-    if (employeeFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employeeFormData.email)) {
-      errors.email = 'البريد الإلكتروني غير صحيح';
+    // Position validation - required
+    if (!employeeFormData.position.trim()) {
+      errors.position = 'المنصب مطلوب';
     }
     
-    // Phone validation if provided
-    if (employeeFormData.phoneNumber && !/^[0-9+\-\s()]+$/.test(employeeFormData.phoneNumber)) {
+    // Department validation - required
+    if (!employeeFormData.department.trim()) {
+      errors.department = 'القسم مطلوب';
+    }
+    
+    // Phone validation - required
+    if (!employeeFormData.phoneNumber.trim()) {
+      errors.phoneNumber = 'رقم الهاتف مطلوب';
+    } else if (!/^[0-9+\-\s()]+$/.test(employeeFormData.phoneNumber)) {
       errors.phoneNumber = 'رقم الهاتف غير صحيح';
+    }
+    
+    // Email validation - required and must be valid email format
+    if (!employeeFormData.email.trim()) {
+      errors.email = 'البريد الإلكتروني مطلوب';
+    } else if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(employeeFormData.email)) {
+      errors.email = 'يرجى إدخال بريد إلكتروني صحيح (مثال: example@email.com)';
+    }
+    
+    // National ID validation - required
+    if (!employeeFormData.nationalId.trim()) {
+      errors.nationalId = 'الهوية الوطنية مطلوبة';
+    }
+    
+    // Address validation - required
+    if (!employeeFormData.address.trim()) {
+      errors.address = 'العنوان مطلوب';
+    }
+    
+    // Hire date validation - required
+    if (!employeeFormData.hireDate) {
+      errors.hireDate = 'تاريخ التوظيف مطلوب';
+    }
+    
+    // Salary validation - required
+    if (!employeeFormData.salary || Number(employeeFormData.salary) <= 0) {
+      errors.salary = 'الراتب مطلوب ويجب أن يكون أكبر من صفر';
     }
     
     setEmployeeFormErrors(errors);
@@ -1227,7 +1264,17 @@ export default function EmployeeCash() {
                     type="text" 
                     placeholder="ادخل اسم الموظف" 
                     value={employeeFormData.name}
-                    onChange={(e) => handleEmployeeFormFieldChange('name', e.target.value)}
+                    onChange={(e) => {
+                      // Remove any numbers from the input
+                      const value = e.target.value.replace(/[0-9]/g, '');
+                      handleEmployeeFormFieldChange('name', value);
+                    }}
+                    onKeyPress={(e) => {
+                      // Prevent typing numbers
+                      if (/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       employeeFormErrors.name ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -1239,29 +1286,41 @@ export default function EmployeeCash() {
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">المنصب</label>
+                  <label className="text-md text-gray-500 mb-2">المنصب <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="ادخل المنصب" 
                     value={employeeFormData.position}
                     onChange={(e) => handleEmployeeFormFieldChange('position', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.position ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   />
+                  {employeeFormErrors.position && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.position}</span>
+                  )}
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">القسم</label>
+                  <label className="text-md text-gray-500 mb-2">القسم <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="ادخل القسم" 
                     value={employeeFormData.department}
                     onChange={(e) => handleEmployeeFormFieldChange('department', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.department ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   />
+                  {employeeFormErrors.department && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.department}</span>
+                  )}
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">رقم الهاتف</label>
+                  <label className="text-md text-gray-500 mb-2">رقم الهاتف <span className="text-red-500">*</span></label>
                   <input 
                     type="tel" 
                     placeholder="05xxxxxxxx" 
@@ -1270,6 +1329,7 @@ export default function EmployeeCash() {
                     className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       employeeFormErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
+                    required
                   />
                   {employeeFormErrors.phoneNumber && (
                     <span className="text-red-500 text-sm mt-1">{employeeFormErrors.phoneNumber}</span>
@@ -1277,7 +1337,7 @@ export default function EmployeeCash() {
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">البريد الإلكتروني</label>
+                  <label className="text-md text-gray-500 mb-2">البريد الإلكتروني <span className="text-red-500">*</span></label>
                   <input 
                     type="email" 
                     placeholder="example@email.com" 
@@ -1286,6 +1346,7 @@ export default function EmployeeCash() {
                     className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       employeeFormErrors.email ? 'border-red-500' : 'border-gray-300'
                     }`}
+                    required
                   />
                   {employeeFormErrors.email && (
                     <span className="text-red-500 text-sm mt-1">{employeeFormErrors.email}</span>
@@ -1293,48 +1354,72 @@ export default function EmployeeCash() {
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">الهوية الوطنية</label>
+                  <label className="text-md text-gray-500 mb-2">الهوية الوطنية <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="ادخل الهوية الوطنية" 
                     value={employeeFormData.nationalId}
                     onChange={(e) => handleEmployeeFormFieldChange('nationalId', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.nationalId ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   />
+                  {employeeFormErrors.nationalId && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.nationalId}</span>
+                  )}
                 </div>
                 
                 <div className="flex flex-col items-end col-span-2">
-                  <label className="text-md text-gray-500 mb-2">العنوان</label>
+                  <label className="text-md text-gray-500 mb-2">العنوان <span className="text-red-500">*</span></label>
                   <input 
                     type="text" 
                     placeholder="ادخل العنوان" 
                     value={employeeFormData.address}
                     onChange={(e) => handleEmployeeFormFieldChange('address', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.address ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   />
+                  {employeeFormErrors.address && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.address}</span>
+                  )}
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">تاريخ التوظيف</label>
+                  <label className="text-md text-gray-500 mb-2">تاريخ التوظيف <span className="text-red-500">*</span></label>
                   <input 
                     type="date" 
                     value={employeeFormData.hireDate}
                     onChange={(e) => handleEmployeeFormFieldChange('hireDate', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.hireDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    required
                   />
+                  {employeeFormErrors.hireDate && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.hireDate}</span>
+                  )}
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">الراتب</label>
+                  <label className="text-md text-gray-500 mb-2">الراتب <span className="text-red-500">*</span></label>
                   <input 
                     type="number" 
                     placeholder="0.00" 
                     value={employeeFormData.salary}
                     onChange={(e) => handleEmployeeFormFieldChange('salary', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      employeeFormErrors.salary ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     min="0"
                     step="0.01"
+                    required
                   />
+                  {employeeFormErrors.salary && (
+                    <span className="text-red-500 text-sm mt-1">{employeeFormErrors.salary}</span>
+                  )}
                 </div>
                 
                 <div className="flex flex-col items-end col-span-2">

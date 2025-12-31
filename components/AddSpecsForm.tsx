@@ -1,6 +1,6 @@
 import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/outline';
 import axios from 'axios';
-import { X } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Select from 'react-select';
 
@@ -527,15 +527,27 @@ const fetchSuggestions = async () => {
     setFormData((prev) => ({
       ...prev,
       selectedHomemaidId: suggestion.id,
-      // Update form fields with selected homemaid data
+      // Update form fields with selected homemaid data - بيانات العاملة فقط
       Nationalitycopy: suggestion.nationality,
       Religion: suggestion.religion,
       ExperienceYears: expYears,
       Experience: experienceOption,
       age: ageRange,
+      // باقي البيانات تبقى كما هي ليتمكن المستخدم من إدخالها
     }));
+    
+    // مسح أي أخطاء متعلقة بالحقول التي تم ملؤها
+    setErrors((prev: any) => {
+      const newErrors = { ...prev };
+      delete newErrors.Nationalitycopy;
+      delete newErrors.Religion;
+      delete newErrors.ExperienceYears;
+      delete newErrors.age;
+      return newErrors;
+    });
+    
     setShowSuggestionModal(false);
-    setModalMessage(`تم اختيار العاملة: ${suggestion.name}`);
+    setModalMessage(`تم اختيار العاملة: ${suggestion.name}\nيرجى إكمال باقي البيانات المالية والملفات المطلوبة`);
     setShowSuccessModal(true);
   };
 
@@ -914,11 +926,12 @@ const arabicRegionMap: { [key: string]: string } = {
               }}
               value={formData.age ? { value: formData.age, label: formData.age } : null}
               placeholder="اختر العمر"
+              isDisabled={!!formData.selectedHomemaidId}
               className={`text-right ${errors.age ? 'border-red-500' : ''}`}
               styles={{
                 control: (base, state) => ({
                   ...base,
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: formData.selectedHomemaidId ? '#E5E7EB' : '#F9FAFB',
                   borderColor: state.isFocused 
                     ? '#14b8a6' 
                     : errors.age 
@@ -946,11 +959,12 @@ const arabicRegionMap: { [key: string]: string } = {
               }}
               value={formData.Experience ? { value: formData.Experience, label: formData.Experience } : null}
               placeholder="اختر سنوات الخبرة"
+              isDisabled={!!formData.selectedHomemaidId}
               className={`text-right ${errors.ExperienceYears ? 'border-red-500' : ''}`}
               styles={{
                 control: (base, state) => ({
                   ...base,
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: formData.selectedHomemaidId ? '#E5E7EB' : '#F9FAFB',
                   borderColor: state.isFocused 
                     ? '#14b8a6' 
                     : errors.ExperienceYears 
@@ -989,11 +1003,12 @@ const arabicRegionMap: { [key: string]: string } = {
               }}
               value={formData.Nationalitycopy ? nationalities.find(nat => nat.value === formData.Nationalitycopy) || null : null}
               placeholder="اختر جنسية العاملة المطلوبة"
+              isDisabled={!!formData.selectedHomemaidId}
               className={`text-right ${errors.Nationalitycopy ? 'border-red-500' : ''}`}
               styles={{
                 control: (base, state) => ({
                   ...base,
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: formData.selectedHomemaidId ? '#E5E7EB' : '#F9FAFB',
                   borderColor: state.isFocused 
                     ? '#14b8a6' 
                     : errors.Nationalitycopy 
@@ -1027,11 +1042,12 @@ const arabicRegionMap: { [key: string]: string } = {
               }}
               value={formData.Religion ? religionOptions.find(rel => rel === formData.Religion) ? { value: formData.Religion, label: formData.Religion } : null : null}
               placeholder="اختر الديانة"
+              isDisabled={!!formData.selectedHomemaidId}
               className={`text-right ${errors.Religion ? 'border-red-500' : ''}`}
               styles={{
                 control: (base, state) => ({
                   ...base,
-                  backgroundColor: '#F9FAFB',
+                  backgroundColor: formData.selectedHomemaidId ? '#E5E7EB' : '#F9FAFB',
                   borderColor: state.isFocused 
                     ? '#14b8a6' 
                     : errors.Religion 
@@ -1077,6 +1093,65 @@ const arabicRegionMap: { [key: string]: string } = {
   {/* باقي الكود زي ما هو */}
 </div>
         </div>
+        
+        {/* عرض بيانات العاملة المختارة */}
+        {formData.selectedHomemaidId && (
+          <div className="mb-10 bg-gradient-to-r from-teal-50 to-green-50 border-2 border-teal-600 rounded-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+                <h2 className="text-xl font-semibold text-teal-900">تم اختيار العاملة المناسبة</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    selectedHomemaidId: undefined,
+                    Nationalitycopy: '',
+                    Religion: '',
+                    ExperienceYears: '',
+                    Experience: '',
+                    age: '',
+                  }));
+                  setModalMessage('تم إلغاء اختيار العاملة. يمكنك الآن إدخال المواصفات يدوياً');
+                  setShowSuccessModal(true);
+                }}
+                className="text-red-600 hover:text-red-800 text-sm underline flex items-center gap-1"
+              >
+                <X className="w-4 h-4" />
+                إلغاء الاختيار
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">الجنسية</p>
+                <p className="text-lg font-semibold text-teal-900">{formData.Nationalitycopy}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">الديانة</p>
+                <p className="text-lg font-semibold text-teal-900">{formData.Religion}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">الخبرة</p>
+                <p className="text-lg font-semibold text-teal-900">{formData.ExperienceYears}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">العمر</p>
+                <p className="text-lg font-semibold text-teal-900">{formData.age} سنة</p>
+              </div>
+            </div>
+            <div className="mt-4 bg-teal-100 border border-teal-300 rounded-lg p-3">
+              <div className="flex items-center justify-center gap-2">
+                <AlertCircle className="w-5 h-5 text-teal-700" />
+                <p className="text-sm text-teal-800 text-center">
+                  يرجى إكمال البيانات المالية وطريقة الدفع ورفع الملفات المطلوبة أدناه
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
           <div className="flex gap-[56px] justify-center flex-wrap">

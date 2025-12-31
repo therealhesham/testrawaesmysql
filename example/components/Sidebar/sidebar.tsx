@@ -64,7 +64,7 @@ const menuItems: MenuItem[] = [
     icon: DocumentTextIcon,
     subItems: [
       { id: 21, label: "طلبات جديدة", link: "/admin/neworders" },
-      { id: 22, label: "الطلبات الحالية", link: "/admin/currentorderstest" },
+      { id: 22, label: "الطلبات تحت الاجراء", link: "/admin/currentorderstest" },
       { id: 23, label: "الطلبات المكتملة", link: "/admin/endedorders" },
 
     ],

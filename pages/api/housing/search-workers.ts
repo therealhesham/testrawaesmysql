@@ -54,7 +54,18 @@ export default async function handler(
             id: true,
             bookingstatus: true,
             profileStatus: true,
-            createdAt: true
+            typeOfContract: true,
+            createdAt: true,
+            client: {
+              select: {
+                id: true,
+                fullname: true,
+                phonenumber: true,
+                nationalId: true,
+                city: true,
+                address: true
+              }
+            }
           },
           orderBy: {
             createdAt: 'desc'
@@ -68,29 +79,44 @@ export default async function handler(
     });
 
     // Format the response
-    const formattedHomemaids = homemaids.map(homemaid => ({
-      id: homemaid.id,
-      name: homemaid.Name,
-      nationality: homemaid.Nationalitycopy,
-      passportNumber: homemaid.Passportnumber,
-      phone: homemaid.phone,
-      age: homemaid.age,
-      experience: homemaid.ExperienceYears,
-      religion: homemaid.Religion,
-      office: homemaid.office?.office,
-      country: homemaid.office?.Country,
-      picture: homemaid.Picture,
-      bookingStatus: homemaid.bookingstatus,
-      createdAt: homemaid.createdAt,
-      // Add order information
-      orders: homemaid.NewOrder?.map(order => ({
-        id: order.id,
-        bookingStatus: order.bookingstatus,
-        profileStatus: order.profileStatus,
-        createdAt: order.createdAt
-      })) || [],
-      hasOrders: homemaid.NewOrder && homemaid.NewOrder.length > 0
-    }));
+    const formattedHomemaids = homemaids.map(homemaid => {
+      // Get the most recent order
+      const latestOrder = homemaid.NewOrder && homemaid.NewOrder.length > 0 ? homemaid.NewOrder[0] : null;
+      
+      return {
+        id: homemaid.id,
+        name: homemaid.Name,
+        nationality: homemaid.Nationalitycopy,
+        passportNumber: homemaid.Passportnumber,
+        phone: homemaid.phone,
+        age: homemaid.age,
+        experience: homemaid.ExperienceYears,
+        religion: homemaid.Religion,
+        office: homemaid.office?.office,
+        country: homemaid.office?.Country,
+        picture: homemaid.Picture,
+        bookingStatus: homemaid.bookingstatus,
+        createdAt: homemaid.createdAt,
+        // Add order information
+        orders: homemaid.NewOrder?.map(order => ({
+          id: order.id,
+          bookingStatus: order.bookingstatus,
+          profileStatus: order.profileStatus,
+          typeOfContract: order.typeOfContract,
+          createdAt: order.createdAt
+        })) || [],
+        hasOrders: homemaid.NewOrder && homemaid.NewOrder.length > 0,
+        // Add client data from the latest order
+        clientData: latestOrder && latestOrder.client ? {
+          clientId: latestOrder.client.id,
+          clientName: latestOrder.client.fullname || '',
+          clientMobile: latestOrder.client.phonenumber || '',
+          clientIdNumber: latestOrder.client.nationalId || '',
+          city: latestOrder.client.city || '',
+          address: latestOrder.client.address || ''
+        } : null
+      };
+    });
 console.log(formattedHomemaids);
     res.status(200).json({
       success: true,

@@ -127,6 +127,7 @@ export default async function handler(
       PassportStart: homemaid.PassportStart || "",
       PassportEnd: homemaid.PassportEnd || "",
       displayOrder: homemaid.displayOrder || 0,
+      isApproved: homemaid.isApproved || false,
       office: homemaid.office
         ? {
             office: homemaid.office.office || "",
