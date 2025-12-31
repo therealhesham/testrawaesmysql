@@ -1281,11 +1281,14 @@ const exportToPDF = async () => {
                         setCurrentPage(1);
                       }
                     }}
-                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-2 cursor-pointer ${
                       contractType === 'recruitment' ? 'border-b-2 border-black font-bold' : ''
                     } ${switchingType ? 'opacity-50 pointer-events-none' : ''}`}
                   >
-                    عاملات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
+                    عاملات الاستقدام 
+                    <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-semibold text-white bg-teal-600 rounded-full">
+                      {recruitmentCount}
+                    </span>
                   </a>
                   <a
                     onClick={(e) => {
@@ -1295,11 +1298,14 @@ const exportToPDF = async () => {
                         setCurrentPage(1);
                       }
                     }}
-                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
+                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-2 cursor-pointer ${
                       contractType === 'rental' ? 'border-b-2 border-black font-bold' : ''
                     } ${switchingType ? 'opacity-50 pointer-events-none' : ''}`}
                   >
-                    عاملات التأجير <span className="text-md align-super">{rentalCount}</span>
+                    عاملات التأجير 
+                    <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-semibold text-white bg-teal-600 rounded-full">
+                      {rentalCount}
+                    </span>
                   </a>
                   {switchingType && (
                     <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
