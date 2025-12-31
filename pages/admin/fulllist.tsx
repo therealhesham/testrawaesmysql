@@ -160,10 +160,12 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
 
   const [data, setData] = useState<any[]>(contractType === 'recruitment' ? recruitmentData : rentalData);
   const [loading, setLoading] = useState(false);
+  const [switchingType, setSwitchingType] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(initialCounts?.totalPages || 1);
   const isFetchingRef = useRef(false);
   const isInitialMount = useRef(true);
+  const previousContractTypeRef = useRef(contractType);
   const [exportedData, setExportedData] = useState<any[]>([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
@@ -208,22 +210,29 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     return sorted;
   };
 
-  const fetchData = async (page = 1) => {
+  const fetchData = async (page = 1, customContractType?: string, isTypeSwitching = false) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setLoading(true);
+    if (isTypeSwitching) {
+      setSwitchingType(true);
+    }
 
     try {
+      // Use custom contract type if provided, otherwise use state
+      const typeToUse = customContractType || contractType;
+      
       const queryParams = new URLSearchParams({
         Name: filters.Name,
         SponsorName: filters.Name, // Also send as SponsorName for API compatibility
         age: filters.age,
         PassportNumber: filters.PassportNumber,
-        contractType: contractType,
+        contractType: typeToUse,
         page: String(page),
         perPage: "10",
       });
       
+      console.log('Fetching data with contractType:', typeToUse);
       console.log('Fetching data with filters:', filters);
       console.log('Query params:', queryParams.toString());
 
@@ -236,14 +245,17 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       });
 
       const { data: res, totalPages: pages, totalCount, recruitment, rental } = await response.json();
+      console.log("API Response - contractType used:", typeToUse);
+      console.log("API Response - data count:", res?.length || 0);
       if (res && res.length > 0) {
         const sortedData = sortData(res, sortBy, sortOrder);
         setData(sortedData);
-        console.log("Data fetched successfully:", res);
+        console.log("Data fetched successfully for type:", typeToUse, "Count:", res.length);
         setTotalPages(pages || 1);
         if (recruitment !== undefined) setRecruitmentCount(recruitment);
         if (rental !== undefined) setRentalCount(rental);
       } else {
+        console.log("No data returned for contractType:", typeToUse);
         setData([]);
         setTotalPages(1);
       }
@@ -251,6 +263,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+      setSwitchingType(false);
       isFetchingRef.current = false;
     }
   };
@@ -307,21 +320,20 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       : <FaSortDown className="inline-block ml-1" />;
   };
 
-  // Update data when contractType changes (use initial data)
+  // Fetch data when page, filters, or contractType changes
   useEffect(() => {
-    if (contractType === 'recruitment') {
-      setData(recruitmentData);
-      setTotalPages(initialCounts?.totalPages || 1);
-    } else {
-      setData(rentalData);
-      const rentalTotalPages = Math.ceil((initialCounts?.rental || 0) / 10);
-      setTotalPages(rentalTotalPages || 1);
+    // Skip fetch on initial mount - will be handled after URL params are read
+    if (isInitialMount.current) {
+      return;
     }
-    setCurrentPage(1);
-  }, [contractType, recruitmentData, rentalData, initialCounts]);
-
-  useEffect(() => {
-    fetchData(currentPage);
+    
+    // Check if contractType changed
+    const isContractTypeChanged = previousContractTypeRef.current !== contractType;
+    if (isContractTypeChanged) {
+      previousContractTypeRef.current = contractType;
+    }
+    
+    fetchData(currentPage, undefined, isContractTypeChanged);
   }, [currentPage, filters, contractType]);
 
   // Sort data when sortBy or sortOrder changes
@@ -353,7 +365,11 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
   // قراءة رقم الصفحة والفلاتر و معاملات الترتيب من URL عند التحميل الأول فقط
   useEffect(() => {
     if (router.isReady && isInitialMount.current) {
-      isInitialMount.current = false;
+      
+      // قراءة نوع العقد من URL أولاً
+      const typeFromUrl = router.query.type as string;
+      const finalType = (typeFromUrl === 'recruitment' || typeFromUrl === 'rental') ? typeFromUrl : 'recruitment';
+      setContractType(finalType);
       
       const pageFromUrl = router.query.page ? parseInt(router.query.page as string) : 1;
       if (pageFromUrl >= 1) {
@@ -376,16 +392,24 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       if (router.query.sortOrder && (router.query.sortOrder === 'asc' || router.query.sortOrder === 'desc')) {
         setSortOrder(router.query.sortOrder as 'asc' | 'desc');
       }
+      
+      // Mark as no longer initial mount
+      isInitialMount.current = false;
+      
+      // Fetch data with the contract type from URL
+      fetchData(pageFromUrl, finalType);
     }
   }, [router.isReady, router.query]);
 
-  // تحديث URL عند تغيير الصفحة أو الفلاتر أو معاملات الترتيب
+  // تحديث URL عند تغيير الصفحة أو الفلاتر أو معاملات الترتيب أو نوع العقد
   useEffect(() => {
     if (!router.isReady || isInitialMount.current) return;
     
     const queryParams = new URLSearchParams();
     // إضافة رقم الصفحة دائماً للـ URL
     queryParams.set('page', currentPage.toString());
+    // إضافة نوع العقد دائماً للـ URL
+    queryParams.set('type', contractType);
     if (filters.Name) {
       queryParams.set('Name', filters.Name);
     }
@@ -411,7 +435,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     if (router.asPath !== newUrl) {
       router.replace(newUrl, undefined, { shallow: true });
     }
-  }, [currentPage, filters, sortBy, sortOrder, router.isReady, router.pathname, router.asPath]);
+  }, [currentPage, filters, sortBy, sortOrder, contractType, router.isReady, router.pathname, router.asPath]);
 
   const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);
@@ -1248,31 +1272,40 @@ const exportToPDF = async () => {
                 >
                   قائمة العاملات
                 </h1>
-                <div className="flex gap-10 mt-4 border-b border-gray-300">
+                <div className="flex gap-10 mt-4 border-b border-gray-300 relative">
                   <a
                     onClick={(e) => {
                       e.preventDefault();
-                      setContractType('recruitment');
-                      setCurrentPage(1);
+                      if (!switchingType && contractType !== 'recruitment') {
+                        setContractType('recruitment');
+                        setCurrentPage(1);
+                      }
                     }}
                     className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
                       contractType === 'recruitment' ? 'border-b-2 border-black font-bold' : ''
-                    }`}
+                    } ${switchingType ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     عاملات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
                   </a>
                   <a
                     onClick={(e) => {
                       e.preventDefault();
-                      setContractType('rental');
-                      setCurrentPage(1);
+                      if (!switchingType && contractType !== 'rental') {
+                        setContractType('rental');
+                        setCurrentPage(1);
+                      }
                     }}
                     className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 cursor-pointer ${
                       contractType === 'rental' ? 'border-b-2 border-black font-bold' : ''
-                    }`}
+                    } ${switchingType ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     عاملات التأجير <span className="text-md align-super">{rentalCount}</span>
                   </a>
+                  {switchingType && (
+                    <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent border-teal-800"></div>
+                    </div>
+                  )}
                 </div>
               </div>
               <button
@@ -1342,6 +1375,15 @@ const exportToPDF = async () => {
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             > */}
+              <div className="relative">
+                {switchingType && (
+                  <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent border-teal-800"></div>
+                      <p className="text-teal-800 font-semibold">جاري تحميل البيانات...</p>
+                    </div>
+                  </div>
+                )}
               <table className="min-w-full text-md text-left min-h-96">
                 <thead className="bg-teal-800 overflow-visible">
                   <tr className="text-white">
@@ -1484,6 +1526,7 @@ const exportToPDF = async () => {
                   )}
                 </tbody>
               </table>
+              </div>
             {/* </DndContext> */}
 
             {totalPages > 1 && renderPagination()}
