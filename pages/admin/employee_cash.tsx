@@ -330,23 +330,31 @@ export default function EmployeeCash() {
       errors.department = 'القسم مطلوب';
     }
     
-    // Phone validation - required
+    // Phone validation - required and only numbers and allowed symbols
     if (!employeeFormData.phoneNumber.trim()) {
       errors.phoneNumber = 'رقم الهاتف مطلوب';
     } else if (!/^[0-9+\-\s()]+$/.test(employeeFormData.phoneNumber)) {
-      errors.phoneNumber = 'رقم الهاتف غير صحيح';
+      errors.phoneNumber = 'رقم الهاتف يجب أن يحتوي على أرقام فقط';
+    } else if (/[a-zA-Z\u0600-\u06FF]/.test(employeeFormData.phoneNumber)) {
+      errors.phoneNumber = 'رقم الهاتف لا يقبل حروف';
     }
     
-    // Email validation - required and must be valid email format
+    // Email validation - required and must be valid email format (English only)
     if (!employeeFormData.email.trim()) {
       errors.email = 'البريد الإلكتروني مطلوب';
+    } else if (/[\u0600-\u06FF]/.test(employeeFormData.email)) {
+      errors.email = 'البريد الإلكتروني لا يقبل كتابة عربية';
     } else if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(employeeFormData.email)) {
       errors.email = 'يرجى إدخال بريد إلكتروني صحيح (مثال: example@email.com)';
     }
     
-    // National ID validation - required
+    // National ID validation - required and only numbers
     if (!employeeFormData.nationalId.trim()) {
       errors.nationalId = 'الهوية الوطنية مطلوبة';
+    } else if (!/^[0-9]+$/.test(employeeFormData.nationalId)) {
+      errors.nationalId = 'الهوية الوطنية يجب أن تحتوي على أرقام فقط';
+    } else if (/[a-zA-Z\u0600-\u06FF]/.test(employeeFormData.nationalId)) {
+      errors.nationalId = 'الهوية الوطنية لا تقبل حروف';
     }
     
     // Address validation - required
@@ -1325,7 +1333,17 @@ export default function EmployeeCash() {
                     type="tel" 
                     placeholder="05xxxxxxxx" 
                     value={employeeFormData.phoneNumber}
-                    onChange={(e) => handleEmployeeFormFieldChange('phoneNumber', e.target.value)}
+                    onChange={(e) => {
+                      // Remove any non-numeric characters except +, -, spaces, and parentheses
+                      const value = e.target.value.replace(/[^0-9+\-\s()]/g, '');
+                      handleEmployeeFormFieldChange('phoneNumber', value);
+                    }}
+                    onKeyPress={(e) => {
+                      // Prevent typing non-numeric characters except +, -, spaces, and parentheses
+                      if (!/[0-9+\-\s()]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       employeeFormErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -1342,7 +1360,17 @@ export default function EmployeeCash() {
                     type="email" 
                     placeholder="example@email.com" 
                     value={employeeFormData.email}
-                    onChange={(e) => handleEmployeeFormFieldChange('email', e.target.value)}
+                    onChange={(e) => {
+                      // Remove any Arabic characters and allow only English letters, numbers, and email symbols
+                      const value = e.target.value.replace(/[^\x00-\x7F@._-]/g, '');
+                      handleEmployeeFormFieldChange('email', value);
+                    }}
+                    onKeyPress={(e) => {
+                      // Prevent typing Arabic characters - only allow English letters, numbers, and email symbols
+                      if (/[\u0600-\u06FF]/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       employeeFormErrors.email ? 'border-red-500' : 'border-gray-300'
                     }`}
@@ -1359,7 +1387,17 @@ export default function EmployeeCash() {
                     type="text" 
                     placeholder="ادخل الهوية الوطنية" 
                     value={employeeFormData.nationalId}
-                    onChange={(e) => handleEmployeeFormFieldChange('nationalId', e.target.value)}
+                    onChange={(e) => {
+                      // Remove any non-numeric characters
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      handleEmployeeFormFieldChange('nationalId', value);
+                    }}
+                    onKeyPress={(e) => {
+                      // Prevent typing non-numeric characters
+                      if (!/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                       employeeFormErrors.nationalId ? 'border-red-500' : 'border-gray-300'
                     }`}

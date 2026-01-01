@@ -1432,7 +1432,7 @@ const arabicRegionMap: { [key: string]: string } = {
                           : 'bg-teal-600 text-white hover:bg-teal-700'
                       }`}
                     >
-                      {index === 0 ? 'الأفضل' : index === 1 ? 'ممتاز' : 'موافق'}
+                      {index === 0 ? 'موافق' : index === 1 ? 'موافق' : 'موافق'}
                     </button>
                     <button
                       onClick={handleRejectSuggestion}

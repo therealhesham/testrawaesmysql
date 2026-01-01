@@ -166,17 +166,25 @@ export default function Employees() {
     if (!formData.phoneNumber.trim()) {
       errors.phoneNumber = 'رقم الهاتف مطلوب';
     } else if (!/^[0-9+\-\s()]+$/.test(formData.phoneNumber)) {
-      errors.phoneNumber = 'رقم الهاتف غير صحيح';
+      errors.phoneNumber = 'رقم الهاتف يجب أن يحتوي على أرقام فقط';
+    } else if (/[a-zA-Z\u0600-\u06FF]/.test(formData.phoneNumber)) {
+      errors.phoneNumber = 'رقم الهاتف لا يقبل حروف';
     }
     
     if (!formData.email.trim()) {
       errors.email = 'البريد الإلكتروني مطلوب';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (/[\u0600-\u06FF]/.test(formData.email)) {
+      errors.email = 'البريد الإلكتروني لا يقبل كتابة عربية';
+    } else if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
       errors.email = 'البريد الإلكتروني غير صحيح';
     }
     
     if (!formData.nationalId.trim()) {
       errors.nationalId = 'الهوية الوطنية مطلوبة';
+    } else if (!/^[0-9]+$/.test(formData.nationalId)) {
+      errors.nationalId = 'الهوية الوطنية يجب أن تحتوي على أرقام فقط';
+    } else if (/[a-zA-Z\u0600-\u06FF]/.test(formData.nationalId)) {
+      errors.nationalId = 'الهوية الوطنية لا تقبل حروف';
     }
     
     if (!formData.address.trim()) {
@@ -531,7 +539,17 @@ return (
                       type="tel" 
                       placeholder="05xxxxxxxx" 
                       value={formData.phoneNumber}
-                      onChange={(e) => handleFormFieldChange('phoneNumber', e.target.value)}
+                      onChange={(e) => {
+                        // Remove any non-numeric characters except +, -, spaces, and parentheses
+                        const value = e.target.value.replace(/[^0-9+\-\s()]/g, '');
+                        handleFormFieldChange('phoneNumber', value);
+                      }}
+                      onKeyPress={(e) => {
+                        // Prevent typing non-numeric characters except +, -, spaces, and parentheses
+                        if (!/[0-9+\-\s()]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                         formErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
                       }`}
@@ -548,7 +566,17 @@ return (
                       type="email" 
                       placeholder="example@email.com" 
                       value={formData.email}
-                      onChange={(e) => handleFormFieldChange('email', e.target.value)}
+                      onChange={(e) => {
+                        // Remove any Arabic characters and allow only English letters, numbers, and email symbols
+                        const value = e.target.value.replace(/[^\x00-\x7F@._-]/g, '');
+                        handleFormFieldChange('email', value);
+                      }}
+                      onKeyPress={(e) => {
+                        // Prevent typing Arabic characters - only allow English letters, numbers, and email symbols
+                        if (/[\u0600-\u06FF]/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                         formErrors.email ? 'border-red-500' : 'border-gray-300'
                       }`}
@@ -565,7 +593,17 @@ return (
                       type="text" 
                       placeholder="ادخل الهوية الوطنية" 
                       value={formData.nationalId}
-                      onChange={(e) => handleFormFieldChange('nationalId', e.target.value)}
+                      onChange={(e) => {
+                        // Remove any non-numeric characters
+                        const value = e.target.value.replace(/[^0-9]/g, '');
+                        handleFormFieldChange('nationalId', value);
+                      }}
+                      onKeyPress={(e) => {
+                        // Prevent typing non-numeric characters
+                        if (!/[0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
                         formErrors.nationalId ? 'border-red-500' : 'border-gray-300'
                       }`}

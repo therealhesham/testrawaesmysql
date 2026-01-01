@@ -2410,27 +2410,28 @@ export default function Home({
                   className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "newOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   الطلبات الجديدة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{newOrdersLength}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/neworders")} />
                 </a>
                 <a
                   onClick={() => setOrdersSectionState("currentOrders")}
                   className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "currentOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   طلبات تحت الإجراء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{currentOrdersLength}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/currentorderstest")} />
                 </a>
                 <a
                   onClick={() => setOrdersSectionState("endedOrders")}
                   className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "endedOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   الطلبات المكتملة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{finished}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/endedorders")} />
                 </a>
                 <a
                   onClick={() => setOrdersSectionState("cancelledOrders")}
                   className={`tab-item text-sm cursor-pointer font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${ordersSectionState === "cancelledOrders" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   الطلبات المرفوضة والملغية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{rejectedOrdersCount}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/rejectedorders")} />
                 </a>
               </nav>
             </div>
@@ -2468,20 +2469,21 @@ export default function Home({
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalArrivals" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   الوصول <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{arrivalsLength}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/arrival-list")} />
                 </a>
                 <a
                   onClick={() => setArrivalsSectionState("internalDeparatures")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "internalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   مغادرة داخلية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{deparaturesLength}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/deparatures")} />
                 </a>
                 <a
                   onClick={() => setArrivalsSectionState("externalDeparatures")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${arrivalsSectionState === "externalDeparatures" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   مغادرة خارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{externaldeparaturesLength}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/deparaturesfromsaudi")} />
                 </a>
               </nav>
             </div>
@@ -2516,20 +2518,21 @@ export default function Home({
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "housing" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   التسكين <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housedCount}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/housedarrivals")} />
                 </a>
                 <a
                   onClick={() => setHousingSectionState("checkedTable")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "checkedTable" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   الاعاشة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{housedCount}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/checkedtable")} />
                 </a>
                 <a
                   onClick={() => setHousingSectionState("sessions")}
                   className={`tab-item cursor-pointer text-sm font-medium text-gray-600 hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${housingSectionState === "sessions" ? "text-teal-700 bg-teal-50" : ""}`}
                 >
                   الجلسات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{sessionsLength}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/sessions")} />
                 </a>
               </nav>
             </div>
@@ -2564,20 +2567,21 @@ export default function Home({
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 flex cursor-pointer items-center gap-2 py-2 px-3 cursor-pointer rounded-lg transition-colors duration-200 ${workersSectionState === "workers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{homeMaidsLength}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/fulllist")} />
                 </a>
                 <a
                   onClick={() => setWorkersSectionState("bookedlist")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 cursor-pointer flex items-center cursor-pointer gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "bookedlist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات المحجوزة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{bookedList.length}</span>
-                  <ArrowLeftOutlined className="text-xs" />
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/bookedlist")} />
                 </a>
                 <a
                   onClick={() => setWorkersSectionState("availablelist")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 cursor-pointer flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${workersSectionState === "availablelist" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   العاملات المتاحة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{availableList.length}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/availablelist")} />
                 </a>
               </nav>
             </div>
@@ -2612,18 +2616,21 @@ export default function Home({
                   className={`tab-item text-sm font-medium text-gray-600 cursor-pointer hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "relations" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   قائمة العملاء <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{clientsCount}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/clients")} />
                 </a>
                 <a
                   onClick={() => setRelationsSectionState("sponsorship-transfers")}
                   className={`tab-item text-sm font-medium text-gray-600 cursor-pointer hover:text-teal-600 flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "sponsorship-transfers" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   معاملات نقل الكفالة <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{transferSponsorshipsLength}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/transfersponsorship")} />
                 </a>
                 <a
                   onClick={() => setRelationsSectionState("foreign-offices")}
                   className={`tab-item text-sm font-medium text-gray-600 hover:text-teal-600 cursor-pointer flex items-center gap-2 py-2 px-3 rounded-lg transition-colors duration-200 ${relationsSectionState === "foreign-offices" ? "bg-teal-50 text-teal-700" : ""}`}
                 >
                   المكاتب الخارجية <span className="bg-teal-100 text-teal-600 text-xs font-semibold px-2 py-0.5 rounded-full">{officesCount}</span>
+                  <ArrowLeftOutlined className="text-xs cursor-pointer" onClick={() => router.push("/admin/offices")} />
                 </a>
               </nav>
             </div>
