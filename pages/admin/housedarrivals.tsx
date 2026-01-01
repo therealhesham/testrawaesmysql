@@ -2099,68 +2099,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         </div>
                       )}
                     </div>
-                    {/* Selected Worker Display */}
-                    {selectedWorker && (
-                      <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Worker Info */}
-                            <div>
-                              <div className="text-lg font-semibold text-green-800 mb-2">✓ بيانات العاملة</div>
-                              <div className="space-y-1">
-                                <div className="text-xs text-green-700 font-medium">#{selectedWorker.id} - {selectedWorker.name}</div>
-                                <div className="text-xs text-green-600">الجنسية: {selectedWorker.nationality}</div>
-                                <div className="text-xs text-green-600">رقم الجواز: {selectedWorker.passportNumber}</div>
-                                <div className="text-xs text-green-600">العمر: {selectedWorker.age} سنة</div>
-                                <div className="text-xs text-green-600">الهاتف: {selectedWorker.phone || 'غير محدد'}</div>
-                                {selectedWorker.hasOrders && selectedWorker.orders?.[0] && (
-                                  <div className="text-xs text-green-600 font-medium">
-                                    ✓ نوع العقد: {selectedWorker.orders[0].typeOfContract === 'recruitment' ? 'استقدام' : 'تأجير'}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Client Info - Only show for rental workers */}
-                            {selectedWorker.clientData && workerType === 'داخلية' && (
-                              <div>
-                                <div className="text-lg font-semibold text-blue-800 mb-2">✓ بيانات العميل</div>
-                                <div className="space-y-1">
-                                  <div className="text-xs text-blue-700 font-medium">الاسم: {selectedWorker.clientData.clientName || 'غير محدد'}</div>
-                                  <div className="text-xs text-blue-600">الجوال: {selectedWorker.clientData.clientMobile || 'غير محدد'}</div>
-                                  {selectedWorker.clientData.clientIdNumber && (
-                                    <div className="text-xs text-blue-600">رقم الهوية: {selectedWorker.clientData.clientIdNumber}</div>
-                                  )}
-                                  <div className="text-xs text-blue-600">المدينة: {selectedWorker.clientData.city || 'غير محدد'}</div>
-                                  <div className="text-xs text-blue-600">العنوان: {selectedWorker.clientData.address || 'غير محدد'}</div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedWorker(null);
-                              setWorkerSearchTerm('');
-                              // Clear client data when removing worker
-                              if (workerType === 'داخلية') {
-                                setInternalWorkerForm(prev => ({
-                                  ...prev,
-                                  clientName: '',
-                                  clientMobile: '',
-                                  clientIdNumber: '',
-                                  city: '',
-                                  address: '',
-                                }));
-                              }
-                            }}
-                            className="text-green-600 hover:text-green-800 text-xs"
-                          >
-                            إزالة
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
@@ -2875,63 +2814,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       </div>
                     </div>
                     
-                    {/* Selected Worker Display */}
-                    {selectedExternalWorker && (
-                      <div className="col-span-1 md:col-span-2 bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Worker Info */}
-                            <div>
-                              <div className="text-lg font-semibold text-green-800 mb-2">✓ بيانات العاملة</div>
-                              <div className="space-y-1">
-                                <div className="text-xs text-green-700 font-medium">#{selectedExternalWorker.id} - {selectedExternalWorker.name}</div>
-                                <div className="text-xs text-green-600">الجنسية: {selectedExternalWorker.nationality}</div>
-                                <div className="text-xs text-green-600">رقم الجواز: {selectedExternalWorker.passportNumber}</div>
-                                <div className="text-xs text-green-600">العمر: {selectedExternalWorker.age} سنة</div>
-                                <div className="text-xs text-green-600">الهاتف: {selectedExternalWorker.phone || 'غير محدد'}</div>
-                              </div>
-                            </div>
-                            
-                            {/* Client Info from transferSponsorShips
-                            {selectedExternalWorker.clientData && (
-                              <div>
-                                <div className="text-lg font-semibold text-blue-800 mb-2">✓ بيانات العميل الجديد (نقل كفالة)</div>
-                                <div className="space-y-1">
-                                  <div className="text-xs text-blue-700 font-medium">الاسم: {selectedExternalWorker.clientData.clientName || 'غير محدد'}</div>
-                                  <div className="text-xs text-blue-600">الجوال: {selectedExternalWorker.clientData.clientMobile || 'غير محدد'}</div>
-                                  {selectedExternalWorker.clientData.clientIdNumber && (
-                                    <div className="text-xs text-blue-600">رقم الهوية: {selectedExternalWorker.clientData.clientIdNumber}</div>
-                                  )}
-                                  <div className="text-xs text-blue-600">المدينة: {selectedExternalWorker.clientData.city || 'غير محدد'}</div>
-                                  <div className="text-xs text-blue-600">العنوان: {selectedExternalWorker.clientData.address || 'غير محدد'}</div>
-                                </div>
-                              </div>
-                            )} */}
-                          </div>
-                        <button
-                          type="button"
-                            onClick={() => {
-                              setSelectedExternalWorker(null);
-                              setExternalWorkerSearchTerm('');
-                              setInternalWorkerForm(prev => ({
-                                ...prev,
-                                workerId: '',
-                                workerName: '',
-                                mobile: '',
-                                clientName: '',
-                                clientMobile: '',
-                                clientIdNumber: '',
-                                city: '',
-                                address: '',
-                              }));
-                            }}
-                            className="text-green-600 hover:text-green-800 text-xs"
-                          >
-                            إزالة
-                        </button>
-                      </div>
-                    </div>
-                    )}
+                    
+                    
                     {/* Worker Info Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>
