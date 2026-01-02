@@ -34,6 +34,7 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   const [showOtherModal, setShowOtherModal] = useState(false);
   const [otherVisaNumber, setOtherVisaNumber] = useState('');
   const [selectedVisa, setSelectedVisa] = useState<Visa | null>(null);
+  const [visaError, setVisaError] = useState<string>('');
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,13 +46,8 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
     // Enforce max length (10 digits)
     if (digits.length > 10) digits = digits.slice(0, 10);
 
-    // Allow progressive typing of 190 (1 -> 19 -> 190)
-    if (digits.length <= 3) {
-      return '190'.startsWith(digits) ? digits : previous;
-    }
-
-    // Once user typed >= 4 digits, enforce prefix 190
-    return digits.startsWith('190') ? digits : previous;
+    // Allow free typing - validation will happen on submit
+    return digits;
   };
 
   // Keep input in sync with external value (e.g., when opening edit mode)
@@ -135,28 +131,65 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   const handleOtherOption = () => {
     setShowOtherModal(true);
     setIsOpen(false);
+    setVisaError('');
+    setOtherVisaNumber('');
   };
-const addNewVisa = async () => {
-  const response = await axios.post(`/api/visadata`, {
-    visaNumber: otherVisaNumber,
-    clientID: Number(clientID)
-  });
-  console.log("response", response);
-};
+  const addNewVisa = async () => {
+    try {
+      const response = await axios.post(`/api/visadata`, {
+        visaNumber: otherVisaNumber,
+        clientID: Number(clientID),
+        gender: '',
+        profession: '',
+        nationality: '',
+        visaFile: ''
+      });
+      console.log("response", response);
+      if (response.status === 200) {
+        await fetchVisas();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error adding visa:", error);
+      return false;
+    }
+  };
+
   const handleOtherSubmit = async () => {
-    if (otherVisaNumber.trim() && /^190\d{7}$/.test(otherVisaNumber)) {
+    // Validate visa number
+    if (!otherVisaNumber.trim()) {
+      setVisaError('يرجى إدخال رقم التأشيرة');
+      return;
+    }
+    
+    if (otherVisaNumber.length !== 10) {
+      setVisaError('رقم التأشيرة يجب أن يكون 10 أرقام');
+      return;
+    }
+    
+    if (!otherVisaNumber.startsWith('190')) {
+      setVisaError('رقم التأشيرة يجب أن يبدأ بـ 190');
+      return;
+    }
+
+    setVisaError('');
+    const success = await addNewVisa();
+    
+    if (success) {
       setSearchTerm(otherVisaNumber);
       onChange(otherVisaNumber);
       setShowOtherModal(false);
-    await addNewVisa();
-    
       setOtherVisaNumber('');
+    } else {
+      setVisaError('فشل في إضافة التأشيرة. حاول مرة أخرى.');
     }
   };
 
   const handleOtherCancel = () => {
     setShowOtherModal(false);
     setOtherVisaNumber('');
+    setVisaError('');
   };
 
   const handleInputFocus = () => {
@@ -244,15 +277,22 @@ const addNewVisa = async () => {
                 <input
                   type="text"
                   value={otherVisaNumber}
-                  onChange={(e) => setOtherVisaNumber((prev) => sanitizeVisaCandidate(e.target.value, prev))}
-                  placeholder="أدخل رقم التأشيرة"
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800"
+                  onChange={(e) => {
+                    setOtherVisaNumber((prev) => sanitizeVisaCandidate(e.target.value, prev));
+                    setVisaError('');
+                  }}
+                  placeholder="أدخل رقم التأشيرة (مثال: 1901234567)"
+                  className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-800 ${
+                    visaError ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   dir="rtl"
                   autoFocus
                   inputMode="numeric"
-                  pattern="190\\d{7}"
                   maxLength={10}
                 />
+                {visaError && (
+                  <p className="text-red-500 text-sm mt-1 text-right">{visaError}</p>
+                )}
               </div>
               <div className="flex gap-3 justify-end">
                 <button
@@ -263,7 +303,7 @@ const addNewVisa = async () => {
                 </button>
                 <button
                   onClick={handleOtherSubmit}
-                  disabled={!/^190\d{7}$/.test(otherVisaNumber)}
+                  disabled={!otherVisaNumber.trim()}
                   className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   إضافة
