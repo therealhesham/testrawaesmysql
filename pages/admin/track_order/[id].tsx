@@ -850,40 +850,22 @@ export default function TrackOrder() {
             editable={true}
             clientID={orderData.clientInfo?.id ? Number(orderData.clientInfo.id) : undefined}
             onSave={(updatedData) => handleSaveEdits('officeLinkInfo', updatedData)}
-          />
-
-          <InfoCard
-            id="office-link-approval"
-            title="1-1 موافقة الربط مع إدارة المكاتب"
-            data={[
-              {
-                label: 'هل تمت موافقة الربط مع إدارة المكاتب؟',
-                value: orderData.officeLinkApproval.approved ? (
-                  <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الموافقة" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <button
-                      className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50 disabled:cursor-not-allowed`}
-                      onClick={() => handleStatusUpdate('officeLinkApproval', true)}
-                      disabled={updating || !canCompleteStep('officeLinkApproval')}
-                      title={!canCompleteStep('officeLinkApproval') ? `يجب إكمال: ${getPreviousIncompleteStep('officeLinkApproval')}` : ''}
-                    >
-                      تأكيد الموافقة
-                    </button>
-                    {!canCompleteStep('officeLinkApproval') && (
-                      <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('officeLinkApproval')}</span>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
             actions={[
-              {
-                label: 'تراجع',
-                type: 'secondary',
-                onClick: () => handleStatusUpdate('officeLinkApproval', false),
-                disabled: updating || !orderData.officeLinkApproval.approved || getLastApprovedStage() !== 'officeLinkApproval',
-              },
+              ...(orderData.officeLinkApproval.approved ? [
+                {
+                  label: 'تراجع عن الموافقة',
+                  type: 'secondary' as const,
+                  onClick: () => handleStatusUpdate('officeLinkApproval', false),
+                  disabled: updating || (getLastApprovedStage() !== 'officeLinkApproval' && getLastApprovedStage() !== null),
+                },
+              ] : [
+                {
+                  label: 'تأكيد الموافقة',
+                  type: 'primary' as const,
+                  onClick: () => handleStatusUpdate('officeLinkApproval', true),
+                  disabled: updating || !canCompleteStep('officeLinkApproval'),
+                },
+              ]),
             ]}
           />
 
