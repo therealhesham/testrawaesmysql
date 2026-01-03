@@ -668,7 +668,7 @@ const cookieHeader = req.headers.cookie;
               // Validate date before creating Date object
               const dateObj = new Date(dateValue);
               if (isNaN(dateObj.getTime())) {
-                return res.status(400).json({ error: 'تاريخ العقد لازم يتكتب' });
+                return res.status(400).json({ error: 'تاريخ العقد مطلوب' });
               }
               
               arrivalUpdate.DateOfApplication = dateObj;
