@@ -33,7 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     externalOfficeStatus,
     ExperienceYears,
     Paid,
-    clientID
+    clientID,
+    visaId
   } = req.body;
 
   try {
@@ -46,19 +47,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: "العاملة محجوزة بالفعل" });
     }
 
+    // ✅ التحقق من وجود التأشيرة وأنها متاحة
+    if (!visaId) {
+      return res.status(400).json({ message: "يجب اختيار تأشيرة للطلب" });
+    }
 
-    // ✅ التحقق من أن العميل ليس له تأشيرة بالجنسية المحددة
-    const clientWithVisa = await prisma.client.findFirst({
-      where: { 
-        id: Number(clientID),
-        visa: { some: { nationality: Nationality } }
-      },
-      include: { visa: true }
+    const selectedVisa = await prisma.visa.findUnique({
+      where: { id: Number(visaId) },
+      include: {
+        orders: {
+          where: {
+            bookingstatus: {
+              notIn: ['cancelled', 'rejected', 'delivered']
+            }
+          }
+        }
+      }
     });
 
+    if (!selectedVisa) {
+      return res.status(400).json({ message: "التأشيرة المحددة غير موجودة" });
+    }
 
-    if (!clientWithVisa || clientWithVisa.visa.length === 0) {
-      return res.status(400).json({ message: "العميل ليس لديه تأشيرة بهذه الجنسية" });
+    // التحقق من أن التأشيرة تابعة للعميل
+    if (selectedVisa.clientID !== Number(clientID)) {
+      return res.status(400).json({ message: "التأشيرة المحددة غير تابعة للعميل" });
+    }
+
+    // التحقق من أن التأشيرة غير مرتبطة بطلب آخر نشط
+    if (selectedVisa.orders && selectedVisa.orders.length > 0) {
+      return res.status(400).json({ message: "التأشيرة مرتبطة بطلب آخر بالفعل" });
+    }
+
+    // التحقق من أن جنسية التأشيرة تطابق جنسية العاملة
+    if (selectedVisa.nationality !== Nationality) {
+      return res.status(400).json({ 
+        message: `التأشيرة المحددة لا تطابق جنسية العاملة. التأشيرة: ${selectedVisa.nationality}، العاملة: ${Nationality}` 
+      });
     }
     const result = await prisma.neworder.create({
       include: { client: true },
@@ -79,6 +104,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         contract: contract || null,
         ages: age + "",
         paid: Paid == null ? undefined : Number(Paid),
+        visa: {
+          connect: {
+            id: Number(visaId)
+          }
+        },
         client: {
           connect: {
             id:Number(clientID),

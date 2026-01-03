@@ -17,6 +17,16 @@ interface Homemaid {
   religion?: string;
 }
 
+interface Visa {
+  id: number;
+  visaNumber: string;
+  nationality: string;
+  gender?: string;
+  profession?: string;
+  visaFile?: string;
+  createdAt?: string;
+}
+
 interface ApiOrderData {
   orderId: number;
   clientInfo: { name: string; phone: string; email: string };
@@ -44,6 +54,7 @@ interface FormData {
   Remaining: number;
   orderDocument: string;
   contract: string;
+  visaId: string; // Added visa ID
 }
 interface AddAvailableFormProps {
   clients: Client[];
@@ -70,6 +81,7 @@ const [formData, setFormData] = useState<FormData>({
   Remaining: 0,
   orderDocument: '',
   contract: '',
+  visaId: '',
 });
   const [fileUploaded, setFileUploaded] = useState({
     orderDocument: false,
@@ -100,6 +112,11 @@ const [isUploading, setIsUploading] = useState<Record<string, boolean>>({
   const [showHomemaidSuggestions, setShowHomemaidSuggestions] = useState(false);
   const [isSearchingHomemaids, setIsSearchingHomemaids] = useState(false);
   const [homemaidSearchTerm, setHomemaidSearchTerm] = useState('');
+
+  // Available visas states
+  const [availableVisas, setAvailableVisas] = useState<Visa[]>([]);
+  const [isLoadingVisas, setIsLoadingVisas] = useState(false);
+  const [selectedVisa, setSelectedVisa] = useState<Visa | null>(null);
 
   const fileInputRefs = {
     orderDocument: useRef<HTMLInputElement>(null),
@@ -286,9 +303,18 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       clientID: client.id,
       ClientName: client.fullname,
       PhoneNumber: client.phonenumber,
+      visaId: '', // Reset visa selection
     }));
     setClientSearchTerm(client.fullname);
     setShowClientSuggestions(false);
+    setSelectedVisa(null);
+    setAvailableVisas([]);
+    
+    // إذا كانت هناك جنسية محددة بالفعل، جلب التأشيرات المتاحة
+    if (formData.Nationalitycopy) {
+      fetchAvailableVisas(client.id, formData.Nationalitycopy);
+    }
+    
     // Clear client-related errors
     setErrors((prev) => {
       const newErrors = { ...prev };
@@ -300,16 +326,75 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     });
   };
 
+  // Fetch available visas for client and nationality
+  const fetchAvailableVisas = async (clientId: string, nationality: string) => {
+    if (!clientId || !nationality) {
+      setAvailableVisas([]);
+      return;
+    }
+
+    setIsLoadingVisas(true);
+    try {
+      const response = await fetch(
+        `/api/clients/available-visas?clientId=${clientId}&nationality=${encodeURIComponent(nationality)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableVisas(data.visas || []);
+        
+        // إذا لم تكن هناك تأشيرات متاحة، اعرض رسالة خطأ
+        if (!data.visas || data.visas.length === 0) {
+          setErrors((prev) => ({
+            ...prev,
+            visaId: `لا توجد تأشيرات متاحة بجنسية ${nationality} لهذا العميل`
+          }));
+        } else {
+          // امسح خطأ التأشيرة إذا كانت هناك تأشيرات متاحة
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.visaId;
+            return newErrors;
+          });
+        }
+      } else {
+        console.error('Error fetching available visas');
+        setAvailableVisas([]);
+        setErrors((prev) => ({
+          ...prev,
+          visaId: 'حدث خطأ أثناء جلب التأشيرات المتاحة'
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching available visas:', error);
+      setAvailableVisas([]);
+      setErrors((prev) => ({
+        ...prev,
+        visaId: 'حدث خطأ أثناء جلب التأشيرات المتاحة'
+      }));
+    } finally {
+      setIsLoadingVisas(false);
+    }
+  };
+
   // Handle homemaid suggestion click
   const handleHomemaidSuggestionClick = (homemaid: any) => {
+    const nationality = homemaid.office?.Country || homemaid.Country || '';
     setFormData((prev) => ({
       ...prev,
       HomemaidId: homemaid.id,
-      Nationalitycopy: homemaid.office?.Country || homemaid.Country || '',
+      Nationalitycopy: nationality,
       Religion: homemaid.religion || '',
+      visaId: '', // Reset visa selection
     }));
     setHomemaidSearchTerm(homemaid.Name);
     setShowHomemaidSuggestions(false);
+    setSelectedVisa(null);
+    
+    // جلب التأشيرات المتاحة بناءً على جنسية العاملة
+    if (formData.clientID && nationality) {
+      fetchAvailableVisas(formData.clientID, nationality);
+    }
+    
     // Clear homemaid-related errors
     setErrors((prev) => {
       const newErrors = { ...prev };
@@ -377,7 +462,8 @@ const handleHomemaidSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             Remaining: 0,
             orderDocument: order.documentUpload.files || '',
             contract: order.ticketUpload.files || '',
-            City: matchedClient?.city || ''
+            City: matchedClient?.city || '',
+            visaId: '' // Added visa ID
           };
           
           setFormData(mappedFormData);
@@ -591,6 +677,11 @@ const validateForm = () => {
     }
   }
 
+  // Visa validation
+  if (!formData.visaId?.trim()) {
+    newErrors.visaId = 'يجب اختيار تأشيرة للطلب';
+  }
+
   // Payment validation
   const total = Number(formData.Total);
   const paid = Number(formData.Paid);
@@ -634,7 +725,10 @@ const validateForm = () => {
     
     setIsSubmitting(true);
     try {
-      const submitData: any = { ...formData };
+      const submitData: any = { 
+        ...formData,
+        Nationality: formData.Nationalitycopy // Map Nationalitycopy to Nationality for API
+      };
       if (orderId) {
         submitData.orderId = orderId; // Add for edit
       }
@@ -939,6 +1033,100 @@ const arabicRegionMap: { [key: string]: string } = {
             {errors.Religion && <p className="text-red-500 text-xs mt-1">{errors.Religion}</p>}
           </div>
         </div>
+
+        {/* Visa Selection Section */}
+        {formData.clientID && formData.Nationalitycopy && (
+          <div className="mb-10 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+            <h2 className="text-lg font-semibold mb-4 text-blue-900">اختيار التأشيرة</h2>
+            
+            {isLoadingVisas ? (
+              <div className="flex items-center justify-center gap-2 p-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
+                <span className="text-gray-600">جاري تحميل التأشيرات المتاحة...</span>
+              </div>
+            ) : availableVisas.length === 0 ? (
+              <div className="p-4 bg-red-50 border border-red-200 rounded text-center">
+                <p className="text-red-600 font-medium">
+                  لا توجد تأشيرات متاحة بجنسية {formData.Nationalitycopy} لهذا العميل
+                </p>
+                <p className="text-sm text-red-500 mt-2">
+                  يرجى التأكد من إضافة تأشيرة للعميل بنفس جنسية العاملة المختارة
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {availableVisas.map((visa) => (
+                  <div
+                    key={visa.id}
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, visaId: visa.id.toString() }));
+                      setSelectedVisa(visa);
+                      setErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors.visaId;
+                        return newErrors;
+                      });
+                    }}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      formData.visaId === visa.id.toString()
+                        ? 'border-teal-600 bg-teal-50 shadow-md'
+                        : 'border-gray-300 bg-white hover:border-teal-400 hover:shadow'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg text-gray-800">
+                          رقم التأشيرة: {visa.visaNumber || 'غير محدد'}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          الجنسية: <span className="font-medium">{visa.nationality}</span>
+                        </p>
+                        {visa.profession && (
+                          <p className="text-sm text-gray-600">
+                            المهنة: <span className="font-medium">{visa.profession}</span>
+                          </p>
+                        )}
+                        {visa.gender && (
+                          <p className="text-sm text-gray-600">
+                            الجنس: <span className="font-medium">{visa.gender}</span>
+                          </p>
+                        )}
+                      </div>
+                      {formData.visaId === visa.id.toString() && (
+                        <div className="flex-shrink-0 mr-2">
+                          <svg className="w-6 h-6 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {visa.visaFile && (
+                      <a
+                        href={visa.visaFile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-teal-600 hover:underline inline-block mt-2"
+                      >
+                        عرض ملف التأشيرة
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {errors.visaId && (
+              <p className="text-red-500 text-sm mt-3 text-center font-medium">{errors.visaId}</p>
+            )}
+          </div>
+        )}
+        
+        {!formData.clientID && (
+          <div className="mb-10 p-4 bg-yellow-50 border border-yellow-200 rounded text-center">
+            <p className="text-yellow-700">يرجى اختيار العميل والعاملة أولاً لعرض التأشيرات المتاحة</p>
+          </div>
+        )}
      <div className="mb-10">
           <h2 className="text-base font-normal mb-2">طريقة الدفع المختارة</h2>
           <div className="flex gap-[56px] justify-center flex-wrap">

@@ -446,7 +446,8 @@ notes String?
   musanadFinancialRecords MusanadFinancialRecord[] // Added relation to financial records
   isContractEnded Boolean? @default(false)
   clientAccountStatement ClientAccountStatement[]
-  // visa visa?
+  visaId Int? // Foreign key to visa
+  visa visa? @relation(fields: [visaId], references: [id])
   DeliveryDetails DeliveryDetails[]
 }
 
@@ -459,6 +460,7 @@ visaFile String? @db.VarChar(1024)
 nationality String? @db.VarChar(255)
 clientID Int?
 client Client? @relation(fields: [clientID], references: [id])
+orders neworder[] // Relation to orders using this visa
 createdAt DateTime? @default(now())
 updatedAt DateTime? @updatedAt
 // orderID Int @unique

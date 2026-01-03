@@ -75,6 +75,7 @@ const VisaModal = React.memo(
     clientId,
     isEditMode = false,
     visaId,
+    nationalities,
   }: {
     isHidden: boolean;
     setIsHidden: (isHidden: boolean) => void;
@@ -85,6 +86,7 @@ const VisaModal = React.memo(
     clientId: string;
     isEditMode?: boolean;
     visaId?: number;
+    nationalities: Array<{ value: string; label: string }>;
   }) => {
     const visaNumberRef = useRef<HTMLInputElement>(null);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -259,12 +261,11 @@ const VisaModal = React.memo(
                 required
               >
                 <option value="">اختر الجنسية</option>
-                <option value="philippines">فلبين</option>
-                <option value="indonesia">إندونيسيا</option>
-                <option value="kenya">كينيا</option>
-                <option value="india">الهند</option>
-                <option value="bangladesh">بنغلاديش</option>
-                <option value="other">أخرى</option>
+                {nationalities.map((nat) => (
+                  <option key={nat.value} value={nat.value}>
+                    {nat.label}
+                  </option>
+                ))}
               </select>
               {errors.nationality && (
                 <p className="text-red-500 text-sm mt-1">{errors.nationality}</p>
@@ -418,6 +419,7 @@ export default function Home() {
     nationalId: '',
     city: '',
   });
+  const [nationalities, setNationalities] = useState<Array<{ value: string; label: string }>>([]);
 
   const router = useRouter();
 
@@ -468,6 +470,22 @@ export default function Home() {
     }
   };
 
+  const fetchNationalities = async () => {
+    try {
+      const response = await fetch('/api/nationalities');
+      const data = await response.json();
+      if (data.success && data.nationalities) {
+        const nationalityOptions = data.nationalities.map((nat: any) => ({
+          value: nat.Country || nat.value,
+          label: nat.Country || nat.label,
+        }));
+        setNationalities(nationalityOptions);
+      }
+    } catch (error) {
+      console.error('Error fetching nationalities:', error);
+    }
+  };
+
   const handleEditVisa = (visa: VisaData) => {
     setVisaInfo(visa);
     setEditingVisaId(visa.id);
@@ -503,6 +521,7 @@ export default function Home() {
     fetchClientInfo();
     fetchVisas();
     fetchFinancialStatements();
+    fetchNationalities();
   }, [router.query.id]);
 
   const handleEditClick = () => {
@@ -684,6 +703,7 @@ const arabicRegionMap: { [key: string]: string } = {
           clientId={router.query.id as string}
           isEditMode={editingVisaId !== null}
           visaId={editingVisaId || undefined}
+          nationalities={nationalities}
         />
         {notification && (
           <NotificationModal
