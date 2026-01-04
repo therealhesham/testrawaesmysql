@@ -131,7 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const cancelled = await prisma.neworder.count({
       where: {
         bookingstatus: {
-          in: ["cancelled"],
+          in: ["cancelled", "rejected"],
         },
         createdAt: dateFilter,
       },

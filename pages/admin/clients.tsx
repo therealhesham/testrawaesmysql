@@ -91,7 +91,10 @@ const Customers = ({ hasPermission, hasDeletePermission }: Props) => {
 
 
 const arabicRegionMap: { [key: string]: string } = {
-     'Riyadh': 'الرياض',
+    'Baha': 'الباحة',
+    'Jawf': 'الجوف',
+    'Qassim': 'القصيم',
+    'Riyadh': 'الرياض',
     'Al-Kharj': 'الخرج',
     'Ad Diriyah': 'الدرعية',
     'Al Majma\'ah': 'المجمعة',

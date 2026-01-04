@@ -153,9 +153,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const cancelledOrders = await prisma.systemUserLogs.count({
           where: {
             userId: user.id,
-            action: {
-              contains: 'cancelled',
-            },
+            OR: [
+              { action: { contains: 'cancelled' } },
+              { action: { contains: 'rejected' } },
+            ],
             createdAt: dateFilter,
           },
         });
