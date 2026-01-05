@@ -655,11 +655,12 @@ const cookieHeader = req.headers.cookie;
                 changes.push(`رقم التأشيرة: من "${oldVisa || 'فارغ'}" إلى "${visa}"`);
               }
             }
-            if (updatedData['رقم عقد إدارة المكاتب']) {
+            if (Object.prototype.hasOwnProperty.call(updatedData, 'رقم عقد إدارة المكاتب')) {
               const oldContract = order.arrivals[0]?.InternalmusanedContract;
               const newContract = updatedData['رقم عقد إدارة المكاتب'];
-              arrivalUpdate.InternalmusanedContract = newContract;
-              changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${newContract}"`);
+              // حفظ القيمة حتى لو كانت فارغة
+              arrivalUpdate.InternalmusanedContract = newContract && newContract.trim() !== '' ? newContract.trim() : null;
+              changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${newContract || 'فارغ'}"`);
             }
             if (updatedData['تاريخ العقد']) {
               const oldDate = order.arrivals[0]?.DateOfApplication;

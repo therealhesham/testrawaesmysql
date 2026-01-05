@@ -338,6 +338,30 @@ export default function TrackOrder() {
 
   const handleStatusUpdate = async (field: string, value: boolean) => {
     const fieldName = fieldNames[field] || field;
+    
+    // التحقق من رقم عقد إدارة المكاتب عند تأكيد الموافقة فقط (value === true)
+    if(field === 'officeLinkApproval' && value === true){
+      if(!orderData?.officeLinkInfo?.internalMusanedContract || orderData?.officeLinkInfo?.internalMusanedContract.trim() === '' || orderData?.officeLinkInfo?.internalMusanedContract === 'N/A'){
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في تحديث الحالة',
+            message: 'رقم عقد إدارة المكاتب مطلوب',
+          });
+          return;
+      }
+    }
+
+    // التحقق من رقم عقد مساند التوثيق عند تأكيد الموافقة فقط (value === true)
+    if(field === 'externalOfficeApproval' && value === true){
+      if(!orderData?.externalOfficeInfo?.externalMusanedContract || orderData?.externalOfficeInfo?.externalMusanedContract.trim() === '' || orderData?.externalOfficeInfo?.externalMusanedContract === 'N/A'){
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في تحديث الحالة',
+            message: 'رقم عقد مساند التوثيق مطلوب',
+          }); 
+          return;
+       }
+     }
     setShowConfirmModal({
       isOpen: true,
       title: 'تحديث الحالة',
