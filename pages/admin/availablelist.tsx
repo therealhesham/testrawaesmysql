@@ -572,7 +572,118 @@ const exportToPDF = async () => {
             </div>
           </div>
           <div className="overflow-x-auto">
-            {loading && <div className="text-center text-gray-500 py-4">جاري التحميل...</div>}
+            {loading && (
+              <div className="w-full">
+                {/* Loading Spinner */}
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-800 rounded-full animate-spin"></div>
+                  </div>
+                  <p className="mt-4 text-gray-600 text-lg">جاري التحميل...</p>
+                </div>
+                
+                {/* Skeleton Loader */}
+                <div
+                  className="grid text-right"
+                  style={{
+                    gridTemplateColumns: `repeat(${
+                      Object.values(visibleColumns).filter(Boolean).length
+                    }, minmax(100px, 1fr))`,
+                    minWidth: `${
+                      Object.values(visibleColumns).filter(Boolean).length * 100
+                    }px`,
+                  }}
+                >
+                  {/* Skeleton Header */}
+                  {visibleColumns.id && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">#</div>
+                  )}
+                  {visibleColumns.Name && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">الاسم</div>
+                  )}
+                  {visibleColumns.phone && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">رقم الجوال</div>
+                  )}
+                  {visibleColumns.Nationalitycopy && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">الجنسية</div>
+                  )}
+                  {visibleColumns.maritalstatus && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">الحالة الاجتماعية</div>
+                  )}
+                  {visibleColumns.Passportnumber && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">رقم الجواز</div>
+                  )}
+                  {visibleColumns.PassportStart && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">بداية الجواز</div>
+                  )}
+                  {visibleColumns.PassportEnd && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">نهاية الجواز</div>
+                  )}
+                  {visibleColumns.Experience && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">الخبرة</div>
+                  )}
+                  {visibleColumns.availability && (
+                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">مدة توفرها</div>
+                  )}
+                  
+                  {/* Skeleton Rows */}
+                  {[...Array(5)].map((_, index) => (
+                    <div key={index} className={`contents ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                      {visibleColumns.id && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.Name && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.phone && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.Nationalitycopy && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.maritalstatus && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.Passportnumber && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.PassportStart && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.PassportEnd && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.Experience && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                      {visibleColumns.availability && (
+                        <div className="p-4 border-b border-gray-300">
+                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {error && <div className="text-center text-red-500 py-4">{error}</div>}
             {!loading && !error && homemaids.length === 0 && (
               <div className="text-center text-gray-500 py-4">لا توجد بيانات متاحة</div>

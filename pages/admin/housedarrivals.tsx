@@ -2206,9 +2206,9 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             ))}
                           </select>
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {/* <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            </svg> */}
                           </div>
                         </div>
                       </div>
@@ -2222,9 +2222,9 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {/* <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            </svg> */}
                           </div>
                         </div>
                       </div>
@@ -2241,9 +2241,9 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {/* <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            </svg> */}
                           </div>
                         </div>
                       </div>
@@ -2266,9 +2266,9 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             <option value="مشكلة مكتب العمل">مشكلة مكتب العمل</option>
                           </select>
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {/* <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            </svg> */}
                           </div>
                         </div>
                       </div>

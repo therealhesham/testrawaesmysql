@@ -96,6 +96,9 @@ export default function TrackOrder() {
     onConfirm: () => {},
   });
 
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
+
   const [showAlertModal, setShowAlertModal] = useState({
     isOpen: false,
     message: '',
@@ -436,36 +439,49 @@ export default function TrackOrder() {
   };
 
   const handleCancelContract = async () => {
-    setShowConfirmModal({
-      isOpen: true,
-      title: 'إلغاء العقد',
-      message: 'هل أنت متأكد من إلغاء العقد؟ هذا الإجراء لا يمكن التراجع عنه.',
-      onConfirm: async () => {
-        setUpdating(true);
-        try {
-          const res = await fetch(`/api/track_order/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ field: 'bookingStatus', value: 'cancelled' }),
-          });
+    setCancellationReason('');
+    setShowCancelModal(true);
+  };
 
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error || 'فشل في إلغاء العقد');
-          }
-          router.push('/admin/neworders');
-        } catch (error: any) {
-          console.error('Error cancelling contract:', error);
-          setShowErrorModal({
-            isOpen: true,
-            title: 'خطأ في إلغاء العقد',
-            message: error.message || 'حدث خطأ أثناء إلغاء العقد',
-          });
-        } finally {
-          setUpdating(false);
-        }
-      },
-    });
+  const handleConfirmCancel = async () => {
+    if (!cancellationReason.trim()) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ',
+        message: 'يرجى إدخال سبب الإلغاء',
+      });
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/track_order/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          field: 'bookingStatus', 
+          value: 'cancelled',
+          cancellationReason: cancellationReason 
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في إلغاء العقد');
+      }
+      setShowCancelModal(false);
+      setCancellationReason('');
+      router.push('/admin/neworders');
+    } catch (error: any) {
+      console.error('Error cancelling contract:', error);
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ في إلغاء العقد',
+        message: error.message || 'حدث خطأ أثناء إلغاء العقد',
+      });
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleChangeHomemaid = () => {
@@ -742,6 +758,7 @@ export default function TrackOrder() {
     );
   };
 
+
   // --- Alert Modal Component ---
   const AlertModal = () => {
     if (!showAlertModal.isOpen) return null;
@@ -808,13 +825,15 @@ export default function TrackOrder() {
               <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
             </div>
             <div className="flex gap-4">
-              <button
-                className="bg-red-600 text-white px-4 py-2 rounded-md text-md hover:bg-red-700 disabled:opacity-50"
-                onClick={handleCancelContract}
-                disabled={updating}
-              >
-                إلغاء العقد
-              </button>
+              {orderData.bookingStatus !== 'cancelled' && (
+                <button
+                  className="bg-red-600 text-white px-4 py-2 rounded-md text-md hover:bg-red-700 disabled:opacity-50"
+                  onClick={handleCancelContract}
+                  disabled={updating}
+                >
+                  إلغاء العقد
+                </button>
+              )}
               <button
                 className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-md hover:bg-teal-800 hover:text-white disabled:opacity-50"
                 onClick={handleChangeHomemaid}
@@ -2246,6 +2265,54 @@ export default function TrackOrder() {
 
         {/* Modals */}
         <ConfirmModal />
+        
+        {/* Cancel Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div
+              className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 mb-4 text-right">إلغاء العقد</h3>
+              <p className="text-gray-700 mb-4 text-right">هل أنت متأكد من إلغاء العقد؟ هذا الإجراء لا يمكن التراجع عنه.</p>
+              <div className="mb-4">
+                <label className="block text-right text-gray-700 mb-2 font-medium">
+                  سبب الإلغاء <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="يرجى كتابة سبب الإلغاء..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"
+                  rows={4}
+                  dir="rtl"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancellationReason('');
+                  }}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                  onClick={handleConfirmCancel}
+                  disabled={updating}
+                >
+                  {updating ? 'جاري الإلغاء...' : 'تأكيد الإلغاء'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <AlertModal />
         <LoadingModal />
         <ErrorModal 

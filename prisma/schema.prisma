@@ -411,6 +411,7 @@ transactios transactions[]
   isHidden        Boolean? @default(false)
 ratings       Rating[]
   ReasonOfRejection  String?   @db.VarChar(255)
+  ReasonOfCancellation String?   @db.VarChar(255)
   typeOfContract String?
   housed              housing[]
   income              income[]

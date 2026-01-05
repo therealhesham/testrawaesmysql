@@ -899,23 +899,28 @@ const arabicRegionMap: { [key: string]: string } = {
                 value={clientSearchTerm}
                 onChange={handleClientSearchChange}
                 onBlur={handleClientInputBlur}
-                onFocus={() => clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
+                onFocus={() => !formData.clientID && clientSearchTerm.length >= 1 && setShowClientSuggestions(true)}
                 placeholder="ابحث عن العميل بالاسم أو رقم الهاتف"
+                readOnly={!!formData.clientID}
                 disabled={isSubmitting}
                 className={`w-full p-3 border ${
                   errors.clientID ? 'border-red-500' : 'border-gray-300'
-                } rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                  isSubmitting ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-50'
+                } rounded-md text-right ${
+                  formData.clientID 
+                    ? 'bg-gray-50 text-gray-500 cursor-not-allowed' 
+                    : 'focus:border-teal-500 focus:ring-1 focus:ring-teal-500'
+                } ${
+                  isSubmitting ? 'bg-gray-200 cursor-not-allowed' : formData.clientID ? '' : 'bg-gray-50'
                 }`}
               />
-              {isSearchingClients && (
+              {isSearchingClients && !formData.clientID && (
                 <div className="absolute right-3 top-3">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
                 </div>
               )}
               
               {/* Client Search Results Dropdown */}
-              {showClientSuggestions && clientSuggestions.length > 0 && (
+              {!formData.clientID && showClientSuggestions && clientSuggestions.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                   {clientSuggestions.map((client, index) => (
                     <div

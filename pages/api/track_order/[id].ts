@@ -473,7 +473,13 @@ const cookieHeader = req.headers.cookie;
             if (value === 'cancelled') {
               updateData.bookingstatus = 'cancelled';
               arrivalUpdate.externalOfficeStatus = 'cancelled';
-              logMessage = `تعديل حالة الحجز في الطلب ${id} من "${oldBooking}" إلى "cancelled"`;
+              // حفظ سبب الإلغاء إذا تم إرساله
+              if (req.body.cancellationReason) {
+                updateData.ReasonOfCancellation = req.body.cancellationReason;
+                logMessage = `تعديل حالة الحجز في الطلب ${id} من "${oldBooking}" إلى "cancelled" - سبب الإلغاء: ${req.body.cancellationReason}`;
+              } else {
+                logMessage = `تعديل حالة الحجز في الطلب ${id} من "${oldBooking}" إلى "cancelled"`;
+              }
             } else {
               return res.status(400).json({ error: 'Invalid bookingStatus value' });
             }

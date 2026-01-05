@@ -85,7 +85,16 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
     
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
+      setFormData(prev => {
+        const updated = { ...prev, [name]: checked };
+        // If isRepeating is checked and repeatType is set, show repeat details
+        if (name === 'isRepeating' && checked && updated.repeatType) {
+          setShowRepeatDetails(true);
+        } else if (name === 'isRepeating' && !checked) {
+          setShowRepeatDetails(false);
+        }
+        return updated;
+      });
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -369,7 +378,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
               </div>
 
               {/* Repeat Details */}
-              {showRepeatDetails && (
+              {(showRepeatDetails || (formData.isRepeating && formData.repeatType)) && (
                 <div className="repeat-details flex flex-col items-start gap-6">
                   <div className="repeat-details-row flex-row items-center justify-end gap-4">
                       <label className="text-sm font-medium text-gray-700">كل</label>
@@ -428,9 +437,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                           className="w-full border-none outline-none bg-transparent text-right text-gray-600 text-sm"
                           dir="rtl"
                         />
-                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {/* <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        </svg> */}
                       </div>
                     </div>
                     <div className="form-group">
@@ -444,9 +453,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, onSubmit }
                           className="w-full border-none outline-none bg-transparent text-right text-gray-600 text-sm"
                           dir="rtl"
                         />
-                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {/* <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        </svg> */}
                       </div>
                     </div>
                   </div>

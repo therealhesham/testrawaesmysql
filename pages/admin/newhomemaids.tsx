@@ -18,7 +18,8 @@ interface Props {
 
 const AddWorkerForm: React.FC<Props> = ({ error }) => {
   const router = useRouter();
-  const [offices, setOffices] = useState<Array<{ office: string }>>([]);
+  const [allOffices, setAllOffices] = useState<Array<{ office: string; Country?: string }>>([]);
+  const [filteredOffices, setFilteredOffices] = useState<Array<{ office: string; Country?: string }>>([]);
   const [fileNames, setFileNames] = useState<{ [key: string]: string }>({
   Picture: '',
   FullPicture: '',
@@ -88,7 +89,33 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     if (id === 'name') {
       filteredValue = value.replace(/[^a-zA-Z\u0600-\u06FF\s]/g, '');
     }
-    setFormData((prev) => ({ ...prev, [id]: filteredValue }));
+    
+    // إذا تم تغيير الجنسية، قم بتصفية المكاتب وإعادة تعيين المكتب المختار إذا لزم الأمر
+    if (id === 'nationality') {
+      const filtered = allOffices.filter(office => {
+        if (!value) return true; // إذا لم يتم اختيار جنسية، اعرض كل المكاتب
+        const officeCountry = office.Country?.toLowerCase().trim() || '';
+        const selectedNationality = value.toLowerCase().trim();
+        return officeCountry === selectedNationality;
+      });
+      setFilteredOffices(filtered);
+      
+      // إذا كان المكتب المختار حالياً لا ينتمي للجنسية الجديدة، قم بإعادة تعيينه
+      const currentOffice = allOffices.find(off => off.office === formData.officeName);
+      if (value && currentOffice) {
+        const officeCountry = currentOffice.Country?.toLowerCase().trim() || '';
+        const selectedNationality = value.toLowerCase().trim();
+        if (officeCountry !== selectedNationality) {
+          setFormData((prev) => ({ ...prev, [id]: filteredValue, officeName: '' }));
+        } else {
+          setFormData((prev) => ({ ...prev, [id]: filteredValue }));
+        }
+      } else {
+        setFormData((prev) => ({ ...prev, [id]: filteredValue }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [id]: filteredValue }));
+    }
     setErrors((prev) => ({ ...prev, [id]: '' }));
   };
 
@@ -280,8 +307,8 @@ const handleHomemaidImageChange = async (
     if (formData.passport) {
       if (!/^[a-zA-Z0-9]{6,20}$/.test(formData.passport)) {
         newErrors.passport = 'رقم جواز السفر يجب أن يكون بين 6-20 حرفًا ورقمًا';
-      } else if (!/[a-zA-Z]/.test(formData.passport) || !/[0-9]/.test(formData.passport)) {
-        newErrors.passport = 'رقم جواز السفر يجب أن يحتوي على حروف وأرقام';
+      } else if (!/[a-zA-Z]/.test(formData.passport)) {
+        newErrors.passport = 'رقم جواز السفر يجب أن يحتوي على حرف واحد على الأقل';
       }
     }
 
@@ -343,7 +370,9 @@ const handleHomemaidImageChange = async (
     try {
       const response = await fetch('/api/office_list');
       const data = await response.json();
-      setOffices(data.finder || []);
+      const officesList = data.finder || [];
+      setAllOffices(officesList);
+      setFilteredOffices(officesList); // في البداية، اعرض كل المكاتب
     } catch (error) {
       console.error('Error fetching offices:', error);
     }
@@ -1021,15 +1050,21 @@ const handleHomemaidImageChange = async (
                         value={formData.officeName}
                         onChange={handleChange}
                         className={`border ${errors.officeName ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        disabled={!formData.nationality}
                       >
-                        <option value="" disabled>اختر المكتب</option>
-                        {offices.map((e, index) => (
+                        <option value="" disabled>
+                          {formData.nationality ? 'اختر المكتب' : 'يرجى اختيار الجنسية أولاً'}
+                        </option>
+                        {filteredOffices.map((e, index) => (
                           <option key={index} value={e.office}>
                             {e.office}
                           </option>
                         ))}
                       </select>
                       {errors.officeName && <p className="text-red-500 text-xs mt-1">{errors.officeName}</p>}
+                      {formData.nationality && filteredOffices.length === 0 && (
+                        <p className="text-yellow-600 text-xs mt-1">لا توجد مكاتب متاحة للجنسية المختارة</p>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <label htmlFor="salary" className="text-gray-500 text-sm mb-1">الراتب <span className="text-red-500">*</span></label>

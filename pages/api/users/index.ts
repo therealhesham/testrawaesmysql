@@ -55,6 +55,14 @@ export default async function handler(req, res) {
     case 'POST':
       try {
         const { username, phonenumber, idnumber, password, email, roleId, pictureurl } = req.body;
+const phoneNumberFind = await prisma.user.findUnique({
+  where: {
+    phonenumber: phonenumber,
+  },
+});
+if(phoneNumberFind){
+  return res.status(201).json({ error: 'رقم الهاتف مستخدم من قبل' ,type:"phoneNumber"});
+}
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await prisma.user.create({

@@ -131,8 +131,13 @@ useEffect(() => {
   // Handle user form submission
   const handleAddUser = async () => {
     try {
-      await axios.post('/api/users', newUser);
-      setIsAddUserModalOpen(false);
+const waiter =       await axios.post('/api/users', newUser);
+      
+if (waiter.data.type === "phoneNumber"){
+  showNotification(waiter.data.error, 'error');
+  return;
+}
+setIsAddUserModalOpen(false);
       setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
       fetchUsers();
       showNotification('تمت إضافة المستخدم بنجاح.');
