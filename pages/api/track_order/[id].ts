@@ -706,10 +706,12 @@ const cookieHeader = req.headers.cookie;
               arrivalUpdate.office = updatedData['دولة المكتب الخارجي'];
               changes.push(`دولة المكتب الخارجي: من "${oldOffice || 'فارغ'}" إلى "${updatedData['دولة المكتب الخارجي']}"`);
             }
-            if (updatedData['رقم عقد مساند التوثيق']) {
+            if (Object.prototype.hasOwnProperty.call(updatedData, 'رقم عقد مساند التوثيق')) {
               const oldExtContract = order.arrivals[0]?.externalmusanedContract;
-              arrivalUpdate.externalmusanedContract = updatedData['رقم عقد مساند التوثيق'];
-              changes.push(`رقم عقد مساند التوثيق: من "${oldExtContract || 'فارغ'}" إلى "${updatedData['رقم عقد مساند التوثيق']}"`);
+              const newExtContract = updatedData['رقم عقد مساند التوثيق'];
+              // حفظ القيمة حتى لو كانت فارغة
+              arrivalUpdate.externalmusanedContract = newExtContract && newExtContract.trim() !== '' ? newExtContract.trim() : null;
+              changes.push(`رقم عقد مساند التوثيق: من "${oldExtContract || 'فارغ'}" إلى "${newExtContract || 'فارغ'}"`);
             }
             break;
           case 'destinations':
