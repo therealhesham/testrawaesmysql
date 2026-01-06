@@ -4,7 +4,6 @@ import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
 import { Search, ChevronDown, X } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
-import PreRentalModal from 'components/PreRentalModal';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import jsPDF from 'jspdf';
@@ -78,6 +77,12 @@ export default function Dashboard({
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(!hasPermission);
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [activePopup, setActivePopup] = useState<string | null>(null);
+  const [clients, setClients] = useState<any[]>([]);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
+  const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
 
   // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string) => {
@@ -182,9 +187,84 @@ export default function Dashboard({
   }, [hasPermission, contractType, searchTerm, nationality, office, status]); // Dependencies for useCallback
 useEffect(() => {
   const authToken = localStorage.getItem('token');
-  const decoder = authToken ? jwtDecode(authToken) : null;
+  const decoder = authToken ? jwtDecode(authToken) as any : null;
   setUserName(decoder?.username || '');
 }, [userName]);
+  // Auto search functions for clients
+  const searchClients = (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+      return;
+    }
+    
+    // Search in the existing clients data
+    const filteredClients = clients.filter((client: any) => 
+      client.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.phonenumber?.includes(searchTerm)
+    );
+    
+    setClientSuggestions(filteredClients.slice(0, 10)); // Limit to 10 results
+    setShowClientSuggestions(true);
+  };
+
+  // Handle client search input change
+  const handleClientSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setClientSearchTerm(value);
+    
+    if (value.trim()) {
+      searchClients(value);
+    } else {
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+    }
+  };
+
+  // Handle client suggestion click
+  const handleClientSuggestionClick = (client: any) => {
+    setSelectedClient(client);
+    setClientSearchTerm(client.fullname);
+    setShowClientSuggestions(false);
+  };
+
+  // Handle input blur for suggestions
+  const handleClientInputBlur = () => {
+    setTimeout(() => {
+      setShowClientSuggestions(false);
+    }, 200);
+  };
+
+  // Fetch clients on mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const response = await fetch('/api/autocomplete/clients');
+        const data = await response.json();
+        if (data.data) {
+          setClients(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+      }
+    };
+    fetchClients();
+  }, []);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.client-search-container')) {
+        setShowClientSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   useEffect(() => {
     const checkAuthAndPermissions = async () => {
       if (typeof window !== 'undefined') {
@@ -501,12 +581,27 @@ const exportedData = async ()=>{
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
+    setActivePopup(null);
+    setSelectedClient(null);
+    setClientSearchTerm('');
+    setClientSuggestions([]);
+    setShowClientSuggestions(false);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setActivePopup(null);
+    setSelectedClient(null);
+    setClientSearchTerm('');
+    setClientSuggestions([]);
+    setShowClientSuggestions(false);
     // Optionally refetch data if a new rental order might affect the list
     fetchData(currentPage);
+  };
+
+  const openPopup = (popupId: string) => setActivePopup(popupId);
+  const closePopup = () => {
+    setActivePopup(null);
   };
 
   const handlePermissionModalClose = () => {
@@ -799,25 +894,113 @@ const exportedData = async ()=>{
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl relative">
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <h2 className="text-xl font-bold mb-4 text-right">إضافة طلب تأجير</h2>
-            <PreRentalModal
-              isOpen={isModalOpen}
-              onClose={handleCloseModal}
-              onSelectClient={(client) => {
-                handleCloseModal();
-              }}
-              onNewClient={() => {
-                // Handle new client creation if needed
-              }}
-            />
-          </div>
+          {!activePopup ? (
+            <div className="bg-white rounded-2xl shadow-lg w-full max-w-md text-center relative p-6">
+              <button
+                className="absolute top-2 left-2 text-gray-600 hover:text-gray-800"
+                onClick={handleCloseModal}
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col gap-3 w-full">
+                <p className="text-base font-medium">تحقق من العميل</p>
+                <p className="text-sm text-gray-600">هل العميل موجود مسبقاً؟</p>
+
+                <div className="relative client-search-container">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={clientSearchTerm}
+                    onChange={handleClientSearchChange}
+                    onBlur={handleClientInputBlur}
+                    placeholder="ابحث عن العميل بالاسم أو رقم الهاتف"
+                    className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
+                  />
+                  
+                  {/* Client Search Results Dropdown */}
+                  {showClientSuggestions && clientSuggestions.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {clientSuggestions.map((client, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleClientSuggestionClick(client)}
+                          className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                        >
+                          <div className="font-medium text-md">{client.fullname}</div>
+                          <div className="text-sm text-gray-500">{client.phonenumber} - {client.city || ''}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-row gap-2">
+                  <button 
+                    onClick={() => router.push("/admin/clients")} 
+                    className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200"
+                  >
+                    عميل جديد
+                  </button>
+                  <button
+                    className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200"
+                    onClick={() => {
+                      setActivePopup("popup-product-check");
+                    }}
+                    disabled={!selectedClient}
+                  >
+                    متابعة
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : activePopup === 'popup-product-check' && (
+            <div className="bg-gray-100 p-8 rounded-xl shadow-2xl w-120 text-center transform transition-all duration-300 ease-in-out relative">
+              <button
+                className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                onClick={() => {
+                  closePopup();
+                  setSelectedClient(null);
+                  setClientSearchTerm('');
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-semibold mb-4 text-teal-900">اختيار نوع الطلب</h2>
+              <p className="text-gray-600 mb-6">هل تريد اختيار من العاملات المتاحات أو حسب المواصفات؟</p>
+              {selectedClient && (
+                <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-600 mb-1">العميل المختار:</p>
+                  <p className="font-medium">{selectedClient.fullname}</p>
+                  <p className="text-sm text-gray-500">{selectedClient.phonenumber} - {selectedClient.city || ''}</p>
+                </div>
+              )}
+              <div className="flex justify-center gap-4">
+                <button
+                  className="bg-gray-100 text-gray-800 border-2 border-teal-800 px-6 py-3 rounded-lg hover:bg-gray-200 transition duration-200 text-base font-medium"
+                  onClick={() => {
+                    closePopup();
+                    handleCloseModal();
+                    const clientData = selectedClient ? `&clientId=${selectedClient.id}&clientName=${encodeURIComponent(selectedClient.fullname)}&clientPhone=${selectedClient.phonenumber}&clientCity=${selectedClient.city || ''}&contractType=rental` : '&contractType=rental';
+                    router.push(`/admin/order-form?type=add-specs${clientData}`);
+                  }}
+                >
+                  حسب المواصفات
+                </button>
+                <button
+                  className="bg-teal-900 text-white px-6 py-3 rounded-lg hover:bg-teal-800 transition duration-200 text-base font-medium"
+                  onClick={() => {
+                    closePopup();
+                    handleCloseModal();
+                    const clientData = selectedClient ? `&clientId=${selectedClient.id}&clientName=${encodeURIComponent(selectedClient.fullname)}&clientPhone=${selectedClient.phonenumber}&clientCity=${selectedClient.city || ''}&contractType=rental` : '&contractType=rental';
+                    router.push(`/admin/order-form?type=add-available${clientData}`);
+                  }}
+                >
+                  قائمة العاملات المتاحة
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
