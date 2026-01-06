@@ -36,16 +36,27 @@ const pageSize = Number(pageSizeQ);
   }
 }
 
-  console.log("Filters:", filters);
 
   try {
     const totalRecords = await prisma.homemaid.count({
-      where: { NewOrder: { every: { HomemaidId: null } }, ...filters },
+      where: {
+        OR: [
+          { NewOrder: { every: { HomemaidId: null } } },
+          { NewOrder: { some: { bookingstatus: { in: ["cancelled", "rejected"] } } } }
+        ],
+        ...filters
+      },
     });
     const totalPages = Math.ceil(totalRecords / pageSize);
 
     const data = await prisma.homemaid.findMany({
-      where: { NewOrder: { every: { HomemaidId: null } }, ...filters },
+      where: {
+        OR: [
+          { NewOrder: { every: { HomemaidId: null } } },
+          { NewOrder: { some: { bookingstatus: { in: ["cancelled", "rejected"] } } } }
+        ],
+        ...filters
+      },
       include: { NewOrder: true, office: {select:{Country:true}} },
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,

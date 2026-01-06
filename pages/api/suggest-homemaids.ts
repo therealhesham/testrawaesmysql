@@ -14,13 +14,176 @@ export default async function handler(
   try {
     const { experience, nationality, religion, age, minAge, maxAge} = req.query;
     
-    // Base condition for available homemaids (not booked/delivered)
+    
+    
+    const sampleOrders = await prisma.neworder.findMany({
+      select: { id: true, HomemaidId: true, bookingstatus: true },
+      take: 10,
+      orderBy: { id: 'desc' }
+    });
+    sampleOrders.forEach(o => {
+      console.log(`  - Order ${o.id}: HomemaidId=${o.HomemaidId}, Status=${o.bookingstatus || 'null'}`);
+    });
+    
+    const bookedStatuses = [
+      "new_order", 
+      "new_orders", 
+      "delivered",
+      "pending",
+      "office_link_approved",
+      "pending_office_link",
+      "external_office_approved",
+      "pending_external_office",
+      "medical_check_passed",
+      "pending_medical_check",
+      "foreign_labor_approved",
+      "pending_foreign_labor",
+      "agency_paid",
+      "pending_agency_payment",
+      "embassy_approved",
+      "pending_embassy",
+      "visa_issued",
+      "pending_visa",
+      "travel_permit_issued",
+      "pending_travel_permit",
+      "received",
+      "pending_receipt"
+    ];
+    
     const baseBookingStatusCondition = {
-      OR: [
-        { bookingstatus: null },
-        { bookingstatus: { not: {in: ["booked", "new_order", "new_orders", "delivered"]} } }
-      ]
+      NOT: {
+        NewOrder: {
+          some: {
+            AND: [
+              {
+                bookingstatus: {
+                  in: bookedStatuses
+                }
+              },
+              {
+                ReasonOfCancellation: null
+              },
+              {
+                ReasonOfRejection: null
+              }
+            ]
+          }
+        }
+      }
     };
+    
+    // تشخيص: عدد جميع العاملات في النظام
+    const totalHomemaidsCount = await prisma.homemaid.count();
+    console.log(`📊 إجمالي عدد العاملات في النظام: ${totalHomemaidsCount}`);
+    
+    // تشخيص: عدد العاملات المتاحة
+    const totalAvailableCount = await prisma.homemaid.count({
+      where: baseBookingStatusCondition
+    });
+    console.log(`📊 إجمالي عدد العاملات المتاحة (غير محجوزة): ${totalAvailableCount}`);
+    
+    // تشخيص: عدد العاملات التي لديها طلبات نشطة
+    const homemaidsWithActiveOrders = await prisma.homemaid.count({
+      where: {
+        NewOrder: {
+          some: {
+            bookingstatus: {
+              in: bookedStatuses
+            }
+          }
+        }
+      }
+    });
+    console.log(`🔒 عدد العاملات التي لديها طلبات نشطة محجوزة: ${homemaidsWithActiveOrders}`);
+    
+    // تشخيص: عرض آخر 3 عاملات تم إضافتهن
+    const latestHomemaids = await prisma.homemaid.findMany({
+      where: baseBookingStatusCondition,
+      orderBy: { id: 'desc' },
+      take: 3,
+      include: {
+        office: {
+          select: {
+            Country: true,
+            office: true,
+          },
+        },
+      },
+    });
+    console.log('🆕 آخر 3 عاملات متاحة:');
+    for (const h of latestHomemaids) {
+      const birthDate = h.dateofbirth ? new Date(h.dateofbirth) : null;
+      const age = birthDate ? new Date().getFullYear() - birthDate.getFullYear() : 'غير محدد';
+      
+      // جلب طلبات هذه العاملة
+      const orders = await prisma.neworder.findMany({
+        where: { HomemaidId: h.id },
+        select: { id: true, bookingstatus: true }
+      });
+      
+      console.log(`  - ID: ${h.id} | ${h.Name} | العمر: ${age} | الطلبات: ${orders.length > 0 ? orders.map(o => `(${o.id}: ${o.bookingstatus || 'null'})`).join(', ') : 'لا يوجد طلبات'}`);
+    }
+    
+    // تشخيص: عدد العاملات حسب الجنسية فقط (من office.Country أو Nationalitycopy)
+    if (nationality) {
+      const nationalityOnlyCount = await prisma.homemaid.count({
+        where: {
+          AND: [ 
+            baseBookingStatusCondition,
+            {
+              OR: [
+                {
+                  office: {
+                    Country: { contains: nationality as string }
+                  }
+                },
+                {
+                  Nationalitycopy: { contains: nationality as string }
+                }
+              ]
+            }
+          ]
+        }
+      });
+      console.log(`🌍 عدد العاملات بجنسية "${nationality}": ${nationalityOnlyCount}`);
+      
+      // جلب عينة من العاملات بهذه الجنسية للتشخيص
+      const sampleHomemaids = await prisma.homemaid.findMany({
+        where: {
+          AND: [
+            baseBookingStatusCondition,
+            {
+              OR: [
+                {
+                  office: {
+                    Country: { contains: nationality as string }
+                  }
+                },
+                {
+                  Nationalitycopy: { contains: nationality as string }
+                }
+              ]
+            }
+          ]
+        },
+        include: {
+          office: {
+            select: {
+              Country: true,
+              office: true,
+            },
+          },
+        },
+        take: 5
+      });
+      
+      console.log('📋 عينة من العاملات بهذه الجنسية:');
+      sampleHomemaids.forEach(h => {
+        const birthDate = h.dateofbirth ? new Date(h.dateofbirth) : null;
+        const age = birthDate ? new Date().getFullYear() - birthDate.getFullYear() : 'غير محدد';
+        console.log(`  - ${h.Name} | العمر: ${age} | الجنسية (Office): ${h.office?.Country || 'غير محدد'} | الجنسية (Copy): ${h.Nationalitycopy || 'غير محدد'} | الدين: ${h.Religion || 'غير محدد'} | الخبرة: ${h.ExperienceYears || 'غير محدد'} | حالة الحجز: ${h.bookingstatus || 'متاح'}`);
+      });
+    }
     
     // الأولوية: الجنسية والعمر معاً (AND) - دقة أعلى
     const priorityConditions: any[] = [];
@@ -29,11 +192,18 @@ export default async function handler(
     // الجنسية - أولوية عالية ودقة عالية
     if (nationality) {
       const nationalityStr = nationality as string;
-      // البحث الدقيق من خلال Country في جدول office
+      // البحث الدقيق من خلال Country في جدول office أو Nationalitycopy
       priorityConditions.push({
-        office: {
-          Country: { contains: nationalityStr }
-        }
+        OR: [
+          {
+            office: {
+              Country: { contains: nationalityStr }
+            }
+          },
+          {
+            Nationalitycopy: { contains: nationalityStr }
+          }
+        ]
       });
     }
 
@@ -138,6 +308,8 @@ export default async function handler(
         ]
       };
       
+      console.log('🔍 شروط البحث الدقيق:', JSON.stringify(exactMatchWhereClause, null, 2));
+      
       homemaids = await prisma.homemaid.findMany({
         where: exactMatchWhereClause,
         include: {
@@ -150,6 +322,8 @@ export default async function handler(
         },
         take: 30, 
       });
+      
+      console.log(`✅ تم إيجاد ${homemaids.length} عاملة في البحث الدقيق`);
     }
     
     // إذا لم توجد نتائج كافية، البحث بالجنسية أو العمر فقط
@@ -206,12 +380,17 @@ export default async function handler(
       if (nationality) {
         const nationalityLower = (nationality as string).toLowerCase();
         const officeCountry = homemaid.office?.Country?.toLowerCase() || '';
+        const nationalityCopy = homemaid.Nationalitycopy?.toLowerCase() || '';
         
-        // تطابق دقيق (exact match)
-        if (officeCountry === nationalityLower || officeCountry.includes(nationalityLower) || nationalityLower.includes(officeCountry)) {
+        // تطابق دقيق (exact match) من office.Country
+        if (officeCountry && (officeCountry === nationalityLower || officeCountry.includes(nationalityLower) || nationalityLower.includes(officeCountry))) {
           score += 50; // أعلى نقاط للجنسية
         }
-        else if (homemaid.office?.Country) {
+        // تطابق دقيق (exact match) من Nationalitycopy
+        else if (nationalityCopy && (nationalityCopy === nationalityLower || nationalityCopy.includes(nationalityLower) || nationalityLower.includes(nationalityCopy))) {
+          score += 50; // أعلى نقاط للجنسية
+        }
+        else if (homemaid.office?.Country || homemaid.Nationalitycopy) {
           score += 2; // أي جنسية موجودة
         }
       }
@@ -300,7 +479,13 @@ export default async function handler(
 
     const sortedHomemaids = scoredHomemaids
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 15); 
+      .slice(0, 15);
+    
+    // تشخيص: طباعة أعلى 5 نتائج
+    console.log('📊 أعلى 5 نتائج مع نقاط التطابق:');
+    sortedHomemaids.slice(0, 5).forEach((h, i) => {
+      console.log(`${i + 1}. ${h.Name} - الجنسية: ${h.office?.Country || 'غير محدد'} - الدين: ${h.Religion || 'غير محدد'} - الخبرة: ${h.ExperienceYears || 'غير محدد'} - النقاط: ${h.relevanceScore}`);
+    }); 
 
     const suggestions = sortedHomemaids.map((homemaid) => {
       let calculatedAge = null;
@@ -317,13 +502,13 @@ export default async function handler(
       return {
         id: homemaid.id,
         name: homemaid.Name,
-        nationality: homemaid.office?.Country || null, // فقط من خلال Country في office
+        nationality: homemaid.office?.Country || homemaid.Nationalitycopy || null, // من office.Country أو Nationalitycopy
         religion: homemaid.Religion,
         experience: homemaid.ExperienceYears,
         age: calculatedAge,
         passportNumber: homemaid.Passportnumber,
-        office: homemaid.office?.office,
-        country: homemaid.office?.Country,
+        office: homemaid.office?.office || 'غير محدد',
+        country: homemaid.office?.Country || homemaid.Nationalitycopy,
         picture: homemaid.Picture,
         relevanceScore: homemaid.relevanceScore,
       };

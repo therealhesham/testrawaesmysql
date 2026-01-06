@@ -471,6 +471,15 @@ const fetchSuggestions = async () => {
       ageRange: ageRange, // إرسال الرينج أيضاً للتوافق
     });
 
+    console.log('🔍 إرسال طلب البحث مع المعاملات:', {
+      experience: experience,
+      nationality: formData.Nationalitycopy.trim(),
+      religion: formData.Religion.trim(),
+      minAge: minAge,
+      maxAge: maxAge,
+      ageRange: ageRange,
+    });
+
     const response = await fetch(`/api/suggest-homemaids?${params.toString()}`);
     
     if (!response.ok) {
@@ -479,15 +488,20 @@ const fetchSuggestions = async () => {
     
     const data = await response.json();
     
+    console.log('📥 النتائج المستلمة:', data);
+    
     if (data.success) {
       if (data.suggestions && data.suggestions.length > 0) {
+        console.log(`✅ تم إيجاد ${data.suggestions.length} عاملة`);
         setSuggestions(data.suggestions);
         setShowSuggestionModal(true);
       } else {
+        console.log('❌ لم يتم العثور على عاملات');
         setModalMessage(data.message || 'لم يتم العثور على عاملات تطابق المواصفات المطلوبة');
         setShowErrorModal(true);
       }
     } else {
+      console.log('❌ خطأ:', data.message);
       setModalMessage(data.message || 'حدث خطأ أثناء البحث عن العاملات');
       setShowErrorModal(true);
     }

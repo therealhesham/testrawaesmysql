@@ -912,9 +912,14 @@ export default function EmployeeCash() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">جاري التحميل...</div>
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center min-h-screen bg-gray-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-teal-800"></div>
+            <div className="text-lg text-gray-700">جاري التحميل...</div>
+          </div>
+        </div>
+      </Layout>
     );
   }
 

@@ -211,7 +211,8 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
   };
 
   const fetchData = async (page = 1, customContractType?: string, isTypeSwitching = false) => {
-    if (isFetchingRef.current) return;
+    // Allow fetch if switching types (force new request)
+    if (isFetchingRef.current && !isTypeSwitching) return;
     isFetchingRef.current = true;
     setLoading(true);
     if (isTypeSwitching) {
@@ -220,7 +221,8 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
 
     try {
       // Use custom contract type if provided, otherwise use state
-      const typeToUse = customContractType || contractType;
+      // Always prefer customContractType when provided to avoid stale state
+      const typeToUse = customContractType !== undefined ? customContractType : contractType;
       
       const queryParams = new URLSearchParams({
         Name: filters.Name,
@@ -247,17 +249,21 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       const { data: res, totalPages: pages, totalCount, recruitment, rental } = await response.json();
       console.log("API Response - contractType used:", typeToUse);
       console.log("API Response - data count:", res?.length || 0);
+      console.log("API Response - full data:", res);
+      
+      // Always update counts regardless of data length
+      if (recruitment !== undefined) setRecruitmentCount(recruitment);
+      if (rental !== undefined) setRentalCount(rental);
+      
       if (res && res.length > 0) {
         const sortedData = sortData(res, sortBy, sortOrder);
         setData(sortedData);
         console.log("Data fetched successfully for type:", typeToUse, "Count:", res.length);
         setTotalPages(pages || 1);
-        if (recruitment !== undefined) setRecruitmentCount(recruitment);
-        if (rental !== undefined) setRentalCount(rental);
       } else {
         console.log("No data returned for contractType:", typeToUse);
         setData([]);
-        setTotalPages(1);
+        setTotalPages(pages || 1);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -331,9 +337,14 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     const isContractTypeChanged = previousContractTypeRef.current !== contractType;
     if (isContractTypeChanged) {
       previousContractTypeRef.current = contractType;
+      // Clear data immediately when switching types to show loading state
+      setData([]);
+      // Reset fetching flag to allow new request
+      isFetchingRef.current = false;
     }
     
-    fetchData(currentPage, undefined, isContractTypeChanged);
+    // Pass contractType explicitly to ensure correct value is used
+    fetchData(currentPage, contractType, isContractTypeChanged);
   }, [currentPage, filters, contractType]);
 
   // Sort data when sortBy or sortOrder changes

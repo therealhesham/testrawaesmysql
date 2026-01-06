@@ -1516,14 +1516,17 @@ export default function Home({
   };
 
   // Function to handle task completion update
-  const handleTaskUpdate = async (taskId: number, isCompleted: boolean, completionDate?: string, completionNotes?: string) => {
+  const handleTaskUpdate = async (taskId: number, isCompleted: boolean, completionDate?: string, completionNotes?: string, isSelfAssigned?: boolean) => {
     try {
+      // If task is self-assigned and completion date is set, mark as completed automatically
+      const finalIsCompleted = isSelfAssigned && completionDate ? true : isCompleted;
+      
       const response = await fetch('/api/tasks/update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           taskId,
-          isCompleted,
+          isCompleted: finalIsCompleted,
           completionDate,
           completionNotes
         }),
@@ -1536,7 +1539,7 @@ export default function Home({
         setClientTasks(prevTasks => 
           prevTasks.map(task => 
             task.id === taskId 
-              ? { ...task, isCompleted, completionDate, completionNotes }
+              ? { ...task, isCompleted: finalIsCompleted, completionDate, completionNotes }
               : task
           )
         );
@@ -1545,7 +1548,7 @@ export default function Home({
           isOpen: true,
           type: 'success',
           title: 'تم تحديث المهمة بنجاح',
-          message: isCompleted 
+          message: finalIsCompleted 
             ? 'تم اعتماد المهمة كمكتملة نهائياً' 
             : completionDate 
               ? 'تم تحديث تاريخ الانتهاء' 
@@ -2145,18 +2148,38 @@ export default function Home({
                         )}
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className={`text-sm ${task.completionDate ? 'text-orange-600' : 'text-gray-600'}`}>
-                          {task.completionDate ? 'انتهيت من المهمة' : 'لم أنته بعد'}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTaskCompletionClick(task);
-                          }}
-                          className="px-3 py-1 text-xs bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
-                        >
-                          {task.completionDate ? 'تعديل تاريخ الانتهاء' : 'تحديد انتهيت'}
-                        </button>
+                        {/* For self-assigned tasks, show completed status if completion date is set */}
+                        {task.assignedBy === user?.id ? (
+                          <>
+                            <span className={`text-sm ${task.completionDate ? 'text-green-600 font-medium' : 'text-gray-600'}`}>
+                              {task.completionDate ? 'مكتملة' : 'لم تكتمل بعد'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTaskCompletionClick(task);
+                              }}
+                              className="px-3 py-1 text-xs bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
+                            >
+                              {task.completionDate ? 'تعديل تاريخ الانتهاء' : 'تحديد انتهيت'}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className={`text-sm ${task.completionDate ? 'text-orange-600' : 'text-gray-600'}`}>
+                              {task.completionDate ? 'انتهيت من المهمة' : 'لم أنته بعد'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTaskCompletionClick(task);
+                              }}
+                              className="px-3 py-1 text-xs bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
+                            >
+                              {task.completionDate ? 'تعديل تاريخ الانتهاء' : 'تحديد انتهيت'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </li>

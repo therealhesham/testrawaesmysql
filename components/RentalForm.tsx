@@ -11,6 +11,8 @@ interface FormData {
   customerCity: string;
   workerId: string;
   contractDuration: string;
+  contractDurationMonths: number;
+  contractDurationDays: number;
   contractStartDate: string;
   contractEndDate: string;
   contractFile: string | null;
@@ -50,6 +52,8 @@ export default function RentalForm() {
     customerCity: '',
     workerId: '',
     contractDuration: '',
+    contractDurationMonths: 0,
+    contractDurationDays: 0,
     contractStartDate: '',
     contractEndDate: '',
     contractFile: null,
@@ -114,10 +118,60 @@ export default function RentalForm() {
     return null;
   };
 
+  // Calculate contract duration in months and days
+  const calculateContractDuration = (startDate: string, endDate: string): { months: number; days: number; displayText: string } => {
+    if (!startDate || !endDate) {
+      return { months: 0, days: 0, displayText: '' };
+    }
+
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+
+    if (end <= start) {
+      return { months: 0, days: 0, displayText: '' };
+    }
+
+    // Calculate months and remaining days
+    let months = 0;
+    let days = 0;
+    let currentDate = new Date(start);
+
+    // Calculate months by incrementing month by month
+    while (currentDate < end) {
+      const nextMonth = new Date(currentDate);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      
+      if (nextMonth <= end) {
+        months++;
+        currentDate = new Date(nextMonth);
+      } else {
+        break;
+      }
+    }
+
+    // Calculate remaining days
+    if (currentDate < end) {
+      const daysDiff = end.getTime() - currentDate.getTime();
+      days = Math.ceil(daysDiff / (1000 * 60 * 60 * 24));
+    }
+
+    // Format display text
+    let displayText = '';
+    if (months > 0 && days > 0) {
+      displayText = `${months} ${months === 1 ? 'شهر' : 'أشهر'} و ${days} ${days === 1 ? 'يوم' : 'أيام'}`;
+    } else if (months > 0) {
+      displayText = `${months} ${months === 1 ? 'شهر' : 'أشهر'}`;
+    } else if (days > 0) {
+      displayText = `${days} ${days === 1 ? 'يوم' : 'أيام'}`;
+    } else {
+      displayText = '';
+    }
+
+    return { months, days, displayText };
+  };
+
   const validateContractDuration = (duration: string): string | null => {
-    if (!duration.trim()) return 'مدة العقد مطلوبة';
-    const num = parseInt(duration);
-    if (isNaN(num) || num <= 0) return 'مدة العقد يجب أن تكون رقم موجب';
+    // Duration is now auto-calculated, so validation is optional
     return null;
   };
 
@@ -200,13 +254,22 @@ export default function RentalForm() {
     newErrors.phoneNumber = validatePhoneNumber(formData.phoneNumber);
     newErrors.nationalId = validateNationalId(formData.nationalId);
     newErrors.workerId = validateWorkerId(formData.workerId);
-    newErrors.contractDuration = validateContractDuration(formData.contractDuration);
+    // contractDuration is now auto-calculated, no need to validate
     newErrors.contractFile = validateContractFile(formData.contractFile);
     
     // Date validation
     const { startError, endError } = validateDates(formData.contractStartDate, formData.contractEndDate);
     if (startError) newErrors.contractStartDate = startError;
     if (endError) newErrors.contractEndDate = endError;
+    
+    // Validate that contract duration is calculated (dates are valid)
+    if (formData.contractStartDate && formData.contractEndDate) {
+      const start = new Date(formData.contractStartDate);
+      const end = new Date(formData.contractEndDate);
+      if (end <= start) {
+        newErrors.contractEndDate = 'تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية';
+      }
+    }
     
     // Amount validation
     const { totalError, paidError } = validateAmounts(formData.totalAmount, formData.paidAmount);
@@ -397,18 +460,36 @@ export default function RentalForm() {
         newData.remainingAmount = (total - paid).toFixed(2);
       }
       
-      // Date validation
-      if (fieldName === 'contractEndDate' && newData.contractStartDate && value < newData.contractStartDate) {
-        setModalMessage('تاريخ نهاية العقد يجب أن يكون بعد تاريخ البداية');
-        setShowErrorModal(true);
-        return prev;
+      // Auto-calculate contract duration when dates change
+      if (fieldName === 'contractStartDate' || fieldName === 'contractEndDate') {
+        const startDate = fieldName === 'contractStartDate' ? value : newData.contractStartDate;
+        const endDate = fieldName === 'contractEndDate' ? value : newData.contractEndDate;
+        
+        if (startDate && endDate) {
+          const duration = calculateContractDuration(startDate, endDate);
+          newData.contractDurationMonths = duration.months;
+          newData.contractDurationDays = duration.days;
+          newData.contractDuration = duration.displayText;
+        } else {
+          newData.contractDurationMonths = 0;
+          newData.contractDurationDays = 0;
+          newData.contractDuration = '';
+        }
       }
       
       return newData;
     });
     
-    // Clear error on change
-    setErrors(prev => ({ ...prev, [fieldName]: null }));
+    // Clear error on change (validation will happen on blur for dates)
+    if (fieldName === 'contractStartDate' || fieldName === 'contractEndDate') {
+      setErrors(prev => ({ 
+        ...prev, 
+        contractStartDate: fieldName === 'contractStartDate' ? undefined : prev.contractStartDate,
+        contractEndDate: fieldName === 'contractEndDate' ? undefined : prev.contractEndDate
+      }));
+    } else {
+      setErrors(prev => ({ ...prev, [fieldName]: undefined }));
+    }
     setTouched(prev => ({ ...prev, [fieldName]: true }));
   };
 
@@ -457,6 +538,15 @@ export default function RentalForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Recalculate contract duration before submission
+    let finalFormData = { ...formData };
+    if (formData.contractStartDate && formData.contractEndDate) {
+      const duration = calculateContractDuration(formData.contractStartDate, formData.contractEndDate);
+      finalFormData.contractDurationMonths = duration.months;
+      finalFormData.contractDurationDays = duration.days;
+      finalFormData.contractDuration = duration.displayText;
+    }
+    
     if (!validateForm()) {
       setModalMessage('يرجى تصحيح الأخطاء الموجودة في النموذج');
       setShowErrorModal(true);
@@ -468,14 +558,14 @@ export default function RentalForm() {
 
     try {
       let finalClientId = clientId;
-      let contractFileUrl: string | null = formData.contractFile;
+      let contractFileUrl: string | null = finalFormData.contractFile;
 
       if (newClient === 'true') {
         const clientData = {
-          fullname: formData.customerName,
-          phonenumber: formData.phoneNumber,
-          nationalId: formData.nationalId,
-          city: formData.customerCity,
+          fullname: finalFormData.customerName,
+          phonenumber: finalFormData.phoneNumber,
+          nationalId: finalFormData.nationalId,
+          city: finalFormData.customerCity,
         };
         const clientResponse = await fetch('/api/clients', {
           method: 'POST',
@@ -503,7 +593,7 @@ export default function RentalForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          ...finalFormData,
           clientId: finalClientId,
           contractFile: contractFileUrl,
         }),
@@ -518,6 +608,8 @@ export default function RentalForm() {
           customerCity: '',
           workerId: '',
           contractDuration: '',
+          contractDurationMonths: 0,
+          contractDurationDays: 0,
           contractStartDate: '',
           contractEndDate: '',
           contractFile: null,
@@ -693,26 +785,24 @@ export default function RentalForm() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="contractDuration" className="text-base text-right">مدة العقد (أشهر)</label>
+            <label htmlFor="contractDuration" className="text-base text-right">مدة العقد</label>
             <input
-              type="number"
+              type="text"
               id="contractDuration"
-              value={formData.contractDuration}
-              onChange={handleInputChange}
-              onBlur={(e) => {
-                const error = validateContractDuration(e.target.value);
-                setErrors(prev => ({ ...prev, contractDuration: error }));
-                setTouched(prev => ({ ...prev, contractDuration: true }));
-              }}
-              className={`bg-gray-50 border ${errors.contractDuration ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right transition-colors`}
-              min="1"
-              placeholder="6"
-              required
+              value={formData.contractDuration || 'سيتم الحساب تلقائياً'}
+              readOnly
+              className="bg-gray-100 border border-gray-200 rounded-md p-3 text-base text-right bg-opacity-50 cursor-not-allowed"
+              placeholder="سيتم الحساب تلقائياً"
             />
-            {touched.contractDuration && errors.contractDuration && (
-              <div className="flex items-center gap-1 text-red-600 text-sm mt-1">
-                <AlertCircle className="w-4 h-4" />
-                <span>{errors.contractDuration}</span>
+            {formData.contractDuration && (
+              <div className="text-sm text-gray-600 mt-1">
+                {formData.contractDurationMonths > 0 && (
+                  <span>{formData.contractDurationMonths} {formData.contractDurationMonths === 1 ? 'شهر' : 'أشهر'}</span>
+                )}
+                {formData.contractDurationMonths > 0 && formData.contractDurationDays > 0 && <span> و </span>}
+                {formData.contractDurationDays > 0 && (
+                  <span>{formData.contractDurationDays} {formData.contractDurationDays === 1 ? 'يوم' : 'أيام'}</span>
+                )}
               </div>
             )}
           </div>
@@ -726,8 +816,12 @@ export default function RentalForm() {
                 value={formData.contractStartDate}
                 onChange={handleInputChange}
                 onBlur={(e) => {
-                  const { startError } = validateDates(e.target.value, formData.contractEndDate);
-                  setErrors(prev => ({ ...prev, contractStartDate: startError }));
+                  const { startError, endError } = validateDates(e.target.value, formData.contractEndDate);
+                  setErrors(prev => ({ 
+                    ...prev, 
+                    contractStartDate: startError || undefined,
+                    contractEndDate: endError || prev.contractEndDate
+                  }));
                   setTouched(prev => ({ ...prev, contractStartDate: true }));
                 }}
                 className={`bg-gray-50 border ${errors.contractStartDate ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right w-full transition-colors`}
@@ -751,8 +845,12 @@ export default function RentalForm() {
                 value={formData.contractEndDate}
                 onChange={handleInputChange}
                 onBlur={(e) => {
-                  const { endError } = validateDates(formData.contractStartDate, e.target.value);
-                  setErrors(prev => ({ ...prev, contractEndDate: endError }));
+                  const { startError, endError } = validateDates(formData.contractStartDate, e.target.value);
+                  setErrors(prev => ({ 
+                    ...prev, 
+                    contractEndDate: endError || undefined,
+                    contractStartDate: startError || prev.contractStartDate
+                  }));
                   setTouched(prev => ({ ...prev, contractEndDate: true }));
                 }}
                 className={`bg-gray-50 border ${errors.contractEndDate ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-teal-500'} rounded-md p-3 text-base text-right w-full transition-colors`}

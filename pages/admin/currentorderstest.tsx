@@ -945,16 +945,16 @@ const exportedData = async ()=>{
                   <button
                     className="bg-teal-900 text-white px-4 py-2 rounded w-full hover:bg-teal-800 transition duration-200"
                     onClick={() => {
-                      setActivePopup("popup-product-check");
+                      router.push(`/admin/rentalform?clientId=${selectedClient?.id}`);
                     }}
                     disabled={!selectedClient}
                   >
-                    متابعة
+                    متابعة طلب تأجير
                   </button>
                 </div>
               </div>
             </div>
-          ) : activePopup === 'popup-product-check' && (
+          ) : (
             <div className="bg-gray-100 p-8 rounded-xl shadow-2xl w-120 text-center transform transition-all duration-300 ease-in-out relative">
               <button
                 className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"

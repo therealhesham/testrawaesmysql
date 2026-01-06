@@ -309,7 +309,6 @@ const cookieHeader = req.headers.cookie;
 
     try {
       const { field, value, section, updatedData } = req.body;
-      console.log('\n========== بداية تعديل طلب ==========');
       console.log('⏰ الوقت:', new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' }));
       console.log('🆔 رقم الطلب:', id);
       console.log('👤 المستخدم:', userId);

@@ -27,21 +27,24 @@ export default function TaskCompletionModal({
   // Determine the workflow based on user context
   const isMyTask = task?.userId === currentUser?.id;
   const isSentTask = task?.assignedBy === currentUser?.id;
+  const isSelfAssigned = task?.assignedBy === currentUser?.id && task?.userId === currentUser?.id;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // For self-assigned tasks: automatically mark as completed when completion date is set
       // For "My Tasks": only set completion date, don't mark as completed
       // For "Sent Tasks": can mark as truly completed if has completion date
-      const shouldMarkCompleted = isSentTask && isCompleted;
+      const shouldMarkCompleted = isSelfAssigned ? (completionDate ? true : false) : (isSentTask && isCompleted);
       
       await onTaskUpdate(
         task.id,
         shouldMarkCompleted,
         completionDate || undefined,
-        completionNotes || undefined
+        completionNotes || undefined,
+        isSelfAssigned
       );
       onClose();
     } catch (error) {
@@ -107,8 +110,22 @@ export default function TaskCompletionModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* For My Tasks: Only show completion status as informational */}
-          {isMyTask && (
+          {/* For Self-Assigned Tasks: Show automatic completion message */}
+          {isSelfAssigned && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                مهمة ذاتية
+              </label>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-green-800">
+                  عند تحديد تاريخ الانتهاء، ستُعتبر المهمة مكتملة تلقائياً (لأنك أسندتها لنفسك)
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* For My Tasks (not self-assigned): Only show completion status as informational */}
+          {isMyTask && !isSelfAssigned && (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">
                 حالة الانتهاء من جانبي
@@ -121,8 +138,8 @@ export default function TaskCompletionModal({
             </div>
           )}
 
-          {/* For Sent Tasks: Show completion approval options */}
-          {isSentTask && task.completionDate && (
+          {/* For Sent Tasks (not self-assigned): Show completion approval options */}
+          {isSentTask && !isSelfAssigned && task.completionDate && (
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">
                 حالة المهمة
@@ -157,11 +174,11 @@ export default function TaskCompletionModal({
             </div>
           )}
 
-          {/* Completion Date - Always show for My Tasks, conditionally for Sent Tasks */}
-          {(isMyTask || (isSentTask && !task.completionDate)) && (
+          {/* Completion Date - Always show for My Tasks and self-assigned tasks, conditionally for Sent Tasks */}
+          {((isMyTask || isSelfAssigned) || (isSentTask && !task.completionDate)) && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
-                {isMyTask ? 'تاريخ انتهائي من المهمة' : 'تاريخ الانتهاء'}
+                {isSelfAssigned ? 'تاريخ الانتهاء من المهمة' : isMyTask ? 'تاريخ انتهائي من المهمة' : 'تاريخ الانتهاء'}
               </label>
               <div className="relative">
                 <input
@@ -211,7 +228,7 @@ export default function TaskCompletionModal({
               ) : (
                 <>
                   <CheckCircle className="w-4 h-4" />
-                  {isMyTask ? 'تحديد انتهيت' : 'حفظ التغييرات'}
+                  {isSelfAssigned ? 'تحديد مكتمل' : isMyTask ? 'تحديد انتهيت' : 'حفظ التغييرات'}
                 </>
               )}
             </button>
