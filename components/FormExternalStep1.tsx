@@ -56,19 +56,109 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
   }, [data?.KingdomentryDate]);
 
   const arabicRegionMap: { [key: string]: string } = {
-    'Ar Riyāḍ': 'الرياض',
-    'Makkah al Mukarramah': 'مكة المكرمة',
-    'Al Madīnah al Munawwarah': 'المدينة المنورة',
-    'Ash Sharqīyah': 'المنطقة الشرقية',
-    'Asīr': 'عسير',
-    'Tabūk': 'تبوك',
-    'Al Ḩudūd ash Shamālīyah': 'الحدود الشمالية',
+      'Baha': 'الباحة',
+    'Jawf': 'الجوف',
+    'Qassim': 'القصيم',
+    'Riyadh': 'الرياض',
+    'Al-Kharj': 'الخرج',
+    'Ad Diriyah': 'الدرعية',
+    'Al Majma\'ah': 'المجمعة',
+    'Al Zulfi': 'الزلفي',
+    'Ad Dawadimi': 'الدوادمي',
+    'Wadi Ad Dawasir': 'وادي الدواسر',
+    'Afif': 'عفيف',
+    'Al Quway\'iyah': 'القويعية',
+    'Shaqra': 'شقراء',
+    'Hotat Bani Tamim': 'حوطة بني تميم',
+
+    'Makkah': 'مكة المكرمة',
+    'Jeddah': 'جدة',
+    'Taif': 'الطائف',
+    'Rabigh': 'رابغ',
+    'Al Qunfudhah': 'القنفذة',
+    'Al Lith': 'الليث',
+    'Khulais': 'خليص',
+    'Ranyah': 'رنية',
+    'Turabah': 'تربة',
+
+    'Madinah': 'المدينة المنورة',
+    'Yanbu': 'ينبع',
+    'Al Ula': 'العلا',
+    'Badr': 'بدر',
+    'Al Hinakiyah': 'الحناكية',
+    'Mahd Al Dhahab': 'مهد الذهب',
+
+    'Dammam': 'الدمام',
+    'Al Khobar': 'الخبر',
+    'Dhahran': 'الظهران',
+    'Al Ahsa': 'الأحساء',
+    'Al Hufuf': 'الهفوف',
+    'Al Mubarraz': 'المبرز',
+    'Jubail': 'الجبيل',
+    'Hafr Al Batin': 'حفر الباطن',
+    'Al Khafji': 'الخفجي',
+    'Ras Tanura': 'رأس تنورة',
+    'Qatif': 'القطيف',
+    'Abqaiq': 'بقيق',
+    'Nairiyah': 'النعيرية',
+    'Qaryat Al Ulya': 'قرية العليا',
+
+    'Buraydah': 'بريدة',
+    'Unaizah': 'عنيزة',
+    'Ar Rass': 'الرس',
+    'Al Bukayriyah': 'البكيرية',
+    'Al Badaye': 'البدائع',
+    'Al Mithnab': 'المذنب',
+    'Riyad Al Khabra': 'رياض الخبراء',
+
+    'Abha': 'أبها',
+    'Khamis Mushait': 'خميس مشيط',
+    'Bisha': 'بيشة',
+    'Mahayil': 'محايل عسير',
+    'Al Namas': 'النماص',
+    'Tanomah': 'تنومة',
+    'Ahad Rafidah': 'أحد رفيدة',
+    'Sarat Abidah': 'سراة عبيدة',
+    'Balqarn': 'بلقرن',
+
+    'Tabuk': 'تبوك',
+    'Duba': 'ضباء',
+    'Al Wajh': 'الوجه',
+    'Umluj': 'أملج',
+    'Tayma': 'تيماء',
+    'Haqi': 'حقل',
+
+    'Hail': 'حائل',
+    'Baqa': 'بقعاء',
+    'Al Ghazalah': 'الغزالة',
+
+    'Arar': 'عرعر',
+    'Rafha': 'رفحاء',
+    'Turaif': 'طريف',
+
     'Jazan': 'جازان',
-    'Najrān': 'نجران',
-    'Al Bāḩah': 'الباحة',
-    'Al Jawf': 'الجوف',
-    'Al Qaşīm': 'القصيم',
-    'Ḩa\'il': 'حائل',
+    'Sabya': 'صبيا',
+    'Abu Arish': 'أبو عريش',
+    'Samtah': 'صامطة',
+    'Baish': 'بيش',
+    'Ad Darb': 'الدرب',
+    'Al Aridah': 'العارضة',
+    'Fifa': 'فيفاء',
+
+    'Najran': 'نجران',
+    'Sharurah': 'شرورة',
+    'Hubuna': 'حبونا',
+
+    'Al Baha': 'الباحة',
+    'Baljurashi': 'بلجرشي',
+    'Al Mandq': 'المندق',
+    'Al Makhwah': 'المخواة',
+    'Qilwah': 'قلوة',
+
+    'Sakaka': 'سكاكا',
+    'Dumat Al Jandal': 'دومة الجندل',
+    'Al Qurayyat': 'القريات',
+    'Tabarjal': 'طبرجل'
   };
 
   const searchOrders = async (searchTerm: string) => {
@@ -209,17 +299,25 @@ export default function FormStepExternal1({ onNext, id, setId, data, getData }: 
             {/* Search Results Dropdown */}
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                {suggestions.map((suggestion, index) => (
-                  <div
-                    key={index}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
-                  >
-                    <div className="font-medium flex flex-col text-md">
-                      <span className="text-gray-500">رقم الطلب #{suggestion.split(' - ')[0]}</span>
+                {suggestions.map((suggestion, index) => {
+                  const parts = suggestion.split(' - ');
+                  const orderId = parts[0];
+                  const workerName = parts[1] || '';
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                    >
+                      <div className="font-medium flex flex-col text-md">
+                        <span className="text-gray-500">رقم الطلب #{orderId}</span>
+                        {workerName && (
+                          <span className="text-gray-700 text-sm mt-1">اسم العاملة: {workerName}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

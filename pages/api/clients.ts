@@ -15,28 +15,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: "الاسم، رقم الهاتف، والهوية مطلوبة" });
       }
 
-      const client = await prisma.client.create({
-        data: {
-          fullname,
-          phonenumber,
-          nationalId,
-          city,
-          Source: clientSource,
-          visa:{
-            create:{
-              visaNumber,
-              nationality,
-              gender,
-              profession,
-              visaFile,
-            }
+      const clientData: any = {
+        fullname,
+        phonenumber,
+        nationalId,
+        city,
+        Source: clientSource,
+      };
+
+      // إنشاء التأشيرة فقط إذا كانت البيانات موجودة وليست فارغة
+      if (visaNumber || nationality || gender || profession || visaFile) {
+        clientData.visa = {
+          create: {
+            visaNumber: visaNumber || null,
+            nationality: nationality || null,
+            gender: gender || null,
+            profession: profession || null,
+            visaFile: visaFile || null,
           }
-          // nationality: nationality as string,
-          // : gender as string,
-          // : profession as string,
-          // : visaFile as string,
-          // createdAt: new Date(),
-        },
+        };
+      }
+
+      const client = await prisma.client.create({
+        data: clientData,
       });
 
       res.status(201).json({ message: "تم إضافة العميل بنجاح", client });

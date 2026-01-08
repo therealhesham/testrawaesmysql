@@ -105,6 +105,9 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   const [visaFileName, setVisaFileName] = useState(''); // Store file name
   const [showCustomSourceModal, setShowCustomSourceModal] = useState(false);
   const [customSource, setCustomSource] = useState('');
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateClientId, setDuplicateClientId] = useState<number | null>(null);
+  const [duplicateMessage, setDuplicateMessage] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -229,6 +232,28 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     return Object.keys(newErrors).length === 0;
   };
 
+  // دالة للتحقق من وجود رقم التليفون أو رقم التأشيرة
+  const checkDuplicate = async (field: 'phonenumber' | 'visaNumber', value: string) => {
+    if (!value) return;
+    
+    try {
+      const response = await fetch(`/api/clients/check-duplicate?field=${field}&value=${value}`);
+      const data = await response.json();
+      
+      if (data.exists && data.clientId) {
+        setDuplicateClientId(data.clientId);
+        setDuplicateMessage(
+          field === 'phonenumber' 
+            ? 'العميل مُسجل بالفعل بهذا الرقم' 
+            : 'العميل مُسجل بالفعل برقم التأشيرة هذا'
+        );
+        setShowDuplicateModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking duplicate:', error);
+    }
+  };
+
   const handleInputChange = (
     e:
       | React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -248,6 +273,11 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
 
       setFormData((prev) => ({ ...prev, visaNumber: digitsOnly }));
       setErrors((prev: any) => ({ ...prev, visaNumber: '' }));
+      
+      // التحقق من وجود رقم التأشيرة عند اكتمال الرقم
+      if (digitsOnly.length === 10) {
+        checkDuplicate('visaNumber', digitsOnly);
+      }
       return;
     }
     
@@ -266,6 +296,11 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     });
     // Clear error for the field when user starts typing
     setErrors((prev: any) => ({ ...prev, [name]: '' }));
+    
+    // التحقق من وجود رقم التليفون عند اكتمال الرقم
+    if (name === 'phonenumber' && value.length === 9) {
+      checkDuplicate('phonenumber', value);
+    }
   };
 
   const selectedCityOption = useMemo(() => {
@@ -347,6 +382,18 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     setCustomSource('');
   };
 
+  const handleNavigateToClient = () => {
+    if (duplicateClientId) {
+      window.location.href = `/admin/clientdetails?id=${duplicateClientId}`;
+    }
+  };
+
+  const handleCloseDuplicateModal = () => {
+    setShowDuplicateModal(false);
+    setDuplicateClientId(null);
+    setDuplicateMessage('');
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
@@ -420,21 +467,27 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     setLoading(true);
     setError('');
     try {
+      const requestBody: any = {
+        fullname: formData.fullname,
+        phonenumber: formData.phonenumber,
+        nationalId: formData.nationalId,
+        city: formData.city,
+        clientSource: formData.clientSource,
+      };
+
+      // إضافة بيانات التأشيرة فقط إذا كان لدى العميل تأشيرة
+      if (formData.hasVisa === 'yes') {
+        requestBody.visaFile = formData.visaFile;
+        requestBody.visaNumber = formData.visaNumber;
+        requestBody.nationality = formData.nationality;
+        requestBody.gender = formData.gender;
+        requestBody.profession = formData.profession;
+      }
+
       const response = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullname: formData.fullname,
-          phonenumber: formData.phonenumber,
-          nationalId: formData.nationalId,
-          city: formData.city,
-          clientSource: formData.clientSource,
-          visaFile: formData.visaFile,
-          visaNumber: formData.visaNumber,
-          nationality: formData.nationality,
-          gender: formData.gender,
-          profession: formData.profession,
-        }),
+        body: JSON.stringify(requestBody),
       });
       if (!response.ok) {
         throw new Error('فشل في إضافة العميل');
@@ -469,6 +522,32 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
 
   return (
     <>
+      {/* Duplicate Client Modal */}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70]">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-medium text-text-dark mb-4">تنبيه</h3>
+            <p className="text-text-dark mb-6">{duplicateMessage}. هل تريد الانتقال إلى صفحة العميل؟</p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCloseDuplicateModal}
+                className="bg-gray-300 text-text-dark px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-400"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleNavigateToClient}
+                className="bg-teal-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-opacity-90"
+              >
+                نعم، الانتقال للعميل
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Source Modal */}
       {showCustomSourceModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[60]">
