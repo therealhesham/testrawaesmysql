@@ -583,25 +583,83 @@ const cookieHeader = req.headers.cookie;
             break;
           case 'homemaidInfo':
             console.log('👩‍🦰 تعديل معلومات العاملة المنزلية');
-            if (!order.HomemaidId) {
-              return res.status(400).json({ error: 'No Homemaid associated with this order' });
-            }
+            // if (!order.HomemaidId) {
+            //   return res.status(400).json({ error: 'No Homemaid associated with this order' });
+            // }
+            console.log('👩‍🦰 تعديل معلومات العاملة المنزلية', updatedData['id']);
             
-            const find = await prisma.neworder.findUnique({where:{id:Number(id),HomemaidId:Number(updatedData['id'])}});
-            if (find?.HomemaidId){
-              return res.status(400).json({ error: 'homemaid is Booked' });
+            // التحقق من أن العاملة ليست محجوزة في طلب نشط آخر
+            const activeOrder = await prisma.neworder.findFirst({
+              where: {
+                HomemaidId: Number(updatedData['id']),
+                bookingstatus: {
+                  notIn: ['cancelled', 'rejected']
+                },
+                id: { not: Number(id) } // استثناء الطلب الحالي
+              }
+            });
+
+            // إذا وُجدت العاملة في طلب نشط آخر، لا يمكن استخدامها
+            if (activeOrder) {
+              return res.status(400).json({ error: 'العاملة محجوزة في طلب آخر نشط' });
             }
-            
+
             const oldHomemaidId = order.HomemaidId;
             const newHomemaidId = updatedData['id'] ? Number(updatedData['id']) : order.HomemaidId;
             
-            const updatedHomemaid = await prisma.neworder.update({
-              include: { HomeMaid: true },
-              where: { id: Number(id) },
-              data: {
-                HomemaidId: newHomemaidId,
-              },
+            // إذا كانت العاملة في طلب ملغي/مرفوض، نحررها أولاً
+            const cancelledOrRejectedOrder = await prisma.neworder.findFirst({
+              where: {
+                HomemaidId: Number(updatedData['id']),
+                bookingstatus: {
+                  in: ['cancelled', 'rejected']
+                },
+                id: { not: Number(id) } // استثناء الطلب الحالي
+              }
             });
+
+            let updatedHomemaid;
+            
+            if (cancelledOrRejectedOrder) {
+              // تحرير العاملة من الطلب الملغي/المرفوض وإضافتها للطلب الحالي في transaction واحدة
+              console.log(`🔓 تحرير العاملة ${newHomemaidId} من الطلب ${cancelledOrRejectedOrder.id} (${cancelledOrRejectedOrder.bookingstatus})`);
+              
+              const result = await prisma.$transaction(async (tx) => {
+                // حفظ العاملة القديمة في HomemaidIdCopy للطلب الملغي/المرفوض وحذف HomemaidId
+                await tx.neworder.update({
+                  where: { id: cancelledOrRejectedOrder.id },
+                  data: {
+                    HomemaidIdCopy: cancelledOrRejectedOrder.HomemaidId,
+                    HomemaidId: null, // تحرير العاملة
+                  }
+                });
+                
+                // تحديث الطلب الحالي ليأخذ العاملة الجديدة
+                const updated = await tx.neworder.update({
+                  include: { HomeMaid: true },
+                  where: { id: Number(id) },
+                  data: {
+                    HomemaidIdCopy: newHomemaidId,
+                    HomemaidId: newHomemaidId,
+                  },
+                });
+                
+                return updated;
+              });
+              
+              updatedHomemaid = result;
+              console.log(`✅ تم تحرير العاملة وإضافتها للطلب الحالي بنجاح`);
+            } else {
+              // لا يوجد تضارب، تحديث عادي
+              updatedHomemaid = await prisma.neworder.update({
+                include: { HomeMaid: true },
+                where: { id: Number(id) },
+                data: {
+                  HomemaidIdCopy: newHomemaidId,
+                  HomemaidId: newHomemaidId,
+                },
+              });
+            }
             
             changes.push(`العاملة المنزلية: من معرف ${oldHomemaidId} إلى معرف ${newHomemaidId} (${updatedHomemaid.HomeMaid?.Name})`);
             

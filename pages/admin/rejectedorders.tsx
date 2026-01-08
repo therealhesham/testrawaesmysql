@@ -70,10 +70,22 @@ const handleOpenMenu = (e, rowIndex) => {
   };
 
   const confirmAccept = async (id) => {
-    const confirmRequest = await axios.post('/api/restoreorders', { id});
-    if(confirmRequest.status === 200) {
-      setModalMessage('تم قبول الطلب');
-      setShowSuccessModal(true);
+    try {
+      const confirmRequest = await axios.post('/api/restoreorders', { id });
+      if (confirmRequest.status === 200) {
+        setModalMessage('تم استعادة الطلب بنجاح');
+        setShowSuccessModal(true);
+        // إعادة تحميل قائمة الطلبات
+        newOrdersList(currentPage);
+      }
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        setModalMessage(error.response.data.message || 'غير مسموح باستعادة الطلب لأن العاملة مرتبطة بطلب آخر');
+        setShowErrorModal(true);
+      } else {
+        setModalMessage('حدث خطأ أثناء استعادة الطلب');
+        setShowErrorModal(true);
+      }
     }
     closePopup();
   };

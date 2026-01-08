@@ -557,6 +557,7 @@ const fetchSuggestions = async () => {
       delete newErrors.Religion;
       delete newErrors.ExperienceYears;
       delete newErrors.age;
+      delete newErrors.selectedHomemaidId;
       return newErrors;
     });
     
@@ -658,8 +659,10 @@ const fetchSuggestions = async () => {
       newErrors.contract = 'ملف العقد مطلوب';
     }
 
-    // If no homemaid selected, specs are required
+    // Homemaid validation - يجب اختيار عاملة
     if (!formData.selectedHomemaidId) {
+      newErrors.selectedHomemaidId = 'يجب اختيار عاملة';
+      // If no homemaid selected, specs are required
       if (!formData.Nationalitycopy) newErrors.Nationalitycopy = 'الجنسية مطلوبة';
       if (!formData.Religion) newErrors.Religion = 'الديانة مطلوبة';
       if (!formData.ExperienceYears || formData.ExperienceYears.trim() === '') newErrors.ExperienceYears = 'سنوات الخبرة مطلوبة';
@@ -1104,9 +1107,19 @@ const arabicRegionMap: { [key: string]: string } = {
   >
     {isLoadingSuggestions ? 'جاري البحث...' : 'اقترح عاملة مناسبة'}
   </button>
-  {/* باقي الكود زي ما هو */}
+  {errors.selectedHomemaidId && <p className="text-red-500 text-md mt-1">{errors.selectedHomemaidId}</p>}
 </div>
         </div>
+        
+        {/* رسالة تحذيرية عند عدم اختيار عاملة */}
+        {!formData.selectedHomemaidId && errors.selectedHomemaidId && (
+          <div className="mb-6 bg-red-50 border-2 border-red-500 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-600 text-base font-semibold">{errors.selectedHomemaidId}</p>
+            </div>
+          </div>
+        )}
         
         {/* عرض بيانات العاملة المختارة */}
         {formData.selectedHomemaidId && (

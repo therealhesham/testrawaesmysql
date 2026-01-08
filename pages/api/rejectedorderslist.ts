@@ -105,27 +105,11 @@ export default async function handler(
 
   try {
     // Fetch data with the filters and pagination
-    const [homemaids, totalCount] = await Promise.all([
+    const [orders, totalCount] = await Promise.all([
       prisma.neworder.findMany({
         orderBy: { id: "desc" },
         include: {
           client: true,
-          HomeMaid: {
-            select: {
-              dateofbirth: true,
-              Name: true,
-              Passportnumber: true,
-              id: true,
-              officeName: true,
-              Nationalitycopy: true,
-              office: {
-                select: {
-                  Country: true,
-                },
-              },
-              logs: { include: { user: true } },
-            },
-          },
         },
         where: {
           bookingstatus: { in: ["rejected", "cancelled"] },
@@ -189,6 +173,40 @@ export default async function handler(
         },
       }),
     ]);
+
+    // جلب بيانات العاملات من HomemaidIdCopy للطلبات المرفوضة/الملغية
+    const homemaidIds = orders
+      .filter(order => order.HomemaidIdCopy)
+      .map(order => order.HomemaidIdCopy as number);
+
+    const homemaidsData = await prisma.homemaid.findMany({
+      where: {
+        id: { in: homemaidIds },
+      },
+      select: {
+        id: true,
+        Name: true,
+        Passportnumber: true,
+        Nationalitycopy: true,
+        Religion: true,
+        age: true,
+        dateofbirth: true,
+        office: {
+          select: {
+            Country: true,
+          },
+        },
+      },
+    });
+
+    // دمج البيانات
+    const homemaids = orders.map(order => {
+      const homemaid = homemaidsData.find(h => h.id === order.HomemaidIdCopy);
+      return {
+        ...order,
+        HomeMaid: homemaid || null,
+      };
+    });
 
     res.status(200).json({ homemaids, totalCount, page: pageNumber, pageSize });
   } catch (error) {
