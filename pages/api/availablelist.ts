@@ -60,6 +60,9 @@ const pageSize = Number(pageSizeQ);
       include: { NewOrder: true, office: {select:{Country:true}} },
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,
+      orderBy: {
+        id: 'desc',
+      },
     });
 
     res.status(200).json({ data, totalPages });
