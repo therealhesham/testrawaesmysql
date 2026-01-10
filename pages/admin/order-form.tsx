@@ -75,9 +75,9 @@ export default function OrderFormPage() {
     router.push('/admin/currentorderstest'); // Refresh will happen via useEffect in Dashboard
   };
 
-  if (isLoading) {
-    return <div className="text-center p-6">جارٍ التحميل...</div>;
-  }
+  // if (isLoading) {
+  //   return <div className="text-center p-6">جارٍ التحميل...</div>;
+  // }
 
   if (!type) {
     return <div className="text-center p-6">نوع الطلب غير محدد</div>;

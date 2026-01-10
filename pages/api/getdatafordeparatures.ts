@@ -29,6 +29,41 @@ export default async function handler(
 
       console.log("Searching for Order ID:", orderId);
 
+      // التحقق من حالة الطلب مباشرة من neworder أولاً
+      const order = await prisma.neworder.findUnique({
+        where: { id: orderId },
+        select: { bookingstatus: true }
+      });
+
+      if (!order) {
+        return res.status(404).json({
+          error: "Order not found",
+          message: "الطلب غير موجود"
+        });
+      }
+
+      // التحقق من حالة الطلب
+      if (order.bookingstatus) {
+        const invalidStatuses = ['cancelled', 'rejected', 'new_order', 'new_orders'];
+        const orderStatus = order.bookingstatus.toLowerCase();
+        
+        if (invalidStatuses.includes(orderStatus)) {
+          let reason = '';
+          if (orderStatus === 'cancelled') {
+            reason = 'لا يمكن إنشاء مغادرة خارجية لطلب ملغي';
+          } else if (orderStatus === 'rejected') {
+            reason = 'لا يمكن إنشاء مغادرة خارجية لطلب مرفوض';
+          } else if (orderStatus === 'new_order' || orderStatus === 'new_orders') {
+            reason = 'لا يمكن إنشاء مغادرة خارجية لطلب جديد لم يتم الموافقة عليه';
+          }
+          
+          return res.status(400).json({
+            error: "Invalid order status for external departure",
+            message: reason
+          });
+        }
+      }
+
       const data = await prisma.arrivallist.findFirst({
         where: { 
           Order: {id: orderId}
@@ -76,7 +111,9 @@ export default async function handler(
           DeliveryFile: true,
           OrderId: true,
           Order: {
-            include: {
+            select: {
+              id: true,
+              bookingstatus: true,
               HomeMaid: {
                 include: {
                   office: true
@@ -87,7 +124,7 @@ export default async function handler(
           }
         }
       });
-console.log(data);
+// console.log(data);
       
       res.status(200).json(data);
     } catch (error) {

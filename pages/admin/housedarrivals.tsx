@@ -1743,11 +1743,18 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         return;
                       }
                       
+                      // Validate capacity (must be at least 1)
+                      const capacity = Number((e.target as any)['residence-capacity'].value);
+                      if (!capacity || capacity < 1) {
+                        showNotification('يجب أن تكون السعة 1 أو أكثر', 'error');
+                        return;
+                      }
+                      
                       setIsSubmittingLocation(true);
                       try {
                         await axios.post('/api/inhouselocation', {
                           location: (e.target as any)['residence-name'].value,
-                          quantity: Number((e.target as any)['residence-capacity'].value),
+                          quantity: capacity,
                         });
                         showNotification('تم إضافة السكن بنجاح');
                         closeModal('addResidence');
@@ -1784,6 +1791,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         type="number"
                         id="residence-capacity"
                         placeholder="ادخل السعة"
+                        // min="1"
                         disabled={isSubmittingLocation}
                         className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark disabled:opacity-50 disabled:cursor-not-allowed"
                       />
@@ -1842,11 +1850,18 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         return;
                       }
                       
+                      // Validate capacity (must be at least 1)
+                      const capacity = Number((e.target as any)['edit-residence-capacity'].value);
+                      if (!capacity || capacity < 1) {
+                        showNotification('يجب أن تكون السعة 1 أو أكثر', 'error');
+                        return;
+                      }
+                      
                       setIsSubmittingEditLocation(true);
                       try {
                         await axios.put(`/api/inhouselocation/${editingLocation.id}`, {
                           location: (e.target as any)['edit-residence-name'].value,
-                          quantity: Number((e.target as any)['edit-residence-capacity'].value),
+                          quantity: capacity,
                         });
                         showNotification('تم تعديل السكن بنجاح');
                         closeModal('editResidence');
@@ -1882,6 +1897,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         id="edit-residence-capacity"
                         defaultValue={editingLocation.quantity}
                         placeholder="ادخل السعة"
+                        min="1"
                         disabled={isSubmittingEditLocation}
                         className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark disabled:opacity-50 disabled:cursor-not-allowed"
                       />

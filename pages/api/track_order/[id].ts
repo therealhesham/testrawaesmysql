@@ -138,7 +138,32 @@ console.log(id)
       });
 
       if (!order ) {
-        return res.status(404).json({ error: 'Order or arrival data not found' });
+        return res.status(404).json({ error: 'الطلب غير موجود' });
+      }
+
+      // التحقق من bookingStatus وإنشاء arrival إذا لزم الأمر
+      const excludedStatuses = ['new_order', 'neworder', 'cancelled', 'rejected', 'new_orders'];
+      const currentStatus = order.bookingstatus?.toLowerCase() || '';
+      
+      if (!excludedStatuses.includes(currentStatus)) {
+        // إذا كانت الحالة ليست في القائمة المستثناة، تحقق من وجود arrival
+        const hasArrival = order.arrivals && order.arrivals.length > 0;
+        
+        if (!hasArrival) {
+          // إنشاء arrival في الخلفية (بدون تعطيل الرد)
+          setImmediate(async () => {
+            try {
+              await prisma.arrivallist.create({
+                data: {
+                  Order: { connect: { id: Number(id) } },
+                },
+              });
+              console.log(`✅ تم إنشاء arrival تلقائياً للطلب ${id}`);
+            } catch (error) {
+              console.error(`❌ خطأ في إنشاء arrival للطلب ${id}:`, error);
+            }
+          });
+        }
       }
 
       // الموافقة التلقائية عند وجود رقم عقد إدارة المكاتب
@@ -324,7 +349,11 @@ const cookieHeader = req.headers.cookie;
       });
 
       if (!order || !order.arrivals || order.arrivals.length === 0) {
-        return res.status(404).json({ error: 'Order or arrival data not found' });
+        // console.log(order)
+        console.log(order?.arrivals)
+// console.log(order?.arrivals[0])
+
+        return res.status(404).json({ error: 'بيانات الوصول غير متاحة .. يرجى التأكيد من حالة الطلب' });
       }
 
       // Handle existing status updates
@@ -350,9 +379,8 @@ const cookieHeader = req.headers.cookie;
           const arrival = await prisma.arrivallist.findFirst({
             where: { OrderId: Number(id) },
           });
-
           if (!arrival) {
-            return res.status(404).json({ error: 'Order or arrival data not found' });
+            return res.status(404).json({ error: 'بيانات الوصول غير متاحة .. يرجى التأكيد من حالة الطلب' });
           }
 
           // جلب البيانات الحالية

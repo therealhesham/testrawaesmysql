@@ -712,62 +712,62 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         {visibleColumns.includes('id') && (
           <td
             onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
-            className="px-4 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
+            className="px-1 py-2 text-lg text-center text-teal-800 cursor-pointer hover:underline"
           >
             {item.id}
           </td>
         )}
         {visibleColumns.includes('Name') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item.Name}
           </td>
         )}
         {visibleColumns.includes('phone') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item.phone}
           </td>
         )}
         {visibleColumns.includes('Country') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item?.office?.Country}
           </td>
         )}
         {visibleColumns.includes('maritalstatus') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item.maritalstatus}
           </td>
         )}
         {visibleColumns.includes('dateofbirth') && (
           <td 
-            className="px-4 py-2 text-center text-gray-600 cursor-help" 
+            className="px-1 py-2 text-center text-gray-600 cursor-help" 
             title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}
           >
             {calculateAge(item.dateofbirth)} سنة
           </td>
         )}
         {visibleColumns.includes('Passportnumber') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item.Passportnumber}
           </td>
         )}
         {visibleColumns.includes('PassportStart') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item.PassportStart ? getDate(item.PassportStart) : ""}
           </td>
         )}
         {visibleColumns.includes('PassportEnd') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item.PassportEnd ? getDate(item.PassportEnd) : ""}
           </td>
         )}
         {visibleColumns.includes('office') && (
-          <td className="px-4 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600">
             {item?.office?.office}
           </td>
         )}
         
         {/* {visibleColumns.includes('isApproved') && ( */}
-          <td className="px-4 py-2 text-center">
+          <td className="px-1 py-2 text-center">
             {item.isApproved ? (
               <span className="text-green-600 font-semibold">تم الاعتماد</span>
             ) : (
@@ -776,7 +776,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
           </td>
         {/* // )} */}
         {visibleColumns.includes('displayOrder') && (
-          <td className="px-4 py-2 text-center">
+          <td className="px-1 py-2 text-center">
             <input
               type="number"
               min="0"
@@ -798,7 +798,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
           </td>
         )}
         {hasDeletePermission && (
-          <td className="px-4 py-2 text-center">
+          <td className="px-1 py-2 text-center">
             <button 
               className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50"
               onClick={(e) => {
@@ -1322,11 +1322,11 @@ const exportToPDF = async () => {
                       {rentalCount}
                     </span>
                   </a>
-                  {switchingType && (
+                  {/* {switchingType && (
                     <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent border-teal-800"></div>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
               <button
@@ -1397,7 +1397,7 @@ const exportToPDF = async () => {
               onDragEnd={handleDragEnd}
             > */}
               <div className="relative">
-                {switchingType && (
+                {(switchingType || loading) && (
                   <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
                     <div className="flex flex-col items-center gap-3">
                       <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent border-teal-800"></div>
@@ -1411,7 +1411,7 @@ const exportToPDF = async () => {
                     {/* <th className="px-4 py-2 text-center whitespace-nowrap">الترتيب</th> */}
                     {visibleColumns.includes('id') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('id')}
                       >
                         الرقم <SortIcon field="id" />
@@ -1419,7 +1419,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('Name') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('Name')}
                       >
                         الاسم <SortIcon field="Name" />
@@ -1427,7 +1427,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('phone') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('phone')}
                       >
                         رقم الجوال <SortIcon field="phone" />
@@ -1435,7 +1435,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('Country') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('Country')}
                       >
                         الجنسية <SortIcon field="Country" />
@@ -1443,7 +1443,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('maritalstatus') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('maritalstatus')}
                       >
                         الحالة الاجتماعية <SortIcon field="maritalstatus" />
@@ -1451,7 +1451,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('dateofbirth') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('dateofbirth')}
                       >
                         العمر <SortIcon field="dateofbirth" />
@@ -1459,7 +1459,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('Passportnumber') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('Passportnumber')}
                       >
                         رقم جواز السفر <SortIcon field="Passportnumber" />
@@ -1467,7 +1467,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('PassportStart') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('PassportStart')}
                       >
                         بداية الجواز <SortIcon field="PassportStart" />
@@ -1475,7 +1475,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('PassportEnd') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('PassportEnd')}
                       >
                         نهاية الجواز <SortIcon field="PassportEnd" />
@@ -1483,7 +1483,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('office') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('office')}
                       >
                         المكتب <SortIcon field="office" />
@@ -1491,7 +1491,7 @@ const exportToPDF = async () => {
                     )}
                                           {/* {visibleColumns.includes('isApproved') && ( */}
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
                         onClick={() => handleSort('isApproved')}
                       >
                         الاعتماد <SortIcon field="isApproved" />
@@ -1499,7 +1499,7 @@ const exportToPDF = async () => {
                     {/* )} */}
                     {visibleColumns.includes('displayOrder') && (
                       <th 
-                        className="px-4 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap relative overflow-visible"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap relative overflow-visible"
                         onClick={() => handleSort('displayOrder')}
                         onMouseEnter={handleDisplayOrderHoverEnter}
                         onMouseLeave={handleDisplayOrderHoverLeave}
@@ -1521,7 +1521,7 @@ const exportToPDF = async () => {
                       </th>
                     )}
                     {hasDeletePermission && (
-                      <th className="px-4 py-2 text-center whitespace-nowrap">حذف</th>
+                      <th className="px-1 py-2 text-center whitespace-nowrap">حذف</th>
                     )}
                   </tr>
                 </thead>
@@ -1530,7 +1530,7 @@ const exportToPDF = async () => {
                     <tr>
                       <td
                         colSpan={visibleColumns.length + (hasDeletePermission ? 1 : 0)}
-                        className="px-4 py-2 text-center text-gray-500"
+                        className="px-1 py-2 text-center text-gray-500"
                       >
                         لا توجد نتائج
                       </td>
@@ -1551,10 +1551,6 @@ const exportToPDF = async () => {
             {/* </DndContext> */}
 
             {totalPages > 1 && renderPagination()}
-            {loading && (
- <div className="flex justify-center mt-4 w-full h-16">               <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 border-t-transparent border-teal-800 rounded-full"></div>
-              </div>
-            )}
           </div>
         </div>
 

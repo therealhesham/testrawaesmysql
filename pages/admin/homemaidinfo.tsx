@@ -78,6 +78,7 @@ function HomeMaidInfo() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isApproved, setIsApproved] = useState<boolean>(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   
   // حالة الـ modal للتنبيهات
   const [alertModal, setAlertModal] = useState({
@@ -190,6 +191,15 @@ function HomeMaidInfo() {
       const normalized = normalizeToWesternDigits(String(value));
       const digitsOnly = normalized.replace(/[^\d]/g, "");
       setFormData((prev) => ({ ...prev, salary: digitsOnly }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+      return;
+    }
+
+    // Name: filter to only allow letters (English and Arabic) and spaces
+    if (name === "Name") {
+      const filteredValue = value.replace(/[^a-zA-Z\u0600-\u06FF\s]/g, '');
+      setFormData((prev) => ({ ...prev, [name]: filteredValue }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
       return;
     }
 
@@ -216,10 +226,12 @@ function HomeMaidInfo() {
       } else {
         setFormData((prev) => ({ ...prev, [name]: value }));
       }
+      setErrors((prev) => ({ ...prev, [name]: '' }));
       return;
     }
 
     setFormData({ ...formData, [name]: value });
+    setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
   const handleChangeDate = (e: any) => {
@@ -252,6 +264,7 @@ function HomeMaidInfo() {
       Experience: selectedExperience,
       ExperienceYears: autoYears,
     }));
+    setErrors((prev) => ({ ...prev, Experience: '', ExperienceYears: '' }));
   };
 
   const handleExportPDF = () => {
@@ -262,32 +275,147 @@ function HomeMaidInfo() {
     window.print();
   };
 
+  // دالة التحقق من صحة البيانات (مستعارة من newhomemaids)
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    const today = new Date();
+
+    // الحقول المطلوبة
+    const requiredFields: Array<{ name: keyof typeof formData; label: string }> = [
+      { name: 'Name', label: 'الاسم' },
+      { name: 'Religion', label: 'الديانة' },
+      { name: 'Nationalitycopy', label: 'الجنسية' },
+      { name: 'maritalstatus', label: 'الحالة الاجتماعية' },
+      { name: 'dateofbirth', label: 'تاريخ الميلاد' },
+      { name: 'Passportnumber', label: 'رقم جواز السفر' },
+      { name: 'phone', label: 'رقم الجوال' },
+      { name: 'weight', label: 'الوزن' },
+      { name: 'height', label: 'الطول' },
+      { name: 'passportStartDate', label: 'بداية الجواز' },
+      { name: 'passportEndDate', label: 'نهاية الجواز' },
+      { name: 'Education', label: 'مستوى التعليم' },
+      { name: 'officeName', label: 'اسم المكتب' },
+      { name: 'salary', label: 'الراتب' },
+      { name: 'cookingLevel', label: 'الطبخ' },
+      { name: 'washingLevel', label: 'الغسيل' },
+      { name: 'ironingLevel', label: 'الكوي' },
+      { name: 'cleaningLevel', label: 'التنظيف' },
+      { name: 'sewingLevel', label: 'الخياطة' },
+      { name: 'childcareLevel', label: 'العناية بالأطفال' },
+      { name: 'elderlycareLevel', label: 'رعاية كبار السن' },
+      { name: 'babySitterLevel', label: 'العناية بالرضع' },
+    ];
+
+    requiredFields.forEach((field) => {
+      if (!formData[field.name] || String(formData[field.name]).trim() === '') {
+        newErrors[field.name] = `${field.label} مطلوب`;
+      }
+    });
+
+    // التحقق من الاسم
+    if (formData.Name && !/^[a-zA-Z\s\u0600-\u06FF]{2,}$/.test(formData.Name)) {
+      newErrors.Name = 'الاسم يجب أن يحتوي على حروف فقط وأكثر من حرفين';
+    }
+
+    // التحقق من الجنسية
+    if (formData.Nationalitycopy && !/^[a-zA-Z\s\u0600-\u06FF-]+$/.test(formData.Nationalitycopy)) {
+      newErrors.Nationalitycopy = 'الجنسية يجب أن تحتوي على حروف فقط';
+    }
+
+    // التحقق من جواز السفر
+    if (formData.Passportnumber) {
+      if (!/^[a-zA-Z0-9]{6,20}$/.test(formData.Passportnumber)) {
+        newErrors.Passportnumber = 'رقم جواز السفر يجب أن يكون بين 6-20 حرفًا ورقمًا';
+      } else if (!/[a-zA-Z]/.test(formData.Passportnumber)) {
+        newErrors.Passportnumber = 'رقم جواز السفر يجب أن يحتوي على حرف واحد على الأقل';
+      }
+    }
+
+    // التحقق من رقم الجوال
+    if (formData.phone) {
+      const cleanedPhone = formData.phone.replace(/\s/g, '');
+      if (!/^\+\d{7,15}$/.test(cleanedPhone)) {
+        newErrors.phone = 'رقم الجوال غير صحيح. يجب أن يحتوي على رمز الدولة والرقم';
+      }
+    }
+
+    // التحقق من تاريخ الميلاد (العمر)
+    if (formData.dateofbirth) {
+      const ageDate = new Date(formData.dateofbirth);
+      if (!isNaN(ageDate.getTime())) {
+        let age = today.getFullYear() - ageDate.getFullYear();
+        const monthDiff = today.getMonth() - ageDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < ageDate.getDate())) {
+          age--;
+        }
+        if (age < 16 || age > 100) {
+          newErrors.dateofbirth = 'العمر يجب أن يكون بين 16 و100 سنة';
+        }
+      }
+    }
+
+    // التحقق من تواريخ الجواز
+    if (formData.passportStartDate && formData.passportEndDate) {
+      const startDate = new Date(formData.passportStartDate);
+      const endDate = new Date(formData.passportEndDate);
+      if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+        if (startDate >= endDate) {
+          newErrors.passportEndDate = 'تاريخ نهاية الجواز يجب أن يكون بعد تاريخ البداية';
+        }
+        if (endDate < today) {
+          newErrors.passportEndDate = 'جواز السفر منتهي الصلاحية';
+        }
+      }
+    }
+
+    // التحقق من الراتب
+    if (formData.salary) {
+      const sanitizedSalary = normalizeToWesternDigits(String(formData.salary)).replace(/[^\d]/g, "");
+      if (isNaN(Number(sanitizedSalary)) || Number(sanitizedSalary) <= 0) {
+        newErrors.salary = 'الراتب يجب أن يكون رقمًا إيجابيًا';
+      }
+    }
+
+    // التحقق من الوزن
+    if (formData.weight && (isNaN(Number(formData.weight)) || Number(formData.weight) <= 0)) {
+      newErrors.weight = 'الوزن يجب أن يكون رقمًا صحيحًا';
+    }
+
+    // التحقق من الطول
+    if (formData.height && (isNaN(Number(formData.height)) || Number(formData.height) <= 0)) {
+      newErrors.height = 'الطول يجب أن يكون رقمًا صحيحًا';
+    }
+
+    // التحقق من عدد الأطفال
+    if (formData.childrenCount && isNaN(Number(formData.childrenCount))) {
+      newErrors.childrenCount = 'عدد الأطفال يجب أن يكون رقمًا';
+    }
+
+    // التحقق من أن صورة الوجه مطلوبة
+    if (!formData.Picture || formData.Picture.trim() === '') {
+      newErrors.Picture = 'صورة الوجه إجبارية';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
+    // التحقق من صحة البيانات قبل الحفظ
+    if (!validateForm()) {
+      setAlertModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'تحذير',
+        message: 'يرجى تصحيح الأخطاء في النموذج قبل الحفظ'
+      });
+      return;
+    }
+
     setSaving(true);
     try {
-      if (!formData.dateofbirth) {
-        setAlertModal({
-          isOpen: true,
-          type: 'warning',
-          title: 'تحذير',
-          message: 'يرجى إدخال تاريخ الميلاد'
-        });
-        setSaving(false);
-        return;
-      }
-      
       // Ensure salary is numeric-only before saving (extra guard)
       const sanitizedSalary = normalizeToWesternDigits(String(formData.salary || "")).replace(/[^\d]/g, "");
-      if (formData.salary && !/^\d+$/.test(sanitizedSalary)) {
-        setAlertModal({
-          isOpen: true,
-          type: "warning",
-          title: "تحذير",
-          message: "الراتب يجب أن يكون أرقام فقط",
-        });
-        setSaving(false);
-        return;
-      }
 
       const dataToSend = {
         ...formData,
@@ -314,6 +442,7 @@ function HomeMaidInfo() {
       await fetchPersonalInfo();
       
       setIsEditing(false);
+      setErrors({});
       setAlertModal({
         isOpen: true,
         type: 'success',
@@ -400,6 +529,7 @@ function HomeMaidInfo() {
     if (!files || files.length === 0) {
       setImageErrors((prev) => ({ ...prev, [fieldId]: "لم يتم اختيار صورة" }));
       setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
       return;
     }
 
@@ -407,6 +537,7 @@ function HomeMaidInfo() {
     if (!allowedHomemaidImageTypes.includes(file.type)) {
       setImageErrors((prev) => ({ ...prev, [fieldId]: "نوع الصورة غير مدعوم (JPEG فقط)" }));
       setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
       return;
     }
 
@@ -418,6 +549,7 @@ function HomeMaidInfo() {
     try {
       setImageUploading((prev) => ({ ...prev, [fieldId]: true }));
       setImageErrors((prev) => ({ ...prev, [fieldId]: "" }));
+      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
 
       const res = await fetch(`/api/upload-homemaid-image?type=${type}`);
       if (!res.ok) throw new Error("فشل في الحصول على رابط الرفع");
@@ -437,6 +569,7 @@ function HomeMaidInfo() {
       URL.revokeObjectURL(previewUrl);
       setFormData((prev) => ({ ...prev, [fieldId]: filePath }));
       setImageErrors((prev) => ({ ...prev, [fieldId]: "" }));
+      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
 
       const ref = imageInputRefs[fieldId];
       if (ref?.current) ref.current.value = "";
@@ -651,7 +784,8 @@ function HomeMaidInfo() {
               <button className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition" 
                 onClick={() => {
                    if (id) {
-                     window.location.reload(); 
+                     setErrors({});
+                     fetchPersonalInfo();
                    }
                    setIsEditing(false);
                 }}
@@ -667,14 +801,18 @@ function HomeMaidInfo() {
           <p className="text-xl font-semibold text-teal-800 mb-4 text-right">الصور</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { id: "Picture" as const, label: "الصورة الشخصية", uploadType: "profile" as const },
-              { id: "FullPicture" as const, label: "صورة بالطول", uploadType: "full" as const },
+              { id: "Picture" as const, label: "الصورة الشخصية", uploadType: "profile" as const, required: true },
+              { id: "FullPicture" as const, label: "صورة بالطول", uploadType: "full" as const, required: false },
             ].map((img) => {
               const url = (formData as any)[img.id] as string;
+              const hasError = errors[img.id];
               return (
-                <div key={img.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <div key={img.id} className={`bg-white border ${hasError ? 'border-red-500' : 'border-gray-200'} rounded-lg p-4 shadow-sm`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-gray-700 font-medium">{img.label}</span>
+                    <span className="text-gray-700 font-medium">
+                      {img.label}
+                      {img.required && isEditing && <span className="text-red-500 mr-1">*</span>}
+                    </span>
                     {url ? (
                       <a
                         href={url}
@@ -723,6 +861,7 @@ function HomeMaidInfo() {
                               setFormData((prev) => ({ ...prev, [img.id]: "" }));
                               setImageFileNames((prev) => ({ ...prev, [img.id]: "" }));
                               setImageErrors((prev) => ({ ...prev, [img.id]: "" }));
+                              setErrors((prev) => ({ ...prev, [img.id]: "" }));
                             }}
                           >
                             إزالة
@@ -748,6 +887,11 @@ function HomeMaidInfo() {
                       {imageErrors[img.id] ? (
                         <div className="mt-2 text-right text-xs text-red-600">
                           {imageErrors[img.id]}
+                        </div>
+                      ) : null}
+                      {errors[img.id] && !imageErrors[img.id] ? (
+                        <div className="mt-2 text-right text-xs text-red-600">
+                          {errors[img.id]}
                         </div>
                       ) : null}
                     </div>
@@ -791,7 +935,7 @@ function HomeMaidInfo() {
                       onChange={handleChange}
                       dir="ltr"
                       style={{ backgroundImage: 'none', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-                      className="w-full border border-gray-300 rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+                      className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white`}
                     >
                       <option value="" disabled>اختر {field.label}</option>
                       {field.isNationality 
@@ -802,16 +946,20 @@ function HomeMaidInfo() {
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-700">
                       <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                     </div>
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
                   </div>
                 ) : (
-                  <input
-                    type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
-                    name={field.name}
-                    value={field.value || ""}
-                    onChange={field.type === "date" ? handleChangeDate : handleChange}
-                    readOnly={!isEditing}
-                    className={`w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
-                  />
+                  <>
+                    <input
+                      type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
+                      name={field.name}
+                      value={field.value || ""}
+                      onChange={field.type === "date" ? handleChangeDate : handleChange}
+                      readOnly={!isEditing}
+                      className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
+                    />
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
+                  </>
                 )}
               </div>
             ))}
@@ -837,21 +985,25 @@ function HomeMaidInfo() {
                       onChange={handleChange}
                       dir="ltr"
                       style={{ backgroundImage: 'none', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-                      className="w-full border border-gray-300 rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+                      className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white`}
                     >
                       <option value="" disabled>اختر {field.label}</option>
                       {field.options?.map((option) => <option key={option} value={option}>{option}</option>)}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-700"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
                   </div>
                 ) : (
-                  <input
-                    type="text"
-                    name={field.name}
-                    value={field.value || ""}
-                    readOnly={!isEditing}
-                    className={`w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100`}
-                  />
+                  <>
+                    <input
+                      type="text"
+                      name={field.name}
+                      value={field.value || ""}
+                      readOnly={!isEditing}
+                      className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100`}
+                    />
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
+                  </>
                 )}
               </div>
             ))}
@@ -872,12 +1024,13 @@ function HomeMaidInfo() {
                     onChange={handleExperienceChange}
                     dir="ltr"
                     style={{ backgroundImage: 'none', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-                    className="w-full border border-gray-300 rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+                    className={`w-full border ${errors.Experience ? 'border-red-500' : 'border-gray-300'} rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white`}
                   >
                     <option value="">اختر الخبرة</option>
                     {experienceOptions.map((exp) => <option key={exp} value={exp}>{exp}</option>)}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-700"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
+                  {errors.Experience && <p className="text-red-500 text-xs mt-1 text-right">{errors.Experience}</p>}
                 </div>
               ) : (
                 <input type="text" value={formData.Experience || ""} readOnly className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100" />
@@ -889,10 +1042,10 @@ function HomeMaidInfo() {
                 type="text"
                 name="ExperienceYears"
                 value={formData.ExperienceYears || ""}
-                onChange={handleChange}
-                readOnly={!isEditing}
-                className={`w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
+                readOnly={true}
+                className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100 cursor-not-allowed"
               />
+              {errors.ExperienceYears && <p className="text-red-500 text-xs mt-1 text-right">{errors.ExperienceYears}</p>}
             </div>
           </div>
         </section>
@@ -922,15 +1075,19 @@ function HomeMaidInfo() {
                       onChange={handleChange}
                       dir="ltr"
                       style={{ backgroundImage: 'none', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-                      className="w-full border border-gray-300 rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white"
+                      className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white`}
                     >
                       <option value="">اختر المستوى</option>
                       {skillLevels.map(level => <option key={level} value={level}>{level}</option>)}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-700"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
                   </div>
                 ) : (
-                  <input type="text" name={field.name} value={field.value || ""} readOnly className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100" />
+                  <>
+                    <input type="text" name={field.name} value={field.value || ""} readOnly className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100" />
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
+                  </>
                 )}
               </div>
             ))}
@@ -971,16 +1128,19 @@ function HomeMaidInfo() {
                 ) : field.label === "اسم المكتب" ? (
                     <input type="text" value={field.value || ""} readOnly className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100" />
                 ) : (
-                  <input
-                    type="text"
-                    name={field.name}
-                    value={field.value || ""}
-                    onChange={handleChange}
-                    readOnly={!isEditing}
-                    inputMode={field.name === "salary" ? "numeric" : undefined}
-                    pattern={field.name === "salary" ? "[0-9]*" : undefined}
-                    className={`w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
-                  />
+                  <>
+                    <input
+                      type="text"
+                      name={field.name}
+                      value={field.value || ""}
+                      onChange={handleChange}
+                      readOnly={!isEditing}
+                      inputMode={field.name === "salary" ? "numeric" : undefined}
+                      pattern={field.name === "salary" ? "[0-9]*" : undefined}
+                      className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
+                    />
+                    {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}
+                  </>
                 )}
               </div>
             ))}

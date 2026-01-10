@@ -165,6 +165,36 @@ externalTicketFile,
 
 
     console.log("Data to update:", {id,Orderid}); // Log the final data to be updated
+    
+    // التحقق من حالة الطلب قبل التحديث
+    if (Orderid) {
+      const order = await prisma.neworder.findUnique({
+        where: { id: Orderid },
+        select: { bookingstatus: true }
+      });
+      
+      if (order?.bookingstatus) {
+        const invalidStatuses = ['cancelled', 'rejected', 'new_order', 'new_orders'];
+        const orderStatus = order.bookingstatus.toLowerCase();
+        
+        if (invalidStatuses.includes(orderStatus)) {
+          let reason = '';
+          if (orderStatus === 'cancelled') {
+            reason = 'لا يمكن إنشاء مغادرة خارجية لطلب ملغي';
+          } else if (orderStatus === 'rejected') {
+            reason = 'لا يمكن إنشاء مغادرة خارجية لطلب مرفوض';
+          } else if (orderStatus === 'new_order' || orderStatus === 'new_orders') {
+            reason = 'لا يمكن إنشاء مغادرة خارجية لطلب جديد لم يتم الموافقة عليه';
+          }
+          
+          return res.status(400).json({
+            error: "Invalid order status for external departure",
+            message: reason
+          });
+        }
+      }
+    }
+    
     const createarrivallist = await prisma.arrivallist.update({
       include: { Order: { include: { HomeMaid: true } } },
       where: { id :id},
