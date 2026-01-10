@@ -66,6 +66,31 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
     }
   }
 
+  // Contract number validation: 10 digits, must start with 20
+  if ((key === 'رقم عقد إدارة المكاتب' || key.includes('عقد إدارة المكاتب')) && value && value !== 'N/A') {
+    const contract = value.trim();
+
+    if (!/^\d+$/.test(contract)) {
+      return 'رقم العقد يجب أن يحتوي على أرقام فقط';
+    }
+
+    // Allow progressive typing of 20 (2 -> 20)
+    if (contract.length < 2) {
+      if (!'20'.startsWith(contract)) {
+        return 'رقم العقد يجب أن يبدأ بـ 20';
+      }
+      return null;
+    }
+
+    if (!contract.startsWith('20')) {
+      return 'رقم العقد يجب أن يبدأ بـ 20';
+    }
+
+    if (contract.length !== 10) {
+      return 'رقم العقد يجب أن يكون 10 أرقام';
+    }
+  }
+
   // Email validation
   if ((key.includes('البريد الإلكتروني') || key.includes('ايميل')) && value && value !== 'N/A') {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -89,7 +89,8 @@ function HomeMaidInfo() {
 
   // قوائم البيانات الخارجية
   const [nationalities, setNationalities] = useState<Array<{ id: number; Country: string }>>([]);
-  const [officesnames, setOfficesnames] = useState<any[]>([]);
+  const [allOffices, setAllOffices] = useState<Array<{ id: number; office: string; Country?: string }>>([]);
+  const [filteredOffices, setFilteredOffices] = useState<Array<{ id: number; office: string; Country?: string }>>([]);
   
   // حالة الملفات
   const [fileNames, setFileNames] = useState<{ [key: string]: string }>({
@@ -189,6 +190,32 @@ function HomeMaidInfo() {
       const normalized = normalizeToWesternDigits(String(value));
       const digitsOnly = normalized.replace(/[^\d]/g, "");
       setFormData((prev) => ({ ...prev, salary: digitsOnly }));
+      return;
+    }
+
+    // إذا تم تغيير الجنسية، قم بتصفية المكاتب وإعادة تعيين المكتب المختار إذا لزم الأمر
+    if (name === "Nationalitycopy") {
+      const filtered = allOffices.filter(office => {
+        if (!value) return true; // إذا لم يتم اختيار جنسية، اعرض كل المكاتب
+        const officeCountry = office.Country?.toLowerCase().trim() || '';
+        const selectedNationality = value.toLowerCase().trim();
+        return officeCountry === selectedNationality;
+      });
+      setFilteredOffices(filtered);
+      
+      // إذا كان المكتب المختار حالياً لا ينتمي للجنسية الجديدة، قم بإعادة تعيينه
+      const currentOffice = allOffices.find(off => off.office === formData.officeName);
+      if (value && currentOffice) {
+        const officeCountry = currentOffice.Country?.toLowerCase().trim() || '';
+        const selectedNationality = value.toLowerCase().trim();
+        if (officeCountry !== selectedNationality) {
+          setFormData((prev) => ({ ...prev, [name]: value, officeName: '' }));
+        } else {
+          setFormData((prev) => ({ ...prev, [name]: value }));
+        }
+      } else {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      }
       return;
     }
 
@@ -337,7 +364,8 @@ function HomeMaidInfo() {
       const response = await fetch('/api/offices');
       if (response.ok) {
         const data = await response.json();
-        setOfficesnames(data.items);
+        setAllOffices(data.items);
+        setFilteredOffices(data.items); // في البداية، اعرض كل المكاتب
       }
     } catch (error) {
       console.error('Error fetching offices:', error);
@@ -503,6 +531,21 @@ function HomeMaidInfo() {
       fetchNationalities();
     }
   }, [id]);
+
+  // تصفية المكاتب بناءً على الجنسية المختارة
+  useEffect(() => {
+    if (formData.Nationalitycopy && allOffices.length > 0) {
+      const filtered = allOffices.filter(office => {
+        const officeCountry = office.Country?.toLowerCase().trim() || '';
+        const selectedNationality = formData.Nationalitycopy.toLowerCase().trim();
+        return officeCountry === selectedNationality;
+      });
+      setFilteredOffices(filtered);
+    } else if (allOffices.length > 0 && !formData.Nationalitycopy) {
+      // إذا لم يكن هناك جنسية محددة، اعرض كل المكاتب
+      setFilteredOffices(allOffices);
+    }
+  }, [formData.Nationalitycopy, allOffices]);
 
   const handleApprove = async () => {
     try {
@@ -906,11 +949,24 @@ function HomeMaidInfo() {
                 <label className="block text-gray-700 text-right mb-1">{field.label}</label>
                 {field.label === "اسم المكتب" && isEditing ? (
                   <div className="relative w-full">
-                    <select name={field.name} value={field.value || ""} onChange={handleChange} dir="ltr" style={{ backgroundImage: 'none', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }} className="w-full border border-gray-300 rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white">
-                      <option value="">اختر المكتب</option>
-                      {officesnames.map((office) => <option key={office.id} value={office.office}>{office.office}</option>)}
+                    <select 
+                      name={field.name} 
+                      value={field.value || ""} 
+                      onChange={handleChange} 
+                      dir="ltr" 
+                      disabled={!formData.Nationalitycopy}
+                      style={{ backgroundImage: 'none', WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }} 
+                      className="w-full border border-gray-300 rounded-lg py-3 pr-3 pl-10 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="" disabled>
+                        {formData.Nationalitycopy ? 'اختر المكتب' : 'يرجى اختيار الجنسية أولاً'}
+                      </option>
+                      {filteredOffices.map((office) => <option key={office.id} value={office.office}>{office.office}</option>)}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-700"><svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg></div>
+                    {formData.Nationalitycopy && filteredOffices.length === 0 && (
+                      <p className="text-yellow-600 text-xs mt-1 text-right">لا توجد مكاتب متاحة للجنسية المختارة</p>
+                    )}
                   </div>
                 ) : field.label === "اسم المكتب" ? (
                     <input type="text" value={field.value || ""} readOnly className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none bg-gray-100" />

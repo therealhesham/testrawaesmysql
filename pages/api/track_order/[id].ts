@@ -720,10 +720,27 @@ const cookieHeader = req.headers.cookie;
             }
             if (Object.prototype.hasOwnProperty.call(updatedData, 'رقم عقد إدارة المكاتب')) {
               const oldContract = order.arrivals[0]?.InternalmusanedContract;
-              const newContract = updatedData['رقم عقد إدارة المكاتب'];
-              // حفظ القيمة حتى لو كانت فارغة
-              arrivalUpdate.InternalmusanedContract = newContract && newContract.trim() !== '' ? newContract.trim() : null;
-              changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${newContract || 'فارغ'}"`);
+              const contractRaw = updatedData['رقم عقد إدارة المكاتب'];
+              const contract = typeof contractRaw === 'string' ? contractRaw.trim() : String(contractRaw ?? '').trim();
+
+              // Normalize display placeholder
+              if (!contract || contract === 'N/A' || contract === '') {
+                arrivalUpdate.InternalmusanedContract = null;
+                changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "فارغ"`);
+              } else {
+                // Validate contract number format
+                if (!/^\d+$/.test(contract)) {
+                  return res.status(400).json({ error: 'رقم العقد يجب أن يحتوي على أرقام فقط' });
+                }
+                if (!contract.startsWith('20')) {
+                  return res.status(400).json({ error: 'رقم العقد يجب أن يبدأ بـ 20' });
+                }
+                if (contract.length !== 10) {
+                  return res.status(400).json({ error: 'رقم العقد يجب أن يكون 10 أرقام' });
+                }
+                arrivalUpdate.InternalmusanedContract = contract;
+                changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${contract}"`);
+              }
             }
             if (updatedData['تاريخ العقد']) {
               const oldDate = order.arrivals[0]?.DateOfApplication;

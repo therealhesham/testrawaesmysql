@@ -402,6 +402,44 @@ export default function TrackOrder() {
   };
 
   const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
+    // التحقق من رقم عقد إدارة المكاتب في قسم الربط مع إدارة المكاتب
+    if (section === 'officeLinkInfo' && updatedData['رقم عقد إدارة المكاتب']) {
+      const contract = updatedData['رقم عقد إدارة المكاتب'].trim();
+      
+      // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A'
+      if (contract && contract !== 'N/A' && contract !== '') {
+        // التحقق من أن الرقم يحتوي على أرقام فقط
+        if (!/^\d+$/.test(contract)) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم العقد يجب أن يحتوي على أرقام فقط',
+          });
+          return;
+        }
+        
+        // التحقق من أن الرقم يبدأ بـ 20
+        if (!contract.startsWith('20')) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم العقد يجب أن يبدأ بـ 20',
+          });
+          return;
+        }
+        
+        // التحقق من أن الرقم 10 أرقام
+        if (contract.length !== 10) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم العقد يجب أن يكون 10 أرقام',
+          });
+          return;
+        }
+      }
+    }
+
     setShowConfirmModal({
       isOpen: true,
       title: 'حفظ التعديلات',

@@ -59,14 +59,24 @@ export default function Dashboard({
   const [nationalities, setNationalities] = useState(initialNationalities || []);
   const [statuses] = useState([
     'قيد الانتظار',
+    'موافقة الربط مع إدارة المكاتب',
+    'في انتظار الربط مع إدارة المكاتب',
     'موافقة المكتب الخارجي',
+    'في انتظار المكتب الخارجي',
     'تم اجتياز الفحص الطبي',
+    'في انتظار الفحص الطبي',
     'موافقة وزارة العمل الأجنبية',
+    'في انتظار وزارة العمل الأجنبية',
     'تم دفع الوكالة',
+    'في انتظار دفع الوكالة',
     'موافقة السفارة السعودية',
+    'في انتظار السفارة السعودية',
     'تم إصدار التأشيرة',
+    'في انتظار إصدار التأشيرة',
     'تم إصدار تصريح السفر',
+    'في انتظار تصريح السفر',
     'تم الاستلام',
+    'في انتظار الاستلام',
     'ملغي',
     'مرفوض',
     'تم التسليم',
@@ -88,6 +98,8 @@ export default function Dashboard({
   const translateBookingStatus = (status: string) => {
     const statusTranslations: { [key: string]: string } = {
       'pending': 'قيد الانتظار',
+      'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
+      'pending_office_link': 'في انتظار الربط مع إدارة المكاتب',
       'external_office_approved': 'موافقة المكتب الخارجي',
       'pending_external_office': 'في انتظار المكتب الخارجي',
       'medical_check_passed': 'تم اجتياز الفحص الطبي',
@@ -118,6 +130,8 @@ export default function Dashboard({
   const translateBookingStatusToEnglish = (arabicStatus: string) => {
     const reverseTranslations: { [key: string]: string } = {
       'قيد الانتظار': 'pending',
+      'موافقة الربط مع إدارة المكاتب': 'office_link_approved',
+      'في انتظار الربط مع إدارة المكاتب': 'pending_office_link',
       'موافقة المكتب الخارجي': 'external_office_approved',
       'في انتظار المكتب الخارجي': 'pending_external_office',
       'تم اجتياز الفحص الطبي': 'medical_check_passed',

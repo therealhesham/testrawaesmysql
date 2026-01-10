@@ -397,6 +397,8 @@ const arabicRegionMap: { [key: string]: string } = {
   const translateBookingStatus = (status: string) => {
     const statusTranslations: { [key: string]: string } = {
       'pending': 'قيد الانتظار',
+      'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
+      'pending_office_link': 'في انتظار الربط مع إدارة المكاتب',
       'external_office_approved': 'موافقة المكتب الخارجي',
       'pending_external_office': 'في انتظار المكتب الخارجي',
       'medical_check_passed': 'تم اجتياز الفحص الطبي',

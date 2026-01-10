@@ -115,6 +115,8 @@ const VisaModal = React.memo(
         newErrors.visaNumber = 'رقم التأشيرة مطلوب';
       } else if (!/^\d+$/.test(visaInfo.visaNumber)) {
         newErrors.visaNumber = 'رقم التأشيرة يجب أن يحتوي على أرقام فقط';
+      } else if (!/^190\d{7}$/.test(visaInfo.visaNumber)) {
+        newErrors.visaNumber = 'رقم التأشيرة يجب أن يبدأ بـ 190 ويكون 10 أرقام فقط';
       }
 
       if (!visaInfo.gender) {
@@ -199,8 +201,9 @@ const VisaModal = React.memo(
                 type="text"
                 name="visaNumber"
                 value={visaInfo.visaNumber}
-                placeholder="أدخل رقم التأشيرة"
+                placeholder="أدخل رقم التأشيرة (يبدأ بـ 190)"
                 onChange={handleInputChange}
+                maxLength={10}
                 className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
                   errors.visaNumber ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -635,6 +638,8 @@ export default function Home() {
   const translateBookingStatus = (status: string) => {
     const statusTranslations: { [key: string]: string } = {
       'pending': 'قيد الانتظار',
+      'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
+      'pending_office_link': 'في انتظار الربط مع إدارة المكاتب',
       'external_office_approved': 'موافقة المكتب الخارجي',
       'pending_external_office': 'في انتظار المكتب الخارجي',
       'medical_check_passed': 'تم اجتياز الفحص الطبي',

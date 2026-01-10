@@ -292,6 +292,9 @@ useEffect(()=>{
   const [workerSuggestions, setWorkerSuggestions] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSubmittingHousing, setIsSubmittingHousing] = useState(false);
+  const [isSubmittingLocation, setIsSubmittingLocation] = useState(false);
+  const [isSubmittingEditLocation, setIsSubmittingEditLocation] = useState(false);
   
   // External worker search states
   const [externalWorkerSearchTerm, setExternalWorkerSearchTerm] = useState('');
@@ -756,6 +759,11 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
   const handlenewHousingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
    
+    // Prevent double submission
+    if (isSubmittingHousing) {
+      return;
+    }
+
     // Validate that a worker is selected
     if (!selectedWorker || !selectedWorker.id) {
       showNotification('يرجى اختيار عاملة أولاً', 'error');
@@ -776,6 +784,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       return;
     }
    
+    setIsSubmittingHousing(true);
     try {
       const response = await axios.post('/api/confirmhousinginformation', {
         ...formData,
@@ -810,6 +819,8 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       fetchLocations();
     } catch (error: any) {
       showNotification(error.response?.data?.error || 'خطأ في تسكين العاملة', 'error');
+    } finally {
+      setIsSubmittingHousing(false);
     }
   };
   // Handle filter input changes
@@ -1726,7 +1737,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
-                        try {
+                      
+                      // Prevent double submission
+                      if (isSubmittingLocation) {
+                        return;
+                      }
+                      
+                      setIsSubmittingLocation(true);
+                      try {
                         await axios.post('/api/inhouselocation', {
                           location: (e.target as any)['residence-name'].value,
                           quantity: Number((e.target as any)['residence-capacity'].value),
@@ -1734,8 +1752,13 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         showNotification('تم إضافة السكن بنجاح');
                         closeModal('addResidence');
                         fetchLocations();
+                        // Reset form
+                        (e.target as any)['residence-name'].value = '';
+                        (e.target as any)['residence-capacity'].value = '';
                       } catch (error) {
                         showNotification('خطأ في إضافة السكن', 'error');
+                      } finally {
+                        setIsSubmittingLocation(false);
                       }
                     }}
                     
@@ -1749,7 +1772,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         type="text"
                         id="residence-name"
                         placeholder="ادخل اسم السكن"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
+                        disabled={isSubmittingLocation}
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="mb-4">
@@ -1760,7 +1784,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         type="number"
                         id="residence-capacity"
                         placeholder="ادخل السعة"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
+                        disabled={isSubmittingLocation}
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                     </div>
@@ -1768,12 +1793,24 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('addResidence')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
+                        disabled={isSubmittingLocation}
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
-                        حفظ
+                      <button 
+                        type="submit" 
+                        disabled={isSubmittingLocation}
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
+                      >
+                        {isSubmittingLocation ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            <span>جاري الحفظ...</span>
+                          </>
+                        ) : (
+                          'حفظ'
+                        )}
                       </button>
                     </div>
                   </form>
@@ -1799,7 +1836,14 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                   <form
                     onSubmit={async (e) => {
                       e.preventDefault();
-                        try {
+                      
+                      // Prevent double submission
+                      if (isSubmittingEditLocation) {
+                        return;
+                      }
+                      
+                      setIsSubmittingEditLocation(true);
+                      try {
                         await axios.put(`/api/inhouselocation/${editingLocation.id}`, {
                           location: (e.target as any)['edit-residence-name'].value,
                           quantity: Number((e.target as any)['edit-residence-capacity'].value),
@@ -1809,6 +1853,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         fetchLocations();
                       } catch (error) {
                         showNotification('خطأ في تعديل السكن', 'error');
+                      } finally {
+                        setIsSubmittingEditLocation(false);
                       }
                     }}
                     
@@ -1823,7 +1869,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         id="edit-residence-name"
                         defaultValue={editingLocation.location}
                         placeholder="ادخل اسم السكن"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
+                        disabled={isSubmittingEditLocation}
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="mb-4">
@@ -1835,7 +1882,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         id="edit-residence-capacity"
                         defaultValue={editingLocation.quantity}
                         placeholder="ادخل السعة"
-                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark"
+                        disabled={isSubmittingEditLocation}
+                        className="w-full border border-border rounded-md bg-gray-50 text-right text-xs text-textDark disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                     </div>
@@ -1843,12 +1891,24 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('editResidence')}
-                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs"
+                        disabled={isSubmittingEditLocation}
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         الغاء
                       </button>
-                      <button type="submit" className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs">
-                        حفظ
+                      <button 
+                        type="submit" 
+                        disabled={isSubmittingEditLocation}
+                        className="bg-teal-800 text-white py-2 px-4 rounded-md text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
+                      >
+                        {isSubmittingEditLocation ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            <span>جاري الحفظ...</span>
+                          </>
+                        ) : (
+                          'حفظ'
+                        )}
                       </button>
                     </div>
                   </form>
@@ -2061,7 +2121,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                           value={workerSearchTerm}
                           onChange={(e) => handleWorkerSearch(e.target.value)}
                           placeholder="ابحث برقم العاملة أو الاسم أو رقم الجواز"
-                          className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
+                          disabled={isSubmittingHousing}
+                          className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         {isSearching && (
                           <div className="absolute right-3 top-3">
@@ -2070,7 +2131,7 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         )}
                        
                         {/* Search Results Dropdown */}
-                        {workerSuggestions.length > 0 && (
+                        {workerSuggestions.length > 0 && !isSubmittingHousing && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                             {workerSuggestions.map((worker) => (
                               <div
@@ -2135,7 +2196,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               type="text"
                               value={internalWorkerForm.clientName}
                               onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
-                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                              disabled={isSubmittingHousing}
+                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
                           <div>
@@ -2144,7 +2206,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               type="text"
                               value={internalWorkerForm.clientMobile}
                               onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
-                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                              disabled={isSubmittingHousing}
+                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
                         </div>
@@ -2155,7 +2218,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               type="text"
                               value={internalWorkerForm.city}
                               onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
-                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                              disabled={isSubmittingHousing}
+                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
                           <div>
@@ -2164,7 +2228,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               type="text"
                               value={internalWorkerForm.address}
                               onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
-                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                              disabled={isSubmittingHousing}
+                              className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </div>
                         </div>
@@ -2176,7 +2241,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                 type="text"
                                 value={internalWorkerForm.clientIdNumber}
                                 onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientIdNumber: e.target.value })}
-                                className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                                disabled={isSubmittingHousing}
+                                className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                               />
                             </div>
                           </div>
@@ -2194,7 +2260,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setFormData({ ...formData, location: e.target.value });
                               setValidationErrors(prev => ({ ...prev, location: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 ${
+                            disabled={isSubmittingHousing}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 disabled:opacity-50 disabled:cursor-not-allowed ${
                               validationErrors.location ? 'border-red-500' : 'border-gray-300'
                             }`}
                           >
@@ -2219,7 +2286,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             type="date"
                             value={formData.houseentrydate}
                             onChange={(e) => setFormData({ ...formData, houseentrydate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
+                            disabled={isSubmittingHousing}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             {/* <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2238,7 +2306,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             type="date"
                             value={formData.deliveryDate}
                             onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8"
+                            disabled={isSubmittingHousing}
+                            className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs pr-8 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             {/* <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2256,7 +2325,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                               setFormData({ ...formData, reason: e.target.value });
                               setValidationErrors(prev => ({ ...prev, reason: false }));
                             }}
-                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 ${
+                            disabled={isSubmittingHousing}
+                            className={`w-full bg-gray-100 border rounded-md p-2 text-right text-xs appearance-none pr-8 disabled:opacity-50 disabled:cursor-not-allowed ${
                               validationErrors.reason ? 'border-red-500' : 'border-gray-300'
                             }`}
                           >
@@ -2280,7 +2350,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                         placeholder="التفاصيل"
                         value={formData.details}
                         onChange={(e) => setFormData({ ...formData, details: e.target.value })}
-                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                        disabled={isSubmittingHousing}
+                        className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         rows={3}
                       />
                     </div>
@@ -2295,7 +2366,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             value="true"
                             checked={formData.isHasEntitlements === true}
                             onChange={() => setFormData({ ...formData, isHasEntitlements: true })}
-                            className="w-4 h-4 text-teal-600"
+                            disabled={isSubmittingHousing}
+                            className="w-4 h-4 text-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <span className="text-xs text-gray-700">نعم</span>
                         </label>
@@ -2306,7 +2378,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                             value="false"
                             checked={formData.isHasEntitlements === false}
                             onChange={() => setFormData({ ...formData, isHasEntitlements: false, entitlementsCost: '' })}
-                            className="w-4 h-4 text-teal-600"
+                            disabled={isSubmittingHousing}
+                            className="w-4 h-4 text-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <span className="text-xs text-gray-700">لا</span>
                         </label>
@@ -2321,7 +2394,8 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                           placeholder="أدخل قيمة المستحقات"
                           value={formData.entitlementsCost}
                           onChange={(e) => setFormData({ ...formData, entitlementsCost: e.target.value })}
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs"
+                          disabled={isSubmittingHousing}
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                           min="0"
                           step="0.01"
                         />
@@ -2332,20 +2406,28 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => closeModal('housingForm')}
-                        className="bg-white text-teal-800 border border-teal-800 rounded-md w-28 h-8 text-base"
+                        disabled={isSubmittingHousing}
+                        className="bg-white text-teal-800 border border-teal-800 rounded-md w-28 h-8 text-base disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         الغاء
                       </button>
                       <button
                         type="submit"
-                        disabled={!selectedWorker || !selectedWorker.id}
-                        className={`rounded-md w-28 h-8 text-base ${
-                          !selectedWorker || !selectedWorker.id
+                        disabled={!selectedWorker || !selectedWorker.id || isSubmittingHousing}
+                        className={`rounded-md w-28 h-8 text-base flex items-center justify-center gap-2 ${
+                          !selectedWorker || !selectedWorker.id || isSubmittingHousing
                             ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                             : 'bg-teal-800 text-white hover:bg-teal-700'
                         }`}
                       >
-                        حفظ
+                        {isSubmittingHousing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>جاري الحفظ...</span>
+                          </>
+                        ) : (
+                          'حفظ'
+                        )}
                       </button>
                     </div>
                   </form>

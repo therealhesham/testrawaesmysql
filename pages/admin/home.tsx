@@ -166,7 +166,7 @@ const InternalDeparturesTab = ({ departures, count, onItemClick }) => (
           <p className="item-subtitle text-xs text-gray-600">العاملة: {departure.Order.HomeMaid.Name ?? "غير محدد"}</p>
           <p className="item-subtitle text-xs text-gray-600">إلى: {departure.finaldestination ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ المغادرة: {departure.createdAt ? getDate(departure.createdAt) : null} <FieldTimeOutlined />
+            تاريخ المغادرة: {departure.internaldeparatureDate ? getDate(departure.internaldeparatureDate) : (departure.createdAt ? getDate(departure.createdAt) : null)} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -1019,11 +1019,22 @@ export default function Home({
   // Get departures for a specific day
   const getDeparturesForDay = (day) => {
     return internalDeparatures.filter((departure) => {
-      if (!departure.createdAt) return false;
-      const departureDate = new Date(departure.createdAt);
-      const departureMonth = departureDate.getMonth();
-      const departureDay = departureDate.getDate();
-      return departureMonth === monthIndex && departureDay === day;
+      // Use internaldeparatureDate for departure date if available, otherwise fall back to createdAt
+      const dateToUse = departure.internaldeparatureDate || departure.createdAt;
+      if (!dateToUse) return false;
+      
+      try {
+        const departureDate = new Date(dateToUse);
+        const departureMonth = departureDate.getMonth();
+        const departureDay = departureDate.getDate();
+        const departureYear = departureDate.getFullYear();
+        
+        // Match: same month, day, and year
+        return departureMonth === monthIndex && departureDay === day && departureYear === year;
+      } catch (error) {
+        console.error('Error parsing departure date:', dateToUse, error);
+        return false;
+      }
     });
   };
 
