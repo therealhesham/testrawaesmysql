@@ -326,8 +326,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
               action.type === 'primary'
                 ? 'bg-teal-800 text-white  hover:bg-teal-900'
                 : 'bg-teal-800 text-white  hover:bg-teal-900'
-            }`}
+            } ${editable && editMode ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={action.onClick}
+            disabled={editable && editMode}
           >
             {action.label}
           </button>

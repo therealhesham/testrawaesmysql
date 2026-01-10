@@ -134,6 +134,12 @@ console.log(id)
             },
             take: 1,
           },
+          visa: {
+            select: {
+              id: true,
+              visaNumber: true,
+            },
+          },
         },
       });
 
@@ -224,7 +230,7 @@ console.log(id)
         },
         officeLinkInfo: {
           nationalId: order.client?.nationalId|| 'N/A',
-          visaNumber: order.arrivals[0]?.visaNumber || 'N/A',
+          visaNumber: order.visa?.visaNumber || order.arrivals[0]?.visaNumber || 'N/A',
           internalMusanedContract: order.arrivals[0]?.InternalmusanedContract || 'N/A',
           musanedDate: order.arrivals[0]?.DateOfApplication ? (order.arrivals[0].DateOfApplication as Date).toISOString().split('T')[0] : 'N/A',
         },
@@ -726,7 +732,7 @@ const cookieHeader = req.headers.cookie;
             if (updatedData['رقم التأشيرة']) {
               const visaRaw = updatedData['رقم التأشيرة'];
               const visa = typeof visaRaw === 'string' ? visaRaw.trim() : String(visaRaw ?? '').trim();
-              const oldVisa = order.arrivals[0]?.visaNumber;
+              const oldVisa = order.visa?.visaNumber || order.arrivals[0]?.visaNumber;
 
               // Normalize display placeholder
               if (!visa || visa === 'N/A') {
