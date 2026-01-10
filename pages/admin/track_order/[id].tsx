@@ -352,6 +352,23 @@ export default function TrackOrder() {
           });
           return;
       }
+      // التحقق من رقم التأشيرة وتاريخ العقد
+      if(!orderData?.officeLinkInfo?.visaNumber || orderData?.officeLinkInfo?.visaNumber.trim() === '' || orderData?.officeLinkInfo?.visaNumber === 'N/A'){
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في تحديث الحالة',
+            message: 'رقم التأشيرة مطلوب',
+          });
+          return;
+      }
+      if(!orderData?.officeLinkInfo?.musanedDate || orderData?.officeLinkInfo?.musanedDate.trim() === '' || orderData?.officeLinkInfo?.musanedDate === 'N/A'){
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في تحديث الحالة',
+            message: 'تاريخ العقد مطلوب',
+          });
+          return;
+      }
     }
 
     // التحقق من رقم عقد مساند التوثيق عند تأكيد الموافقة فقط (value === true)
@@ -944,7 +961,13 @@ export default function TrackOrder() {
                   label: 'تأكيد الموافقة',
                   type: 'primary' as const,
                   onClick: () => handleStatusUpdate('officeLinkApproval', true),
-                  disabled: updating || !canCompleteStep('officeLinkApproval'),
+                  disabled: updating || !canCompleteStep('officeLinkApproval') || 
+                    !orderData?.officeLinkInfo?.visaNumber || 
+                    orderData?.officeLinkInfo?.visaNumber.trim() === '' || 
+                    orderData?.officeLinkInfo?.visaNumber === 'N/A' ||
+                    !orderData?.officeLinkInfo?.musanedDate || 
+                    orderData?.officeLinkInfo?.musanedDate.trim() === '' || 
+                    orderData?.officeLinkInfo?.musanedDate === 'N/A',
                 },
               ]),
             ]}
