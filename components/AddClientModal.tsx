@@ -241,6 +241,13 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       const data = await response.json();
       
       if (data.exists && data.clientId) {
+        // مسح القيمة من الـ input عند ظهور المودال
+        if (field === 'phonenumber') {
+          setFormData((prev) => ({ ...prev, phonenumber: '' }));
+        } else if (field === 'visaNumber') {
+          setFormData((prev) => ({ ...prev, visaNumber: '' }));
+        }
+        
         setDuplicateClientId(data.clientId);
         setDuplicateMessage(
           field === 'phonenumber' 
