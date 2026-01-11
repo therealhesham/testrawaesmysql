@@ -749,7 +749,13 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       result: sessionForm.result,
       idnumber: selectedWorkerId,
     });
-    showNotification(response.data.message);
+    showNotification(response.data.message || 'تم إضافة الجلسة بنجاح');
+    setSessionForm({
+      reason: '',
+      date: '',
+      time: '',
+      result: '',
+    });
     closeModal('sessionModal');
   } catch (error: any) {
     showNotification(error.response?.data?.error || 'خطأ في جلسة العاملة', 'error');

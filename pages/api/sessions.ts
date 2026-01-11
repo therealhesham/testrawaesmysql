@@ -59,7 +59,11 @@ export default async function handler(req, res) {
         },
       });
 
-      return res.status(201).json({ newSession });
+      return res.status(201).json({ 
+        newSession,
+        message: existingSession?.result ? 'تم تحديث الجلسة بنجاح' : 'تم إضافة الجلسة بنجاح',
+        success: true
+      });
     } catch (error) {
       console.error("Error processing session:", error);
       return res.status(500).json({ error: "Error processing session" });
