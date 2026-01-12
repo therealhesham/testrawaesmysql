@@ -199,12 +199,14 @@ export default async function handler(
       },
     });
 
-    // دمج البيانات
+    // دمج البيانات مع إضافة حقول السبب
     const homemaids = orders.map(order => {
       const homemaid = homemaidsData.find(h => h.id === order.HomemaidIdCopy);
       return {
         ...order,
         HomeMaid: homemaid || null,
+        ReasonOfRejection: order.ReasonOfRejection || null,
+        ReasonOfCancellation: order.ReasonOfCancellation || null,
       };
     });
 

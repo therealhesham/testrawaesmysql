@@ -50,7 +50,10 @@ export default function Dashboard() {
   const [modalMessage, setModalMessage] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-const [menuPosition, setMenuPosition] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
+  const [uniqueNationalities, setUniqueNationalities] = useState([]);
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [selectedReason, setSelectedReason] = useState({ reason: '', type: '' });
 
 const handleOpenMenu = (e, rowIndex) => {
   const rect = e.currentTarget.getBoundingClientRect();
@@ -201,6 +204,21 @@ const router = useRouter();
       setOffices(response.data.countriesfinder);
     } catch (error) {
       console.error('Error fetching offices:', error);
+    }
+  };
+
+  const fetchUniqueNationalities = async () => {
+    try {
+      const response = await axios.get("/api/nationalities");
+      if (response.data.success && response.data.nationalities) {
+        const nationalities = response.data.nationalities.map((nat: any) => ({
+          value: nat.Country || nat.value,
+          label: nat.Country || nat.label,
+        }));
+        setUniqueNationalities(nationalities);
+      }
+    } catch (error) {
+      console.error('Error fetching unique nationalities:', error);
     }
   };
 
@@ -453,6 +471,7 @@ const fetchFilteredDataExporting = async () => {
     fetchClients();
     fetchHomemaids();
     fetchOffices();
+    fetchUniqueNationalities();
     newExportOrdersList();
   }, []);
 
@@ -473,10 +492,12 @@ const fetchFilteredDataExporting = async () => {
     { value: "51-60", label: "51-60 سنة" },
   ];
 
-  const nationalityOptions = offices?.map(office => ({
-    value: office.Country,
-    label: office.Country,
-  }));
+  const nationalityOptions = uniqueNationalities.length > 0 
+    ? [{ value: "", label: "كل الجنسيات" }, ...uniqueNationalities]
+    : offices?.map(office => ({
+        value: office.Country,
+        label: office.Country,
+      }));
 
   const totalPages = Math.ceil(totalCount / pageSize);
   const startRecord = (currentPage - 1) * pageSize + 1;
@@ -569,6 +590,7 @@ const fetchFilteredDataExporting = async () => {
               <Select
                 options={nationalityOptions}
                 onChange={handleNationalityFilterChange}
+                value={nationalityFilter ? nationalityOptions.find(opt => opt.value === nationalityFilter) : null}
                 placeholder="كل الجنسيات"
                 className="text-right w-full"
                 styles={{
@@ -622,6 +644,7 @@ const fetchFilteredDataExporting = async () => {
               <thead className="bg-teal-900 text-white">
                 <tr>
                   <th className="p-4 flex justify-center self-center">استعادة</th>
+                  <th className="p-4">السبب</th>
                   <th className="p-4">جواز السفر</th>
                   <th className="p-4">الجنسية</th>
                   <th className="p-4">اسم العاملة</th>
@@ -633,14 +656,33 @@ const fetchFilteredDataExporting = async () => {
                 </tr>
               </thead>
               <tbody>
-                {newOrders?.map((row, index) => (
-                  <>
+                {newOrders?.map((row: any, index) => {
+                  const hasReason = row.ReasonOfRejection || row.ReasonOfCancellation;
+                  const reasonType = row.ReasonOfRejection ? 'rejection' : 'cancellation';
+                  const reasonText = row.ReasonOfRejection || row.ReasonOfCancellation;
+                  
+                  return (
                     <tr key={index} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
                       <td className="p-4 cursor-pointer text-center" onClick={() => confirmAccept(row.id)}>
                         <div className="flex items-center justify-center gap-2 text-teal-600 hover:text-teal-800"> 
                           <FaRecycle className='w-4 h-4' />
                           <span className="text-sm">استعادة</span>
                         </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        {hasReason ? (
+                          <button
+                            onClick={() => {
+                              setSelectedReason({ reason: reasonText, type: reasonType });
+                              setShowReasonModal(true);
+                            }}
+                            className="text-teal-600 hover:text-teal-800 underline text-sm"
+                          >
+                            عرض
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 text-sm">غير متوفر</span>
+                        )}
                       </td>
                       <td className="p-4 text-md text-gray-800 text-center">{row.Passportnumber || 'غير متوفر'}</td>
                       <td className="p-4 text-md text-gray-800 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
@@ -651,9 +693,8 @@ const fetchFilteredDataExporting = async () => {
                       <td className="p-4 text-md text-gray-800 text-right">{row.client?.fullname || 'غير متوفر'}</td>
                       <td className="p-4 pl-6 text-md text-gray-800 text-right cursor-pointer hover:text-teal-600" onClick={() => handleOrderClick(row.id)}>#{row.id}</td>
                     </tr>
-                    
-                  </>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -1152,6 +1193,36 @@ const fetchFilteredDataExporting = async () => {
                 onClick={closeModal}
               >
                 موافق
+              </button>
+            </div>
+          </div>
+        )}
+        {showReasonModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-96 text-center relative max-w-md">
+              <button
+                className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                onClick={() => {
+                  setShowReasonModal(false);
+                  setSelectedReason({ reason: '', type: '' });
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-semibold mb-4 text-teal-900">
+                {selectedReason.type === 'rejection' ? 'سبب الرفض' : 'سبب الإلغاء'}
+              </h2>
+              <div className="text-right p-4 bg-gray-50 rounded-lg mb-4 min-h-[100px] max-h-[300px] overflow-y-auto">
+                <p className="text-gray-800 whitespace-pre-wrap">{selectedReason.reason || 'غير متوفر'}</p>
+              </div>
+              <button
+                className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+                onClick={() => {
+                  setShowReasonModal(false);
+                  setSelectedReason({ reason: '', type: '' });
+                }}
+              >
+                إغلاق
               </button>
             </div>
           </div>
