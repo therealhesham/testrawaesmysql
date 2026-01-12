@@ -20,10 +20,20 @@ export default async function handler(
       // البحث في أسماء العاملات
       const homemaids = await prisma.homemaid.findMany({
         where: {
-          Name: {
-            contains: query,
-            // mode: 'insensitive',
-          },
+          AND: [
+            { Name: { contains: query } },
+            {
+              // الخادمة متاحة فقط لو كل طلباتها إما null أو ملغية/مرفوضة (يعني ما فيش طلبات نشطة)
+              NewOrder: {
+                every: {
+                  OR: [
+                    { HomemaidId: null },
+                    { bookingstatus: { in: ["cancelled", "rejected"] } }
+                  ]
+                }
+              }
+            }
+          ]
         },
         select: {phone: true,
           id: true,Passportnumber: true,

@@ -40,10 +40,15 @@ const pageSize = Number(pageSizeQ);
   try {
     const totalRecords = await prisma.homemaid.count({
       where: {
-        OR: [
-          { NewOrder: { every: { HomemaidId: null } } },
-          { NewOrder: { some: { bookingstatus: { in: ["cancelled", "rejected"] } } } }
-        ],
+        // الخادمة متاحة فقط لو كل طلباتها إما null أو ملغية/مرفوضة (يعني ما فيش طلبات نشطة)
+        NewOrder: {
+          every: {
+            OR: [
+              { HomemaidId: null },
+              { bookingstatus: { in: ["cancelled", "rejected"] } }
+            ]
+          }
+        },
         ...filters
       },
     });
@@ -51,10 +56,15 @@ const pageSize = Number(pageSizeQ);
 
     const data = await prisma.homemaid.findMany({
       where: {
-        OR: [
-          { NewOrder: { every: { HomemaidId: null } } },
-          { NewOrder: { some: { bookingstatus: { in: ["cancelled", "rejected"] } } } }
-        ],
+        // الخادمة متاحة فقط لو كل طلباتها إما null أو ملغية/مرفوضة (يعني ما فيش طلبات نشطة)
+        NewOrder: {
+          every: {
+            OR: [
+              { HomemaidId: null },
+              { bookingstatus: { in: ["cancelled", "rejected"] } }
+            ]
+          }
+        },
         ...filters
       },
       include: { NewOrder: true, office: {select:{Country:true}} },
