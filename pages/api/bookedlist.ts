@@ -53,7 +53,7 @@ export default async function handler(
         HomemaidId: { gt: 0 },
         NOT: {
           bookingstatus: {
-            in: ["delivered", "rejected"],
+            in: ["delivered", "rejected", "cancelled"],
           },
         },
       },
@@ -67,7 +67,7 @@ export default async function handler(
         HomemaidId: { gt: 0 },
         NOT: {
           bookingstatus: {
-            in: ["delivered", "rejected"],
+            in: ["delivered", "rejected", "cancelled"],
           },
         },
       },
