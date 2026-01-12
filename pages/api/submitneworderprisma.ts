@@ -38,6 +38,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } = req.body;
 
   try {
+    // ✅ حذف الطلبات الملغاة أو المرفوضة المرتبطة بالعاملة
+    const cancelledOrRejectedOrders = await prisma.neworder.findMany({
+      where: { 
+        HomeMaid: { id: HomemaidId },
+        bookingstatus: {
+          in: ['cancelled', 'rejected']
+        }
+      },
+      include: {
+        arrivals: true
+      }
+    });
+
+    // حذف arrivallist المرتبطة بهذه الطلبات ثم حذف الطلبات نفسها
+    if (cancelledOrRejectedOrders.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const order of cancelledOrRejectedOrders) {
+          // حذف arrivallist المرتبطة بالطلب
+          if (order.arrivals && order.arrivals.length > 0) {
+            await tx.arrivallist.deleteMany({
+              where: { OrderId: order.id }
+            });
+          }
+          // حذف الطلب
+          await tx.neworder.delete({
+            where: { id: order.id }
+          });
+        }
+      });
+    }
+
     // ✅ تحقق من الحجز المسبق (استثناء الطلبات الملغاة أو المرفوضة)
     const existingOrder = await prisma.neworder.findFirst({
       where: { 

@@ -740,11 +740,12 @@ const handleExportPDF = async () => {
                     value={newUser.phonenumber}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // السماح بالأرقام فقط
-                      if (value === '' || /^\d+$/.test(value)) {
+                      // السماح بـ + في البداية فقط والأرقام، بحد أقصى 15 رقم
+                      if (value === '' || /^\+?\d{0,15}$/.test(value)) {
                         setNewUser({ ...newUser, phonenumber: value });
                       }
                     }}
+                    maxLength={16}
                     className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
@@ -893,11 +894,12 @@ const handleExportPDF = async () => {
                     value={newUser.phonenumber}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // السماح بالأرقام فقط
-                      if (value === '' || /^\d+$/.test(value)) {
+                      // السماح بـ + في البداية فقط والأرقام، بحد أقصى 15 رقم
+                      if (value === '' || /^\+?\d{0,15}$/.test(value)) {
                         setNewUser({ ...newUser, phonenumber: value });
                       }
                     }}
+                    maxLength={16}
                     className="p-3 border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
                   />
                 </div>
