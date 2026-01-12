@@ -38,9 +38,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } = req.body;
 
   try {
-    // ✅ تحقق من الحجز المسبق
+    // ✅ تحقق من الحجز المسبق (استثناء الطلبات الملغاة أو المرفوضة)
     const existingOrder = await prisma.neworder.findFirst({
-      where: { HomeMaid: { id: HomemaidId } },
+      where: { 
+        HomeMaid: { id: HomemaidId },
+        bookingstatus: {
+          notIn: ['cancelled', 'rejected']
+        }
+      },
     });
 
     if (existingOrder) {
