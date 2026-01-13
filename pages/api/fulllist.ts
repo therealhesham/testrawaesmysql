@@ -130,7 +130,7 @@ export default async function handler(
         },
       },
       where: combinedFilters,
-      orderBy: { id: "desc" },
+      orderBy: { displayOrder: "asc" },
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,
     });
