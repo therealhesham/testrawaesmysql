@@ -747,9 +747,19 @@ function HomeMaidInfo() {
 
   return (
     <Layout>
-      <div className="p-6 bg-gray-50 min-h-screen font-tajawal">
-        {loading && <div className="text-center text-teal-800">جارٍ التحميل...</div>}
+      <div className="p-6 bg-gray-50 min-h-screen font-tajawal relative">
         {error && <div className="text-center text-red-500 mb-4">{error}</div>}
+        
+        {/* Spinner overlay عند الحفظ */}
+        {saving && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[9999]">
+            <div className="bg-white rounded-lg p-6 shadow-xl">
+              <div className="flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-800"></div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <h1 className="text-3xl font-bold text-teal-800 mb-8 text-right">المعلومات الشخصية</h1>
 
@@ -779,7 +789,7 @@ function HomeMaidInfo() {
           ) : (
             <div className="flex gap-2">
               <button className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition" onClick={handleSave} disabled={saving}>
-                <FaSave /> {saving ? 'جاري الحفظ...' : 'حفظ'}
+                <FaSave /> حفظ
               </button>
               <button className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition" 
                 onClick={() => {
