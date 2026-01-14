@@ -420,15 +420,41 @@ export default function TrackOrder() {
         }
       },
     });
-  };
+    };
+  const checknationalid = async (nationalId: string)=>{
+    const res = await fetch(`/api/checkNationaliiduniquness`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nationalId }),
+    });
+    const data = await res.json();
+   
+   
+    return data.exists;
+  }
+
+
+
 
   const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
     // التحقق من هوية العميل في قسم الربط مع إدارة المكاتب
     if (section === 'officeLinkInfo' && updatedData['هوية العميل']) {
       const nationalId = updatedData['هوية العميل'].trim();
+      const originalNationalId = orderData?.officeLinkInfo?.nationalId?.trim() || '';
       
-      // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A'
-      if (nationalId && nationalId !== 'N/A' && nationalId !== '') {
+      // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A' ومختلف عن القيمة الأصلية
+      if (nationalId && nationalId !== 'N/A' && nationalId !== '' && nationalId !== originalNationalId) {
+        const exists = await checknationalid(nationalId);
+        if(exists){
+// alert('هوية العميل متسجلة مسبقا');
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'هوية العميل متسجلة مسبقا',
+          });
+          await fetchOrderData();
+          return;
+        }
         // التحقق من أن الهوية تحتوي على أرقام فقط
         if (!/^\d+$/.test(nationalId)) {
           setShowErrorModal({
