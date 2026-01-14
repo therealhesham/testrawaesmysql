@@ -10,7 +10,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { SponsorName, PassportNumber, Name,OrderId, age, page, perPage, contractType } = req.query;
+  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder } = req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = parseInt(perPage as string, 10) || 10;
@@ -73,6 +73,25 @@ export default async function handler(
   }
 }
 
+  // Build orderBy object based on sortBy and sortOrder
+  let orderBy: any = { displayOrder: "desc" }; // Default sorting
+  
+  if (sortBy && sortOrder) {
+    const sortField = sortBy as string;
+    const sortDirection = (sortOrder as string).toLowerCase() === 'asc' ? 'asc' : 'desc';
+    
+    // Handle nested fields (Country and office)
+    if (sortField === 'Country' || sortField === 'office') {
+      orderBy = {
+        office: {
+          [sortField]: sortDirection
+        }
+      };
+    } else {
+      orderBy = { [sortField]: sortDirection };
+    }
+  }
+
   try {
     // Count total records for pagination (with contractType filter)
     const totalRecords = await prisma.homemaid.count({
@@ -110,7 +129,7 @@ export default async function handler(
         },
       },
       where: filters,
-      orderBy:{displayOrder: "desc"} ,
+      orderBy: orderBy,
       skip: (pageNumber - 1) * pageSize,
       take: pageSize,
     });

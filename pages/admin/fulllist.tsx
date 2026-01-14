@@ -232,6 +232,8 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         contractType: typeToUse,
         page: String(page),
         perPage: "10",
+        sortBy: sortBy,
+        sortOrder: sortOrder,
       });
       
       console.log('Fetching data with contractType:', typeToUse);
@@ -256,8 +258,8 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       if (rental !== undefined) setRentalCount(rental);
       
       if (res && res.length > 0) {
-        const sortedData = sortData(res, sortBy, sortOrder);
-        setData(sortedData);
+        // Don't sort on client side anymore, data comes sorted from server
+        setData(res);
         console.log("Data fetched successfully for type:", typeToUse, "Count:", res.length);
         setTotalPages(pages || 1);
       } else {
@@ -345,20 +347,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     
     // Pass contractType explicitly to ensure correct value is used
     fetchData(currentPage, contractType, isContractTypeChanged);
-  }, [currentPage, filters, contractType]);
-
-  // Sort data when sortBy or sortOrder changes
-  useEffect(() => {
-    if (data.length > 0) {
-      const sorted = sortData(data, sortBy, sortOrder);
-      // Only update if order actually changed
-      const isDifferent = sorted.some((item, index) => item.id !== data[index]?.id);
-      if (isDifferent) {
-        setData(sorted);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, sortOrder]);
+  }, [currentPage, filters, contractType, sortBy, sortOrder]);
 
 
   const handleFilterChange = (e: any, column: string) => {
