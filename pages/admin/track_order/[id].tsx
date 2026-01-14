@@ -399,14 +399,14 @@ export default function TrackOrder() {
             const errorData = await res.json();
             throw new Error(errorData.error || 'فشل في تحديث الحالة');
           }
-          await fetchOrderData();
+          // await fetchOrderData();
           setShowAlertModal({
             isOpen: true,
             message: 'تم تحديث الحالة بنجاح',
           });
         } catch (error: any) {
           console.error('Error updating status:', error);
-    await fetchOrderData();
+    
           setShowErrorModal({
             isOpen: true,
             title: 'خطأ في تحديث الحالة',
@@ -414,7 +414,9 @@ export default function TrackOrder() {
           });
     
         } finally {
+    
           setUpdating(false);
+          await fetchOrderData(); // تحديث البيانات بعد التحديث
         }
       },
     });
