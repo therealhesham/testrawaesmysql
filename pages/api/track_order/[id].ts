@@ -146,9 +146,6 @@ console.log(id)
       if (!order ) {
         return res.status(404).json({ error: 'الطلب غير موجود' });
       }
-if(order.bookingstatus ==="new_order"){
-return res.status(404).json({ error: 'الطلب لم يتم قبوله من صفحة الطلبات الجديدة' });
-} 
       // التحقق من bookingStatus وإنشاء arrival إذا لزم الأمر
       const excludedStatuses = ['new_order', 'neworder', 'cancelled', 'rejected', 'new_orders'];
       const currentStatus = order.bookingstatus?.toLowerCase() || '';
@@ -356,6 +353,7 @@ const cookieHeader = req.headers.cookie;
         },
       });
 
+      
       if (!order || !order.arrivals || order.arrivals.length === 0) {
         // console.log(order)
         console.log(order?.arrivals)
@@ -363,7 +361,10 @@ const cookieHeader = req.headers.cookie;
 
         return res.status(404).json({ error: 'بيانات الوصول غير متاحة .. يرجى التأكيد من حالة الطلب' });
       }
-
+if(order.bookingstatus ==="new_order"){
+  return res.status(404).json({ error: 'لا يمكن تعديل الطلب الا بعد قبوله من صفحة الطلبات الجديدة' });
+  } 
+  
       // Handle existing status updates
       if (field) {
         const validFields = [
