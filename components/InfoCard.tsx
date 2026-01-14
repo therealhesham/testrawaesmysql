@@ -8,7 +8,7 @@ import SaudiCityAutocomplete from './SaudiCityAutocomplete';
 interface InfoCardProps {
   id?: string;
   title: string;
-  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' | 'city' | 'saudiCity' }[];
+  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' | 'city' | 'saudiCity'; rawValue?: string }[];
   gridCols?: number;
   actions?: { label: string; type: 'primary' | 'secondary'; onClick: () => void; disabled?: boolean }[];
   editable?: boolean;
@@ -25,7 +25,8 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
       if (typeof item.value === 'string') {
         acc[item.label] = item.value;
       } else if (item.label.includes('تاريخ ووقت')) {
-        const dateTimeString = item.value.props?.children[0]?.props?.children || '';
+        // Use rawValue if available, otherwise try to extract from JSX
+        const dateTimeString = item.rawValue || '';
         acc[`${item.label}_date`] = dateTimeString.split(' ')[0] || '';
         acc[`${item.label}_time`] = dateTimeString.split(' ')[1] || '';
       }
@@ -174,7 +175,8 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
         if (typeof item.value === 'string') {
           acc[item.label] = item.value;
         } else if (item.label.includes('تاريخ ووقت')) {
-          const dateTimeString = item.value.props?.children[0]?.props?.children || '';
+          // Use rawValue if available, otherwise try to extract from JSX
+          const dateTimeString = item.rawValue || '';
           acc[`${item.label}_date`] = dateTimeString.split(' ')[0] || '';
           acc[`${item.label}_time`] = dateTimeString.split(' ')[1] || '';
         }

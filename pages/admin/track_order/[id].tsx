@@ -457,6 +457,31 @@ export default function TrackOrder() {
       }
     }
 
+    // التحقق من تاريخ ووقت الوصول والمغادرة في قسم الوجهات
+    if (section === 'destinations') {
+      const departureDateTime = updatedData['تاريخ ووقت المغادرة'];
+      const arrivalDateTime = updatedData['تاريخ ووقت الوصول'];
+      
+      // التحقق من أن كلا التاريخين موجودان
+      if (departureDateTime && arrivalDateTime) {
+        const departureDate = new Date(departureDateTime);
+        const arrivalDate = new Date(arrivalDateTime);
+        
+        // التحقق من أن التواريخ صحيحة
+        if (!isNaN(departureDate.getTime()) && !isNaN(arrivalDate.getTime())) {
+          // التحقق من أن تاريخ الوصول لا يسبق تاريخ المغادرة
+          if (arrivalDate < departureDate) {
+            setShowErrorModal({
+              isOpen: true,
+              title: 'خطأ في التحقق',
+              message: 'تاريخ ووقت الوصول لا يمكن أن يسبق تاريخ ووقت المغادرة',
+            });
+            return;
+          }
+        }
+      }
+    }
+
     setShowConfirmModal({
       isOpen: true,
       title: 'حفظ التعديلات',
@@ -1344,6 +1369,7 @@ export default function TrackOrder() {
                     {/* <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" /> */}
                   </div>
                 ),
+                rawValue: orderData.destinations.departureDateTime,
               },
               {
                 label: 'تاريخ ووقت الوصول',
@@ -1353,6 +1379,7 @@ export default function TrackOrder() {
                     {/* <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" /> */}
                   </div>
                 ),
+                rawValue: orderData.destinations.arrivalDateTime,
               },
               {
                 label: 'ملف التذكرة',
