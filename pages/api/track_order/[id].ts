@@ -142,11 +142,13 @@ console.log(id)
           },
         },
       });
-
+      
       if (!order ) {
         return res.status(404).json({ error: 'الطلب غير موجود' });
       }
-
+if(order.bookingstatus ==="new_order"){
+return res.status(404).json({ error: 'الطلب لم يتم قبوله من صفحة الطلبات الجديدة' });
+} 
       // التحقق من bookingStatus وإنشاء arrival إذا لزم الأمر
       const excludedStatuses = ['new_order', 'neworder', 'cancelled', 'rejected', 'new_orders'];
       const currentStatus = order.bookingstatus?.toLowerCase() || '';
