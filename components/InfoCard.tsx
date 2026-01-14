@@ -42,6 +42,13 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   //   return 'تاريخ العقد مطلوب';
   // }
 
+  // National ID validation: 10 digits
+  if ((key === 'هوية العميل' || key.includes('هوية العميل')) && value && value !== 'N/A') {
+    const nationalId = value.trim();
+    if (!/^\d+$/.test(nationalId)) {
+      return 'هوية العميل يجب أن تحتوي على أرقام فقط';
+    }
+  }
   // Visa number validation: 10 digits, must start with 190
   if ((key === 'رقم التأشيرة' || key.includes('التأشيرة')) && value && value !== 'N/A') {
     const visa = value.trim();

@@ -440,6 +440,16 @@ export default function TrackOrder() {
     // التحقق من هوية العميل في قسم الربط مع إدارة المكاتب
     if (section === 'officeLinkInfo' && updatedData['هوية العميل']) {
       const nationalId = updatedData['هوية العميل'].trim();
+        // التحقق من أن الهوية تحتوي على أرقام فقط
+        if (!/^\d+$/.test(nationalId)) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'هوية العميل يجب أن تحتوي على أرقام فقط',
+          });
+          return;
+        }
+
       const originalNationalId = orderData?.officeLinkInfo?.nationalId?.trim() || '';
       
       // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A' ومختلف عن القيمة الأصلية
@@ -453,15 +463,6 @@ export default function TrackOrder() {
             message: 'هوية العميل متسجلة مسبقا',
           });
           await fetchOrderData();
-          return;
-        }
-        // التحقق من أن الهوية تحتوي على أرقام فقط
-        if (!/^\d+$/.test(nationalId)) {
-          setShowErrorModal({
-            isOpen: true,
-            title: 'خطأ في التحقق',
-            message: 'هوية العميل يجب أن تحتوي على أرقام فقط',
-          });
           return;
         }
       }
