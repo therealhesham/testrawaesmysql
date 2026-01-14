@@ -419,6 +419,24 @@ export default function TrackOrder() {
   };
 
   const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
+    // التحقق من هوية العميل في قسم الربط مع إدارة المكاتب
+    if (section === 'officeLinkInfo' && updatedData['هوية العميل']) {
+      const nationalId = updatedData['هوية العميل'].trim();
+      
+      // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A'
+      if (nationalId && nationalId !== 'N/A' && nationalId !== '') {
+        // التحقق من أن الهوية تحتوي على أرقام فقط
+        if (!/^\d+$/.test(nationalId)) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'هوية العميل يجب أن تحتوي على أرقام فقط',
+          });
+          return;
+        }
+      }
+    }
+
     // التحقق من رقم عقد إدارة المكاتب في قسم الربط مع إدارة المكاتب
     if (section === 'officeLinkInfo' && updatedData['رقم عقد إدارة المكاتب']) {
       const contract = updatedData['رقم عقد إدارة المكاتب'].trim();
