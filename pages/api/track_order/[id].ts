@@ -353,18 +353,20 @@ const cookieHeader = req.headers.cookie;
         },
       });
 
-      
+if(order?.bookingstatus ==="new_order"){
+  return res.status(404).json({ error: 'لا يمكن تعديل الطلب الا بعد قبوله من صفحة الطلبات الجديدة' });
+  }  
+        
       if (!order || !order.arrivals || order.arrivals.length === 0) {
+
+
         // console.log(order)
         console.log(order?.arrivals)
 // console.log(order?.arrivals[0])
 
         return res.status(404).json({ error: 'بيانات الوصول غير متاحة .. يرجى التأكيد من حالة الطلب' });
       }
-if(order.bookingstatus ==="new_order"){
-  return res.status(404).json({ error: 'لا يمكن تعديل الطلب الا بعد قبوله من صفحة الطلبات الجديدة' });
-  } 
-  
+
       // Handle existing status updates
       if (field) {
         const validFields = [
