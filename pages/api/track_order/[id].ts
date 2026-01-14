@@ -731,8 +731,17 @@ if(order?.bookingstatus ==="new_order"){
             console.log('🔗 تعديل معلومات ربط المكتب');
             if (updatedData['هوية العميل']) {
               const oldNationalId = order.client?.nationalId;
-              updateData.nationalId = updatedData['هوية العميل'];
-              changes.push(`هوية العميل: من "${oldNationalId || 'فارغ'}" إلى "${updatedData['هوية العميل']}"`);
+              const newNationalId = updatedData['هوية العميل'].trim();
+              
+              // تحديث هوية العميل في جدول client
+              if (order.clientID) {
+                await prisma.client.update({
+                  where: { id: order.clientID },
+                  data: { nationalId: newNationalId },
+                });
+              }
+              
+              changes.push(`هوية العميل: من "${oldNationalId || 'فارغ'}" إلى "${newNationalId}"`);
             }
             if (updatedData['رقم التأشيرة']) {
               const visaRaw = updatedData['رقم التأشيرة'];
