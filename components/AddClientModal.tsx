@@ -164,7 +164,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
   const validateStep1 = () => {
     const newErrors: any = {};
     const nameRegex = /^[a-zA-Z\s\u0600-\u06FF]+$/; // Arabic letters and english letters only
-    const phoneRegex = /^5\d{8}$/; // 9 digits, starts with 5 (without country code)
+    const phoneRegex = /^05\d{7,8}$/; // Starts with 05, total 9 or 10 digits
     const nationalIdRegex = /^\d{10}$/; // 10 digits
 
     if (!formData.fullname) {
@@ -178,7 +178,7 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     if (!formData.phonenumber) {
       newErrors.phonenumber = 'رقم الهاتف مطلوب';
     } else if (!phoneRegex.test(formData.phonenumber)) {
-      newErrors.phonenumber = 'رقم الهاتف يجب أن يكون 9 أرقام ويبدأ بـ 5';
+      newErrors.phonenumber = 'رقم الهاتف يجب أن يبدأ بـ 05 ويكون إجمالي الأرقام 9 أو 10';
     }
 
     if (!formData.nationalId) {
@@ -304,8 +304,8 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
     // Clear error for the field when user starts typing
     setErrors((prev: any) => ({ ...prev, [name]: '' }));
     
-    // التحقق من وجود رقم التليفون عند اكتمال الرقم
-    if (name === 'phonenumber' && value.length === 9) {
+    // التحقق من وجود رقم التليفون عند اكتمال الرقم (9 أو 10 أرقام)
+    if (name === 'phonenumber' && (value.length === 9 || value.length === 10)) {
       checkDuplicate('phonenumber', value);
     }
   };
@@ -649,13 +649,14 @@ const AddClientModal = ({ isOpen, onClose, onSuccess }: AddClientModalProps) => 
       type="text"
       id="phonenumber"
       name="phonenumber"
-      placeholder="5XXXXXXXX"
+      placeholder="05XXXXXXXX"
       value={formData.phonenumber}
       inputMode="numeric"
-      maxLength={9}
+      maxLength={10}
       onChange={(e) => {
         const value = e.target.value.replace(/\D/g, ""); // يمنع غير الأرقام
-        if (value.startsWith("5") || value === "") {
+        // يسمح فقط بأرقام تبدأ بـ 05
+        if (value === "" || value === "0" || (value.startsWith("05") && value.length <= 10)) {
           handleInputChange({
             target: { name: "phonenumber", value },
           });

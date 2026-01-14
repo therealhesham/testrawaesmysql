@@ -350,6 +350,7 @@ const cookieHeader = req.headers.cookie;
           arrivals: true,
           client: true,
           HomeMaid: true,
+          visa: true,
         },
       });
 
@@ -379,6 +380,7 @@ if(order?.bookingstatus ==="new_order"){
           'visaIssuance',
           'travelPermit',
           'receipt',
+          'destinations',
           'bookingStatus',
         ];
 
@@ -520,6 +522,25 @@ if(order?.bookingstatus ==="new_order"){
               }
             } else {
               return res.status(400).json({ error: 'Invalid bookingStatus value' });
+            }
+            break;
+          case 'destinations':
+            const oldDestinations = order.arrivals[0]?.deparatureCityCountry ? 'مكتمل' : 'غير مكتمل';
+            
+            // عند التراجع (value = false)، نقوم بمسح البيانات
+            if (!value) {
+                arrivalUpdate.deparatureCityCountry = null;
+                arrivalUpdate.deparatureCityCountryDate = null;
+                arrivalUpdate.deparatureCityCountryTime = null;
+                arrivalUpdate.arrivalSaudiAirport = null;
+                arrivalUpdate.KingdomentryDate = null;
+                arrivalUpdate.KingdomentryTime = null; // Also clear arrival time
+                arrivalUpdate.ticketFile = null;
+                
+                // Revert booking status to travel_permit_issued
+                updateData.bookingstatus = 'travel_permit_issued';
+
+                logMessage = `تراجع عن الوجهات في الطلب ${id} - تم حذف بيانات المغادرة والوصول والعودة لحالة travel_permit_issued`;
             }
             break;
         }
@@ -1038,11 +1059,15 @@ if(order?.bookingstatus ==="new_order"){
       return res.status(400).json({ error: 'Invalid request' });
     } catch (error: any) {
       console.error('Error updating order:', error);
-      
+  if(error?.message?.includes('Invalid value for argument `KingdomentryDate`') || error?.message?.includes('Invalid value for argument `DateOfApplication`')){
+    return res.status(400).json({ error: 'لا يمكن اضافة تاريخ مغادرة دون تاريخ وصول' });
+  }
       // Check if it's a Prisma validation error for DateOfApplication
+     
       if (error?.message?.includes('DateOfApplication') || 
           error?.message?.includes('Invalid value for argument') ||
           error?.message?.includes('Provided Date object is invalid')) {
+            console.log("error",error?.message);
         return res.status(400).json({ error: 'تاريخ العقد مطلوب' });
       }
       

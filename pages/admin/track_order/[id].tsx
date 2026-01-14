@@ -141,7 +141,8 @@ export default function TrackOrder() {
         return orderData.travelPermit.issued;
       case 'destinations':
         // الوجهات - مكتمل إذا كان هناك تاريخ مغادرة أو وصول
-        return !!(orderData.destinations.departureDateTime || orderData.destinations.arrivalDateTime);
+        return (orderData.destinations.departureDateTime !== 'N/A' && orderData.destinations.departureDateTime !== '') || 
+               (orderData.destinations.arrivalDateTime !== 'N/A' && orderData.destinations.arrivalDateTime !== '');
       case 'receipt':
         return orderData.receipt.received;
       default:
@@ -235,6 +236,7 @@ export default function TrackOrder() {
       'saudiEmbassyApproval',
       'visaIssuance',
       'travelPermit',
+      'destinations',
       'receipt'
     ];
     
@@ -437,6 +439,44 @@ export default function TrackOrder() {
 
 
   const handleSaveEdits = async (section: string, updatedData: Record<string, string>) => {
+    // التحقق من رقم الهاتف في قسم معلومات العميل
+    if (section === 'clientInfo' && updatedData['رقم الهاتف']) {
+      const phone = updatedData['رقم الهاتف'].trim();
+      
+      // التحقق فقط إذا كان الرقم غير فارغ وليس 'N/A'
+      if (phone && phone !== 'N/A' && phone !== '') {
+        // التحقق من أن الرقم يحتوي على أرقام فقط
+        if (!/^\d+$/.test(phone)) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم الهاتف يجب أن يحتوي على أرقام فقط',
+          });
+          return;
+        }
+        
+        // التحقق من أن الرقم يبدأ بـ 05
+        if (!phone.startsWith('05')) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم الهاتف يجب أن يبدأ بـ 05',
+          });
+          return;
+        }
+        
+        // التحقق من أن الرقم 9 أو 10 أرقام
+        if (phone.length !== 10) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم الهاتف يجب أن يكون إجمالي الأرقام 10 أرقام',
+          });
+          return;
+        }
+      }
+    }
+
     // التحقق من هوية العميل في قسم الربط مع إدارة المكاتب
     if (section === 'officeLinkInfo' && updatedData['هوية العميل']) {
       const nationalId = updatedData['هوية العميل'].trim();
@@ -561,6 +601,7 @@ export default function TrackOrder() {
             message: error.message || 'حدث خطأ أثناء حفظ التعديلات',
           });
         } finally {
+          await fetchOrderData();
           setUpdating(false);
         }
       },
@@ -979,7 +1020,7 @@ export default function TrackOrder() {
             title="معلومات العميل"
             data={[
               { label: 'اسم العميل', value: orderData.clientInfo.name },
-              { label: 'رقم الهاتف', value: orderData.clientInfo.phone },
+              { label: 'رقم الهاتف', value: orderData.clientInfo.phone, fieldType: 'phone' },
               { label: 'البريد الإلكتروني', value: orderData.clientInfo.email },
               { label: 'رقم الطلب', value: orderData.orderId },
             ]}
@@ -1530,6 +1571,14 @@ export default function TrackOrder() {
             bottomMessage={!canCompleteStep('destinations') ? (
               <span className="text-red-600 text-sm">يجب إكمال: {getPreviousIncompleteStep('destinations')}</span>
             ) : undefined}
+            actions={[
+              {
+                label: 'تراجع',
+                type: 'secondary',
+                onClick: () => handleStatusUpdate('destinations', false),
+                disabled: updating || !isStepCompleted('destinations') || getLastApprovedStage() !== 'destinations',
+              },
+            ]}
           />
 
           <InfoCard

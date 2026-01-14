@@ -8,7 +8,7 @@ import SaudiCityAutocomplete from './SaudiCityAutocomplete';
 interface InfoCardProps {
   id?: string;
   title: string;
-  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' | 'city' | 'saudiCity'; rawValue?: string }[];
+  data: { label: string; value: string | JSX.Element | ((editMode: boolean) => JSX.Element); fieldType?: 'visa' | 'file' | 'city' | 'saudiCity' | 'phone'; rawValue?: string }[];
   gridCols?: number;
   actions?: { label: string; type: 'primary' | 'secondary'; onClick: () => void; disabled?: boolean }[];
   editable?: boolean;
@@ -99,6 +99,30 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
     }
   }
 
+  // Phone number validation: must start with 05, total 9 or 10 digits
+  if ((key === 'رقم الهاتف' || key.includes('رقم الهاتف') || key.includes('الهاتف')) && value && value !== 'N/A') {
+    const phone = value.trim();
+    if (!/^\d+$/.test(phone)) {
+      return 'رقم الهاتف يجب أن يحتوي على أرقام فقط';
+    }
+    
+    // Allow progressive typing of 05 (0 -> 05)
+    if (phone.length < 2) {
+      if (!'05'.startsWith(phone)) {
+        return 'رقم الهاتف يجب أن يبدأ بـ 05';
+      }
+      return null;
+    }
+    
+    if (!phone.startsWith('05')) {
+      return 'رقم الهاتف يجب أن يبدأ بـ 05';
+    }
+    
+    if (phone.length !== 10) {
+      return 'رقم الهاتف يجب أن يكون إجمالي الأرقام 10 أرقام';
+    }
+  }
+
   // Email validation
   if ((key.includes('البريد الإلكتروني') || key.includes('ايميل')) && value && value !== 'N/A') {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -137,6 +161,18 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   return null;
 };
   const handleInputChange = (key: string, value: string) => {
+    // Special handling for phone number: only allow digits and enforce 05 prefix
+    if ((key === 'رقم الهاتف' || key.includes('رقم الهاتف') || key.includes('الهاتف'))) {
+      const digitsOnly = value.replace(/\D/g, '');
+      // Allow only if it starts with 05 or is empty/just "0"
+      if (digitsOnly === '' || digitsOnly === '0' || (digitsOnly.startsWith('05') && digitsOnly.length <= 10)) {
+        setFormData((prev) => ({ ...prev, [key]: digitsOnly }));
+        const error = validateInput(key, digitsOnly);
+        setErrors((prev) => ({ ...prev, [key]: error || '' }));
+      }
+      return;
+    }
+    
     setFormData((prev) => ({ ...prev, [key]: value }));
     const error = validateInput(key, value);
     setErrors((prev) => ({ ...prev, [key]: error || '' }));
@@ -278,6 +314,24 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                   className="border border-gray-300 rounded-md text-base text-right"
                   error={errors[item.label]}
                 />
+              </div>
+            ) : editable && editMode && item.fieldType === 'phone' ? (
+              <div className="flex flex-col">
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    value={formData[item.label] || ''}
+                    onChange={(e) => handleInputChange(item.label, e.target.value)}
+                    placeholder="05XXXXXXXX"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className={`w-full border ${errors[item.label] ? 'border-red-500' : 'border-gray-300'} rounded-r-md p-2 text-base text-right focus:outline-none`}
+                  />
+                  <span className="bg-gray-50 border border-r-0 border-gray-300 rounded-l-md py-2 px-3 text-sm text-gray-600 select-none">
+                    966+
+                  </span>
+                </div>
+                {errors[item.label] && <span className="text-red-600 text-sm text-right">{errors[item.label]}</span>}
               </div>
             ) : editable && editMode ? (
               <div className="flex flex-col">
