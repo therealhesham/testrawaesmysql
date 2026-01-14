@@ -734,10 +734,10 @@ if(order?.bookingstatus ==="new_order"){
 
               //اتاكد ان الNATIONALI iD  مش متسجل مسبقا
 
-              const find = await prisma.client.findFirst({where:{nationalId:updatedData['هوية العميل']}})
-              if(find){
-                return res.status(404).json({ error: 'هوية العميل متسجلة مسبقا' });
-              }
+              // const find = await prisma.client.findFirst({where:{nationalId:updatedData['هوية العميل']}})
+              // if(find){
+              //   return res.status(404).json({ error: 'هوية العميل متسجلة مسبقا' });
+              // }
               const newNationalId = updatedData['هوية العميل'].trim();
               
               // تحديث هوية العميل في جدول client
