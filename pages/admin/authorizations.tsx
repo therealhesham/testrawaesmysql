@@ -43,6 +43,7 @@ useEffect(() => {
   const [roleFilter, setRoleFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
 
   // State for form inputs
   const [newUser, setNewUser] = useState({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
@@ -65,7 +66,8 @@ useEffect(() => {
         params: { search: searchTerm, role: roleFilter, page: currentPage, limit: 8 },
       });
       setUsers(response.data.data);
-      setTotalPages(Math.ceil(response.headers['x-total-count'] / 8) || 1);
+      setTotalPages(response.data.pagination?.totalPages || 1);
+      setTotalUsers(response.data.pagination?.total || 0);
     } catch (error) {
       console.error('Error fetching users:', error);
       showNotification('حدث خطأ أثناء جلب المستخدمين. يرجى المحاولة مرة أخرى.', 'error');
@@ -100,6 +102,11 @@ useEffect(() => {
 
 
 
+
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
   // Initial data fetch
   useEffect(() => {
@@ -596,7 +603,11 @@ const handleExportPDF = async () => {
             </div>
             <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
               <p className="text-sm text-gray-600 font-medium">
-                عرض {(currentPage - 1) * 8 + 1}-{Math.min(currentPage * 8, users.length)} من {users.length} نتيجة
+                {totalUsers > 0 ? (
+                  <>عرض {(currentPage - 1) * 8 + 1}-{Math.min(currentPage * 8, totalUsers)} من {totalUsers} نتيجة</>
+                ) : (
+                  <>لا توجد نتائج</>
+                )}
               </p>
               <nav className="flex gap-2">
                 <button
