@@ -406,11 +406,13 @@ export default function TrackOrder() {
           });
         } catch (error: any) {
           console.error('Error updating status:', error);
+    
           setShowErrorModal({
             isOpen: true,
             title: 'خطأ في تحديث الحالة',
             message: error.message || 'حدث خطأ أثناء تحديث الحالة',
           });
+    await fetchOrderData();
         } finally {
           setUpdating(false);
         }
