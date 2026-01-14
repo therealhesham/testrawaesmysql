@@ -20,7 +20,6 @@ import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select'; // Added for autocomplete
 import prisma from 'pages/api/globalprisma';
-import { useToast } from 'components/GlobalToast';
 
 interface OrderData {
   orderId: string;
@@ -64,7 +63,6 @@ interface Homemaid {
 export default function TrackOrder() {
   const router = useRouter();
   const { id } = router.query;
-  const { showToast } = useToast();
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -390,7 +388,6 @@ export default function TrackOrder() {
       message: `هل أنت متأكد من تحديث حالة ${fieldName}؟`,
       onConfirm: async () => {
         setUpdating(true);
-        showToast('جاري الحفظ...', 'info');
         try {
           const res = await fetch(`/api/track_order/${id}`, {
             method: 'PATCH',
@@ -398,42 +395,17 @@ export default function TrackOrder() {
             body: JSON.stringify({ field, value }),
           });
 
-          const responseData = await res.json();
-          
           if (!res.ok) {
-            throw new Error(responseData.error || 'فشل في تحديث الحالة');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'فشل في تحديث الحالة');
           }
-          
-          // تحديث محلي للـ state بدلاً من fetchOrderData
-          setOrderData((prev) => {
-            if (!prev) return null;
-            const updated = { ...prev };
-            if (field === 'officeLinkApproval') {
-              updated.officeLinkApproval = { approved: value };
-            } else if (field === 'externalOfficeApproval') {
-              updated.externalOfficeApproval = { approved: value };
-            } else if (field === 'medicalCheck') {
-              updated.medicalCheck = { passed: value };
-            } else if (field === 'foreignLaborApproval') {
-              updated.foreignLaborApproval = { approved: value };
-            } else if (field === 'agencyPayment') {
-              updated.agencyPayment = { paid: value };
-            } else if (field === 'saudiEmbassyApproval') {
-              updated.saudiEmbassyApproval = { approved: value };
-            } else if (field === 'visaIssuance') {
-              updated.visaIssuance = { issued: value };
-            } else if (field === 'travelPermit') {
-              updated.travelPermit = { issued: value };
-            } else if (field === 'receipt') {
-              updated.receipt = { ...prev.receipt, received: value };
-            }
-            return updated;
+          await fetchOrderData();
+          setShowAlertModal({
+            isOpen: true,
+            message: 'تم تحديث الحالة بنجاح',
           });
-          
-          showToast('تم الحفظ بنجاح', 'success');
         } catch (error: any) {
           console.error('Error updating status:', error);
-          showToast(error.message || 'حدث خطأ أثناء تحديث الحالة', 'error');
           setShowErrorModal({
             isOpen: true,
             title: 'خطأ في تحديث الحالة',
@@ -491,7 +463,6 @@ export default function TrackOrder() {
       message: 'هل أنت متأكد من حفظ التعديلات؟',
       onConfirm: async () => {
         setUpdating(true);
-        showToast('جاري الحفظ...', 'info');
         try {
           const res = await fetch(`/api/track_order/${id}`, {
             method: 'PATCH',
@@ -499,32 +470,17 @@ export default function TrackOrder() {
             body: JSON.stringify({ section, updatedData }),
           });
 
-          const responseData = await res.json();
-          
           if (!res.ok) {
-            throw new Error(responseData.error || 'فشل في حفظ التعديلات');
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'فشل في حفظ التعديلات');
           }
-          
-          // تحديث محلي للـ state بدلاً من fetchOrderData
-          setOrderData((prev) => {
-            if (!prev) return null;
-            const updated = { ...prev };
-            if (section === 'clientInfo') {
-              updated.clientInfo = { ...updated.clientInfo, ...updatedData };
-            } else if (section === 'officeLinkInfo') {
-              updated.officeLinkInfo = { ...updated.officeLinkInfo, ...updatedData };
-            } else if (section === 'externalOfficeInfo') {
-              updated.externalOfficeInfo = { ...updated.externalOfficeInfo, ...updatedData };
-            } else if (section === 'destinations') {
-              updated.destinations = { ...updated.destinations, ...updatedData };
-            }
-            return updated;
+          await fetchOrderData();
+          setShowAlertModal({
+            isOpen: true,
+            message: 'تم حفظ التعديلات بنجاح',
           });
-          
-          showToast('تم الحفظ بنجاح', 'success');
         } catch (error: any) {
           console.error('Error saving edits:', error);
-          showToast(error.message || 'حدث خطأ أثناء حفظ التعديلات', 'error');
           setShowErrorModal({
             isOpen: true,
             title: 'خطأ في حفظ التعديلات',
@@ -568,7 +524,6 @@ export default function TrackOrder() {
         const errorData = await res.json();
         throw new Error(errorData.error || 'فشل في إلغاء العقد');
       }
-      showToast('تم إلغاء العقد بنجاح', 'success');
       setShowCancelModal(false);
       setCancellationReason('');
       router.push('/admin/neworders');
@@ -640,7 +595,6 @@ export default function TrackOrder() {
     }
 
     setUpdating(true);
-    showToast('جاري الحفظ...', 'info');
     try {
       const res = await fetch(`/api/track_order/${id}`, {
         method: 'PATCH',
@@ -651,17 +605,17 @@ export default function TrackOrder() {
         }),
       });
 
-      const responseData = await res.json();
-      
       if (!res.ok) {
-        throw new Error(responseData.error || 'فشل في تغيير العاملة');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في تغيير العاملة');
       }
 
-      // تحديث محلي للـ state بدلاً من fetchOrderData
-      setOrderData((prev) => prev ? { ...prev, homemaidInfo: { ...prev.homemaidInfo, ...newHomemaidData } } : null);
-      
+      await fetchOrderData();
       setShowChangeHomemaidModal(false);
-      showToast('تم الحفظ بنجاح', 'success');
+      setShowAlertModal({
+        isOpen: true,
+        message: 'تم تغيير العاملة بنجاح',
+      });
     } catch (error: any) {
       console.error('Error changing homemaid:', error);
       setShowChangeHomemaidModal(false);
@@ -690,7 +644,6 @@ export default function TrackOrder() {
     // مسح الأخطاء إذا كانت البيانات صحيحة
     setDeliveryDetailsErrors({});
     setUpdating(true);
-    showToast('جاري الحفظ...', 'info');
     try {
       const res = await fetch(`/api/track_order/${id}`, {
         method: 'PATCH',
@@ -701,20 +654,17 @@ export default function TrackOrder() {
         }),
       });
 
-      const responseData = await res.json();
-      
       if (!res.ok) {
-        throw new Error(responseData.error || 'فشل في حفظ بيانات الاستلام');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في حفظ بيانات الاستلام');
       }
 
-      // تحديث محلي للـ state بدلاً من fetchOrderData
-      setOrderData((prev) => prev ? { 
-        ...prev, 
-        deliveryDetails: prev.deliveryDetails ? { ...prev.deliveryDetails, ...deliveryDetails } : deliveryDetails
-      } : null);
-      
+      await fetchOrderData();
       setIsDeliveryDetailsEditMode(false); // إغلاق وضع التعديل بعد الحفظ
-      showToast('تم الحفظ بنجاح', 'success');
+      setShowAlertModal({
+        isOpen: true,
+        message: 'تم حفظ بيانات الاستلام بنجاح',
+      });
     } catch (error: any) {
       console.error('Error saving delivery details:', error);
       setShowErrorModal({
@@ -754,16 +704,8 @@ export default function TrackOrder() {
             throw new Error((errorData as any)?.error || 'فشل في حذف ملف الاستلام');
           }
 
-          // تحديث محلي للـ state بدلاً من fetchOrderData
-          setOrderData((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              deliveryDetails: prev.deliveryDetails ? { ...prev.deliveryDetails, deliveryFile: null } : undefined
-            };
-          });
-          setDeliveryDetails((prev) => ({ ...prev, deliveryFile: null }));
-          showToast('تم حذف ملف الاستلام بنجاح', 'success');
+          await fetchOrderData();
+          setShowAlertModal({ isOpen: true, message: 'تم حذف ملف الاستلام بنجاح' });
         } catch (error: any) {
           console.error('Error deleting delivery file:', error);
           setShowErrorModal({
@@ -1123,19 +1065,15 @@ export default function TrackOrder() {
                             className="text-red-600 hover:text-red-700 text-lg font-bold"
                             onClick={async () => {
                               setUpdating(true);
-                              showToast('جاري الحفظ...', 'info');
                               try {
                                 await fetch(`/api/track_order/${id}`, {
                                   method: 'PATCH',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ section: 'medical', updatedData: { medicalCheckFile: null } }),
                                 });
-                                // تحديث محلي للـ state
-                                setOrderData((prev) => prev ? { ...prev, medicalFile: null } : null);
-                                showToast('تم حذف ملف الفحص الطبي بنجاح', 'success');
+                                await fetchOrderData();
                               } catch (error) {
                                 console.error('Error deleting medical file:', error);
-                                showToast('حدث خطأ أثناء حذف الملف', 'error');
                               } finally {
                                 setUpdating(false);
                               }
@@ -1157,7 +1095,6 @@ export default function TrackOrder() {
                         const file = e.target.files?.[0];
                         if (file) {
                           setUpdating(true);
-                          showToast('جاري الحفظ...', 'info');
                           try {
                             const res = await fetch(`/api/upload-presigned-url/${id}`);
                             if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
@@ -1183,12 +1120,10 @@ export default function TrackOrder() {
                               }),
                             });
 
-                            // تحديث محلي للـ state
-                            setOrderData((prev) => prev ? { ...prev, medicalFile: filePath } : null);
-                            showToast('تم الحفظ بنجاح', 'success');
+                            await fetchOrderData();
+                            setShowAlertModal({ isOpen: true, message: 'تم رفع ملف الفحص الطبي بنجاح' });
                           } catch (error: any) {
                             console.error('Error uploading medical file:', error);
-                            showToast(error.message || 'حدث خطأ أثناء رفع الملف', 'error');
                             setShowErrorModal({
                               isOpen: true,
                               title: 'خطأ في رفع الملف',
@@ -1455,7 +1390,6 @@ export default function TrackOrder() {
                             const file = e.target.files?.[0];
                             if (file) {
                               setUpdating(true);
-                              showToast('جاري الحفظ...', 'info');
                               try {
                                 const res = await fetch(`/api/upload-presigned-url/${id}`);
                                 if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
@@ -1481,12 +1415,15 @@ export default function TrackOrder() {
                                   }),
                                 });
 
-                                // تحديث محلي للـ state
-                                setOrderData((prev) => prev ? { ...prev, ticketUpload: { ...prev.ticketUpload, files: filePath } } : null);
-                                showToast('تم الحفظ بنجاح', 'success');
+                                await fetchOrderData();
+                                
+                                // Show success message
+                                setShowAlertModal({
+                                  isOpen: true,
+                                  message: 'تم رفع الملف بنجاح',
+                                });
                               } catch (error: any) {
                                 console.error('Error uploading file:', error);
-                                showToast(error.message || 'حدث خطأ أثناء رفع الملف', 'error');
                                 setShowErrorModal({
                                   isOpen: true,
                                   title: 'خطأ في رفع الملف',
@@ -1580,7 +1517,6 @@ export default function TrackOrder() {
                             if (e.target.checked && canCompleteStep('receipt')) {
                               // تأكيد الاستلام تلقائياً عند اختيار الطريقة
                               setUpdating(true);
-                              showToast('جاري الحفظ...', 'info');
                               try {
                                 const res = await fetch(`/api/track_order/${id}`, {
                                   method: 'PATCH',
@@ -1593,13 +1529,10 @@ export default function TrackOrder() {
                                   }),
                                 });
                                 if (res.ok) {
-                                  // تحديث محلي للـ state
-                                  setOrderData((prev) => prev ? { ...prev, receipt: { ...prev.receipt, received: true, method: 'direct' } } : null);
-                                  showToast('تم الحفظ بنجاح', 'success');
+                                  await fetchOrderData();
                                 }
                               } catch (error) {
                                 console.error('Error updating receipt:', error);
-                                showToast('حدث خطأ أثناء التحديث', 'error');
                               } finally {
                                 setUpdating(false);
                               }
@@ -1621,7 +1554,6 @@ export default function TrackOrder() {
                             if (e.target.checked && canCompleteStep('receipt')) {
                               // تأكيد الاستلام تلقائياً عند اختيار الطريقة
                               setUpdating(true);
-                              showToast('جاري الحفظ...', 'info');
                               try {
                                 const res = await fetch(`/api/track_order/${id}`, {
                                   method: 'PATCH',
@@ -1634,13 +1566,10 @@ export default function TrackOrder() {
                                   }),
                                 });
                                 if (res.ok) {
-                                  // تحديث محلي للـ state
-                                  setOrderData((prev) => prev ? { ...prev, receipt: { ...prev.receipt, received: true, method: 'indirect' } } : null);
-                                  showToast('تم الحفظ بنجاح', 'success');
+                                  await fetchOrderData();
                                 }
                               } catch (error) {
                                 console.error('Error updating receipt:', error);
-                                showToast('حدث خطأ أثناء التحديث', 'error');
                               } finally {
                                 setUpdating(false);
                               }
@@ -1662,7 +1591,6 @@ export default function TrackOrder() {
                             if (e.target.checked && canCompleteStep('receipt')) {
                               // تأكيد الاستلام تلقائياً عند اختيار الطريقة
                               setUpdating(true);
-                              showToast('جاري الحفظ...', 'info');
                               try {
                                 const res = await fetch(`/api/track_order/${id}`, {
                                   method: 'PATCH',
@@ -1675,13 +1603,10 @@ export default function TrackOrder() {
                                   }),
                                 });
                                 if (res.ok) {
-                                  // تحديث محلي للـ state
-                                  setOrderData((prev) => prev ? { ...prev, receipt: { ...prev.receipt, received: true, method: 'intermediary' } } : null);
-                                  showToast('تم الحفظ بنجاح', 'success');
+                                  await fetchOrderData();
                                 }
                               } catch (error) {
                                 console.error('Error updating receipt:', error);
-                                showToast('حدث خطأ أثناء التحديث', 'error');
                               } finally {
                                 setUpdating(false);
                               }
@@ -1859,12 +1784,8 @@ export default function TrackOrder() {
                                     }),
                                   });
 
-                                  // تحديث محلي للـ state
-                                  setOrderData((prev) => prev ? { 
-                                    ...prev, 
-                                    deliveryDetails: prev.deliveryDetails ? { ...prev.deliveryDetails, deliveryFile: filePath } : { deliveryFile: filePath }
-                                  } : null);
-                                  showToast('تم الحفظ بنجاح', 'success');
+                                  await fetchOrderData();
+                                  setShowAlertModal({ isOpen: true, message: 'تم رفع ملف الاستلام بنجاح' });
                                 } catch (error: any) {
                                   console.error('Error uploading delivery file:', error);
                                   setShowErrorModal({
@@ -1983,7 +1904,6 @@ export default function TrackOrder() {
                                   className="text-red-600 hover:text-red-700 text-lg font-bold"
                                   onClick={async () => {
                                     setUpdating(true);
-                                    showToast('جاري الحفظ...', 'info');
                                     try {
                                       const updatedFiles = existingFiles.filter((_, i) => i !== index);
                                       await fetch(`/api/track_order/${id}`, {
@@ -1994,12 +1914,11 @@ export default function TrackOrder() {
                                           updatedData: { files: updatedFiles.length > 0 ? updatedFiles : null },
                                         }),
                                       });
-                                      // تحديث محلي للـ state
-                                      setOrderData((prev) => prev ? { 
-                                        ...prev, 
-                                        documentUpload: { files: updatedFiles.length > 0 ? updatedFiles : null }
-                                      } : null);
-                                      showToast('تم الحفظ بنجاح', 'success');
+                                      await fetchOrderData();
+                                      setShowAlertModal({
+                                        isOpen: true,
+                                        message: 'تم حذف الملف بنجاح',
+                                      });
                                     } catch (error: any) {
                                       console.error('Error deleting file:', error);
                                       setShowErrorModal({
@@ -2049,7 +1968,6 @@ export default function TrackOrder() {
                               const file = e.target.files?.[0];
                               if (file) {
                                 setUpdating(true);
-                                showToast('جاري الحفظ...', 'info');
                                 try {
                                   const res = await fetch(`/api/upload-presigned-url/${id}`);
                                   if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
@@ -2085,19 +2003,18 @@ export default function TrackOrder() {
                                     }),
                                   });
 
-                                  // تحديث محلي للـ state
-                                  setOrderData((prev) => prev ? { 
-                                    ...prev, 
-                                    documentUpload: { files: updatedFiles }
-                                  } : null);
+                                  await fetchOrderData();
                                   
                                   // Reset this input
                                   e.target.value = '';
                                   
-                                  showToast('تم الحفظ بنجاح', 'success');
+                                  // Show success message
+                                  setShowAlertModal({
+                                    isOpen: true,
+                                    message: 'تم رفع الملف بنجاح',
+                                  });
                                 } catch (error: any) {
                                   console.error('Error uploading file:', error);
-                                  showToast(error.message || 'حدث خطأ أثناء رفع الملف', 'error');
                                   setShowErrorModal({
                                     isOpen: true,
                                     title: 'خطأ في رفع الملف',
@@ -2170,7 +2087,6 @@ export default function TrackOrder() {
                                 message: 'هل أنت متأكد من حذف ملف سند الأمر؟',
                                 onConfirm: async () => {
                                   setUpdating(true);
-                                  showToast('جاري الحفظ...', 'info');
                                   try {
                                     const res = await fetch(`/api/track_order/${id}`, {
                                       method: 'PATCH',
@@ -2184,15 +2100,10 @@ export default function TrackOrder() {
                                       const errorData = await res.json();
                                       throw new Error((errorData as any)?.error || 'فشل في حذف الملف');
                                     }
-                                    // تحديث محلي للـ state
-                                    setOrderData((prev) => prev ? { 
-                                      ...prev, 
-                                      orderFiles: prev.orderFiles ? { ...prev.orderFiles, orderDocument: null } : { orderDocument: null }
-                                    } : null);
-                                    showToast('تم الحفظ بنجاح', 'success');
+                                    await fetchOrderData();
+                                    setShowAlertModal({ isOpen: true, message: 'تم حذف الملف بنجاح' });
                                   } catch (error: any) {
                                     console.error('Error deleting orderDocument:', error);
-                                    showToast(error.message || 'حدث خطأ أثناء حذف الملف', 'error');
                                     setShowErrorModal({
                                       isOpen: true,
                                       title: 'خطأ في حذف الملف',
@@ -2222,7 +2133,6 @@ export default function TrackOrder() {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         setUpdating(true);
-                        showToast('جاري الحفظ...', 'info');
                         try {
                           const res = await fetch(`/api/upload-presigned-url/${id}`);
                           if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
@@ -2251,16 +2161,11 @@ export default function TrackOrder() {
                             throw new Error((errorData as any)?.error || 'فشل في حفظ رابط الملف');
                           }
 
-                          // تحديث محلي للـ state
-                          setOrderData((prev) => prev ? { 
-                            ...prev, 
-                            orderFiles: prev.orderFiles ? { ...prev.orderFiles, orderDocument: filePath } : { orderDocument: filePath }
-                          } : null);
+                          await fetchOrderData();
                           e.target.value = '';
-                          showToast('تم الحفظ بنجاح', 'success');
+                          setShowAlertModal({ isOpen: true, message: 'تم رفع ملف سند الأمر بنجاح' });
                         } catch (error: any) {
                           console.error('Error uploading orderDocument:', error);
-                          showToast(error.message || 'حدث خطأ أثناء رفع الملف', 'error');
                           setShowErrorModal({
                             isOpen: true,
                             title: 'خطأ في رفع الملف',
@@ -2306,7 +2211,6 @@ export default function TrackOrder() {
                                 message: 'هل أنت متأكد من حذف ملف العقد؟',
                                 onConfirm: async () => {
                                   setUpdating(true);
-                                  showToast('جاري الحفظ...', 'info');
                                   try {
                                     const res = await fetch(`/api/track_order/${id}`, {
                                       method: 'PATCH',
@@ -2320,15 +2224,10 @@ export default function TrackOrder() {
                                       const errorData = await res.json();
                                       throw new Error((errorData as any)?.error || 'فشل في حذف الملف');
                                     }
-                                    // تحديث محلي للـ state
-                                    setOrderData((prev) => prev ? { 
-                                      ...prev, 
-                                      orderFiles: prev.orderFiles ? { ...prev.orderFiles, contract: null } : { contract: null }
-                                    } : null);
-                                    showToast('تم الحفظ بنجاح', 'success');
+                                    await fetchOrderData();
+                                    setShowAlertModal({ isOpen: true, message: 'تم حذف الملف بنجاح' });
                                   } catch (error: any) {
                                     console.error('Error deleting contract:', error);
-                                    showToast(error.message || 'حدث خطأ أثناء حذف الملف', 'error');
                                     setShowErrorModal({
                                       isOpen: true,
                                       title: 'خطأ في حذف الملف',
@@ -2358,7 +2257,6 @@ export default function TrackOrder() {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         setUpdating(true);
-                        showToast('جاري الحفظ...', 'info');
                         try {
                           const res = await fetch(`/api/upload-presigned-url/${id}`);
                           if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
@@ -2387,16 +2285,11 @@ export default function TrackOrder() {
                             throw new Error((errorData as any)?.error || 'فشل في حفظ رابط الملف');
                           }
 
-                          // تحديث محلي للـ state
-                          setOrderData((prev) => prev ? { 
-                            ...prev, 
-                            orderFiles: prev.orderFiles ? { ...prev.orderFiles, contract: filePath } : { contract: filePath }
-                          } : null);
+                          await fetchOrderData();
                           e.target.value = '';
-                          showToast('تم الحفظ بنجاح', 'success');
+                          setShowAlertModal({ isOpen: true, message: 'تم رفع ملف العقد بنجاح' });
                         } catch (error: any) {
                           console.error('Error uploading contract:', error);
-                          showToast(error.message || 'حدث خطأ أثناء رفع الملف', 'error');
                           setShowErrorModal({
                             isOpen: true,
                             title: 'خطأ في رفع الملف',
