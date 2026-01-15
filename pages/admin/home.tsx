@@ -70,7 +70,7 @@ const NewOrdersTab = ({ orders, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">الطلب رقم #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {order.client.fullname}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            منذ {order.createdAt} <FieldTimeOutlined />
+            منذ {order.createdAt ? getDate(order.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
