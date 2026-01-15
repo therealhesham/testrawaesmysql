@@ -338,9 +338,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                     maxLength={10}
                     className={`w-full border ${errors[item.label] ? 'border-red-500' : 'border-gray-300'} rounded-r-md p-2 text-base text-right focus:outline-none`}
                   />
-                  <span className="bg-gray-50 border border-r-0 border-gray-300 rounded-l-md py-2 px-3 text-sm text-gray-600 select-none">
+                  {/* <span className="bg-gray-50 border border-r-0 border-gray-300 rounded-l-md py-2 px-3 text-sm text-gray-600 select-none">
                     966+
-                  </span>
+                  </span> */}
                 </div>
                 {errors[item.label] && <span className="text-red-600 text-sm text-right">{errors[item.label]}</span>}
               </div>
