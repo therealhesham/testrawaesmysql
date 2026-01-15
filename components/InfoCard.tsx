@@ -24,6 +24,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
     data.reduce((acc, item) => {
       if (typeof item.value === 'string') {
         acc[item.label] = item.value;
+      } else if (typeof item.value === 'number') {
+        // تحويل الأرقام إلى نص (مثل رقم الطلب)
+        acc[item.label] = String(item.value);
       } else if (item.label.includes('تاريخ ووقت')) {
         // Use rawValue if available, otherwise try to extract from JSX
         const dateTimeString = item.rawValue || '';
@@ -193,6 +196,11 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
     if (onSave) {
       setIsSaving(true);
       const updatedData = { ...formData };
+      // استبعاد رقم الطلب من البيانات المرسلة لأنه حقل للقراءة فقط
+      delete updatedData['رقم الطلب'];
+      // استبعاد اسم المكتب الخارجي ودولة المكتب الخارجي من البيانات المرسلة لأنهما حقول للقراءة فقط
+      delete updatedData['اسم المكتب الخارجي'];
+      delete updatedData['دولة المكتب الخارجي'];
       if (formData['تاريخ ووقت المغادرة_date'] || formData['تاريخ ووقت المغادرة_time']) {
         updatedData['تاريخ ووقت المغادرة'] = `${formData['تاريخ ووقت المغادرة_date'] || ''} ${formData['تاريخ ووقت المغادرة_time'] || ''}`.trim();
       }
@@ -217,6 +225,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
       data.reduce((acc, item) => {
         if (typeof item.value === 'string') {
           acc[item.label] = item.value;
+        } else if (typeof item.value === 'number') {
+          // تحويل الأرقام إلى نص (مثل رقم الطلب)
+          acc[item.label] = String(item.value);
         } else if (item.label.includes('تاريخ ووقت')) {
           // Use rawValue if available, otherwise try to extract from JSX
           const dateTimeString = item.rawValue || '';
@@ -333,6 +344,16 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                 </div>
                 {errors[item.label] && <span className="text-red-600 text-sm text-right">{errors[item.label]}</span>}
               </div>
+            ) : editable && editMode && (item.label === 'رقم الطلب' || item.label === 'اسم المكتب الخارجي' || item.label === 'دولة المكتب الخارجي') ? (
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  value={formData[item.label] || (typeof item.value === 'string' ? item.value : String(item.value || ''))}
+                  readOnly
+                  disabled
+                  className="border border-gray-300 rounded-md p-2 text-base text-right bg-gray-100 cursor-not-allowed"
+                />
+              </div>
             ) : editable && editMode ? (
               <div className="flex flex-col">
                 <input
@@ -344,9 +365,9 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                 {errors[item.label] && <span className="text-red-600 text-sm text-right">{errors[item.label]}</span>}
               </div>
             ) : (
-              <div className="border border-gray-300 rounded-md p-2 text-base text-right">
+              <div className="border border-gray-300 rounded-md p-2 text-base text-right min-h-[42px]">
                 {typeof item.value === 'string' 
-                  ? item.value 
+                  ? (item.value || '\u00A0')
                   : typeof item.value === 'function' 
                     ? item.value(false) 
                     : item.value}

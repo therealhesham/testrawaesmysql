@@ -341,6 +341,11 @@ export default function TrackOrder() {
     'ticketUpload': 'رفع المستندات'
   };
 
+  // Helper to replace 'N/A' with empty string for display
+  const valOrEmpty = (val: any) => {
+    return val === 'N/A' ? '' : val;
+  };
+
   const handleStatusUpdate = async (field: string, value: boolean) => {
     const fieldName = fieldNames[field] || field;
     
@@ -1019,9 +1024,9 @@ export default function TrackOrder() {
           <InfoCard
             title="معلومات العميل"
             data={[
-              { label: 'اسم العميل', value: orderData.clientInfo.name },
-              { label: 'رقم الهاتف', value: orderData.clientInfo.phone, fieldType: 'phone' },
-              { label: 'البريد الإلكتروني', value: orderData.clientInfo.email },
+              { label: 'اسم العميل', value: valOrEmpty(orderData.clientInfo.name) },
+              { label: 'رقم الهاتف', value: valOrEmpty(orderData.clientInfo.phone), fieldType: 'phone' },
+              { label: 'البريد الإلكتروني', value: valOrEmpty(orderData.clientInfo.email) },
               { label: 'رقم الطلب', value: orderData.orderId },
             ]}
             gridCols={3}
@@ -1033,10 +1038,10 @@ export default function TrackOrder() {
           <InfoCard
             title="معلومات العاملة"
             data={[
-              { label: 'اسم العاملة', value: orderData.homemaidInfo.name },
-              { label: 'رقم جواز السفر', value: orderData.homemaidInfo.passportNumber },
-              { label: 'الجنسية', value: orderData.nationality || 'غير محدد' },
-              { label: 'المكتب الخارجي', value: orderData.homemaidInfo.externalOffice },
+              { label: 'اسم العاملة', value: valOrEmpty(orderData.homemaidInfo.name) },
+              { label: 'رقم جواز السفر', value: valOrEmpty(orderData.homemaidInfo.passportNumber) },
+              { label: 'الجنسية', value: valOrEmpty(orderData.nationality) || 'غير محدد' },
+              { label: 'المكتب الخارجي', value: valOrEmpty(orderData.homemaidInfo.externalOffice) },
             ]}
             gridCols={3}
           />
@@ -1054,10 +1059,10 @@ export default function TrackOrder() {
             id="office-link-info"
             title="1- الربط مع إدارة المكاتب"
             data={[
-              { label: 'هوية العميل', value: orderData.officeLinkInfo.nationalId },
-              { label: 'رقم التأشيرة', value: orderData.officeLinkInfo.visaNumber, fieldType: 'visa' },
-              { label: 'رقم عقد إدارة المكاتب', value: orderData.officeLinkInfo.internalMusanedContract },
-              { label: 'تاريخ العقد', value: orderData.officeLinkInfo.musanedDate},
+              { label: 'هوية العميل', value: valOrEmpty(orderData.officeLinkInfo.nationalId) },
+              { label: 'رقم التأشيرة', value: valOrEmpty(orderData.officeLinkInfo.visaNumber), fieldType: 'visa' },
+              { label: 'رقم عقد إدارة المكاتب', value: valOrEmpty(orderData.officeLinkInfo.internalMusanedContract) },
+              { label: 'تاريخ العقد', value: valOrEmpty(orderData.officeLinkInfo.musanedDate)},
             ]}
             gridCols={3}
             editable={true}
@@ -1092,9 +1097,9 @@ export default function TrackOrder() {
             id="external-office-info"
             title="2- المكتب الخارجي"
             data={[
-              { label: 'اسم المكتب الخارجي', value: orderData.externalOfficeInfo.officeName },
-              { label: 'دولة المكتب الخارجي', value: orderData.externalOfficeInfo.country },
-              { label: 'رقم عقد مساند التوثيق', value: orderData.externalOfficeInfo.externalMusanedContract },
+              { label: 'اسم المكتب الخارجي', value: valOrEmpty(orderData.externalOfficeInfo.officeName) },
+              { label: 'دولة المكتب الخارجي', value: valOrEmpty(orderData.externalOfficeInfo.country) },
+              { label: 'رقم عقد مساند التوثيق', value: valOrEmpty(orderData.externalOfficeInfo.externalMusanedContract) },
             ]}
             gridCols={3}
             editable={true}
@@ -1449,27 +1454,27 @@ export default function TrackOrder() {
             id="destinations"
             title="10- الوجهات"
             data={[
-              { label: 'مدينة المغادرة', value: orderData.destinations.departureCity, fieldType: 'city' },
-              { label: 'مدينة الوصول', value: orderData.destinations.arrivalCity, fieldType: 'saudiCity' },
+              { label: 'مدينة المغادرة', value: valOrEmpty(orderData.destinations.departureCity), fieldType: 'city' },
+              { label: 'مدينة الوصول', value: valOrEmpty(orderData.destinations.arrivalCity), fieldType: 'saudiCity' },
               {
                 label: 'تاريخ ووقت المغادرة',
                 value: (
                   <div className="flex items-center justify-end gap-2">
-                    <span>{orderData.destinations.departureDateTime}</span>
+                    <span>{valOrEmpty(orderData.destinations.departureDateTime)}</span>
                     {/* <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" /> */}
                   </div>
                 ),
-                rawValue: orderData.destinations.departureDateTime,
+                rawValue: valOrEmpty(orderData.destinations.departureDateTime),
               },
               {
                 label: 'تاريخ ووقت الوصول',
                 value: (
                   <div className="flex items-center justify-end gap-2">
-                    <span>{orderData.destinations.arrivalDateTime}</span>
+                    <span>{valOrEmpty(orderData.destinations.arrivalDateTime)}</span>
                     {/* <Calendar className="w-5 h-5 text-teal-800" aria-label="calendar icon" /> */}
                   </div>
                 ),
-                rawValue: orderData.destinations.arrivalDateTime,
+                rawValue: valOrEmpty(orderData.destinations.arrivalDateTime),
               },
               {
                 label: 'ملف التذكرة',
