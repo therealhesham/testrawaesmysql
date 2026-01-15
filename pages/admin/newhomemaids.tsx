@@ -89,6 +89,10 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     if (id === 'name') {
       filteredValue = value.replace(/[^a-zA-Z\u0600-\u06FF\s]/g, '');
     }
+    // Filter to only allow letters (English) and numbers for passport field - no symbols
+    if (id === 'passport') {
+      filteredValue = value.replace(/[^a-zA-Z0-9]/g, '');
+    }
     
     // إذا تم تغيير الجنسية، قم بتصفية المكاتب وإعادة تعيين المكتب المختار إذا لزم الأمر
     if (id === 'nationality') {
