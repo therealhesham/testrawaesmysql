@@ -1752,27 +1752,35 @@ export default function TrackOrder() {
               // حقول deliveryDetails - تظهر عند اختيار أي طريقة استلام
               ...(orderData.receipt.received && orderData.receipt.method ? [
                 {
-                  label: 'تاريخ الاستلام',
+                  label: 'تاريخ ووقت الاستلام',
                   value: isDeliveryDetailsEditMode ? (
                     // Editable mode - حقل إدخال
                     <div className="flex flex-col">
-                      <input
-                        type="date"
-                        value={deliveryDetails.deliveryDate}
-                        onChange={(e) => {
-                          setDeliveryDetails({ ...deliveryDetails, deliveryDate: e.target.value });
-                          // مسح الخطأ عند تغيير القيمة
-                          if (deliveryDetailsErrors.deliveryDate) {
-                            setDeliveryDetailsErrors({ ...deliveryDetailsErrors, deliveryDate: '' });
-                          }
-                        }}
-                        className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 text-right ${
-                          deliveryDetailsErrors.deliveryDate 
-                            ? 'border-red-500 focus:ring-red-500' 
-                            : 'border-gray-300 focus:ring-teal-800'
-                        }`}
-                        required
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={deliveryDetails.deliveryDate}
+                          onChange={(e) => {
+                            setDeliveryDetails({ ...deliveryDetails, deliveryDate: e.target.value });
+                            // مسح الخطأ عند تغيير القيمة
+                            if (deliveryDetailsErrors.deliveryDate) {
+                              setDeliveryDetailsErrors({ ...deliveryDetailsErrors, deliveryDate: '' });
+                            }
+                          }}
+                          className={`flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 text-right ${
+                            deliveryDetailsErrors.deliveryDate 
+                              ? 'border-red-500 focus:ring-red-500' 
+                              : 'border-gray-300 focus:ring-teal-800'
+                          }`}
+                          required
+                        />
+                        <input
+                          type="time"
+                          value={deliveryDetails.deliveryTime}
+                          onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryTime: e.target.value })}
+                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
+                        />
+                      </div>
                       {deliveryDetailsErrors.deliveryDate && (
                         <span className="text-red-600 text-sm text-right mt-1">
                           {deliveryDetailsErrors.deliveryDate}
@@ -1781,25 +1789,12 @@ export default function TrackOrder() {
                     </div>
                   ) : (
                     // Non-editable mode - عرض البيانات المحفوظة
-                    <div className="text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
-                      {orderData.deliveryDetails?.deliveryDate || 'غير محدد'}
-                    </div>
-                  ),
-                },
-                {
-                  label: 'وقت الاستلام',
-                  value: isDeliveryDetailsEditMode ? (
-                    // Editable mode
-                    <input
-                      type="time"
-                      value={deliveryDetails.deliveryTime}
-                      onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryTime: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
-                    />
-                  ) : (
-                    // Non-editable mode
-                    <div className="text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
-                      {orderData.deliveryDetails?.deliveryTime || 'غير محدد'}
+                    <div className="flex items-center justify-start gap-2 text-right text-gray-700 border border-gray-300 rounded-md px-3 py-2 bg-gray-50">
+                      <span>
+                        {orderData.deliveryDetails?.deliveryDate && orderData.deliveryDetails?.deliveryTime
+                          ? `${orderData.deliveryDetails.deliveryDate} - ${orderData.deliveryDetails.deliveryTime}`
+                          : orderData.deliveryDetails?.deliveryDate || orderData.deliveryDetails?.deliveryTime || 'غير محدد'}
+                      </span>
                     </div>
                   ),
                 },
@@ -1812,7 +1807,7 @@ export default function TrackOrder() {
                       step="0.01"
                       value={deliveryDetails.cost}
                       onChange={(e) => setDeliveryDetails({ ...deliveryDetails, cost: e.target.value })}
-                      placeholder="0.00"
+                      placeholder=""
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
                     />
                   ) : (
