@@ -64,7 +64,7 @@ const transformData = (data: any[]): TableRow[] => {
     workerId: String(item.Order?.HomeMaid?.id || 'غير محدد'),
     orderId: String(item.OrderId || 'غير محدد'),
     workerName: item.HomemaidName || item.Order?.HomeMaid?.Name || 'غير محدد',
-    clientName: item.Order?.ClientName || 'غير متوفر',
+    clientName: item.Order?.client?.fullname || 'غير متوفر',
     nationality: item.Order?.HomeMaid?.office?.Country || 'غير محدد',
     passport: item.Order?.HomeMaid?.Passportnumber || 'غير محدد',
     from: item.deparatureCityCountry || 'غير محدد',
@@ -232,7 +232,7 @@ const Controls = ({
     fetchCities(setCities);
   }, []);
 
-
+const router = useRouter();
   const handleCityChange = (city: string) => {
     setSelectedCity(city);
     setFilters((prev: any) => ({
@@ -327,6 +327,7 @@ value={selectedDate}
 };
 
 const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: string[] }) => {
+  const router = useRouter();
   const columns = [
     { key: 'workerId', label: 'رقم العاملة' },
     { key: 'orderId', label: 'رقم الطلب' },
@@ -348,7 +349,7 @@ const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: str
             {columns
               .filter((col) => visibleColumns.includes(col.key))
               .map((col) => (
-                <th key={col.key} className="p-4 text-right first:pr-6 last:pl-6 last:text-center">
+                <th key={col.key} className="p-4 text-center whitespace-nowrap">
                   {col.label}
                 </th>
               ))}
@@ -358,16 +359,16 @@ const Table = ({ data, visibleColumns }: { data: TableRow[]; visibleColumns: str
           {data.map((row, index) => (
             <tr key={index} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
               {visibleColumns.includes('workerId') && (
-                <td className="p-4 text-center pr-6">{row.workerId}</td>
+                <td className="p-4 text-center" onClick={()=>router.push(`/admin/homemaidinfo?id=${row.workerId}`)} style={{ cursor: 'pointer' }}>{row.workerId}</td>
               )}
               {visibleColumns.includes('orderId') && (
-                <td className="p-4 text-center">{row.orderId}</td>
+                <td className="p-4 text-center" onClick={() => router.push(`/admin/track_order/${row.orderId}`)} style={{ cursor: 'pointer' }}>{row.orderId}</td>
               )}
               {visibleColumns.includes('workerName') && (
-                <td className="p-4 text-center">{row.workerName}</td>
+                <td className="p-4 text-center" onClick={() => router.push(`/admin/homemaidinfo?id=${row.workerId}`)} style={{ cursor: 'pointer' }}>{row.workerName}</td>
               )}
               {visibleColumns.includes('clientName') && (
-                <td className="p-4 text-center">{row.clientName}</td>
+                <td className="p-4 text-center" onClick={() => router.push(`/admin/clientdetails?id=${row.clientId}`)} style={{ cursor: 'pointer' }}>{row.clientName}</td>
               )}
               {visibleColumns.includes('nationality') && (
                 <td className="p-4 text-center">{row.nationality}</td>
@@ -621,7 +622,7 @@ const fetchFilteredDataExporting = async () => {
     workerId: String(item.Order?.HomeMaid?.id || 'غير محدد'),
     orderId: String(item.OrderId || 'غير محدد'),
     workerName: item.HomemaidName || item.Order?.HomeMaid?.Name || 'غير محدد',
-    clientName: item.Order?.ClientName || 'غير متوفر',
+    clientName: item.Order?.client?.fullname || 'غير متوفر',
     nationality: item.Order?.HomeMaid?.office?.Country || 'غير محدد',
     passport: item.Order?.HomeMaid?.Passportnumber || 'غير محدد',
     from: item.deparatureCityCountry || 'غير محدد',

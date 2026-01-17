@@ -209,6 +209,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // ✅ إرسال الرد مباشرة قبل أي عمليات غير ضرورية (لتقليل زمن الاستجابة للمستخدم)
       res.status(200).json({
         homemaids,
+        totalCount,
         recruitment,
         rental,
         totalPages: Math.ceil(totalCount / pageSize),

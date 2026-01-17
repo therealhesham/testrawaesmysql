@@ -109,6 +109,7 @@ model reports{
 
 model Role {
   id          Int       @id @default(autoincrement())
+  order         Int?  //ترتيب الصلاحيات  رقم 1 هو اعلى رتبة
   name        String    @unique @db.VarChar(191) // e.g., "مدير عام", "موظف"
   permissions Json?     // Stores permissions as JSON
   users       User[]    // Users assigned to this role

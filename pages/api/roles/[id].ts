@@ -25,6 +25,32 @@ export default async function handler(req, res) {
 
     case 'PUT':
       try {
+        const cookieHeader = req.headers.cookie;
+        
+        let userId: number | null = null;
+
+        if (cookieHeader) {
+          try {
+            const cookies: { [key: string]: string } = {};
+            cookieHeader.split(";").forEach((cookie) => {
+              const [key, value] = cookie.trim().split("=");
+              cookies[key] = decodeURIComponent(value);
+            });
+            if (cookies.authToken) {
+              const token = jwtDecode(cookies.authToken) as any;
+              userId = Number(token.id);
+            }
+          } catch (e) {
+            // Ignore token errors
+          }
+        }
+// console.log(userId)
+const findeRole = await prisma.user.findFirst({where:{id:Number(userId)},select:{role:true}})
+const roleUpdated = await prisma.role.findFirst({where:{id:parseInt(id)}})
+console.log(findeRole?.role?.order, roleUpdated?.order)
+if(findeRole?.role?.order > roleUpdated?.order) { // افضل ترتيب هو اقل رقم
+  return res.status(404).json({ error: 'لا يمكن تحديث الدور الاعلى رتبة' });
+}
         const { name, permissions } = req.body;
         const role = await prisma.role.update({
           where: { id: parseInt(id) },
@@ -36,6 +62,7 @@ export default async function handler(req, res) {
         });
         res.status(200).json(role);
       } catch (error) {
+        console.log(error)
         res.status(500).json({ error: 'Failed to update role' });
       }
       break;
@@ -60,6 +87,11 @@ export default async function handler(req, res) {
             // Ignore token errors
           }
         }
+const findeRole = await prisma.user.findFirst({where:{id:Number(userId)},select:{role:true}})
+if(!(findeRole?.role?.permissions as any)["إدارة الصلاحيات"] || !(findeRole?.role?.permissions as any)["إدارة الصلاحيات"]["حذف"]) {
+console.log("ليس لديك صلاحية لحذف الدور")
+  return res.status(404).json({ error: 'ليس لديك صلاحية لحذف الدور' });
+}
 
         const role = await prisma.role.findUnique({
           where: { id: parseInt(id) },

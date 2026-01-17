@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Edit, CheckCircle } from 'lucide-react';
+import { Edit, CheckCircle, GripVertical, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion'; // For animations
 import Style from 'styles/Home.module.css';
 import { CheckCircleFilled, FileExcelFilled, FilePdfFilled } from '@ant-design/icons';
@@ -9,6 +9,121 @@ import Layout from 'example/containers/Layout';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { useRouter } from 'next/router';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+// Sortable Role Header Component
+interface SortableRoleHeaderProps {
+  role: any;
+  index: number;
+  canEditRole: (role: any) => boolean;
+  onEdit: (role: any) => void;
+  onDelete: (role: any) => void;
+  isLoading: boolean;
+  openDropdownId: number | null;
+  setOpenDropdownId: (id: number | null) => void;
+}
+
+function SortableRoleHeader({ role, index, canEditRole, onEdit, onDelete, isLoading, openDropdownId, setOpenDropdownId }: SortableRoleHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `role-${index}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isDropdownOpen = openDropdownId === role.id;
+
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={`p-4 text-xl font-normal text-black relative ${isDragging ? 'ring-2 ring-teal-500' : ''}`}
+    >
+      <div className="flex items-center justify-center gap-2">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-teal-600 transition-colors"
+        >
+          <GripVertical size={16} />
+        </div>
+        <span>{role.name}</span>
+        {canEditRole(role) ? (
+          <div className="relative mr-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenDropdownId(isDropdownOpen ? null : role.id);
+              }}
+              className="bg-transparent border-none cursor-pointer p-1"
+              disabled={isLoading}
+              aria-label={`قائمة إجراءات دور ${role.name}`}
+            >
+              <Edit className="w-4 h-4 text-teal-800 hover:text-teal-600" />
+            </button>
+            {isDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 min-w-[120px]">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDropdownId(null);
+                    onEdit(role);
+                  }}
+                  className="w-full text-right px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 flex items-center gap-2 flex-row-reverse"
+                >
+                  <Edit className="w-4 h-4" />
+                  تعديل
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDropdownId(null);
+                    onDelete(role);
+                  }}
+                  className="w-full text-right px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 flex-row-reverse"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  حذف
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <span 
+            className="mr-2 inline-block" 
+            title={role.name?.toLowerCase() === 'owner' ? "لا يمكنك تعديل صلاحيات المالك" : "لا يمكنك تعديل هذا الدور"}
+          >
+            <Edit className="w-4 h-4 text-gray-400 cursor-not-allowed" />
+          </span>
+        )}
+      </div>
+    </th>
+  );
+}
+
 const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { currentUserRoleId: number; currentUserRoleName: string }) => {
   
   // دالة للتحقق من إمكانية تعديل الدور
@@ -29,14 +144,17 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // To store the action to confirm
+  const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null); // To store the action to confirm
+  const [roleToDelete, setRoleToDelete] = useState<any>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const router = useRouter();
   // State for data
-  const [roles, setRoles] = useState([]);
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [newRole, setNewRole] = useState({ name: '', permissions: {} });
+  const [roles, setRoles] = useState<any[]>([]);
+  const [selectedRole, setSelectedRole] = useState<any>(null);
+  const [newRole, setNewRole] = useState<{ name: string; permissions: any }>({ name: '', permissions: {} });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Permission sections and items
   const permissionSections = [
@@ -66,11 +184,20 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     return ['عرض', 'إضافة', 'تعديل', 'حذف'];
   };
 
+  // Drag and Drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // Fetch roles
   const fetchRoles = async () => {
     setIsLoading(true);
     try {
       const response = await axios.get('/api/roles');
+      // الأدوار مرتبة بالفعل من API حسب order
       setRoles(response.data);
     } catch (error) {
       setError('فشل في جلب الأدوار. حاول مرة أخرى.');
@@ -80,10 +207,55 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     }
   };
 
+  // Handle drag end for roles
+  const handleRolesDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const activeIndex = parseInt(active.id.toString().split('-')[1]);
+      const overIndex = parseInt(over.id.toString().split('-')[1]);
+
+      const newRoles = arrayMove(roles, activeIndex, overIndex);
+      setRoles(newRoles);
+
+      // حفظ الترتيب الجديد في قاعدة البيانات
+      try {
+        const updates = newRoles.map((role: any, index: number) => ({
+          id: role.id,
+          order: index + 1, // order يبدأ من 1
+        }));
+
+        await axios.put('/api/roles/update-order', { roles: updates });
+      } catch (error) {
+        setError('فشل في حفظ ترتيب الأدوار. حاول مرة أخرى.');
+        console.error('Error updating roles order:', error);
+        // إعادة تحميل الأدوار في حالة الخطأ
+        fetchRoles();
+      }
+    }
+  };
+
   // Initial data fetch
   useEffect(() => {
     fetchRoles();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdownId !== null) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    if (openDropdownId !== null) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openDropdownId]);
 
   // Handle role form submission
   const handleAddRole = async () => {
@@ -104,31 +276,49 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
   };
 
   const handleEditRole = async () => {
+    if (!selectedRole) return;
     setIsLoading(true);
     setError(null);
     try {
-      await axios.put(`/api/roles/${selectedRole.id}`, newRole);
+      await axios.put(`/api/roles/${selectedRole.id}`, {...newRole, id:selectedRole.id});
       setIsEditRoleModalOpen(false);
       setNewRole({ name: '', permissions: {} });
       setSelectedRole(null);
       setIsConfirmModalOpen(false);
       fetchRoles();
     } catch (error) {
-      setError('فشل في تعديل المسمى الوظيفي. حاول مرة أخرى.');
+      setError((error as any).response?.data?.error || 'فشل في تعديل المسمى الوظيفي. حاول مرة أخرى.');
       console.error('Error editing role:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      await axios.delete(`/api/roles/${roleToDelete.id}`);
+      setIsDeleteConfirmModalOpen(false);
+      setRoleToDelete(null);
+      fetchRoles();
+    } catch (error) {
+      setError((error as any).response?.data?.error || 'فشل في حذف المسمى الوظيفي. حاول مرة أخرى.');
+      console.error('Error deleting role:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle permission checkbox changes
-  const handlePermissionChange = (section, permission, checked) => {
+  const handlePermissionChange = (section: string, permission: string, checked: boolean) => {
     setNewRole((prev) => ({
       ...prev,
       permissions: {
         ...prev.permissions,
         [section]: {
-          ...prev.permissions[section],
+          ...(prev.permissions[section] || {}),
           [permission]: checked,
         },
       },
@@ -140,9 +330,9 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
   const handleExportPDF = () => console.log('Export to PDF');
 
   // Handle confirmation
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (confirmAction) {
-      confirmAction();
+      await confirmAction();
     }
   };
 
@@ -191,35 +381,40 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
             )}
             <table className="w-full border-collapse text-center">
               <thead>
-                <tr className="bg-gray-200 border-b border-gray-300">
-                  <th className="p-4 text-xl font-normal text-black min-w-8">القسم</th>
-                  {roles.map((role) => (
-                    <th key={role.id} className="p-4 text-xl font-normal text-black">
-                      {role.name}
-                      {canEditRole(role) ? (
-                        <button
-                          onClick={() => {
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleRolesDragEnd}
+                >
+                  <SortableContext
+                    items={roles.map((_, index) => `role-${index}`)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <tr className="bg-gray-200 border-b border-gray-300">
+                      <th className="p-4 text-xl font-normal text-black min-w-8">القسم</th>
+                      {roles.map((role, index) => (
+                        <SortableRoleHeader
+                          key={role.id}
+                          role={role}
+                          index={index}
+                          canEditRole={canEditRole}
+                          onEdit={(role) => {
                             setSelectedRole(role);
                             setNewRole({ name: role.name, permissions: role.permissions || {} });
                             setIsEditRoleModalOpen(true);
                           }}
-                          className="mr-2 bg-transparent border-none cursor-pointer"
-                          disabled={isLoading}
-                          aria-label={`تعديل دور ${role.name}`}
-                        >
-                          <Edit className="w-4 h-4 text-teal-800 hover:text-teal-600" />
-                        </button>
-                      ) : (
-                        <span 
-                          className="mr-2 inline-block" 
-                          title={role.name?.toLowerCase() === 'owner' ? "لا يمكنك تعديل صلاحيات المالك" : "لا يمكنك تعديل هذا الدور"}
-                        >
-                          <Edit className="w-4 h-4 text-gray-400 cursor-not-allowed" />
-                        </span>
-                      )}
-                    </th>
-                  ))}
-                </tr>
+                          onDelete={(role) => {
+                            setRoleToDelete(role);
+                            setIsDeleteConfirmModalOpen(true);
+                          }}
+                          isLoading={isLoading}
+                          openDropdownId={openDropdownId}
+                          setOpenDropdownId={setOpenDropdownId}
+                        />
+                      ))}
+                    </tr>
+                  </SortableContext>
+                </DndContext>
               </thead>
               <tbody>
                 {permissionSections.map((section) => (
@@ -505,6 +700,57 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {isDeleteConfirmModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              role="dialog"
+              aria-labelledby="delete-confirm-title"
+              aria-modal="true"
+              onClick={() => setIsDeleteConfirmModalOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="bg-gray-200 rounded-lg p-8 max-w-md w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h1 id="delete-confirm-title" className="text-xl font-normal text-black mb-4 text-center">
+                  تأكيد الحذف
+                </h1>
+                <p className="text-sm text-gray-800 mb-6 text-center">
+                  هل أنت متأكد من حذف المسمى الوظيفي <strong>{roleToDelete?.name}</strong>؟<br />
+                  <span className="text-red-600">هذه العملية لا يمكن التراجع عنها.</span>
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={handleDeleteRole}
+                    className="bg-red-600 text-white px-5 py-2 rounded text-base hover:bg-red-700"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'جاري الحذف...' : 'حذف'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsDeleteConfirmModalOpen(false);
+                      setRoleToDelete(null);
+                    }}
+                    className="bg-transparent text-gray-800 border border-teal-800 px-5 py-2 rounded text-base hover:bg-gray-100"
+                    disabled={isLoading}
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
   );
@@ -512,12 +758,12 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
 
 export default PermissionsManagement;
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: any) {
   try {
     const cookieHeader = req.headers.cookie;
-    let cookies = {};
+    let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(';').forEach((cookie) => {
+      cookieHeader.split(';').forEach((cookie: string) => {
         const [key, value] = cookie.trim().split('=');
         cookies[key] = decodeURIComponent(value);
       });
@@ -529,7 +775,7 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },

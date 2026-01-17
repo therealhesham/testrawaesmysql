@@ -469,6 +469,14 @@ const exportToPDF = async () => {
     XLSX.writeFile(workbook, "قائمة_المغادرة.xlsx");
   };
 const router = useRouter();
+
+  // Calculate pagination display values
+  const startIndex = (page - 1) * perPage + 1;
+  const endIndex = (page - 1) * perPage + departures.length;
+  const totalItems = page === totalPages 
+    ? endIndex 
+    : perPage * totalPages;
+
   return (
     <section id="departure-list" className="mb-10">
       <div className="flex justify-between items-center mb-8">
@@ -621,9 +629,7 @@ const router = useRouter();
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mt-4">
           <p className="text-md text-gray-600">
-            عرض {(page - 1) * perPage + 1} -{" "}
-            {Math.min(page * perPage, departures.length + (page - 1) * perPage)} من{" "}
-            {perPage * totalPages} نتيجة
+            عرض {startIndex} - {endIndex} من {totalItems} نتيجة
           </p>
 
           <nav className="flex items-center gap-2">

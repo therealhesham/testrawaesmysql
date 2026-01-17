@@ -97,6 +97,7 @@ export default async function handler(
       select: {
         Order: {
           select: {
+            client:{select:{fullname:true}},
             Name: true,
             ClientName: true,
             HomeMaid: {

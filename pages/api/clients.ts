@@ -60,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           console.log(cookies.authToken)
           const token = jwtDecode(cookies.authToken);
       
-      const { fullname, phonenumber, city, date, clientId } = req.query;
+      const { fullname, phonenumber, city, date, clientId, nationalId } = req.query;
       const filters: any = {};
 
       if (clientId) {
@@ -68,19 +68,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         filters.id = parseInt(clientId as string);
       } else {
         // تطبيق الفلاتر الأخرى لجلب قائمة العملاء
-        if (fullname) filters.fullname = { contains: decodeURIComponent(fullname as string) };
-        if (phonenumber) filters.phonenumber = { contains: decodeURIComponent(phonenumber as string) };
+        const andConditions: any[] = [];
+        
+        if (fullname) {
+          const searchTerm = decodeURIComponent(fullname as string);
+          // البحث في الاسم أو رقم الهوية
+          andConditions.push({
+            OR: [
+              { fullname: { contains: searchTerm } },
+              { nationalId: { contains: searchTerm } }
+            ]
+          });
+        }
+        
+        if (phonenumber) {
+          andConditions.push({ phonenumber: { contains: decodeURIComponent(phonenumber as string) } });
+        }
+        
+        if (nationalId && !fullname) {
+          andConditions.push({ nationalId: { contains: decodeURIComponent(nationalId as string) } });
+        }
+        
         if (city && city !== "all" && city !== "") {
           const decodedCity = decodeURIComponent(city as string);
           console.log('City filter:', decodedCity);
-          filters.city = decodedCity;
+          andConditions.push({ city: decodedCity });
         }
+        
         if (date && !isNaN(new Date(date as string).getTime())) {
           const start = new Date(date as string);
           start.setHours(0, 0, 0, 0);
           const end = new Date(date as string);
           end.setHours(23, 59, 59, 999);
-          filters.createdAt = { gte: start, lte: end };
+          andConditions.push({ createdAt: { gte: start, lte: end } });
+        }
+        
+        if (andConditions.length > 0) {
+          filters.AND = andConditions;
         }
       }
 
@@ -137,6 +161,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         queryParams.set('page', page.toString());
         if (fullname) queryParams.set('fullname', fullname as string);
         if (phonenumber) queryParams.set('phonenumber', phonenumber as string);
+        if (nationalId) queryParams.set('nationalId', nationalId as string);
         if (city && city !== 'all') queryParams.set('city', city as string);
         if (date) queryParams.set('date', date as string);
         

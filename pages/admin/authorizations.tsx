@@ -311,7 +311,7 @@ const handleExportPDF = async () => {
   doc.setFontSize(12);
   doc.text('إدارة المستخدمين', pageWidth / 2, 20, { align: 'right' });
 
-  const headers = [['اسم المستخدم', 'رقم الهوية', 'رقم الجوال', 'المسمى الوظيفي', 'تاريخ الإنشاء']];
+  const headers = [['اسم المستخدم', 'الرقم الوظيفي', 'رقم الجوال', 'المسمى الوظيفي', 'تاريخ الإنشاء']];
   const body = dataToExport?.map((row: any) => [
     row.username || 'غير متوفر',
     row.idnumber || 'غير متوفر',
@@ -409,7 +409,7 @@ const handleExportPDF = async () => {
       const exportData = users.map((user) => ({
         ID: user.id,
         الاسم: user.username,
-        'رقم الهوية': user.idnumber,
+        'الرقم الوظيفي': user.idnumber,
         'رقم الجوال': user.phonenumber,
         'المسمى الوظيفي': user.role?.name || 'غير محدد',
         'تاريخ الإنشاء': new Date(user.createdAt).toLocaleDateString('ar-SA'),
@@ -453,7 +453,7 @@ const handleExportPDF = async () => {
             </div>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center  mb-6" dir="ltr">
               <div className="flex gap-3">
                 <button
                   onClick={handleExportExcel}
@@ -510,7 +510,7 @@ const handleExportPDF = async () => {
               <div className="grid grid-cols-[0.5fr_2fr_1fr_1.2fr_1fr_1fr_0.8fr] bg-gradient-to-r from-teal-700 to-teal-800 text-white text-sm font-semibold h-14 items-center px-6">
                 <div>#</div>
                 <div>الاسم</div>
-                <div>ID</div>
+                <div>الرقم الوظيفي</div>
                 <div>رقم الجوال</div>
                 <div className="text-center">المسمى الوظيفي</div>
                 <div className="text-center">تاريخ الإنشاء</div>
@@ -719,10 +719,10 @@ const handleExportPDF = async () => {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium mb-2 text-gray-700">رقم الهوية</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">الرقم الوظيفي</label>
                   <input
                     type="text"
-                    placeholder="رقم الهوية"
+                    placeholder="الرقم الوظيفي"
                     value={newUser.idnumber}
                     onChange={(e) => setNewUser({ ...newUser, idnumber: e.target.value })}
                     className=" border-2 border-gray-300 rounded-lg text-right focus:border-teal-600 focus:outline-none transition-colors duration-200"
@@ -875,7 +875,7 @@ const handleExportPDF = async () => {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium mb-2 text-gray-700">رقم الهوية</label>
+                  <label className="text-sm font-medium mb-2 text-gray-700">الرقم الوظيفي</label>
                   <input
                     type="text"
                     value={newUser.idnumber}

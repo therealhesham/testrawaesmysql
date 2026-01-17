@@ -313,6 +313,13 @@ const arabicRegionMap: { [key: string]: string } = {
   }, [currentPage, filters, hasPermission]);
 
   const handleFilterChange = (field: string, value: string) => {
+    // if length 0 reset
+    if (value.length === 0) {
+      setFilters((prev) => ({ ...prev, [field]: '' }));
+      setCurrentPage(1);
+      setExpandedClientId(null);
+      return;
+    }
     setFilters((prev) => ({ ...prev, [field]: value }));
     setCurrentPage(1);
     setExpandedClientId(null);
@@ -329,7 +336,7 @@ const arabicRegionMap: { [key: string]: string } = {
   };
 
   const handleAddNotes = (clientId: number, clientName: string) => {
-    setSelectedClient({ id: clientId, name: clientName });
+    setSelectedClient({ id: clientId, fullname: clientName as string });
     setIsNotesModalOpen(true);
   };
 
@@ -629,7 +636,7 @@ const arabicRegionMap: { [key: string]: string } = {
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => (window.location.href = '/admin/home')}
-                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
+                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
                     >
                       العودة إلى الرئيسية
                     </button>
@@ -649,7 +656,7 @@ const arabicRegionMap: { [key: string]: string } = {
                 <section className="flex justify-between items-center mb-6">
                   <h1 className="text-3xl font-normal text-text-dark">قائمة العملاء</h1>
                   <button
-                    className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
+                    className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
                     onClick={() => setIsModalOpen(true)}
                   >
                     <span>إضافة عميل</span>
@@ -662,18 +669,18 @@ const arabicRegionMap: { [key: string]: string } = {
                     <div className="relative w-full sm:w-60">
                       <input
                         type="text"
-                        placeholder="بحث"
+                        placeholder="بحث بالاسم أو رقم الهوية"
                         value={filters.fullname}
                         onChange={(e) => handleFilterChange('fullname', e.target.value)}
-                        className="w-full bg-background-light border border-border-color rounded-md py-2 pr-10 pl-4 text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+                        className="w-full bg-background-light border border-border-color rounded-md py-2 pr-10 pl-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
                       />
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
                     </div>
-                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-md text-text-muted cursor-pointer">
+                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-sm text-text-muted cursor-pointer">
                       <select
                         value={filters.city}
                         onChange={(e) => handleFilterChange('city', e.target.value)}
-                        className="bg-transparent w-full text-md text-text-muted focus:outline-none border-none"
+                        className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
                       >
                         <option value="all">كل المدن</option>
 <option value = "Baha">الباحة</option>
@@ -739,12 +746,12 @@ const arabicRegionMap: { [key: string]: string } = {
 <option value = "Sarat Abidah">سراة عبيدة</option>
                       </select>
                     </div>
-                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-md text-text-muted cursor-pointer">
+                    <div className="flex items-center bg-background-light border border-border-color rounded-md text-sm text-text-muted cursor-pointer">
                       <input
                         type="date"
                         value={filters.date}
                         onChange={(e) => handleFilterChange('date', e.target.value)}
-                        className="bg-transparent w-full text-md text-text-muted focus:outline-none border-none"
+                        className="bg-transparent w-full text-sm text-text-muted focus:outline-none border-none"
                       />
                     </div>
                     <ColumnSelector
@@ -756,7 +763,7 @@ const arabicRegionMap: { [key: string]: string } = {
                     />
                     <button
                       onClick={handleResetFilters}
-                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
+                      className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
                     >
                       إعادة ضبط
                     </button>
@@ -764,14 +771,14 @@ const arabicRegionMap: { [key: string]: string } = {
                   <div className="flex gap-2">
                     <button
                       onClick={exportToPDF}
-                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-md font-medium hover:bg-teal-800/90"
+                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-teal-800/90"
                     >
                       <FileText className="w-4 h-4" />
                       <span>PDF</span>
                     </button>
                     <button
                       onClick={exportToExcel}
-                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-md font-medium hover:bg-teal-800/90"
+                      className="flex items-center gap-1 bg-teal-800 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-teal-800/90"
                     >
                       <FileExcelOutlined className="w-4 h-4" />
                       <span>Excel</span>
@@ -779,230 +786,235 @@ const arabicRegionMap: { [key: string]: string } = {
                   </div>
                 </section>
 
-                <section className="bg-text-light rounded-md w-full">
-                  <table className="w-full text-md font-medium">
-                    <thead>
-                      <tr className="bg-teal-800 text-white">
-                        {visibleColumns.id && <th className="text-nowrap text-center p-4 w-[8%]">الرقم</th>}
-                        {visibleColumns.fullname && <th className="text-nowrap text-center p-4 w-[15%]">الاسم</th>}
-                        {visibleColumns.phonenumber && <th className="text-nowrap text-center p-4 w-[12%]">رقم الجوال</th>}
-                        {visibleColumns.nationalId && <th className="text-nowrap text-center p-4 w-[12%]">الهوية</th>}
-                        {visibleColumns.city && <th className="text-nowrap text-center p-4 w-[10%]">المدينة</th>}
-                        {visibleColumns.ordersCount && <th className="text-nowrap text-center p-4 w-[10%]">عدد الطلبات</th>}
-                        {visibleColumns.lastOrderDate && <th className="text-nowrap text-center p-4 w-[12%]">تاريخ آخر طلب</th>}
-                        {visibleColumns.showOrders && <th className="text-nowrap text-center p-4 w-[8%]">عرض الطلبات</th>}
-                        {visibleColumns.remainingAmount && <th className="text-nowrap text-center p-4 w-[10%]">المبلغ المتبقي</th>}
-                        {visibleColumns.notes && <th className="text-nowrap text-center p-4 w-[10%]">ملاحظات</th>}
-                        {visibleColumns.view && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">عرض</th>}
-                        {visibleColumns.edit && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">تعديل</th>}
-                        {visibleColumns.delete && hasDeletePermission && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">حذف</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-color">
-                      {loading ? (
-                        <tr>
-                          <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="p-4 text-center text-text-dark">
-                            جاري التحميل...
-                          </td>
+                <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
+                  <div className="overflow-x-auto" dir="rtl">
+                    <table className="w-full text-sm font-medium">
+                      <thead>
+                        <tr className="bg-teal-800 text-white">
+                          {visibleColumns.id && <th className="text-nowrap text-center p-4 w-[8%]">الرقم</th>}
+                          {visibleColumns.fullname && <th className="text-nowrap text-center p-4 w-[15%]">الاسم</th>}
+                          {visibleColumns.phonenumber && <th className="text-nowrap text-center p-4 w-[12%]">رقم الجوال</th>}
+                          {visibleColumns.nationalId && <th className="text-nowrap text-center p-4 w-[12%]">الهوية</th>}
+                          {visibleColumns.city && <th className="text-nowrap text-center p-4 w-[10%]">المدينة</th>}
+                          {visibleColumns.ordersCount && <th className="text-nowrap text-center p-4 w-[10%]">عدد الطلبات</th>}
+                          {visibleColumns.lastOrderDate && <th className="text-nowrap text-center p-4 w-[12%]">تاريخ آخر طلب</th>}
+                          {visibleColumns.showOrders && <th className="text-nowrap text-center p-4 w-[8%]">عرض الطلبات</th>}
+                          {visibleColumns.remainingAmount && <th className="text-nowrap text-center p-4 w-[10%]">المبلغ المتبقي</th>}
+                          {visibleColumns.notes && <th className="text-nowrap text-center p-4 w-[10%]">ملاحظات</th>}
+                          {visibleColumns.view && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">عرض</th>}
+                          {visibleColumns.edit && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">تعديل</th>}
+                          {visibleColumns.delete && hasDeletePermission && <th className="text-nowrap text-center p-4 w-[8%] min-w-[80px]">حذف</th>}
                         </tr>
-                      ) : clients.length === 0 ? (
-                        <tr>
-                          <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="p-4 text-center text-text-dark">
-                            لا توجد بيانات
-                          </td>
-                        </tr>
-                      ) : (
-                        clients.map((client) => (
-                          <React.Fragment key={client.id}>
-                            <tr className="bg-background-light text-text-dark text-md">
-                              {visibleColumns.id && <td className="text-nowrap text-center p-4 cursor-pointer" onClick={() => router.push(`/admin/clientdetails?id=${client.id}`)}>#{client.id}</td>}
-                              {visibleColumns.fullname && <td className="text-nowrap text-center p-4">{client.fullname}</td>}
-                              {visibleColumns.phonenumber && <td className="text-nowrap text-center p-4">{client.phonenumber}</td>}
-                              {visibleColumns.nationalId && <td className="text-nowrap text-center p-4">{client.nationalId}</td>}
-                              {visibleColumns.city && <td className="text-nowrap text-center p-4">{arabicRegionMap[client.city as keyof typeof arabicRegionMap]}</td>}
-                              {visibleColumns.ordersCount && <td className="text-nowrap text-center p-4">{client._count.orders}</td>}
-                              {visibleColumns.lastOrderDate && (
-                                <td className="text-nowrap text-center p-4">
-                                  {client.orders[client.orders.length - 1]?.createdAt
-                                    ? new Date(client.orders[client.orders.length - 1]?.createdAt).toLocaleDateString()
-                                    : '-'}
-                                </td>
-                              )}
-                              {visibleColumns.showOrders && (
-                                <td className="text-nowrap text-center p-4">
-                                  <button
-                                    onClick={() => toggleOrders(client.id)}
-                                    className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
-                                  >
-                                    {expandedClientId === client.id ? (
-                                      <ChevronUp className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronRight className="w-4 h-4 rotate-90" />
-                                    )}
-                                  </button>
-                                </td>
-                              )}
-                              {visibleColumns.remainingAmount && <td className="text-nowrap text-center p-4">-</td>}
-                              {visibleColumns.notes && (
-                                <td className="text-nowrap text-center p-4">
-                                  <button 
-                                    onClick={() => handleAddNotes(client.id, client.fullname || 'غير محدد')}
-                                    className="flex items-center gap-1 text-primary-dark text-md hover:underline"
-                                  >
-                                    <DocumentTextIcon className="w-4 h-4" />
-                                    <span>إضافة ملاحظة</span>
-                                  </button>
-                                </td>
-                              )}
-                              {visibleColumns.view && (
-                                <td className="text-nowrap text-center p-4">
-                                  <button 
-                                    className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10" 
-                                    onClick={() => {
-                                      if(expandedNotesId === client.id){
-                                        setExpandedNotesId(null);
-                                      } else {
-                                        setExpandedNotesId(client.id);
-                                      }
-                                    }}
-                                  >
-                                    <DownloadIcon className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                              {visibleColumns.edit && (
-                                <td className="text-nowrap text-center p-4">
-                                  <button 
-                                    className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
-                                    onClick={() => handleEditClient(client)}
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                              {visibleColumns.delete && hasDeletePermission && (
-                                <td className="text-nowrap text-center p-4">
-                                  <button 
-                                    className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50"
-                                    onClick={() => openDeleteModal(client.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                            {expandedClientId === client.id && (
-                              <tr>
-                                <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
-                                  <table className="w-full border border-border-color rounded-md">
-                                    <thead>
-                                      <tr className="bg-teal-800 text-white text-md font-medium">
-                                        <th className="text-nowrap text-center p-4">رقم الطلب</th>
-                                        <th className="text-nowrap text-center p-4">اسم العامل</th>
-                                        <th className="text-nowrap text-center p-4">حالة الحجز</th>
-                                        <th className="text-nowrap text-center p-4">تاريخ الإنشاء</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {client.orders.length === 0 ? (
-                                        <tr>
-                                          <td colSpan={4} className="p-4 text-center text-text-dark">
-                                            لا توجد طلبات
-                                          </td>
-                                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-color">
+                        {loading ? (
+                          <tr>
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="p-4 text-center text-text-dark">
+                              جاري التحميل...
+                            </td>
+                          </tr>
+                        ) : clients.length === 0 ? (
+                          <tr>
+                            <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="p-4 text-center text-text-dark">
+                              لا توجد بيانات
+                            </td>
+                          </tr>
+                        ) : (
+                          clients.map((client) => (
+                            <React.Fragment key={client.id}>
+                              <tr className="bg-gray-50 text-text-dark text-sm">
+                                {visibleColumns.id && <td className="text-nowrap text-center p-4 cursor-pointer" onClick={() => router.push(`/admin/clientdetails?id=${client.id}`)}>#{client.id}</td>}
+                                {visibleColumns.fullname && <td className="text-nowrap text-center p-4">{client.fullname}</td>}
+                                {visibleColumns.phonenumber && <td className="text-nowrap text-center p-4">{client.phonenumber}</td>}
+                                {visibleColumns.nationalId && <td className="text-nowrap text-center p-4">{client.nationalId}</td>}
+                                {visibleColumns.city && <td className="text-nowrap text-center p-4">{arabicRegionMap[client.city as keyof typeof arabicRegionMap]}</td>}
+                                {visibleColumns.ordersCount && <td className="text-nowrap text-center p-4">{client._count.orders}</td>}
+                                {visibleColumns.lastOrderDate && (
+                                  <td className="text-nowrap text-center p-4">
+                                    {client.orders[client.orders.length - 1]?.createdAt
+                                      ? new Date(client.orders[client.orders.length - 1]?.createdAt).toLocaleDateString()
+                                      : '-'}
+                                  </td>
+                                )}
+                                {visibleColumns.showOrders && (
+                                  <td className="text-nowrap text-center p-4">
+                                    <button
+                                      onClick={() => toggleOrders(client.id)}
+                                      className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
+                                    >
+                                      {expandedClientId === client.id ? (
+                                        <ChevronUp className="w-4 h-4" />
                                       ) : (
-                                        client.orders.map((order) => (
-                                          <tr key={order.id} className="bg-background-light text-text-dark text-md">
-                                            <td className="text-nowrap text-center cursor-pointer p-4" onClick={()=>router.push(`/admin/track_order/${order.id}`)}>#{order.id}</td>
-                                            <td className="text-nowrap text-center p-4">{order.HomeMaid?.Name || '-'}</td>
-                                            <td className="text-nowrap text-center p-4">{translateBookingStatus(order.bookingstatus) || '-'}</td>
-                                            <td className="text-nowrap text-center p-4">
-                                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}
+                                        <ChevronRight className="w-4 h-4 rotate-90" />
+                                      )}
+                                    </button>
+                                  </td>
+                                )}
+                                {visibleColumns.remainingAmount && <td className="text-nowrap text-center p-4">-</td>}
+                                {visibleColumns.notes && (
+                                  <td className="text-nowrap text-center p-4">
+                                    <button 
+                                      onClick={() => handleAddNotes(client.id, client.fullname || 'غير محدد')}
+                                      className="flex items-center gap-1 text-primary-dark text-sm hover:underline"
+                                    >
+                                      <DocumentTextIcon className="w-4 h-4" />
+                                      <span>إضافة ملاحظة</span>
+                                    </button>
+                                  </td>
+                                )}
+                                {visibleColumns.view && (
+                                  <td className="text-nowrap text-center p-4">
+                                    <button 
+                                      className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10" 
+                                      onClick={() => {
+                                        if(expandedNotesId === client.id){
+                                          setExpandedNotesId(null);
+                                        } else {
+                                          setExpandedNotesId(client.id);
+                                        }
+                                      }}
+                                    >
+                                      <DownloadIcon className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                )}
+                                {visibleColumns.edit && (
+                                  <td className="text-nowrap text-center p-4">
+                                    <button 
+                                      className="bg-transparent border border-border-color rounded p-1 hover:bg-teal-800/10"
+                                      onClick={() => handleEditClient(client)}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                )}
+                                {visibleColumns.delete && hasDeletePermission && (
+                                  <td className="text-nowrap text-center p-4">
+                                    <button 
+                                      className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50"
+                                      onClick={() => openDeleteModal(client.id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                              {expandedClientId === client.id && (
+                                <tr>
+                                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
+                                    <table className="w-full border border-border-color rounded-md">
+                                      <thead>
+                                        <tr className="bg-teal-800 text-white text-sm font-medium">
+                                          <th className="text-nowrap text-center p-4">رقم الطلب</th>
+                                          <th className="text-nowrap text-center p-4">اسم العامل</th>
+                                          <th className="text-nowrap text-center p-4">حالة الحجز</th>
+                                          <th className="text-nowrap text-center p-4">تاريخ الإنشاء</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {client.orders.length === 0 ? (
+                                          <tr>
+                                            <td colSpan={4} className="p-4 text-center text-text-dark">
+                                              لا توجد طلبات
                                             </td>
                                           </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </td>
-                              </tr>
-                            )}
-                            {expandedNotesId === client.id && (
-                              <tr>
-                                <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
-                                  <table className="w-full border border-border-color rounded-md">
-                                    <thead>
-                                      <tr className="bg-teal-800 text-white text-md font-medium">
-                                        <th className="text-nowrap text-center p-4">ملاحظات</th>
-                                        <th className="text-nowrap text-center p-4">تاريخ الإنشاء</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {client.notes.length === 0 ? (
-                                        <tr>
-                                          <td colSpan={4} className="p-4 text-center text-text-dark">
-                                            لا توجد ملاحظات
-                                          </td>
+                                        ) : (
+                                          client.orders.map((order) => (
+                                            <tr key={order.id} className="bg-background-light text-text-dark text-sm">
+                                              <td className="text-nowrap text-center cursor-pointer p-4" onClick={()=>router.push(`/admin/track_order/${order.id}`)}>#{order.id}</td>
+                                              <td className="text-nowrap text-center p-4">{order.HomeMaid?.Name || '-'}</td>
+                                              <td className="text-nowrap text-center p-4">{translateBookingStatus(order.bookingstatus) || '-'}</td>
+                                              <td className="text-nowrap text-center p-4">
+                                                {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}
+                                              </td>
+                                            </tr>
+                                          ))
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              )}
+                              {expandedNotesId === client.id && (
+                                <tr>
+                                  <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="bg-background-light p-4">
+                                    <table className="w-full border border-border-color rounded-md">
+                                      <thead>
+                                        <tr className="bg-teal-800 text-white text-sm font-medium">
+                                          <th className="text-nowrap text-center p-4">ملاحظات</th>
+                                          <th className="text-nowrap text-center p-4">تاريخ الإنشاء</th>
                                         </tr>
-                                      ) : (
-                                        client.notes.map((n) => (
-                                          <tr key={n.id} className="bg-background-light text-text-dark text-md">
-                                            <td className="text-nowrap text-center p-4">{n.notes || '-'}</td>
-                                            <td className="text-nowrap text-center p-4">
-                                              {n.createdAt ? new Date(n.createdAt).toLocaleDateString() : '-'}
+                                      </thead>
+                                      <tbody>
+                                        {client.notes.length === 0 ? (
+                                          <tr>
+                                            <td colSpan={4} className="p-4 text-center text-text-dark">
+                                              لا توجد ملاحظات
                                             </td>
                                           </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </section>
-
-                <footer className="flex flex-col sm:flex-row justify-between items-center p-5 mt-6">
-                  <p className="text-base text-text-dark">
-                    عرض {(currentPage - 1) * 10 + 1}-{Math.min(currentPage * 10, totalClients)} من {totalClients} نتيجة
-                  </p>
-                  <nav className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="px-2 py-1 border border-border-color rounded text-md bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
-                    >
-                      السابق
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        ) : (
+                                          client.notes.map((n) => (
+                                            <tr key={n.id} className="bg-background-light text-text-dark text-sm">
+                                              <td className="text-nowrap text-center p-4">{n.notes || '-'}</td>
+                                              <td className="text-nowrap text-center p-4">
+                                                {n.createdAt ? new Date(n.createdAt).toLocaleDateString() : '-'}
+                                              </td>
+                                            </tr>
+                                          ))
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+                    <p className="text-base text-black">
+                      عرض {(currentPage - 1) * 10 + 1}-{Math.min(currentPage * 10, totalClients)} من {totalClients} نتيجة
+                    </p>
+                    <div className="flex items-center gap-1.5">
                       <button
-                        key={page}
-                        onClick={() => {
-                          setCurrentPage(page);
-                          setExpandedClientId(null);
-                        }}
-                        className={`px-2 py-1 border rounded text-md ${
-                          currentPage === page
-                            ? 'border-primary-dark bg-teal-800 text-white'
-                            : 'border-border-color bg-background-light hover:bg-teal-800 hover:text-white'
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`px-2.5 py-1 border rounded text-md ${
+                          currentPage === 1 ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                         }`}
                       >
-                        {page}
+                        السابق
                       </button>
-                    ))}
-                    <button
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="px-2 py-1 border border-border-color rounded text-md bg-background-light hover:bg-teal-800 hover:text-white disabled:opacity-50"
-                    >
-                      التالي
-                    </button>
-                  </nav>
-                </footer>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => {
+                            setCurrentPage(page);
+                            setExpandedClientId(null);
+                          }}
+                          className={`px-2.5 py-1 border rounded text-md ${
+                            currentPage === page
+                              ? 'border-teal-900 bg-teal-900 text-white'
+                              : 'border-gray-300 bg-gray-50 text-gray-800'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`px-2.5 py-1 border rounded text-md ${
+                          currentPage === totalPages ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
+                        }`}
+                      >
+                        التالي
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
           </main>
@@ -1044,13 +1056,13 @@ const arabicRegionMap: { [key: string]: string } = {
                     setIsDeleteModalOpen(false);
                     setClientToDelete(null);
                   }}
-                  className="bg-gray-200 text-text-dark px-4 py-2 rounded-md text-md font-medium hover:bg-gray-300"
+                  className="bg-gray-200 text-text-dark px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={handleDeleteClient}
-                  className="bg-red-500 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-red-600"
+                  className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600"
                 >
                   حذف
                 </button>
@@ -1101,7 +1113,7 @@ const EditClientModal: React.FC<{
               name="fullname"
               value={formData.fullname || ''}
               onChange={handleChange}
-              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
             />
           </div>
           <div>
@@ -1111,7 +1123,7 @@ const EditClientModal: React.FC<{
               name="phonenumber"
               value={formData.phonenumber || ''}
               onChange={handleChange}
-              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
             />
           </div>
           <div>
@@ -1121,7 +1133,7 @@ const EditClientModal: React.FC<{
               name="nationalId"
               value={formData.nationalId || ''}
               onChange={handleChange}
-              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+              className="w-full bg-gray-50 border border-border-color rounded-md py-2 px-4 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
             />
           </div>
           <div>
@@ -1130,7 +1142,7 @@ const EditClientModal: React.FC<{
               name="city"
               value={formData.city || ''}
               onChange={handleChange}
-              className="w-full bg-gray-50 border border-border-color rounded-md py-2  text-md text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
+              className="w-full bg-gray-50 border border-border-color rounded-md py-2  text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-dark"
             >
               <option value="">اختر المدينة</option>
 <option value = "Baha">الباحة</option>
@@ -1200,13 +1212,13 @@ const EditClientModal: React.FC<{
             <button
               type="button"
               onClick={onClose}
-              className="bg-gray-200 text-text-dark px-4 py-2 rounded-md text-md font-medium hover:bg-gray-300"
+              className="bg-gray-200 text-text-dark px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300"
             >
               إلغاء
             </button>
             <button
               type="submit"
-              className="bg-teal-800 text-white px-4 py-2 rounded-md text-md font-medium hover:bg-teal-800/90"
+              className="bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
             >
               حفظ
             </button>

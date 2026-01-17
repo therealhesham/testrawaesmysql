@@ -107,10 +107,7 @@ const CustomDatePicker: React.FC<{
         <Calendar className="w-5 h-5 text-teal-600" />
       </div>
       
-      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-        <div className="w-2 h-2 bg-teal-500 rounded-full opacity-60"></div>
-      </div>
-
+ 
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
           {/* Header */}

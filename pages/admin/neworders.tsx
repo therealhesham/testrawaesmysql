@@ -52,6 +52,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
   const [offices] = useState(initialData?.offices || []);
   const [isLoading, setIsLoading] = useState(false);
   const [isRevalidating, setIsRevalidating] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [formData, setFormData] = useState({
@@ -377,10 +378,14 @@ autoFocus
     });
   };
 
-  const openPopup = (popupId: string) => setActivePopup(popupId);
+  const openPopup = (popupId: string) => {
+    setActivePopup(popupId);
+    setIsConfirming(false);
+  };
   const closePopup = () => {
     setActivePopup(null);
     setMenuPosition(null);
+    setIsConfirming(false);
   };
 
   const closeModal = () => {
@@ -395,6 +400,7 @@ autoFocus
   };
 
   const confirmAccept = async (id: string) => {
+    setIsConfirming(true);
     try {
       const confirmRequest = await axios.post('/api/confirmrequest', { id });
       if (confirmRequest.status === 200) {
@@ -412,10 +418,12 @@ autoFocus
       setModalMessage(getErrorMessage('generalError'));
       setShowErrorModal(true);
       closePopup();
+      setIsConfirming(false);
     }
   };
 
   const confirmReject = async (id: string) => {
+    setIsConfirming(true);
     try {
       const rejectRequest = await axios.post('/api/rejectbookingprisma', { id });
       if (rejectRequest.status === 200) {
@@ -432,6 +440,7 @@ autoFocus
       setModalMessage(getErrorMessage('generalError'));
       setShowErrorModal(true);
       closePopup();
+      setIsConfirming(false);
     }
   };
 
@@ -1272,10 +1281,11 @@ useEffect(() => {
                     إلغاء
                   </button>
                    <button
-                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                      onClick={() => selectedOrderId && confirmAccept(selectedOrderId)}
+                     disabled={isConfirming}
                    >
-                     نعم
+                     {isConfirming ? 'جاري المعالجة...' : 'نعم'}
                    </button>
                 </div>
               </div>
@@ -1297,10 +1307,11 @@ useEffect(() => {
                     إلغاء
                   </button>
                    <button
-                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200"
+                     className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                      onClick={() => selectedOrderId && confirmReject(selectedOrderId)}
+                     disabled={isConfirming}
                    >
-                     نعم
+                     {isConfirming ? 'جاري المعالجة...' : 'نعم'}
                    </button>
                 </div>
               </div>
