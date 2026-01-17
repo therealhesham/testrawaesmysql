@@ -36,9 +36,12 @@ interface SortableRoleHeaderProps {
   isLoading: boolean;
   openDropdownId: number | null;
   setOpenDropdownId: (id: number | null) => void;
+  currentUserRoleId: number;
+  currentUserRoleName: string;
+  canReorder: boolean;
 }
 
-function SortableRoleHeader({ role, index, canEditRole, onEdit, onDelete, isLoading, openDropdownId, setOpenDropdownId }: SortableRoleHeaderProps) {
+function SortableRoleHeader({ role, index, canEditRole, onEdit, onDelete, isLoading, openDropdownId, setOpenDropdownId, currentUserRoleId, canReorder }: SortableRoleHeaderProps) {
   const {
     attributes,
     listeners,
@@ -46,7 +49,7 @@ function SortableRoleHeader({ role, index, canEditRole, onEdit, onDelete, isLoad
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: `role-${index}` });
+  } = useSortable({ id: `role-${index}`, disabled: !canReorder });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -55,6 +58,7 @@ function SortableRoleHeader({ role, index, canEditRole, onEdit, onDelete, isLoad
   };
 
   const isDropdownOpen = openDropdownId === role.id;
+  const isCurrentUserRole = role.id === currentUserRoleId;
 
   return (
     <th
@@ -63,14 +67,23 @@ function SortableRoleHeader({ role, index, canEditRole, onEdit, onDelete, isLoad
       className={`p-4 text-xl font-normal text-black relative ${isDragging ? 'ring-2 ring-teal-500' : ''}`}
     >
       <div className="flex items-center justify-center gap-2">
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-teal-600 transition-colors"
-        >
-          <GripVertical size={16} />
-        </div>
+        {canReorder ? (
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-teal-600 transition-colors"
+          >
+            <GripVertical size={16} />
+          </div>
+        ) : (
+          <div className="text-gray-300 cursor-not-allowed" title="فقط المالك يمكنه ترتيب الأدوار">
+            <GripVertical size={16} />
+          </div>
+        )}
         <span>{role.name}</span>
+        {isCurrentUserRole && (
+          <span className="text-sm text-teal-600">(You)</span>
+        )}
         {canEditRole(role) ? (
           <div className="relative mr-2">
             <button
@@ -140,11 +153,15 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
     // Manager يقدر يعدل أي حد تاني ما عدا Owner
     return true;
   };
+
+  // دالة للتحقق من إمكانية ترتيب الأدوار (فقط owner)
+  const canReorder = currentUserRoleName?.toLowerCase() === 'owner';
   // State for modals
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
   const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null); // To store the action to confirm
   const [roleToDelete, setRoleToDelete] = useState<any>(null);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
@@ -155,6 +172,12 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
   const [newRole, setNewRole] = useState<{ name: string; permissions: any }>({ name: '', permissions: {} });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper function to show error in modal
+  const showError = (errorMessage: string) => {
+    setError(errorMessage);
+    setIsErrorModalOpen(true);
+  };
 
   // Permission sections and items
   const permissionSections = [
@@ -200,7 +223,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
       // الأدوار مرتبة بالفعل من API حسب order
       setRoles(response.data);
     } catch (error) {
-      setError('فشل في جلب الأدوار. حاول مرة أخرى.');
+      showError('فشل في جلب الأدوار. حاول مرة أخرى.');
       console.error('Error fetching roles:', error);
     } finally {
       setIsLoading(false);
@@ -209,6 +232,12 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
 
   // Handle drag end for roles
   const handleRolesDragEnd = async (event: DragEndEvent) => {
+    // التحقق من أن المستخدم هو owner فقط
+    if (!canReorder) {
+      showError('فقط المالك يمكنه ترتيب الأدوار');
+      return;
+    }
+
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -227,7 +256,8 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
 
         await axios.put('/api/roles/update-order', { roles: updates });
       } catch (error) {
-        setError('فشل في حفظ ترتيب الأدوار. حاول مرة أخرى.');
+        const errorMessage = (error as any).response?.data?.error || 'فشل في حفظ ترتيب الأدوار. حاول مرة أخرى.';
+        showError(errorMessage);
         console.error('Error updating roles order:', error);
         // إعادة تحميل الأدوار في حالة الخطأ
         fetchRoles();
@@ -268,7 +298,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
       setIsConfirmModalOpen(false);
       fetchRoles();
     } catch (error) {
-      setError('فشل في إضافة المسمى الوظيفي. حاول مرة أخرى.');
+      showError('فشل في إضافة المسمى الوظيفي. حاول مرة أخرى.');
       console.error('Error adding role:', error);
     } finally {
       setIsLoading(false);
@@ -287,7 +317,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
       setIsConfirmModalOpen(false);
       fetchRoles();
     } catch (error) {
-      setError((error as any).response?.data?.error || 'فشل في تعديل المسمى الوظيفي. حاول مرة أخرى.');
+      showError((error as any).response?.data?.error || 'فشل في تعديل المسمى الوظيفي. حاول مرة أخرى.');
       console.error('Error editing role:', error);
     } finally {
       setIsLoading(false);
@@ -304,7 +334,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
       setRoleToDelete(null);
       fetchRoles();
     } catch (error) {
-      setError((error as any).response?.data?.error || 'فشل في حذف المسمى الوظيفي. حاول مرة أخرى.');
+      showError((error as any).response?.data?.error || 'فشل في حذف المسمى الوظيفي. حاول مرة أخرى.');
       console.error('Error deleting role:', error);
     } finally {
       setIsLoading(false);
@@ -335,6 +365,12 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
       await confirmAction();
     }
   };
+  const openNewJobModal = () => {
+    //يمسح بيانات المسمى الوظيفي القديمة
+    setNewRole({ name: '', permissions: {} });
+    setIsAddRoleModalOpen(true);
+
+  };
 
   return (
     <Layout>
@@ -347,7 +383,7 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
             <h1 className="text-3xl font-normal text-black">إدارة الصلاحيات</h1>
             <div className="flex gap-4">
               <button
-                onClick={() => setIsAddRoleModalOpen(true)}
+                onClick={() => openNewJobModal()}
                 className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm hover:bg-teal-700"
                 disabled={isLoading}
               >
@@ -374,21 +410,17 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                 Excel
               </button> */}
             </div>
-            {error && (
-              <div className="bg-red-100 text-red-800 p-3 rounded mb-4 text-center">
-                {error}
-              </div>
-            )}
             <table className="w-full border-collapse text-center">
               <thead>
                 <DndContext
-                  sensors={sensors}
+                  sensors={canReorder ? sensors : []}
                   collisionDetection={closestCenter}
                   onDragEnd={handleRolesDragEnd}
                 >
                   <SortableContext
                     items={roles.map((_, index) => `role-${index}`)}
                     strategy={horizontalListSortingStrategy}
+                    disabled={!canReorder}
                   >
                     <tr className="bg-gray-200 border-b border-gray-300">
                       <th className="p-4 text-xl font-normal text-black min-w-8">القسم</th>
@@ -410,6 +442,9 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                           isLoading={isLoading}
                           openDropdownId={openDropdownId}
                           setOpenDropdownId={setOpenDropdownId}
+                          currentUserRoleId={currentUserRoleId}
+                          currentUserRoleName={currentUserRoleName}
+                          canReorder={canReorder}
                         />
                       ))}
                     </tr>
@@ -456,21 +491,18 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
               role="dialog"
               aria-labelledby="add-role-title"
               aria-modal="true"
+              onClick={() => setIsAddRoleModalOpen(false)}
             >
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 className="bg-gray-200 rounded-lg p-8 max-w-4xl w-full relative"
+                onClick={(e) => e.stopPropagation()}
               >
                 <h1 id="add-role-title" className="text-2xl font-normal text-black mb-8 text-center">
                   إضافة مسمى وظيفي
                 </h1>
-                {error && (
-                  <div className="bg-red-100 text-red-800 p-3 rounded mb-4 text-center">
-                    {error}
-                  </div>
-                )}
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col items-end gap-2">
                     <label htmlFor="job-title" className="text-sm text-gray-800">
@@ -504,18 +536,18 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                           <div className="bg-gray-200 border border-gray-300 rounded px-3 py-1 text-sm text-gray-800">
                             {section}
                           </div>
-                          <div className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-2 w-full">
                             {getPermissionItems(section).map((perm) => (
                               <label
                                 key={perm}
-                                className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
+                                className="flex items-center justify-center gap-2 flex-row-reverse text-sm text-gray-800 w-full"
                               >
-                                <span>{perm}</span>
+                                <span className="flex-1 text-right">{perm}</span>
                                 <input
                                   type="checkbox"
                                   checked={newRole.permissions[section]?.[perm] || false}
                                   onChange={(e) => handlePermissionChange(section, perm, e.target.checked)}
-                                  className="w-5 h-5"
+                                  className="w-5 h-5 flex-shrink-0"
                                   disabled={isLoading}
                                 />
                               </label>
@@ -560,21 +592,21 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
               role="dialog"
               aria-labelledby="edit-role-title"
               aria-modal="true"
+              onClick={() => {
+                setIsEditRoleModalOpen(false);
+                setSelectedRole(null);
+              }}
             >
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 className="bg-gray-200 rounded-lg p-8 max-w-4xl w-full relative max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
               >
                 <h1 id="edit-role-title" className="text-2xl font-normal text-black mb-8 text-center">
                   تعديل مسمى وظيفي
                 </h1>
-                {error && (
-                  <div className="bg-red-100 text-red-800 p-3 rounded mb-4 text-center">
-                    {error}
-                  </div>
-                )}
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col items-end gap-2">
                     <label htmlFor="job-title" className="text-sm text-gray-800">
@@ -608,18 +640,18 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                           <div className="bg-gray-200 border border-gray-300 rounded px-3 py-1 text-sm text-gray-800">
                             {section}
                           </div>
-                          <div className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-2 w-full">
                             {getPermissionItems(section).map((perm) => (
                               <label
                                 key={perm}
-                                className="flex items-center gap-2 flex-row-reverse text-sm text-gray-800"
+                                className="flex items-center justify-center gap-2 flex-row-reverse text-sm text-gray-800 w-full"
                               >
-                                <span>{perm}</span>
+                                <span className="flex-1 text-right">{perm}</span>
                                 <input
                                   type="checkbox"
                                   checked={newRole.permissions[section]?.[perm] || false}
                                   onChange={(e) => handlePermissionChange(section, perm, e.target.checked)}
-                                  className="w-5 h-5"
+                                  className="w-5 h-5 flex-shrink-0"
                                   disabled={isLoading}
                                 />
                               </label>
@@ -745,6 +777,51 @@ const PermissionsManagement = ({ currentUserRoleId, currentUserRoleName }: { cur
                     disabled={isLoading}
                   >
                     إلغاء
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Error Modal */}
+        <AnimatePresence>
+          {isErrorModalOpen && error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+              role="dialog"
+              aria-labelledby="error-title"
+              aria-modal="true"
+              onClick={() => {
+                setIsErrorModalOpen(false);
+                setError(null);
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className="bg-gray-200 rounded-lg p-8 max-w-md w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h1 id="error-title" className="text-xl font-normal text-red-600 mb-4 text-center">
+                  خطأ
+                </h1>
+                <p className="text-sm text-gray-800 mb-6 text-center">
+                  {error}
+                </p>
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      setIsErrorModalOpen(false);
+                      setError(null);
+                    }}
+                    className="bg-teal-800 text-white px-5 py-2 rounded text-base hover:bg-teal-700"
+                  >
+                    موافق
                   </button>
                 </div>
               </motion.div>

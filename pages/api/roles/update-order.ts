@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { jwtDecode } from 'jwt-decode';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const prisma = new PrismaClient();
 
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { method } = req;
 
   if (method !== 'PUT') {
@@ -11,6 +13,45 @@ export default async function handler(req, res) {
   }
 
   try {
+    // التحقق من أن المستخدم هو owner فقط
+    const cookieHeader = req.headers.cookie;
+    let userId: number | null = null;
+
+    if (cookieHeader) {
+      try {
+        const cookies: { [key: string]: string } = {};
+        cookieHeader.split(";").forEach((cookie: string) => {
+          const [key, value] = cookie.trim().split("=");
+          cookies[key] = decodeURIComponent(value);
+        });
+        if (cookies.authToken) {
+          const token = jwtDecode(cookies.authToken) as any;
+          userId = Number(token.id);
+        }
+      } catch (e) {
+        // Ignore token errors
+      }
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'غير مصرح لك بهذه العملية' });
+    }
+
+    // التحقق من أن المستخدم هو owner
+    const findUser = await prisma.user.findFirst({
+      where: { id: Number(userId) },
+      select: { role: true }
+    });
+
+    if (!findUser?.role) {
+      return res.status(403).json({ error: 'غير مصرح لك بهذه العملية' });
+    }
+
+    const userRoleName = findUser.role.name?.toLowerCase();
+    if (userRoleName !== 'owner') {
+      return res.status(403).json({ error: 'فقط المالك يمكنه ترتيب الأدوار' });
+    }
+
     const { roles } = req.body;
 
     if (!Array.isArray(roles)) {
