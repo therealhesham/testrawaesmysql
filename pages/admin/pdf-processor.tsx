@@ -2107,43 +2107,60 @@ const handleSave = async () => {
     // ---------------------------------------------------------
     // 1. الحالة الأولى: تعديل اسم المكتب (قائمة مكاتب)
     // ---------------------------------------------------------
-    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
-      <div>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            list="office-list"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName' ||
+     editKey === 'office_name' || editKey === 'OfficeName' || editKey === 'company_name' || editKey === 'CompanyName' ||
+     key.toLowerCase().includes('office') || key.toLowerCase().includes('company') ||
+     editKey.toLowerCase().includes('office') || editKey.toLowerCase().includes('company')) ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
             value={editingField?.value ?? ''}
             onChange={(e) =>
               setEditingField((prev) =>
                 prev ? { ...prev, value: e.target.value } : prev
               )
             }
-            placeholder="اختر مكتباً أو اكتب للبحث"
-          />
-          <datalist id="office-list">
-            {filteredOffices.map((o) => (
-              <option key={o.id} value={o.office || ''} />
-            ))}
-          </datalist>
-        </div>
-        <div className="mt-2 flex justify-end gap-2 text-xs">
-          <button
-            type="button"
-            className="px-3 py-1 rounded-md bg-green-600 text-white hover:bg-green-700"
-            onClick={saveEditingField}
           >
-            حفظ
-          </button>
-          <button
-            type="button"
-            className="px-3 py-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300"
-            onClick={cancelEditingField}
-          >
-            إلغاء
-          </button>
+            <option value="">اختر المكتب</option>
+            {offices && offices.length > 0 ? (
+              offices
+                .filter((o) => o.office && o.office.trim() !== '')
+                .map((o) => (
+                  <option key={o.id} value={o.office || ''}>
+                    {o.office || ''}
+                  </option>
+                ))
+            ) : (
+              <option value="" disabled>لا توجد مكاتب متاحة</option>
+            )}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
         </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
       </div>
     ) : 
     // ---------------------------------------------------------
@@ -2556,44 +2573,31 @@ const handleSave = async () => {
     // ---------------------------------------------------------
     // وضع العرض (Display Mode)
     // ---------------------------------------------------------
-    // حالة خاصة: حقل المكتب - dropdown مباشر
-    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <select
-            style={{ 
-              backgroundImage: 'none', 
-              WebkitAppearance: 'none', 
-              MozAppearance: 'none', 
-              appearance: 'none' 
-            }}
-            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
-            value={displayValue && displayValue !== 'null' && displayValue !== 'undefined' && String(displayValue).trim() !== '' ? String(displayValue).trim() : ''}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              if (newValue) {
-                // تحديد المفتاح الصحيح للحفظ
-                const fieldKey = (key === 'office_name' || key === 'OfficeName') && processingResult.geminiData.jsonResponse.company_name
-                  ? 'company_name'
-                  : key;
-                // حفظ القيمة مباشرة عند التغيير
-                saveOfficeFieldDirectly(fieldKey, newValue);
-              }
-            }}
+    // حالة خاصة: حقل المكتب - عرض القيمة مع زر التعديل
+    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName' ||
+     displayKey === 'office_name' || displayKey === 'OfficeName' || displayKey === 'company_name' || displayKey === 'CompanyName' ||
+     key.toLowerCase().includes('office') || key.toLowerCase().includes('company') ||
+     displayKey?.toLowerCase().includes('office') || displayKey?.toLowerCase().includes('company')) ? (
+      <div className="flex items-center justify-between gap-2">
+        <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+          {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+        </span>
+        <button
+          type="button"
+          className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
+          onClick={() => startEditingField(key, displayValue)}
+          title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-5 h-5"
           >
-            <option value="">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'اختر المكتب' : 'اختر المكتب'}</option>
-            {filteredOffices.map((o) => (
-              <option key={o.id} value={o.office || ''}>
-                {o.office || ''}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
-            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-            </svg>
-          </div>
-        </div>
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+          <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
+        </button>
       </div>
     ) : (
       <div className="flex items-center justify-between gap-2">
