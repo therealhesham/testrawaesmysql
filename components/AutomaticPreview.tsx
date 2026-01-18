@@ -17,19 +17,24 @@ interface AutomaticEmployee {
   height?: string;
   salary?: string;
   
-  // Languages (flattened)
+  // Languages (flattened) - دعم ديناميكي لجميع اللغات
   lang_english?: string;
   lang_arabic?: string;
+  [key: `lang_${string}`]: string | undefined;
   
-  // Skills (flattened)
+  // Skills (flattened) - دعم ديناميكي لجميع المهارات
   skill_washing?: string;
   skill_cooking?: string;
   skill_babysetting?: string;
   skill_cleaning?: string;
   skill_laundry?: string;
+  [key: `skill_${string}`]: string | undefined;
   
   profileImage?: string;
   fullImage?: string;
+  
+  // دعم للحقول الإضافية
+  [key: string]: any;
 }
 
 interface AutomaticPreviewProps {
@@ -57,18 +62,61 @@ const AutomaticPreview: React.FC<AutomaticPreviewProps> = ({ employee, className
     return level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
   };
 
-  const skills = [
-    { name: 'Washing', level: employee.skill_washing },
-    { name: 'Cooking', level: employee.skill_cooking },
-    { name: 'Babysitting', level: employee.skill_babysetting },
-    { name: 'Cleaning', level: employee.skill_cleaning },
-    { name: 'Laundry', level: employee.skill_laundry },
-  ].filter(skill => skill.level);
+  // استخراج جميع المهارات ديناميكياً
+  const skills = Object.entries(employee)
+    .filter(([key]) => key.startsWith('skill_'))
+    .map(([key, level]) => {
+      const skillName = key.replace('skill_', '').replace(/_/g, ' ');
+      // تحويل أول حرف إلى كبير وبقية الأحرف إلى صغيرة
+      const formattedName = skillName
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      return { name: formattedName, level: level as string };
+    })
+    .filter(skill => skill.level && skill.level !== 'null' && skill.level !== 'undefined' && String(skill.level).trim() !== '');
 
-  const languages = [
-    { name: 'English', level: employee.lang_english },
-    { name: 'Arabic', level: employee.lang_arabic },
-  ].filter(lang => lang.level);
+  // استخراج جميع اللغات ديناميكياً
+  const languages = Object.entries(employee)
+    .filter(([key]) => key.startsWith('lang_'))
+    .map(([key, level]) => {
+      const langName = key.replace('lang_', '').replace(/_/g, ' ');
+      // تحويل أول حرف إلى كبير وبقية الأحرف إلى صغيرة
+      const formattedName = langName
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      return { name: formattedName, level: level as string };
+    })
+    .filter(lang => lang.level && lang.level !== 'null' && lang.level !== 'undefined' && String(lang.level).trim() !== '');
+
+  // استخراج الحقول الإضافية (غير المهارات واللغات والصور)
+  const additionalFields = Object.entries(employee)
+    .filter(([key]) => {
+      // استبعاد الحقول المعروفة
+      const knownFields = [
+        'id', 'name', 'age', 'religion', 'maritalStatus', 'birthDate',
+        'nationality', 'officeName', 'passportNumber', 'passportStartDate',
+        'passportEndDate', 'contractDuration', 'weight', 'height', 'salary',
+        'profileImage', 'fullImage'
+      ];
+      return !knownFields.includes(key) && 
+             !key.startsWith('skill_') && 
+             !key.startsWith('lang_') &&
+             key !== 'company_name' && 
+             key !== 'CompanyName';
+    })
+    .filter(([_, value]) => value && value !== 'null' && value !== 'undefined' && String(value).trim() !== '')
+    .map(([key, value]) => {
+      // تحسين عرض اسم الحقل
+      const formattedKey = key
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      return { key: formattedKey, value: String(value) };
+    });
 
   return (
     <div className={`bg-white rounded-lg shadow-md p-6 ${className}`}>
@@ -218,6 +266,23 @@ const AutomaticPreview: React.FC<AutomaticPreviewProps> = ({ employee, className
                   <span className="text-sm bg-green-200 text-green-800 px-2 py-1 rounded">
                     {getLanguageLevel(language.level)}
                   </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Additional Fields Section */}
+      {additionalFields.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-semibold text-gray-900 mb-3">Additional Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {additionalFields.map((field, index) => (
+              <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-gray-700">{field.key}:</span>
+                  <span className="text-gray-900">{field.value}</span>
                 </div>
               </div>
             ))}

@@ -2644,99 +2644,137 @@ const handleSave = async () => {
                       معاينة البيانات
                     </h3>
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                      <AutomaticPreview 
-                        employee={{
+                      {(() => {
+                        // بناء كائن الموظف ديناميكياً من جميع البيانات في jsonResponse
+                        const jsonResponse = processingResult.geminiData.jsonResponse;
+                        const employeeData: any = {
                           id: 0,
-                          name: processingResult.geminiData.jsonResponse.full_name || processingResult.geminiData.jsonResponse.Name,
-                          age: processingResult.geminiData.jsonResponse.age || processingResult.geminiData.jsonResponse.Age,
-                          religion: processingResult.geminiData.jsonResponse.religion || processingResult.geminiData.jsonResponse.Religion,
-                          maritalStatus: processingResult.geminiData.jsonResponse.marital_status || processingResult.geminiData.jsonResponse.MaritalStatus,
-                          birthDate: processingResult.geminiData.jsonResponse.date_of_birth || processingResult.geminiData.jsonResponse.BirthDate,
-                          nationality: processingResult.geminiData.jsonResponse.nationality || processingResult.geminiData.jsonResponse.Nationality,
-                          officeName: processingResult.geminiData.jsonResponse.office_name || processingResult.geminiData.jsonResponse.OfficeName,
-                          passportNumber: processingResult.geminiData.jsonResponse.passport_number || processingResult.geminiData.jsonResponse.PassportNumber,
-                          passportStartDate: processingResult.geminiData.jsonResponse.passport_issue_date || processingResult.geminiData.jsonResponse.PassportStartDate,
-                          passportEndDate: processingResult.geminiData.jsonResponse.passport_expiration || processingResult.geminiData.jsonResponse.PassportEndDate,
-                          contractDuration: processingResult.geminiData.jsonResponse.contract_duration || processingResult.geminiData.jsonResponse.Contract_duration,
-                          weight: processingResult.geminiData.jsonResponse.weight || processingResult.geminiData.jsonResponse.Weight,
-                          height: processingResult.geminiData.jsonResponse.height || processingResult.geminiData.jsonResponse.Height,
-                          salary: processingResult.geminiData.jsonResponse.salary || processingResult.geminiData.jsonResponse.Salary,
                           profileImage: uploadedImageUrls[0] || selectedProfileImage,
                           fullImage: uploadedImageUrls[1] || selectedFullImage,
-                          // Flattened skills - parse JSON string if needed
-                          skill_washing: (() => {
+                        };
+
+                        // معالجة جميع الحقول من jsonResponse
+                        Object.entries(jsonResponse).forEach(([key, value]) => {
+                          // تخطي company_name من التكرار (سيتم استخدامه لاحقاً)
+                          if (key === 'company_name' || key === 'CompanyName') {
+                            return;
+                          }
+
+                          // معالجة المهارات - توسيعها إلى حقول منفصلة
+                          if (key === 'skills') {
                             try {
-                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
-                                : processingResult.geminiData.jsonResponse.skills as any;
-                              return skills?.WASHING || skills?.washing || null;
+                              const skills = typeof value === 'string' ? JSON.parse(value as string) : value;
+                              if (typeof skills === 'object' && skills !== null) {
+                                Object.entries(skills).forEach(([skillKey, skillValue]) => {
+                                  const skillField = `skill_${skillKey.toLowerCase()}`;
+                                  employeeData[skillField] = skillValue || null;
+                                });
+                              }
                             } catch {
-                              return null;
+                              // إذا فشل التحليل، تجاهل
                             }
-                          })(),
-                          skill_cooking: (() => {
+                            return;
+                          }
+
+                          // معالجة اللغات - توسيعها إلى حقول منفصلة
+                          if (key === 'languages_spoken') {
                             try {
-                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
-                                : processingResult.geminiData.jsonResponse.skills as any;
-                              return skills?.COOKING || skills?.cooking || null;
+                              const languages = typeof value === 'string' ? JSON.parse(value as string) : value;
+                              if (typeof languages === 'object' && languages !== null) {
+                                Object.entries(languages).forEach(([langKey, langValue]) => {
+                                  const langField = `lang_${langKey.toLowerCase()}`;
+                                  employeeData[langField] = langValue || null;
+                                });
+                              }
                             } catch {
-                              return null;
+                              // إذا فشل التحليل، تجاهل
                             }
-                          })(),
-                          skill_babysetting: (() => {
-                            try {
-                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
-                                : processingResult.geminiData.jsonResponse.skills as any;
-                              return skills?.babysetting || skills?.BABYSITTING || null;
-                            } catch {
-                              return null;
+                            return;
+                          }
+
+                          // معالجة الحقول العادية - دعم أسماء متعددة للحقل نفسه
+                          const normalizedKey = key.toLowerCase();
+                          
+                          // اسم
+                          if (normalizedKey === 'full_name' || normalizedKey === 'name' || normalizedKey === 'fullname') {
+                            if (!employeeData.name) {
+                              employeeData.name = value || null;
                             }
-                          })(),
-                          skill_cleaning: (() => {
-                            try {
-                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
-                                : processingResult.geminiData.jsonResponse.skills as any;
-                              return skills?.CLEANING || skills?.cleaning || null;
-                            } catch {
-                              return null;
+                          }
+                          // عمر
+                          else if (normalizedKey === 'age') {
+                            employeeData.age = value || null;
+                          }
+                          // ديانة
+                          else if (normalizedKey === 'religion') {
+                            employeeData.religion = value || null;
+                          }
+                          // الحالة الاجتماعية
+                          else if (normalizedKey === 'marital_status' || normalizedKey === 'maritalstatus') {
+                            employeeData.maritalStatus = value || null;
+                          }
+                          // تاريخ الميلاد
+                          else if (normalizedKey === 'date_of_birth' || normalizedKey === 'birthdate' || normalizedKey === 'dateofbirth' || normalizedKey === 'birth_date') {
+                            if (!employeeData.birthDate) {
+                              employeeData.birthDate = value || null;
                             }
-                          })(),
-                          skill_laundry: (() => {
-                            try {
-                              const skills = typeof processingResult.geminiData.jsonResponse.skills === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.skills) as any
-                                : processingResult.geminiData.jsonResponse.skills as any;
-                              return skills?.LAUNDRY || skills?.laundry || null;
-                            } catch {
-                              return null;
+                          }
+                          // الجنسية
+                          else if (normalizedKey === 'nationality') {
+                            employeeData.nationality = value || null;
+                          }
+                          // اسم المكتب
+                          else if (normalizedKey === 'office_name' || normalizedKey === 'officename') {
+                            // استخدام company_name إذا كان موجوداً، وإلا استخدم office_name
+                            const officeValue = jsonResponse.company_name || jsonResponse.CompanyName || value;
+                            employeeData.officeName = officeValue || null;
+                          }
+                          // رقم جواز السفر
+                          else if (normalizedKey === 'passport_number' || normalizedKey === 'passportnumber' || normalizedKey === 'passport') {
+                            employeeData.passportNumber = value || null;
+                          }
+                          // تاريخ إصدار الجواز
+                          else if (normalizedKey === 'passport_issue_date' || normalizedKey === 'passportstartdate' || normalizedKey === 'passport_start' || normalizedKey === 'passportstart') {
+                            employeeData.passportStartDate = value || null;
+                          }
+                          // تاريخ انتهاء الجواز
+                          else if (normalizedKey === 'passport_expiration' || normalizedKey === 'passportenddate' || normalizedKey === 'passport_end' || normalizedKey === 'passportend' || normalizedKey === 'passport_expiry') {
+                            employeeData.passportEndDate = value || null;
+                          }
+                          // مدة العقد
+                          else if (normalizedKey === 'contract_duration' || normalizedKey === 'contractduration') {
+                            employeeData.contractDuration = value || null;
+                          }
+                          // الوزن
+                          else if (normalizedKey === 'weight') {
+                            employeeData.weight = value || null;
+                          }
+                          // الطول
+                          else if (normalizedKey === 'height') {
+                            employeeData.height = value || null;
+                          }
+                          // الراتب
+                          else if (normalizedKey === 'salary') {
+                            employeeData.salary = value || null;
+                          }
+                          // إضافة أي حقول أخرى مباشرة (للحقول الإضافية التي قد تكون موجودة)
+                          else {
+                            // إضافة الحقل مباشرة إذا لم يكن موجوداً بالفعل
+                            if (!employeeData[key]) {
+                              employeeData[key] = value || null;
                             }
-                          })(),
-                          // Flattened languages
-                          lang_english: (() => {
-                            try {
-                              const languages = typeof processingResult.geminiData.jsonResponse.languages_spoken === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.languages_spoken) as any
-                                : processingResult.geminiData.jsonResponse.languages_spoken as any;
-                              return languages?.English || languages?.english || null;
-                            } catch {
-                              return null;
-                            }
-                          })(),
-                          lang_arabic: (() => {
-                            try {
-                              const languages = typeof processingResult.geminiData.jsonResponse.languages_spoken === 'string' 
-                                ? JSON.parse(processingResult.geminiData.jsonResponse.languages_spoken) as any
-                                : processingResult.geminiData.jsonResponse.languages_spoken as any;
-                              return languages?.Arabic || languages?.arabic || null;
-                            } catch {
-                              return null;
-                            }
-                          })(),
-                        }}
-                      />
+                          }
+                        });
+
+                        // التأكد من تعيين officeName من company_name إذا كان موجوداً ولم يتم تعيينه بعد
+                        if (!employeeData.officeName && (jsonResponse.company_name || jsonResponse.CompanyName)) {
+                          employeeData.officeName = jsonResponse.company_name || jsonResponse.CompanyName || null;
+                        }
+
+                        return (
+                          <AutomaticPreview employee={employeeData} />
+                        );
+                      })()}
                     </div>
                   </div>
 
