@@ -572,7 +572,15 @@ export default function PDFProcessor() {
   };
 
   const startEditingField = (key: string, value: any) => {
-    const baseVal = value !== null && value !== undefined ? String(value) : '';
+    // معالجة القيم الفارغة أو null أو undefined
+    let baseVal = '';
+    if (value !== null && value !== undefined) {
+      const strVal = String(value);
+      // إذا كانت القيمة 'null' أو 'undefined' أو فارغة، نتركها فارغة
+      if (strVal !== 'null' && strVal !== 'undefined' && strVal.trim() !== '') {
+        baseVal = strVal;
+      }
+    }
     // إذا كان الحقل هو office_name وكان company_name موجوداً، استخدم company_name للتعديل
     const editKey = (key === 'office_name' || key === 'OfficeName') && processingResult?.geminiData?.jsonResponse?.company_name
       ? 'company_name'
@@ -1651,30 +1659,215 @@ const handleSave = async () => {
                                 };
 
                                 const renderValue = (val: any) => {
-                                  return String(val);
+                                  if (val === null || val === undefined) return '';
+                                  const strVal = String(val);
+                                  if (strVal === 'null' || strVal === 'undefined' || strVal.trim() === '') return '';
+                                  return strVal;
                                 };
 
-                                // تحسين عرض أسماء الحقول
+                                // تحسين عرض أسماء الحقول - ترجمة شاملة لجميع المفاتيح
                                 const getDisplayLabel = (fieldKey: string) => {
                                   const labelMap: Record<string, string> = {
+                                    // المعلومات الشخصية
+                                    'name': 'الاسم',
+                                    'full_name': 'الاسم',
+                                    'Name': 'الاسم',
+                                    'FullName': 'الاسم',
+                                    
+                                    'religion': 'الديانة',
+                                    'Religion': 'الديانة',
+                                    
+                                    'nationality': 'الجنسية',
+                                    'Nationality': 'الجنسية',
+                                    
+                                    'marital_status': 'الحالة الاجتماعية',
+                                    'MaritalStatus': 'الحالة الاجتماعية',
+                                    'maritalStatus': 'الحالة الاجتماعية',
+                                    
+                                    'age': 'تاريخ الميلاد',
+                                    'Age': 'تاريخ الميلاد',
+                                    'date_of_birth': 'تاريخ الميلاد',
+                                    'BirthDate': 'تاريخ الميلاد',
+                                    'birthDate': 'تاريخ الميلاد',
+                                    
+                                    'passport': 'رقم جواز السفر',
+                                    'passport_number': 'رقم جواز السفر',
+                                    'PassportNumber': 'رقم جواز السفر',
+                                    'passportNumber': 'رقم جواز السفر',
+                                    
+                                    'mobile': 'رقم الجوال',
+                                    'phone': 'رقم الجوال',
+                                    'Mobile': 'رقم الجوال',
+                                    'Phone': 'رقم الجوال',
+                                    
+                                    'weight': 'الوزن (كجم)',
+                                    'Weight': 'الوزن (كجم)',
+                                    
+                                    'height': 'الطول (سم)',
+                                    'Height': 'الطول (سم)',
+                                    
+                                    'children': 'عدد الأطفال',
+                                    'Children': 'عدد الأطفال',
+                                    
+                                    'passportStart': 'بداية الجواز',
+                                    'passport_start': 'بداية الجواز',
+                                    'passport_issue_date': 'بداية الجواز',
+                                    'PassportStartDate': 'بداية الجواز',
+                                    'passportStartDate': 'بداية الجواز',
+                                    
+                                    'passportEnd': 'نهاية الجواز',
+                                    'passport_end': 'نهاية الجواز',
+                                    'passport_expiration': 'نهاية الجواز',
+                                    'passport_expiry': 'نهاية الجواز',
+                                    'PassportEndDate': 'نهاية الجواز',
+                                    'passportEndDate': 'نهاية الجواز',
+                                    
+                                    // التعليم
+                                    'educationLevel': 'مستوى التعليم',
+                                    'education_level': 'مستوى التعليم',
+                                    'EducationLevel': 'مستوى التعليم',
+                                    'education': 'مستوى التعليم',
+                                    'Education': 'مستوى التعليم',
+                                    
+                                    'arabicLevel': 'اللغة العربية',
+                                    'arabic_level': 'اللغة العربية',
+                                    'ArabicLevel': 'اللغة العربية',
+                                    'ArabicLanguageLeveL': 'اللغة العربية',
+                                    'arabicLanguageLevel': 'اللغة العربية',
+                                    
+                                    'englishLevel': 'اللغة الإنجليزية',
+                                    'english_level': 'اللغة الإنجليزية',
+                                    'EnglishLevel': 'اللغة الإنجليزية',
+                                    'EnglishLanguageLevel': 'اللغة الإنجليزية',
+                                    'englishLanguageLevel': 'اللغة الإنجليزية',
+                                    
+                                    // الخبرة
+                                    'experienceField': 'مستوى الخبرة',
+                                    'experience_field': 'مستوى الخبرة',
+                                    'ExperienceField': 'مستوى الخبرة',
+                                    'experience': 'مستوى الخبرة',
+                                    'Experience': 'مستوى الخبرة',
+                                    
+                                    'experienceYears': 'سنوات الخبرة',
+                                    'experience_years': 'سنوات الخبرة',
+                                    'ExperienceYears': 'سنوات الخبرة',
+                                    'years_of_experience': 'سنوات الخبرة',
+                                    
+                                    // الراتب والمكتب
+                                    'salary': 'الراتب',
+                                    'Salary': 'الراتب',
+                                    
+                                    'officeName': 'اسم المكتب',
+                                    'office_name': 'اسم المكتب',
+                                    'OfficeName': 'اسم المكتب',
+                                    'company_name': 'اسم المكتب',
+                                    'CompanyName': 'اسم المكتب',
+                                    
+                                    // المهارات
+                                    'cookingLevel': 'مهارة: الطبخ',
+                                    'cooking_level': 'مهارة: الطبخ',
+                                    'CookingLevel': 'مهارة: الطبخ',
+                                    
+                                    'washingLevel': 'مهارة: الغسيل',
+                                    'washing_level': 'مهارة: الغسيل',
+                                    'WashingLevel': 'مهارة: الغسيل',
+                                    
+                                    'ironingLevel': 'مهارة: الكوي',
+                                    'ironing_level': 'مهارة: الكوي',
+                                    'IroningLevel': 'مهارة: الكوي',
+                                    
+                                    'cleaningLevel': 'مهارة: التنظيف',
+                                    'cleaning_level': 'مهارة: التنظيف',
+                                    'CleaningLevel': 'مهارة: التنظيف',
+                                    
+                                    'sewingLevel': 'مهارة: الخياطة',
+                                    'sewing_level': 'مهارة: الخياطة',
+                                    'SewingLevel': 'مهارة: الخياطة',
+                                    
+                                    'childcareLevel': 'مهارة: العناية بالأطفال',
+                                    'childcare_level': 'مهارة: العناية بالأطفال',
+                                    'ChildcareLevel': 'مهارة: العناية بالأطفال',
+                                    'babysitter': 'مهارة: العناية بالأطفال',
+                                    'Babysitter': 'مهارة: العناية بالأطفال',
+                                    'babysitting': 'مهارة: العناية بالأطفال',
+                                    'Babysitting': 'مهارة: العناية بالأطفال',
+                                    
+                                    'elderlycareLevel': 'مهارة: رعاية كبار السن',
+                                    'elderlycare_level': 'مهارة: رعاية كبار السن',
+                                    'ElderlycareLevel': 'مهارة: رعاية كبار السن',
+                                    'elderly_care': 'مهارة: رعاية كبار السن',
+                                    'ElderlyCare': 'مهارة: رعاية كبار السن',
+                                    
+                                    'laundryLevel': 'مهارة: الغسيل والكي',
+                                    'laundry_level': 'مهارة: الغسيل والكي',
+                                    'LaundryLevel': 'مهارة: الغسيل والكي',
+                                    
+                                    'BabySitterLevel': 'مهارة: العناية بالرضع',
+                                    'baby_sitter_level': 'مهارة: العناية بالرضع',
+                                    'children_count': 'عدد الأطفال',
+                                    'ChildrenCount': 'عدد الأطفال',
+                                    'childrenCount': 'عدد الأطفال',
+                                    // المهارات من كائن skills
                                     'skill_washing': 'مهارة: الغسيل',
                                     'skill_cooking': 'مهارة: الطبخ',
                                     'skill_babysitting': 'مهارة: رعاية الأطفال',
                                     'skill_cleaning': 'مهارة: التنظيف',
                                     'skill_laundry': 'مهارة: الغسيل والكي',
+                                    'skill_ironing': 'مهارة: الكوي',
+                                    'skill_sewing': 'مهارة: الخياطة',
+                                    'skill_childcare': 'مهارة: العناية بالأطفال',
+                                    'skill_elderlycare': 'مهارة: رعاية كبار السن',
+                                    // اللغات من كائن languages_spoken
                                     'lang_english': 'لغة: الإنجليزية',
                                     'lang_arabic': 'لغة: العربية',
+                                    // 'englishLanguageLevel': 'لغة: الإنجليزية',
+                                    // حقول إضافية
+                                    'contract_duration': 'مدة العقد',
+                                    'Contract_duration': 'مدة العقد',
+                                    'ContractDuration': 'مدة العقد',
+                                    'contractDuration': 'مدة العقد',
+                                    
+                                    'job_title': 'المهنة',
+                                    'jobTitle': 'المهنة',
+                                    'JobTitle': 'المهنة',
+                                    'profession': 'المهنة',
+                                    'Profession': 'المهنة',
+                                    'job': 'المهنة',
+                                    'Job': 'المهنة',
                                   };
-                                  return labelMap[fieldKey] || fieldKey;
+                                  
+                                  // البحث عن الترجمة (مع مراعاة الحالة)
+                                  const normalizedKey = fieldKey.toLowerCase();
+                                  for (const [key, label] of Object.entries(labelMap)) {
+                                    if (key.toLowerCase() === normalizedKey) {
+                                      return label;
+                                    }
+                                  }
+                                  
+                                  // إذا لم يتم العثور على ترجمة، إرجاع المفتاح كما هو
+                                  return fieldKey;
                                 };
 
+                                const isEmpty = !displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '';
+                                
                                 return (
                                   <tr
                                     key={key}
-                                    className="hover:bg-gray-50 transition-all duration-200"
+                                    className={`hover:bg-gray-50 transition-all duration-200 group ${isEmpty ? 'bg-yellow-50' : ''}`}
                                   >
                                     <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">
-                                      {getDisplayLabel(displayKey)}
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span>{getDisplayLabel(displayKey)}</span>
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          viewBox="0 0 20 20"
+                                          fill="currentColor"
+                                          className="w-4 h-4 text-indigo-500 opacity-60 group-hover:opacity-100 transition-opacity"
+                                          aria-label="حقل قابل للتعديل"
+                                        >
+                                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                        </svg>
+                                      </div>
                                     </td>
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
   {isEditing ? (
@@ -1957,22 +2150,24 @@ const handleSave = async () => {
     // وضع العرض (Display Mode)
     // ---------------------------------------------------------
     <div className="flex items-center justify-between gap-2">
-      <span>{renderValue(displayValue)}</span>
+      <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+        {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+      </span>
       <button
         type="button"
-        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-xs"
+        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
         onClick={() => startEditingField(key, displayValue)}
+        title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"
-          className="w-4 h-4"
+          className="w-5 h-5"
         >
-          <path d="M15.414 2.586a2 2 0 00-2.828 0L4 11.172V14h2.828l8.586-8.586a2 2 0 000-2.828z" />
-          <path d="M3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
         </svg>
-        تعديل
+        <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
       </button>
     </div>
   )}
