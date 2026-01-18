@@ -381,7 +381,127 @@ export default function PDFProcessor() {
       }
 
       const geminiResult = await geminiResponse.json();
-      const geminiData = { jsonResponse: geminiResult.jsonResponse };
+      let cleanedJsonResponse = { ...geminiResult.jsonResponse };
+
+      // تنظيف الحقول المكررة - الاحتفاظ بالقيمة الممتلئة
+      const removeDuplicateFields = (data: Record<string, any>) => {
+        const cleaned: Record<string, any> = {};
+        const processedKeys = new Set<string>();
+        
+        // قائمة الحقول المترادفة (الحقول التي تعبر عن نفس الشيء)
+        const synonymGroups = [
+          ['name', 'full_name', 'Name', 'FullName'],
+          ['nationality', 'Nationality'],
+          ['religion', 'Religion'],
+          ['marital_status', 'MaritalStatus', 'maritalStatus'],
+          ['date_of_birth', 'birthDate', 'BirthDate', 'age'],
+          ['passport_number', 'passport', 'PassportNumber'],
+          ['office_name', 'company_name', 'OfficeName', 'CompanyName'],
+          ['passport_issue_date', 'passportStart', 'passportStartDate', 'PassportStartDate'],
+          ['passport_expiration', 'passportEnd', 'passportEndDate', 'PassportEndDate'],
+          ['mobile', 'phone', 'Mobile', 'Phone'],
+          ['weight', 'Weight'],
+          ['height', 'Height'],
+          ['children_count', 'children', 'Children'],
+          ['job_title', 'jobTitle', 'JobTitle', 'profession', 'Profession', 'job', 'Job'],
+          ['salary', 'Salary'],
+          ['educationLevel', 'education_level', 'EducationLevel', 'education', 'Education'],
+          ['arabicLevel', 'arabic_level', 'ArabicLevel', 'ArabicLanguageLeveL'],
+          ['englishLevel', 'english_level', 'EnglishLevel', 'EnglishLanguageLevel'],
+          ['experienceField', 'experience_field', 'ExperienceField', 'experience', 'Experience'],
+          ['experienceYears', 'experience_years', 'ExperienceYears', 'years_of_experience'],
+        ];
+
+        // معالجة كل مجموعة مترادفة
+        synonymGroups.forEach(group => {
+          const values: Array<{ key: string; value: any }> = [];
+          const allValues: Array<{ key: string; value: any }> = [];
+          
+          // جمع جميع القيم من الحقول المترادفة
+          group.forEach(key => {
+            if (data.hasOwnProperty(key)) {
+              const value = data[key];
+              allValues.push({ key, value });
+              
+              const normalizedValue = value !== null && value !== undefined 
+                ? String(value).trim().toLowerCase() 
+                : '';
+              
+              // التحقق من أن القيمة ليست فارغة
+              const isEmpty = !normalizedValue || 
+                              normalizedValue === 'null' || 
+                              normalizedValue === 'undefined' || 
+                              normalizedValue === '';
+              
+              if (!isEmpty) {
+                values.push({ key, value: data[key] });
+              }
+            }
+          });
+
+          // إذا كانت هناك قيم متعددة ممتلئة
+          if (values.length > 0) {
+            // التحقق من التطابق: إذا كانت جميع القيم متطابقة، احتفظ بأول حقل في المجموعة
+            const firstValue = String(values[0].value).trim().toLowerCase();
+            const allMatch = values.every(v => String(v.value).trim().toLowerCase() === firstValue);
+            
+            if (allMatch) {
+              // إذا كانت جميع القيم متطابقة، احتفظ بأول حقل في المجموعة
+              const firstKeyInGroup = group.find(key => 
+                values.some(v => v.key === key)
+              );
+              if (firstKeyInGroup) {
+                const matchedValue = values.find(v => v.key === firstKeyInGroup);
+                if (matchedValue) {
+                  cleaned[matchedValue.key] = matchedValue.value;
+                }
+              }
+            } else {
+              // إذا كانت القيم مختلفة، اختر الأفضل (الأطول أولاً، ثم حسب ترتيب المجموعة)
+              values.sort((a, b) => {
+                const aStr = String(a.value).trim();
+                const bStr = String(b.value).trim();
+                
+                // الأطول أولاً
+                if (bStr.length !== aStr.length) {
+                  return bStr.length - aStr.length;
+                }
+                
+                // ثم حسب ترتيب المجموعة (الأول في القائمة له أولوية أعلى)
+                const aIndex = group.indexOf(a.key);
+                const bIndex = group.indexOf(b.key);
+                return aIndex - bIndex;
+              });
+
+              // الاحتفاظ بأفضل قيمة فقط
+              const bestValue = values[0];
+              cleaned[bestValue.key] = bestValue.value;
+            }
+            
+            // إضافة المفاتيح الأخرى للمعالجة لتجنب إضافتها مرة أخرى
+            group.forEach(key => processedKeys.add(key));
+          } else if (allValues.length > 0) {
+            // إذا كانت جميع القيم فارغة، احتفظ بأول حقل في المجموعة
+            const firstKey = group.find(key => data.hasOwnProperty(key));
+            if (firstKey) {
+              cleaned[firstKey] = data[firstKey];
+              group.forEach(key => processedKeys.add(key));
+            }
+          }
+        });
+
+        // إضافة الحقول الأخرى التي لم يتم معالجتها
+        Object.keys(data).forEach(key => {
+          if (!processedKeys.has(key)) {
+            cleaned[key] = data[key];
+          }
+        });
+
+        return cleaned;
+      };
+
+      cleanedJsonResponse = removeDuplicateFields(cleanedJsonResponse);
+      const geminiData = { jsonResponse: cleanedJsonResponse };
 
       // أولاً: التحقق من الجنسية والتعرف عليها
       const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
@@ -579,6 +699,29 @@ export default function PDFProcessor() {
       // إذا كانت القيمة 'null' أو 'undefined' أو فارغة، نتركها فارغة
       if (strVal !== 'null' && strVal !== 'undefined' && strVal.trim() !== '') {
         baseVal = strVal;
+        
+        // معالجة خاصة للحقول التي تحتوي على "Date" - تحويل إلى صيغة YYYY-MM-DD
+        if (key.toLowerCase().includes('date') || key.toLowerCase().includes('birth') || 
+            key.toLowerCase().includes('start') || key.toLowerCase().includes('end') || 
+            key.toLowerCase().includes('expiration') || key.toLowerCase().includes('expiry')) {
+          try {
+            // محاولة تحويل التاريخ إلى صيغة YYYY-MM-DD
+            const date = new Date(baseVal);
+            if (!isNaN(date.getTime())) {
+              // تحويل إلى صيغة YYYY-MM-DD
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              baseVal = `${year}-${month}-${day}`;
+            } else if (baseVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              // إذا كانت بالفعل في صيغة YYYY-MM-DD، اتركها كما هي
+              baseVal = baseVal;
+            }
+          } catch (e) {
+            // في حالة الخطأ، اترك القيمة كما هي
+            console.warn('Error parsing date:', e);
+          }
+        }
       }
     }
     // إذا كان الحقل هو office_name وكان company_name موجوداً، استخدم company_name للتعديل
@@ -596,6 +739,31 @@ export default function PDFProcessor() {
     if (!editingField || !processingResult) return;
 
     const { key, value } = editingField;
+    
+    // التحقق من جواز السفر - يقبل أرقام وحروف فقط
+    if ((key === 'passport_number' || key === 'passport' || key === 'PassportNumber') && value) {
+      const passportValue = String(value).trim();
+      // التحقق من أن القيمة تحتوي على أرقام وحروف فقط (لا رموز خاصة)
+      if (!/^[a-zA-Z0-9]+$/.test(passportValue)) {
+        setError('رقم جواز السفر يجب أن يحتوي على أرقام وحروف فقط (بدون رموز خاصة)');
+        return;
+      }
+    }
+    
+    // التحقق من الراتب - يقبل أرقام فقط وليس أكثر من 5 خانات
+    if ((key === 'salary' || key === 'Salary') && value) {
+      const salaryValue = String(value).trim();
+      // التحقق من أن القيمة أرقام فقط
+      if (!/^\d+$/.test(salaryValue)) {
+        setError('الراتب يجب أن يحتوي على أرقام فقط');
+        return;
+      }
+      // التحقق من أن الراتب ليس أكثر من 5 خانات
+      if (salaryValue.length > 5) {
+        setError('الراتب يجب ألا يتجاوز 5 خانات');
+        return;
+      }
+    }
     
     // التحقق من الجنسية أولاً إذا كان الحقل المُعدل هو nationality
     if ((key === 'nationality' || key === 'Nationality') && value) {
@@ -1673,7 +1841,7 @@ const handleSave = async () => {
                                     'full_name': 'الاسم',
                                     'Name': 'الاسم',
                                     'FullName': 'الاسم',
-                                    
+                                    "birth_place":'مكان الميلاد',
                                     'religion': 'الديانة',
                                     'Religion': 'الديانة',
                                     
@@ -2092,6 +2260,122 @@ const handleSave = async () => {
             </svg>
           </div>
         </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 5.5. الحالة الخاصة: الحقول التي تحتوي على "Date" في الاسم
+    // ---------------------------------------------------------
+    (key.toLowerCase().includes('date') || key.toLowerCase().includes('birth') || key.toLowerCase().includes('start') || key.toLowerCase().includes('end') || key.toLowerCase().includes('expiration') || key.toLowerCase().includes('expiry')) ? (
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+          value={editingField?.value ?? ''}
+          onChange={(e) =>
+            setEditingField((prev) =>
+              prev ? { ...prev, value: e.target.value } : prev
+            )
+          }
+        />
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 5.6. الحالة الخاصة: حقل جواز السفر (أرقام وحروف فقط)
+    // ---------------------------------------------------------
+    (key === 'passport_number' || key === 'passport' || key === 'PassportNumber') ? (
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+          value={editingField?.value ?? ''}
+          onChange={(e) => {
+            // السماح بأرقام وحروف فقط (لا رموز خاصة)
+            const filteredValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+            setEditingField((prev) =>
+              prev ? { ...prev, value: filteredValue } : prev
+            );
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              saveEditingField();
+            }
+          }}
+          placeholder="أرقام وحروف فقط"
+        />
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 5.7. الحالة الخاصة: حقل الراتب (أرقام فقط، حد أقصى 5 خانات)
+    // ---------------------------------------------------------
+    (key === 'salary' || key === 'Salary') ? (
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+          value={editingField?.value ?? ''}
+          onChange={(e) => {
+            // السماح بأرقام فقط
+            let filteredValue = e.target.value.replace(/[^0-9]/g, '');
+            // حد أقصى 5 خانات
+            if (filteredValue.length > 5) {
+              filteredValue = filteredValue.slice(0, 5);
+            }
+            setEditingField((prev) =>
+              prev ? { ...prev, value: filteredValue } : prev
+            );
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              saveEditingField();
+            }
+          }}
+          placeholder="أرقام فقط (حد أقصى 5)"
+          maxLength={5}
+        />
         <button
           type="button"
           className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
