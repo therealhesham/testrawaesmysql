@@ -391,7 +391,7 @@ export default function PDFProcessor() {
         // قائمة الحقول المترادفة (الحقول التي تعبر عن نفس الشيء)
         const synonymGroups = [
           ['name', 'full_name', 'Name', 'FullName'],
-          ['nationality', 'Nationality'],
+          ['nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy'],
           ['religion', 'Religion'],
           ['marital_status', 'MaritalStatus', 'maritalStatus'],
           ['date_of_birth', 'birthDate', 'BirthDate', 'age'],
@@ -733,6 +733,68 @@ export default function PDFProcessor() {
 
   const cancelEditingField = () => {
     setEditingField(null);
+  };
+
+  const saveOfficeFieldDirectly = (fieldKey: string, value: string) => {
+    if (!processingResult || !value) return;
+    
+    // التحقق من المكتب
+    const normalizedValue = String(value).toLowerCase().trim();
+    
+    // إذا كانت هناك جنسية مختارة، تحقق من أن المكتب ينتمي لها
+    if (selectedNationality) {
+      const filtered = offices.filter(office => 
+        office.Country?.toLowerCase().trim() === selectedNationality.toLowerCase().trim()
+      );
+      const matchedOffice = filtered.find(o => o.office?.toLowerCase().trim() === normalizedValue);
+      
+      if (!matchedOffice && filtered.length > 0) {
+        setError('المكتب المُدخل لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
+        return;
+      } else if (!matchedOffice && filtered.length === 0) {
+        setError('لا توجد مكاتب للجنسية المحددة.');
+        return;
+      }
+    } else {
+      // لا توجد جنسية مختارة - التحقق من وجود المكتب في القائمة العامة
+      const officeNames = offices.map(o => o.office?.toLowerCase().trim()).filter(Boolean);
+      const isValidOffice = officeNames.some(officeName => officeName === normalizedValue);
+      
+      if (!isValidOffice && offices.length > 0) {
+        setError('المكتب المُدخل غير موجود في قائمة المكاتب. يرجى اختيار مكتب صحيح.');
+        return;
+      }
+    }
+    
+    // حفظ القيمة
+    setProcessingResult((prev) => {
+      if (!prev) return prev;
+      const updatedJson = { ...prev.geminiData.jsonResponse };
+      
+      // تحديث جميع حقول المكتب
+      if (fieldKey === 'office_name' || fieldKey === 'OfficeName') {
+        updatedJson.office_name = value;
+        updatedJson.OfficeName = value;
+        if (updatedJson.company_name || updatedJson.CompanyName) {
+          updatedJson.company_name = value;
+          updatedJson.CompanyName = value;
+        }
+      } else if (fieldKey === 'company_name' || fieldKey === 'CompanyName') {
+        updatedJson.company_name = value;
+        updatedJson.CompanyName = value;
+        updatedJson.office_name = value;
+        updatedJson.OfficeName = value;
+      }
+      
+      return {
+        ...prev,
+        geminiData: {
+          ...prev.geminiData,
+          jsonResponse: updatedJson,
+        },
+      };
+    });
+    setInvalidOffice(null);
   };
 
   const saveEditingField = () => {
@@ -1840,6 +1902,8 @@ const handleSave = async () => {
                                     'name': 'الاسم',
                                     'full_name': 'الاسم',
                                     'Name': 'الاسم',
+                                    'age': 'العمر',
+                                    'Age': 'العمر',
                                     'FullName': 'الاسم',
                                     "birth_place":'مكان الميلاد',
                                     'religion': 'الديانة',
@@ -1847,14 +1911,15 @@ const handleSave = async () => {
                                     
                                     'nationality': 'الجنسية',
                                     'Nationality': 'الجنسية',
-                                    
+                                    'nationalitycopy': 'الجنسية',
+                                    'Nationalitycopy': 'الجنسية',
                                     'marital_status': 'الحالة الاجتماعية',
                                     'MaritalStatus': 'الحالة الاجتماعية',
                                     'maritalStatus': 'الحالة الاجتماعية',
                                     
-                                    'age': 'تاريخ الميلاد',
-                                    'Age': 'تاريخ الميلاد',
-                                    'date_of_birth': 'تاريخ الميلاد',
+                                    // 'age': 'تاريخ الميلاد',
+                                    // 'Age': 'تاريخ الميلاد',
+                                    'dateofbirth': 'تاريخ الميلاد',
                                     'BirthDate': 'تاريخ الميلاد',
                                     'birthDate': 'تاريخ الميلاد',
                                     
@@ -2393,6 +2458,64 @@ const handleSave = async () => {
       </div>
     ) :
     // ---------------------------------------------------------
+    // 5.8. الحالة الخاصة: حقول المهارات المباشرة (CookingLevel, WashingLevel, إلخ)
+    // ---------------------------------------------------------
+    (key === 'CookingLevel' || key === 'cookingLevel' || key === 'cooking_level' ||
+     key === 'WashingLevel' || key === 'washingLevel' || key === 'washing_level' ||
+     key === 'IroningLevel' || key === 'ironingLevel' || key === 'ironing_level' ||
+     key === 'CleaningLevel' || key === 'cleaningLevel' || key === 'cleaning_level' ||
+     key === 'SewingLevel' || key === 'sewingLevel' || key === 'sewing_level' ||
+     key === 'ChildcareLevel' || key === 'childcareLevel' || key === 'childcare_level' ||
+     key === 'ElderlycareLevel' || key === 'elderlycareLevel' || key === 'elderlycare_level' ||
+     key === 'BabySitterLevel' || key === 'babySitterLevel' || key === 'baby_sitter_level' ||
+     key === 'LaundryLevel' || key === 'laundryLevel' || key === 'laundry_level') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر المستوى</option>
+            <option value="Expert - ممتاز">Expert - ممتاز</option>
+            <option value="Advanced - جيد جداً">Advanced - جيد جداً</option>
+            <option value="Intermediate - جيد">Intermediate - جيد</option>
+            <option value="Beginner - مبتدأ">Beginner - مبتدأ</option>
+            <option value="Non - لا تجيد">Non - لا تجيد</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
     // 6. الحالة السادسة: باقي الحقول (مربع نص عادي)
     // ---------------------------------------------------------
     (
@@ -2433,27 +2556,68 @@ const handleSave = async () => {
     // ---------------------------------------------------------
     // وضع العرض (Display Mode)
     // ---------------------------------------------------------
-    <div className="flex items-center justify-between gap-2">
-      <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-        {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
-      </span>
-      <button
-        type="button"
-        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
-        onClick={() => startEditingField(key, displayValue)}
-        title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          className="w-5 h-5"
+    // حالة خاصة: حقل المكتب - dropdown مباشر
+    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={displayValue && displayValue !== 'null' && displayValue !== 'undefined' && String(displayValue).trim() !== '' ? String(displayValue).trim() : ''}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              if (newValue) {
+                // تحديد المفتاح الصحيح للحفظ
+                const fieldKey = (key === 'office_name' || key === 'OfficeName') && processingResult.geminiData.jsonResponse.company_name
+                  ? 'company_name'
+                  : key;
+                // حفظ القيمة مباشرة عند التغيير
+                saveOfficeFieldDirectly(fieldKey, newValue);
+              }
+            }}
+          >
+            <option value="">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'اختر المكتب' : 'اختر المكتب'}</option>
+            {filteredOffices.map((o) => (
+              <option key={o.id} value={o.office || ''}>
+                {o.office || ''}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="flex items-center justify-between gap-2">
+        <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+          {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+        </span>
+        <button
+          type="button"
+          className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
+          onClick={() => startEditingField(key, displayValue)}
+          title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
         >
-          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-        </svg>
-        <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
-      </button>
-    </div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-5 h-5"
+          >
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+          <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
+        </button>
+      </div>
+    )
   )}
 </td>
                                   </tr>
