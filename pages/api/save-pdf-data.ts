@@ -24,14 +24,41 @@ const parseJsonField = (value: any) => {
   return value || {};
 };
 
-// 3. دالة تحليل التواريخ
+// 3. دالة تحليل التواريخ (محسّنة لدعم تنسيقات متعددة)
 const parseDate = (dateValue: any): Date | null => {
   if (!dateValue) return null;
   if (dateValue instanceof Date) return dateValue;
+  
   if (typeof dateValue === 'string') {
-    const parsed = new Date(dateValue);
-    return isNaN(parsed.getTime()) ? null : parsed;
+    const trimmed = dateValue.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '') return null;
+    
+    // محاولة التحليل المباشر
+    let parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    
+    // محاولة تنسيقات مختلفة
+    // تنسيق: YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    
+    // تنسيق: DD/MM/YYYY أو DD-MM-YYYY
+    const dateParts = trimmed.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (dateParts) {
+      const [, day, month, year] = dateParts;
+      parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    
+    // محاولة ISO format
+    parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed;
   }
+  
   return null;
 };
 
@@ -90,6 +117,17 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     }
   }
   
+  // دالة تحليل عدد الأطفال
+  const parseChildren = (childrenValue: any): number | null => {
+    if (childrenValue == null) return null;
+    if (typeof childrenValue === 'number') return childrenValue;
+    const match = String(childrenValue).match(/\d+/);
+    if (match) {
+      return parseInt(match[0], 10);
+    }
+    return null;
+  };
+
   return {
     // البيانات الأساسية
     Name: findValue(['Name', 'name', 'full_name', 'FullName']),
@@ -106,23 +144,43 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     job: findValue(['job_title', 'JobTitle', 'profession', 'job']), 
 
     // بيانات الجواز
-    Passportnumber: findValue(['PassportNumber', 'passport_number', 'passportNumber']),
-    PassportStart: parseDate(findValue(['PassportStartDate', 'passport_issue_date', 'passportStartDate'])),
-    PassportEnd: parseDate(findValue(['PassportEndDate', 'passport_expiration', 'passportEndDate'])),
+    Passportnumber: findValue(['PassportNumber', 'passport_number', 'passportNumber', 'passport', 'Passport', 'PASSPORT_NUMBER']),
+    PassportStart: parseDate(findValue([
+      'PassportStartDate', 'passportStartDate', 'PassportStart', 'passportStart',
+      'passport_issue_date', 'passport_issue', 'passport_start',
+      'issue_date', 'issueDate', 'IssueDate'
+    ])),
+    PassportEnd: parseDate(findValue([
+      'PassportEndDate', 'passportEndDate', 'PassportEnd', 'passportEnd',
+      'passport_expiration', 'passport_expiry', 'passport_end',
+      'expiration_date', 'expirationDate', 'ExpirationDate',
+      'expiry_date', 'expiryDate', 'ExpiryDate'
+    ])),
+    Passportphoto: findValue(['Passportphoto', 'passportphoto', 'passport_photo', 'PassportPhoto', 'passport_copy', 'PassportCopy']),
+    
+    // التعليم والخبرة
+    Education: findValue(['Education', 'education', 'EducationLevel', 'educationLevel', 'education_level']),
+    Experience: findValue(['Experience', 'experience', 'ExperienceField', 'experienceField', 'experience_field']),
+    ExperienceYears: findValue(['ExperienceYears', 'experienceYears', 'experience_years', 'years_of_experience']),
+    
+    // أرقام الهاتف
+    phone: findValue(['phone', 'Phone', 'mobile', 'Mobile', 'phoneNumber', 'phone_number']),
+    clientphonenumber: findValue(['clientphonenumber', 'clientPhoneNumber', 'client_phone_number', 'phone', 'Phone', 'mobile', 'Mobile']),
     
     Salary: findValue(['Salary', 'salary']),
     
     // ✨✨ الطول والوزن (تم تفعيلها وإضافة التحليل الذكي) ✨✨
     weight: parsePhysicalStat(findValue(['Weight', 'weight'])),
     height: parsePhysicalStat(findValue(['Height', 'height'])),
+    children: parseChildren(findValue(['children', 'Children', 'children_count', 'ChildrenCount', 'childrenCount'])),
 
     // الصور
     Picture: profileImage ? { url: profileImage } : Prisma.JsonNull,
     FullPicture: fullImage ? { url: fullImage } : Prisma.JsonNull,
     
     // اللغات
-    EnglishLanguageLevel: findValue(['EnglishLanguageLevel', 'English'], data) || findValue(['English', 'english'], languagesSpoken),
-    ArabicLanguageLeveL: findValue(['ArabicLanguageLeveL', 'ArabicLanguageLevel', 'Arabic'], data) || findValue(['Arabic', 'arabic'], languagesSpoken),
+    EnglishLanguageLevel: findValue(['EnglishLanguageLevel', 'English'], data) || findValue(['English', 'english', 'englishLevel', 'english_level'], languagesSpoken),
+    ArabicLanguageLeveL: findValue(['ArabicLanguageLeveL', 'ArabicLanguageLevel', 'Arabic'], data) || findValue(['Arabic', 'arabic', 'arabicLevel', 'arabic_level'], languagesSpoken),
     
     // المهارات (باستخدام الدالة الذكية للبحث في كل مكان)
     washingLevel: getSkill(['washingLevel', 'WashingLevel', 'WASHING', 'washing', 'Washing']),
@@ -150,6 +208,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Map Gemini data to homemaid schema
     const homemaidData = mapGeminiDataToHomemaid(geminiData, selectedImages || []);
+    
+    // 🔍 Debug: طباعة بيانات الجواز للتأكد من استلامها
+    console.log('🔍 Passport Data Debug:', {
+      Passportnumber: homemaidData.Passportnumber,
+      PassportStart: homemaidData.PassportStart,
+      PassportEnd: homemaidData.PassportEnd,
+      rawData: {
+        passport: geminiData.jsonResponse?.passport || geminiData.jsonResponse?.PassportNumber || geminiData.jsonResponse?.passport_number,
+        passportStart: geminiData.jsonResponse?.passportStart || geminiData.jsonResponse?.passportStartDate || geminiData.jsonResponse?.passport_issue_date,
+        passportEnd: geminiData.jsonResponse?.passportEnd || geminiData.jsonResponse?.passportEndDate || geminiData.jsonResponse?.passport_expiration,
+      }
+    });
 
     // -------------------------------------------------------
     // 1. معالجة ربط المكتب (Office Relation)

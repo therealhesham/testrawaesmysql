@@ -391,9 +391,9 @@ export default function PDFProcessor() {
         // قائمة الحقول المترادفة (الحقول التي تعبر عن نفس الشيء)
         const synonymGroups = [
           ['name', 'full_name', 'Name', 'FullName'],
-          ['nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy'],
-          ['religion', 'Religion'],
-          ['marital_status', 'MaritalStatus', 'maritalStatus'],
+          ['nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy', 'nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy'],
+          ['religion', 'Religion', 'religion', 'Religion', 'religion', 'Religion', 'religion', 'Religion'],
+          ['marital_status', 'MaritalStatus', 'maritalStatus', 'maritalStatus', 'maritalStatus', 'MaritalStatus', 'maritalStatus', 'MaritalStatus'],
           ['date_of_birth', 'birthDate', 'BirthDate', 'age'],
           ['passport_number', 'passport', 'PassportNumber'],
           ['office_name', 'company_name', 'OfficeName', 'CompanyName'],
@@ -1161,7 +1161,41 @@ const handleSave = async () => {
       const arabic = getLang(['arabic', 'arabiclanguagelevel']) || flattenedData.ArabicLanguageLeveL || "";
       flattenedData.ArabicLanguageLeveL = arabic;
 
+      // 🔍 التأكد من إرسال بيانات الجواز بشكل صحيح
+      // نسخ بيانات الجواز بجميع الاختلافات الممكنة
+      if (flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number) {
+        const passportValue = flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number;
+        flattenedData.passport = passportValue;
+        flattenedData.PassportNumber = passportValue;
+        flattenedData.passport_number = passportValue;
+        flattenedData.passportNumber = passportValue;
+      }
+
+      if (flattenedData.passportStart || flattenedData.passportStartDate || flattenedData.passport_issue_date || flattenedData.PassportStartDate) {
+        const passportStartValue = flattenedData.passportStart || flattenedData.passportStartDate || flattenedData.passport_issue_date || flattenedData.PassportStartDate;
+        flattenedData.passportStart = passportStartValue;
+        flattenedData.passportStartDate = passportStartValue;
+        flattenedData.passport_issue_date = passportStartValue;
+        flattenedData.PassportStartDate = passportStartValue;
+        flattenedData.passport_start = passportStartValue;
+      }
+
+      if (flattenedData.passportEnd || flattenedData.passportEndDate || flattenedData.passport_expiration || flattenedData.PassportEndDate) {
+        const passportEndValue = flattenedData.passportEnd || flattenedData.passportEndDate || flattenedData.passport_expiration || flattenedData.PassportEndDate;
+        flattenedData.passportEnd = passportEndValue;
+        flattenedData.passportEndDate = passportEndValue;
+        flattenedData.passport_expiration = passportEndValue;
+        flattenedData.PassportEndDate = passportEndValue;
+        flattenedData.passport_end = passportEndValue;
+        flattenedData.passport_expiry = passportEndValue;
+      }
+
       console.log("🚀 Data Sent to Server:", flattenedData);
+      console.log("🔍 Passport Data Check:", {
+        passport: flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number,
+        passportStart: flattenedData.passportStart || flattenedData.passportStartDate || flattenedData.passport_issue_date,
+        passportEnd: flattenedData.passportEnd || flattenedData.passportEndDate || flattenedData.passport_expiration,
+      });
 
       const response = await fetch('/api/save-pdf-data', {
         method: 'POST',
@@ -1794,6 +1828,62 @@ const handleSave = async () => {
                     </div>
                   )}
 
+                  {/* Office Selection - يظهر فوق البيانات المستخرجة */}
+                  <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
+                      اختر المكتب
+                    </h3>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                        المكتب:
+                      </label>
+                      <select
+                        dir="rtl"
+                        onChange={(e) => {
+                          if (e.target.value && processingResult) {
+                            const updatedData = { ...processingResult.geminiData.jsonResponse };
+                            updatedData.company_name = e.target.value;
+                            updatedData.CompanyName = e.target.value;
+                            updatedData.office_name = e.target.value;
+                            updatedData.OfficeName = e.target.value;
+                            setProcessingResult({
+                              ...processingResult,
+                              geminiData: { jsonResponse: updatedData }
+                            });
+                            setInvalidOffice(null);
+                          }
+                        }}
+                        value={processingResult?.geminiData?.jsonResponse?.company_name || 
+                               processingResult?.geminiData?.jsonResponse?.CompanyName || 
+                               processingResult?.geminiData?.jsonResponse?.office_name || 
+                               processingResult?.geminiData?.jsonResponse?.OfficeName || ''}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-right bg-white"
+                      >
+                        <option value="">-- اختر مكتب من القائمة --</option>
+                        {filteredOffices.length > 0 ? (
+                          filteredOffices.map((office) => (
+                            <option key={office.id} value={office.office || ''}>
+                              {office.office}
+                            </option>
+                          ))
+                        ) : offices.length > 0 ? (
+                          offices.map((office) => (
+                            <option key={office.id} value={office.office || ''}>
+                              {office.office}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>لا توجد مكاتب متاحة</option>
+                        )}
+                      </select>
+                      {selectedNationality && (
+                        <p className="text-xs text-gray-500 mt-2 text-right">
+                          المكاتب المعروضة: {filteredOffices.length > 0 ? `مصفاة حسب الجنسية (${selectedNationality})` : 'جميع المكاتب'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Extracted Data Display */}
                   <div className="mb-6">
                     <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
@@ -1820,8 +1910,35 @@ const handleSave = async () => {
                                 const expandedEntries: [string, any][] = [];
 
                                 allEntries.forEach(([key, value]) => {
-                                  // تخطي company_name من العرض
-                                  if (key === 'company_name' || key === 'CompanyName') {
+                                  // تخطي جميع حقول المكتب من العرض (يتم اختيارها من السكشن المخصص)
+                                  const normalizedKey = key.toLowerCase().trim();
+                                  // جميع الاحتمالات الممكنة لأسماء حقول المكتب
+                                  if (
+                                    normalizedKey === 'company_name' || 
+                                    normalizedKey === 'companyname' ||
+                                    normalizedKey === 'company_name' ||
+                                    normalizedKey === 'office_name' || 
+                                    normalizedKey === 'officename' ||
+                                    normalizedKey === 'office_name' ||
+                                    normalizedKey === 'office' ||
+                                    normalizedKey === 'company' ||
+                                    // التحقق من جميع الاختلافات في الأحرف
+                                    key === 'company_name' || 
+                                    key === 'CompanyName' || 
+                                    key === 'Company_Name' ||
+                                    key === 'companyName' ||
+                                    key === 'COMPANY_NAME' ||
+                                    key === 'office_name' || 
+                                    key === 'OfficeName' || 
+                                    key === 'Office_Name' ||
+                                    key === 'officeName' ||
+                                    key === 'OFFICE_NAME' ||
+                                    key === 'officename' ||
+                                    key === 'OfficeName ' ||
+                                    key === 'company_name ' ||
+                                    key === 'office_name ' ||
+                                    key === 'CompanyName '
+                                  ) {
                                     return;
                                   }
 
@@ -2105,66 +2222,7 @@ const handleSave = async () => {
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
   {isEditing ? (
     // ---------------------------------------------------------
-    // 1. الحالة الأولى: تعديل اسم المكتب (قائمة مكاتب)
-    // ---------------------------------------------------------
-    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName' ||
-     editKey === 'office_name' || editKey === 'OfficeName' || editKey === 'company_name' || editKey === 'CompanyName' ||
-     key.toLowerCase().includes('office') || key.toLowerCase().includes('company') ||
-     editKey.toLowerCase().includes('office') || editKey.toLowerCase().includes('company')) ? (
-      <div className="flex items-center gap-2">
-        <div className="relative w-full">
-          <select
-            style={{ 
-              backgroundImage: 'none', 
-              WebkitAppearance: 'none', 
-              MozAppearance: 'none', 
-              appearance: 'none' 
-            }}
-            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
-            value={editingField?.value ?? ''}
-            onChange={(e) =>
-              setEditingField((prev) =>
-                prev ? { ...prev, value: e.target.value } : prev
-              )
-            }
-          >
-            <option value="">اختر المكتب</option>
-            {offices && offices.length > 0 ? (
-              offices
-                .filter((o) => o.office && o.office.trim() !== '')
-                .map((o) => (
-                  <option key={o.id} value={o.office || ''}>
-                    {o.office || ''}
-                  </option>
-                ))
-            ) : (
-              <option value="" disabled>لا توجد مكاتب متاحة</option>
-            )}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
-            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-            </svg>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
-          onClick={saveEditingField}
-        >
-          حفظ
-        </button>
-        <button
-          type="button"
-          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
-          onClick={cancelEditingField}
-        >
-          إلغاء
-        </button>
-      </div>
-    ) : 
-    // ---------------------------------------------------------
-    // 2. الحالة الثانية: تعديل المهنة (Job Title / Profession)
+    // 1. الحالة الأولى: تعديل المهنة (Job Title / Profession)
     // ---------------------------------------------------------
     (key === 'job_title' || key === 'profession' || key === 'job' || key === 'Job') ? (
       <div className="flex items-center gap-2">
@@ -2214,7 +2272,7 @@ const handleSave = async () => {
       </div>
     ) :
     // ---------------------------------------------------------
-    // 3. الحالة الثالثة: تعديل الديانة (Religion)
+    // 2. الحالة الثانية: تعديل الديانة (Religion)
     // ---------------------------------------------------------
     (key === 'religion' || key === 'Religion') ? (
       <div className="flex items-center gap-2">
@@ -2261,7 +2319,7 @@ const handleSave = async () => {
       </div>
     ) :
     // ---------------------------------------------------------
-    // 4. الحالة الرابعة (الجديدة): الحالة الاجتماعية (Marital Status) ✨
+    // 3. الحالة الثالثة: الحالة الاجتماعية (Marital Status) ✨
     // ---------------------------------------------------------
     (key === 'marital_status' || key === 'MaritalStatus') ? (
       <div className="flex items-center gap-2">
@@ -2309,7 +2367,7 @@ const handleSave = async () => {
       </div>
     ) :
     // ---------------------------------------------------------
-    // 5. الحالة الخامسة: تعديل المهارات أو اللغات
+    // 4. الحالة الرابعة: تعديل المهارات أو اللغات
     // ---------------------------------------------------------
     (key.startsWith('skill_') || key.startsWith('lang_')) ? (
       <div className="flex items-center gap-2">
@@ -2533,7 +2591,7 @@ const handleSave = async () => {
       </div>
     ) :
     // ---------------------------------------------------------
-    // 6. الحالة السادسة: باقي الحقول (مربع نص عادي)
+    // 5. الحالة الخامسة: باقي الحقول (مربع نص عادي)
     // ---------------------------------------------------------
     (
       <div className="flex items-center gap-2">
