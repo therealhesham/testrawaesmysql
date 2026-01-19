@@ -172,7 +172,7 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     
     // أرقام الهاتف
     phone: findValue(['phone', 'Phone', 'mobile', 'Mobile', 'phoneNumber', 'phone_number']),
-    clientphonenumber: findValue(['clientphonenumber', 'clientPhoneNumber', 'client_phone_number', 'phone', 'Phone', 'mobile', 'Mobile']),
+    // clientphonenumber: findValue(['clientphonenumber', 'clientPhoneNumber', 'client_phone_number', 'phone', 'Phone', 'mobile', 'Mobile']),
     
     Salary: findValue(['Salary', 'salary']),
     

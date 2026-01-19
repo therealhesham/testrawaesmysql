@@ -601,6 +601,31 @@ export default function PDFProcessor() {
         }
       }
 
+      // التحقق من المهنة وحذفها إذا لم تكن موجودة في القائمة
+      const extractedProfession = geminiData.jsonResponse.job_title || 
+                                   geminiData.jsonResponse.JobTitle || 
+                                   geminiData.jsonResponse.profession || 
+                                   geminiData.jsonResponse.Profession || 
+                                   geminiData.jsonResponse.job || 
+                                   geminiData.jsonResponse.Job;
+      
+      if (extractedProfession && professions.length > 0) {
+        const normalizedExtracted = String(extractedProfession).toLowerCase().trim();
+        const matchedProfession = professions.find(p => 
+          p.name?.toLowerCase().trim() === normalizedExtracted
+        );
+        
+        if (!matchedProfession) {
+          // المهنة غير موجودة في القائمة - حذفها من البيانات
+          delete geminiData.jsonResponse.job_title;
+          delete geminiData.jsonResponse.JobTitle;
+          delete geminiData.jsonResponse.profession;
+          delete geminiData.jsonResponse.Profession;
+          delete geminiData.jsonResponse.job;
+          delete geminiData.jsonResponse.Job;
+        }
+      }
+
       setProcessingResult((prev) =>
         prev
           ? { ...prev, geminiData }
@@ -864,6 +889,20 @@ export default function PDFProcessor() {
       }
     }
     
+    // التحقق من المهنة إذا كان الحقل المُعدل هو job_title أو profession
+    if ((key === 'job_title' || key === 'profession' || key === 'job' || key === 'Job') && value) {
+      const normalizedValue = String(value).toLowerCase().trim();
+      const matchedProfession = professions.find(p => 
+        p.name?.toLowerCase().trim() === normalizedValue
+      );
+      
+      if (!matchedProfession && professions.length > 0) {
+        setError('المهنة المُدخلة غير موجودة في قائمة المهن. يرجى اختيار مهنة صحيحة من القائمة.');
+        setEditingField(null);
+        return;
+      }
+    }
+
     // التحقق من الجنسية أولاً إذا كان الحقل المُعدل هو nationality
     if ((key === 'nationality' || key === 'Nationality') && value) {
       const nationalityNames = nationalities.map(n => n.Country?.toLowerCase().trim()).filter(Boolean);
@@ -1090,6 +1129,28 @@ const handleSave = async () => {
           return;
         }
       }
+    }
+
+    // --- 3. التحقق من المهنة ---
+    const extractedProfession = jsonResponse.job_title || 
+                                jsonResponse.JobTitle || 
+                                jsonResponse.profession || 
+                                jsonResponse.Profession || 
+                                jsonResponse.job || 
+                                jsonResponse.Job;
+    
+    if (extractedProfession && professions.length > 0) {
+      const normalizedExtracted = String(extractedProfession).toLowerCase().trim();
+      const matchedProfession = professions.find(p => 
+        p.name?.toLowerCase().trim() === normalizedExtracted
+      );
+      
+      if (!matchedProfession) {
+        setError('المهنة المستخرجة غير موجودة في قائمة المهن. يرجى اختيار مهنة صحيحة من القائمة قبل الحفظ.');
+        return;
+      }
+    } else if (!extractedProfession && professions.length > 0) {
+      // المهنة فارغة - السماح بالحفظ (المهنة اختيارية)
     }
 
     setIsSaving(true);
@@ -1773,7 +1834,7 @@ const handleSave = async () => {
                               تحذير: المكتب غير موجود في القائمة
                             </h3>
                             <p className="text-sm text-yellow-700 mb-4 text-right">
-                              المكتب المستخرج: <span className="font-semibold">{invalidOffice.value}</span> غير موجود في قاعدة البيانات. يرجى اختيار مكتب صحيح من القائمة أدناه.
+                              المكتب المستخرج: <span className="font-semibold">{invalidOffice.value}</span> غير موجود في قاعدة البيانات. يرجى اختيار مكتب صحيح من القائمة أدناه في قسم "اختر المكتب".
                             </p>
                             {selectedNationality && (
                               <p className="text-sm text-blue-700 mb-2 text-right">
@@ -1785,53 +1846,6 @@ const handleSave = async () => {
                                 <span className="font-semibold">تحذير:</span> لا توجد مكاتب متاحة للجنسية المحددة ({selectedNationality})
                               </p>
                             )}
-                            <div className="mt-4 space-y-4">
-                              <div>
-                                <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
-                                  اختر الجنسية:
-                                </label>
-                                <select
-                                  dir="rtl"
-                                  onChange={(e) => handleOfficeNationalityChange(e.target.value)}
-                                  value={selectedOfficeNationality || ''}
-                                  className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
-                                >
-                                  <option value="">-- اختر الجنسية --</option>
-                                  {officeNationalities.map((nationality) => (
-                                    <option key={nationality} value={nationality}>
-                                      {nationality}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
-                                  اختر المكتب الصحيح:
-                                </label>
-                                <select
-                                 dir="rtl"
-                                  onChange={(e) => handleOfficeSelection(e.target.value)}
-                                  className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
-                                  defaultValue=""
-                                  disabled={!selectedOfficeNationality}
-                                >
-                                  <option value="">-- اختر مكتب من القائمة --</option>
-                                  {filteredOffices.length > 0 ? (
-                                    filteredOffices.map((office) => (
-                                      <option key={office.id} value={office.office || ''}>
-                                        {office.office}
-                                      </option>
-                                    ))
-                                  ) : (
-                                    <option value="" disabled>
-                                      {selectedOfficeNationality 
-                                        ? 'لا توجد مكاتب متاحة للجنسية المحددة' 
-                                        : 'يرجى اختيار الجنسية أولاً'}
-                                    </option>
-                                  )}
-                                </select>
-                              </div>
-                            </div>
                           </div>
                           <button
                             onClick={() => {
@@ -2024,6 +2038,21 @@ const handleSave = async () => {
                                     key === 'company_name ' ||
                                     key === 'office_name ' ||
                                     key === 'CompanyName '
+                                  ) {
+                                    return;
+                                  }
+
+                                  // تخطي جميع حقول الجنسية من العرض (يتم اختيارها من السكشن المخصص)
+                                  if (
+                                    normalizedKey === 'nationality' ||
+                                    normalizedKey === 'nationalitycopy' ||
+                                    key === 'nationality' ||
+                                    key === 'Nationality' ||
+                                    key === 'nationalitycopy' ||
+                                    key === 'Nationalitycopy' ||
+                                    key === 'NATIONALITY' ||
+                                    key === 'Nationality ' ||
+                                    key === 'nationality '
                                   ) {
                                     return;
                                   }
