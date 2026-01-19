@@ -709,7 +709,7 @@ export default function PDFProcessor() {
   };
 
   const handleNationalitySelection = (selectedNationality: string) => {
-    if (!processingResult || !invalidNationality) return;
+    if (!processingResult) return;
     
     const updatedData = { ...processingResult.geminiData.jsonResponse };
     
@@ -1902,7 +1902,7 @@ const handleSave = async () => {
                                 dir="rtl"
                                 onChange={(e) => handleNationalitySelection(e.target.value)}
                                 value={selectedNationality || ''}
-                                className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
+                                className="w-full  py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
                               >
                                 <option value="">-- اختر جنسية من القائمة --</option>
                                 {nationalities.map((nationality) => (
@@ -1957,7 +1957,7 @@ const handleSave = async () => {
                                processingResult?.geminiData?.jsonResponse?.CompanyName || 
                                processingResult?.geminiData?.jsonResponse?.office_name || 
                                processingResult?.geminiData?.jsonResponse?.OfficeName || ''}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-right bg-white"
+                        className="w-full  py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-right bg-white"
                       >
                         <option value="">-- اختر مكتب من القائمة --</option>
                         {filteredOffices.length > 0 ? (
