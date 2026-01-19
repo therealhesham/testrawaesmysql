@@ -51,6 +51,8 @@ export default function PDFProcessor() {
   const [invalidOffice, setInvalidOffice] = useState<{ field: string; value: string } | null>(null);
   const [nationalities, setNationalities] = useState<{ id: number; Country: string | null }[]>([]);
   const [invalidNationality, setInvalidNationality] = useState<{ field: string; value: string } | null>(null);
+  const [officeNationalities, setOfficeNationalities] = useState<string[]>([]);
+  const [selectedOfficeNationality, setSelectedOfficeNationality] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
  const [professions, setProfessions] = useState<{ id: number; name: string }[]>([]);
 
@@ -126,6 +128,20 @@ export default function PDFProcessor() {
     fetchOffices();
     fetchNationalities();
   }, []);
+
+  // استخراج الجنسيات الفريدة من offices
+  useEffect(() => {
+    if (offices.length > 0) {
+      const uniqueNationalities = Array.from(
+        new Set(
+          offices
+            .map(office => office.Country)
+            .filter((country): country is string => country !== null && country.trim() !== '')
+        )
+      ).sort();
+      setOfficeNationalities(uniqueNationalities);
+    }
+  }, [offices]);
 
   // تصفية المكاتب بناءً على الجنسية المختارة
   useEffect(() => {
@@ -536,10 +552,14 @@ export default function PDFProcessor() {
               // المكتب غير موجود في قائمة مكاتب هذه الجنسية
               const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
               setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+              // تعيين الجنسية في حقل اختيار الجنسية
+              setSelectedOfficeNationality(nationalityCountry);
             } else if (!matchedOffice && filtered.length === 0) {
               // لا توجد مكاتب لهذه الجنسية
               const officeField = geminiData.jsonResponse.company_name || geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
               setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+              // تعيين الجنسية في حقل اختيار الجنسية
+              setSelectedOfficeNationality(nationalityCountry);
             } else {
               setInvalidOffice(null);
             }
@@ -617,13 +637,27 @@ export default function PDFProcessor() {
     }
   };
 
+  const handleOfficeNationalityChange = (nationality: string) => {
+    setSelectedOfficeNationality(nationality);
+    // تصفية المكاتب بناءً على الجنسية المختارة
+    if (nationality) {
+      const filtered = offices.filter(office => 
+        office.Country?.toLowerCase().trim() === nationality.toLowerCase().trim()
+      );
+      setFilteredOffices(filtered);
+    } else {
+      setFilteredOffices(offices);
+    }
+  };
+
   const handleOfficeSelection = (selectedOffice: string) => {
     if (!processingResult || !invalidOffice) return;
     
     // التحقق من أن المكتب ينتمي للجنسية المختارة (إن وجدت)
-    if (selectedNationality) {
+    const currentNationality = selectedOfficeNationality || selectedNationality;
+    if (currentNationality) {
       const selectedOfficeObj = offices.find(o => o.office?.toLowerCase().trim() === selectedOffice.toLowerCase().trim());
-      if (selectedOfficeObj && selectedOfficeObj.Country?.toLowerCase().trim() !== selectedNationality.toLowerCase().trim()) {
+      if (selectedOfficeObj && selectedOfficeObj.Country?.toLowerCase().trim() !== currentNationality.toLowerCase().trim()) {
         setError('المكتب المختار لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
         return;
       }
@@ -646,6 +680,7 @@ export default function PDFProcessor() {
     });
     
     setInvalidOffice(null);
+    setSelectedOfficeNationality(null);
   };
 
   const handleNationalitySelection = (selectedNationality: string) => {
@@ -679,10 +714,12 @@ export default function PDFProcessor() {
         // المكتب لا ينتمي للجنسية المختارة
         const officeField = updatedData.company_name || updatedData.CompanyName ? 'company_name' : 'office_name';
         setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+        setSelectedOfficeNationality(selectedNationality);
       } else if (!matchedOffice && filtered.length === 0) {
         // لا توجد مكاتب لهذه الجنسية
         const officeField = updatedData.company_name || updatedData.CompanyName ? 'company_name' : 'office_name';
         setInvalidOffice({ field: officeField, value: String(extractedOfficeName) });
+        setSelectedOfficeNationality(selectedNationality);
       } else {
         setInvalidOffice(null);
       }
@@ -860,10 +897,12 @@ export default function PDFProcessor() {
             // المكتب لا ينتمي للجنسية الجديدة
             const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
             setInvalidOffice({ field: officeField, value: String(currentOffice) });
+            setSelectedOfficeNationality(nationalityCountry);
           } else if (!matchedOffice && filtered.length === 0) {
             // لا توجد مكاتب لهذه الجنسية
             const officeField = processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName ? 'company_name' : 'office_name';
             setInvalidOffice({ field: officeField, value: String(currentOffice) });
+            setSelectedOfficeNationality(nationalityCountry);
           } else {
             setInvalidOffice(null);
           }
@@ -893,12 +932,14 @@ export default function PDFProcessor() {
           setError('المكتب المُدخل لا ينتمي للجنسية المحددة. يرجى اختيار مكتب صحيح.');
           const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
           setInvalidOffice({ field: officeField, value: String(value) });
+          setSelectedOfficeNationality(selectedNationality);
           setEditingField(null);
           return;
         } else if (!matchedOffice && filtered.length === 0) {
           setError('لا توجد مكاتب للجنسية المحددة.');
           const officeField = (key === 'office_name' || key === 'OfficeName') ? 'office_name' : 'company_name';
           setInvalidOffice({ field: officeField, value: String(value) });
+          setSelectedOfficeNationality(selectedNationality);
           setEditingField(null);
           return;
         } else {
@@ -1744,31 +1785,59 @@ const handleSave = async () => {
                                 <span className="font-semibold">تحذير:</span> لا توجد مكاتب متاحة للجنسية المحددة ({selectedNationality})
                               </p>
                             )}
-                            <div className="mt-4">
-                              <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
-                                اختر المكتب الصحيح:
-                              </label>
-                              <select
-                               dir="rtl"
-                                onChange={(e) => handleOfficeSelection(e.target.value)}
-                                className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
-                                defaultValue=""
-                              >
-                                <option value="">-- اختر مكتب من القائمة --</option>
-                                {filteredOffices.length > 0 ? (
-                                  filteredOffices.map((office) => (
-                                    <option key={office.id} value={office.office || ''}>
-                                      {office.office}
+                            <div className="mt-4 space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
+                                  اختر الجنسية:
+                                </label>
+                                <select
+                                  dir="rtl"
+                                  onChange={(e) => handleOfficeNationalityChange(e.target.value)}
+                                  value={selectedOfficeNationality || ''}
+                                  className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
+                                >
+                                  <option value="">-- اختر الجنسية --</option>
+                                  {officeNationalities.map((nationality) => (
+                                    <option key={nationality} value={nationality}>
+                                      {nationality}
                                     </option>
-                                  ))
-                                ) : (
-                                  <option value="" disabled>لا توجد مكاتب متاحة للجنسية المحددة</option>
-                                )}
-                              </select>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
+                                  اختر المكتب الصحيح:
+                                </label>
+                                <select
+                                 dir="rtl"
+                                  onChange={(e) => handleOfficeSelection(e.target.value)}
+                                  className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
+                                  defaultValue=""
+                                  disabled={!selectedOfficeNationality}
+                                >
+                                  <option value="">-- اختر مكتب من القائمة --</option>
+                                  {filteredOffices.length > 0 ? (
+                                    filteredOffices.map((office) => (
+                                      <option key={office.id} value={office.office || ''}>
+                                        {office.office}
+                                      </option>
+                                    ))
+                                  ) : (
+                                    <option value="" disabled>
+                                      {selectedOfficeNationality 
+                                        ? 'لا توجد مكاتب متاحة للجنسية المحددة' 
+                                        : 'يرجى اختيار الجنسية أولاً'}
+                                    </option>
+                                  )}
+                                </select>
+                              </div>
                             </div>
                           </div>
                           <button
-                            onClick={() => setInvalidOffice(null)}
+                            onClick={() => {
+                              setInvalidOffice(null);
+                              setSelectedOfficeNationality(null);
+                            }}
                             className="flex-shrink-0 text-yellow-600 hover:text-yellow-800"
                           >
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1781,30 +1850,45 @@ const handleSave = async () => {
                   )}
 
                   {/* Nationality Validation Warning */}
-                  {invalidNationality && (
+                  {(invalidNationality || selectedNationality) && (
                     <div className="mb-6">
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 shadow-sm">
+                      <div className={`border rounded-xl p-6 shadow-sm ${invalidNationality ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
                         <div className="flex items-start">
                           <div className="flex-shrink-0">
-                            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
+                            {invalidNationality ? (
+                              <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                            ) : (
+                              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            )}
                           </div>
                           <div className="mr-3 flex-1">
-                            <h3 className="text-lg font-medium text-yellow-800 mb-2 text-right">
-                              تحذير: الجنسية غير موجودة في القائمة
-                            </h3>
-                            <p className="text-sm text-yellow-700 mb-4 text-right">
-                              الجنسية المستخرجة: <span className="font-semibold">{invalidNationality.value}</span> غير موجودة في قاعدة البيانات. يرجى اختيار جنسية صحيحة من القائمة أدناه.
-                            </p>
+                            {invalidNationality ? (
+                              <>
+                                <h3 className="text-lg font-medium text-yellow-800 mb-2 text-right">
+                                  تحذير: الجنسية غير موجودة في القائمة
+                                </h3>
+                                <p className="text-sm text-yellow-700 mb-4 text-right">
+                                  الجنسية المستخرجة: <span className="font-semibold">{invalidNationality.value}</span> غير موجودة في قاعدة البيانات. يرجى اختيار جنسية صحيحة من القائمة أدناه.
+                                </p>
+                              </>
+                            ) : (
+                              <h3 className="text-lg font-medium text-green-800 mb-2 text-right">
+                                الجنسية المختارة: <span className="font-semibold">{selectedNationality}</span>
+                              </h3>
+                            )}
                             <div className="mt-4">
                               <label className="block text-sm font-medium text-yellow-800 mb-2 text-right">
-                                اختر الجنسية الصحيحة:
+                                اختر الجنسية:
                               </label>
                               <select
+                                dir="rtl"
                                 onChange={(e) => handleNationalitySelection(e.target.value)}
+                                value={selectedNationality || ''}
                                 className="w-full px-4 py-2 border border-yellow-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-right"
-                                defaultValue=""
                               >
                                 <option value="">-- اختر جنسية من القائمة --</option>
                                 {nationalities.map((nationality) => (
@@ -1815,14 +1899,16 @@ const handleSave = async () => {
                               </select>
                             </div>
                           </div>
-                          <button
-                            onClick={() => setInvalidNationality(null)}
-                            className="flex-shrink-0 text-yellow-600 hover:text-yellow-800"
-                          >
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                          {invalidNationality && (
+                            <button
+                              onClick={() => setInvalidNationality(null)}
+                              className="flex-shrink-0 text-yellow-600 hover:text-yellow-800"
+                            >
+                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2097,6 +2183,10 @@ const handleSave = async () => {
                                     'ExperienceField': 'مستوى الخبرة',
                                     'experience': 'مستوى الخبرة',
                                     'Experience': 'مستوى الخبرة',
+                                    
+                                    'experienceType': 'نوع الخبرة',
+                                    'experience_type': 'نوع الخبرة',
+                                    'ExperienceType': 'نوع الخبرة',
                                     
                                     'experienceYears': 'سنوات الخبرة',
                                     'experience_years': 'سنوات الخبرة',
@@ -2544,6 +2634,59 @@ const handleSave = async () => {
      key === 'ElderlycareLevel' || key === 'elderlycareLevel' || key === 'elderlycare_level' ||
      key === 'BabySitterLevel' || key === 'babySitterLevel' || key === 'baby_sitter_level' ||
      key === 'LaundryLevel' || key === 'laundryLevel' || key === 'laundry_level') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر المستوى</option>
+            <option value="Expert - ممتاز">Expert - ممتاز</option>
+            <option value="Advanced - جيد جداً">Advanced - جيد جداً</option>
+            <option value="Intermediate - جيد">Intermediate - جيد</option>
+            <option value="Beginner - مبتدأ">Beginner - مبتدأ</option>
+            <option value="Non - لا تجيد">Non - لا تجيد</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 5.9. الحالة الخاصة: حقول اللغات (ArabicLevel, EnglishLevel)
+    // ---------------------------------------------------------
+    (key === 'arabicLevel' || key === 'arabic_level' || key === 'ArabicLevel' || 
+     key === 'ArabicLanguageLeveL' || key === 'arabicLanguageLevel' ||
+     key === 'englishLevel' || key === 'english_level' || key === 'EnglishLevel' || 
+     key === 'EnglishLanguageLevel' || key === 'englishLanguageLevel') ? (
       <div className="flex items-center gap-2">
         <div className="relative w-full">
           <select

@@ -85,11 +85,18 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
   // دالة مساعدة للبحث عن قيمة داخل عدة احتمالات للمفاتيح
   const findValue = (keys: string[], sourceObj: any = data) => {
     for (const key of keys) {
-      if (sourceObj[key] !== undefined && sourceObj[key] !== null && sourceObj[key] !== "") {
-        return sourceObj[key];
+      const value = sourceObj[key];
+      if (value !== undefined && value !== null && value !== "") {
+        // تنظيف القيمة من المسافات الزائدة
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed !== '') return trimmed;
+        } else {
+          return value;
+        }
       }
     }
-    return '';
+    return null; // إرجاع null بدلاً من string فارغ
   };
 
   // استخراج المهارات (بحث شامل في المستوى الأول وداخل كائن skills)
@@ -147,14 +154,14 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     Passportnumber: findValue(['PassportNumber', 'passport_number', 'passportNumber', 'passport', 'Passport', 'PASSPORT_NUMBER']),
     PassportStart: parseDate(findValue([
       'PassportStartDate', 'passportStartDate', 'PassportStart', 'passportStart',
-      'passport_issue_date', 'passport_issue', 'passport_start',
-      'issue_date', 'issueDate', 'IssueDate'
+      'passport_issue_date', 'passport_issue', 'passport_start', 'PassportStartDate',
+      'issue_date', 'issueDate', 'IssueDate', 'passportStartDate', 'PassportStart'
     ])),
     PassportEnd: parseDate(findValue([
       'PassportEndDate', 'passportEndDate', 'PassportEnd', 'passportEnd',
       'passport_expiration', 'passport_expiry', 'passport_end',
       'expiration_date', 'expirationDate', 'ExpirationDate',
-      'expiry_date', 'expiryDate', 'ExpiryDate'
+      'expiry_date', 'expiryDate', 'ExpiryDate', 'passportEndDate', 'PassportEnd'
     ])),
     Passportphoto: findValue(['Passportphoto', 'passportphoto', 'passport_photo', 'PassportPhoto', 'passport_copy', 'PassportCopy']),
     
@@ -210,15 +217,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const homemaidData = mapGeminiDataToHomemaid(geminiData, selectedImages || []);
     
     // 🔍 Debug: طباعة بيانات الجواز للتأكد من استلامها
-    console.log('🔍 Passport Data Debug:', {
+    const rawData = geminiData.jsonResponse || {};
+    console.log('🔍 Passport Data Debug - Raw Data Keys:', Object.keys(rawData).filter(k => 
+      k.toLowerCase().includes('passport') || k.toLowerCase().includes('issue') || k.toLowerCase().includes('expir')
+    ));
+    console.log('🔍 Passport Data Debug - Mapped Data:', {
       Passportnumber: homemaidData.Passportnumber,
       PassportStart: homemaidData.PassportStart,
       PassportEnd: homemaidData.PassportEnd,
       rawData: {
-        passport: geminiData.jsonResponse?.passport || geminiData.jsonResponse?.PassportNumber || geminiData.jsonResponse?.passport_number,
-        passportStart: geminiData.jsonResponse?.passportStart || geminiData.jsonResponse?.passportStartDate || geminiData.jsonResponse?.passport_issue_date,
-        passportEnd: geminiData.jsonResponse?.passportEnd || geminiData.jsonResponse?.passportEndDate || geminiData.jsonResponse?.passport_expiration,
-      }
+        passport: rawData.passport || rawData.PassportNumber || rawData.passportNumber || rawData.passport_number || rawData.Passportnumber,
+        passportStart: rawData.passportStart || rawData.passportStartDate || rawData.PassportStartDate || rawData.passport_issue_date || rawData.passport_start,
+        passportEnd: rawData.passportEnd || rawData.passportEndDate || rawData.PassportEndDate || rawData.passport_expiration || rawData.passport_end || rawData.passport_expiry,
+      },
+      allPassportKeys: Object.keys(rawData).filter(k => k.toLowerCase().includes('passport'))
     });
 
     // -------------------------------------------------------
