@@ -144,6 +144,40 @@ const validateWeight = (value: string): { isValid: boolean; isPounds?: boolean }
   return { isValid: weightInKg >= 50 && weightInKg <= 120 };
 };
 
+// قوائم الخيارات الموحدة
+const skillLevels = [
+  "Expert - ممتاز",
+  "Advanced - جيد جداً",
+  "Intermediate - جيد",
+  "Beginner - مبتدأ",
+  "Non - لا تجيد"
+];
+
+const maritalStatusOptions = [
+  "Single - عازبة",
+  "Married - متزوجة",
+  "Divorced - مطلقة"
+];
+
+const religionOptions = [
+  "Islam - الإسلام",
+  "Non-Muslim - غير مسلم"
+];
+
+const experienceOptions = [
+  "Novice | مدربة بدون خبرة",
+  "Intermediate | مدربة بخبرة متوسطة",
+  "Well-experienced | خبرة جيدة",
+  "Expert | خبرة ممتازة"
+];
+
+// دالة للتحقق من وجود القيمة في قائمة الخيارات
+const isValueInOptions = (value: string, options: string[]): boolean => {
+  if (!value || typeof value !== 'string') return false;
+  const normalizedValue = value.trim();
+  return options.some(option => option.trim() === normalizedValue);
+};
+
 export default function PDFProcessor() {
   const { showToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -526,7 +560,7 @@ export default function PDFProcessor() {
           ['name', 'full_name', 'Name', 'FullName'],
           ['nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy', 'nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy'],
           ['religion', 'Religion', 'religion', 'Religion', 'religion', 'Religion', 'religion', 'Religion'],
-          ['marital_status', 'MaritalStatus', 'maritalStatus', 'maritalStatus', 'maritalStatus', 'MaritalStatus', 'maritalStatus', 'MaritalStatus'],
+          ['marital_status', 'MaritalStatus', 'maritalStatus', 'maritalstatus'],
           ['date_of_birth', 'birthDate', 'BirthDate', 'age'],
           ['passport_number', 'passport', 'PassportNumber'],
           ['office_name', 'company_name', 'OfficeName', 'CompanyName'],
@@ -634,6 +668,78 @@ export default function PDFProcessor() {
       };
 
       cleanedJsonResponse = removeDuplicateFields(cleanedJsonResponse);
+      
+      // التحقق من القيم المستخرجة وحذف القيم غير الصحيحة
+      // التحقق من religion
+      const religionValue = cleanedJsonResponse.religion || cleanedJsonResponse.Religion;
+      if (religionValue && !isValueInOptions(String(religionValue), religionOptions)) {
+        delete cleanedJsonResponse.religion;
+        delete cleanedJsonResponse.Religion;
+      }
+      
+      // التحقق من maritalStatus
+      const maritalStatusValue = cleanedJsonResponse.maritalStatus || cleanedJsonResponse.marital_status || cleanedJsonResponse.MaritalStatus || cleanedJsonResponse.maritalstatus;
+      if (maritalStatusValue && !isValueInOptions(String(maritalStatusValue), maritalStatusOptions)) {
+        delete cleanedJsonResponse.maritalStatus;
+        delete cleanedJsonResponse.marital_status;
+        delete cleanedJsonResponse.MaritalStatus;
+        delete cleanedJsonResponse.maritalstatus;
+      }
+      
+      // التحقق من skills object
+      if (cleanedJsonResponse.skills) {
+        try {
+          const skills = typeof cleanedJsonResponse.skills === 'string' 
+            ? JSON.parse(cleanedJsonResponse.skills) 
+            : cleanedJsonResponse.skills;
+          
+          if (typeof skills === 'object' && skills !== null) {
+            const validatedSkills: Record<string, any> = {};
+            Object.entries(skills).forEach(([key, value]) => {
+              if (value && isValueInOptions(String(value), skillLevels)) {
+                validatedSkills[key] = value;
+              }
+            });
+            
+            if (Object.keys(validatedSkills).length > 0) {
+              cleanedJsonResponse.skills = JSON.stringify(validatedSkills);
+            } else {
+              delete cleanedJsonResponse.skills;
+            }
+          }
+        } catch {
+          // إذا فشل التحليل، احذف الحقل
+          delete cleanedJsonResponse.skills;
+        }
+      }
+      
+      // التحقق من languages_spoken object
+      if (cleanedJsonResponse.languages_spoken) {
+        try {
+          const languages = typeof cleanedJsonResponse.languages_spoken === 'string' 
+            ? JSON.parse(cleanedJsonResponse.languages_spoken) 
+            : cleanedJsonResponse.languages_spoken;
+          
+          if (typeof languages === 'object' && languages !== null) {
+            const validatedLanguages: Record<string, any> = {};
+            Object.entries(languages).forEach(([key, value]) => {
+              if (value && isValueInOptions(String(value), skillLevels)) {
+                validatedLanguages[key] = value;
+              }
+            });
+            
+            if (Object.keys(validatedLanguages).length > 0) {
+              cleanedJsonResponse.languages_spoken = JSON.stringify(validatedLanguages);
+            } else {
+              delete cleanedJsonResponse.languages_spoken;
+            }
+          }
+        } catch {
+          // إذا فشل التحليل، احذف الحقل
+          delete cleanedJsonResponse.languages_spoken;
+        }
+      }
+      
       const geminiData = { jsonResponse: cleanedJsonResponse };
 
       // أولاً: التحقق من الجنسية والتعرف عليها
@@ -974,6 +1080,54 @@ export default function PDFProcessor() {
       };
     });
     setInvalidOffice(null);
+  };
+
+  // دالة معالجة تغيير الخبرة (تلقائية السنوات)
+  const handleExperienceChange = (selectedExperience: string) => {
+    if (!processingResult) return;
+    
+    let autoYears = "";
+    
+    switch (selectedExperience) {
+      case "Novice | مدربة بدون خبرة":
+        autoYears = "مدربة-Training";
+        break;
+      case "Intermediate | مدربة بخبرة متوسطة":
+        autoYears = "1-2 Years - سنوات";
+        break;
+      case "Well-experienced | خبرة جيدة":
+        autoYears = "3-4 Years - سنوات";
+        break;
+      case "Expert | خبرة ممتازة":
+        autoYears = "5 and More - وأكثر";
+        break;
+      default:
+        autoYears = "";
+    }
+    
+    const updatedData = { ...processingResult.geminiData.jsonResponse };
+    
+    // تحديث experienceField
+    updatedData.experienceField = selectedExperience;
+    updatedData.experience_field = selectedExperience;
+    updatedData.ExperienceField = selectedExperience;
+    updatedData.experience = selectedExperience;
+    updatedData.Experience = selectedExperience;
+    
+    // تحديث experienceYears تلقائياً
+    if (autoYears) {
+      updatedData.experienceYears = autoYears;
+      updatedData.experience_years = autoYears;
+      updatedData.ExperienceYears = autoYears;
+      updatedData.years_of_experience = autoYears;
+    }
+    
+    setProcessingResult({
+      ...processingResult,
+      geminiData: { jsonResponse: updatedData }
+    });
+    
+    setEditingField(null);
   };
 
   const saveEditingField = () => {
@@ -2125,6 +2279,17 @@ const handleSave = async () => {
                                 // استخراج المهارات واللغات وتحويلها لحقول منفصلة
                                 const allEntries = Object.entries(processingResult.geminiData.jsonResponse);
                                 const expandedEntries: [string, any][] = [];
+                                let experienceFieldEntry: [string, any] | null = null;
+                                let experienceYearsEntry: [string, any] | null = null;
+
+                                // مجموعات الحقول المرتبة
+                                const personalInfo: [string, any][] = [];
+                                const passportInfo: [string, any][] = [];
+                                const educationInfo: [string, any][] = [];
+                                const experienceInfo: [string, any][] = [];
+                                const skillsInfo: [string, any][] = [];
+                                const languagesInfo: [string, any][] = [];
+                                const otherInfo: [string, any][] = [];
 
                                 allEntries.forEach(([key, value]) => {
                                   // تخطي جميع حقول المكتب من العرض (يتم اختيارها من السكشن المخصص)
@@ -2174,13 +2339,50 @@ const handleSave = async () => {
                                     return;
                                   }
 
+                                  // تخطي حقل نوع الخبرة (experienceType) من العرض
+                                  if (
+                                    normalizedKey === 'experiencetype' ||
+                                    key === 'experienceType' ||
+                                    key === 'experience_type' ||
+                                    key === 'ExperienceType'
+                                  ) {
+                                    return;
+                                  }
+
+                                  // جمع حقل مستوى الخبرة (experienceField) - سنضيفه لاحقاً في الترتيب الصحيح
+                                  if (
+                                    key === 'experienceField' ||
+                                    key === 'experience_field' || 
+                                    key === 'ExperienceField' || 
+                                    key === 'experience' || 
+                                    key === 'Experience'
+                                  ) {
+                                    if (!experienceFieldEntry) {
+                                      experienceFieldEntry = ['experienceField', value];
+                                    }
+                                    return;
+                                  }
+
+                                  // جمع حقل سنوات الخبرة (experienceYears) - سنضيفه لاحقاً في الترتيب الصحيح
+                                  if (
+                                    key === 'experienceYears' ||
+                                    key === 'experience_years' || 
+                                    key === 'ExperienceYears' || 
+                                    key === 'years_of_experience'
+                                  ) {
+                                    if (!experienceYearsEntry) {
+                                      experienceYearsEntry = ['experienceYears', value];
+                                    }
+                                    return;
+                                  }
+
                                   // توسيع المهارات إلى حقول منفصلة
                                   if (key === 'skills') {
                                     try {
                                       const skills = typeof value === 'string' ? JSON.parse(value) : value;
                                       if (typeof skills === 'object' && skills !== null) {
                                         Object.entries(skills).forEach(([skillKey, skillValue]) => {
-                                          expandedEntries.push([`skill_${skillKey.toLowerCase()}`, skillValue]);
+                                          skillsInfo.push([`skill_${skillKey.toLowerCase()}`, skillValue]);
                                         });
                                         return;
                                       }
@@ -2195,7 +2397,7 @@ const handleSave = async () => {
                                       const languages = typeof value === 'string' ? JSON.parse(value) : value;
                                       if (typeof languages === 'object' && languages !== null) {
                                         Object.entries(languages).forEach(([langKey, langValue]) => {
-                                          expandedEntries.push([`lang_${langKey.toLowerCase()}`, langValue]);
+                                          languagesInfo.push([`lang_${langKey.toLowerCase()}`, langValue]);
                                         });
                                         return;
                                       }
@@ -2204,11 +2406,163 @@ const handleSave = async () => {
                                     }
                                   }
 
-                                  // إضافة الحقول العادية
-                                  expandedEntries.push([key, value]);
+                                  // تصنيف الحقول حسب النوع
+                                  // بيانات الجواز - تجميعها معاً
+                                  if (
+                                    normalizedKey === 'passport_number' ||
+                                    normalizedKey === 'passport' ||
+                                    normalizedKey === 'passportnumber' ||
+                                    normalizedKey === 'passport_issue_date' ||
+                                    normalizedKey === 'passportstartdate' ||
+                                    normalizedKey === 'passport_start' ||
+                                    normalizedKey === 'passportstart' ||
+                                    normalizedKey === 'passport_expiration' ||
+                                    normalizedKey === 'passportenddate' ||
+                                    normalizedKey === 'passport_end' ||
+                                    normalizedKey === 'passportend' ||
+                                    normalizedKey === 'passport_expiry' ||
+                                    key === 'passport_number' ||
+                                    key === 'passport' ||
+                                    key === 'PassportNumber' ||
+                                    key === 'passportStart' ||
+                                    key === 'passportStartDate' ||
+                                    key === 'passport_issue_date' ||
+                                    key === 'PassportStartDate' ||
+                                    key === 'passport_start' ||
+                                    key === 'passportEnd' ||
+                                    key === 'passportEndDate' ||
+                                    key === 'passport_expiration' ||
+                                    key === 'PassportEndDate' ||
+                                    key === 'passport_end' ||
+                                    key === 'passport_expiry'
+                                  ) {
+                                    passportInfo.push([key, value]);
+                                    return;
+                                  }
+
+                                  // المهارات المباشرة (CookingLevel, WashingLevel, إلخ)
+                                  if (
+                                    normalizedKey.includes('cookinglevel') ||
+                                    normalizedKey.includes('washinglevel') ||
+                                    normalizedKey.includes('ironinglevel') ||
+                                    normalizedKey.includes('cleaninglevel') ||
+                                    normalizedKey.includes('sewinglevel') ||
+                                    normalizedKey.includes('childcarelevel') ||
+                                    normalizedKey.includes('elderlycarelevel') ||
+                                    normalizedKey.includes('laundrylevel') ||
+                                    normalizedKey.includes('babysitterlevel') ||
+                                    key.startsWith('skill_')
+                                  ) {
+                                    skillsInfo.push([key, value]);
+                                    return;
+                                  }
+
+                                  // اللغات المباشرة
+                                  if (
+                                    normalizedKey.includes('arabiclevel') ||
+                                    normalizedKey.includes('arabiclanguagelevel') ||
+                                    normalizedKey.includes('englishlevel') ||
+                                    normalizedKey.includes('englishlanguagelevel') ||
+                                    key.startsWith('lang_')
+                                  ) {
+                                    languagesInfo.push([key, value]);
+                                    return;
+                                  }
+
+                                  // التعليم
+                                  if (
+                                    normalizedKey.includes('education') ||
+                                    normalizedKey.includes('arabiclevel') ||
+                                    normalizedKey.includes('englishlevel')
+                                  ) {
+                                    educationInfo.push([key, value]);
+                                    return;
+                                  }
+
+                                  // المعلومات الشخصية الأساسية
+                                  if (
+                                    normalizedKey === 'name' ||
+                                    normalizedKey === 'full_name' ||
+                                    normalizedKey === 'fullname' ||
+                                    normalizedKey === 'age' ||
+                                    normalizedKey === 'date_of_birth' ||
+                                    normalizedKey === 'birthdate' ||
+                                    normalizedKey === 'dateofbirth' ||
+                                    normalizedKey === 'birth_date' ||
+                                    normalizedKey === 'religion' ||
+                                    normalizedKey === 'marital_status' ||
+                                    normalizedKey === 'maritalstatus' ||
+                                    normalizedKey === 'weight' ||
+                                    normalizedKey === 'height' ||
+                                    normalizedKey === 'children' ||
+                                    normalizedKey === 'children_count' ||
+                                    normalizedKey === 'mobile' ||
+                                    normalizedKey === 'phone' ||
+                                    normalizedKey === 'salary' ||
+                                    normalizedKey === 'job_title' ||
+                                    normalizedKey === 'profession' ||
+                                    normalizedKey === 'job' ||
+                                    normalizedKey === 'contract_duration' ||
+                                    normalizedKey === 'contractduration' ||
+                                    normalizedKey === 'birth_place'
+                                  ) {
+                                    personalInfo.push([key, value]);
+                                    return;
+                                  }
+
+                                  // باقي الحقول
+                                  otherInfo.push([key, value]);
                                 });
 
-                                return expandedEntries;
+                                // ترتيب بيانات الجواز: رقم، تاريخ الإصدار، تاريخ الانتهاء
+                                passportInfo.sort((a, b) => {
+                                  const [keyA] = a;
+                                  const [keyB] = b;
+                                  const normalizedA = keyA.toLowerCase();
+                                  const normalizedB = keyB.toLowerCase();
+                                  
+                                  // رقم الجواز أولاً
+                                  if (normalizedA.includes('passport_number') || normalizedA === 'passport' || normalizedA === 'passportnumber') return -1;
+                                  if (normalizedB.includes('passport_number') || normalizedB === 'passport' || normalizedB === 'passportnumber') return 1;
+                                  
+                                  // تاريخ الإصدار ثانياً
+                                  if (normalizedA.includes('start') || normalizedA.includes('issue')) return -1;
+                                  if (normalizedB.includes('start') || normalizedB.includes('issue')) return 1;
+                                  
+                                  // تاريخ الانتهاء ثالثاً
+                                  if (normalizedA.includes('end') || normalizedA.includes('expiration') || normalizedA.includes('expiry')) return -1;
+                                  if (normalizedB.includes('end') || normalizedB.includes('expiration') || normalizedB.includes('expiry')) return 1;
+                                  
+                                  return 0;
+                                });
+
+                                // ترتيب المهارات أبجدياً
+                                skillsInfo.sort((a, b) => {
+                                  const [keyA] = a;
+                                  const [keyB] = b;
+                                  return keyA.localeCompare(keyB);
+                                });
+
+                                // إضافة experienceField و experienceYears بعد التعليم
+                                if (experienceFieldEntry) {
+                                  experienceInfo.push(experienceFieldEntry);
+                                }
+                                if (experienceYearsEntry) {
+                                  experienceInfo.push(experienceYearsEntry);
+                                }
+
+                                // تجميع جميع الحقول بالترتيب المطلوب
+                                const orderedEntries: [string, any][] = [
+                                  ...personalInfo,
+                                  ...passportInfo,
+                                  ...educationInfo,
+                                  ...experienceInfo,
+                                  ...skillsInfo,
+                                  ...languagesInfo,
+                                  ...otherInfo
+                                ];
+
+                                return orderedEntries;
                               })().map(([key, value]) => {
                                 // إذا كان الحقل هو office_name، استخدم company_name إذا كان موجوداً
                                 const displayKey = key === 'office_name' || key === 'OfficeName' 
@@ -2265,6 +2619,7 @@ const handleSave = async () => {
                                     'marital_status': 'الحالة الاجتماعية',
                                     'MaritalStatus': 'الحالة الاجتماعية',
                                     'maritalStatus': 'الحالة الاجتماعية',
+                                    'maritalstatus': 'الحالة الاجتماعية',
                                     
                                     // 'age': 'تاريخ الميلاد',
                                     // 'Age': 'تاريخ الميلاد',
@@ -2329,10 +2684,6 @@ const handleSave = async () => {
                                     'ExperienceField': 'مستوى الخبرة',
                                     'experience': 'مستوى الخبرة',
                                     'Experience': 'مستوى الخبرة',
-                                    
-                                    'experienceType': 'نوع الخبرة',
-                                    'experience_type': 'نوع الخبرة',
-                                    'ExperienceType': 'نوع الخبرة',
                                     
                                     'experienceYears': 'سنوات الخبرة',
                                     'experience_years': 'سنوات الخبرة',
@@ -2442,18 +2793,7 @@ const handleSave = async () => {
                                     className={`hover:bg-gray-50 transition-all duration-200 group ${isEmpty ? 'bg-yellow-50' : ''}`}
                                   >
                                     <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span>{getDisplayLabel(displayKey)}</span>
-                                        <svg
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          viewBox="0 0 20 20"
-                                          fill="currentColor"
-                                          className="w-4 h-4 text-indigo-500 opacity-60 group-hover:opacity-100 transition-opacity"
-                                          aria-label="حقل قابل للتعديل"
-                                        >
-                                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                        </svg>
-                                      </div>
+                                      <span>{getDisplayLabel(displayKey)}</span>
                                     </td>
                                     <td className="border border-gray-200 px-4 py-3 text-gray-700">
   {isEditing ? (
@@ -2529,8 +2869,11 @@ const handleSave = async () => {
             }
           >
             <option value="">اختر الديانة</option>
-            <option value="Islam - الإسلام">Islam - الإسلام</option>
-            <option value="Non-Muslim - غير مسلم">Non-Muslim - غير مسلم</option>
+            {religionOptions.map((religion) => (
+              <option key={religion} value={religion}>
+                {religion}
+              </option>
+            ))}
           </select>
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -2557,7 +2900,7 @@ const handleSave = async () => {
     // ---------------------------------------------------------
     // 3. الحالة الثالثة: الحالة الاجتماعية (Marital Status) ✨
     // ---------------------------------------------------------
-    (key === 'marital_status' || key === 'MaritalStatus') ? (
+    (key === 'marital_status' || key === 'MaritalStatus' || key === 'maritalStatus' || key === 'maritalstatus') ? (
       <div className="flex items-center gap-2">
         <div className="relative w-full">
           <select
@@ -2576,9 +2919,11 @@ const handleSave = async () => {
             }
           >
             <option value="">اختر الحالة الاجتماعية</option>
-            <option value="Single - عازبة">Single - عازبة</option>
-            <option value="Married - متزوجة">Married - متزوجة</option>
-            <option value="Divorced - مطلقة">Divorced - مطلقة</option>
+            {maritalStatusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
           </select>
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -2593,6 +2938,68 @@ const handleSave = async () => {
         >
           حفظ
         </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 3.5. الحالة الخاصة: تعديل مستوى الخبرة (Experience Field)
+    // ---------------------------------------------------------
+    (key === 'experienceField' || key === 'experience_field' || key === 'ExperienceField' || key === 'experience' || key === 'Experience') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) => {
+              handleExperienceChange(e.target.value);
+            }}
+          >
+            <option value="">اختر مستوى الخبرة</option>
+            {experienceOptions.map((exp) => (
+              <option key={exp} value={exp}>
+                {exp}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
+    // 3.6. الحالة الخاصة: سنوات الخبرة (Read-only)
+    // ---------------------------------------------------------
+    (key === 'experienceYears' || key === 'experience_years' || key === 'ExperienceYears' || key === 'years_of_experience') ? (
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-100 text-right cursor-not-allowed"
+          value={editingField?.value ?? ''}
+          readOnly
+          placeholder="يتم التعبئة تلقائياً"
+        />
         <button
           type="button"
           className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
@@ -2624,11 +3031,11 @@ const handleSave = async () => {
             }
           >
             <option value="">اختر المستوى</option>
-            <option value="Expert - ممتاز">Expert - ممتاز</option>
-            <option value="Advanced - جيد جداً">Advanced - جيد جداً</option>
-            <option value="Intermediate - جيد">Intermediate - جيد</option>
-            <option value="Beginner - مبتدأ">Beginner - مبتدأ</option>
-            <option value="Non - لا تجيد">Non - لا تجيد</option>
+            {skillLevels.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
           </select>
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -2798,11 +3205,11 @@ const handleSave = async () => {
             }
           >
             <option value="">اختر المستوى</option>
-            <option value="Expert - ممتاز">Expert - ممتاز</option>
-            <option value="Advanced - جيد جداً">Advanced - جيد جداً</option>
-            <option value="Intermediate - جيد">Intermediate - جيد</option>
-            <option value="Beginner - مبتدأ">Beginner - مبتدأ</option>
-            <option value="Non - لا تجيد">Non - لا تجيد</option>
+            {skillLevels.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
           </select>
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -2851,11 +3258,11 @@ const handleSave = async () => {
             }
           >
             <option value="">اختر المستوى</option>
-            <option value="Expert - ممتاز">Expert - ممتاز</option>
-            <option value="Advanced - جيد جداً">Advanced - جيد جداً</option>
-            <option value="Intermediate - جيد">Intermediate - جيد</option>
-            <option value="Beginner - مبتدأ">Beginner - مبتدأ</option>
-            <option value="Non - لا تجيد">Non - لا تجيد</option>
+            {skillLevels.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
           </select>
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
             <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -2921,6 +3328,45 @@ const handleSave = async () => {
     // وضع العرض (Display Mode)
     // ---------------------------------------------------------
     (() => {
+      // التحقق من القيم المستخرجة للحقول التي يجب أن تكون قوائم اختيار
+      let isValidValue = true;
+      let shouldHideValue = false;
+      
+      // التحقق من religion
+      if ((key === 'religion' || key === 'Religion') && displayValue) {
+        isValidValue = isValueInOptions(String(displayValue), religionOptions);
+        if (!isValidValue) {
+          shouldHideValue = true;
+        }
+      }
+      
+      // التحقق من maritalStatus
+      if ((key === 'maritalStatus' || key === 'marital_status' || key === 'MaritalStatus' || key === 'maritalstatus') && displayValue) {
+        isValidValue = isValueInOptions(String(displayValue), maritalStatusOptions);
+        if (!isValidValue) {
+          shouldHideValue = true;
+        }
+      }
+      
+      // التحقق من skills (skill_*)
+      if (key.startsWith('skill_') && displayValue) {
+        isValidValue = isValueInOptions(String(displayValue), skillLevels);
+        if (!isValidValue) {
+          shouldHideValue = true;
+        }
+      }
+      
+      // التحقق من languages (lang_*)
+      if (key.startsWith('lang_') && displayValue) {
+        isValidValue = isValueInOptions(String(displayValue), skillLevels);
+        if (!isValidValue) {
+          shouldHideValue = true;
+        }
+      }
+      
+      // إذا كانت القيمة غير صحيحة، استبدل displayValue بقيمة فارغة للعرض
+      const finalDisplayValue = shouldHideValue ? '' : displayValue;
+      
       // التحقق من الطول والوزن وإظهار التحذيرات
       const isHeightField = (key === 'height' || key === 'Height');
       const isWeightField = (key === 'weight' || key === 'Weight');
@@ -2928,13 +3374,13 @@ const handleSave = async () => {
       let heightWarning: { show: boolean; isFeet?: boolean; convertedValue?: number } = { show: false };
       let weightWarning: { show: boolean; isPounds?: boolean; convertedValue?: number } = { show: false };
       
-      if (isHeightField && displayValue) {
-        const unit = detectHeightUnit(String(displayValue));
-        const heightValidation = validateHeight(String(displayValue));
+      if (isHeightField && finalDisplayValue) {
+        const unit = detectHeightUnit(String(finalDisplayValue));
+        const heightValidation = validateHeight(String(finalDisplayValue));
         
         // إظهار التحذير إذا كانت القيمة بالقدم أو خارج النطاق
         if (unit === 'feet' || !heightValidation.isValid) {
-          const convertedCm = unit === 'feet' ? convertFeetToCm(String(displayValue)) : undefined;
+          const convertedCm = unit === 'feet' ? convertFeetToCm(String(finalDisplayValue)) : undefined;
           heightWarning = {
             show: true,
             isFeet: unit === 'feet',
@@ -2943,13 +3389,13 @@ const handleSave = async () => {
         }
       }
       
-      if (isWeightField && displayValue) {
-        const unit = detectWeightUnit(String(displayValue));
-        const weightValidation = validateWeight(String(displayValue));
+      if (isWeightField && finalDisplayValue) {
+        const unit = detectWeightUnit(String(finalDisplayValue));
+        const weightValidation = validateWeight(String(finalDisplayValue));
         
         // إظهار التحذير إذا كانت القيمة بالرطل أو خارج النطاق
         if (unit === 'pounds' || !weightValidation.isValid) {
-          const convertedKg = unit === 'pounds' ? convertPoundsToKg(String(displayValue)) : undefined;
+          const convertedKg = unit === 'pounds' ? convertPoundsToKg(String(finalDisplayValue)) : undefined;
           weightWarning = {
             show: true,
             isPounds: unit === 'pounds',
@@ -3045,14 +3491,14 @@ const handleSave = async () => {
            key.toLowerCase().includes('office') || key.toLowerCase().includes('company') ||
            displayKey?.toLowerCase().includes('office') || displayKey?.toLowerCase().includes('company') ? (
             <div className="flex items-center justify-between gap-2">
-              <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-                {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+              <span className={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+                {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue)}
               </span>
               <button
                 type="button"
                 className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
                 onClick={() => startEditingField(key, displayValue)}
-                title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
+                title={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -3062,30 +3508,37 @@ const handleSave = async () => {
                 >
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                 </svg>
-                <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
+                <span className="hidden sm:inline">{(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-2">
-              <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-                {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+              <span className={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+                {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue)}
               </span>
-              <button
-                type="button"
-                className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
-                onClick={() => startEditingField(key, displayValue)}
-                title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="w-5 h-5"
+              {/* إخفاء زر التعديل لـ experienceYears لأنه read-only */}
+              {!(key === 'experienceYears' || key === 'experience_years' || key === 'ExperienceYears' || key === 'years_of_experience') && (
+                <button
+                  type="button"
+                  className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
+                  onClick={() => startEditingField(key, displayValue)}
+                  title={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
                 >
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                </svg>
-                <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
-              </button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-5 h-5"
+                  >
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  <span className="hidden sm:inline">{(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
+                </button>
+              )}
+              {/* عرض نص read-only لـ experienceYears */}
+              {(key === 'experienceYears' || key === 'experience_years' || key === 'ExperienceYears' || key === 'years_of_experience') && (
+                <span className="text-xs text-gray-500 italic">(يتم التعبئة تلقائياً)</span>
+              )}
             </div>
           )}
         </div>
