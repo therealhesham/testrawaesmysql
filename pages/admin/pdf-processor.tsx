@@ -27,6 +27,123 @@ const normalizeImageUrl = (url: string) => {
   return url;
 };
 
+// Helper functions for height and weight validation and conversion
+const detectHeightUnit = (value: string): 'cm' | 'feet' | 'unknown' => {
+  const normalized = String(value).toLowerCase().trim();
+  // Check for feet indicators
+  if (normalized.includes('ft') || normalized.includes('feet') || normalized.includes("'") || normalized.includes('foot')) {
+    return 'feet';
+  }
+  // Check for cm indicators
+  if (normalized.includes('cm') || normalized.includes('centimeter')) {
+    return 'cm';
+  }
+  // If it's a number, check if it's likely feet (typically 4-7 feet) or cm (typically 140-200)
+  const numValue = parseFloat(normalized.replace(/[^0-9.]/g, ''));
+  if (!isNaN(numValue)) {
+    if (numValue >= 4 && numValue <= 7.5) {
+      return 'feet';
+    }
+    if (numValue >= 140 && numValue <= 200) {
+      return 'cm';
+    }
+  }
+  return 'unknown';
+};
+
+const detectWeightUnit = (value: string): 'kg' | 'pounds' | 'unknown' => {
+  const normalized = String(value).toLowerCase().trim();
+  // Check for pounds indicators
+  if (normalized.includes('lb') || normalized.includes('lbs') || normalized.includes('pound') || normalized.includes('pounds')) {
+    return 'pounds';
+  }
+  // Check for kg indicators
+  if (normalized.includes('kg') || normalized.includes('kilogram') || normalized.includes('kilo')) {
+    return 'kg';
+  }
+  // If it's a number, check if it's likely pounds (typically 80-300) or kg (typically 30-150)
+  const numValue = parseFloat(normalized.replace(/[^0-9.]/g, ''));
+  if (!isNaN(numValue)) {
+    if (numValue >= 80 && numValue <= 300) {
+      return 'pounds';
+    }
+    if (numValue >= 30 && numValue <= 150) {
+      return 'kg';
+    }
+  }
+  return 'unknown';
+};
+
+const convertFeetToCm = (value: string): number => {
+  const normalized = String(value).toLowerCase().trim();
+  // Extract numbers (could be "5'6" or "5.5" or "5 6")
+  const numbers = normalized.match(/[\d.]+/g) || [];
+  if (numbers.length === 0) return 0;
+  
+  let feet = 0;
+  let inches = 0;
+  
+  const firstNum = numbers[0] ? parseFloat(numbers[0]) : 0;
+  const secondNum = numbers[1] ? parseFloat(numbers[1]) : 0;
+  
+  if (normalized.includes("'") || normalized.includes('ft')) {
+    // Format like "5'6" or "5ft 6in"
+    feet = firstNum || 0;
+    inches = numbers.length > 1 ? secondNum : 0;
+  } else if (numbers.length === 1) {
+    // Single number, assume it's feet with decimal
+    const num = firstNum;
+    feet = Math.floor(num);
+    inches = (num - feet) * 12;
+  } else {
+    feet = firstNum || 0;
+    inches = secondNum || 0;
+  }
+  
+  // Convert to cm: 1 foot = 30.48 cm, 1 inch = 2.54 cm
+  return Math.round(feet * 30.48 + inches * 2.54);
+};
+
+const convertPoundsToKg = (value: string): number => {
+  const normalized = String(value).toLowerCase().trim();
+  const numValue = parseFloat(normalized.replace(/[^0-9.]/g, ''));
+  if (isNaN(numValue)) return 0;
+  // 1 pound = 0.453592 kg
+  return Math.round(numValue * 0.453592);
+};
+
+const validateHeight = (value: string): { isValid: boolean; isFeet?: boolean } => {
+  const numValue = parseFloat(String(value).replace(/[^0-9.]/g, ''));
+  if (isNaN(numValue)) return { isValid: false };
+  
+  const unit = detectHeightUnit(value);
+  let heightInCm = numValue;
+  
+  if (unit === 'feet') {
+    heightInCm = convertFeetToCm(value);
+    return { isValid: heightInCm >= 140 && heightInCm <= 175, isFeet: true };
+  }
+  
+  // Assume cm if unknown
+  return { isValid: heightInCm >= 140 && heightInCm <= 175 };
+};
+
+const validateWeight = (value: string): { isValid: boolean; isPounds?: boolean } => {
+  const numValue = parseFloat(String(value).replace(/[^0-9.]/g, ''));
+  if (isNaN(numValue)) return { isValid: false };
+  
+  const unit = detectWeightUnit(value);
+  let weightInKg = numValue;
+  
+  if (unit === 'pounds') {
+    weightInKg = convertPoundsToKg(value);
+    return { isValid: weightInKg >= 50 && weightInKg <= 120, isPounds: true };
+  }
+  
+  // Assume kg if unknown
+  return { isValid: weightInKg >= 50 && weightInKg <= 120 };
+};
+
 export default function PDFProcessor() {
   const { showToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -2803,55 +2920,177 @@ const handleSave = async () => {
     // ---------------------------------------------------------
     // وضع العرض (Display Mode)
     // ---------------------------------------------------------
-    // حالة خاصة: حقل المكتب - عرض القيمة مع زر التعديل
-    (key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName' ||
-     displayKey === 'office_name' || displayKey === 'OfficeName' || displayKey === 'company_name' || displayKey === 'CompanyName' ||
-     key.toLowerCase().includes('office') || key.toLowerCase().includes('company') ||
-     displayKey?.toLowerCase().includes('office') || displayKey?.toLowerCase().includes('company')) ? (
-      <div className="flex items-center justify-between gap-2">
-        <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-          {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
-        </span>
-        <button
-          type="button"
-          className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
-          onClick={() => startEditingField(key, displayValue)}
-          title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-5 h-5"
-          >
-            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-          </svg>
-          <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
-        </button>
-      </div>
-    ) : (
-      <div className="flex items-center justify-between gap-2">
-        <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-          {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
-        </span>
-        <button
-          type="button"
-          className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
-          onClick={() => startEditingField(key, displayValue)}
-          title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-5 h-5"
-          >
-            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-          </svg>
-          <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
-        </button>
-      </div>
-    )
+    (() => {
+      // التحقق من الطول والوزن وإظهار التحذيرات
+      const isHeightField = (key === 'height' || key === 'Height');
+      const isWeightField = (key === 'weight' || key === 'Weight');
+      
+      let heightWarning: { show: boolean; isFeet?: boolean; convertedValue?: number } = { show: false };
+      let weightWarning: { show: boolean; isPounds?: boolean; convertedValue?: number } = { show: false };
+      
+      if (isHeightField && displayValue) {
+        const unit = detectHeightUnit(String(displayValue));
+        const heightValidation = validateHeight(String(displayValue));
+        
+        // إظهار التحذير إذا كانت القيمة بالقدم أو خارج النطاق
+        if (unit === 'feet' || !heightValidation.isValid) {
+          const convertedCm = unit === 'feet' ? convertFeetToCm(String(displayValue)) : undefined;
+          heightWarning = {
+            show: true,
+            isFeet: unit === 'feet',
+            convertedValue: convertedCm
+          };
+        }
+      }
+      
+      if (isWeightField && displayValue) {
+        const unit = detectWeightUnit(String(displayValue));
+        const weightValidation = validateWeight(String(displayValue));
+        
+        // إظهار التحذير إذا كانت القيمة بالرطل أو خارج النطاق
+        if (unit === 'pounds' || !weightValidation.isValid) {
+          const convertedKg = unit === 'pounds' ? convertPoundsToKg(String(displayValue)) : undefined;
+          weightWarning = {
+            show: true,
+            isPounds: unit === 'pounds',
+            convertedValue: convertedKg
+          };
+        }
+      }
+      
+      const handleHeightConversion = () => {
+        if (heightWarning.convertedValue && processingResult) {
+          const updatedData = { ...processingResult.geminiData.jsonResponse };
+          updatedData.height = String(heightWarning.convertedValue);
+          updatedData.Height = String(heightWarning.convertedValue);
+          setProcessingResult({
+            ...processingResult,
+            geminiData: { jsonResponse: updatedData }
+          });
+        }
+      };
+      
+      const handleWeightConversion = () => {
+        if (weightWarning.convertedValue && processingResult) {
+          const updatedData = { ...processingResult.geminiData.jsonResponse };
+          updatedData.weight = String(weightWarning.convertedValue);
+          updatedData.Weight = String(weightWarning.convertedValue);
+          setProcessingResult({
+            ...processingResult,
+            geminiData: { jsonResponse: updatedData }
+          });
+        }
+      };
+      
+      return (
+        <div className="flex flex-col gap-2">
+          {/* التحذيرات */}
+          {heightWarning.show && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-right">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1">
+                  {heightWarning.isFeet ? (
+                    <p className="text-xs text-red-700">
+                      ⚠️ القيمة مكتوبة بالقدم. القيمة المحولة: {heightWarning.convertedValue} سم
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-700">
+                      ⚠️ يرجى التحقق من قيمة الطول - قد تكون غير صحيحة
+                    </p>
+                  )}
+                </div>
+                {heightWarning.isFeet && heightWarning.convertedValue && (
+                  <button
+                    type="button"
+                    onClick={handleHeightConversion}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors flex-shrink-0"
+                  >
+                    تحويل للسم
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {weightWarning.show && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-right">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1">
+                  {weightWarning.isPounds ? (
+                    <p className="text-xs text-red-700">
+                      ⚠️ القيمة مكتوبة بالرطل. القيمة المحولة: {weightWarning.convertedValue} كجم
+                    </p>
+                  ) : (
+                    <p className="text-xs text-red-700">
+                      ⚠️ يرجى التحقق من قيمة الوزن - قد تكون غير صحيحة
+                    </p>
+                  )}
+                </div>
+                {weightWarning.isPounds && weightWarning.convertedValue && (
+                  <button
+                    type="button"
+                    onClick={handleWeightConversion}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors flex-shrink-0"
+                  >
+                    تحويل للكجم
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* عرض القيمة */}
+          {key === 'office_name' || key === 'OfficeName' || key === 'company_name' || key === 'CompanyName' ||
+           displayKey === 'office_name' || displayKey === 'OfficeName' || displayKey === 'company_name' || displayKey === 'CompanyName' ||
+           key.toLowerCase().includes('office') || key.toLowerCase().includes('company') ||
+           displayKey?.toLowerCase().includes('office') || displayKey?.toLowerCase().includes('company') ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+                {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+              </span>
+              <button
+                type="button"
+                className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
+                onClick={() => startEditingField(key, displayValue)}
+                title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+                <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <span className={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+                {(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(displayValue)}
+              </span>
+              <button
+                type="button"
+                className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 text-xs font-medium transition-all duration-200 hover:scale-110"
+                onClick={() => startEditingField(key, displayValue)}
+                title={(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة بيانات' : 'تعديل الحقل'}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+                <span className="hidden sm:inline">{(!displayValue || displayValue === 'null' || displayValue === 'undefined' || String(displayValue).trim() === '') ? 'إضافة' : 'تعديل'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    })()
   )}
 </td>
                                   </tr>
