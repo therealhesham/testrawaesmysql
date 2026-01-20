@@ -1363,6 +1363,17 @@ export default function PDFProcessor() {
         } catch {
           updatedJson.languages_spoken = JSON.stringify({ [capitalizedLangName]: value });
         }
+      } else if (key === 'job_title' || key === 'JobTitle' || key === 'jobTitle' || 
+                 key === 'profession' || key === 'Profession' || 
+                 key === 'job' || key === 'Job') {
+        // إذا تم تعديل المهنة، قم بتحديث جميع الاختلافات
+        updatedJson.job_title = value;
+        updatedJson.JobTitle = value;
+        updatedJson.jobTitle = value;
+        updatedJson.profession = value;
+        updatedJson.Profession = value;
+        updatedJson.job = value;
+        updatedJson.Job = value;
       } else {
         updatedJson[key] = value;
       }
@@ -1465,6 +1476,185 @@ const handleSave = async () => {
       }
     } else if (!extractedProfession && professions.length > 0) {
       // المهنة فارغة - السماح بالحفظ (المهنة اختيارية)
+    }
+
+    // --- 4. التحقق من جميع الحقول المطلوبة (Required Fields) ---
+    const checkRequiredField = (value: any, fieldName: string, displayName: string): string | null => {
+      if (value === null || value === undefined || value === '' || 
+          (typeof value === 'string' && value.trim() === '') ||
+          value === 'null' || value === 'undefined') {
+        return displayName;
+      }
+      return null;
+    };
+
+    // دالة مساعدة للبحث عن قيمة في عدة مفاتيح (تشمل البحث في skills و languages_spoken)
+    const findFieldValue = (keys: string[], data: any): any => {
+      // البحث في البيانات الأساسية
+      for (const key of keys) {
+        const value = data[key];
+        if (value !== undefined && value !== null && value !== '' && 
+            value !== 'null' && value !== 'undefined' &&
+            (typeof value !== 'string' || value.trim() !== '')) {
+          return value;
+        }
+      }
+      
+      // البحث في كائن skills إذا كان موجوداً
+      if (data.skills) {
+        let skillsObj = data.skills;
+        if (typeof skillsObj === 'string') {
+          try { skillsObj = JSON.parse(skillsObj); } catch { skillsObj = {}; }
+        }
+        if (typeof skillsObj === 'object' && skillsObj !== null) {
+          for (const key of keys) {
+            const value = skillsObj[key];
+            if (value !== undefined && value !== null && value !== '' && 
+                value !== 'null' && value !== 'undefined' &&
+                (typeof value !== 'string' || value.trim() !== '')) {
+              return value;
+            }
+          }
+        }
+      }
+      
+      // البحث في كائن languages_spoken إذا كان موجوداً (لللغات)
+      if (data.languages_spoken) {
+        let langsObj = data.languages_spoken;
+        if (typeof langsObj === 'string') {
+          try { langsObj = JSON.parse(langsObj); } catch { langsObj = {}; }
+        }
+        if (typeof langsObj === 'object' && langsObj !== null) {
+          for (const key of keys) {
+            const value = langsObj[key];
+            if (value !== undefined && value !== null && value !== '' && 
+                value !== 'null' && value !== 'undefined' &&
+                (typeof value !== 'string' || value.trim() !== '')) {
+              return value;
+            }
+          }
+        }
+      }
+      
+      return null;
+    };
+
+    const missingFields: string[] = [];
+
+    // التحقق من البيانات الأساسية
+    const name = findFieldValue(['Name', 'name', 'full_name', 'FullName'], jsonResponse);
+    if (checkRequiredField(name, 'name', 'الاسم')) missingFields.push('الاسم');
+
+    const age = findFieldValue(['Age', 'age'], jsonResponse);
+    // if (checkRequiredField(age, 'age', 'العمر')) missingFields.push('العمر');
+// const 
+    const religion = findFieldValue(['Religion', 'religion'], jsonResponse);
+    if (checkRequiredField(religion, 'religion', 'الدين')) missingFields.push('الدين');
+
+    const maritalStatus = findFieldValue(['MaritalStatus', 'marital_status', 'maritalStatus', 'maritalstatus'], jsonResponse);
+    if (checkRequiredField(maritalStatus, 'maritalstatus', 'الحالة الاجتماعية')) missingFields.push('الحالة الاجتماعية');
+
+    const birthDate = findFieldValue(['BirthDate', 'birthDate', 'birth_date', 'date_of_birth', 'dateofbirth'], jsonResponse);
+    if (checkRequiredField(birthDate, 'dateofbirth', 'تاريخ الميلاد')) missingFields.push('تاريخ الميلاد');
+
+    // التحقق من الجنسية
+    if (!validNationality) {
+      missingFields.push('الجنسية');
+    }
+
+    // التحقق من المكتب
+    if (!extractedOfficeName || extractedOfficeName === 'null' || extractedOfficeName === 'undefined' || 
+        (typeof extractedOfficeName === 'string' && extractedOfficeName.trim() === '')) {
+      missingFields.push('المكتب');
+    }
+
+    // التحقق من المهنة
+    if (!extractedProfession || extractedProfession === 'null' || extractedProfession === 'undefined' || 
+        (typeof extractedProfession === 'string' && extractedProfession.trim() === '')) {
+      missingFields.push('المهنة');
+    }
+
+    // التحقق من بيانات الجواز
+    const passportNumber = findFieldValue(['PassportNumber', 'passport_number', 'passportNumber', 'passport', 'Passport', 'PASSPORT_NUMBER', 'Passportnumber'], jsonResponse);
+    if (checkRequiredField(passportNumber, 'Passportnumber', 'رقم الجواز')) missingFields.push('رقم الجواز');
+
+    const passportStart = findFieldValue(['PassportStartDate', 'passportStartDate', 'PassportStart', 'passportStart', 'passport_issue_date', 'passport_issue', 'passport_start', 'issue_date', 'issueDate', 'IssueDate'], jsonResponse);
+    if (checkRequiredField(passportStart, 'PassportStart', 'تاريخ إصدار الجواز')) missingFields.push('تاريخ إصدار الجواز');
+
+    const passportEnd = findFieldValue(['PassportEndDate', 'passportEndDate', 'PassportEnd', 'passportEnd', 'passport_expiration', 'passport_expiry', 'passport_end', 'expiration_date', 'expirationDate', 'ExpirationDate', 'expiry_date', 'expiryDate', 'ExpiryDate'], jsonResponse);
+    if (checkRequiredField(passportEnd, 'PassportEnd', 'تاريخ انتهاء الجواز')) missingFields.push('تاريخ انتهاء الجواز');
+
+    // التحقق من التعليم والخبرة
+    const education = findFieldValue(['Education', 'education', 'EducationLevel', 'educationLevel', 'education_level'], jsonResponse);
+    if (checkRequiredField(education, 'Education', 'التعليم')) missingFields.push('التعليم');
+
+    const experience = findFieldValue(['Experience', 'experience', 'ExperienceField', 'experienceField', 'experience_field'], jsonResponse);
+    if (checkRequiredField(experience, 'Experience', 'الخبرة')) missingFields.push('الخبرة');
+
+    const experienceYears = findFieldValue(['ExperienceYears', 'experienceYears', 'experience_years', 'years_of_experience'], jsonResponse);
+    if (checkRequiredField(experienceYears, 'ExperienceYears', 'سنوات الخبرة')) missingFields.push('سنوات الخبرة');
+
+    // التحقق من رقم الهاتف
+    const phone = findFieldValue(['phone', 'Phone', 'mobile', 'Mobile', 'phoneNumber', 'phone_number'], jsonResponse);
+    if (checkRequiredField(phone, 'phone', 'رقم الهاتف')) missingFields.push('رقم الهاتف');
+
+    // التحقق من الراتب
+    const salary = findFieldValue(['Salary', 'salary'], jsonResponse);
+    if (checkRequiredField(salary, 'Salary', 'الراتب')) missingFields.push('الراتب');
+
+    // التحقق من الطول والوزن
+    const weight = findFieldValue(['Weight', 'weight'], jsonResponse);
+    if (checkRequiredField(weight, 'weight', 'الوزن')) missingFields.push('الوزن');
+
+    const height = findFieldValue(['Height', 'height'], jsonResponse);
+    if (checkRequiredField(height, 'height', 'الطول')) missingFields.push('الطول');
+
+    // التحقق من عدد الأطفال
+    const children = findFieldValue(['children', 'Children', 'children_count', 'ChildrenCount', 'childrenCount', 'childrencount'], jsonResponse);
+    if (checkRequiredField(children, 'children', 'عدد الأطفال')) missingFields.push('عدد الأطفال');
+
+    // التحقق من اللغات
+    const englishLevel = findFieldValue(['EnglishLanguageLevel', 'English', 'english', 'englishLevel', 'english_level'], jsonResponse);
+    if (checkRequiredField(englishLevel, 'EnglishLanguageLevel', 'مستوى اللغة الإنجليزية')) missingFields.push('مستوى اللغة الإنجليزية');
+
+    const arabicLevel = findFieldValue(['ArabicLanguageLeveL', 'ArabicLanguageLevel', 'Arabic', 'arabic', 'arabicLevel', 'arabic_level'], jsonResponse);
+    if (checkRequiredField(arabicLevel, 'ArabicLanguageLeveL', 'مستوى اللغة العربية')) missingFields.push('مستوى اللغة العربية');
+
+    // التحقق من المهارات
+    const washingLevel = findFieldValue(['washingLevel', 'WashingLevel', 'WASHING', 'washing', 'Washing'], jsonResponse);
+    if (checkRequiredField(washingLevel, 'washingLevel', 'مستوى الغسيل')) missingFields.push('مستوى الغسيل');
+
+    const cookingLevel = findFieldValue(['cookingLevel', 'CookingLevel', 'COOKING', 'cooking', 'Cooking'], jsonResponse);
+    if (checkRequiredField(cookingLevel, 'cookingLevel', 'مستوى الطبخ')) missingFields.push('مستوى الطبخ');
+
+    const childcareLevel = findFieldValue(['childcareLevel', 'ChildcareLevel', 'babysitting', 'BABYSITTING', 'babysetting', 'BabySitter', 'childcare'], jsonResponse);
+    if (checkRequiredField(childcareLevel, 'childcareLevel', 'مستوى رعاية الأطفال')) missingFields.push('مستوى رعاية الأطفال');
+
+    const cleaningLevel = findFieldValue(['cleaningLevel', 'CleaningLevel', 'CLEANING', 'cleaning', 'Cleaning'], jsonResponse);
+    if (checkRequiredField(cleaningLevel, 'cleaningLevel', 'مستوى التنظيف')) missingFields.push('مستوى التنظيف');
+
+    const ironingLevel = findFieldValue(['ironingLevel', 'IroningLevel', 'IRONING', 'ironing', 'Ironing'], jsonResponse);
+    if (checkRequiredField(ironingLevel, 'ironingLevel', 'مستوى الكي')) missingFields.push('مستوى الكي');
+
+    const sewingLevel = findFieldValue(['sewingLevel', 'SewingLevel', 'SEWING', 'sewing', 'Sewing'], jsonResponse);
+    if (checkRequiredField(sewingLevel, 'sewingLevel', 'مستوى الخياطة')) missingFields.push('مستوى الخياطة');
+
+    const elderlycareLevel = findFieldValue(['elderlycareLevel', 'ElderlycareLevel', 'ELDERLYCARE', 'elderlycare', 'ElderlyCare', 'elderly_care'], jsonResponse);
+    if (checkRequiredField(elderlycareLevel, 'elderlycareLevel', 'مستوى رعاية كبار السن')) missingFields.push('مستوى رعاية كبار السن');
+
+    const babySitterLevel = findFieldValue(['BabySitterLevel', 'babySitterLevel', 'babysitterLevel', 'BABYSITTERLEVEL', 'baby_sitter_level', 'Baby_Sitter_Level'], jsonResponse);
+    if (checkRequiredField(babySitterLevel, 'BabySitterLevel', 'مستوى رعاية الرضع')) missingFields.push('مستوى رعاية الرضع');
+
+    // التحقق من الصور
+    if (selectedImages.length === 0 && uploadedImageUrls.length === 0) {
+      missingFields.push('الصور');
+    }
+
+    // إذا كانت هناك حقول مفقودة، إيقاف الحفظ وعرض رسالة خطأ
+    if (missingFields.length > 0) {
+      setError(`لا يمكن الحفظ! الحقول التالية مطلوبة ولكنها فارغة:\n${missingFields.join('\n')}`);
+      showToast(`الحقول المطلوبة فارغة: ${missingFields.join('، ')}`, 'error');
+      return;
     }
 
     setIsSaving(true);
@@ -2464,6 +2654,7 @@ const handleSave = async () => {
                                 const skillsInfo: [string, any][] = [];
                                 const languagesInfo: [string, any][] = [];
                                 const otherInfo: [string, any][] = [];
+                                let jobFieldEntry: [string, any] | null = null;
 
                                 allEntries.forEach(([key, value]) => {
                                   // تخطي جميع حقول المكتب من العرض (يتم اختيارها من السكشن المخصص)
@@ -2550,6 +2741,29 @@ const handleSave = async () => {
                                     return;
                                   }
 
+                                  // جمع حقل المهنة (job_title/profession/job) - سنضيفه لاحقاً في الترتيب الصحيح
+                                  if (
+                                    normalizedKey === 'job_title' ||
+                                    normalizedKey === 'profession' ||
+                                    normalizedKey === 'job' ||
+                                    key === 'job_title' ||
+                                    key === 'JobTitle' ||
+                                    key === 'jobTitle' ||
+                                    key === 'profession' ||
+                                    key === 'Profession' ||
+                                    key === 'job' ||
+                                    key === 'Job'
+                                  ) {
+                                    // استخدام أول قيمة غير فارغة نجدها
+                                    if (!jobFieldEntry) {
+                                      jobFieldEntry = ['job_title', value];
+                                    } else if (!jobFieldEntry[1] && value) {
+                                      // إذا كان الحقل السابق فارغاً وهذه القيمة موجودة، استخدمها
+                                      jobFieldEntry = ['job_title', value];
+                                    }
+                                    return;
+                                  }
+
                                   // توسيع المهارات إلى حقول منفصلة
                                   if (key === 'skills') {
                                     try {
@@ -2626,7 +2840,6 @@ const handleSave = async () => {
                                     normalizedKey.includes('sewinglevel') ||
                                     normalizedKey.includes('childcarelevel') ||
                                     normalizedKey.includes('elderlycarelevel') ||
-                                    normalizedKey.includes('laundrylevel') ||
                                     normalizedKey.includes('babysitterlevel') ||
                                     key.startsWith('skill_')
                                   ) {
@@ -2676,9 +2889,6 @@ const handleSave = async () => {
                                     normalizedKey === 'mobile' ||
                                     normalizedKey === 'phone' ||
                                     normalizedKey === 'salary' ||
-                                    normalizedKey === 'job_title' ||
-                                    normalizedKey === 'profession' ||
-                                    normalizedKey === 'job' ||
                                     normalizedKey === 'contract_duration' ||
                                     normalizedKey === 'contractduration' ||
                                     normalizedKey === 'birth_place'
@@ -2726,6 +2936,14 @@ const handleSave = async () => {
                                 }
                                 if (experienceYearsEntry) {
                                   experienceInfo.push(experienceYearsEntry);
+                                }
+
+                                // إضافة حقل المهنة (jobFieldEntry) في personalInfo
+                                if (jobFieldEntry) {
+                                  personalInfo.push(jobFieldEntry);
+                                } else {
+                                  // إذا لم يكن موجوداً في البيانات، أضفه كحقل فارغ
+                                  personalInfo.push(['job_title', '']);
                                 }
 
                                 // تجميع جميع الحقول بالترتيب المطلوب
@@ -3421,8 +3639,7 @@ const handleSave = async () => {
      key === 'SewingLevel' || key === 'sewingLevel' || key === 'sewing_level' ||
      key === 'ChildcareLevel' || key === 'childcareLevel' || key === 'childcare_level' ||
      key === 'ElderlycareLevel' || key === 'elderlycareLevel' || key === 'elderlycare_level' ||
-     key === 'BabySitterLevel' || key === 'babySitterLevel' || key === 'baby_sitter_level' ||
-     key === 'LaundryLevel' || key === 'laundryLevel' || key === 'laundry_level') ? (
+     key === 'BabySitterLevel' || key === 'babySitterLevel' || key === 'baby_sitter_level') ? (
       <div className="flex items-center gap-2">
         <div className="relative w-full">
           <select

@@ -195,7 +195,7 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     cookingLevel: getSkill(['cookingLevel', 'CookingLevel', 'COOKING', 'cooking', 'Cooking']),
     childcareLevel: getSkill(['childcareLevel', 'ChildcareLevel', 'babysitting', 'BABYSITTING', 'babysetting', 'BabySitter', 'childcare']),
     cleaningLevel: getSkill(['cleaningLevel', 'CleaningLevel', 'CLEANING', 'cleaning', 'Cleaning']),
-    laundryLevel: getSkill(['laundryLevel', 'LaundryLevel', 'LAUNDRY', 'laundry', 'Laundry']),
+    // laundryLevel: getSkill(['laundryLevel', 'LaundryLevel', 'LAUNDRY', 'laundry', 'Laundry']),
     ironingLevel: getSkill(['ironingLevel', 'IroningLevel', 'IRONING', 'ironing', 'Ironing']),
     sewingLevel: getSkill(['sewingLevel', 'SewingLevel', 'SEWING', 'sewing', 'Sewing']),
     elderlycareLevel: getSkill(['elderlycareLevel', 'ElderlycareLevel', 'ELDERLYCARE', 'elderlycare', 'ElderlyCare', 'elderly_care']),
