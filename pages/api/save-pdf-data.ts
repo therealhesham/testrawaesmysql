@@ -179,7 +179,7 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     // ✨✨ الطول والوزن (تم تفعيلها وإضافة التحليل الذكي) ✨✨
     weight: parsePhysicalStat(findValue(['Weight', 'weight'])),
     height: parsePhysicalStat(findValue(['Height', 'height'])),
-    children: parseChildren(findValue(['children', 'Children', 'children_count', 'ChildrenCount', 'childrenCount'])),
+    children: parseChildren(findValue(['children', 'Children', 'children_count', 'ChildrenCount', 'childrenCount','childrencount'])),
 
     // الصور
     Picture: profileImage ? { url: profileImage } : Prisma.JsonNull,
@@ -189,6 +189,7 @@ const mapGeminiDataToHomemaid = (geminiData: any, selectedImages: string[]) => {
     EnglishLanguageLevel: findValue(['EnglishLanguageLevel', 'English'], data) || findValue(['English', 'english', 'englishLevel', 'english_level'], languagesSpoken),
     ArabicLanguageLeveL: findValue(['ArabicLanguageLeveL', 'ArabicLanguageLevel', 'Arabic'], data) || findValue(['Arabic', 'arabic', 'arabicLevel', 'arabic_level'], languagesSpoken),
     
+    BabySitterLevel: findValue(['BabySitterLevel', 'BabySitter', 'babySitter', 'babysitter', 'BabySitterLevel', 'BabySitter', 'babySitter', 'babysitter']),
     // المهارات (باستخدام الدالة الذكية للبحث في كل مكان)
     washingLevel: getSkill(['washingLevel', 'WashingLevel', 'WASHING', 'washing', 'Washing']),
     cookingLevel: getSkill(['cookingLevel', 'CookingLevel', 'COOKING', 'cooking', 'Cooking']),

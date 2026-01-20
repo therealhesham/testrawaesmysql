@@ -1559,7 +1559,7 @@ const handleSave = async () => {
       };
 
       // الغسيل
-      const washing = getSkillValue(['washing', 'laundry', 'washinglevel'], flattenedData);
+      const washing = getSkillValue(['washing', 'washinglevel'], flattenedData);
       if (washing) {
         flattenedData.washingLevel = washing;
         flattenedData.WashingLevel = washing;
@@ -1607,18 +1607,28 @@ const handleSave = async () => {
         flattenedData.ElderlycareLevel = elderly;
       }
 
-      // الغسيل والكي (Laundry)
-      const laundry = getSkillValue(['laundry', 'washing', 'laundrylevel'], flattenedData);
-      if (laundry) {
-        flattenedData.laundryLevel = laundry;
-        flattenedData.LaundryLevel = laundry;
-      }
 
-      // العناية بالرضع (BabySitterLevel)
-      const babySitter = getSkillValue(['babysitter', 'babysitterlevel'], flattenedData);
-      if (babySitter) {
+      // العناية بالرضع (BabySitterLevel) - البحث المباشر لأن الاسم يحتوي على S كبير في المنتصف
+      let babySitter = getSkillValue(['babysitter', 'babysitterlevel'], flattenedData);
+      // البحث المباشر عن BabySitterLevel بجميع الاختلافات
+      if (!babySitter || babySitter === 'null' || babySitter === 'undefined') {
+        const babySitterKeys = ['BabySitterLevel', 'babySitterLevel', 'babysitterLevel', 'BABYSITTERLEVEL', 'baby_sitter_level', 'Baby_Sitter_Level'];
+        for (const key of babySitterKeys) {
+          const value = flattenedData[key];
+          if (value && value !== 'null' && value !== 'undefined' && String(value).trim() !== '') {
+            babySitter = String(value);
+            console.log(`🔍 Found BabySitterLevel as ${key}:`, babySitter);
+            break;
+          }
+        }
+      }
+      if (babySitter && babySitter !== 'null' && babySitter !== 'undefined' && babySitter.trim() !== '') {
         flattenedData.babySitterLevel = babySitter;
         flattenedData.BabySitterLevel = babySitter;
+        flattenedData.baby_sitter_level = babySitter;
+        console.log("✅ BabySitterLevel saved:", babySitter);
+      } else {
+        console.log("⚠️ BabySitterLevel not found or is null");
       }
 
       // اللغات - دالة مساعدة للحصول على اللغة من جميع الاختلافات الممكنة
@@ -1727,6 +1737,11 @@ const handleSave = async () => {
         passport: flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number || flattenedData.Passportnumber || flattenedData.passportNumber || flattenedData.passportnumber,
         passportStart: flattenedData.passportStart || flattenedData.passportStartDate || flattenedData.passport_issue_date,
         passportEnd: flattenedData.passportEnd || flattenedData.passportEndDate || flattenedData.passport_expiration,
+      });
+      console.log("🔍 BabySitterLevel Check:", {
+        BabySitterLevel: flattenedData.BabySitterLevel,
+        babySitterLevel: flattenedData.babySitterLevel,
+        baby_sitter_level: flattenedData.baby_sitter_level,
       });
 
       const response = await fetch('/api/save-pdf-data', {
@@ -2897,10 +2912,7 @@ const handleSave = async () => {
                                     'elderly_care': 'مهارة: رعاية كبار السن',
                                     'ElderlyCare': 'مهارة: رعاية كبار السن',
                                     
-                                    'laundryLevel': 'مهارة: الغسيل والكي',
-                                    'laundry_level': 'مهارة: الغسيل والكي',
-                                    'LaundryLevel': 'مهارة: الغسيل والكي',
-                                    
+
                                     'BabySitterLevel': 'مهارة: العناية بالرضع',
                                     'baby_sitter_level': 'مهارة: العناية بالرضع',
                                     'children_count': 'عدد الأطفال',
@@ -2911,7 +2923,6 @@ const handleSave = async () => {
                                     'skill_cooking': 'مهارة: الطبخ',
                                     'skill_babysitting': 'مهارة: رعاية الأطفال',
                                     'skill_cleaning': 'مهارة: التنظيف',
-                                    'skill_laundry': 'مهارة: الغسيل والكي',
                                     'skill_ironing': 'مهارة: الكوي',
                                     'skill_sewing': 'مهارة: الخياطة',
                                     'skill_childcare': 'مهارة: العناية بالأطفال',
