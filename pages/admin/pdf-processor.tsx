@@ -171,6 +171,15 @@ const experienceOptions = [
   "Expert | خبرة ممتازة"
 ];
 
+const educationOptions = [
+  "Diploma - دبلوم",
+  "High school - ثانوي",
+  "Illiterate - غير متعلم",
+  "Literate - القراءة والكتابة",
+  "Primary school - ابتدائي",
+  "University level - جامعي"
+];
+
 // دالة للتحقق من وجود القيمة في قائمة الخيارات
 const isValueInOptions = (value: string, options: string[]): boolean => {
   if (!value || typeof value !== 'string') return false;
@@ -561,8 +570,8 @@ export default function PDFProcessor() {
           ['nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy', 'nationality', 'Nationality', 'nationalitycopy', 'Nationalitycopy'],
           ['religion', 'Religion', 'religion', 'Religion', 'religion', 'Religion', 'religion', 'Religion'],
           ['marital_status', 'MaritalStatus', 'maritalStatus', 'maritalstatus'],
-          ['date_of_birth', 'birthDate', 'BirthDate', 'age'],
-          ['passport_number', 'passport', 'PassportNumber'],
+          ['date_of_birth', 'birthDate', 'BirthDate', 'age', 'dateofbirth', 'DateOfBirth', 'birth_date', 'Birth_Date'],
+          ['passport_number', 'passport', 'PassportNumber', 'Passportnumber', 'passportNumber', 'passportnumber'],
           ['office_name', 'company_name', 'OfficeName', 'CompanyName'],
           ['passport_issue_date', 'passportStart', 'passportStartDate', 'PassportStartDate'],
           ['passport_expiration', 'passportEnd', 'passportEndDate', 'PassportEndDate'],
@@ -684,6 +693,16 @@ export default function PDFProcessor() {
         delete cleanedJsonResponse.marital_status;
         delete cleanedJsonResponse.MaritalStatus;
         delete cleanedJsonResponse.maritalstatus;
+      }
+      
+      // التحقق من educationLevel
+      const educationLevelValue = cleanedJsonResponse.educationLevel || cleanedJsonResponse.education_level || cleanedJsonResponse.EducationLevel || cleanedJsonResponse.education || cleanedJsonResponse.Education;
+      if (educationLevelValue && !isValueInOptions(String(educationLevelValue), educationOptions)) {
+        delete cleanedJsonResponse.educationLevel;
+        delete cleanedJsonResponse.education_level;
+        delete cleanedJsonResponse.EducationLevel;
+        delete cleanedJsonResponse.education;
+        delete cleanedJsonResponse.Education;
       }
       
       // التحقق من skills object
@@ -1136,7 +1155,7 @@ export default function PDFProcessor() {
     const { key, value } = editingField;
     
     // التحقق من جواز السفر - يقبل أرقام وحروف فقط
-    if ((key === 'passport_number' || key === 'passport' || key === 'PassportNumber') && value) {
+    if ((key === 'passport_number' || key === 'passport' || key === 'PassportNumber' || key === 'Passportnumber' || key === 'passportNumber' || key === 'passportnumber') && value) {
       const passportValue = String(value).trim();
       // التحقق من أن القيمة تحتوي على أرقام وحروف فقط (لا رموز خاصة)
       if (!/^[a-zA-Z0-9]+$/.test(passportValue)) {
@@ -1295,6 +1314,30 @@ export default function PDFProcessor() {
         // إذا تم تعديل nationality، قم بتحديث Nationality أيضاً
         updatedJson[key] = value;
         updatedJson[key === 'nationality' ? 'Nationality' : 'nationality'] = value;
+      } else if (key === 'passport_number' || key === 'passport' || key === 'PassportNumber' || key === 'Passportnumber' || key === 'passportNumber' || key === 'passportnumber') {
+        // إذا تم تعديل جواز السفر، قم بتحديث جميع الاختلافات
+        updatedJson.passport = value;
+        updatedJson.passport_number = value;
+        updatedJson.PassportNumber = value;
+        updatedJson.Passportnumber = value;
+        updatedJson.passportNumber = value;
+        updatedJson.passportnumber = value;
+      } else if (key === 'date_of_birth' || key === 'birthDate' || key === 'BirthDate' || key === 'dateofbirth' || key === 'DateOfBirth' || key === 'birth_date' || key === 'Birth_Date' || key === 'age') {
+        // إذا تم تعديل تاريخ الميلاد، قم بتحديث جميع الاختلافات
+        updatedJson.date_of_birth = value;
+        updatedJson.birthDate = value;
+        updatedJson.BirthDate = value;
+        updatedJson.dateofbirth = value;
+        updatedJson.DateOfBirth = value;
+        updatedJson.birth_date = value;
+        updatedJson.Birth_Date = value;
+        updatedJson.age = value;
+      } else if (key === 'marital_status' || key === 'MaritalStatus' || key === 'maritalStatus' || key === 'maritalstatus') {
+        // إذا تم تعديل الحالة الاجتماعية، قم بتحديث جميع الاختلافات
+        updatedJson.marital_status = value;
+        updatedJson.MaritalStatus = value;
+        updatedJson.maritalStatus = value;
+        updatedJson.maritalstatus = value;
       } else if (key.startsWith('skill_')) {
         // تحديث مهارة محددة داخل كائن skills
         const skillName = key.replace('skill_', '').toUpperCase();
@@ -1487,61 +1530,145 @@ const handleSave = async () => {
       };
 
       // 2. تعبئة البيانات (الأولوية للمهارة المستخرجة من الكائن skills)
+      // دالة مساعدة للحصول على المهارة من جميع الاختلافات الممكنة
+      const getSkillValue = (skillKeys: string[], data: any): string => {
+        // أولاً: البحث في كائن skills
+        const fromSkills = getSkill(skillKeys);
+        if (fromSkills) return fromSkills;
+        
+        // ثانياً: البحث في البيانات بجميع الاختلافات الممكنة
+        for (const key of skillKeys) {
+          const variations = [
+            key,
+            key.charAt(0).toUpperCase() + key.slice(1),
+            key.toUpperCase(),
+            key.toLowerCase(),
+            key + 'Level',
+            key.charAt(0).toUpperCase() + key.slice(1) + 'Level',
+            key.toUpperCase() + 'LEVEL',
+          ];
+          
+          for (const variation of variations) {
+            if (data[variation] && data[variation] !== 'null' && data[variation] !== 'undefined' && String(data[variation]).trim() !== '') {
+              return String(data[variation]);
+            }
+          }
+        }
+        
+        return "";
+      };
+
       // الغسيل
-      const washing = getSkill(['washing', 'laundry', 'washinglevel']) || flattenedData.washingLevel || "";
-      flattenedData.washingLevel = washing;
-      flattenedData.WashingLevel = washing;
+      const washing = getSkillValue(['washing', 'laundry', 'washinglevel'], flattenedData);
+      if (washing) {
+        flattenedData.washingLevel = washing;
+        flattenedData.WashingLevel = washing;
+      }
 
       // الطبخ
-      const cooking = getSkill(['cooking', 'cookinglevel']) || flattenedData.cookingLevel || "";
-      flattenedData.cookingLevel = cooking;
-      flattenedData.CookingLevel = cooking;
+      const cooking = getSkillValue(['cooking', 'cookinglevel'], flattenedData);
+      if (cooking) {
+        flattenedData.cookingLevel = cooking;
+        flattenedData.CookingLevel = cooking;
+      }
 
       // التنظيف
-      const cleaning = getSkill(['cleaning', 'cleaninglevel']) || flattenedData.cleaningLevel || "";
-      flattenedData.cleaningLevel = cleaning;
-      flattenedData.CleaningLevel = cleaning;
+      const cleaning = getSkillValue(['cleaning', 'cleaninglevel'], flattenedData);
+      if (cleaning) {
+        flattenedData.cleaningLevel = cleaning;
+        flattenedData.CleaningLevel = cleaning;
+      }
 
       // الكوي
-      const ironing = getSkill(['ironing', 'ironinglevel']) || flattenedData.ironingLevel || "";
-      flattenedData.ironingLevel = ironing;
-      flattenedData.IroningLevel = ironing;
+      const ironing = getSkillValue(['ironing', 'ironinglevel'], flattenedData);
+      if (ironing) {
+        flattenedData.ironingLevel = ironing;
+        flattenedData.IroningLevel = ironing;
+      }
 
       // الخياطة
-      const sewing = getSkill(['sewing', 'sewinglevel']) || flattenedData.sewingLevel || "";
-      flattenedData.sewingLevel = sewing;
-      flattenedData.SewingLevel = sewing;
+      const sewing = getSkillValue(['sewing', 'sewinglevel'], flattenedData);
+      if (sewing) {
+        flattenedData.sewingLevel = sewing;
+        flattenedData.SewingLevel = sewing;
+      }
 
       // رعاية الأطفال
-      const childcare = getSkill(['babysitter', 'babysitting', 'childcare', 'child_care', 'childcarelevel']) || flattenedData.childcareLevel || "";
-      flattenedData.childcareLevel = childcare;
-      flattenedData.ChildcareLevel = childcare;
+      const childcare = getSkillValue(['babysitter', 'babysitting', 'childcare', 'child_care', 'childcarelevel'], flattenedData);
+      if (childcare) {
+        flattenedData.childcareLevel = childcare;
+        flattenedData.ChildcareLevel = childcare;
+      }
 
       // رعاية كبار السن
-      const elderly = getSkill(['elderly_care', 'elderlycare', 'elderly', 'elderlycarelevel']) || flattenedData.elderlycareLevel || "";
-      flattenedData.elderlycareLevel = elderly;
-      flattenedData.ElderlycareLevel = elderly;
+      const elderly = getSkillValue(['elderly_care', 'elderlycare', 'elderly', 'elderlycarelevel'], flattenedData);
+      if (elderly) {
+        flattenedData.elderlycareLevel = elderly;
+        flattenedData.ElderlycareLevel = elderly;
+      }
 
       // الغسيل والكي (Laundry)
-      const laundry = getSkill(['laundry', 'washing', 'laundrylevel']) || flattenedData.laundryLevel || "";
-      flattenedData.laundryLevel = laundry;
-      flattenedData.LaundryLevel = laundry;
+      const laundry = getSkillValue(['laundry', 'washing', 'laundrylevel'], flattenedData);
+      if (laundry) {
+        flattenedData.laundryLevel = laundry;
+        flattenedData.LaundryLevel = laundry;
+      }
 
-      // اللغات
-      const english = getLang(['english', 'englishlanguagelevel']) || flattenedData.EnglishLanguageLevel || "";
-      flattenedData.EnglishLanguageLevel = english;
+      // العناية بالرضع (BabySitterLevel)
+      const babySitter = getSkillValue(['babysitter', 'babysitterlevel'], flattenedData);
+      if (babySitter) {
+        flattenedData.babySitterLevel = babySitter;
+        flattenedData.BabySitterLevel = babySitter;
+      }
 
-      const arabic = getLang(['arabic', 'arabiclanguagelevel']) || flattenedData.ArabicLanguageLeveL || "";
-      flattenedData.ArabicLanguageLeveL = arabic;
+      // اللغات - دالة مساعدة للحصول على اللغة من جميع الاختلافات الممكنة
+      const getLangValue = (langKeys: string[], data: any): string => {
+        // أولاً: البحث في كائن languages_spoken
+        const fromLangs = getLang(langKeys);
+        if (fromLangs && fromLangs !== 'null' && fromLangs !== 'undefined') return fromLangs;
+        
+        // ثانياً: البحث في البيانات بجميع الاختلافات الممكنة
+        const variations = [
+          'EnglishLanguageLevel', 'englishLanguageLevel', 'englishLanguageLevel', 'englishlanguagelevel',
+          'ArabicLanguageLeveL', 'arabicLanguageLevel', 'arabicLanguageLevel', 'arabiclanguagelevel',
+          'ArabicLevel', 'arabicLevel', 'arabiclevel',
+          'EnglishLevel', 'englishLevel', 'englishlevel',
+        ];
+        
+        for (const variation of variations) {
+          const value = data[variation];
+          if (value && value !== 'null' && value !== 'undefined' && String(value).trim() !== '') {
+            return String(value);
+          }
+        }
+        
+        return "";
+      };
+
+      const english = getLangValue(['english', 'englishlanguagelevel'], flattenedData);
+      if (english) {
+        flattenedData.EnglishLanguageLevel = english;
+        flattenedData.englishLanguageLevel = english;
+        flattenedData.EnglishLevel = english;
+      }
+
+      const arabic = getLangValue(['arabic', 'arabiclanguagelevel'], flattenedData);
+      if (arabic) {
+        flattenedData.ArabicLanguageLeveL = arabic;
+        flattenedData.arabicLanguageLevel = arabic;
+        flattenedData.ArabicLevel = arabic;
+      }
 
       // 🔍 التأكد من إرسال بيانات الجواز بشكل صحيح
       // نسخ بيانات الجواز بجميع الاختلافات الممكنة
-      if (flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number) {
-        const passportValue = flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number;
+      if (flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number || flattenedData.Passportnumber || flattenedData.passportNumber || flattenedData.passportnumber) {
+        const passportValue = flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number || flattenedData.Passportnumber || flattenedData.passportNumber || flattenedData.passportnumber;
         flattenedData.passport = passportValue;
         flattenedData.PassportNumber = passportValue;
         flattenedData.passport_number = passportValue;
         flattenedData.passportNumber = passportValue;
+        flattenedData.Passportnumber = passportValue;
+        flattenedData.passportnumber = passportValue;
       }
 
       if (flattenedData.passportStart || flattenedData.passportStartDate || flattenedData.passport_issue_date || flattenedData.PassportStartDate) {
@@ -1563,9 +1690,41 @@ const handleSave = async () => {
         flattenedData.passport_expiry = passportEndValue;
       }
 
+      // 🔍 التأكد من إرسال تاريخ الميلاد بشكل صحيح
+      // نسخ تاريخ الميلاد بجميع الاختلافات الممكنة
+      if (flattenedData.date_of_birth || flattenedData.birthDate || flattenedData.BirthDate || flattenedData.dateofbirth || flattenedData.DateOfBirth || flattenedData.birth_date || flattenedData.Birth_Date || flattenedData.age) {
+        const birthDateValue = flattenedData.date_of_birth || flattenedData.birthDate || flattenedData.BirthDate || flattenedData.dateofbirth || flattenedData.DateOfBirth || flattenedData.birth_date || flattenedData.Birth_Date || flattenedData.age;
+        flattenedData.date_of_birth = birthDateValue;
+        flattenedData.birthDate = birthDateValue;
+        flattenedData.BirthDate = birthDateValue;
+        flattenedData.dateofbirth = birthDateValue;
+        flattenedData.DateOfBirth = birthDateValue;
+        flattenedData.birth_date = birthDateValue;
+        flattenedData.Birth_Date = birthDateValue;
+        flattenedData.age = birthDateValue;
+      }
+
+      // 🔍 التأكد من إرسال الحالة الاجتماعية بشكل صحيح
+      // نسخ الحالة الاجتماعية بجميع الاختلافات الممكنة
+      if (flattenedData.marital_status || flattenedData.MaritalStatus || flattenedData.maritalStatus || flattenedData.maritalstatus) {
+        const maritalStatusValue = flattenedData.marital_status || flattenedData.MaritalStatus || flattenedData.maritalStatus || flattenedData.maritalstatus;
+        flattenedData.marital_status = maritalStatusValue;
+        flattenedData.MaritalStatus = maritalStatusValue;
+        flattenedData.maritalStatus = maritalStatusValue;
+        flattenedData.maritalstatus = maritalStatusValue;
+      }
+
+      // 🔍 تنظيف القيم 'null' و 'undefined' (كسلسلة نصية) قبل الإرسال
+      Object.keys(flattenedData).forEach(key => {
+        const value = flattenedData[key];
+        if (value === 'null' || value === 'undefined' || (typeof value === 'string' && value.trim() === '')) {
+          delete flattenedData[key];
+        }
+      });
+
       console.log("🚀 Data Sent to Server:", flattenedData);
       console.log("🔍 Passport Data Check:", {
-        passport: flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number,
+        passport: flattenedData.passport || flattenedData.PassportNumber || flattenedData.passport_number || flattenedData.Passportnumber || flattenedData.passportNumber || flattenedData.passportnumber,
         passportStart: flattenedData.passportStart || flattenedData.passportStartDate || flattenedData.passport_issue_date,
         passportEnd: flattenedData.passportEnd || flattenedData.passportEndDate || flattenedData.passport_expiration,
       });
@@ -2424,6 +2583,9 @@ const handleSave = async () => {
                                     key === 'passport_number' ||
                                     key === 'passport' ||
                                     key === 'PassportNumber' ||
+                                    key === 'Passportnumber' ||
+                                    key === 'passportNumber' ||
+                                    key === 'passportnumber' ||
                                     key === 'passportStart' ||
                                     key === 'passportStartDate' ||
                                     key === 'passport_issue_date' ||
@@ -2948,6 +3110,56 @@ const handleSave = async () => {
       </div>
     ) :
     // ---------------------------------------------------------
+    // 3.4. الحالة الرابعة: تعديل مستوى التعليم (Education Level) ✨
+    // ---------------------------------------------------------
+    (key === 'educationLevel' || key === 'education_level' || key === 'EducationLevel' || key === 'education' || key === 'Education') ? (
+      <div className="flex items-center gap-2">
+        <div className="relative w-full">
+          <select
+            style={{ 
+              backgroundImage: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none', 
+              appearance: 'none' 
+            }}
+            className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
+            value={editingField?.value ?? ''}
+            onChange={(e) =>
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              )
+            }
+          >
+            <option value="">اختر مستوى التعليم</option>
+            {educationOptions.map((edu) => (
+              <option key={edu} value={edu}>
+                {edu}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+            </svg>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={saveEditingField}
+        >
+          حفظ
+        </button>
+        <button
+          type="button"
+          className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
+          onClick={cancelEditingField}
+        >
+          إلغاء
+        </button>
+      </div>
+    ) :
+    // ---------------------------------------------------------
     // 3.5. الحالة الخاصة: تعديل مستوى الخبرة (Experience Field)
     // ---------------------------------------------------------
     (key === 'experienceField' || key === 'experience_field' || key === 'ExperienceField' || key === 'experience' || key === 'Experience') ? (
@@ -2963,7 +3175,9 @@ const handleSave = async () => {
             className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right bg-white"
             value={editingField?.value ?? ''}
             onChange={(e) => {
-              handleExperienceChange(e.target.value);
+              setEditingField((prev) =>
+                prev ? { ...prev, value: e.target.value } : prev
+              );
             }}
           >
             <option value="">اختر مستوى الخبرة</option>
@@ -2979,6 +3193,17 @@ const handleSave = async () => {
             </svg>
           </div>
         </div>
+        <button
+          type="button"
+          className="px-3 py-1 rounded-md bg-green-600 text-white text-xs hover:bg-green-700 flex-shrink-0"
+          onClick={() => {
+            if (editingField?.value) {
+              handleExperienceChange(editingField.value);
+            }
+          }}
+        >
+          حفظ
+        </button>
         <button
           type="button"
           className="px-2 py-1 rounded-md bg-gray-200 text-gray-800 text-xs hover:bg-gray-300 flex-shrink-0"
@@ -3093,7 +3318,7 @@ const handleSave = async () => {
     // ---------------------------------------------------------
     // 5.6. الحالة الخاصة: حقل جواز السفر (أرقام وحروف فقط)
     // ---------------------------------------------------------
-    (key === 'passport_number' || key === 'passport' || key === 'PassportNumber') ? (
+    (key === 'passport_number' || key === 'passport' || key === 'PassportNumber' || key === 'Passportnumber' || key === 'passportNumber' || key === 'passportnumber') ? (
       <div className="flex items-center gap-2">
         <input
           type="text"
@@ -3343,6 +3568,14 @@ const handleSave = async () => {
       // التحقق من maritalStatus
       if ((key === 'maritalStatus' || key === 'marital_status' || key === 'MaritalStatus' || key === 'maritalstatus') && displayValue) {
         isValidValue = isValueInOptions(String(displayValue), maritalStatusOptions);
+        if (!isValidValue) {
+          shouldHideValue = true;
+        }
+      }
+      
+      // التحقق من educationLevel
+      if ((key === 'educationLevel' || key === 'education_level' || key === 'EducationLevel' || key === 'education' || key === 'Education') && displayValue) {
+        isValidValue = isValueInOptions(String(displayValue), educationOptions);
         if (!isValidValue) {
           shouldHideValue = true;
         }
