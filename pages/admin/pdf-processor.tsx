@@ -2986,10 +2986,34 @@ const handleSave = async () => {
                                   }
                                 };
 
-                                const renderValue = (val: any) => {
+                                const renderValue = (val: any, fieldKey?: string) => {
                                   if (val === null || val === undefined) return '';
                                   const strVal = String(val);
                                   if (strVal === 'null' || strVal === 'undefined' || strVal.trim() === '') return '';
+                                  
+                                  // معالجة أرقام التليفون
+                                  const normalizedKey = fieldKey?.toLowerCase() || '';
+                                  const isPhoneField = normalizedKey === 'phone' || 
+                                                      normalizedKey === 'mobile' || 
+                                                      normalizedKey === 'phonenumber' ||
+                                                      normalizedKey === 'phone_number';
+                                  
+                                  if (isPhoneField && strVal.trim()) {
+                                    let phoneValue = strVal.trim();
+                                    
+                                    // إذا كانت علامة الزائد في النهاية، ننقلها إلى البداية
+                                    if (phoneValue.endsWith('+') && !phoneValue.startsWith('+')) {
+                                      phoneValue = '+' + phoneValue.slice(0, -1);
+                                    }
+                                    
+                                    // إذا كان الرقم يبدأ بصفر ولم تكن علامة الزائد موجودة، نحول الصفر إلى زائد
+                                    if (phoneValue.startsWith('0') && !phoneValue.startsWith('+')) {
+                                      phoneValue = '+' + phoneValue.substring(1);
+                                    }
+                                    
+                                    return phoneValue;
+                                  }
+                                  
                                   return strVal;
                                 };
 
@@ -3953,7 +3977,7 @@ const handleSave = async () => {
            displayKey?.toLowerCase().includes('office') || displayKey?.toLowerCase().includes('company') ? (
             <div className="flex items-center justify-between gap-2">
               <span className={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-                {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue)}
+                {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue, key)}
               </span>
               <button
                 type="button"
@@ -3975,7 +3999,7 @@ const handleSave = async () => {
           ) : (
             <div className="flex items-center justify-between gap-2">
               <span className={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
-                {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue)}
+                {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue, key)}
               </span>
               {/* إخفاء زر التعديل لـ experienceYears لأنه read-only */}
               {!(key === 'experienceYears' || key === 'experience_years' || key === 'ExperienceYears' || key === 'years_of_experience') && (
