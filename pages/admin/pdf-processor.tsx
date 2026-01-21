@@ -3014,6 +3014,26 @@ const handleSave = async () => {
                                     return phoneValue;
                                   }
                                   
+                                  // معالجة الرواتب - إزالة SAR و SR وتحويلها لأرقام فقط
+                                  const isSalaryField = normalizedKey === 'salary';
+                                  
+                                  if (isSalaryField && strVal.trim()) {
+                                    let salaryValue = strVal.trim();
+                                    
+                                    // إزالة الحروف SAR و SR (بجميع الحالات)
+                                    salaryValue = salaryValue.replace(/\bSAR\b/gi, '').replace(/\bSR\b/gi, '');
+                                    
+                                    // إزالة المسافات الزائدة
+                                    salaryValue = salaryValue.trim();
+                                    
+                                    // إذا كانت علامة الزائد في النهاية، ننقلها إلى البداية
+                                    if (salaryValue.endsWith('+') && !salaryValue.startsWith('+')) {
+                                      salaryValue = '+' + salaryValue.slice(0, -1).trim();
+                                    }
+                                    
+                                    return salaryValue;
+                                  }
+                                  
                                   return strVal;
                                 };
 
