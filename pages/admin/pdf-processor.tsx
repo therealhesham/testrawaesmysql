@@ -3026,11 +3026,7 @@ const handleSave = async () => {
                                     // إزالة المسافات الزائدة
                                     salaryValue = salaryValue.trim();
                                     
-                                    // إذا كانت علامة الزائد في النهاية، ننقلها إلى البداية
-                                    if (salaryValue.endsWith('+') && !salaryValue.startsWith('+')) {
-                                      salaryValue = '+' + salaryValue.slice(0, -1).trim();
-                                    }
-                                    
+                                 
                                     return salaryValue;
                                   }
                                   
@@ -3791,6 +3787,7 @@ const handleSave = async () => {
         <input
           type="text"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
+          dir={(key === 'mobile' || key === 'phone' || key === 'Mobile' || key === 'Phone') ? 'ltr' : 'rtl'}
           value={editingField?.value ?? ''}
           onChange={(e) =>
             setEditingField((prev) =>
@@ -4018,7 +4015,7 @@ const handleSave = async () => {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-2">
-              <span className={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
+              <span dir={(key === 'mobile' || key === 'phone' || key === 'Mobile' || key === 'Phone') ? 'ltr' : 'rtl'} className={(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? 'text-gray-400 italic text-sm' : ''}>
                 {(!finalDisplayValue || finalDisplayValue === 'null' || finalDisplayValue === 'undefined' || String(finalDisplayValue).trim() === '') ? '(فارغ - اضغط للتعديل لإضافة البيانات)' : renderValue(finalDisplayValue, key)}
               </span>
               {/* إخفاء زر التعديل لـ experienceYears لأنه read-only */}
