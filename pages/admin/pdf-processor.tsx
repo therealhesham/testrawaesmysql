@@ -4205,7 +4205,7 @@ const handleSave = async () => {
                   {/* Selected Images Summary */}
                   <div className="mb-6">
                     <h3 className="text-lg font-medium text-gray-900 mb-4 text-right">
-                      الصور المرفوعة إلى Digital Ocean
+                      الصور المرفوعة 
                     </h3>
                     <div className="bg-gray-50 rounded-xl p-6 shadow-sm">
                       <div className="flex space-x-6 justify-end">
