@@ -712,7 +712,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
           </td>
         )}
         {visibleColumns.includes('phone') && (
-          <td className="px-1 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600" dir="ltr">
             {item.phone}
           </td>
         )}
@@ -1416,7 +1416,7 @@ const exportToPDF = async () => {
                     )}
                     {visibleColumns.includes('phone') && (
                       <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap "
                         onClick={() => handleSort('phone')}
                       >
                         رقم الجوال <SortIcon field="phone" />

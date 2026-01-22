@@ -966,6 +966,7 @@ function HomeMaidInfo() {
                       value={field.value || ""}
                       onChange={field.type === "date" ? handleChangeDate : handleChange}
                       readOnly={!isEditing}
+                      dir={field.name === "phone" ? "ltr" : undefined}
                       className={`w-full border ${errors[field.name] ? 'border-red-500' : 'border-gray-300'} rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"}`}
                     />
                     {errors[field.name] && <p className="text-red-500 text-xs mt-1 text-right">{errors[field.name]}</p>}

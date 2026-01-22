@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { jwtDecode } from 'jwt-decode';
+import eventBus from 'lib/eventBus';
 
 const prisma = new PrismaClient();
 
@@ -321,12 +323,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: createData
     });
 
-    return res.status(200).json({
+     res.status(200).json({
       success: true,
       homemaidId: homemaidRecord.id,
       message: 'Employee data saved successfully'
     });
 
+      (async () => {
+        try {
+          const cookieHeader = req.headers.cookie;
+          const referer = req.headers.referer || '/admin/currentorders';
+          let tokenId = null;
+
+          if (cookieHeader) {
+            const cookies = Object.fromEntries(
+              cookieHeader.split(";").map((c) => {
+                const [k, v] = c.trim().split("=");
+                return [k, decodeURIComponent(v)];
+              })
+            );
+            const decoded = jwtDecode(cookies.authToken);
+            tokenId = (decoded as any).id;
+          }
+
+          if (tokenId) {
+            eventBus.emit("ACTION", {
+              type: "اضافة عاملة جديدة بخاصية  الـAI",
+              beneficiary: "homemaid",
+              pageRoute: referer,
+              actionType: "create",
+              BeneficiaryId: homemaidRecord.id || null,
+              userId: Number(tokenId),
+            });
+          }
+        } catch (error) {
+          console.error("Error emitting event:", error);
+        }
+      })();
   } catch (error) {
     console.error('Error saving PDF data:', error);
     return res.status(500).json({ 
