@@ -335,7 +335,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId: (token as any).username, //username of the user from the token
       homemaidId: homemaidRecord.id,
       Status: 'إضافة عاملة جديدة بخاصية  الـAI',
-      Details: `تم إضافة العاملة  ${homemaidData.Name || 'غير محدد'} بنجاح. الجنسية: ${homemaidData.Nationality || 'غير محدد'}, المكتب: ${homemaidData.officeName || 'غير محدد'} بخاصية  الـAI`,
+      Details: `تم إضافة العاملة  ${homemaidData.Name || 'غير محدد'} بنجاح. الجنسية: ${homemaidData.Nationality || 'غير محدد'}, المكتب: ${homemaidRecord.officeName || 'غير محدد'} بخاصية  الـAI`,
       reason: 'إضافة عاملة جديدة من خلال صفحة إضافة عاملة بخاصية  الـAI من خلال ملف PDF',
     },
   }); 
