@@ -117,6 +117,73 @@ if(!findUser?.role?.permissions || !(findUser.role.permissions as any)?.["إدا
 }
 console.log(req.body)
 
+// --- التحقق من رقم الهاتف (التأكد من عدم التكرار) ---
+if (mobile && mobile.trim() !== '') {
+  // تنظيف رقم الهاتف
+  const cleanedPhone = mobile.trim().replace(/[\s\-\(\)\+]/g, '');
+  
+  if (cleanedPhone && cleanedPhone.length > 0) {
+    // البحث في جدول homemaid - البحث الدقيق أولاً
+    let existingHomemaid = await prisma.homemaid.findFirst({
+      where: {
+        phone: cleanedPhone
+      }
+    });
+
+    // إذا لم نجد تطابقاً دقيقاً، نبحث في جميع السجلات للتحقق من وجود الرقم
+    if (!existingHomemaid) {
+      const allHomemaids = await prisma.homemaid.findMany({
+        where: {
+          phone: {
+            not: null
+          }
+        },
+        select: {
+          phone: true
+        }
+      });
+
+      // التحقق من وجود الرقم في أي من أرقام الهواتف المسجلة (مقارنة بعد التنظيف)
+      const found = allHomemaids.find(h => {
+        if (!h.phone) return false;
+        const existingPhone = String(h.phone).trim().replace(/[\s\-\(\)\+]/g, '');
+        // مقارنة دقيقة فقط (نفس الرقم بعد التنظيف)
+        return existingPhone === cleanedPhone;
+      });
+
+      if (found) {
+        // إذا وجدنا تطابقاً، نبحث عن السجل الكامل
+        existingHomemaid = await prisma.homemaid.findFirst({
+          where: {
+            phone: found.phone
+          }
+        });
+      }
+    }
+
+    if (existingHomemaid) {
+      return res.status(400).json({ 
+        error: 'رقم الهاتف مستخدم من قبل في قاعدة البيانات',
+        field: 'phone'
+      });
+    }
+
+    // البحث أيضاً في جدول Client للتحقق الشامل
+    const existingClient = await prisma.client.findFirst({
+      where: {
+        phonenumber: cleanedPhone
+      }
+    });
+
+    if (existingClient) {
+      return res.status(400).json({ 
+        error: 'رقم الهاتف مستخدم من قبل في قاعدة البيانات',
+        field: 'phone'
+      });
+    }
+  }
+}
+
 // جلب أعلى displayOrder من الجدول
 const maxDisplayOrder = await prisma.homemaid.findFirst({
   orderBy: {
@@ -141,8 +208,8 @@ const newHomemaid = await prisma.homemaid.create({
     Experience: experienceField || '',
     ExperienceYears: experienceYears || '',
     dateofbirth: age ? new Date(age) : null,
-    phone: mobile || '',
-    clientphonenumber: mobile || '',
+    phone: mobile ? mobile.trim().replace(/[\s\-\(\)\+]/g, '') : '',
+    clientphonenumber: mobile ? mobile.trim().replace(/[\s\-\(\)\+]/g, '') : '',
     Education: educationLevel || '',
     ArabicLanguageLeveL: arabicLevel || '',
     EnglishLanguageLevel: englishLevel || '',
