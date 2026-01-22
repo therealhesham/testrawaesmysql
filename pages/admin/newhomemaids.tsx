@@ -404,35 +404,6 @@ const handleHomemaidImageChange = async (
       return;
     }
 
-    // --- التحقق من رقم الهاتف (التأكد من عدم التكرار) ---
-    if (formData.mobile && formData.mobile.trim() !== '') {
-      try {
-        // تنظيف رقم الهاتف
-        const cleanedPhone = formData.mobile.trim().replace(/[\s\-\(\)\+]/g, '');
-        
-        // التحقق من أن الرقم غير فارغ بعد التنظيف
-        if (cleanedPhone && cleanedPhone.length > 0) {
-          const checkResponse = await fetch('/api/checkPhoneUniqueness', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: cleanedPhone }),
-          });
-          
-          const checkData = await checkResponse.json();
-          
-          if (checkData.exists) {
-            setErrors((prev) => ({ ...prev, mobile: 'رقم الهاتف مستخدم من قبل. يرجى التحقق من الرقم وإدخال رقم آخر.' }));
-            setModalMessage('رقم الهاتف مستخدم من قبل. يرجى التحقق من الرقم وإدخال رقم آخر.');
-            setShowErrorModal(true);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error checking phone uniqueness:', error);
-        // في حالة حدوث خطأ في التحقق، نستمر في العملية (لا نمنع الحفظ)
-      }
-    }
-
     setIsLoading(true);
     try {
       const payload = {

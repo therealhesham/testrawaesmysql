@@ -1478,42 +1478,7 @@ const handleSave = async () => {
       // المهنة فارغة - السماح بالحفظ (المهنة اختيارية)
     }
 
-    // --- 4. التحقق من رقم الهاتف (التأكد من عدم التكرار) ---
-    const extractedPhone = jsonResponse.phone || 
-                          jsonResponse.Phone || 
-                          jsonResponse.mobile || 
-                          jsonResponse.Mobile || 
-                          jsonResponse.phoneNumber || 
-                          jsonResponse.phone_number;
-    
-    if (extractedPhone && extractedPhone !== 'null' && extractedPhone !== 'undefined' && 
-        (typeof extractedPhone === 'string' && extractedPhone.trim() !== '')) {
-      try {
-        // تنظيف رقم الهاتف
-        const cleanedPhone = String(extractedPhone).trim().replace(/[\s\-\(\)\+]/g, '');
-        
-        // التحقق من أن الرقم غير فارغ بعد التنظيف
-        if (cleanedPhone && cleanedPhone.length > 0) {
-          const checkResponse = await fetch('/api/checkPhoneUniqueness', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone: cleanedPhone }),
-          });
-          
-          const checkData = await checkResponse.json();
-          
-          if (checkData.exists) {
-            setError('رقم الهاتف مستخدم من قبل. يرجى التحقق من الرقم وإدخال رقم آخر.');
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error checking phone uniqueness:', error);
-        // في حالة حدوث خطأ في التحقق، نستمر في العملية (لا نمنع الحفظ)
-      }
-    }
-
-    // --- 5. التحقق من جميع الحقول المطلوبة (Required Fields) ---
+    // --- 4. التحقق من جميع الحقول المطلوبة (Required Fields) ---
     const checkRequiredField = (value: any, fieldName: string, displayName: string): string | null => {
       if (value === null || value === undefined || value === '' || 
           (typeof value === 'string' && value.trim() === '') ||
