@@ -2145,7 +2145,7 @@ const handleSave = async () => {
                     الخطوة 2: اختيار ورفع الصور
                   </h2>
                   <p className="text-sm text-gray-600 mb-6 text-right">
-                    تم استخراج {processingResult.extractedImages.length} صورة من الملف. يرجى اختيار الصورة الشخصية (إلزامي) والصورة بالطول (اختياري). سيتم رفع الصور تلقائياً إلى Digital Ocean بعد التأكيد:
+                    تم استخراج {processingResult.extractedImages.length} صورة من الملف. يرجى اختيار الصورة الشخصية (إلزامي) والصورة بالطول (اختياري). سيتم رفع الصور تلقائياً  بعد التأكيد:
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -2305,7 +2305,7 @@ const handleSave = async () => {
                     الخطوة 3: استخراج البيانات
                   </h2>
                   <p className="text-sm text-gray-600 mb-6 text-right">
-                    تم رفع الصور بنجاح إلى Digital Ocean. اضغط على الزر أدناه لاستخراج البيانات من الملف باستخدام Gemini AI.
+                    تم رفع الصور بنجاح. اضغط على الزر أدناه لاستخراج البيانات من الملف .
                   </p>
 
                   <div className="bg-gray-50 rounded-xl p-6 mb-6">
@@ -2372,7 +2372,7 @@ const handleSave = async () => {
                           جاري استخراج البيانات...
                         </>
                       ) : (
-                        'استخراج البيانات باستخدام Gemini'
+                        'استخراج البيانات'
                       )}
                     </button>
                     
