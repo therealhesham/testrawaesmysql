@@ -1,3 +1,6 @@
+// ✅ استدعاء loggers لتفعيل الـ listener للأحداث
+import '../../lib/loggers';
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { jwtDecode } from 'jwt-decode';
@@ -323,43 +326,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: createData
     });
 
-     res.status(200).json({
+    // ✅ إرسال الحدث بعد الرد حتى لا يؤخر العميل
+    (async () => {
+      try {
+        const cookieHeader = req.headers.cookie;
+        const referer = req.headers.referer || '/admin/pdf-processor';
+        let tokenId = null;
+
+        if (cookieHeader) {
+          const cookies = Object.fromEntries(
+            cookieHeader.split(";").map((c) => {
+              const [k, v] = c.trim().split("=");
+              return [k, decodeURIComponent(v)];
+            })
+          );
+          
+          if (cookies.authToken) {
+            try {
+              const decoded = jwtDecode(cookies.authToken);
+              tokenId = (decoded as any)?.id;
+            } catch (decodeError) {
+              console.error("Error decoding token:", decodeError);
+            }
+          }
+        }
+
+        if (tokenId) {
+          console.log("📝 Emitting event for homemaid creation:", {
+            type: "اضافة عاملة جديدة بخاصية  الـAI",
+            homemaidId: homemaidRecord.id,
+            userId: tokenId
+          });
+          
+          eventBus.emit("ACTION", {
+            type: "اضافة عاملة جديدة بخاصية  الـAI",
+            beneficiary: "homemaid",
+            pageRoute: referer,
+            actionType: "create",
+            BeneficiaryId: homemaidRecord.id || null,
+            userId: Number(tokenId),
+          });
+          
+          console.log("✅ Event emitted successfully");
+        } else {
+          console.warn("⚠️ No tokenId found, event not emitted");
+        }
+      } catch (error) {
+        console.error("❌ Error emitting event:", error);
+      }
+    })();
+
+    res.status(200).json({
       success: true,
       homemaidId: homemaidRecord.id,
       message: 'Employee data saved successfully'
     });
-
-      (async () => {
-        try {
-          const cookieHeader = req.headers.cookie;
-          const referer = req.headers.referer || '/admin/currentorders';
-          let tokenId = null;
-
-          if (cookieHeader) {
-            const cookies = Object.fromEntries(
-              cookieHeader.split(";").map((c) => {
-                const [k, v] = c.trim().split("=");
-                return [k, decodeURIComponent(v)];
-              })
-            );
-            const decoded = jwtDecode(cookies.authToken);
-            tokenId = (decoded as any).id;
-          }
-
-          if (tokenId) {
-            eventBus.emit("ACTION", {
-              type: "اضافة عاملة جديدة بخاصية  الـAI",
-              beneficiary: "homemaid",
-              pageRoute: referer,
-              actionType: "create",
-              BeneficiaryId: homemaidRecord.id || null,
-              userId: Number(tokenId),
-            });
-          }
-        } catch (error) {
-          console.error("Error emitting event:", error);
-        }
-      })();
   } catch (error) {
     console.error('Error saving PDF data:', error);
     return res.status(500).json({ 
