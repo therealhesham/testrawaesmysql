@@ -327,55 +327,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // ✅ إرسال الحدث بعد الرد حتى لا يؤخر العميل
-    (async () => {
-      try {
-        const cookieHeader = req.headers.cookie;
-        const referer = req.headers.referer || '/admin/pdf-processor';
-        let tokenId = null;
-
-        if (cookieHeader) {
-          const cookies = Object.fromEntries(
-            cookieHeader.split(";").map((c) => {
-              const [k, v] = c.trim().split("=");
-              return [k, decodeURIComponent(v)];
-            })
-          );
-          
-          if (cookies.authToken) {
-            try {
-              const decoded = jwtDecode(cookies.authToken);
-              tokenId = (decoded as any)?.id;
-            } catch (decodeError) {
-              console.error("Error decoding token:", decodeError);
-            }
-          }
-        }
-
-        if (tokenId) {
-          console.log("📝 Emitting event for homemaid creation:", {
-            type: "اضافة عاملة جديدة بخاصية  الـAI",
-            homemaidId: homemaidRecord.id,
-            userId: tokenId
-          });
-          
-          eventBus.emit("ACTION", {
-            type: "اضافة عاملة جديدة بخاصية  الـAI",
-            beneficiary: "homemaid",
-            pageRoute: referer,
-            actionType: "create",
-            BeneficiaryId: homemaidRecord.id || null,
-            userId: Number(tokenId),
-          });
-          
-          console.log("✅ Event emitted successfully");
-        } else {
-          console.warn("⚠️ No tokenId found, event not emitted");
-        }
-      } catch (error) {
-        console.error("❌ Error emitting event:", error);
-      }
-    })();
-
+   try {
+    // logs
+    const token = jwtDecode(req.cookies.authToken); //get the user id from the token
+     await prisma.logs.create({
+    data: {
+        userId: (token as any).username, //username of the user from the token
+      homemaidId: homemaidRecord.id,
+      Status: 'إضافة عاملة جديدة بخاصية  الـAI',
+      Details: `تم إضافة العاملة  ${homemaidData.Name || 'غير محدد'} بنجاح. الجنسية: ${homemaidData.Nationality || 'غير محدد'}, المكتب: ${homemaidData.officeName || 'غير محدد'} بخاصية  الـAI`,
+      reason: 'إضافة عاملة جديدة من خلال صفحة إضافة عاملة بخاصية  الـAI من خلال ملف PDF',
+    },
+  }); 
+} catch (error) {
+  console.error('Error saving logs:', error);
+}
     res.status(200).json({
       success: true,
       homemaidId: homemaidRecord.id,
