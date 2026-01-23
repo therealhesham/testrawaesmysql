@@ -129,6 +129,53 @@ const maxDisplayOrder = await prisma.homemaid.findFirst({
 
 const newDisplayOrder = maxDisplayOrder?.displayOrder ? maxDisplayOrder.displayOrder + 1 : 1;
 
+// -------------------------------------------------------
+// التحقق من عدم تكرار رقم الجواز
+// -------------------------------------------------------
+let cleanedPassport: string = '';
+if (passport) {
+  cleanedPassport = String(passport).trim().toUpperCase().replace(/\s/g, '');
+  
+  // البحث الدقيق أولاً
+  const existingHomemaid = await prisma.homemaid.findFirst({
+    where: {
+      Passportnumber: cleanedPassport
+    }
+  });
+
+  // إذا لم نجد تطابقاً دقيقاً، نبحث في جميع السجلات للتحقق من وجود الرقم
+  if (!existingHomemaid) {
+    const allHomemaids = await prisma.homemaid.findMany({
+      where: {
+        Passportnumber: {
+          not: null
+        }
+      },
+      select: {
+        Passportnumber: true
+      }
+    });
+
+    const found = allHomemaids.find(h => {
+      if (!h.Passportnumber) return false;
+      const existingPassport = String(h.Passportnumber).trim().toUpperCase().replace(/\s/g, '');
+      return existingPassport === cleanedPassport;
+    });
+
+    if (found) {
+      return res.status(400).json({ 
+        error: 'رقم الجواز مستخدم من قبل. يرجى إدخال رقم جواز آخر',
+        details: 'رقم الجواز مستخدم من قبل'
+      });
+    }
+  } else {
+    return res.status(400).json({ 
+      error: 'رقم الجواز مستخدم من قبل. يرجى إدخال رقم جواز آخر',
+      details: 'رقم الجواز مستخدم من قبل'
+    });
+  }
+}
+
 const newHomemaid = await prisma.homemaid.create({
   data: {
     Name: name || '',
@@ -136,7 +183,7 @@ const newHomemaid = await prisma.homemaid.create({
     Nationalitycopy: nationality || '',
     Religion: religion || '',
     displayOrder: newDisplayOrder,
-    Passportnumber: passport ? passport.trim().toUpperCase().replace(/\s/g, '') : '',
+    Passportnumber: cleanedPassport || '',
     maritalstatus: maritalStatus || '',
     Experience: experienceField || '',
     ExperienceYears: experienceYears || '',

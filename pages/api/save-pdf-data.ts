@@ -313,7 +313,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // (حسب السكيما لديك يوجد حقل job وأيضاً professionId، سنترك job للنص ونضيف العلاقة)
 
     // -------------------------------------------------------
-    // 3. الحفظ النهائي
+    // 3. التحقق من عدم تكرار رقم الجواز
+    // -------------------------------------------------------
+    if (homemaidData.Passportnumber) {
+      const cleanedPassport = String(homemaidData.Passportnumber).trim().toUpperCase().replace(/\s/g, '');
+      const existingHomemaid = await prisma.homemaid.findFirst({
+        where: {
+          Passportnumber: cleanedPassport
+        }
+      });
+
+      // إذا لم نجد تطابقاً دقيقاً، نبحث في جميع السجلات للتحقق من وجود الرقم
+      if (!existingHomemaid) {
+        const allHomemaids = await prisma.homemaid.findMany({
+          where: {
+            Passportnumber: {
+              not: null
+            }
+          },
+          select: {
+            Passportnumber: true
+          }
+        });
+
+        const found = allHomemaids.find(h => {
+          if (!h.Passportnumber) return false;
+          const existingPassport = String(h.Passportnumber).trim().toUpperCase().replace(/\s/g, '');
+          return existingPassport === cleanedPassport;
+        });
+
+        if (found) {
+          return res.status(400).json({ 
+            error: 'رقم الجواز مستخدم من قبل. يرجى إدخال رقم جواز آخر',
+            details: ' رقم الجواز مستخدم من قبل'
+          });
+        }
+      } else {
+        return res.status(400).json({ 
+          error: 'رقم الجواز مستخدم من قبل. يرجى إدخال رقم جواز آخر',
+          details: ' رقم الجواز مستخدم من قبل'
+        });
+      }
+
+      // تحديث رقم الجواز بالشكل المنظف
+      homemaidData.Passportnumber = cleanedPassport;
+    }
+
+    // -------------------------------------------------------
+    // 4. الحفظ النهائي
     // -------------------------------------------------------
     const createData: any = { ...homemaidData };
     
