@@ -16,7 +16,27 @@ import 'jspdf-autotable';
 
 import html2canvas from 'html2canvas';
 
-const UserManagement = ({ currentUserRole }: { currentUserRole: string }) => {
+interface User {
+  id: number;
+  username: string;
+  phonenumber: string;
+  idnumber: string;
+  email?: string;
+  roleId?: number;
+  role?: {
+    id: number;
+    name: string;
+  };
+  pictureurl?: string;
+  createdAt: string;
+}
+
+interface Role {
+  id: number;
+  name: string;
+}
+
+const UserManagement = ({ currentUserRole, currentUserPermissions }: { currentUserRole: string; currentUserPermissions: any }) => {
   // State for modals and visibility
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
@@ -25,20 +45,23 @@ const UserManagement = ({ currentUserRole }: { currentUserRole: string }) => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationType, setNotificationType] = useState('success'); // 'success' or 'error'
 
-const [userName, setUserName] = useState('');
-useEffect(() => {
-  const token = localStorage.getItem('token');
-  // if (!token) return;
-  if (!token) return;
-    const decoded = jwtDecode(token);
-  const userName = decoded.username;
-  setUserName(userName);
-}, []);
+  const [userName, setUserName] = useState('');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const decoded = jwtDecode(token) as any;
+      const userName = decoded.username;
+      setUserName(userName);
+    } catch (e) {
+      console.error('Invalid token');
+    }
+  }, []);
 
   // State for data
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,13 +75,44 @@ useEffect(() => {
   // Ref for the table
   const tableRef = useRef(null);
 
+  // Permission Checks
+  const canAddUser = currentUserRole === 'owner' || currentUserPermissions?.['إدارة المستخدمين']?.['إضافة'] === true;
+  
+  const canEditUser = (user: User) => {
+    const isOwner = currentUserRole === 'owner';
+    // Owner can edit anyone
+    if (isOwner) return true;
+
+    // Others need 'Edit' permission
+    const hasEditPermission = currentUserPermissions?.['إدارة المستخدمين']?.['تعديل'] === true;
+    if (!hasEditPermission) return false;
+
+    // Non-owners cannot edit Owner
+    const isTargetOwner = user.role?.name?.toLowerCase() === 'owner';
+    if (isTargetOwner) return false;
+
+    return true;
+  };
+
+  const canDeleteUser = (user: User) => {
+    const isOwner = currentUserRole === 'owner';
+    if (isOwner) return true;
+
+    const hasDeletePermission = currentUserPermissions?.['إدارة المستخدمين']?.['حذف'] === true;
+    if (!hasDeletePermission) return false;
+
+    const isTargetOwner = user.role?.name?.toLowerCase() === 'owner';
+    if (isTargetOwner) return false;
+
+    return true;
+  };
+
   // Function to show notification modal
-  const showNotification = (message, type = 'success') => {
+  const showNotification = (message: string, type = 'success') => {
     setNotificationMessage(message);
     setNotificationType(type);
     setIsNotificationModalOpen(true);
   };
-
   // Fetch users
   const fetchUsers = async () => {
     try {
@@ -124,21 +178,12 @@ useEffect(() => {
   };
 
   // التحقق من إمكانية تعديل/حذف المستخدم - owner فقط يقدر يعدل على owner
-  const canEditUser = (user: any) => {
-    const isCurrentUserOwner = currentUserRole === 'owner';
-    const isTargetUserOwner = user.role?.name?.toLowerCase() === 'owner';
-    
-    // إذا كان المستخدم المستهدف owner، فقط owner يقدر يعدله
-    if (isTargetUserOwner && !isCurrentUserOwner) {
-      return false;
-    }
-    return true;
-  };
+
 
   // Handle user form submission
   const handleAddUser = async () => {
     try {
-const waiter =       await axios.post('/api/users', newUser);
+const waiter =       await axios.post('/api/users', {...newUser, roleId: Number(newUser.roleId)});
       
 if (waiter.data.type === "phoneNumber"){
   showNotification(waiter.data.error, 'error');
@@ -156,7 +201,8 @@ setIsAddUserModalOpen(false);
 
   const handleEditUser = async () => {
     try {
-      await axios.put(`/api/users/${selectedUser.id}`, newUser);
+      if (!selectedUser) return;
+      await axios.put(`/api/users/${selectedUser.id}`, {...newUser, roleId: Number(newUser.roleId)});
       setIsEditUserModalOpen(false);
       setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
       setSelectedUser(null);
@@ -439,12 +485,14 @@ const handleExportPDF = async () => {
               <p className="text-gray-600 text-sm">إدارة وتحكم في حسابات المستخدمين والصلاحيات</p>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={() => setIsAddUserModalOpen(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-teal-700 to-teal-800 text-white px-6 py-3 rounded-lg text-sm font-medium hover:from-teal-800 hover:to-teal-900 transition-all duration-200 shadow-md hover:shadow-lg"
-              >
-                <span>إضافة مستخدم</span>
-              </button>
+              {canAddUser && (
+                <button
+                  onClick={() => setIsAddUserModalOpen(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-teal-700 to-teal-800 text-white px-6 py-3 rounded-lg text-sm font-medium hover:from-teal-800 hover:to-teal-900 transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                  <span>إضافة مستخدم</span>
+                </button>
+              )}
               <Link href="/admin/permissions">
                 <a className="flex items-center gap-2 bg-white text-teal-800 border-2 border-teal-800 px-6 py-3 rounded-lg text-sm font-medium hover:bg-teal-50 transition-all duration-200 shadow-md hover:shadow-lg">
                   <span>إدارة الصلاحيات</span>
@@ -556,39 +604,40 @@ const handleExportPDF = async () => {
                       {new Date(user.createdAt).toLocaleDateString('ar-SA')}
                     </div>
                     <div className="text-center flex justify-center gap-3">
-                      {canEditUser(user) ? (
-                        <>
-                          <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setNewUser({
-                                username: user.username,
-                                phonenumber: user.phonenumber,
-                                idnumber: user.idnumber,
-                                password: '',
-                                email: user.email || '',
-                                roleId: user.roleId || '',
-                                pictureurl: user.pictureurl || '',
-                              });
-                              setIsEditUserModalOpen(true);
-                            }}
-                            className="bg-transparent border-none cursor-pointer p-1.5 rounded-lg hover:bg-teal-100 transition-colors duration-150"
-                            title="تعديل"
-                          >
-                            <Edit className="w-5 h-5 text-teal-700 hover:text-teal-900" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setIsDeleteUserModalOpen(true);
-                            }}
-                            className="bg-transparent border-none cursor-pointer p-1.5 rounded-lg hover:bg-red-100 transition-colors duration-150"
-                            title="حذف"
-                          >
-                            <Trash className="w-5 h-5 text-red-600 hover:text-red-800" />
-                          </button>
-                        </>
-                      ) : (
+                      {canEditUser(user) && (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setNewUser({
+                              username: user.username,
+                              phonenumber: user.phonenumber,
+                              idnumber: String(user.idnumber),
+                              password: '',
+                              email: user.email || '',
+                              roleId: String(user.roleId || user.role?.id || ''),
+                              pictureurl: user.pictureurl || '',
+                            });
+                            setIsEditUserModalOpen(true);
+                          }}
+                          className="bg-transparent border-none cursor-pointer p-1.5 rounded-lg hover:bg-teal-100 transition-colors duration-150"
+                          title="تعديل"
+                        >
+                          <Edit className="w-5 h-5 text-teal-700 hover:text-teal-900" />
+                        </button>
+                      )}
+                      {canDeleteUser(user) && (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setIsDeleteUserModalOpen(true);
+                          }}
+                          className="bg-transparent border-none cursor-pointer p-1.5 rounded-lg hover:bg-red-100 transition-colors duration-150"
+                          title="حذف"
+                        >
+                          <Trash className="w-5 h-5 text-red-600 hover:text-red-800" />
+                        </button>
+                      )}
+                      {!canEditUser(user) && !canDeleteUser(user) && (
                         <span 
                           className="inline-block bg-gray-200 text-gray-500 px-3 py-1 rounded-full text-xs font-medium"
                           title="لا يمكنك تعديل أو حذف هذا المستخدم"
@@ -1034,12 +1083,12 @@ const handleExportPDF = async () => {
 
 export default UserManagement;
 
-export async function getServerSideProps({ req }) {
+export async function getServerSideProps({ req }: any) {
   try {
     const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
     if (cookieHeader) {
-      cookieHeader.split(';').forEach((cookie) => {
+      cookieHeader.split(';').forEach((cookie: string) => {
         const [key, value] = cookie.trim().split('=');
         cookies[key] = decodeURIComponent(value);
       });
@@ -1051,22 +1100,42 @@ export async function getServerSideProps({ req }) {
       };
     }
 
-    const token = jwtDecode(cookies.authToken);
+    const token = jwtDecode(cookies.authToken) as any;
     const findUser = await prisma.user.findUnique({
       where: { id: token.id },
       include: { role: true },
     });
-    if (!findUser || !findUser.role?.permissions?.['إدارة المستخدمين']?.['إضافة']) {
+
+    if (!findUser) {
+      return {
+        redirect: { destination: '/admin/login', permanent: false },
+      };
+    }
+
+    const userRoleName = findUser?.role?.name?.toLowerCase();
+    const userPermissions = findUser?.role?.permissions as any;
+
+    // التحقق من صلاحية "عرض" في قسم "إدارة المستخدمين"
+    // أو أن المستخدم هو Owner
+    const isOwner = userRoleName === 'owner';
+    const hasViewPermission = userPermissions?.['إدارة المستخدمين']?.['عرض'] === true;
+
+    if (!isOwner && !hasViewPermission) {
       return {
         redirect: { destination: '/admin/home', permanent: false },
       };
     }
 
-    return { props: { currentUserRole: findUser.role?.name?.toLowerCase() || '' } };
+    return { 
+      props: { 
+        currentUserRole: userRoleName || '',
+        currentUserPermissions: userPermissions || {} 
+      } 
+    };
   } catch (err) {
     console.error('Authorization error:', err);
     return {
       redirect: { destination: '/admin/home', permanent: false },
     };
   }
-};
+}
