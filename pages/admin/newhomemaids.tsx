@@ -136,7 +136,7 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
     setErrors((prev) => ({ ...prev, [`skill-${skill}`]: '' }));
   };
 
-  const allowedHomemaidImageTypes = ['image/jpeg'];
+  const allowedHomemaidImageTypes = ['image/jpeg', 'image/png'];
 
 const handleHomemaidImageChange = async (
   e: React.ChangeEvent<HTMLInputElement>,
@@ -154,7 +154,7 @@ const handleHomemaidImageChange = async (
 
   const file = files[0];
   if (!allowedHomemaidImageTypes.includes(file.type)) {
-    setErrors((prev) => ({ ...prev, [fieldId]: 'نوع الصورة غير مدعوم (JPEG فقط)' }));
+    setErrors((prev) => ({ ...prev, [fieldId]: 'نوع الصورة غير مدعوم (JPEG و PNG فقط)' }));
     setFileUploaded((prev) => ({ ...prev, [fieldId]: false }));
     setFileNames((prev) => ({ ...prev, [fieldId]: '' }));
     setFormData((prev) => ({ ...prev, [fieldId]: '' }));
@@ -1117,7 +1117,7 @@ const handleHomemaidImageChange = async (
             id={file.id}
             ref={fileInputRefs[file.id as keyof typeof fileInputRefs]}
             className="hidden"
-            accept="image/jpeg"
+            accept="image/jpeg, image/png"
             onChange={(e) => {
               if (file.id === 'Picture') return handleHomemaidImageChange(e, 'Picture', 'profile');
               return handleHomemaidImageChange(e, 'FullPicture', 'full');
@@ -1164,7 +1164,75 @@ const handleHomemaidImageChange = async (
     ))}
   </div>
 </fieldset>
-                
+<div className="flex justify-end gap-4 mt-8 bottom-submit-buttons">
+             <button
+  type="button"
+  className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md"
+  onClick={() => {
+    setFormData({
+      name: '',
+      religion: '',
+      nationality: '',
+      maritalStatus: '',
+      age: '',
+      passport: '',
+      mobile: '',
+      weight: '',
+      height: '',
+      children: '',
+      BabySitterLevel: '',
+      passportStart: '',
+      passportEnd: '',
+      educationLevel: '',
+      arabicLevel: '',
+      englishLevel: '',
+      experienceField: '',
+      experienceYears: '',
+      salary: '',
+      officeName: '',
+      cookingLevel: '',
+      washingLevel: '',
+      ironingLevel: '',
+      cleaningLevel: '',
+      sewingLevel: '',
+      childcareLevel: '',
+      elderlycareLevel: '',
+      skills: {
+        washing: '',
+        ironing: '',
+        cleaning: '',
+        cooking: '',
+        sewing: '',
+        childcare: '',
+        elderlycare: '',
+      },
+      Picture: '',
+      FullPicture: '',
+    });
+    setFileUploaded({
+      Picture: false,
+      FullPicture: false,
+    });
+    setFileNames({
+      Picture: '',
+      FullPicture: '',
+    });
+    if (fileInputRefs.Picture.current) fileInputRefs.Picture.current.value = '';
+    if (fileInputRefs.FullPicture.current) fileInputRefs.FullPicture.current.value = '';
+    setErrors({});
+  }}
+>
+  إعادة ضبط
+</button>
+                  <button
+                    type="button"
+                    className="bg-teal-800 text-white text-sm px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleSubmit}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'جاري الإرسال...' : 'إضافة العاملة'}
+                  </button>
+                </div>
               </form>
             </div>
           </main>
