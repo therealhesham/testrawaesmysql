@@ -143,7 +143,7 @@ const InternalArrivalsTab = ({ arrivals, count, onItemClick }) => (
     {arrivals.slice(0, 3).map((arrival) => (
       <div key={arrival.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/arrival-list')}>
         <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{arrival.id}</p>
+          <p className="item-title text-sm font-semibold text-gray-900">الوصول رقم #{arrival.OrderId || arrival.id}</p>
           <p className="item-subtitle text-xs text-gray-600">من: {arrival.deparatureCityCountry}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ الوصول: {getDate(arrival.KingdomentryDate)} <FieldTimeOutlined />
@@ -1300,7 +1300,7 @@ export default function Home({
                     }}
                     title="اضغط للذهاب إلى صفحة الوصول"
                   >
-                    <span className="font-semibold text-blue-900">وصول #{arrival.id}</span>
+                    <span className="font-semibold text-blue-900">وصول #{arrival.OrderId || arrival.id}</span>
                     <span className="text-blue-700 mr-2">من {arrival.deparatureCityCountry || 'غير محدد'}</span>
                   </li>
                 ))}
@@ -1930,7 +1930,7 @@ export default function Home({
                           title={`وصول: من ${arrival.ArrivalCity || 'غير محدد'}`}
                           // onClick={() => router.push('/admin/housedarrivals')}
                         >
-                          وصول #{arrival.id}
+                          وصول #{arrival.OrderId || arrival.id}
                         </div>
                       ))}
                       
