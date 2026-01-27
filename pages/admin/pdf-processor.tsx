@@ -1598,9 +1598,9 @@ const handleSave = async () => {
     const experienceYears = findFieldValue(['ExperienceYears', 'experienceYears', 'experience_years', 'years_of_experience'], jsonResponse);
     if (checkRequiredField(experienceYears, 'ExperienceYears', 'سنوات الخبرة')) missingFields.push('سنوات الخبرة');
 
-    // التحقق من رقم الهاتف
-    const phone = findFieldValue(['phone', 'Phone', 'mobile', 'Mobile', 'phoneNumber', 'phone_number'], jsonResponse);
-    if (checkRequiredField(phone, 'phone', 'رقم الهاتف')) missingFields.push('رقم الهاتف');
+    // التحقق من رقم الهاتف (اختياري)
+    // const phone = findFieldValue(['phone', 'Phone', 'mobile', 'Mobile', 'phoneNumber', 'phone_number'], jsonResponse);
+    // if (checkRequiredField(phone, 'phone', 'رقم الهاتف')) missingFields.push('رقم الهاتف');
 
     // التحقق من الراتب
     const salary = findFieldValue(['Salary', 'salary'], jsonResponse);

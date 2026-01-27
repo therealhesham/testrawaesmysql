@@ -290,7 +290,7 @@ function HomeMaidInfo() {
       { name: 'maritalstatus', label: 'الحالة الاجتماعية' },
       { name: 'dateofbirth', label: 'تاريخ الميلاد' },
       { name: 'Passportnumber', label: 'رقم جواز السفر' },
-      { name: 'phone', label: 'رقم الجوال' },
+      { name: 'Passportnumber', label: 'رقم جواز السفر' },
       { name: 'weight', label: 'الوزن' },
       { name: 'height', label: 'الطول' },
       { name: 'passportStartDate', label: 'بداية الجواز' },
