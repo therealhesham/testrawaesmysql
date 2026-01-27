@@ -26,7 +26,7 @@ export default async function handler(
       const totalCount = await prisma.neworder.count({
         where: {          NOT: {
             bookingstatus: {
-              in: ["new_order", "new_orders", "delivered", "cancelled","rejected"],
+              in: ["new_order", "new_orders", "delivered", "cancelled","rejected","received","Received"],
             },
                 }        },
       });
@@ -35,7 +35,7 @@ export default async function handler(
        const homemaids = await prisma.neworder.findMany({take:3,
         where: {          NOT: {
             bookingstatus: {
-              in: ["new_order", "new_orders", "delivered", "cancelled","rejected"],
+              in: ["new_order", "new_orders", "delivered", "cancelled","rejected","received","Received"],
             },
                 }        },
       });

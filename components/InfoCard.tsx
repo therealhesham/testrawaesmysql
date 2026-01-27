@@ -78,7 +78,35 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   }
 
   // Contract number validation: 10 digits, must start with 20
-  if ((key === 'رقم عقد إدارة المكاتب' || key.includes('عقد إدارة المكاتب')) && value && value !== 'N/A') {
+    if ((key === 'رقم عقد إدارة المكاتب' || key.includes('عقد إدارة المكاتب')) && value && value !== 'N/A') {
+    const contract = value.trim();
+
+    if (!/^\d+$/.test(contract)) {
+      return 'رقم العقد يجب أن يحتوي على أرقام فقط';
+    }
+
+    // تم تعطيل التحقق من أن الرقم يبدأ بـ 20 وأن طوله 10 أرقام بناءً على طلب المستخدم
+    /*
+    // Allow progressive typing of 20 (2 -> 20)
+    if (contract.length < 2) {
+      if (!'20'.startsWith(contract)) {
+        return 'رقم العقد يجب أن يبدأ بـ 20';
+      }
+      return null;
+    }
+
+    if (!contract.startsWith('20')) {
+      return 'رقم العقد يجب أن يبدأ بـ 20';
+    }
+
+    if (contract.length !== 10) {
+      return 'رقم العقد يجب أن يكون 10 أرقام';
+    }
+    */
+  }
+
+  // Musaned Authentication Contract Number validation: 10 digits, must start with 20
+  if ((key === 'رقم عقد مساند التوثيق' || key.includes('عقد مساند التوثيق')) && value && value !== 'N/A') {
     const contract = value.trim();
 
     if (!/^\d+$/.test(contract)) {

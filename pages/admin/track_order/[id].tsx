@@ -14,7 +14,7 @@ import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
-import { Calendar, AlarmClock, ArrowRight } from 'lucide-react';
+import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
@@ -36,7 +36,7 @@ interface OrderData {
   foreignLaborApproval: { approved: boolean };
   agencyPayment: { paid: boolean };
   saudiEmbassyApproval: { approved: boolean };
-  visaIssuance: { issued: boolean };
+  visaIssuance: { issued: boolean; visaFile?: string | null };
   travelPermit: { issued: boolean };
   destinations: { departureCity: string; arrivalCity: string; departureDateTime: string; arrivalDateTime: string };
   ticketUpload: { files: string };
@@ -346,6 +346,50 @@ export default function TrackOrder() {
     return val === 'N/A' ? '' : val;
   };
 
+  const handleVisaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUpdating(true);
+      try {
+        const res = await fetch(`/api/upload-presigned-url/${id}`);
+        if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+        const { url, filePath } = await res.json();
+
+        const uploadRes = await fetch(url, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'x-amz-acl': 'public-read',
+          },
+        });
+
+        if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+        await fetch(`/api/track_order/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: 'visaIssuance',
+            updatedData: { visaFile: filePath },
+          }),
+        });
+
+        await fetchOrderData();
+        setShowAlertModal({ isOpen: true, message: 'تم رفع ملف التأشيرة بنجاح' });
+      } catch (error: any) {
+        console.error('Error uploading visa file:', error);
+        setShowErrorModal({
+          isOpen: true,
+          title: 'خطأ في رفع الملف',
+          message: error.message || 'حدث خطأ أثناء رفع الملف',
+        });
+      } finally {
+        setUpdating(false);
+      }
+    }
+  };
+
   const handleStatusUpdate = async (field: string, value: boolean) => {
     const fieldName = fieldNames[field] || field;
     
@@ -529,6 +573,8 @@ export default function TrackOrder() {
           return;
         }
         
+        // تم تعطيل التحقق من أن الرقم يبدأ بـ 20 وأن طوله 10 أرقام بناءً على طلب المستخدم
+        /*
         // التحقق من أن الرقم يبدأ بـ 20
         if (!contract.startsWith('20')) {
           setShowErrorModal({
@@ -548,9 +594,43 @@ export default function TrackOrder() {
           });
           return;
         }
+        */
       }
     }
 
+    // التحقق من رقم عقد مساند التوثيق في قسم المكتب الخارجي
+    if (section === 'externalOfficeInfo' && updatedData['رقم عقد مساند التوثيق']) {
+      const contract = updatedData['رقم عقد مساند التوثيق'].trim();
+      
+      if (contract && contract !== 'N/A' && contract !== '') {
+        if (!/^\d+$/.test(contract)) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم عقد مساند التوثيق يجب أن يحتوي على أرقام فقط',
+          });
+          return;
+        }
+        
+        if (!contract.startsWith('20')) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم عقد مساند التوثيق يجب أن يبدأ بـ 20',
+          });
+          return;
+        }
+        
+        if (contract.length !== 10) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'رقم عقد مساند التوثيق يجب أن يكون 10 أرقام',
+          });
+          return;
+        }
+      }
+    }
     // التحقق من تاريخ ووقت الوصول والمغادرة في قسم الوجهات
     if (section === 'destinations') {
       const departureDateTime = updatedData['تاريخ ووقت المغادرة'];
@@ -1404,6 +1484,72 @@ export default function TrackOrder() {
                   </div>
                 ),
               },
+              {
+                label: 'ملف التأشيرة',
+                value: (
+                  <div className="flex items-center gap-2 justify-between w-full border border-gray-200 rounded p-2">
+                    <div className="flex items-center gap-2">
+                      {orderData.visaIssuance.visaFile ? (
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={orderData.visaIssuance.visaFile} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-teal-800 hover:underline flex items-center gap-1 font-medium"
+                          >
+                            <FileText className="w-4 h-4" />
+                            عرض الملف
+                          </a>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('هل أنت متأكد من حذف الملف؟')) return;
+                              setUpdating(true);
+                              try {
+                                const response = await fetch(`/api/track_order/${id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    section: 'visaIssuance',
+                                    updatedData: { visaFile: null }
+                                  }),
+                                });
+                                if (response.ok) {
+                                  setOrderData((prev: any) => ({
+                                    ...prev,
+                                    visaIssuance: { ...prev.visaIssuance, visaFile: null }
+                                  }));
+                                  await fetchOrderData();
+                                }
+                              } catch (error: any) {
+                                console.error('Error deleting file:', error);
+                              } finally {
+                                setUpdating(false);
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="حذف الملف"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">لا يوجد ملف مرفق</span>
+                      )}
+                    </div>
+                    <label className={`bg-teal-800 hover:bg-teal-900 text-white px-3 py-1 rounded-md text-sm transition-colors duration-200 flex items-center gap-2 cursor-pointer ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <Upload className="w-4 h-4" />
+                      {orderData.visaIssuance.visaFile ? 'تغيير' : 'رفع ملف'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleVisaFileChange}
+                        disabled={updating}
+                      />
+                    </label>
+                  </div>
+                )
+              }
             ]}
             actions={[
               {

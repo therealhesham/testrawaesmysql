@@ -109,6 +109,7 @@ console.log(id)
               EmbassySealing: true,
               visaNumber: true,
               visaIssuanceDate: true,
+              VisaFile: true,
               DeliveryDate: true,
               ticketFile: true,
               foreignLaborApproval: true,
@@ -259,6 +260,7 @@ console.log(id)
         },
         visaIssuance: {
           issued: !!order.arrivals[0]?.visaIssuanceDate,
+          visaFile: order.arrivals[0]?.VisaFile || null,
         },
         travelPermit: {
           issued: !!order.arrivals[0]?.travelPermit,
@@ -641,6 +643,13 @@ if(order?.bookingstatus ==="new_order"){
               changes.push(`ملف الفحص الطبي: تم التحديث`);
             }
             break;
+          case 'visaIssuance':
+              console.log('🛂 تعديل ملف التأشيرة');
+              if (Object.prototype.hasOwnProperty.call(updatedData, 'visaFile')) {
+                arrivalUpdate.VisaFile = updatedData.visaFile;
+                changes.push(`ملف التأشيرة: تم التحديث`);
+              }
+              break;
           case 'homemaidInfo':
             console.log('👩‍🦰 تعديل معلومات العاملة المنزلية');
             // if (!order.HomemaidId) {
@@ -808,12 +817,14 @@ if(order?.bookingstatus ==="new_order"){
                 if (!/^\d+$/.test(contract)) {
                   return res.status(400).json({ error: 'رقم العقد يجب أن يحتوي على أرقام فقط' });
                 }
+                /*
                 if (!contract.startsWith('20')) {
                   return res.status(400).json({ error: 'رقم العقد يجب أن يبدأ بـ 20' });
                 }
                 if (contract.length !== 10) {
                   return res.status(400).json({ error: 'رقم العقد يجب أن يكون 10 أرقام' });
                 }
+                */
                 arrivalUpdate.InternalmusanedContract = contract;
                 changes.push(`رقم عقد إدارة المكاتب: من "${oldContract || 'فارغ'}" إلى "${contract}"`);
               }
@@ -864,10 +875,25 @@ if(order?.bookingstatus ==="new_order"){
             }
             if (Object.prototype.hasOwnProperty.call(updatedData, 'رقم عقد مساند التوثيق')) {
               const oldExtContract = order.arrivals[0]?.externalmusanedContract;
-              const newExtContract = updatedData['رقم عقد مساند التوثيق'];
-              // حفظ القيمة حتى لو كانت فارغة
-              arrivalUpdate.externalmusanedContract = newExtContract && newExtContract.trim() !== '' ? newExtContract.trim() : null;
-              changes.push(`رقم عقد مساند التوثيق: من "${oldExtContract || 'فارغ'}" إلى "${newExtContract || 'فارغ'}"`);
+              const contractRaw = updatedData['رقم عقد مساند التوثيق'];
+              const contract = typeof contractRaw === 'string' ? contractRaw.trim() : String(contractRaw ?? '').trim();
+
+              if (!contract || contract === 'N/A' || contract === '') {
+                 arrivalUpdate.externalmusanedContract = null;
+                 changes.push(`رقم عقد مساند التوثيق: من "${oldExtContract || 'فارغ'}" إلى "فارغ"`);
+              } else {
+                 if (!/^\d+$/.test(contract)) {
+                    return res.status(400).json({ error: 'رقم عقد مساند التوثيق يجب أن يحتوي على أرقام فقط' });
+                 }
+                 if (!contract.startsWith('20')) {
+                    return res.status(400).json({ error: 'رقم عقد مساند التوثيق يجب أن يبدأ بـ 20' });
+                 }
+                 if (contract.length !== 10) {
+                    return res.status(400).json({ error: 'رقم عقد مساند التوثيق يجب أن يكون 10 أرقام' });
+                 }
+                 arrivalUpdate.externalmusanedContract = contract;
+                 changes.push(`رقم عقد مساند التوثيق: من "${oldExtContract || 'فارغ'}" إلى "${contract}"`);
+              }
             }
             break;
           case 'destinations':
