@@ -273,6 +273,7 @@ const handleHomemaidImageChange = async (
     const requiredFields: Array<{ id: keyof typeof formData; label: string }> = [
       { id: 'name', label: 'الاسم' },
       { id: 'religion', label: 'الديانة' },
+      { id: 'professionId', label: 'المهنة' },
       { id: 'nationality', label: 'الجنسية' },
       { id: 'maritalStatus', label: 'الحالة الاجتماعية' },
       { id: 'age', label: 'العمر' },
@@ -832,7 +833,7 @@ const handleHomemaidImageChange = async (
                     </div>
 
                     <div className="flex flex-col">
-                      <label htmlFor="professionId" className="text-gray-500 text-sm mb-1">المهنة</label>
+                      <label htmlFor="professionId" className="text-gray-500 text-sm mb-1">المهنة <span className="text-red-500">*</span></label>
                       <select
                         id="professionId"
                         value={formData.professionId}
