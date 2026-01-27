@@ -89,7 +89,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           roleId, 
           pictureurl,
           currentPassword, 
-          newPassword 
+          newPassword,
+          idnumber
         } = req.body;
 
         console.log("🔍 Update Request for User ID:", id);
@@ -128,7 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             phonenumber: phonenumber || targetUser.phonenumber,
             pictureurl: pictureurl !== undefined ? pictureurl : targetUser.pictureurl,
             email: email !== undefined ? email : targetUser.email,
-            idnumber: targetUser.idnumber,
+            idnumber: idnumber ? parseInt(idnumber) : targetUser.idnumber, // Parse as Int
             password: updatedPassword, 
             roleId: roleId ? parseInt(roleId) : targetUser.roleId,
             updatedAt: new Date(),

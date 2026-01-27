@@ -678,6 +678,11 @@ export default function PDFProcessor() {
 
       cleanedJsonResponse = removeDuplicateFields(cleanedJsonResponse);
       
+      // حذف حقل display_order إذا تم استخراجه بالخطأ
+      delete cleanedJsonResponse.display_order;
+      delete cleanedJsonResponse.DisplayOrder;
+      delete cleanedJsonResponse.displayOrder;
+      
       // التحقق من القيم المستخرجة وحذف القيم غير الصحيحة
       // التحقق من religion
       const religionValue = cleanedJsonResponse.religion || cleanedJsonResponse.Religion;
@@ -688,6 +693,19 @@ export default function PDFProcessor() {
       } else if (!cleanedJsonResponse.religion && !cleanedJsonResponse.Religion) {
          // إذا لم يكن موجوداً أصلاً، ننشئه كقيمة فارغة
          cleanedJsonResponse.religion = "";
+      }
+
+      // التحقق من educationLevel - إضافة تعليمات المستخدم
+      const educationValue = cleanedJsonResponse.educationLevel || cleanedJsonResponse.EducationLevel || cleanedJsonResponse.education || cleanedJsonResponse.Education;
+      if (!educationValue) {
+         cleanedJsonResponse.educationLevel = "";
+      } else if (educationValue && !isValueInOptions(String(educationValue), educationOptions)) {
+         // إذا كانت القيمة غير موجودة في القائمة، نتركها فارغة ليختارها المستخدم، ولكن نحتفظ بالمفتاح
+         cleanedJsonResponse.educationLevel = "";
+         // تنظيف المفاتيح الأخرى لتجنب التكرار
+         delete cleanedJsonResponse.EducationLevel;
+         delete cleanedJsonResponse.education;
+         delete cleanedJsonResponse.Education;
       }
       
       // التحقق من maritalStatus
@@ -2690,6 +2708,11 @@ const handleSave = async () => {
                                     key === 'office_name ' ||
                                     key === 'CompanyName '
                                   ) {
+                                    return;
+                                  }
+
+                                  // تخطي display_order
+                                  if (normalizedKey === 'display_order' || normalizedKey === 'displayorder' || key === 'DisplayOrder') {
                                     return;
                                   }
 
