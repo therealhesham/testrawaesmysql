@@ -27,9 +27,11 @@ function HomeMaidInfo() {
   };
 
   // --- حالة البيانات (State) ---
+  const [professions, setProfessions] = useState<Array<{ id: number; name: string }>>([]);
   const [formData, setFormData] = useState({
     Name: "",
     Religion: "",
+    professionId: "",
     Nationalitycopy: "",
     maritalstatus: "",
 
@@ -515,6 +517,18 @@ function HomeMaidInfo() {
     }
   };
 
+  const fetchProfessions = async () => {
+    try {
+      const res = await fetch('/api/professions');
+      if (res.ok) {
+        const data = await res.json();
+        setProfessions(data);
+      }
+    } catch (error) {
+      console.error('Error fetching professions:', error);
+    }
+  };
+
   const handleFileChange = async (e: any, fileId: any) => {};
   const handleButtonClick = (fileId: any) => {};
 
@@ -605,6 +619,7 @@ function HomeMaidInfo() {
       setFormData({
         Name: data.Name || "",
         Religion: data.Religion || "",
+        professionId: data.professionId || "",
         Nationalitycopy: data.Nationalitycopy || "",
         maritalstatus: data.maritalstatus || "",
 
@@ -662,6 +677,7 @@ function HomeMaidInfo() {
       fetchClients();
       fetchofficesnames();
       fetchNationalities();
+      fetchProfessions();
     }
   }, [id]);
 
@@ -919,6 +935,7 @@ function HomeMaidInfo() {
             {[
               { label: "الاسم", name: "Name", value: formData.Name ,type: "text"},
               { label: "الديانة", name: "Religion", value: formData.Religion ,type: "select", options: religionOptions},
+              { label: "المهنة", name: "professionId", value: formData.professionId, type: "select", isProfession: true },
               { label: "الجنسية", name: "Nationalitycopy", value: formData.Nationalitycopy ,type: "select", isNationality: true},
               { label: "الحالة الاجتماعية", name: "maritalstatus", value: formData.maritalstatus ,type: "select", options: maritalStatusOptions},
               
@@ -950,6 +967,8 @@ function HomeMaidInfo() {
                       <option value="" disabled>اختر {field.label}</option>
                       {field.isNationality 
                         ? nationalities.map((nat) => <option key={nat.id} value={nat.Country}>{nat.Country}</option>)
+                        : field.isProfession
+                        ? professions.map((prof) => <option key={prof.id} value={prof.id}>{prof.name}</option>)
                         : field.options?.map((option: string) => <option key={option} value={option}>{option}</option>)
                       }
                     </select>
@@ -963,7 +982,11 @@ function HomeMaidInfo() {
                     <input
                       type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
                       name={field.name}
-                      value={field.value || ""}
+                      value={
+                        field.isProfession
+                          ? professions.find((p) => p.id === Number(field.value))?.name || ""
+                          : field.value || ""
+                      }
                       onChange={field.type === "date" ? handleChangeDate : handleChange}
                       readOnly={!isEditing}
                       dir={field.name === "phone" ? "ltr" : undefined}

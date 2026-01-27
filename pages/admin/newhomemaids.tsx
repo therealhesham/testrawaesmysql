@@ -24,10 +24,12 @@ const AddWorkerForm: React.FC<Props> = ({ error }) => {
   Picture: '',
   FullPicture: '',
 });
+const [professions, setProfessions] = useState<Array<{ id: number; name: string }>>([]);
 
   const [formData, setFormData] = useState({
     name: '',
     religion: '',
+    professionId: '', // Added professionId here
     nationality: '',
     maritalStatus: '',
     age: '',
@@ -405,6 +407,18 @@ const handleHomemaidImageChange = async (
     }
   };
 
+  const fetchProfessions = async () => {
+    try {
+      const res = await fetch('/api/professions');
+      if (res.ok) {
+        const data = await res.json();
+        setProfessions(data);
+      }
+    } catch (error) {
+      console.error('Error fetching professions:', error);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       setModalMessage('يرجى تصحيح الأخطاء في النموذج قبل الإرسال');
@@ -419,6 +433,7 @@ const handleHomemaidImageChange = async (
         weight: formData.weight ? parseInt(formData.weight) : null,
         height: formData.height ? parseInt(formData.height) : null,
         children: formData.children ? parseInt(formData.children) : null,
+        professionId: formData.professionId ? parseInt(formData.professionId) : null,
       };
       const response = await fetch('/api/newhomemaids', {
         method: 'POST',
@@ -471,6 +486,7 @@ const handleHomemaidImageChange = async (
         },
         Picture: '',
         FullPicture: '',
+        professionId: '',
       });
       setFileUploaded({
         Picture: false,
@@ -498,6 +514,7 @@ const handleHomemaidImageChange = async (
     if (!error) {
       fetchOffices();
       fetchNationalities();
+      fetchProfessions();
     }
   }, [error]);
 
@@ -749,6 +766,7 @@ const handleHomemaidImageChange = async (
       },
       Picture: '',
       FullPicture: '',
+      professionId: '',
     });
     setFileUploaded({
       Picture: false,
@@ -811,6 +829,25 @@ const handleHomemaidImageChange = async (
                         ))}
                       </select>
                       {errors.religion && <p className="text-red-500 text-xs mt-1">{errors.religion}</p>}
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label htmlFor="professionId" className="text-gray-500 text-sm mb-1">المهنة</label>
+                      <select
+                        id="professionId"
+                        value={formData.professionId}
+                        onChange={handleChange}
+                        className={`border ${errors.professionId ? 'border-red-500' : 'border-gray-300'} rounded-md text-sm bg-gray-50 text-right`}
+                        dir="ltr"
+                      >
+                        <option value="" disabled>اختر المهنة</option>
+                        {professions.map((prof) => (
+                          <option key={prof.id} value={prof.id}>
+                            {prof.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.professionId && <p className="text-red-500 text-xs mt-1">{errors.professionId}</p>}
                     </div>
                     <div className="flex flex-col">
                       <label htmlFor="nationality" className="text-gray-500 text-sm mb-1">الجنسية <span className="text-red-500">*</span></label>
@@ -1208,6 +1245,7 @@ const handleHomemaidImageChange = async (
       },
       Picture: '',
       FullPicture: '',
+      professionId: '',
     });
     setFileUploaded({
       Picture: false,
@@ -1216,6 +1254,7 @@ const handleHomemaidImageChange = async (
     setFileNames({
       Picture: '',
       FullPicture: '',
+      professionId: '',
     });
     if (fileInputRefs.Picture.current) fileInputRefs.Picture.current.value = '';
     if (fileInputRefs.FullPicture.current) fileInputRefs.FullPicture.current.value = '';

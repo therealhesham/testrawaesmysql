@@ -95,6 +95,7 @@ const {
   weight,
   height,
   children,
+  professionId,
 } = req.body;
 
   const cookieHeader = req.headers.cookie;
@@ -212,6 +213,7 @@ const newHomemaid = await prisma.homemaid.create({
     weight: weight ? parseInt(weight) : null,
     height: height ? parseInt(height) : null,
     children: children ? parseInt(children) : null,
+    professionId: professionId ? parseInt(professionId) : null,
   },
 });
 

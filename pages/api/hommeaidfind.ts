@@ -85,6 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         include: {
           office: true,
+          profession: true,
           logs: {
             orderBy: {
               createdAt: 'desc'
@@ -150,6 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         Religion: updateFields.Religion,
         Nationalitycopy: updateFields.Nationalitycopy,
         maritalstatus: updateFields.maritalstatus,
+        professionId: updateFields.professionId === "" ? null : parseIntValue(updateFields.professionId),
 
         // ✅ الصور (Json)
         // نقبل: string (URL) / null (مسح) / undefined (عدم التعديل)
@@ -336,6 +338,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           Name: { old: oldWorker.Name, new: filteredFields.Name, label: 'الاسم' },
           Religion: { old: oldWorker.Religion, new: filteredFields.Religion, label: 'الديانة' },
           Nationalitycopy: { old: oldWorker.Nationalitycopy, new: filteredFields.Nationalitycopy, label: 'الجنسية' },
+          professionId: { old: oldWorker.professionId, new: filteredFields.professionId, label: 'المهنة' },
           maritalstatus: { old: oldWorker.maritalstatus, new: filteredFields.maritalstatus, label: 'الحالة الاجتماعية' },
           children: { old: oldWorker.children, new: filteredFields.children, label: 'عدد الأطفال' },
           weight: { old: oldWorker.weight, new: filteredFields.weight, label: 'الوزن' },
