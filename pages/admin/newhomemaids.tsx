@@ -275,7 +275,7 @@ const handleHomemaidImageChange = async (
       { id: 'maritalStatus', label: 'الحالة الاجتماعية' },
       { id: 'age', label: 'العمر' },
       { id: 'passport', label: 'رقم جواز السفر' },
-      { id: 'mobile', label: 'رقم الجوال' },
+
       { id: 'weight', label: 'الوزن' },
       { id: 'height', label: 'الطول' },
       { id: 'passportStart', label: 'بداية الجواز' },
@@ -884,7 +884,7 @@ const handleHomemaidImageChange = async (
                       {errors.passport && <p className="text-red-500 text-xs mt-1">{errors.passport}</p>}
                     </div>
                     <div className="flex flex-col">
-                      <label htmlFor="mobile" className="text-gray-500 text-sm mb-1">رقم الجوال <span className="text-red-500">*</span></label>
+                      <label htmlFor="mobile" className="text-gray-500 text-sm mb-1">رقم الجوال</label>
                       <PhoneInput
                         international
                         defaultCountry="SA"
