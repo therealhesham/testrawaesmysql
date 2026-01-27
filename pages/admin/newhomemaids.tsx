@@ -9,7 +9,7 @@ import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import jsPDF from 'jspdf';
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { parsePhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
 interface Props {
@@ -317,10 +317,18 @@ const handleHomemaidImageChange = async (
     }
 
     if (formData.mobile) {
-      // التحقق من أن الرقم يحتوي على + ورمز الدولة وأرقام فقط (مع السماح بالمسافات)
-      const cleanedMobile = formData.mobile.replace(/\s/g, '');
-      if (!/^\+\d{7,15}$/.test(cleanedMobile)) {
-        newErrors.mobile = 'رقم الجوال غير صحيح. يجب أن يحتوي على رمز الدولة والرقم';
+      try {
+        const phoneNumber = parsePhoneNumber(formData.mobile);
+        if (phoneNumber && phoneNumber.nationalNumber) {
+           const len = phoneNumber.nationalNumber.length;
+           if (len < 9 || len > 10) {
+              newErrors.mobile = 'رقم الجوال يجب أن يتكون من 9 أو 10 أرقام (بدون الكود)';
+           } 
+        } else {
+             newErrors.mobile = 'رقم الجوال غير صحيح';
+        }
+      } catch (e) {
+           newErrors.mobile = 'رقم الجوال غير صحيح';
       }
     }
 
