@@ -682,8 +682,12 @@ export default function PDFProcessor() {
       // التحقق من religion
       const religionValue = cleanedJsonResponse.religion || cleanedJsonResponse.Religion;
       if (religionValue && !isValueInOptions(String(religionValue), religionOptions)) {
-        delete cleanedJsonResponse.religion;
+        // بدلاً من الحذف، نضبطه لقيمة فارغة ليظهر في النموذج
+        cleanedJsonResponse.religion = "";
         delete cleanedJsonResponse.Religion;
+      } else if (!cleanedJsonResponse.religion && !cleanedJsonResponse.Religion) {
+         // إذا لم يكن موجوداً أصلاً، ننشئه كقيمة فارغة
+         cleanedJsonResponse.religion = "";
       }
       
       // التحقق من maritalStatus
