@@ -369,6 +369,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('Final Data Saving to DB:', JSON.stringify(createData, null, 2));
 
+    // جلب أعلى displayOrder من الجدول
+    const maxDisplayOrder = await prisma.homemaid.findFirst({
+      orderBy: {
+        displayOrder: 'desc'
+      },
+      select: {
+        displayOrder: true
+      }
+    });
+
+    const newDisplayOrder = maxDisplayOrder?.displayOrder ? maxDisplayOrder.displayOrder + 1 : 1;
+    createData.displayOrder = newDisplayOrder;
+
     const homemaidRecord = await prisma.homemaid.create({
       data: createData
     });
