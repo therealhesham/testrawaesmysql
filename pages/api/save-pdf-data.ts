@@ -344,13 +344,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (found) {
           return res.status(400).json({ 
-            error: 'رقم الجواز مستخدم من قبل. يرجى إدخال رقم جواز آخر',
+            error: 'رقم الجواز مسجل بالفعل ',
             details: ' رقم الجواز مستخدم من قبل'
           });
         }
       } else {
         return res.status(400).json({ 
-          error: 'رقم الجواز مستخدم من قبل. يرجى إدخال رقم جواز آخر',
+          error: 'رقم الجواز مسجل بالفعل',
           details: ' رقم الجواز مستخدم من قبل'
         });
       }

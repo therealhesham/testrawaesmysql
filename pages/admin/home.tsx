@@ -1275,7 +1275,7 @@ export default function Home({
                     title="اضغط للذهاب إلى صفحة الطلبات الجديدة"
                   >
                     <span className="font-semibold text-yellow-900">طلب #{order.id}</span>
-                    <span className="text-yellow-700 mr-2">- {order.Name || 'غير محدد'}</span>
+                    <span className="text-yellow-700 mr-2">- {order.client?.fullname || order.ClientName || order.Name || 'غير محدد'}</span>
                   </li>
                 ))}
               </ul>
