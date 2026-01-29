@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FaBars, FaTimes, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaBars, FaTimes, FaChevronDown, FaChevronUp, FaBug } from 'react-icons/fa';
 import { BellIcon } from '@heroicons/react/solid';
 import { jwtDecode } from 'jwt-decode';
 import DOMPurify from 'dompurify';
+import BugReportModal from './BugReportModal';
+
 const DesktopNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -12,6 +14,9 @@ const DesktopNavbar = () => {
   const [counts, setCounts] = useState({ all: 0, personal: 0, general: 0 });
   const [activeTab, setActiveTab] = useState<'all' | 'personal' | 'general'>('all');
   const [userName, setUserName] = useState('');
+  const [isBugModalOpen, setIsBugModalOpen] = useState(false);
+  const [bugScreenshot, setBugScreenshot] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
   const router = useRouter();
 
   // Function to calculate time ago
@@ -112,6 +117,30 @@ const DesktopNavbar = () => {
     setIsUserDropdownOpen(!isUserDropdownOpen);
   };
 
+  const handleBugReportClick = async () => {
+    if (typeof window === 'undefined') return;
+    setIsCapturing(true);
+    setBugScreenshot(null);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 0.75,
+        logging: false,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      setBugScreenshot(dataUrl);
+      setIsBugModalOpen(true);
+    } catch (err) {
+      console.error('Screenshot capture failed:', err);
+      setBugScreenshot(null);
+      setIsBugModalOpen(true);
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const response = await fetch('/api/logout', {
@@ -160,12 +189,22 @@ const DesktopNavbar = () => {
     <nav className="hidden lg:block bg-white shadow-lg py-2" dir="rtl">
       <div className="w-full px-4">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <img
               src="/images/homelogo.png"
               className="h-20 w-30 object-contain"
               alt="لوجو روائس"
             />
+            <button
+              type="button"
+              onClick={handleBugReportClick}
+              disabled={isCapturing}
+              title="تسجيل شكوى / بلاغ خطأ"
+              className="p-2 rounded-lg text-teal-700 hover:bg-teal-50 hover:text-teal-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              aria-label="تسجيل شكوى"
+            >
+              <FaBug className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -333,6 +372,19 @@ const DesktopNavbar = () => {
           </div>
         </div>
       </div>
+
+      <BugReportModal
+        isOpen={isBugModalOpen}
+        onClose={() => {
+          setIsBugModalOpen(false);
+          setBugScreenshot(null);
+        }}
+        screenshotDataUrl={bugScreenshot}
+        onSuccess={() => {
+          setIsBugModalOpen(false);
+          setBugScreenshot(null);
+        }}
+      />
     </nav>
   );
 };
