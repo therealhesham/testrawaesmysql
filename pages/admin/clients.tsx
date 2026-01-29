@@ -3,7 +3,7 @@ import AddClientModal from 'components/AddClientModal';
 import AddNotesModal from 'components/AddNotesModal';
 import Style from "styles/Home.module.css";
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, ChevronDown, Calendar, Filter, FileText, Eye, ChevronRight, ChevronUp, Edit2, Trash2, ArrowRight } from 'lucide-react';
 import { FileExcelOutlined } from '@ant-design/icons';
 import { DocumentTextIcon, DownloadIcon } from '@heroicons/react/outline';
 import Layout from 'example/containers/Layout';
@@ -654,7 +654,17 @@ const arabicRegionMap: { [key: string]: string } = {
             {hasPermission && (
               <>
                 <section className="flex justify-between items-center mb-6">
-                  <h1 className="text-3xl font-normal text-text-dark">قائمة العملاء</h1>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => router.push('/admin/home')}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex items-center justify-center"
+                      title="العودة للصفحة السابقة"
+                      aria-label="العودة للصفحة السابقة"
+                    >
+                      <ArrowRight className="w-6 h-6 text-teal-800" />
+                    </button>
+                    <h1 className="text-3xl font-normal text-text-dark">قائمة العملاء</h1>
+                  </div>
                   <button
                     className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-teal-800/90"
                     onClick={() => setIsModalOpen(true)}

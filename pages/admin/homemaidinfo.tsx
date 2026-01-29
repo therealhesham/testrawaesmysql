@@ -2,7 +2,7 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic } from "react-icons/fa";
+import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight } from "react-icons/fa";
 import AlertModal from "components/AlertModal";
 
 function HomeMaidInfo() {
@@ -777,10 +777,22 @@ function HomeMaidInfo() {
           </div>
         )}
 
-        <h1 className="text-3xl font-bold text-teal-800 mb-8 text-right">المعلومات الشخصية</h1>
+        <div className="flex items-center gap-3 mb-6 justify-start" dir="rtl">
+
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+            title="العودة للصفحة السابقة"
+            aria-label="العودة للصفحة السابقة"
+          >
+            <FaArrowRight className="w-6 h-6 text-teal-800" />
+
+                      <h1 className="text-3xl font-bold text-teal-800 text-right">المعلومات الشخصية</h1>
+          </button>
+        </div>
 
         {/* الأزرار العلوية */}
-        <div className="flex justify-end gap-4 mb-6">
+        <div className="flex justify-end gap-4 mb-8">
           {!hasExistingOrder && (
             <>
               {!isApproved ? (
