@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { FaBug, FaTimes, FaPaperPlane } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaBug, FaTimes, FaPaperPlane, FaUpload } from 'react-icons/fa';
 
 interface BugReportModalProps {
   isOpen: boolean;
@@ -20,14 +20,52 @@ export default function BugReportModal({
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [manualScreenshot, setManualScreenshot] = useState<string | null>(null);
+  const [capturedScreenshot, setCapturedScreenshot] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const screenshotRef = useRef<string | null>(null);
 
+  // تخزين اللقطة في الـ state والـ ref مباشرة لما تيجي من الـ parent
   useEffect(() => {
-    if (!isOpen) {
+    if (screenshotDataUrl) {
+      console.log('📸 تخزين اللقطة في الـ state:', screenshotDataUrl.substring(0, 50) + '...');
+      setCapturedScreenshot(screenshotDataUrl);
+      screenshotRef.current = screenshotDataUrl;
+    }
+  }, [screenshotDataUrl]);
+
+  // إعادة تعيين الحقول لما المودال يفتح
+  useEffect(() => {
+    if (isOpen) {
       setTitle('');
       setDescription('');
       setError(null);
+      setManualScreenshot(null);
+      // تأكد من تخزين اللقطة لو كانت موجودة
+      if (screenshotDataUrl) {
+        setCapturedScreenshot(screenshotDataUrl);
+        screenshotRef.current = screenshotDataUrl;
+      }
+    } else {
+      setCapturedScreenshot(null);
+      screenshotRef.current = null;
     }
-  }, [isOpen]);
+  }, [isOpen, screenshotDataUrl]);
+
+  const displayScreenshot = manualScreenshot || capturedScreenshot || screenshotDataUrl;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setManualScreenshot(dataUrl);
+      screenshotRef.current = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,20 +78,31 @@ export default function BugReportModal({
       setError('وصف الشكوى مطلوب');
       return;
     }
+    // استخدام اللقطة من الـ state أو الـ ref أو الـ prop - بأي ترتيب متاح
+    const screenshotData = manualScreenshot || capturedScreenshot || screenshotRef.current || screenshotDataUrl;
+    console.log('📤 إرسال الشكوى - اللقطة موجودة:', !!screenshotData, {
+      manualScreenshot: !!manualScreenshot,
+      capturedScreenshot: !!capturedScreenshot,
+      screenshotRef: !!screenshotRef.current,
+      screenshotDataUrl: !!screenshotDataUrl,
+    });
+    if (!screenshotData) {
+      setError('لم تُرفق لقطة شاشة. استخدم "رفع صورة يدوياً" أدناه أو أعد فتح النموذج من أيقونة Bug.');
+      return;
+    }
     setSubmitting(true);
     try {
-      const screenshotBase64 = screenshotDataUrl
-        ? screenshotDataUrl.replace(/^data:image\/\w+;base64,/, '')
-        : undefined;
+      const screenshotBase64 = screenshotData.replace(/^data:image\/\w+;base64,/, '');
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        screenshot: screenshotBase64,
+      };
       const res = await fetch('/api/complaints/create', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          screenshot: screenshotBase64,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'فشل في إرسال الشكوى');
@@ -102,20 +151,51 @@ export default function BugReportModal({
             </div>
           )}
 
-          {screenshotDataUrl && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                لقطة الشاشة
-              </label>
-              <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50 max-h-40">
-                <img
-                  src={screenshotDataUrl}
-                  alt="لقطة الشاشة"
-                  className="w-full h-auto object-contain max-h-40"
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              لقطة الشاشة (تُرسل مع الشكوى)
+            </label>
+            {displayScreenshot ? (
+              <>
+                <div className="rounded-lg border border-gray-200 overflow-hidden bg-gray-50 max-h-40">
+                  <img
+                    src={displayScreenshot}
+                    alt="لقطة الشاشة"
+                    className="w-full h-auto object-contain max-h-40"
+                  />
+                </div>
+                <p className="text-xs text-teal-600 mt-1">ستُرفق هذه الصورة مع الشكوى عند الإرسال.</p>
+                {manualScreenshot && (
+                  <button
+                    type="button"
+                    onClick={() => setManualScreenshot(null)}
+                    className="text-xs text-gray-500 hover:text-red-600 mt-1"
+                  >
+                    إزالة الصورة
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center">
+                <p className="text-sm text-gray-500 mb-2">لم تُلتقط لقطة شاشة تلقائياً.</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-teal-100 text-teal-800 rounded-lg hover:bg-teal-200 transition-colors text-sm font-medium"
+                >
+                  <FaUpload className="w-4 h-4" />
+                  رفع صورة يدوياً
+                </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <div>
             <label htmlFor="bug-title" className="block text-sm font-medium text-gray-700 mb-1">

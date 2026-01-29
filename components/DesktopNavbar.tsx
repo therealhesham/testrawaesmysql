@@ -122,20 +122,48 @@ const DesktopNavbar = () => {
     setIsCapturing(true);
     setBugScreenshot(null);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(document.body, {
-        useCORS: true,
-        allowTaint: true,
-        scale: 0.75,
-        logging: false,
+      // استخدام html-to-image بدلاً من html2canvas لأنه يدعم oklch
+      const { toPng } = await import('html-to-image');
+      const mainContent = document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
+      
+      const dataUrl = await toPng(mainContent as HTMLElement, {
+        cacheBust: true,
+        pixelRatio: 0.75,
+        skipAutoScale: true,
+        filter: (element) => {
+          // تجاهل العناصر التي قد تسبب مشاكل
+          return !element.classList?.contains('notification-dropdown') && 
+                 !element.classList?.contains('user-dropdown');
+        },
       });
-      const dataUrl = canvas.toDataURL('image/png');
+      
       setBugScreenshot(dataUrl);
-      setIsBugModalOpen(true);
-    } catch (err) {
-      console.error('Screenshot capture failed:', err);
-      setBugScreenshot(null);
-      setIsBugModalOpen(true);
+      requestAnimationFrame(() => {
+        setIsBugModalOpen(true);
+      });
+    } catch (err: any) {
+      console.error('Screenshot capture with html-to-image failed:', err);
+      // محاولة بديلة باستخدام html2canvas كـ fallback
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        const mainContent = document.querySelector('main') || document.body;
+        const canvas = await html2canvas(mainContent as HTMLElement, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 0.5,
+          logging: false,
+          backgroundColor: '#ffffff',
+        });
+        const dataUrl = canvas.toDataURL('image/png');
+        setBugScreenshot(dataUrl);
+        requestAnimationFrame(() => {
+          setIsBugModalOpen(true);
+        });
+      } catch (fallbackErr) {
+        console.error('Fallback screenshot also failed:', fallbackErr);
+        setBugScreenshot(null);
+        setIsBugModalOpen(true);
+      }
     } finally {
       setIsCapturing(false);
     }
