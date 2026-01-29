@@ -223,6 +223,10 @@ const DesktopNavbar = () => {
               className="h-20 w-30 object-contain"
               alt="لوجو روائس"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Bug Report - جنب جرس الاشعارات */}
             <button
               type="button"
               onClick={handleBugReportClick}
@@ -233,9 +237,6 @@ const DesktopNavbar = () => {
             >
               <FaBug className="w-5 h-5" />
             </button>
-          </div>
-
-          <div className="flex items-center space-x-2">
             {/* Notification Bell */}
             <div className="relative">
               <div onClick={toggleNotificationDropdown}>
