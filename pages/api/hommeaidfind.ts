@@ -107,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { id } = req.query;
       const updateData = req.body;
-
+console.log(updateData);
       if (!id) {
         return res.status(400).json({ error: 'Worker ID is required' });
       }
@@ -222,7 +222,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         officeName: updateFields.officeName,
         Salary: updateFields.salary || updateFields.Salary,
-        isApproved: updateFields.isApproved
+        isApproved: updateFields.isApproved,
+        contractType: updateFields.contractType,
       };
 
       // إزالة القيم undefined فقط
@@ -365,6 +366,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           officeName: { old: oldWorker.officeName, new: filteredFields.officeName, label: 'اسم المكتب' },
           Salary: { old: oldWorker.Salary, new: filteredFields.Salary, label: 'الراتب' },
           isApproved: { old: oldWorker.isApproved, new: filteredFields.isApproved, label: 'حالة الاعتماد' },
+          contractType: { old: oldWorker.contractType, new: filteredFields.contractType, label: 'نوع التعاقد' },
         };
 
         for (const [key, mapping] of Object.entries(fieldMappings)) {

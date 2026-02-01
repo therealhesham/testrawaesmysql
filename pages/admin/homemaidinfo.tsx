@@ -2,8 +2,9 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight } from "react-icons/fa";
+import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight, FaCog, FaCheck, FaEdit, FaTimes, FaExchangeAlt } from "react-icons/fa";
 import AlertModal from "components/AlertModal";
+import Head from "next/head";
 
 function HomeMaidInfo() {
   const router = useRouter();
@@ -68,6 +69,7 @@ function HomeMaidInfo() {
 
     officeName: "",
     salary: "",
+    contractType: "recruitment" as "recruitment" | "rental",
     logs: [] as any[],
   });
 
@@ -75,6 +77,9 @@ function HomeMaidInfo() {
   const [error, setError] = useState<string | null>(null);
   const [hasExistingOrder, setHasExistingOrder] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClient, setSelectedClient] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -656,6 +661,7 @@ function HomeMaidInfo() {
 
         officeName: data.office?.office || "",
         salary: data.Salary || "",
+        contractType: data.contractType || "recruitment",
         logs: data.logs || [],
       });
       
@@ -761,9 +767,463 @@ function HomeMaidInfo() {
     }
   };
 
+  // تحويل نوع التعاقد
+  const handleConvertContractType = async () => {
+    setIsConverting(true);
+    try {
+      // alert(formData.contractType);
+      const newContractType = formData.contractType === "recruitment" ? "rental" : "recruitment"  ;// if(formData.contractType === "recruitment") will become rental because recruitment means recruitment and not rental means rental
+      ;// if("empty") will become rental because empty means recruitment and not empty means rental
+      
+      const response = await fetch(`/api/hommeaidfind?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractType: newContractType }),
+      });
+      
+      if (!response.ok) throw new Error('فشل في تحويل نوع التعاقد');
+      
+      setFormData(prev => ({ ...prev, contractType: newContractType }));
+      setShowConvertModal(false);
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: `تم التحويل بنجاح إلى ${newContractType === "recruitment" ? "استقدام" : "تأجير"}`
+      });
+      
+      // إعادة جلب البيانات لتحديث الـ logs
+      await fetchPersonalInfo();
+    } catch (error) {
+      console.error('Error converting contract type:', error);
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء تحويل نوع التعاقد'
+      });
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  // حساب العمر
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return "";
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age.toString();
+  };
+
+  // تحويل المستوى إلى نجوم
+  const getStars = (level: string) => {
+    const levelMap: { [key: string]: number } = {
+      "Expert - ممتاز": 5,
+      "Advanced - جيد جداً": 4,
+      "Intermediate - جيد": 3,
+      "Beginner - مبتدأ": 2,
+      "Non - لا تجيد": 1,
+    };
+    const stars = levelMap[level] || 0;
+    return { filled: stars, empty: 5 - stars };
+  };
+
   return (
     <Layout>
-      <div className="p-6 bg-gray-50 min-h-screen font-tajawal relative">
+      {/* Print Styles */}
+      <Head>
+        <style>{`
+          /* Hide print CV on screen */
+          .print-cv-container {
+            display: none;
+          }
+          
+          @media print {
+            /* Hide everything except print CV */
+            body * {
+              visibility: hidden;
+            }
+            .print-cv-container {
+              display: block !important;
+              visibility: visible !important;
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 210mm;
+              min-height: 297mm;
+              margin: 0;
+              padding: 0;
+              background: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .print-cv-container * {
+              visibility: visible !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+            @page {
+              size: A4;
+              margin: 0;
+            }
+          }
+        `}</style>
+      </Head>
+
+      {/* ===== Print-Only CV Layout ===== */}
+      <div className="print-cv-container" dir="rtl" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+        <div style={{ 
+          width: '210mm', 
+          minHeight: '297mm', 
+          margin: '0 auto', 
+          background: 'white',
+          padding: '8mm 10mm'
+        }}>
+          {/* Header with Logo and Title */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            borderBottom: '3px solid #0d4f4f',
+            paddingBottom: '10px',
+            marginBottom: '15px'
+          }}>
+            <div style={{ textAlign: 'right' }}>
+              <h1 style={{ 
+                fontSize: '24px', 
+                fontWeight: 'bold', 
+                color: '#0d4f4f',
+                margin: 0 
+              }}>
+                السيرة الذاتية
+              </h1>
+              <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0' }}>CURRICULUM VITAE</p>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <img src="/coloredlogo.png" alt="Logo" style={{ height: '50px' }} onError={(e) => e.currentTarget.style.display = 'none'} />
+            </div>
+          </div>
+
+          {/* Main Content Grid */}
+          <div style={{ display: 'flex', gap: '15px' }}>
+            {/* Right Side - Photo and Basic Info */}
+            <div style={{ width: '35%' }}>
+              {/* Photo */}
+              <div style={{ 
+                width: '100%',
+                aspectRatio: '3/4',
+                border: '2px solid #0d4f4f',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                marginBottom: '12px',
+                background: '#f5f5f5'
+              }}>
+                {formData.Picture ? (
+                  <img 
+                    src={formData.Picture} 
+                    alt="صورة العاملة" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => e.currentTarget.src = '/images/img.jpeg'}
+                  />
+                ) : (
+                  <div style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    color: '#999',
+                    fontSize: '12px'
+                  }}>
+                    لا توجد صورة
+                  </div>
+                )}
+              </div>
+
+              {/* Name */}
+              <div style={{ 
+                background: '#0d4f4f', 
+                color: 'white', 
+                padding: '8px 12px',
+                borderRadius: '6px',
+                textAlign: 'center',
+                marginBottom: '10px'
+              }}>
+                <p style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>{formData.Name || 'الاسم'}</p>
+              </div>
+
+              {/* Quick Info */}
+              <div style={{ 
+                background: '#f8f9fa', 
+                borderRadius: '6px', 
+                padding: '10px',
+                fontSize: '11px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                  <span style={{ color: '#666' }}>العمر:</span>
+                  <span style={{ fontWeight: 'bold' }}>{calculateAge(formData.dateofbirth)} سنة</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                  <span style={{ color: '#666' }}>الديانة:</span>
+                  <span style={{ fontWeight: 'bold' }}>{formData.Religion?.split(' - ')[1] || formData.Religion || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                  <span style={{ color: '#666' }}>الجنسية:</span>
+                  <span style={{ fontWeight: 'bold' }}>{formData.Nationalitycopy || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                  <span style={{ color: '#666' }}>الحالة:</span>
+                  <span style={{ fontWeight: 'bold' }}>{formData.maritalstatus?.split(' - ')[1] || formData.maritalstatus || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                  <span style={{ color: '#666' }}>عدد الأطفال:</span>
+                  <span style={{ fontWeight: 'bold' }}>{formData.childrenCount || '0'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                  <span style={{ color: '#666' }}>الطول:</span>
+                  <span style={{ fontWeight: 'bold' }}>{formData.height ? `${formData.height} سم` : '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666' }}>الوزن:</span>
+                  <span style={{ fontWeight: 'bold' }}>{formData.weight ? `${formData.weight} كجم` : '-'}</span>
+                </div>
+              </div>
+
+              {/* Salary Box */}
+              <div style={{ 
+                background: '#0d4f4f', 
+                color: 'white', 
+                padding: '10px',
+                borderRadius: '6px',
+                textAlign: 'center',
+                marginTop: '10px'
+              }}>
+                <p style={{ fontSize: '10px', margin: '0 0 4px', opacity: 0.8 }}>الراتب الشهري</p>
+                <p style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>{formData.salary || '-'} ريال</p>
+              </div>
+            </div>
+
+            {/* Left Side - Details */}
+            <div style={{ width: '65%' }}>
+              {/* Personal Information */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  background: '#0d4f4f', 
+                  color: 'white', 
+                  padding: '6px 12px',
+                  borderRadius: '4px 4px 0 0',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}>
+                  المعلومات الشخصية | Personal Information
+                </div>
+                <div style={{ 
+                  border: '1px solid #ddd', 
+                  borderTop: 'none',
+                  borderRadius: '0 0 4px 4px',
+                  padding: '10px',
+                  fontSize: '11px'
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '4px 8px', color: '#666', width: '30%' }}>تاريخ الميلاد:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{getDate(formData.dateofbirth)}</td>
+                        <td style={{ padding: '4px 8px', color: '#666', width: '25%' }}>رقم الجواز:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{formData.Passportnumber || '-'}</td>
+                      </tr>
+                      <tr style={{ background: '#f9f9f9' }}>
+                        <td style={{ padding: '4px 8px', color: '#666' }}>بداية الجواز:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{getDate(formData.passportStartDate)}</td>
+                        <td style={{ padding: '4px 8px', color: '#666' }}>نهاية الجواز:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{getDate(formData.passportEndDate)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '4px 8px', color: '#666' }}>رقم الجوال:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }} colSpan={3}>{formData.phone || '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Education & Languages */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  background: '#0d4f4f', 
+                  color: 'white', 
+                  padding: '6px 12px',
+                  borderRadius: '4px 4px 0 0',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}>
+                  التعليم واللغات | Education & Languages
+                </div>
+                <div style={{ 
+                  border: '1px solid #ddd', 
+                  borderTop: 'none',
+                  borderRadius: '0 0 4px 4px',
+                  padding: '10px',
+                  fontSize: '11px'
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '4px 8px', color: '#666', width: '25%' }}>التعليم:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{formData.Education?.split(' - ')[1] || formData.Education || '-'}</td>
+                      </tr>
+                      <tr style={{ background: '#f9f9f9' }}>
+                        <td style={{ padding: '4px 8px', color: '#666' }}>اللغة العربية:</td>
+                        <td style={{ padding: '4px 8px' }}>
+                          <span style={{ color: '#0d4f4f' }}>
+                            {'★'.repeat(getStars(formData.ArabicLanguageLeveL).filled)}
+                            {'☆'.repeat(getStars(formData.ArabicLanguageLeveL).empty)}
+                          </span>
+                          <span style={{ marginRight: '8px', fontSize: '10px', color: '#666' }}>
+                            ({formData.ArabicLanguageLeveL?.split(' - ')[1] || formData.ArabicLanguageLeveL || '-'})
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '4px 8px', color: '#666' }}>اللغة الإنجليزية:</td>
+                        <td style={{ padding: '4px 8px' }}>
+                          <span style={{ color: '#0d4f4f' }}>
+                            {'★'.repeat(getStars(formData.EnglishLanguageLevel).filled)}
+                            {'☆'.repeat(getStars(formData.EnglishLanguageLevel).empty)}
+                          </span>
+                          <span style={{ marginRight: '8px', fontSize: '10px', color: '#666' }}>
+                            ({formData.EnglishLanguageLevel?.split(' - ')[1] || formData.EnglishLanguageLevel || '-'})
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Experience */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  background: '#0d4f4f', 
+                  color: 'white', 
+                  padding: '6px 12px',
+                  borderRadius: '4px 4px 0 0',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}>
+                  الخبرة | Experience
+                </div>
+                <div style={{ 
+                  border: '1px solid #ddd', 
+                  borderTop: 'none',
+                  borderRadius: '0 0 4px 4px',
+                  padding: '10px',
+                  fontSize: '11px'
+                }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '4px 8px', color: '#666', width: '25%' }}>مستوى الخبرة:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{formData.Experience?.split(' | ')[1] || formData.Experience || '-'}</td>
+                      </tr>
+                      <tr style={{ background: '#f9f9f9' }}>
+                        <td style={{ padding: '4px 8px', color: '#666' }}>سنوات الخبرة:</td>
+                        <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{formData.ExperienceYears || '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  background: '#0d4f4f', 
+                  color: 'white', 
+                  padding: '6px 12px',
+                  borderRadius: '4px 4px 0 0',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}>
+                  المهارات | Skills
+                </div>
+                <div style={{ 
+                  border: '1px solid #ddd', 
+                  borderTop: 'none',
+                  borderRadius: '0 0 4px 4px',
+                  padding: '10px',
+                  fontSize: '11px'
+                }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                    {[
+                      { label: 'الطبخ', value: formData.cookingLevel, en: 'Cooking' },
+                      { label: 'التنظيف', value: formData.cleaningLevel, en: 'Cleaning' },
+                      { label: 'الغسيل', value: formData.washingLevel, en: 'Washing' },
+                      { label: 'الكوي', value: formData.ironingLevel, en: 'Ironing' },
+                      { label: 'الخياطة', value: formData.sewingLevel, en: 'Sewing' },
+                      { label: 'رعاية الأطفال', value: formData.childcareLevel, en: 'Child Care' },
+                      { label: 'رعاية الرضع', value: formData.babySitterLevel, en: 'Baby Sitting' },
+                      { label: 'رعاية كبار السن', value: formData.elderlycareLevel, en: 'Elderly Care' },
+                    ].map((skill, idx) => (
+                      <div key={idx} style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        padding: '4px 8px',
+                        background: idx % 2 === 0 ? '#f9f9f9' : 'white',
+                        borderRadius: '3px'
+                      }}>
+                        <span style={{ color: '#666', fontSize: '10px' }}>{skill.label}</span>
+                        <span style={{ color: '#0d4f4f', fontSize: '12px' }}>
+                          {'★'.repeat(getStars(skill.value).filled)}
+                          {'☆'.repeat(getStars(skill.value).empty)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Office Info */}
+              <div style={{ 
+                background: '#f0f7f7', 
+                borderRadius: '6px', 
+                padding: '10px',
+                border: '1px solid #0d4f4f',
+                fontSize: '11px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#666' }}>مكتب الاستقدام:</span>
+                  <span style={{ fontWeight: 'bold', color: '#0d4f4f' }}>{formData.officeName || '-'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ 
+            borderTop: '2px solid #0d4f4f',
+            marginTop: '15px',
+            paddingTop: '8px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '10px',
+            color: '#666'
+          }}>
+            <span>تاريخ الطباعة: {new Date().toLocaleDateString('ar-SA')}</span>
+            <span>رقم الهوية: {id}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== Regular Web View (Hidden when printing) ===== */}
+      <div className="p-6 bg-gray-50 min-h-screen font-tajawal relative no-print">
         {error && <div className="text-center text-red-500 mb-4">{error}</div>}
         
         {/* Spinner overlay عند الحفظ */}
@@ -791,35 +1251,20 @@ function HomeMaidInfo() {
           </button>
         </div>
 
-        {/* الأزرار العلوية */}
-        <div className="flex justify-end gap-4 mb-8">
-          {!hasExistingOrder && (
-            <>
-              {!isApproved ? (
-                <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition" onClick={handleApprove}>
-                  اعتماد
-                </button>
-              ) : (
-                <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-800 transition" onClick={() => setShowBookingModal(true)}>
-                  حجز
-                </button>
-              )}
-            </>
-          )}
-          <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition" onClick={handlePrint}>
-            <FaPrint /> طباعة
-          </button>
-
-          {!isEditing ? (
-            <button className="flex items-center gap-2 bg-teal-800 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition" onClick={() => setIsEditing(true)}>
-              تعديل
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition" onClick={handleSave} disabled={saving}>
+        {/* أيقونة الإعدادات مع القائمة المنسدلة */}
+        <div className="flex justify-end mb-8 relative">
+          {/* أزرار الحفظ والإلغاء عند التعديل */}
+          {isEditing && (
+            <div className="flex gap-2 ml-4">
+              <button 
+                className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition" 
+                onClick={handleSave} 
+                disabled={saving}
+              >
                 <FaSave /> حفظ
               </button>
-              <button className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition" 
+              <button 
+                className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition" 
                 onClick={() => {
                    if (id) {
                      setErrors({});
@@ -828,10 +1273,99 @@ function HomeMaidInfo() {
                    setIsEditing(false);
                 }}
               >
-                إلغاء
+                <FaTimes /> إلغاء
               </button>
             </div>
           )}
+
+          {/* أيقونة الإعدادات */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+              className="p-3 bg-teal-800 text-white rounded-full hover:bg-teal-700 transition-all duration-200 shadow-md hover:shadow-lg"
+              title="الإعدادات"
+            >
+              <FaCog className={`w-5 h-5 transition-transform duration-300 ${showSettingsMenu ? 'rotate-90' : ''}`} />
+            </button>
+
+            {/* القائمة المنسدلة */}
+            {showSettingsMenu && (
+              <>
+                {/* خلفية شفافة لإغلاق القائمة عند النقر خارجها */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowSettingsMenu(false)}
+                />
+                
+                <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden" dir="rtl">
+                  {/* اعتماد أو حجز */}
+                  {!hasExistingOrder && (
+                    !isApproved ? (
+                      <button
+                        onClick={() => {
+                          handleApprove();
+                          setShowSettingsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right"
+                      >
+                        <FaCheck className="w-4 h-4 text-teal-600" />
+                        <span>اعتماد</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowBookingModal(true);
+                          setShowSettingsMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right"
+                      >
+                        <FaCheck className="w-4 h-4 text-teal-600" />
+                        <span>حجز</span>
+                      </button>
+                    )
+                  )}
+
+                  {/* طباعة */}
+                  <button
+                    onClick={() => {
+                      handlePrint();
+                      setShowSettingsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                  >
+                    <FaPrint className="w-4 h-4 text-teal-600" />
+                    <span>طباعة</span>
+                  </button>
+
+                  {/* تعديل */}
+                  {!isEditing && (
+                    <button
+                      onClick={() => {
+                        setIsEditing(true);
+                        setShowSettingsMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                    >
+                      <FaEdit className="w-4 h-4 text-teal-600" />
+                      <span>تعديل</span>
+                    </button>
+                  )}
+
+                  {/* تحويل */}
+                  <button
+                    onClick={() => {
+                      setShowConvertModal(true);
+                      setShowSettingsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                  >
+                    <FaExchangeAlt className="w-4 h-4 text-teal-600" />
+                    <span>تحويل ({formData.contractType === "recruitment" ? "استقدام → تأجير" : "تأجير → استقدام"})</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* ✅ الصور */}
@@ -1249,6 +1783,102 @@ function HomeMaidInfo() {
               <div className="flex gap-3 justify-end">
                 <button onClick={() => setShowBookingModal(false)} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">إلغاء</button>
                 <button onClick={handleBooking} className="px-4 py-2 bg-teal-800 text-white rounded-lg hover:bg-teal-900 transition">تأكيد الحجز</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* مودال تحويل نوع التعاقد */}
+        {showConvertModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-[450px] max-w-md mx-4" dir="rtl">
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
+                  <FaExchangeAlt className="w-6 h-6 text-teal-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-teal-800">تحويل نوع التعاقد</h3>
+                  <p className="text-sm text-gray-500">تغيير نوع التعاقد للعاملة</p>
+                </div>
+              </div>
+
+              {/* Current Status */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600 mb-2">النوع الحالي:</p>
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+                  formData.contractType === "recruitment" 
+                    ? "bg-blue-100 text-blue-700" 
+                    : "bg-orange-100 text-orange-700"
+                }`}>
+                  {formData.contractType === "recruitment" ? "استقدام" : "تأجير"}
+                </div>
+              </div>
+
+              {/* Arrow and New Status */}
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div className={`flex-1 text-center p-3 rounded-lg border-2 ${
+                  formData.contractType === "recruitment" 
+                    ? "border-blue-200 bg-blue-50" 
+                    : "border-orange-200 bg-orange-50"
+                }`}>
+                  <p className="text-xs text-gray-500 mb-1">من</p>
+                  <p className={`font-bold ${
+                    formData.contractType === "recruitment" ? "text-blue-700" : "text-orange-700"
+                  }`}>
+                    {formData.contractType === "recruitment" ? "استقدام" : "تأجير"}
+                  </p>
+                </div>
+                
+                <FaArrowRight className="w-5 h-5 text-gray-400 transform rotate-180" />
+                
+                <div className={`flex-1 text-center p-3 rounded-lg border-2 ${
+                  formData.contractType === "recruitment" 
+                    ? "border-orange-200 bg-orange-50" 
+                    : "border-blue-200 bg-blue-50"
+                }`}>
+                  <p className="text-xs text-gray-500 mb-1">إلى</p>
+                  <p className={`font-bold ${
+                    formData.contractType === "recruitment" ? "text-orange-700" : "text-blue-700"
+                  }`}>
+                    {formData.contractType === "recruitment" ? "تأجير" : "استقدام"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+                <p className="text-sm text-yellow-800 text-center">
+                  هل أنت متأكد من تحويل نوع التعاقد؟
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setShowConvertModal(false)} 
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                  disabled={isConverting}
+                >
+                  إلغاء
+                </button>
+                <button 
+                  onClick={handleConvertContractType} 
+                  className="px-4 py-2 bg-teal-800 text-white rounded-lg hover:bg-teal-900 transition flex items-center gap-2"
+                  disabled={isConverting}
+                >
+                  {isConverting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>جاري التحويل...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaExchangeAlt className="w-4 h-4" />
+                      <span>تأكيد التحويل</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
