@@ -85,6 +85,7 @@ function HomeMaidInfo() {
   const [selectedClient, setSelectedClient] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
   const [isApproved, setIsApproved] = useState<boolean>(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   
@@ -406,6 +407,39 @@ function HomeMaidInfo() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSaveNotes = async () => {
+    if (!id) return;
+    setSavingNotes(true);
+    try {
+      const response = await fetch(`/api/hommeaidfind?id=${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: formData.notes || "" }),
+      });
+      
+      if (!response.ok) throw new Error('فشل في حفظ الملاحظات');
+      
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: 'تم حفظ الملاحظات بنجاح'
+      });
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء حفظ الملاحظات'
+      });
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const handleSave = async () => {
@@ -1731,16 +1765,24 @@ function HomeMaidInfo() {
 
         {/* 6. الملاحظات */}
         <section className="mb-8">
-          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">الملاحظات</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xl font-semibold text-teal-800 text-right">الملاحظات</p>
+            <button
+              onClick={handleSaveNotes}
+              disabled={savingNotes}
+              className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+            >
+              <FaSave /> {savingNotes ? "جاري الحفظ..." : "حفظ الملاحظات"}
+            </button>
+          </div>
           <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
             <textarea
               name="notes"
               value={formData.notes || ""}
               onChange={handleChange}
-              readOnly={!isEditing}
               rows={6}
               placeholder="أضف ملاحظات هنا..."
-              className={`w-full border ${errors.notes ? 'border-red-500' : 'border-gray-300'} rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"} resize-none`}
+              className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 bg-white resize-none"
             />
             {errors.notes && <p className="text-red-500 text-xs mt-1 text-right">{errors.notes}</p>}
           </div>
