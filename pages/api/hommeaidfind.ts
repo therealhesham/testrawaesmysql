@@ -224,6 +224,7 @@ console.log(updateData);
         Salary: updateFields.salary || updateFields.Salary,
         isApproved: updateFields.isApproved,
         contractType: updateFields.contractType,
+        notes: updateFields.notes,
       };
 
       // إزالة القيم undefined فقط
@@ -367,6 +368,7 @@ console.log(updateData);
           Salary: { old: oldWorker.Salary, new: filteredFields.Salary, label: 'الراتب' },
           isApproved: { old: oldWorker.isApproved, new: filteredFields.isApproved, label: 'حالة الاعتماد' },
           contractType: { old: oldWorker.contractType, new: filteredFields.contractType, label: 'نوع التعاقد' },
+          notes: { old: oldWorker.notes, new: filteredFields.notes, label: 'الملاحظات' },
         };
 
         for (const [key, mapping] of Object.entries(fieldMappings)) {
