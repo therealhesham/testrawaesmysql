@@ -20,6 +20,7 @@ model homemaid {
   Picture           Json?
   FullPicture       Json?
   professionId Int?
+  notes String? @db.VarChar(255)
   profession professions? @relation(fields: [professionId], references: [id],onDelete: Cascade)
   ExperienceYears   String?    @db.VarChar(255)
   maritalstatus     String?    @db.VarChar(255)

@@ -213,7 +213,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { sessionId, selectedImages, geminiData } = req.body;
+    const { sessionId, selectedImages, geminiData, notes } = req.body;
 
     if (!sessionId || !geminiData || !geminiData.jsonResponse) {
       return res.status(400).json({ error: 'Missing required data' });
@@ -383,8 +383,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     createData.displayOrder = newDisplayOrder;
 
     const homemaidRecord = await prisma.homemaid.create({
-      data: createData
+      data: { ...createData, notes: req.body.notes }
     });
+    console.log('🔍 Notes:', notes);
 
     // ✅ إرسال الحدث بعد الرد حتى لا يؤخر العميل
    try {
