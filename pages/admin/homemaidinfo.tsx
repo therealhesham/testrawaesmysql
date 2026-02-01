@@ -70,6 +70,7 @@ function HomeMaidInfo() {
     officeName: "",
     salary: "",
     contractType: "recruitment" as "recruitment" | "rental",
+    notes: "",
     logs: [] as any[],
   });
 
@@ -662,6 +663,7 @@ function HomeMaidInfo() {
         officeName: data.office?.office || "",
         salary: data.Salary || "",
         contractType: data.contractType || "recruitment",
+        notes: data.notes || "",
         logs: data.logs || [],
       });
       
@@ -1727,7 +1729,24 @@ function HomeMaidInfo() {
           </div>
         </section>
 
-        {/* 6. سجل الأنشطة */}
+        {/* 6. الملاحظات */}
+        <section className="mb-8">
+          <p className="text-xl font-semibold text-teal-800 mb-4 text-right">الملاحظات</p>
+          <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
+            <textarea
+              name="notes"
+              value={formData.notes || ""}
+              onChange={handleChange}
+              readOnly={!isEditing}
+              rows={6}
+              placeholder="أضف ملاحظات هنا..."
+              className={`w-full border ${errors.notes ? 'border-red-500' : 'border-gray-300'} rounded-lg p-3 text-gray-700 text-right focus:outline-none focus:ring-2 focus:ring-teal-200 ${isEditing ? "bg-white" : "bg-gray-100"} resize-none`}
+            />
+            {errors.notes && <p className="text-red-500 text-xs mt-1 text-right">{errors.notes}</p>}
+          </div>
+        </section>
+
+        {/* 7. سجل الأنشطة */}
         <section>
           <p className="text-xl font-semibold text-teal-800 mb-4 text-right">سجل الأنشطة</p>
           <div className="overflow-x-auto">
