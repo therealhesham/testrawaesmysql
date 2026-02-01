@@ -906,11 +906,21 @@ export default function PDFProcessor() {
   };
 
   const handleProfileImageSelect = (imageUrl: string) => {
-    setSelectedProfileImage(imageUrl);
+    // Toggle selection: if already selected, unselect it
+    if (selectedProfileImage === imageUrl) {
+      setSelectedProfileImage('');
+    } else {
+      setSelectedProfileImage(imageUrl);
+    }
   };
 
   const handleFullImageSelect = (imageUrl: string) => {
-    setSelectedFullImage(imageUrl);
+    // Toggle selection: if already selected, unselect it
+    if (selectedFullImage === imageUrl) {
+      setSelectedFullImage('');
+    } else {
+      setSelectedFullImage(imageUrl);
+    }
   };
 
   const handleProModelRetry = async () => {
