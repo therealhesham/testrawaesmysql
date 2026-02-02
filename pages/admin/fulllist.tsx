@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
-import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical, FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
+import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical, FaSort, FaSortUp, FaSortDown, FaTh, FaThList } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import { Trash2 } from "lucide-react";
@@ -175,6 +175,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showDisplayOrderTooltip, setShowDisplayOrderTooltip] = useState(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // Sort data function
   const sortData = (dataToSort: any[], sortField: string, order: "asc" | "desc") => {
@@ -643,6 +644,129 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       ...prev,
       [name]: Array.from(files),
     }));
+  };
+
+  // Grid Card Component
+  const GridCard = ({ item }: { item: any }) => {
+    return (
+      <div 
+        className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-4 border border-gray-200 cursor-pointer"
+        onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
+      >
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-teal-800 mb-1">{item.Name || 'غير محدد'}</h3>
+            <p className="text-sm text-gray-600">#{item.id}</p>
+          </div>
+          {item.isApproved ? (
+            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">معتمدة</span>
+          ) : (
+            <span className="bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">غير معتمدة</span>
+          )}
+        </div>
+        
+        <div className="space-y-2 text-sm">
+          {visibleColumns.includes('phone') && item.phone && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">رقم الجوال:</span>
+              <span className="text-gray-800 font-medium" dir="ltr">{item.phone}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('Country') && item?.office?.Country && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">الجنسية:</span>
+              <span className="text-gray-800 font-medium">{item.office.Country}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('maritalstatus') && item.maritalstatus && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">الحالة الاجتماعية:</span>
+              <span className="text-gray-800 font-medium">{item.maritalstatus}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('dateofbirth') && item.dateofbirth && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">العمر:</span>
+              <span className="text-gray-800 font-medium" title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}>
+                {calculateAge(item.dateofbirth)} سنة
+              </span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('Passportnumber') && item.Passportnumber && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">رقم الجواز:</span>
+              <span className="text-gray-800 font-medium">{item.Passportnumber}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('PassportStart') && item.PassportStart && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">بداية الجواز:</span>
+              <span className="text-gray-800 font-medium">{getDate(item.PassportStart)}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('PassportEnd') && item.PassportEnd && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">نهاية الجواز:</span>
+              <span className="text-gray-800 font-medium">{getDate(item.PassportEnd)}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('office') && item?.office?.office && (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">المكتب:</span>
+              <span className="text-gray-800 font-medium">{item.office.office}</span>
+            </div>
+          )}
+          
+          {visibleColumns.includes('displayOrder') && (
+            <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+              <span className="text-gray-500">ترتيب العرض:</span>
+              <input
+                type="number"
+                min="0"
+                defaultValue={item.displayOrder || 0}
+                onClick={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  const newValue = e.target.value;
+                  if (newValue !== String(item.displayOrder || 0)) {
+                    handleDisplayOrderChange(item.id, newValue);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
+                title="اضغط Enter لحفظ التغييرات"
+              />
+            </div>
+          )}
+        </div>
+        
+        {hasDeletePermission && (
+          <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end">
+            <button 
+              className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50 flex items-center gap-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                openDeleteModal(item.id);
+              }}
+              title="حذف"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="text-xs">حذف</span>
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Sortable Row Component
@@ -1360,23 +1484,51 @@ const exportToPDF = async () => {
                   </span>
                 </button>
               </div>
-              <div className="flex flex-row gap-2 justify-end">
-                <button
-                  onClick={exportToExcel}
-                  className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
-                  title="تصدير إلى Excel"
-                >
-                  <FaFileExcel className="text-white" />
-                  <span className="text-white">Excel</span>
-                </button>
-                <button
-                  onClick={exportToPDF}
-                  className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
-                  title="تصدير إلى PDF"
-                >
-                  <FaFilePdf className="text-white" />
-                  <span className="text-white">PDF</span>
-                </button>
+              <div className="flex flex-row gap-2 justify-between items-center">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`my-2 py-1 px-3 rounded-lg flex items-center gap-1 transition-colors ${
+                      viewMode === 'table' 
+                        ? 'bg-teal-800 text-white' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    title="عرض الجدول"
+                  >
+                    <FaThList className="text-current" />
+                    <span>جدول</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`my-2 py-1 px-3 rounded-lg flex items-center gap-1 transition-colors ${
+                      viewMode === 'grid' 
+                        ? 'bg-teal-800 text-white' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    title="عرض الشبكة"
+                  >
+                    <FaTh className="text-current" />
+                    <span>شبكة</span>
+                  </button>
+                </div>
+                <div className="flex flex-row gap-2">
+                  <button
+                    onClick={exportToExcel}
+                    className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
+                    title="تصدير إلى Excel"
+                  >
+                    <FaFileExcel className="text-white" />
+                    <span className="text-white">Excel</span>
+                  </button>
+                  <button
+                    onClick={exportToPDF}
+                    className="bg-teal-800 my-2 py-1 px-3 rounded-lg flex items-center gap-1 hover:bg-teal-900"
+                    title="تصدير إلى PDF"
+                  >
+                    <FaFilePdf className="text-white" />
+                    <span className="text-white">PDF</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1394,6 +1546,8 @@ const exportToPDF = async () => {
                     </div>
                   </div>
                 )}
+              
+              {viewMode === 'table' ? (
               <table className="min-w-full text-md text-left min-h-96">
                 <thead className="bg-teal-800 overflow-visible">
                   <tr className="text-white">
@@ -1536,6 +1690,19 @@ const exportToPDF = async () => {
                   )}
                 </tbody>
               </table>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-96">
+                  {data.length === 0 ? (
+                    <div className="col-span-full text-center text-gray-500 py-8">
+                      لا توجد نتائج
+                    </div>
+                  ) : (
+                    data.map((item) => (
+                      <GridCard key={item.id} item={item} />
+                    ))
+                  )}
+                </div>
+              )}
               </div>
             {/* </DndContext> */}
 
