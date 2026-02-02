@@ -538,7 +538,7 @@ function HomeMaidInfo() {
   const handleFileChange = async (e: any, fileId: any) => {};
   const handleButtonClick = (fileId: any) => {};
 
-  const allowedHomemaidImageTypes = ['image/jpeg'];
+  const allowedHomemaidImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
 
   const handleHomemaidImageChange = async (
     e: ChangeEvent<HTMLInputElement>,
@@ -555,7 +555,7 @@ function HomeMaidInfo() {
 
     const file = files[0];
     if (!allowedHomemaidImageTypes.includes(file.type)) {
-      setImageErrors((prev) => ({ ...prev, [fieldId]: "نوع الصورة غير مدعوم (JPEG فقط)" }));
+      setImageErrors((prev) => ({ ...prev, [fieldId]: "نوع الصورة غير مدعوم (JPEG, PNG, JPG, WEBP فقط)" }));
       setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
       setErrors((prev) => ({ ...prev, [fieldId]: "" }));
       return;
