@@ -324,11 +324,11 @@ export default function PDFProcessor() {
       return;
     }
 
-    if (selectedFile.type !== 'application/pdf') {
-      setError('Please select a PDF file');
-      setFile(null);
-      return;
-    }
+    // if (selectedFile.type !== 'application/pdf' && !selectedFile.type.startsWith('image/')) {
+    //   setError('Please select a PDF file or an image');
+    //   setFile(null);
+    //   return;
+    // }
 
     setFile(selectedFile);
     setError('');
