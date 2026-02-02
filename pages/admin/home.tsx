@@ -299,7 +299,7 @@ const AvailableListTab = ({ available, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسجيل: {worker.createdAt} <FieldTimeOutlined />
+            تاريخ التسجيل: {getDate(worker.createdAt)} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -318,7 +318,7 @@ const RelationsTab = ({ relations, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">عميل #{relation.id}</p>
           <p className="item-subtitle text-xs text-gray-600">الاسم: {relation.fullname}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسجيل: {relation.createdAt} <FieldTimeOutlined />
+            تاريخ التسجيل: {relation.createdAt ? getDate(relation.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
