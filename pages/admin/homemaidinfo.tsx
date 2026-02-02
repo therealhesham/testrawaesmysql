@@ -130,6 +130,27 @@ function HomeMaidInfo() {
     FullPicture: useRef<HTMLInputElement>(null),
   };
 
+  // Crop interface state - simplified version
+  const [cropModal, setCropModal] = useState<{
+    isOpen: boolean;
+    imageSrc: string;
+    fieldId: "Picture" | "FullPicture" | null;
+    uploadType: "profile" | "full" | null;
+    file: File | null;
+  }>({
+    isOpen: false,
+    imageSrc: "",
+    fieldId: null,
+    uploadType: null,
+    file: null,
+  });
+
+  // Simple crop state - just store percentage values
+  const [cropBox, setCropBox] = useState({ x: 15, y: 15, size: 70 }); // percentage based
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const cropCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewImageRef = useRef<HTMLImageElement>(null);
+
   // --- القوائم الثابتة الموحدة ---
   const skillLevels = [
     "Expert - ممتاز",
@@ -620,30 +641,79 @@ function HomeMaidInfo() {
       return;
     }
 
-    let fileToUpload = file;
-    try {
-      fileToUpload = await compressImageIfNeeded(file, MAX_IMAGE_SIZE_BYTES);
-    } catch (compressErr: any) {
-      setImageErrors((prev) => ({ ...prev, [fieldId]: compressErr?.message || "فشل في ضغط الصورة" }));
-      setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
-      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
-      return;
+    // Open crop modal instead of uploading directly
+    const previewUrl = URL.createObjectURL(file);
+    setCropModal({
+      isOpen: true,
+      imageSrc: previewUrl,
+      fieldId: fieldId,
+      uploadType: type,
+      file: file,
+    });
+    setImageFileNames((prev) => ({ ...prev, [fieldId]: file.name }));
+    // Reset crop box to defaults
+    setCropBox({ x: 15, y: 15, size: 70 });
+
+    // Reset input
+    const ref = imageInputRefs[fieldId];
+    if (ref?.current) ref.current.value = "";
+  };
+
+  // Simple image load handler
+  const handlePreviewImageLoad = () => {
+    const img = previewImageRef.current;
+    if (img) {
+      setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
     }
+  };
 
-    const previousUrl = (formData as any)[fieldId] as string;
-    const previewUrl = URL.createObjectURL(fileToUpload);
-    setFormData((prev) => ({ ...prev, [fieldId]: previewUrl }));
-    setImageFileNames((prev) => ({ ...prev, [fieldId]: fileToUpload.name }));
+  // Crop and upload image using canvas - SIMPLE VERSION
+  const handleCropAndUpload = async () => {
+    if (!previewImageRef.current || !cropModal.fieldId || !cropModal.uploadType) return;
 
     try {
-      setImageUploading((prev) => ({ ...prev, [fieldId]: true }));
-      setImageErrors((prev) => ({ ...prev, [fieldId]: "" }));
-      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
+      setImageUploading((prev) => ({ ...prev, [cropModal.fieldId!]: true }));
+      setImageErrors((prev) => ({ ...prev, [cropModal.fieldId!]: "" }));
+      setErrors((prev) => ({ ...prev, [cropModal.fieldId!]: "" }));
 
-      const res = await fetch(`/api/upload-homemaid-image?type=${type}`);
+      const img = previewImageRef.current;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) throw new Error("فشل في إنشاء canvas");
+
+      // Calculate crop coordinates from percentage values
+      const cropX = (cropBox.x / 100) * naturalSize.width;
+      const cropY = (cropBox.y / 100) * naturalSize.height;
+      const cropW = (cropBox.size / 100) * naturalSize.width;
+      const cropH = (cropBox.size / 100) * naturalSize.height;
+      
+      canvas.width = cropW;
+      canvas.height = cropH;
+      
+      ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+      // Convert canvas to blob
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.9);
+      });
+      
+      if (!blob) throw new Error("فشل في تحويل الصورة");
+
+      // Compress if needed
+      let fileToUpload = new File([blob], `cropped-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      try {
+        fileToUpload = await compressImageIfNeeded(fileToUpload, MAX_IMAGE_SIZE_BYTES);
+      } catch (compressErr) {
+        console.warn("Compression failed, using original:", compressErr);
+      }
+
+      // Get upload URL
+      const res = await fetch(`/api/upload-homemaid-image?type=${cropModal.uploadType}`);
       if (!res.ok) throw new Error("فشل في الحصول على رابط الرفع");
       const { url, filePath } = await res.json();
 
+      // Upload cropped image
       const uploadRes = await fetch(url, {
         method: "PUT",
         body: fileToUpload,
@@ -655,21 +725,31 @@ function HomeMaidInfo() {
 
       if (!uploadRes.ok) throw new Error("فشل في رفع الصورة");
 
-      URL.revokeObjectURL(previewUrl);
-      setFormData((prev) => ({ ...prev, [fieldId]: filePath }));
-      setImageErrors((prev) => ({ ...prev, [fieldId]: "" }));
-      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
+      // Update form data
+      URL.revokeObjectURL(cropModal.imageSrc);
+      setFormData((prev) => ({ ...prev, [cropModal.fieldId!]: filePath }));
+      setImageErrors((prev) => ({ ...prev, [cropModal.fieldId!]: "" }));
+      setErrors((prev) => ({ ...prev, [cropModal.fieldId!]: "" }));
 
-      const ref = imageInputRefs[fieldId];
-      if (ref?.current) ref.current.value = "";
+      // Close crop modal and reset
+      setCropModal({ isOpen: false, imageSrc: "", fieldId: null, uploadType: null, file: null });
+      setCropBox({ x: 15, y: 15, size: 70 });
+      setNaturalSize({ width: 0, height: 0 });
     } catch (err: any) {
-      console.error("Error uploading image:", err);
-      URL.revokeObjectURL(previewUrl);
-      setFormData((prev) => ({ ...prev, [fieldId]: previousUrl || "" }));
-      setImageErrors((prev) => ({ ...prev, [fieldId]: err?.message || "حدث خطأ أثناء رفع الصورة" }));
-      setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+      console.error("Error cropping and uploading image:", err);
+      setImageErrors((prev) => ({ ...prev, [cropModal.fieldId!]: err?.message || "حدث خطأ أثناء قص ورفع الصورة" }));
     } finally {
-      setImageUploading((prev) => ({ ...prev, [fieldId]: false }));
+      setImageUploading((prev) => ({ ...prev, [cropModal.fieldId!]: false }));
+    }
+  };
+
+  const handleCloseCropModal = () => {
+    URL.revokeObjectURL(cropModal.imageSrc);
+    setCropModal({ isOpen: false, imageSrc: "", fieldId: null, uploadType: null, file: null });
+    setCropBox({ x: 15, y: 15, size: 70 });
+    setNaturalSize({ width: 0, height: 0 });
+    if (cropModal.fieldId) {
+      setImageFileNames((prev) => ({ ...prev, [cropModal.fieldId!]: "" }));
     }
   };
 
@@ -1981,6 +2061,207 @@ function HomeMaidInfo() {
           message={alertModal.message}
         />
       </div>
+      {/* Crop Modal - Simple Version with Sliders */}
+      {cropModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 bg-teal-800 text-white">
+              <h2 className="text-xl font-bold">
+                {cropModal.fieldId === "Picture" ? "✂️ قص الصورة الشخصية" : "✂️ قص صورة بالطول"}
+              </h2>
+              <button
+                onClick={handleCloseCropModal}
+                className="text-white hover:bg-teal-700 p-2 rounded-full transition-colors"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Image Preview with Crop Box */}
+            <div className="p-6 bg-gray-900 flex justify-center items-center min-h-[350px]">
+              <div className="relative inline-block">
+                {/* The image */}
+                <img
+                  ref={previewImageRef}
+                  src={cropModal.imageSrc}
+                  alt="صورة للقص"
+                  onLoad={handlePreviewImageLoad}
+                  className="max-w-full max-h-[300px] block"
+                  style={{ display: naturalSize.width > 0 ? 'block' : 'none' }}
+                />
+                
+                {/* Dark overlay */}
+                {naturalSize.width > 0 && (
+                  <div 
+                    className="absolute inset-0 bg-black bg-opacity-60 pointer-events-none"
+                    style={{
+                      clipPath: `polygon(
+                        0% 0%, 0% 100%, 
+                        ${cropBox.x}% 100%, 
+                        ${cropBox.x}% ${cropBox.y}%, 
+                        ${cropBox.x + cropBox.size}% ${cropBox.y}%, 
+                        ${cropBox.x + cropBox.size}% ${cropBox.y + cropBox.size}%, 
+                        ${cropBox.x}% ${cropBox.y + cropBox.size}%, 
+                        ${cropBox.x}% 100%, 
+                        100% 100%, 100% 0%
+                      )`
+                    }}
+                  />
+                )}
+                
+                {/* Crop box indicator */}
+                {naturalSize.width > 0 && (
+                  <div 
+                    className="absolute border-4 border-white pointer-events-none"
+                    style={{
+                      left: `${cropBox.x}%`,
+                      top: `${cropBox.y}%`,
+                      width: `${cropBox.size}%`,
+                      height: `${cropBox.size}%`,
+                      boxShadow: '0 0 0 2px rgba(0,150,150,0.8), inset 0 0 20px rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    {/* Grid lines */}
+                    <div className="absolute inset-0">
+                      <div className="absolute top-1/3 left-0 right-0 border-t border-white border-dashed opacity-50"></div>
+                      <div className="absolute top-2/3 left-0 right-0 border-t border-white border-dashed opacity-50"></div>
+                      <div className="absolute left-1/3 top-0 bottom-0 border-r border-white border-dashed opacity-50"></div>
+                      <div className="absolute left-2/3 top-0 bottom-0 border-r border-white border-dashed opacity-50"></div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Loading state */}
+                {naturalSize.width === 0 && (
+                  <div className="flex flex-col items-center justify-center p-10 text-white">
+                    <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-lg">جاري تحميل الصورة...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Controls */}
+            {naturalSize.width > 0 && (
+              <div className="p-6 bg-gray-100 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* X Position - ltr so horizontal slider drags correctly in RTL page */}
+                  <div dir="ltr" className="text-right">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      الموضع الأفقي: {cropBox.x}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.max(0, 100 - cropBox.size)}
+                      value={cropBox.x}
+                      onChange={(e) => setCropBox(prev => ({ ...prev, x: Number(e.target.value) }))}
+                      className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                    />
+                  </div>
+                  
+                  {/* Y Position */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      الموضع الرأسي: {cropBox.y}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.max(0, 100 - cropBox.size)}
+                      value={cropBox.y}
+                      onChange={(e) => setCropBox(prev => ({ ...prev, y: Number(e.target.value) }))}
+                      className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                    />
+                  </div>
+                  
+                  {/* Size */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      حجم القص: {cropBox.size}%
+                    </label>
+                    <input
+                      type="range"
+                      min="20"
+                      max="100"
+                      value={cropBox.size}
+                      onChange={(e) => {
+                        const newSize = Number(e.target.value);
+                        setCropBox(prev => ({
+                          x: Math.min(prev.x, 100 - newSize),
+                          y: Math.min(prev.y, 100 - newSize),
+                          size: newSize
+                        }));
+                      }}
+                      className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                    />
+                  </div>
+                </div>
+                
+                {/* Quick presets */}
+                <div className="flex flex-wrap gap-2 justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCropBox({ x: 0, y: 0, size: 100 })}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                  >
+                    كامل الصورة
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropBox({ x: 25, y: 25, size: 50 })}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                  >
+                    وسط 50%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropBox({ x: 15, y: 15, size: 70 })}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                  >
+                    وسط 70%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropBox({ x: 0, y: 0, size: 50 })}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+                  >
+                    أعلى يمين
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 p-4 border-t border-gray-200 bg-white">
+              <button
+                onClick={handleCloseCropModal}
+                className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleCropAndUpload}
+                disabled={imageUploading[cropModal.fieldId!] || naturalSize.width === 0}
+                className="px-8 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
+              >
+                {imageUploading[cropModal.fieldId!] ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    جاري الرفع...
+                  </>
+                ) : (
+                  <>
+                    <FaCheck className="w-4 h-4" />
+                    قص وحفظ
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
