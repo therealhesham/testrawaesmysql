@@ -28,8 +28,8 @@ const normalizeImageUrl = (url: string) => {
   return url;
 };
 
-// تحويل صورة إلى PDF قبل الرفع
-const IMAGE_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+// تحويل أي صورة إلى PDF قبل الرفع (يدعم كل الصيغ: jpeg, png, webp, gif, bmp, ico, ...)
+const isImageFile = (file: File) => file.type.startsWith('image/');
 const convertImageToPdfFile = (imageFile: File): Promise<File> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -37,6 +37,16 @@ const convertImageToPdfFile = (imageFile: File): Promise<File> => {
       const imgData = reader.result as string;
       const img = new Image();
       img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const pngData = canvas.toDataURL('image/png');
         const pdf = new jsPDF({
           orientation: img.width > img.height ? 'landscape' : 'portrait',
           unit: 'mm',
@@ -49,8 +59,7 @@ const convertImageToPdfFile = (imageFile: File): Promise<File> => {
         const h = img.height * scale;
         const x = (pageW - w) / 2;
         const y = (pageH - h) / 2;
-        const format = imageFile.type === 'image/png' ? 'PNG' : 'JPEG';
-        pdf.addImage(imgData, format, x, y, w, h);
+        pdf.addImage(pngData, 'PNG', x, y, w, h);
         const blob = pdf.output('blob');
         const baseName = imageFile.name.replace(/\.[^.]+$/, '') || 'converted';
         const pdfFile = new File([blob], `${baseName}.pdf`, { type: 'application/pdf' });
@@ -371,7 +380,7 @@ export default function PDFProcessor() {
       return;
     }
 
-    if (IMAGE_MIMES.includes(selectedFile.type)) {
+    if (isImageFile(selectedFile)) {
       setIsConvertingImage(true);
       setError('');
       try {
@@ -390,7 +399,7 @@ export default function PDFProcessor() {
       return;
     }
 
-    setError('يرجى اختيار ملف PDF أو صورة (JPEG, PNG, WebP)');
+    setError('يرجى اختيار ملف PDF أو صورة');
     setFile(null);
   };
 
@@ -2158,7 +2167,7 @@ const handleSave = async () => {
                             رفع ملف PDF أو صورة
                           </span>
                           <span className="block text-sm text-gray-500 mt-1">
-                            {isConvertingImage ? 'جاري تحويل الصورة إلى PDF...' : 'اضغط للاختيار أو اسحب الملف هنا (PDF، JPG، PNG، WebP)'}
+                            {isConvertingImage ? 'جاري تحويل الصورة إلى PDF...' : 'اضغط للاختيار أو اسحب الملف هنا (PDF أو أي صورة)'}
                           </span>
                         </label>
                         <input
@@ -2166,7 +2175,7 @@ const handleSave = async () => {
                           id="file-upload"
                           name="file-upload"
                           type="file"
-                          accept=".pdf,application/pdf,image/jpeg,image/jpg,image/png,image/webp"
+                          accept=".pdf,application/pdf,image/*"
                           className="sr-only"
                           onChange={handleFileChange}
                           disabled={isConvertingImage}
