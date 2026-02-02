@@ -3,6 +3,7 @@ import Head from 'next/head';
 import Layout from 'example/containers/Layout';
 import AutomaticPreview from '../../components/AutomaticPreview';
 import { useToast } from '../../components/GlobalToast';
+import jsPDF from 'jspdf';
 
 interface ExtractedData {
   jsonResponse: Record<string, string>;
@@ -25,6 +26,42 @@ const normalizeImageUrl = (url: string) => {
   }
 
   return url;
+};
+
+// تحويل صورة إلى PDF قبل الرفع
+const IMAGE_MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const convertImageToPdfFile = (imageFile: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imgData = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const pdf = new jsPDF({
+          orientation: img.width > img.height ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format: 'a4',
+        });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const scale = Math.min(pageW / img.width, pageH / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (pageW - w) / 2;
+        const y = (pageH - h) / 2;
+        const format = imageFile.type === 'image/png' ? 'PNG' : 'JPEG';
+        pdf.addImage(imgData, format, x, y, w, h);
+        const blob = pdf.output('blob');
+        const baseName = imageFile.name.replace(/\.[^.]+$/, '') || 'converted';
+        const pdfFile = new File([blob], `${baseName}.pdf`, { type: 'application/pdf' });
+        resolve(pdfFile);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = imgData;
+    };
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(imageFile);
+  });
 };
 
 // Helper functions for height and weight validation and conversion
@@ -202,6 +239,7 @@ export default function PDFProcessor() {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState<'upload' | 'select-images' | 'upload-images' | 'extract-data' | 'save'>('upload');
+  const [isConvertingImage, setIsConvertingImage] = useState(false);
   const [currentModel, setCurrentModel] = useState('gemini-2.5-flash');
   const [isRetryingWithPro, setIsRetryingWithPro] = useState(false);
   const [editingField, setEditingField] = useState<{ key: string; value: string } | null>(null);
@@ -316,7 +354,7 @@ export default function PDFProcessor() {
     }
   }, [selectedNationality, offices]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) {
       setError('No file selected');
@@ -324,17 +362,36 @@ export default function PDFProcessor() {
       return;
     }
 
-    if (selectedFile.type !== 'application/pdf') {
-      setError('Please select a PDF file');
-      setFile(null);
+    if (selectedFile.type === 'application/pdf') {
+      setFile(selectedFile);
+      setError('');
+      setProcessingResult(null);
+      setSelectedImages([]);
+      setSaveMessage('');
       return;
     }
 
-    setFile(selectedFile);
-    setError('');
-    setProcessingResult(null);
-    setSelectedImages([]);
-    setSaveMessage('');
+    if (IMAGE_MIMES.includes(selectedFile.type)) {
+      setIsConvertingImage(true);
+      setError('');
+      try {
+        const pdfFile = await convertImageToPdfFile(selectedFile);
+        setFile(pdfFile);
+        setProcessingResult(null);
+        setSelectedImages([]);
+        setSaveMessage('');
+      } catch (err) {
+        setError('فشل تحويل الصورة إلى PDF');
+        setFile(null);
+      } finally {
+        setIsConvertingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setError('يرجى اختيار ملف PDF أو صورة (JPEG, PNG, WebP)');
+    setFile(null);
   };
 
   const handleFileUpload = async () => {
@@ -2095,13 +2152,13 @@ const handleSave = async () => {
                       <div className="mt-4">
                         <label
                           htmlFor="file-upload"
-                          className="cursor-pointer inline-block"
+                          className={`inline-block ${isConvertingImage ? 'cursor-wait opacity-70' : 'cursor-pointer'}`}
                         >
                           <span className="block text-base font-semibold text-gray-900">
-                            رفع ملف PDF
+                            رفع ملف PDF أو صورة
                           </span>
                           <span className="block text-sm text-gray-500 mt-1">
-                            اضغط للاختيار أو اسحب الملف هنا
+                            {isConvertingImage ? 'جاري تحويل الصورة إلى PDF...' : 'اضغط للاختيار أو اسحب الملف هنا (PDF، JPG، PNG، WebP)'}
                           </span>
                         </label>
                         <input
@@ -2109,10 +2166,11 @@ const handleSave = async () => {
                           id="file-upload"
                           name="file-upload"
                           type="file"
-                          accept=".pdf"
+                          accept=".pdf,application/pdf,image/jpeg,image/jpg,image/png,image/webp"
                           className="sr-only"
                           onChange={handleFileChange}
-                          aria-label="Upload PDF file"
+                          disabled={isConvertingImage}
+                          aria-label="Upload PDF or image file"
                         />
                       </div>
                       {file && (
