@@ -2,9 +2,10 @@ import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight, FaCog, FaCheck, FaEdit, FaTimes, FaExchangeAlt } from "react-icons/fa";
+import { FaFilePdf, FaPrint, FaSave, FaUser, FaGraduationCap, FaBriefcase, FaTools, FaDollarSign, FaFileAlt, FaMagic, FaArrowRight, FaCog, FaCheck, FaEdit, FaTimes, FaExchangeAlt, FaCrop } from "react-icons/fa";
 import AlertModal from "components/AlertModal";
 import Head from "next/head";
+import { ScissorOutlined } from "@ant-design/icons";
 
 function HomeMaidInfo() {
   const router = useRouter();
@@ -2067,8 +2068,9 @@ function HomeMaidInfo() {
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full mx-4 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-4 bg-teal-800 text-white">
-              <h2 className="text-xl font-bold">
-                {cropModal.fieldId === "Picture" ? "✂️ قص الصورة الشخصية" : "✂️ قص صورة بالطول"}
+              <h2 className="text-xl font-bold inline-flex ">
+                <ScissorOutlined/>
+                {cropModal.fieldId === "Picture" ?  " قص الصورة الشخصية" : " قص صورة بالطول"}
               </h2>
               <button
                 onClick={handleCloseCropModal}
