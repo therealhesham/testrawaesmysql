@@ -2108,8 +2108,8 @@ const handleSave = async () => {
                           ref={fileInputRef}
                           id="file-upload"
                           name="file-upload"
-                          type="file"
-                          accept=".pdf"
+                          type="file"// i need images also
+                          accept=".pdf,image/*"
                           className="sr-only"
                           onChange={handleFileChange}
                           aria-label="Upload PDF file"
