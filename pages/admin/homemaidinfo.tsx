@@ -1489,7 +1489,7 @@ function HomeMaidInfo() {
                     <div className="mt-4">
                       <input
                         type="file"
-                        accept="image/jpeg"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
                         ref={imageInputRefs[img.id]}
                         className="hidden"
                         onChange={(e) => handleHomemaidImageChange(e, img.id, img.uploadType)}
