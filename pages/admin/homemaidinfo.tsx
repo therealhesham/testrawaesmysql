@@ -539,6 +539,65 @@ function HomeMaidInfo() {
   const handleButtonClick = (fileId: any) => {};
 
   const allowedHomemaidImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+  const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+
+  const compressImageIfNeeded = (file: File, maxBytes: number): Promise<File> => {
+    if (file.size <= maxBytes) return Promise.resolve(file);
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        const maxDim = 2048;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("No canvas context"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const mime = "image/jpeg";
+        let quality = 0.85;
+        const tryBlob = () => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("toBlob failed"));
+                return;
+              }
+              if (blob.size <= maxBytes || quality <= 0.2) {
+                const name = file.name.replace(/\.[^.]+$/, ".jpg");
+                resolve(new File([blob], name, { type: mime }));
+                return;
+              }
+              quality -= 0.15;
+              tryBlob();
+            },
+            mime,
+            quality
+          );
+        };
+        tryBlob();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Failed to load image"));
+      };
+      img.src = url;
+    });
+  };
 
   const handleHomemaidImageChange = async (
     e: ChangeEvent<HTMLInputElement>,
@@ -561,10 +620,20 @@ function HomeMaidInfo() {
       return;
     }
 
+    let fileToUpload = file;
+    try {
+      fileToUpload = await compressImageIfNeeded(file, MAX_IMAGE_SIZE_BYTES);
+    } catch (compressErr: any) {
+      setImageErrors((prev) => ({ ...prev, [fieldId]: compressErr?.message || "فشل في ضغط الصورة" }));
+      setImageFileNames((prev) => ({ ...prev, [fieldId]: "" }));
+      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
+      return;
+    }
+
     const previousUrl = (formData as any)[fieldId] as string;
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(fileToUpload);
     setFormData((prev) => ({ ...prev, [fieldId]: previewUrl }));
-    setImageFileNames((prev) => ({ ...prev, [fieldId]: file.name }));
+    setImageFileNames((prev) => ({ ...prev, [fieldId]: fileToUpload.name }));
 
     try {
       setImageUploading((prev) => ({ ...prev, [fieldId]: true }));
@@ -577,9 +646,9 @@ function HomeMaidInfo() {
 
       const uploadRes = await fetch(url, {
         method: "PUT",
-        body: file,
+        body: fileToUpload,
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": fileToUpload.type,
           "x-amz-acl": "public-read",
         },
       });
