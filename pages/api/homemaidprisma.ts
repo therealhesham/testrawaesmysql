@@ -135,25 +135,38 @@ export default async function handler(
     });
 
     // Map the data to match the frontend's expected field names
-    const formattedData = homemaids.map((homemaid) => ({
-      id: homemaid.id,
-      Name: homemaid.Name || "",
-      homemaidId: homemaid.id, // Added to match frontend navigation
-      phone: homemaid.phone || "",
-      maritalstatus: homemaid.maritalstatus || "",
-      dateofbirth: homemaid.dateofbirth || "",
-      Passportnumber: homemaid.Passportnumber || "",
-      PassportStart: homemaid.PassportStart || "",
-      PassportEnd: homemaid.PassportEnd || "",
-      displayOrder: homemaid.displayOrder || 0,
-      isApproved: homemaid.isApproved || false,
-      office: homemaid.office
-        ? {
-            office: homemaid.office.office || "",
-            Country: homemaid.office.Country || "",
-          }
-        : { office: "", Country: "" },
-    }));
+    const formattedData = homemaids.map((homemaid) => {
+      // Extract Picture URL from JSON field
+      let pictureUrl = null;
+      if (homemaid.Picture) {
+        if (typeof homemaid.Picture === 'object' && homemaid.Picture !== null && 'url' in homemaid.Picture) {
+          pictureUrl = (homemaid.Picture as any).url;
+        } else if (typeof homemaid.Picture === 'string') {
+          pictureUrl = homemaid.Picture;
+        }
+      }
+      
+      return {
+        id: homemaid.id,
+        Name: homemaid.Name || "",
+        homemaidId: homemaid.id, // Added to match frontend navigation
+        phone: homemaid.phone || "",
+        maritalstatus: homemaid.maritalstatus || "",
+        dateofbirth: homemaid.dateofbirth || "",
+        Passportnumber: homemaid.Passportnumber || "",
+        PassportStart: homemaid.PassportStart || "",
+        PassportEnd: homemaid.PassportEnd || "",
+        displayOrder: homemaid.displayOrder || 0,
+        isApproved: homemaid.isApproved || false,
+        Picture: pictureUrl,
+        office: homemaid.office
+          ? {
+              office: homemaid.office.office || "",
+              Country: homemaid.office.Country || "",
+            }
+          : { office: "", Country: "" },
+      };
+    });
 
 try {
   const cookieHeader = req.headers.cookie;

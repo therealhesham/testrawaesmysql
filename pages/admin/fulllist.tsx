@@ -232,7 +232,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         PassportNumber: filters.PassportNumber,
         contractType: typeToUse,
         page: String(page),
-        perPage: "10",
+        perPage: viewMode === 'table' ? '10' : '8',
         sortBy: sortBy,
         sortOrder: sortOrder,
       });
@@ -648,85 +648,104 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
 
   // Grid Card Component
   const GridCard = ({ item }: { item: any }) => {
+    // Extract picture URL
+    const pictureUrl = item.Picture || (typeof item.Picture === 'object' && item.Picture?.url) || null;
+    
     return (
       <div 
-        className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-4 border border-gray-200 cursor-pointer"
+        className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-200 p-5 border-2 border-gray-200 cursor-pointer h-full flex flex-col"
         onClick={() => router.push("/admin/homemaidinfo?id=" + item.id)}
       >
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-teal-800 mb-1">{item.Name || 'غير محدد'}</h3>
-            <p className="text-sm text-gray-600">#{item.id}</p>
-          </div>
-          {item.isApproved ? (
-            <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">معتمدة</span>
+        {/* Profile Picture */}
+        <div className="flex justify-center mb-4">
+          {pictureUrl ? (
+            <img 
+              src={pictureUrl} 
+              alt={item.Name || 'صورة العاملة'}
+              className="w-32 h-32 rounded-full object-cover border-4 border-teal-300 shadow-lg"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/images/img.jpeg';
+              }}
+            />
           ) : (
-            <span className="bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">غير معتمدة</span>
+            <div className="w-32 h-32 rounded-full bg-gray-200 border-4 border-teal-300 flex items-center justify-center shadow-lg">
+              <span className="text-gray-400 text-5xl">👤</span>
+            </div>
           )}
         </div>
         
-        <div className="space-y-2 text-sm">
+        <div className="text-center mb-3">
+          <h3 className="text-lg font-bold text-teal-800 mb-1">{item.Name || 'غير محدد'}</h3>
+          <p className="text-sm text-gray-600 mb-2">#{item.id}</p>
+          {item.isApproved ? (
+            <span className="inline-block bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">✓ معتمدة</span>
+          ) : (
+            <span className="inline-block bg-red-100 text-red-800 text-sm font-semibold px-3 py-1 rounded-full">✗ غير معتمدة</span>
+          )}
+        </div>
+        
+        <div className="space-y-2 text-sm flex-grow">
           {visibleColumns.includes('phone') && item.phone && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">رقم الجوال:</span>
-              <span className="text-gray-800 font-medium" dir="ltr">{item.phone}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <span className="text-gray-600 font-medium">📱 رقم الجوال:</span>
+              <span className="text-gray-800 font-semibold" dir="ltr">{item.phone}</span>
             </div>
           )}
           
           {visibleColumns.includes('Country') && item?.office?.Country && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">الجنسية:</span>
-              <span className="text-gray-800 font-medium">{item.office.Country}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <span className="text-gray-600 font-medium">🌍 الجنسية:</span>
+              <span className="text-gray-800 font-semibold">{item.office.Country}</span>
             </div>
           )}
           
           {visibleColumns.includes('maritalstatus') && item.maritalstatus && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">الحالة الاجتماعية:</span>
-              <span className="text-gray-800 font-medium">{item.maritalstatus}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <span className="text-gray-600 font-medium">💍 الحالة:</span>
+              <span className="text-gray-800 font-semibold">{item.maritalstatus}</span>
             </div>
           )}
           
           {visibleColumns.includes('dateofbirth') && item.dateofbirth && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">العمر:</span>
-              <span className="text-gray-800 font-medium" title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded" title={`تاريخ الميلاد: ${formatBirthDate(item.dateofbirth)}`}>
+              <span className="text-gray-600 font-medium">🎂 العمر:</span>
+              <span className="text-gray-800 font-semibold">
                 {calculateAge(item.dateofbirth)} سنة
               </span>
             </div>
           )}
           
           {visibleColumns.includes('Passportnumber') && item.Passportnumber && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">رقم الجواز:</span>
-              <span className="text-gray-800 font-medium">{item.Passportnumber}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded" title={item.Passportnumber}>
+              <span className="text-gray-600 font-medium">📄 الجواز:</span>
+              <span className="text-gray-800 font-semibold truncate max-w-[120px]">{item.Passportnumber}</span>
             </div>
           )}
           
           {visibleColumns.includes('PassportStart') && item.PassportStart && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">بداية الجواز:</span>
-              <span className="text-gray-800 font-medium">{getDate(item.PassportStart)}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <span className="text-gray-600 font-medium">📅 بداية الجواز:</span>
+              <span className="text-gray-800 font-semibold">{getDate(item.PassportStart)}</span>
             </div>
           )}
           
           {visibleColumns.includes('PassportEnd') && item.PassportEnd && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">نهاية الجواز:</span>
-              <span className="text-gray-800 font-medium">{getDate(item.PassportEnd)}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <span className="text-gray-600 font-medium">📅 نهاية الجواز:</span>
+              <span className="text-gray-800 font-semibold">{getDate(item.PassportEnd)}</span>
             </div>
           )}
           
           {visibleColumns.includes('office') && item?.office?.office && (
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">المكتب:</span>
-              <span className="text-gray-800 font-medium">{item.office.office}</span>
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded" title={item.office.office}>
+              <span className="text-gray-600 font-medium">🏢 المكتب:</span>
+              <span className="text-gray-800 font-semibold truncate max-w-[120px]">{item.office.office}</span>
             </div>
           )}
           
           {visibleColumns.includes('displayOrder') && (
-            <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-              <span className="text-gray-500">ترتيب العرض:</span>
+            <div className="flex items-center justify-between pt-2 border-t-2 border-gray-300 mt-2">
+              <span className="text-gray-600 font-medium">ترتيب العرض:</span>
               <input
                 type="number"
                 min="0"
@@ -743,7 +762,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
                     e.currentTarget.blur();
                   }
                 }}
-                className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-20 px-2 py-1 text-center border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                 title="اضغط Enter لحفظ التغييرات"
               />
             </div>
@@ -751,9 +770,9 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         </div>
         
         {hasDeletePermission && (
-          <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end">
+          <div className="mt-4 pt-3 border-t-2 border-gray-300 flex justify-center">
             <button 
-              className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50 flex items-center gap-1"
+              className="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2 flex items-center gap-2 transition-colors font-medium"
               onClick={(e) => {
                 e.stopPropagation();
                 openDeleteModal(item.id);
@@ -761,7 +780,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
               title="حذف"
             >
               <Trash2 className="w-4 h-4" />
-              <span className="text-xs">حذف</span>
+              <span>حذف</span>
             </button>
           </div>
         )}
@@ -1691,7 +1710,7 @@ const exportToPDF = async () => {
                 </tbody>
               </table>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-96">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 min-h-96">
                   {data.length === 0 ? (
                     <div className="col-span-full text-center text-gray-500 py-8">
                       لا توجد نتائج
@@ -1885,25 +1904,38 @@ export async function getServerSideProps({ req }: any) {
     });
 
     // Format the data
-    const formatHomemaid = (homemaid: any) => ({
-      id: homemaid.id,
-      Name: homemaid.Name || "",
-      homemaidId: homemaid.id,
-      phone: homemaid.phone || "",
-      maritalstatus: homemaid.maritalstatus || "",
-      dateofbirth: homemaid.dateofbirth ? homemaid.dateofbirth.toISOString() : null,
-      Passportnumber: homemaid.Passportnumber || "",
-      PassportStart: homemaid.PassportStart ? homemaid.PassportStart.toISOString() : null,
-      PassportEnd: homemaid.PassportEnd ? homemaid.PassportEnd.toISOString() : null,
-      displayOrder: homemaid.displayOrder || 0,
-      isApproved: homemaid.isApproved || false,
-      office: homemaid.office
-        ? {
-            office: homemaid.office.office || "",
-            Country: homemaid.office.Country || "",
-          }
-        : { office: "", Country: "" },
-    });
+    const formatHomemaid = (homemaid: any) => {
+      // Extract Picture URL from JSON field
+      let pictureUrl = null;
+      if (homemaid.Picture) {
+        if (typeof homemaid.Picture === 'object' && homemaid.Picture !== null && 'url' in homemaid.Picture) {
+          pictureUrl = (homemaid.Picture as any).url;
+        } else if (typeof homemaid.Picture === 'string') {
+          pictureUrl = homemaid.Picture;
+        }
+      }
+      
+      return {
+        id: homemaid.id,
+        Name: homemaid.Name || "",
+        homemaidId: homemaid.id,
+        phone: homemaid.phone || "",
+        maritalstatus: homemaid.maritalstatus || "",
+        dateofbirth: homemaid.dateofbirth ? homemaid.dateofbirth.toISOString() : null,
+        Passportnumber: homemaid.Passportnumber || "",
+        PassportStart: homemaid.PassportStart ? homemaid.PassportStart.toISOString() : null,
+        PassportEnd: homemaid.PassportEnd ? homemaid.PassportEnd.toISOString() : null,
+        displayOrder: homemaid.displayOrder || 0,
+        isApproved: homemaid.isApproved || false,
+        Picture: pictureUrl,
+        office: homemaid.office
+          ? {
+              office: homemaid.office.office || "",
+              Country: homemaid.office.Country || "",
+            }
+          : { office: "", Country: "" },
+      };
+    };
 
     const formattedRecruitmentData = recruitmentHomemaids.map(formatHomemaid);
     const formattedRentalData = rentalHomemaids.map(formatHomemaid);
