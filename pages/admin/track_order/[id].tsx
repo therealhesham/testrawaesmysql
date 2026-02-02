@@ -110,6 +110,9 @@ export default function TrackOrder() {
     message: '',
   });
 
+  // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
+  const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
+
   const [currentStep, setCurrentStep] = useState(0);
 
   // دالة للتحقق من اكتمال مرحلة معينة
@@ -253,6 +256,7 @@ export default function TrackOrder() {
 
   useEffect(() => {
     if (id) {
+      setDestinationsPendingFile(null);
       fetchOrderData();
     }
     fetchHomemaids(); // Fetch homemaids for autocomplete
@@ -663,10 +667,28 @@ export default function TrackOrder() {
       onConfirm: async () => {
         setUpdating(true);
         try {
+          let dataToSend: Record<string, string | undefined> = { ...updatedData };
+          // في قسم الوجهات: رفع الملف المعلّق مع البيانات في طلب واحد
+          if (section === 'destinations' && destinationsPendingFile) {
+            const presignedRes = await fetch(`/api/upload-presigned-url/${id}`);
+            if (!presignedRes.ok) throw new Error('فشل في الحصول على رابط الرفع');
+            const { url, filePath } = await presignedRes.json();
+            const uploadRes = await fetch(url, {
+              method: 'PUT',
+              body: destinationsPendingFile,
+              headers: {
+                'Content-Type': 'application/pdf',
+                'x-amz-acl': 'public-read',
+              },
+            });
+            if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+            dataToSend.ticketFile = filePath;
+            setDestinationsPendingFile(null);
+          }
           const res = await fetch(`/api/track_order/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ section, updatedData }),
+            body: JSON.stringify({ section, updatedData: dataToSend }),
           });
 
           if (!res.ok) {
@@ -1654,61 +1676,25 @@ export default function TrackOrder() {
                           id="file-upload-destinations"
                           className="hidden"
                           accept="application/pdf"
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              setUpdating(true);
-                              try {
-                                const res = await fetch(`/api/upload-presigned-url/${id}`);
-                                if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
-                                const { url, filePath } = await res.json();
-
-                                const uploadRes = await fetch(url, {
-                                  method: 'PUT',
-                                  body: file,
-                                  headers: {
-                                    'Content-Type': 'application/pdf',
-                                    'x-amz-acl': 'public-read',
-                                  },
-                                });
-
-                                if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-
-                                await fetch(`/api/track_order/${id}`, {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    section: 'destinations',
-                                    updatedData: { ticketFile: filePath },
-                                  }),
-                                });
-
-                                await fetchOrderData();
-                                
-                                // Show success message
-                                setShowAlertModal({
-                                  isOpen: true,
-                                  message: 'تم رفع الملف بنجاح',
-                                });
-                              } catch (error: any) {
-                                console.error('Error uploading file:', error);
-                                setShowErrorModal({
-                                  isOpen: true,
-                                  title: 'خطأ في رفع الملف',
-                                  message: error.message || 'حدث خطأ أثناء رفع الملف',
-                                });
-                              } finally {
-                                setUpdating(false);
-                              }
+                              setDestinationsPendingFile(file);
+                              e.target.value = '';
                             }
                           }}
                         />
                         <label
                           htmlFor="file-upload-destinations"
-                          className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${updating ? 'opacity-50' : ''}`}
+                          className="bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900"
                         >
                           اختيار ملف
                         </label>
+                        {destinationsPendingFile && (
+                          <span className="text-teal-700 text-sm pr-2">
+                            تم اختيار: {destinationsPendingFile.name} — اضغط «حفظ» لحفظ البيانات والملف
+                          </span>
+                        )}
                       </>
                     )}
                   </div>
