@@ -16,9 +16,6 @@ interface ProcessingResult {
 
 // Ensure all image URLs are HTTPS to avoid mixed-content issues when the app
 // is served over HTTPS (e.g. https://wasl.rawaes.com)
-// External service to convert images to PDF
-const IMAGE_TO_PDF_BASE_URL = 'https://oow0wkk00wksg4oo8ws40gcc.31.97.55.12.sslip.io';
-
 const normalizeImageUrl = (url: string) => {
   if (typeof url !== 'string') return url;
 
@@ -350,31 +347,8 @@ export default function PDFProcessor() {
     setError('');
 
     try {
-      let fileToProcess: File = file;
-
-      // If the file is an image, convert it to PDF using the external service first
-      if (file.type.startsWith('image/')) {
-        const convertFormData = new FormData();
-        convertFormData.append('images', file);
-
-        const convertResponse = await fetch(`${IMAGE_TO_PDF_BASE_URL}/convert`, {
-          method: 'POST',
-          body: convertFormData,
-        });
-
-        if (!convertResponse.ok) {
-          const errorText = await convertResponse.text();
-          throw new Error(errorText || 'Failed to convert image to PDF');
-        }
-
-        const pdfBlob = await convertResponse.blob();
-        const pdfFile = new File([pdfBlob], 'converted.pdf', { type: 'application/pdf' });
-        setFile(pdfFile);
-        fileToProcess = pdfFile;
-      }
-
       const imageFormData = new FormData();
-      imageFormData.append('file', fileToProcess);
+      imageFormData.append('file', file);
 
       const imageResponse = await fetch('https://extract.rawaes.com/extract-images', {
         method: 'POST',
@@ -2124,7 +2098,7 @@ const handleSave = async () => {
                           className="cursor-pointer inline-block"
                         >
                           <span className="block text-base font-semibold text-gray-900">
-                            رفع ملف PDF أو صورة
+                            رفع ملف PDF
                           </span>
                           <span className="block text-sm text-gray-500 mt-1">
                             اضغط للاختيار أو اسحب الملف هنا
