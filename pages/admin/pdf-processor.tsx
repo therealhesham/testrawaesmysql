@@ -17,7 +17,7 @@ interface ProcessingResult {
 // Ensure all image URLs are HTTPS to avoid mixed-content issues when the app
 // is served over HTTPS (e.g. https://wasl.rawaes.com)
 // External service to convert images to PDF
-const IMAGE_TO_PDF_BASE_URL = 'http://oow0wkk00wksg4oo8ws40gcc.31.97.55.12.sslip.io';
+const IMAGE_TO_PDF_BASE_URL = 'https://oow0wkk00wksg4oo8ws40gcc.31.97.55.12.sslip.io';
 
 const normalizeImageUrl = (url: string) => {
   if (typeof url !== 'string') return url;
