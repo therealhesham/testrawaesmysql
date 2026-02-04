@@ -1150,63 +1150,6 @@ export default function TrackOrder() {
     );
   };
 
-  // --- إنشاء سجلات محاسبية Modal ---
-  const CreateAccountingModal = () => {
-    if (!showCreateAccountingModal) return null;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div
-          className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 text-right">انشاء سجلات محاسبية</h3>
-          <div className="space-y-4 mb-6">
-            <div className="text-right">
-              <label className="block text-gray-700 mb-1">المبلغ المطلوب</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={accountingModalTotal}
-                onChange={(e) => setAccountingModalTotal(e.target.value)}
-                placeholder="أدخل المبلغ الكامل للعقد"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
-              />
-            </div>
-            <div className="text-right">
-              <label className="block text-gray-700 mb-1">المبلغ المدفوع (دفعة أولى) — اختياري</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={accountingModalPaid}
-                onChange={(e) => setAccountingModalPaid(e.target.value)}
-                placeholder="إن تركت فارغاً يُستخدم المبلغ المحفوظ في الطلب"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              onClick={() => setShowCreateAccountingModal(false)}
-            >
-              إلغاء
-            </button>
-            <button
-              type="button"
-              className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
-              onClick={handleCreateAccountingRecords}
-            >
-              إنشاء
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <Layout>
       <div className={`min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
@@ -2813,7 +2756,58 @@ export default function TrackOrder() {
 
         <AlertModal />
         <LoadingModal />
-        <CreateAccountingModal />
+        {showCreateAccountingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div
+              className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 mb-4 text-right">انشاء سجلات محاسبية</h3>
+              <div className="space-y-4 mb-6">
+                <div className="text-right">
+                  <label className="block text-gray-700 mb-1">المبلغ المطلوب</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={accountingModalTotal}
+                    onChange={(e) => setAccountingModalTotal(e.target.value)}
+                    placeholder="أدخل المبلغ الكامل للعقد"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
+                  />
+                </div>
+                <div className="text-right">
+                  <label className="block text-gray-700 mb-1">المبلغ المدفوع (دفعة أولى) — اختياري</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={accountingModalPaid}
+                    onChange={(e) => setAccountingModalPaid(e.target.value)}
+                    placeholder="إن تركت فارغاً يُستخدم المبلغ المحفوظ في الطلب"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  onClick={() => setShowCreateAccountingModal(false)}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                  onClick={handleCreateAccountingRecords}
+                >
+                  إنشاء
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <ErrorModal 
           isOpen={showErrorModal.isOpen}
           title={showErrorModal.title}
