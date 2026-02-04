@@ -10,10 +10,12 @@ saudiEmbassyApproval
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
+import VisaModal, { VisaData } from 'components/VisaModal';
 import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
+import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/outline';
 import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock } from 'lucide-react';
 import { FaCog, FaTimes, FaUserCog, FaFileInvoiceDollar } from 'react-icons/fa';
 import Layout from 'example/containers/Layout';
@@ -115,10 +117,26 @@ export default function TrackOrder() {
   const [showCreateAccountingModal, setShowCreateAccountingModal] = useState(false);
   const [accountingModalTotal, setAccountingModalTotal] = useState('');
   const [accountingModalPaid, setAccountingModalPaid] = useState('');
+  const [accountingModalPaymentMethod, setAccountingModalPaymentMethod] = useState<'cash' | 'two-installments' | 'three-installments' | 'custom'>('cash');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
+
+  // مودال إضافة تأشيرة (نفس مودال clientdetails)
+  const [showVisaModal, setShowVisaModal] = useState(false);
+  const [visaInfo, setVisaInfo] = useState<VisaData>({
+    id: 0,
+    visaNumber: '',
+    gender: '',
+    profession: '',
+    visaFile: '',
+    nationality: '',
+    createdAt: '',
+  });
+  const [visaRefetchTrigger, setVisaRefetchTrigger] = useState(0);
+  const [nationalities, setNationalities] = useState<Array<{ value: string; label: string }>>([]);
+  const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender?: string | null }>>([]);
 
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -268,6 +286,39 @@ export default function TrackOrder() {
     }
     fetchHomemaids(); // Fetch homemaids for autocomplete
   }, [id]);
+
+  const fetchNationalities = async () => {
+    try {
+      const response = await fetch('/api/nationalities');
+      const data = await response.json();
+      if (data.success && data.nationalities) {
+        const options = data.nationalities.map((nat: any) => ({
+          value: nat.Country || nat.value,
+          label: nat.Country || nat.label,
+        }));
+        setNationalities(options);
+      }
+    } catch (err) {
+      console.error('Error fetching nationalities:', err);
+    }
+  };
+
+  const fetchProfessions = async () => {
+    try {
+      const response = await fetch('/api/professions');
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setProfessions(data);
+      }
+    } catch (err) {
+      console.error('Error fetching professions:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNationalities();
+    fetchProfessions();
+  }, []);
 
   const fetchOrderData = async () => {
     setLoading(true);
@@ -793,7 +844,15 @@ export default function TrackOrder() {
   const openCreateAccountingModal = () => {
     setAccountingModalTotal('');
     setAccountingModalPaid('');
+    setAccountingModalPaymentMethod('cash');
     setShowCreateAccountingModal(true);
+  };
+
+  const accountingModalRemaining =
+    (Number(accountingModalTotal) || 0) - (Number(accountingModalPaid) || 0);
+  const handleAccountingModalAmountChange = (field: 'Total' | 'Paid', value: string) => {
+    if (field === 'Total') setAccountingModalTotal(value);
+    else setAccountingModalPaid(value);
   };
 
   const handleCreateAccountingRecords = async () => {
@@ -1293,6 +1352,11 @@ export default function TrackOrder() {
             editable={true}
             clientID={orderData.clientInfo?.id ? Number(orderData.clientInfo.id) : undefined}
             onSave={(updatedData) => handleSaveEdits('officeLinkInfo', updatedData)}
+            onAddVisaClick={() => {
+              setVisaInfo({ id: 0, visaNumber: '', gender: '', profession: '', visaFile: '', nationality: '', createdAt: '' });
+              setShowVisaModal(true);
+            }}
+            visaRefetchTrigger={visaRefetchTrigger}
             actions={[
               ...(orderData.officeLinkApproval.approved ? [
                 {
@@ -2756,39 +2820,93 @@ export default function TrackOrder() {
 
         <AlertModal />
         <LoadingModal />
+        {orderData?.clientInfo?.id && (
+          <VisaModal
+            isHidden={!showVisaModal}
+            setIsHidden={(v) => setShowVisaModal(!v)}
+            visaInfo={visaInfo}
+            setVisaInfo={setVisaInfo}
+            fetchVisas={() => setVisaRefetchTrigger((t) => t + 1)}
+            setNotification={(n) => {
+              if (n) {
+                if (n.type === 'success') setShowAlertModal({ isOpen: true, message: n.message });
+                else setShowErrorModal({ isOpen: true, title: 'حدث خطأ', message: n.message });
+              }
+            }}
+            clientId={orderData.clientInfo.id}
+            isEditMode={false}
+            nationalities={nationalities}
+            professions={professions}
+          />
+        )}
         {showCreateAccountingModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
             <div
-              className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
+              className="bg-white rounded-lg shadow-lg w-full max-w-7xl max-h-[90vh] overflow-y-auto p-6"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-4 text-right">انشاء سجلات محاسبية</h3>
-              <div className="space-y-4 mb-6">
-                <div className="text-right">
-                  <label className="block text-gray-700 mb-1">المبلغ المطلوب</label>
+              <h3 className="text-lg font-bold text-gray-900 mb-6 text-right">انشاء سجلات محاسبية</h3>
+
+              {/* طريقة الدفع المختارة - نفس منظر AddAvailableForm */}
+              <div className="mb-10">
+                <h2 className="text-base font-normal mb-2 text-right">طريقة الدفع المختارة</h2>
+                <div className="flex gap-[56px] justify-center flex-nowrap">
+                  {[
+                    { option: 'كاش', value: 'cash' as const, imgSrc: <CashIcon className="w-6 h-6" /> },
+                    { option: 'دفعتين', value: 'two-installments' as const, imgSrc: <CreditCardIcon className="w-6 h-6" /> },
+                    { option: 'ثلاثة دفعات', value: 'three-installments' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+                    { option: 'مخصص', value: 'custom' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+                  ].map(({ option, value, imgSrc }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setAccountingModalPaymentMethod(value)}
+                      className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${accountingModalPaymentMethod === value ? 'border-[#1a4d4f] bg-teal-800 text-white' : 'border-[#e0e0e0]'}`}
+                    >
+                      <span className="text-xl">{option}</span>
+                      {imgSrc}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* المبلغ كامل / المبلغ المدفوع / المبلغ المتبقي - نفس منظر AddAvailableForm */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                <div className="flex flex-col gap-2">
+                  <label className="text-base text-right">المبلغ كامل</label>
                   <input
                     type="number"
                     min="0"
-                    step="1"
+                    step="0.01"
                     value={accountingModalTotal}
-                    onChange={(e) => setAccountingModalTotal(e.target.value)}
-                    placeholder="أدخل المبلغ الكامل للعقد"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
+                    onChange={(e) => handleAccountingModalAmountChange('Total', e.target.value)}
+                    placeholder="أدخل المبلغ الكامل"
+                    className="w-full p-3 border border-gray-300 rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                   />
                 </div>
-                <div className="text-right">
-                  <label className="block text-gray-700 mb-1">المبلغ المدفوع (دفعة أولى) — اختياري</label>
+                <div className="flex flex-col gap-2">
+                  <label className="text-base text-right">المبلغ المدفوع</label>
                   <input
                     type="number"
                     min="0"
-                    step="1"
+                    step="0.01"
                     value={accountingModalPaid}
-                    onChange={(e) => setAccountingModalPaid(e.target.value)}
-                    placeholder="إن تركت فارغاً يُستخدم المبلغ المحفوظ في الطلب"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
+                    onChange={(e) => handleAccountingModalAmountChange('Paid', e.target.value)}
+                    placeholder="أدخل المبلغ المدفوع (دفعة أولى — اختياري)"
+                    className="w-full p-3 border border-gray-300 rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-base text-right">المبلغ المتبقي</label>
+                  <input
+                    type="number"
+                    readOnly
+                    value={accountingModalRemaining}
+                    className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
                   />
                 </div>
               </div>
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"

@@ -16,9 +16,13 @@ interface InfoCardProps {
   clientID?: number;
   disabled?: boolean;
   bottomMessage?: JSX.Element | string;
+  /** When provided, "إضافة رقم تأشيرة أخرى" in VisaSelector opens this (e.g. full VisaModal) instead of simple modal. */
+  onAddVisaClick?: () => void;
+  /** When this changes, VisaSelector refetches visa list (e.g. after adding via full modal). */
+  visaRefetchTrigger?: number;
 }
 
-export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false, bottomMessage }: InfoCardProps) {
+export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false, bottomMessage, onAddVisaClick, visaRefetchTrigger }: InfoCardProps) {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>(
     data.reduce((acc, item) => {
@@ -328,6 +332,8 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                   placeholder="ابحث عن رقم التأشيرة"
                   className="border border-gray-300 rounded-md p-2 text-base text-right"
                   error={errors[item.label]}
+                  onOpenFullVisaModal={onAddVisaClick}
+                  refetchTrigger={visaRefetchTrigger}
                 />
               </div>
             ) : editable && editMode && item.fieldType === 'file' ? (

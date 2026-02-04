@@ -1,5 +1,6 @@
 import CollapsibleSection from 'components/CollapsibleSection';
-import { useEffect, useState, useRef } from 'react';
+import VisaModal, { VisaData } from 'components/VisaModal';
+import { useEffect, useState } from 'react';
 import Layout from 'example/containers/Layout';
 import { useRouter } from 'next/router';
 import React from 'react';
@@ -11,16 +12,6 @@ interface ClientInfo {
   phonenumber: string;
   nationalId: string;
   city: string;
-}
-
-interface VisaData {
-  id: number;
-  visaNumber: string;
-  gender: string;
-  profession: string;
-  visaFile: string;
-  nationality: string;
-  createdAt: string;
 }
 
 interface OrderData {
@@ -64,327 +55,6 @@ interface Notification {
   type: 'success' | 'error';
 }
 
-const VisaModal = React.memo(
-  ({
-    isHidden,
-    setIsHidden,
-    visaInfo,
-    setVisaInfo,
-    fetchVisas,
-    setNotification,
-    clientId,
-    isEditMode = false,
-    visaId,
-    nationalities,
-  }: {
-    isHidden: boolean;
-    setIsHidden: (isHidden: boolean) => void;
-    visaInfo: VisaData;
-    setVisaInfo: (visaInfo: VisaData) => void;
-    fetchVisas: () => void;
-    setNotification: (notification: Notification | null) => void;
-    clientId: string;
-    isEditMode?: boolean;
-    visaId?: number;
-    nationalities: Array<{ value: string; label: string }>;
-  }) => {
-    const visaNumberRef = useRef<HTMLInputElement>(null);
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    const [uploading, setUploading] = useState(false);
-    const [uploadedFileName, setUploadedFileName] = useState<string>('');
-
-    useEffect(() => {
-      if (!isHidden && visaNumberRef.current) {
-        visaNumberRef.current.focus();
-      }
-      // Reset uploaded file name when modal opens/closes
-      if (isHidden) {
-        setUploadedFileName('');
-      }
-    }, [isHidden]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      setVisaInfo({ ...visaInfo, [e.target.name]: e.target.value });
-      setErrors((prev) => ({ ...prev, [e.target.name]: '' }));
-    };
-
-    const validateForm = () => {
-      const newErrors: { [key: string]: string } = {};
-
-      if (!visaInfo.visaNumber) {
-        newErrors.visaNumber = 'رقم التأشيرة مطلوب';
-      } else if (!/^\d+$/.test(visaInfo.visaNumber)) {
-        newErrors.visaNumber = 'رقم التأشيرة يجب أن يحتوي على أرقام فقط';
-      } else if (!/^190\d{7}$/.test(visaInfo.visaNumber)) {
-        newErrors.visaNumber = 'رقم التأشيرة يجب أن يبدأ بـ 190 ويكون 10 أرقام فقط';
-      }
-
-      if (!visaInfo.gender) {
-        newErrors.gender = 'الجنس مطلوب';
-      }
-
-      if (!visaInfo.nationality) {
-        newErrors.nationality = 'الجنسية مطلوبة';
-      }
-
-      if (visaInfo.profession && !/^[\u0600-\u06FFa-zA-Z\s]+$/.test(visaInfo.profession)) {
-        newErrors.profession = 'المهنة يجب أن تحتوي على أحرف فقط';
-      }
-
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    };
-
-      
-    const saveVisaData = async () => {
-      if (!validateForm()) {
-        setNotification({ message: 'يرجى تصحيح الأخطاء في النموذج', type: 'error' });
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/visadata${isEditMode ? `` : ''}`, {
-          method: isEditMode ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...visaInfo,
-            clientID: clientId,
-          }),
-        });
-
-        if (response.ok) {
-          setNotification({
-            message: isEditMode ? 'تم تحديث التأشيرة بنجاح' : 'تم إضافة التأشيرة بنجاح',
-            type: 'success',
-          });
-          setIsHidden(true);
-          fetchVisas();
-          setVisaInfo({
-            id: 0,
-            visaNumber: '',
-            gender: '',
-            profession: '',
-            visaFile: '',
-            nationality: '',
-            createdAt: '',
-          });
-          setErrors({});
-        } else {
-          throw new Error(isEditMode ? 'فشل في تحديث التأشيرة' : 'فشل في إضافة التأشيرة');
-        }
-      } catch (error) {
-        console.error(error);
-        setNotification({
-          message: isEditMode ? 'فشل في تحديث التأشيرة' : 'فشل في إضافة التأشيرة',
-          type: 'error',
-        });
-      }
-    };
-
-    return (
-      <div
-        className={`fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex items-center justify-center transition-opacity duration-300 ${
-          isHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        }`}
-      >
-        <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-          <h2 className="text-xl font-semibold text-teal-800 mb-4 text-center">
-            {isEditMode ? 'تعديل تأشيرة' : 'إضافة تأشيرة'}
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                رقم التأشيرة <span className="text-red-500">*</span>
-              </label>
-              <input
-                ref={visaNumberRef}
-                type="text"
-                name="visaNumber"
-                value={visaInfo.visaNumber}
-                placeholder="أدخل رقم التأشيرة (يبدأ بـ 190)"
-                onChange={handleInputChange}
-                maxLength={10}
-                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                  errors.visaNumber ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              />
-              {errors.visaNumber && (
-                <p className="text-red-500 text-sm mt-1">{errors.visaNumber}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                الجنس <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="gender"
-                value={visaInfo.gender}
-                onChange={handleInputChange}
-                className={`w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                  errors.gender ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              >
-                <option value="">اختر الجنس</option>
-                <option value="male">ذكر</option>
-                <option value="female">أنثى</option>
-              </select>
-              {errors.gender && (
-                <p className="text-red-500 text-sm mt-1">{errors.gender}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">المهنة</label>
-              <input
-                type="text"
-                name="profession"
-                value={visaInfo.profession}
-                placeholder="أدخل المهنة"
-                onChange={handleInputChange}
-                className={`w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                  errors.profession ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.profession && (
-                <p className="text-red-500 text-sm mt-1">{errors.profession}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                الجنسية <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="nationality"
-                value={visaInfo.nationality}
-                onChange={handleInputChange}
-                className={`w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                  errors.nationality ? 'border-red-500' : 'border-gray-300'
-                }`}
-                required
-              >
-                <option value="">اختر الجنسية</option>
-                {nationalities.map((nat) => (
-                  <option key={nat.value} value={nat.value}>
-                    {nat.label}
-                  </option>
-                ))}
-              </select>
-              {errors.nationality && (
-                <p className="text-red-500 text-sm mt-1">{errors.nationality}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">الملف</label>
-              <input
-                type="file"
-                accept="application/pdf,image/*"
-                disabled={uploading}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  
-                  setUploading(true);
-                  setUploadedFileName('');
-                  try {
-                    // Use visaFile identifier (matching AddClientModal pattern)
-                    const res = await fetch(`/api/upload-presigned-url/visaFile`);
-                    if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
-                    
-                    const { url, filePath } = await res.json();
-
-                    const uploadRes = await fetch(url, {
-                      method: 'PUT',
-                      body: file,
-                      headers: {
-                        'Content-Type': file.type || 'application/octet-stream',
-                        'x-amz-acl': 'public-read',
-                      },
-                    });
-
-                    if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
-                    
-                    setVisaInfo({ ...visaInfo, visaFile: filePath });
-                    setUploadedFileName(file.name);
-                    setNotification({ message: 'تم رفع الملف بنجاح', type: 'success' });
-                    
-                    // Reset input
-                    e.target.value = '';
-                  } catch (error: any) {
-                    console.error('Error uploading file:', error);
-                    setUploadedFileName('');
-                    setNotification({ 
-                      message: error.message || 'فشل في رفع الملف', 
-                      type: 'error' 
-                    });
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-                className="w-full border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              {uploading && (
-                <p className="text-sm text-teal-600 mt-1 flex items-center gap-2">
-                  <span className="animate-spin">⏳</span>
-                  جاري رفع الملف...
-                </p>
-              )}
-              {!uploading && uploadedFileName && (
-                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-800 flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
-                    تم رفع الملف بنجاح: <span className="font-semibold">{uploadedFileName}</span>
-                  </p>
-                  {visaInfo.visaFile && (
-                    <a
-                      href={visaInfo.visaFile}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-teal-600 hover:underline mt-1 block"
-                    >
-                      عرض الملف
-                    </a>
-                  )}
-                </div>
-              )}
-              {!uploading && visaInfo.visaFile && !uploadedFileName && (
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm text-blue-800 flex items-center gap-2">
-                    <span className="text-blue-600">ℹ</span>
-                    يوجد ملف مرفوع مسبقاً
-                  </p>
-                  <a
-                    href={visaInfo.visaFile}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-teal-600 hover:underline mt-1 block"
-                  >
-                    عرض الملف
-                  </a>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsHidden(true)}
-                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition"
-              >
-                إغلاق
-              </button>
-              <button
-                onClick={saveVisaData}
-                className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 transition"
-              >
-                {isEditMode ? 'حفظ التعديلات' : 'إضافة'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-);
-
 export default function Home() {
   const [isHidden, setIsHidden] = useState(true);
   const [notification, setNotification] = useState<Notification | null>(null);
@@ -423,6 +93,7 @@ export default function Home() {
     city: '',
   });
   const [nationalities, setNationalities] = useState<Array<{ value: string; label: string }>>([]);
+  const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender?: string | null }>>([]);
 
   const router = useRouter();
 
@@ -489,6 +160,18 @@ export default function Home() {
     }
   };
 
+  const fetchProfessions = async () => {
+    try {
+      const response = await fetch('/api/professions');
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setProfessions(data);
+      }
+    } catch (error) {
+      console.error('Error fetching professions:', error);
+    }
+  };
+
   const handleEditVisa = (visa: VisaData) => {
     setVisaInfo(visa);
     setEditingVisaId(visa.id);
@@ -525,6 +208,7 @@ export default function Home() {
     fetchVisas();
     fetchFinancialStatements();
     fetchNationalities();
+    fetchProfessions();
   }, [router.query.id]);
 
   const handleEditClick = () => {
@@ -709,6 +393,7 @@ const arabicRegionMap: { [key: string]: string } = {
           isEditMode={editingVisaId !== null}
           visaId={editingVisaId || undefined}
           nationalities={nationalities}
+          professions={professions}
         />
         {notification && (
           <NotificationModal

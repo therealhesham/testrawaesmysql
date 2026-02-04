@@ -16,6 +16,10 @@ interface VisaSelectorProps {
   placeholder?: string;
   className?: string;
   error?: string;
+  /** When provided, clicking "إضافة رقم تأشيرة أخرى" opens this callback instead of the simple modal (e.g. to show full VisaModal). */
+  onOpenFullVisaModal?: () => void;
+  /** When this value changes, visa list is refetched (e.g. after adding via full modal). */
+  refetchTrigger?: number;
 }
 
 const VisaSelector: React.FC<VisaSelectorProps> = ({
@@ -24,7 +28,9 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   clientID,
   placeholder = "ابحث عن رقم التأشيرة",
   className = "",
-  error
+  error,
+  onOpenFullVisaModal,
+  refetchTrigger,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value && value !== 'N/A' ? value : '');
@@ -55,12 +61,12 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
     setSearchTerm(value && value !== 'N/A' ? value : '');
   }, [value]);
 
-  // Fetch visas when component mounts or clientID changes
+  // Fetch visas when component mounts, clientID changes, or refetchTrigger changes (e.g. after adding via full modal)
   useEffect(() => {
     if (clientID) {
       fetchVisas();
     }
-  }, [clientID]);
+  }, [clientID, refetchTrigger]);
 
   // Filter visas based on search term
   useEffect(() => {
@@ -129,6 +135,11 @@ const VisaSelector: React.FC<VisaSelectorProps> = ({
   };
 
   const handleOtherOption = () => {
+    if (onOpenFullVisaModal) {
+      onOpenFullVisaModal();
+      setIsOpen(false);
+      return;
+    }
     setShowOtherModal(true);
     setIsOpen(false);
     setVisaError('');

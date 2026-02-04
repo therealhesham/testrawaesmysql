@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import Layout from 'example/containers/Layout';
 import AutomaticPreview from '../../components/AutomaticPreview';
@@ -187,6 +187,103 @@ const isValueInOptions = (value: string, options: string[]): boolean => {
   return options.some(option => option.trim() === normalizedValue);
 };
 
+const normalizeKey = (k: string) => String(k).toLowerCase().replace(/\s/g, '').replace(/_/g, '');
+
+// البحث عن قيمة في البيانات (مطابق لمنطق findFieldValue في handleSave + مطابقة مرنة للمفاتيح)
+function findFieldValueInData(keys: string[], data: any): any {
+  if (!data) return null;
+  const hasValue = (v: any) =>
+    v !== undefined && v !== null && v !== '' &&
+    v !== 'null' && v !== 'undefined' &&
+    (typeof v !== 'string' || v.trim() !== '');
+
+  for (const key of keys) {
+    const value = data[key];
+    if (hasValue(value)) return value;
+  }
+  if (data.skills) {
+    let skillsObj = data.skills;
+    if (typeof skillsObj === 'string') {
+      try { skillsObj = JSON.parse(skillsObj); } catch { skillsObj = {}; }
+    }
+    if (typeof skillsObj === 'object' && skillsObj !== null) {
+      for (const key of keys) {
+        const value = skillsObj[key];
+        if (hasValue(value)) return value;
+      }
+    }
+  }
+  if (data.languages_spoken) {
+    let langsObj = data.languages_spoken;
+    if (typeof langsObj === 'string') {
+      try { langsObj = JSON.parse(langsObj); } catch { langsObj = {}; }
+    }
+    if (typeof langsObj === 'object' && langsObj !== null) {
+      for (const key of keys) {
+        const value = langsObj[key];
+        if (hasValue(value)) return value;
+      }
+    }
+  }
+  const normalizedKeys = new Set(keys.map(normalizeKey));
+  for (const dataKey of Object.keys(data)) {
+    if (typeof dataKey !== 'string') continue;
+    if (normalizedKeys.has(normalizeKey(dataKey))) {
+      const value = data[dataKey];
+      if (hasValue(value)) return value;
+    }
+  }
+  return null;
+}
+
+// الحقول المطلوبة بمعرف واحد (setKey) لكل حقل — لضمان وجودها دائماً حتى لو Gemini لم يرسلها
+const REQUIRED_KEYS_CONFIG: { setKey: string; keys: string[] }[] = [
+  { setKey: 'Name', keys: ['Name', 'name', 'full_name', 'FullName'] },
+  { setKey: 'Religion', keys: ['Religion', 'religion'] },
+  { setKey: 'MaritalStatus', keys: ['MaritalStatus', 'marital_status', 'maritalStatus', 'maritalstatus'] },
+  { setKey: 'dateofbirth', keys: ['BirthDate', 'birthDate', 'birth_date', 'date_of_birth', 'dateofbirth'] },
+  { setKey: 'nationality', keys: ['nationality', 'Nationality'] },
+  { setKey: 'company_name', keys: ['company_name', 'CompanyName', 'office_name', 'OfficeName'] },
+  { setKey: 'job_title', keys: ['job_title', 'JobTitle', 'profession', 'Profession', 'job', 'Job'] },
+  { setKey: 'Passportnumber', keys: ['PassportNumber', 'passport_number', 'passportNumber', 'passport', 'Passport', 'PASSPORT_NUMBER', 'Passportnumber'] },
+  { setKey: 'PassportStart', keys: ['PassportStartDate', 'passportStartDate', 'PassportStart', 'passportStart', 'passport_issue_date', 'passport_issue', 'passport_start', 'issue_date', 'issueDate', 'IssueDate'] },
+  { setKey: 'PassportEnd', keys: ['PassportEndDate', 'passportEndDate', 'PassportEnd', 'passportEnd', 'passport_expiration', 'passport_expiry', 'passport_end', 'expiration_date', 'expirationDate', 'ExpirationDate', 'expiry_date', 'expiryDate', 'ExpiryDate'] },
+  { setKey: 'Education', keys: ['Education', 'education', 'EducationLevel', 'educationLevel', 'education_level'] },
+  { setKey: 'Experience', keys: ['Experience', 'experience', 'ExperienceField', 'experienceField', 'experience_field'] },
+  { setKey: 'ExperienceYears', keys: ['ExperienceYears', 'experienceYears', 'experience_years', 'years_of_experience'] },
+  { setKey: 'Salary', keys: ['Salary', 'salary'] },
+  { setKey: 'weight', keys: ['Weight', 'weight'] },
+  { setKey: 'height', keys: ['Height', 'height'] },
+  { setKey: 'children', keys: ['children', 'Children', 'children_count', 'ChildrenCount', 'childrenCount', 'childrencount'] },
+  { setKey: 'EnglishLanguageLevel', keys: ['EnglishLanguageLevel', 'English', 'english', 'englishLevel', 'english_level'] },
+  { setKey: 'ArabicLanguageLeveL', keys: ['ArabicLanguageLeveL', 'ArabicLanguageLevel', 'Arabic', 'arabic', 'arabicLevel', 'arabic_level'] },
+  { setKey: 'washingLevel', keys: ['washingLevel', 'WashingLevel', 'WASHING', 'washing', 'Washing'] },
+  { setKey: 'cookingLevel', keys: ['cookingLevel', 'CookingLevel', 'COOKING', 'cooking', 'Cooking'] },
+  { setKey: 'childcareLevel', keys: ['childcareLevel', 'ChildcareLevel', 'babysitting', 'BABYSITTING', 'babysetting', 'BabySitter', 'childcare'] },
+  { setKey: 'cleaningLevel', keys: ['cleaningLevel', 'CleaningLevel', 'CLEANING', 'cleaning', 'Cleaning'] },
+  { setKey: 'ironingLevel', keys: ['ironingLevel', 'IroningLevel', 'IRONING', 'ironing', 'Ironing'] },
+  { setKey: 'sewingLevel', keys: ['sewingLevel', 'SewingLevel', 'SEWING', 'sewing', 'Sewing'] },
+  { setKey: 'elderlycareLevel', keys: ['elderlycareLevel', 'ElderlycareLevel', 'ELDERLYCARE', 'elderlycare', 'ElderlyCare', 'elderly_care'] },
+  { setKey: 'BabySitterLevel', keys: ['BabySitterLevel', 'babySitterLevel', 'babysitterLevel', 'BABYSITTERLEVEL', 'baby_sitter_level', 'Baby_Sitter_Level'] },
+];
+
+// بناء كائن البيانات الفعّال: كل الحقول المطلوبة موجودة (بقيمة أو فارغة)، بدون تكرار مفاتيح
+function buildEffectiveJsonResponse(jsonResponse: Record<string, string> | undefined): Record<string, string> {
+  const j = jsonResponse || {};
+  const result: Record<string, string> = {};
+  for (const f of REQUIRED_KEYS_CONFIG) {
+    const val = findFieldValueInData(f.keys, j);
+    result[f.setKey] = val != null && val !== '' ? String(val) : '';
+  }
+  const requiredNormalized = new Set(REQUIRED_KEYS_CONFIG.flatMap((f) => f.keys.map(normalizeKey)));
+  for (const [k, v] of Object.entries(j)) {
+    if (typeof k !== 'string') continue;
+    if (requiredNormalized.has(normalizeKey(k))) continue;
+    result[k] = v;
+  }
+  return result;
+}
+
 export default function PDFProcessor() {
   const { showToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -215,6 +312,12 @@ export default function PDFProcessor() {
   const [selectedOfficeNationality, setSelectedOfficeNationality] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
  const [professions, setProfessions] = useState<{ id: number; name: string }[]>([]);
+
+  // عرض البيانات مع وجود كل الحقول المطلوبة (فارغة إن لم يرسلها Gemini) لملئها يدوياً بدون تكرار
+  const displayJsonResponse = useMemo(
+    () => buildEffectiveJsonResponse(processingResult?.geminiData?.jsonResponse),
+    [processingResult?.geminiData?.jsonResponse]
+  );
 
   useEffect(() => {
     const fetchOffices = async () => {
@@ -1434,8 +1537,8 @@ const handleSave = async () => {
     }
 
     // --- 1. التحقق من الجنسية ---
-    // نستخدم Optional Chaining (?.) لتجنب الأخطاء إذا كانت jsonResponse غير موجودة
-    const jsonResponse = processingResult.geminiData.jsonResponse || {};
+    // استخدام البيانات الفعّالة (كل الحقول المطلوبة موجودة) للتحقق والحفظ
+    const jsonResponse = buildEffectiveJsonResponse(processingResult.geminiData.jsonResponse || {});
     const extractedNationality = jsonResponse.nationality || jsonResponse.Nationality;
     
     let validNationality: string | null = null;
@@ -2040,7 +2143,7 @@ const handleSave = async () => {
                    {[
                      { step: 'upload', label: 'رفع الملف', completed: !!file },
                      { step: 'select-images', label: 'اختيار ورفع الصور', completed: uploadedImageUrls.length > 0 },
-                     { step: 'extract-data', label: 'استخراج البيانات', completed: !!(processingResult && processingResult.geminiData && Object.keys(processingResult.geminiData.jsonResponse).length > 0) },
+                     { step: 'extract-data', label: 'استخراج البيانات', completed: !!(processingResult && processingResult.geminiData) },
                      { step: 'save', label: 'حفظ البيانات', completed: !!saveMessage },
                    ].map(({ step, label, completed }, index) => (
                     <div
@@ -2408,7 +2511,7 @@ const handleSave = async () => {
                       )}
                     </button>
                     
-                    {processingResult && processingResult.geminiData && Object.keys(processingResult.geminiData.jsonResponse).length > 0 && (
+                    {processingResult && processingResult.geminiData && (
                       <button
                         onClick={() => setCurrentStep('save')}
                         className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 mr-3"
@@ -2657,7 +2760,7 @@ const handleSave = async () => {
                       البيانات المستخرجة
                     </h3>
                     <div className="bg-gray-50 rounded-xl p-6 shadow-sm">
-                      {Object.keys(processingResult.geminiData.jsonResponse).length > 0 ? (
+                      {Object.keys(displayJsonResponse).length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-right border-collapse">
                             <thead>
@@ -2672,8 +2775,8 @@ const handleSave = async () => {
                             </thead>
                             <tbody>
                               {(() => {
-                                // استخراج المهارات واللغات وتحويلها لحقول منفصلة
-                                const allEntries = Object.entries(processingResult.geminiData.jsonResponse);
+                                // عرض البيانات الفعّالة (الحقول المطلوبة موجودة دائماً)
+                                const allEntries = Object.entries(displayJsonResponse);
                                 const expandedEntries: [string, any][] = [];
                                 let experienceFieldEntry: [string, any] | null = null;
                                 let experienceYearsEntry: [string, any] | null = null;
@@ -2998,18 +3101,18 @@ const handleSave = async () => {
                               })().map(([key, value]) => {
                                 // إذا كان الحقل هو office_name، استخدم company_name إذا كان موجوداً
                                 const displayKey = key === 'office_name' || key === 'OfficeName' 
-                                  ? (processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName 
+                                  ? (displayJsonResponse.company_name || displayJsonResponse.CompanyName 
                                       ? 'office_name' 
                                       : key)
                                   : key;
                                 
                                 // استخدام company_name كقيمة إذا كان موجوداً
                                 const displayValue = (key === 'office_name' || key === 'OfficeName') 
-                                  ? (processingResult.geminiData.jsonResponse.company_name || processingResult.geminiData.jsonResponse.CompanyName || value)
+                                  ? (displayJsonResponse.company_name || displayJsonResponse.CompanyName || value)
                                   : value;
                                 
                                 // التحقق من التعديل - إذا كان office_name وكان company_name موجوداً، استخدم company_name
-                                const editKey = (key === 'office_name' || key === 'OfficeName') && processingResult.geminiData.jsonResponse.company_name
+                                const editKey = (key === 'office_name' || key === 'OfficeName') && displayJsonResponse.company_name
                                   ? 'company_name'
                                   : key;
                                 const isEditing = editingField?.key === editKey;
@@ -4106,8 +4209,8 @@ const handleSave = async () => {
                     </h3>
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                       {(() => {
-                        // بناء كائن الموظف ديناميكياً من جميع البيانات في jsonResponse
-                        const jsonResponse = processingResult.geminiData.jsonResponse;
+                        // بناء كائن الموظف من البيانات الفعّالة (كل الحقول المطلوبة موجودة)
+                        const jsonResponse = displayJsonResponse;
                         const employeeData: any = {
                           id: 0,
                           profileImage: uploadedImageUrls[0] || selectedProfileImage,
