@@ -882,6 +882,34 @@ function HomeMaidInfo() {
     }
   };
 
+  const handleUnapprove = async () => {
+    try {
+      const response = await fetch(`/api/hommeaidfind?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isApproved: false }),
+      });
+      if (!response.ok) throw new Error('فشل في إلغاء اعتماد العاملة');
+      setIsApproved(false);
+      setAlertModal({
+        isOpen: true,
+        type: 'success',
+        title: 'نجح',
+        message: 'تم إلغاء اعتماد العاملة بنجاح'
+      });
+      // إعادة جلب البيانات لتحديث الـ logs
+      await fetchPersonalInfo();
+    } catch (error) {
+      console.error('Error unapproving worker:', error);
+      setAlertModal({
+        isOpen: true,
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء إلغاء اعتماد العاملة'
+      });
+    }
+  };
+
   const handleBooking = async () => {
     if (!selectedClient) {
       setAlertModal({
@@ -1450,32 +1478,50 @@ function HomeMaidInfo() {
                 />
                 
                 <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden" dir="rtl">
-                  {/* اعتماد أو حجز */}
+                  {/* حجز: يظهر فقط لو مفيش طلب، ومعطل لو غير معتمد */}
                   {!hasExistingOrder && (
-                    !isApproved ? (
-                      <button
-                        onClick={() => {
-                          handleApprove();
-                          setShowSettingsMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right"
-                      >
+                    <button
+                      disabled={!isApproved}
+                      onClick={() => {
+                        if (!isApproved) return;
+                        setShowBookingModal(true);
+                        setShowSettingsMenu(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-right transition-colors ${
+                        isApproved
+                          ? "text-gray-700 hover:bg-teal-50 hover:text-teal-800"
+                          : "text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <FaCheck className={`w-4 h-4 ${isApproved ? "text-teal-600" : "text-gray-300"}`} />
+                      <span>حجز</span>
+                    </button>
+                  )}
+
+                  {/* اعتماد / إلغاء اعتماد — يظهر دائماً */}
+                  <button
+                    onClick={() => {
+                      if (isApproved) {
+                        handleUnapprove();
+                      } else {
+                        handleApprove();
+                      }
+                      setShowSettingsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                  >
+                    {isApproved ? (
+                      <>
+                        <FaTimes className="w-4 h-4 text-red-600" />
+                        <span>إلغاء اعتماد</span>
+                      </>
+                    ) : (
+                      <>
                         <FaCheck className="w-4 h-4 text-teal-600" />
                         <span>اعتماد</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setShowBookingModal(true);
-                          setShowSettingsMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right"
-                      >
-                        <FaCheck className="w-4 h-4 text-teal-600" />
-                        <span>حجز</span>
-                      </button>
-                    )
-                  )}
+                      </>
+                    )}
+                  </button>
 
                   {/* طباعة */}
                   <button
