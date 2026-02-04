@@ -15,6 +15,7 @@ import OrderStepper from 'components/OrderStepper';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
 import { Calendar, AlarmClock, ArrowRight, Upload, FileText, Trash2, CheckCircle, Clock } from 'lucide-react';
+import { FaCog, FaTimes, FaUserCog, FaFileInvoiceDollar } from 'react-icons/fa';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
@@ -51,6 +52,7 @@ interface OrderData {
     deliveryNotes?: string;
     cost?: string | number;
   };
+  accountingStatementId?: number | null;
 }
 
 interface Homemaid {
@@ -109,6 +111,11 @@ export default function TrackOrder() {
     title: 'حدث خطأ',
     message: '',
   });
+
+  const [showCreateAccountingModal, setShowCreateAccountingModal] = useState(false);
+  const [accountingModalTotal, setAccountingModalTotal] = useState('');
+  const [accountingModalPaid, setAccountingModalPaid] = useState('');
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
@@ -783,6 +790,69 @@ export default function TrackOrder() {
     });
   };
 
+  const openCreateAccountingModal = () => {
+    setAccountingModalTotal('');
+    setAccountingModalPaid('');
+    setShowCreateAccountingModal(true);
+  };
+
+  const handleCreateAccountingRecords = async () => {
+    const totalNum = accountingModalTotal.trim() ? Number(accountingModalTotal) : undefined;
+    if (accountingModalTotal.trim() && (totalNum == null || Number.isNaN(totalNum) || (totalNum as number) <= 0)) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'إنشاء السجلات المحاسبية',
+        message: 'المبلغ المطلوب يجب أن يكون رقماً أكبر من صفر',
+      });
+      return;
+    }
+    const paidNum = accountingModalPaid.trim() ? Number(accountingModalPaid) : undefined;
+    if (accountingModalPaid.trim() && (paidNum == null || Number.isNaN(paidNum) || (paidNum as number) < 0)) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'إنشاء السجلات المحاسبية',
+        message: 'المبلغ المدفوع يجب أن يكون رقماً غير سالب',
+      });
+      return;
+    }
+    if (!id) return;
+    setShowCreateAccountingModal(false);
+    setUpdating(true);
+    try {
+      const res = await fetch('/api/client-accounts/create-from-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: id,
+          ...(totalNum != null && !Number.isNaN(totalNum) && { total: totalNum }),
+          ...(paidNum != null && !Number.isNaN(paidNum) && { paid: paidNum }),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setShowErrorModal({
+          isOpen: true,
+          title: 'إنشاء السجلات المحاسبية',
+          message: data.message || 'حدث خطأ أثناء إنشاء السجلات المحاسبية',
+        });
+        return;
+      }
+      setShowAlertModal({
+        isOpen: true,
+        message: data.message || 'تم إنشاء السجلات المحاسبية بنجاح',
+      });
+      fetchOrderData();
+    } catch (err: any) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'إنشاء السجلات المحاسبية',
+        message: err?.message || 'حدث خطأ غير متوقع',
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleHomemaidSelect = (selectedOption: { value: string; label: string } | null) => {
     setSelectedHomemaid(selectedOption);
     if (selectedOption) {
@@ -1080,6 +1150,63 @@ export default function TrackOrder() {
     );
   };
 
+  // --- إنشاء سجلات محاسبية Modal ---
+  const CreateAccountingModal = () => {
+    if (!showCreateAccountingModal) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-lg font-bold text-gray-900 mb-4 text-right">انشاء سجلات محاسبية</h3>
+          <div className="space-y-4 mb-6">
+            <div className="text-right">
+              <label className="block text-gray-700 mb-1">المبلغ المطلوب</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={accountingModalTotal}
+                onChange={(e) => setAccountingModalTotal(e.target.value)}
+                placeholder="أدخل المبلغ الكامل للعقد"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
+              />
+            </div>
+            <div className="text-right">
+              <label className="block text-gray-700 mb-1">المبلغ المدفوع (دفعة أولى) — اختياري</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={accountingModalPaid}
+                onChange={(e) => setAccountingModalPaid(e.target.value)}
+                placeholder="إن تركت فارغاً يُستخدم المبلغ المحفوظ في الطلب"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-right"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              onClick={() => setShowCreateAccountingModal(false)}
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+              onClick={handleCreateAccountingRecords}
+            >
+              إنشاء
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Layout>
       <div className={`min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
@@ -1089,35 +1216,88 @@ export default function TrackOrder() {
         <main className={`max-w-7xl mx-auto px-5 py-8 ${orderData.deliveryDetails?.deliveryFile ? 'pb-20' : ''}`}>
           {error && <div className="text-red-600 text-md mb-4 text-right">{error}</div>}
 
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-6 justify-start" dir="rtl">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              title="العودة للصفحة السابقة"
+              aria-label="العودة للصفحة السابقة"
+            >
+              <ArrowRight className="w-6 h-6 text-teal-800" />
+            </button>
+            <h1 className="text-3xl font-bold text-teal-800 text-right">طلب #{orderData.orderId}</h1>
+          </div>
+
+          {/* أيقونة الإعدادات مع القائمة المنسدلة */}
+          <div className="flex justify-end mb-8 relative">
+            <div className="relative">
               <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex items-center justify-center"
-                title="العودة للصفحة السابقة"
-                aria-label="العودة للصفحة السابقة"
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                className="p-3 bg-teal-800 text-white rounded-full hover:bg-teal-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                title="الإعدادات"
               >
-                <ArrowRight className="w-6 h-6 text-teal-800" />
+                <FaCog className={`w-5 h-5 transition-transform duration-300 ${showSettingsMenu ? 'rotate-90' : ''}`} />
               </button>
-              <h1 className="text-3xl font-normal text-gray-900">طلب #{orderData.orderId}</h1>
-            </div>
-            <div className="flex gap-4">
-              {orderData.bookingStatus !== 'cancelled' && (
-                <button
-                  className="bg-red-600 text-white px-4 py-2 rounded-md text-md hover:bg-red-700 disabled:opacity-50"
-                  onClick={handleCancelContract}
-                  disabled={updating}
-                >
-                  إلغاء العقد
-                </button>
+
+              {showSettingsMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowSettingsMenu(false)}
+                  />
+                  <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 overflow-hidden" dir="rtl">
+                    {orderData.bookingStatus !== 'cancelled' && (
+                      <button
+                        onClick={() => {
+                          handleCancelContract();
+                          setShowSettingsMenu(false);
+                        }}
+                        disabled={updating}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-right transition-colors text-red-600 hover:bg-red-50 border-b border-gray-100"
+                      >
+                        <FaTimes className="w-4 h-4" />
+                        <span>إلغاء العقد</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleChangeHomemaid();
+                        setShowSettingsMenu(false);
+                      }}
+                      disabled={updating}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                    >
+                      <FaUserCog className="w-4 h-4 text-teal-600" />
+                      <span>تغيير العاملة</span>
+                    </button>
+                    {orderData.accountingStatementId ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSettingsMenu(false);
+                          router.push(`/admin/client-accounts/${orderData.accountingStatementId}`);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                      >
+                        <FaFileInvoiceDollar className="w-4 h-4 text-teal-600" />
+                        <span>السجلات المحاسبية</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          openCreateAccountingModal();
+                          setShowSettingsMenu(false);
+                        }}
+                        disabled={updating}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                      >
+                        <FaFileInvoiceDollar className="w-4 h-4 text-teal-600" />
+                        <span>انشاء سجلات محاسبية</span>
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
-              <button
-                className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-md hover:bg-teal-800 hover:text-white disabled:opacity-50"
-                onClick={handleChangeHomemaid}
-                disabled={updating}
-              >
-                تغيير العاملة
-              </button>
             </div>
           </div>
 
@@ -2633,6 +2813,7 @@ export default function TrackOrder() {
 
         <AlertModal />
         <LoadingModal />
+        <CreateAccountingModal />
         <ErrorModal 
           isOpen={showErrorModal.isOpen}
           title={showErrorModal.title}

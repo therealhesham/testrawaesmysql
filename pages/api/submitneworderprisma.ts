@@ -33,6 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     externalOfficeStatus,
     ExperienceYears,
     Paid,
+    Total,
     clientID,
     visaId
   } = req.body;
@@ -140,6 +141,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         contract: contract || null,
         ages: age + "",
         paid: Paid == null ? undefined : Number(Paid),
+        Total: Total == null ? undefined : Number(Total),
         visa: {
           connect: {
             id: Number(visaId)

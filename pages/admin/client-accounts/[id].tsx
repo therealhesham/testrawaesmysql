@@ -42,6 +42,7 @@ interface ClientAccountStatement {
     bookingstatus: string;
     profileStatus: string;
     typeOfContract: string;
+    Total?: number | null;
     HomeMaid?: {
       id: number;
       Name: string;
@@ -336,6 +337,12 @@ useEffect(() => {
                 <span className="label text-lg">تاريخ انتهاء الضمان :</span>
                 <span className="value">
                   {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd ? formatDate(statement.order.arrivals[0].GuaranteeDurationEnd) : 'غير محدد'}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="label text-lg">المبلغ المطلوب:</span>
+                <span className="value">
+                  {statement.order?.Total != null ? formatCurrency(statement.order.Total) : 'ـــ'}
                 </span>
               </div>
             </div>

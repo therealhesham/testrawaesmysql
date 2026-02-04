@@ -141,6 +141,10 @@ console.log(id)
               visaNumber: true,
             },
           },
+          clientAccountStatement: {
+            select: { id: true },
+            take: 1,
+          },
         },
       });
       
@@ -297,6 +301,7 @@ console.log(id)
           cost: order.DeliveryDetails[0].cost ? order.DeliveryDetails[0].cost.toString() : undefined,
         } : undefined,
         customTimelineStages: order.arrivals[0]?.customTimelineStages || {},
+        accountingStatementId: (order as any).clientAccountStatement?.[0]?.id ?? null,
       };
 const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};
