@@ -427,11 +427,11 @@ export default function PDFProcessor() {
       return;
     }
 
-    // if (selectedFile.type !== 'application/pdf' && !selectedFile.type.startsWith('image/')) {
-    //   setError('Please select a PDF file or an image');
-    //   setFile(null);
-    //   return;
-    // }
+    if (selectedFile.type !== 'application/pdf' && !selectedFile.type.startsWith('image/')) {
+      setError('يرجى اختيار ملف PDF أو صورة');
+      setFile(null);
+      return;
+    }
 
     setFile(selectedFile);
     setError('');
@@ -460,14 +460,14 @@ export default function PDFProcessor() {
 
       if (!imageResponse.ok) {
         const errorData = await imageResponse.json();
-        throw new Error(errorData.detail || 'Failed to extract images from PDF');
+        throw new Error(errorData.detail || 'Failed to extract images');
       }
 
       const imageResult = await imageResponse.json();
       const extractedImages = (imageResult.image_urls || []).map(normalizeImageUrl);
 
       if (extractedImages.length === 0) {
-        throw new Error('No images found in the PDF');
+        throw new Error('No images found in the file');
       }
 
       setProcessingResult({
@@ -2201,21 +2201,21 @@ const handleSave = async () => {
                           className="cursor-pointer inline-block"
                         >
                           <span className="block text-base font-semibold text-gray-900">
-                            رفع ملف PDF
+                            رفع ملف PDF أو صورة
                           </span>
                           <span className="block text-sm text-gray-500 mt-1">
-                            اضغط للاختيار أو اسحب الملف هنا
+                            اضغط للاختيار أو اسحب الملف هنا (PDF أو صورة)
                           </span>
                         </label>
                         <input
                           ref={fileInputRef}
                           id="file-upload"
                           name="file-upload"
-                          type="file"// i need images also
+                          type="file"
                           accept=".pdf,image/*"
                           className="sr-only"
                           onChange={handleFileChange}
-                          aria-label="Upload PDF file"
+                          aria-label="Upload PDF or image file"
                         />
                       </div>
                       {file && (
@@ -2265,7 +2265,7 @@ const handleSave = async () => {
                             جاري المعالجة...
                           </>
                         ) : (
-                          'استخراج الصور من PDF'
+                          'استخراج الصور'
                         )}
                       </button>
                     </div>
