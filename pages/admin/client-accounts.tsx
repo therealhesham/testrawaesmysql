@@ -812,138 +812,155 @@ function getDate(date: string) {
 
           {/* Data Table */}
           <div className="bg-gray-100 border border-gray-300 rounded overflow-hidden">
-            {/* Table Header */}
-            <div className="bg-teal-800 text-white flex items-center p-4 gap-9">
-              <div className="flex-1 text-center text-md font-normal">#</div>
-              <div className="flex-1 text-center text-md font-normal">التاريخ</div>
-              <div className="flex-1 text-center text-md font-normal">اسم العميل</div>
-              <div className="flex-1 text-center text-md font-normal">رقم العقد</div>
-              <div className="flex-1 text-center text-md font-normal">اسم المكتب</div>
-              <div className="flex-1 text-center text-md font-normal">الايرادات</div>
-              <div className="flex-1 text-center text-md font-normal">المصروفات</div>
-              <div className="flex-1 text-center text-md font-normal">الصافي</div>
-              <div className="flex-1 text-center text-md font-normal">حالة العقد</div>
-              <div className="flex-1 text-center text-md font-normal">ملاحظات</div>
-              <div className="flex-1 text-center text-md font-normal">تفاصيل</div>
-              <div className="flex-1 text-center text-md font-normal">اجراءات</div>
-            </div>
-
-            {/* Table Rows */}
-            {loading ? (
-              <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
-            ) : filteredStatements.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">لا توجد بيانات</div>
-            ) : (
-              filteredStatements.map((statement, index) => (
-                <div key={statement.id}>
-                  <div
-                    className="flex items-center p-4 gap-9 border-b border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                    onClick={() => toggleRowExpansion(statement.id)}
-                  >
-                    <div className="flex-1 text-center text-md text-gray-700">#{index + 1}</div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {formatDate(statement.createdAt)}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      <button onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/admin/clientdetails?id=${statement.client.id}`);
-                      }} className="text-teal-800 hover:underline">
-                        {statement.client.fullname}
-                      </button>
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {statement.internalMusanedContract || '-'}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {statement.officeName}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {formatCurrency(statement.totalRevenue)}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {formatCurrency(statement.totalExpenses)}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {formatCurrency(statement.netAmount)}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {translateContractStatus(statement.contractStatus)}
-                    </div>
-                    <div className="flex-1 text-center text-md text-gray-700">
-                      {statement.notes || '-'}
-                    </div>
-                    <div className="flex-1 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/client-accounts/${statement.id}`);
-                        }}
-                        className="bg-teal-800 text-white px-3 py-1 rounded text-md"
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-teal-800 text-white">
+                  <th className="p-4 text-center text-md font-normal">#</th>
+                  <th className="p-4 text-center text-md font-normal">التاريخ</th>
+                  <th className="p-4 text-center text-md font-normal">اسم العميل</th>
+                  <th className="p-4 text-center text-md font-normal">رقم العقد</th>
+                  <th className="p-4 text-center text-md font-normal">اسم المكتب</th>
+                  <th className="p-4 text-center text-md font-normal">الايرادات</th>
+                  <th className="p-4 text-center text-md font-normal">المصروفات</th>
+                  <th className="p-4 text-center text-md font-normal">الصافي</th>
+                  <th className="p-4 text-center text-md font-normal">حالة العقد</th>
+                  <th className="p-4 text-center text-md font-normal">ملاحظات</th>
+                  <th className="p-4 text-center text-md font-normal">تفاصيل</th>
+                  <th className="p-4 text-center text-md font-normal">اجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={12} className="p-8 text-center text-gray-500">جاري التحميل...</td>
+                  </tr>
+                ) : filteredStatements.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="p-8 text-center text-gray-500">لا توجد بيانات</td>
+                  </tr>
+                ) : (
+                  filteredStatements.map((statement, index) => (
+                    <React.Fragment key={statement.id}>
+                      <tr
+                        className="border-b border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => toggleRowExpansion(statement.id)}
                       >
-                        تفاصيل
-                      </button>
-                    </div>
-                    <div className="flex-1 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditClick(statement);
-                        }}
-                        className="bg-teal-800 text-white px-3 py-1 rounded text-md hover:bg-teal-900 transition duration-200"
-                      >
-                        اجراءات
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Expandable Details Row */}
-                  {expandedRows.has(statement.id) && (
-                    <div className="bg-gray-100 border border-gray-300 p-4">
-                      <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-center gap-4 px-2">
-                          <div className="flex-1 text-center text-md text-gray-700">التاريخ</div>
-                          <div className="flex-1 text-center text-md text-gray-700">البيان</div>
-                          <div className="flex-1 text-center text-md text-gray-700">مدين</div>
-                          <div className="flex-1 text-center text-md text-gray-700">دائن</div>
-                          <div className="flex-1 text-center text-md text-gray-700">الرصيد</div>
-                        </div>
-                        {statement.entries.map((entry, idx) => {
-                          let description = entry.description;
-                          if (idx === 0) {
-                            description = 'Recruitment fees payment from the client';
-                          }
-                          return (
-                            <div key={idx} className="flex justify-between items-center gap-4 px-2">
-                              <div className="flex-1 text-center text-md text-gray-500">{formatDate(entry.date)}</div>
-                              <div className="flex-1 text-center text-md text-gray-500">{description}</div>
-                              <div className="flex-1 text-center text-md text-gray-500">{formatCurrency(entry.debit)}</div>
-                              <div className="flex-1 text-center text-md text-gray-500">{formatCurrency(entry.credit)}</div>
-                              <div className="flex-1 text-center text-md text-gray-500">{formatCurrency(entry.balance)}</div>
-                            </div>
-                          );
-                        })}
-                        {statement.entries.length === 0 && <div className="text-center text-gray-500">لا توجد إدخالات</div>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-
-            {/* Table Footer */}
-            <div className="bg-gray-50 flex items-center p-4 gap-9 border-t border-gray-700">
-              <div className="text-base font-normal text-gray-700 mr-auto">الاجمالي</div>
-              <div className="flex-1 text-center text-md text-gray-700">
-                {formatCurrency(summary.totalRevenue)}
-              </div>
-              <div className="flex-1 text-center text-md text-gray-700">
-                {formatCurrency(summary.totalExpenses)}
-              </div>
-              <div className="flex-1 text-center text-md text-gray-700">
-                {formatCurrency(summary.netAmount)}
-              </div>
-            </div>
+                        <td className="p-4 text-center text-md text-gray-700">#{index + 1}</td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {formatDate(statement.createdAt)}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/admin/clientdetails?id=${statement.client.id}`);
+                          }} className="text-teal-800 hover:underline">
+                            {statement.client.fullname}
+                          </button>
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {statement.internalMusanedContract || '-'}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {statement.officeName}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {formatCurrency(statement.totalRevenue)}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {formatCurrency(statement.totalExpenses)}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {formatCurrency(statement.netAmount)}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {translateContractStatus(statement.contractStatus)}
+                        </td>
+                        <td className="p-4 text-center text-md text-gray-700">
+                          {statement.notes || '-'}
+                        </td>
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/admin/client-accounts/${statement.id}`);
+                            }}
+                            className="bg-teal-800 text-white px-3 py-1 rounded text-md"
+                          >
+                            تفاصيل
+                          </button>
+                        </td>
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(statement);
+                            }}
+                            className="bg-teal-800 text-white px-3 py-1 rounded text-md hover:bg-teal-900 transition duration-200"
+                          >
+                            اجراءات
+                          </button>
+                        </td>
+                      </tr>
+                      {/* Expandable Details Row */}
+                      {expandedRows.has(statement.id) && (
+                        <tr>
+                          <td colSpan={12} className="bg-gray-100 border-b border-gray-300 p-4">
+                            <table className="w-full border-collapse">
+                              <thead>
+                                <tr>
+                                  <th className="p-2 text-center text-md text-gray-700">التاريخ</th>
+                                  <th className="p-2 text-center text-md text-gray-700">البيان</th>
+                                  <th className="p-2 text-center text-md text-gray-700">مدين</th>
+                                  <th className="p-2 text-center text-md text-gray-700">دائن</th>
+                                  <th className="p-2 text-center text-md text-gray-700">الرصيد</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {statement.entries.map((entry, idx) => {
+                                  let description = entry.description;
+                                  if (idx === 0) {
+                                    description = 'Recruitment fees payment from the client';
+                                  }
+                                  return (
+                                    <tr key={idx}>
+                                      <td className="p-2 text-center text-md text-gray-500">{formatDate(entry.date)}</td>
+                                      <td className="p-2 text-center text-md text-gray-500">{description}</td>
+                                      <td className="p-2 text-center text-md text-gray-500">{formatCurrency(entry.debit)}</td>
+                                      <td className="p-2 text-center text-md text-gray-500">{formatCurrency(entry.credit)}</td>
+                                      <td className="p-2 text-center text-md text-gray-500">{formatCurrency(entry.balance)}</td>
+                                    </tr>
+                                  );
+                                })}
+                                {statement.entries.length === 0 && (
+                                  <tr>
+                                    <td colSpan={5} className="text-center text-gray-500">لا توجد إدخالات</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-50 border-t border-gray-700">
+                  <td className="p-4 text-base font-normal text-gray-700" colSpan={5}>الاجمالي</td>
+                  <td className="p-4 text-center text-md text-gray-700">
+                    {formatCurrency(summary.totalRevenue)}
+                  </td>
+                  <td className="p-4 text-center text-md text-gray-700">
+                    {formatCurrency(summary.totalExpenses)}
+                  </td>
+                  <td className="p-4 text-center text-md text-gray-700">
+                    {formatCurrency(summary.netAmount)}
+                  </td>
+                  <td colSpan={4} />
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
           {/* Pagination */}
