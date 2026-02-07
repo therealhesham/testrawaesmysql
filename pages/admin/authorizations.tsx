@@ -118,6 +118,7 @@ const UserManagement = ({ currentUserRole, currentUserPermissions }: { currentUs
     try {
       const response = await axios.get('/api/users', {
         params: { search: searchTerm, role: roleFilter, page: currentPage, limit: 8 },
+        withCredentials: true,
       });
       setUsers(response.data.data);
       setTotalPages(response.data.pagination?.totalPages || 1);
@@ -131,7 +132,7 @@ const UserManagement = ({ currentUserRole, currentUserPermissions }: { currentUs
   // Fetch roles
   const fetchRoles = async () => {
     try {
-      const response = await axios.get('/api/roles');
+      const response = await axios.get('/api/roles', { withCredentials: true });
       setRoles(response.data);
     } catch (error) {
       console.error('Error fetching roles:', error);
@@ -200,17 +201,36 @@ setIsAddUserModalOpen(false);
   };
 
   const handleEditUser = async () => {
+    if (!selectedUser) return;
+    const editPayload: Record<string, unknown> = {
+      username: (newUser.username || '').trim() || selectedUser.username,
+      phonenumber: (newUser.phonenumber || '').trim() || selectedUser.phonenumber,
+      email: (newUser.email || '').trim() || undefined,
+      pictureurl: newUser.pictureurl ?? selectedUser.pictureurl ?? '',
+    };
+    const idNum = newUser.idnumber !== undefined && newUser.idnumber !== '' ? parseInt(String(newUser.idnumber), 10) : NaN;
+    if (!Number.isNaN(idNum) && idNum >= 0) {
+      editPayload.idnumber = idNum;
+    }
+    const roleNum = newUser.roleId ? parseInt(String(newUser.roleId), 10) : NaN;
+    if (!Number.isNaN(roleNum) && roleNum >= 1) {
+      editPayload.roleId = roleNum;
+    }
+    if ((newUser.password || '').trim()) {
+      editPayload.newPassword = (newUser.password || '').trim();
+    }
+    editPayload.adminEdit = true; // من صفحة الصلاحيات: لا يُطلب كلمة المرور الحالية
     try {
-      if (!selectedUser) return;
-      await axios.put(`/api/users/${selectedUser.id}`, {...newUser, roleId: Number(newUser.roleId)});
+      await axios.put(`/api/users/${selectedUser.id}`, editPayload, { withCredentials: true });
       setIsEditUserModalOpen(false);
       setNewUser({ username: '', phonenumber: '', idnumber: '', password: '', email: '', roleId: '', pictureurl: '' });
       setSelectedUser(null);
       fetchUsers();
       showNotification('تم تعديل المستخدم بنجاح.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error editing user:', error);
-      showNotification('حدث خطأ أثناء تعديل المستخدم. يرجى المحاولة مرة أخرى.', 'error');
+      const msg = error?.response?.data?.error || 'حدث خطأ أثناء تعديل المستخدم. يرجى المحاولة مرة أخرى.';
+      showNotification(msg, 'error');
     }
   };
 

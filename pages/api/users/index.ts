@@ -1,5 +1,4 @@
 import prisma from 'pages/api/globalprisma';
-import bcrypt from "bcrypt";
 import { jwtDecode } from 'jwt-decode';
 
 export default async function handler(req: any, res: any) {
@@ -106,14 +105,12 @@ export default async function handler(req: any, res: any) {
           return res.status(201).json({ error: 'رقم الهاتف مستخدم من قبل' ,type:"phoneNumber"});
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
         const user = await prisma.user.create({
           data: {
             username,
             phonenumber,
             idnumber: Number(idnumber),
-            password: hashedPassword,
+            password: password || '',
             email: email || null,
             roleId: Number(roleId),
             pictureurl: pictureurl || '',

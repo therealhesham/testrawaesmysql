@@ -214,8 +214,10 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
-    newPassword: ''
+    newPassword: '',
+    confirmNewPassword: ''
   });
+  const [hasPassword, setHasPassword] = useState<boolean>(true); // assume true until fetched
 
   const [professions, setProfessions] = useState<Array<{ id: number; name: string; gender: string | null }>>([]);
   const [fileName, setFileName] = useState('ارفاق ملف');
@@ -537,6 +539,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
         };
         setFormData(userData);
         setOriginalFormData(userData);
+        setHasPassword(data.hasPassword === true);
       } catch (err) {
         console.error('فشل جلب بيانات المستخدم');
       }
@@ -610,7 +613,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
   // إلغاء التعديل
   const handleCancelEdit = () => {
-    setPasswordData({ currentPassword: '', newPassword: '' }); // إعادة تعيين الباسورد
+    setPasswordData({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     setFormData(originalFormData);
     setIsEditingProfile(false);
     setFileName('ارفاق ملف');
@@ -623,10 +626,20 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     setError(null);
     setSuccess(null);
 
-    // التحقق البسيط إذا تم إدخال كلمة مرور جديدة
-    if (passwordData.newPassword && !passwordData.currentPassword) {
+    // التحقق: إذا لديه كلمة مرور ويغيرها، يجب إدخال الحالية. إذا لا يملك كلمة مرور (تعيين أول مرة) لا حاجة للحالية.
+    if (passwordData.newPassword) {
+      if (hasPassword && !passwordData.currentPassword) {
         setError('يرجى إدخال كلمة المرور الحالية لتأكيد التغيير');
         return;
+      }
+      if (passwordData.newPassword.length < 6) {
+        setError('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+        return;
+      }
+      if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+        setError('تأكيد كلمة المرور الجديدة غير مطابق');
+        return;
+      }
     }
 
     try {
@@ -638,9 +651,8 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           phonenumber: formData.phone,
           email: formData.email,
           pictureurl: formData.pictureurl,
-          // إرسال كلمات المرور فقط إذا كانت موجودة
           ...(passwordData.newPassword ? {
-              currentPassword: passwordData.currentPassword,
+              currentPassword: hasPassword ? passwordData.currentPassword : undefined,
               newPassword: passwordData.newPassword
           } : {})
         }),
@@ -651,7 +663,8 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
       if (res.ok) {
         setSuccess('تم حفظ التغييرات بنجاح');
         setOriginalFormData(formData);
-        setPasswordData({ currentPassword: '', newPassword: '' }); // تصفير الحقول بعد النجاح
+        if (passwordData.newPassword) setHasPassword(true);
+        setPasswordData({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
         setIsEditingProfile(false);
         setTimeout(() => setSuccess(null), 3000);
       } else {
@@ -1050,11 +1063,14 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
               </div>
             </div>
           </div>
-          {/* قسم تغيير كلمة المرور - يظهر فقط عند التعديل */}
+          {/* قسم تعيين/تغيير كلمة المرور - يظهر فقط عند التعديل */}
           {isEditingProfile && (
             <div className="mt-6 pt-6 border-t border-gray-100 animate-in fade-in slide-in-from-top-2">
-                <h3 className="text-lg font-bold text-teal-800 mb-4">تغيير كلمة المرور (اختياري)</h3>
+                <h3 className="text-lg font-bold text-teal-800 mb-4">
+                  {hasPassword ? 'تغيير كلمة المرور (اختياري)' : 'تعيين كلمة المرور (مطلوب لتسجيل الدخول بكلمة المرور)'}
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {hasPassword && (
                     <div className="group">
                         <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
@@ -1068,16 +1084,30 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                             className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                         />
                     </div>
+                    )}
                     <div className="group">
                         <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
-                            كلمة المرور الجديدة
+                            {hasPassword ? 'كلمة المرور الجديدة' : 'كلمة المرور'}
                         </label>
                         <input
                             type="password"
-                            placeholder="أدخل كلمة المرور الجديدة"
+                            placeholder={hasPassword ? 'أدخل كلمة المرور الجديدة' : 'أدخل كلمة المرور (6 أحرف على الأقل)'}
                             value={passwordData.newPassword}
                             onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                        />
+                    </div>
+                    <div className="group">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+                            تأكيد {hasPassword ? 'كلمة المرور الجديدة' : 'كلمة المرور'}
+                        </label>
+                        <input
+                            type="password"
+                            placeholder="أعد إدخال كلمة المرور"
+                            value={passwordData.confirmNewPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, confirmNewPassword: e.target.value })}
                             className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                         />
                     </div>

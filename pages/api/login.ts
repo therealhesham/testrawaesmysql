@@ -1,8 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
-import cookie from "cookie";
-import bcrypt from "bcrypt"
 const prisma = new PrismaClient();
 // Secret key for JWT token signing
 const JWT_SECRET = "your-secret-key";
@@ -24,10 +22,6 @@ export default async function handler(
       return res.status(400).json({ message: "الرقم التعريفي مطلوب" });
     }
 
-if(password.length > 0) {
-  return res.status(401).json({ message: "كلمة المرور غير صحيحة" });
-}
-
     // Find user by idnumber
     const user = await prisma.user.findUnique({
       where: {
@@ -43,10 +37,17 @@ if(password.length > 0) {
       return res.status(401).json({ message: "الرقم التعريفي غير صحيح" });
     }
 
-    // const decryptedPassword = await bcrypt.compare(password, user.password);
-    // if (!decryptedPassword) {
-    //   return res.status(401).json({ message: "كلمة المرور غير صحيحة" });
-    // }
+    // Password login: if user has a password set, require and verify it (plain text comparison)
+    const hasPassword = !!user.password && String(user.password).trim().length > 0;
+    if (hasPassword) {
+      const passwordProvided = typeof password === "string" && password.length > 0;
+      if (!passwordProvided) {
+        return res.status(401).json({ message: "كلمة المرور مطلوبة" });
+      }
+      if (user.password !== password) {
+        return res.status(401).json({ message: "كلمة المرور غير صحيحة" });
+      }
+    }
    
 
     // Create JWT token

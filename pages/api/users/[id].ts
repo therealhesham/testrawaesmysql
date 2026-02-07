@@ -1,6 +1,5 @@
 import prisma from 'pages/api/globalprisma';
 import { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcrypt';
 import eventBus from 'lib/eventBus';
 import { jwtDecode } from 'jwt-decode';
 
@@ -57,7 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!user) {
           return res.status(404).json({ error: 'User not found' });
         }
-        res.status(200).json(user);
+        const { password: _p, ...rest } = user as any;
+        res.status(200).json({ ...rest, hasPassword: !!_p && String(_p).trim().length > 0 });
       } catch (error) {
         res.status(500).json({ error: 'Failed to fetch user' });
       }
@@ -90,48 +90,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pictureurl,
           currentPassword, 
           newPassword,
-          idnumber
+          idnumber,
+          adminEdit
         } = req.body;
 
-        console.log("🔍 Update Request for User ID:", id);
-
         let updatedPassword = targetUser.password;
-
-        // منطق تغيير كلمة المرور
+        const targetHasPassword = !!targetUser.password && String(targetUser.password).trim().length > 0;
+        const skipCurrentPasswordCheck = adminEdit === true; // من صفحة الصلاحيات لا يُطلب كلمة المرور الحالية
         if (newPassword) {
-          // إذا كان المستخدم يعدل نفسه، يجب إدخال كلمة المرور الحالية
-          if (isSelf && !isOwner) { // Owner can reset password without current password? Maybe. Assuming stricter for self.
+          if (!skipCurrentPasswordCheck && isSelf && !isOwner && targetHasPassword) {
              if (!currentPassword) {
                 return res.status(400).json({ error: 'يرجى إدخال كلمة المرور الحالية لتغيير كلمة المرور' });
              }
-
-             let isPasswordValid = await bcrypt.compare(currentPassword, targetUser.password);
-             
-             // (إصلاح مؤقت) إذا فشل الهاش، نجرب مقارنة نص عادي
-             if (!isPasswordValid && currentPassword === targetUser.password) {
-                 console.log("⚠️ Warning: Password matched as plain text! Updating to hash now.");
-                 isPasswordValid = true;
-             }
-   
-             if (!isPasswordValid) {
+             if (currentPassword !== targetUser.password) {
                return res.status(400).json({ error: 'كلمة المرور الحالية غير صحيحة' });
              }
           }
-          // If admin resets password for another user, current password is not required.
-          
-          updatedPassword = await bcrypt.hash(newPassword, 10);
+          updatedPassword = newPassword;
         }
+
+        const parsedIdnumber = idnumber !== undefined && idnumber !== '' && !Number.isNaN(Number(idnumber))
+          ? Number(idnumber)
+          : targetUser.idnumber;
+        const parsedRoleId = roleId !== undefined && roleId !== '' && Number(roleId) > 0
+          ? parseInt(String(roleId), 10)
+          : targetUser.roleId;
 
         const user = await prisma.user.update({
           where: { id: userId },
           data: {
-            username: username || targetUser.username,
-            phonenumber: phonenumber || targetUser.phonenumber,
+            username: username !== undefined && username !== '' ? username : targetUser.username,
+            phonenumber: phonenumber !== undefined && phonenumber !== '' ? phonenumber : targetUser.phonenumber,
             pictureurl: pictureurl !== undefined ? pictureurl : targetUser.pictureurl,
             email: email !== undefined ? email : targetUser.email,
-            idnumber: idnumber ? parseInt(idnumber) : targetUser.idnumber, // Parse as Int
+            idnumber: parsedIdnumber,
             password: updatedPassword, 
-            roleId: roleId ? parseInt(roleId) : targetUser.roleId,
+            roleId: parsedRoleId,
             updatedAt: new Date(),
           },
         });
