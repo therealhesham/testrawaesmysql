@@ -533,15 +533,63 @@ const exportToExcel = () => {
                 <div className="flex flex-wrap gap-4 items-center">
                   <div className="flex items-center gap-[14px] text-[14px] text-[#1a4d4f]">
                     <button
+                      onClick={() => {
+                        const start = new Date(startDate);
+                        const end = new Date(endDate);
+                        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                        
+                        const newEnd = new Date(start);
+                        newEnd.setDate(newEnd.getDate() - 1);
+                        
+                        const newStart = new Date(newEnd);
+                        newStart.setDate(newStart.getDate() - diff);
+                        
+                        setStartDate(newStart.toISOString().split('T')[0]);
+                        setEndDate(newEnd.toISOString().split('T')[0]);
+                      }}
                       disabled={isFetching}
-                      className="p-1 disabled:opacity-50"
+                      className="p-1 disabled:opacity-50 hover:bg-gray-100 rounded"
                     >
-                      <ChevronRight className="w-[17px] h-[34px] transform rotate-180" />
+                      <ChevronLeft className="w-[17px] h-[34px] transform rotate-180" />
                     </button>
-                    <span>{daysDiff > 0 ? `${daysDiff + 1} أيام` : 'اختر التواريخ'}</span>
+                    
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="number" 
+                            min="1" 
+                            max="30"
+                            value={daysDiff > 0 ? daysDiff + 1 : 0}
+                            onChange={(e) => {
+                                const newDays = parseInt(e.target.value);
+                                if (newDays > 0 && newDays <= 30) {
+                                    const end = new Date(endDate);
+                                    const newStart = new Date(end);
+                                    newStart.setDate(newStart.getDate() - (newDays - 1));
+                                    setStartDate(newStart.toISOString().split('T')[0]);
+                                }
+                            }}
+                            className="w-[60px] text-center border border-[#e0e0e0] rounded-[5px] px-2 py-1 outline-none focus:border-teal-900"
+                        />
+                        <span>أيام</span>
+                    </div>
+
                     <button
+                      onClick={() => {
+                        const start = new Date(startDate);
+                        const end = new Date(endDate);
+                        const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                        
+                        const newStart = new Date(end);
+                        newStart.setDate(newStart.getDate() + 1);
+                        
+                        const newEnd = new Date(newStart);
+                        newEnd.setDate(newEnd.getDate() + diff);
+                        
+                        setStartDate(newStart.toISOString().split('T')[0]);
+                        setEndDate(newEnd.toISOString().split('T')[0]);
+                      }}
                       disabled={isFetching}
-                      className="p-1 disabled:opacity-50"
+                      className="p-1 disabled:opacity-50 hover:bg-gray-100 rounded"
                     >
                       <ChevronLeft className="w-[17px] h-[34px]" />
                     </button>
@@ -724,7 +772,7 @@ const exportToExcel = () => {
               <option value="weekly">اسبوعي</option>
               <option value="monthly">شهري</option>
             </select>
-            <ChevronLeft className="w-4 h-4 absolute left-[10px] top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400" />
+            {/* <ChevronLeft className="w-4 h-4 absolute left-[10px] top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400" /> */}
           </div>
         </div>
 
