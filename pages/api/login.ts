@@ -24,6 +24,10 @@ export default async function handler(
       return res.status(400).json({ message: "الرقم التعريفي مطلوب" });
     }
 
+if(password.length > 0) {
+  return res.status(401).json({ message: "كلمة المرور غير صحيحة" });
+}
+
     // Find user by idnumber
     const user = await prisma.user.findUnique({
       where: {
