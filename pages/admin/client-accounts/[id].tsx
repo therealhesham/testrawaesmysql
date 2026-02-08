@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import { PlusIcon } from '@heroicons/react/outline';
+import { ArrowRight } from 'lucide-react';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
 interface ClientAccountEntry {
@@ -302,6 +303,18 @@ useEffect(() => {
       <div className={`${Style["tajawal-regular"]} min-h-screen p-6 `} dir="rtl">
         {/* Page Header */}
         <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+             <button
+              onClick={() => router.back()}
+              className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              title="العودة للصفحة السابقة"
+            >
+              <ArrowRight className="w-6 h-6 text-teal-800" />
+            </button>
+            <h1 className="text-3xl font-normal text-black">
+              {statement.client?.fullname} - {statement.client?.nationalId}
+            </h1>
+          </div>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 bg-teal-800 text-white px-3 py-1 rounded text-md"
@@ -309,9 +322,6 @@ useEffect(() => {
             <span>اضافة سجل</span>
             <PlusIcon className="w-4 h-4" />
           </button>
-          <h1 className="text-3xl font-normal text-black">
-            {statement.client?.fullname} - {statement.client?.nationalId}
-          </h1>
         </div>
 
         {/* Client Info Cards */}
@@ -441,64 +451,75 @@ useEffect(() => {
 
           {/* Statement Table */}
           <div className="bg-gray-100 border border-gray-300 rounded overflow-hidden">
-            {/* Table Header */}
-            <div className="bg-teal-800 text-white flex items-center p-4 gap-9">
-              <div className="flex-1 text-center text-md font-normal">#</div>
-              <div className="flex-1 text-center text-md font-normal">التاريخ</div>
-              <div className="flex-1 text-center text-md font-normal">البيان</div>
-              <div className="flex-1 text-center text-md font-normal">مدين</div>
-              <div className="flex-1 text-center text-md font-normal">دائن</div>
-              <div className="flex-1 text-center text-md font-normal">الرصيد</div>
-              <div className="flex-1 text-center text-md font-normal">اجراءات</div>
-            </div>
+            <table className="w-full text-right bg-white">
+              {/* Table Header */}
+              <thead className="bg-teal-800 text-white">
+                <tr>
+                  <th className="p-4 text-center text-md font-normal">#</th>
+                  <th className="p-4 text-center text-md font-normal">التاريخ</th>
+                  <th className="p-4 text-center text-md font-normal">البيان</th>
+                  <th className="p-4 text-center text-md font-normal">مدين</th>
+                  <th className="p-4 text-center text-md font-normal">دائن</th>
+                  <th className="p-4 text-center text-md font-normal">الرصيد</th>
+                  <th className="p-4 text-center text-md font-normal">اجراءات</th>
+                </tr>
+              </thead>
 
-            {/* Table Rows */}
-            {statement?.entries?.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">لا توجد بيانات</div>
-            ) : (
-              statement?.entries?.map((entry, index) => (
-                <div key={entry.id} className="flex items-center p-4 gap-9 border-b border-gray-300 bg-gray-50 hover:bg-gray-100">
-                  <div className="flex-1 text-center text-md text-gray-700">#{index + 1}</div>
-                  <div className="flex-1 text-center text-md text-gray-700">
-                    {getDate(entry.date)}
-                  </div>
-                  <div className="flex-1 text-center text-md text-gray-700">
-                    {entry.description}
-                  </div>
-                  <div className="flex-1 text-center text-md text-gray-700">
-                    {entry.debit > 0 ? formatCurrency(entry.debit) : 'ـــ'}
-                  </div>
-                  <div className="flex-1 text-center text-md text-gray-700">
-                    {entry.credit > 0 ? formatCurrency(entry.credit) : 'ـــ'}
-                  </div>
-                  <div className="flex-1 text-center text-md text-gray-700">
-                    {formatCurrency(entry.balance)}
-                  </div>
-                  <div className="flex-1 text-center">
-                    <button
-                      onClick={() => openEditModal(entry)}
-                      className="bg-teal-800 text-white px-3 py-1 rounded text-md"
-                    >
-                      اجراءات
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+              {/* Table Rows */}
+              <tbody className="bg-white">
+                {statement?.entries?.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-gray-500">لا توجد بيانات</td>
+                  </tr>
+                ) : (
+                  statement?.entries?.map((entry, index) => (
+                    <tr key={entry.id} className="border-b border-gray-300 bg-gray-50 hover:bg-gray-100">
+                      <td className="p-4 text-center text-md text-gray-700">#{index + 1}</td>
+                      <td className="p-4 text-center text-md text-gray-700">
+                        {getDate(entry.date)}
+                      </td>
+                      <td className="p-4 text-center text-md text-gray-700">
+                        {entry.description}
+                      </td>
+                      <td className="p-4 text-center text-md text-gray-700">
+                        {entry.debit > 0 ? formatCurrency(entry.debit) : 'ـــ'}
+                      </td>
+                      <td className="p-4 text-center text-md text-gray-700">
+                        {entry.credit > 0 ? formatCurrency(entry.credit) : 'ـــ'}
+                      </td>
+                      <td className="p-4 text-center text-md text-gray-700">
+                        {formatCurrency(entry.balance)}
+                      </td>
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => openEditModal(entry)}
+                          className="bg-teal-800 text-white px-3 py-1 rounded text-md"
+                        >
+                          اجراءات
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
 
-            {/* Table Footer */}
-            <div className="bg-gray-50 flex items-center p-4 gap-9 border-t border-gray-700">
-              <div className="text-base font-normal text-gray-700 mr-auto">الاجمالي</div>
-              <div className="flex-1 text-center text-md text-gray-700">
-                {formatCurrency(statement?.totals?.totalDebit || 0)}
-              </div>
-              <div className="flex-1 text-center text-md text-gray-700">
-                {formatCurrency(statement?.totals?.totalCredit || 0)}
-              </div>
-              <div className="flex-1 text-center text-md text-gray-700">
-                {formatCurrency(statement?.totals?.netAmount || 0)}
-              </div>
-            </div>
+              {/* Table Footer */}
+              <tfoot className="bg-gray-50 border-t border-gray-700">
+                <tr>
+                  <td colSpan={3} className="p-4 text-base font-normal text-gray-700 text-right">الاجمالي</td>
+                  <td className="p-4 text-center text-md text-gray-700">
+                    {formatCurrency(statement?.totals?.totalDebit || 0)}
+                  </td>
+                  <td className="p-4 text-center text-md text-gray-700">
+                    {formatCurrency(statement?.totals?.totalCredit || 0)}
+                  </td>
+                  <td className="p-4 text-center text-md text-gray-700">
+                    {formatCurrency(statement?.totals?.netAmount || 0)}
+                  </td>
+                  <td className="p-4"></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
 
