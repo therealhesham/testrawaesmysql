@@ -83,7 +83,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: {
           id: parseInt(id as string)
         },
-        include: {
+        include: {inHouse:{select:{
+   Reason:true
+        }},
           office: true,
           profession: true,
           logs: {
@@ -97,7 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!worker) {
         return res.status(404).json({ error: 'Worker not found' });
       }
-
+// worker.inHouse[0].Reason
       return res.status(200).json(worker);
     } catch (error) {
       console.error('Error fetching worker:', error);

@@ -69,6 +69,7 @@ setUserName(decoded.username);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isFetching, setIsFetching] = useState(false);
+  const [monthlyStats, setMonthlyStats] = useState({ totalCash: 0, remainingCash: 0 });
 
   // Generate date range for table headers
   const getDateRange = useCallback((start, end) => {
@@ -119,13 +120,16 @@ setUserName(decoded.username);
         setPage(currentPage);
         setTotalPages(data.totalPages || 1);
         setTotalCount(data.totalCount || 0);
+        setMonthlyStats(data.monthlyStats || { totalCash: 0, remainingCash: 0 });
       } else {
         setError(data.message || 'حدث خطأ أثناء جلب البيانات');
         setWorkers([]);
+        setMonthlyStats({ totalCash: 0, remainingCash: 0 });
       }
     } catch (err) {
       setError('فشل في الاتصال بالخادم');
       setWorkers([]);
+      setMonthlyStats({ totalCash: 0, remainingCash: 0 });
     } finally {
       setLoading(false);
       setIsFetching(false);
@@ -196,11 +200,11 @@ setUserName(decoded.username);
     setPage(1);
   };
 const [amount, setAmount] = useState('');
-const [period, setPeriod] = useState('');
+  // const [period, setPeriod] = useState(''); 
 
   const addCash = async () => {
-    if (!amount || !period) {
-      setErrorModal({ isOpen: true, message: 'يرجى إدخال المبلغ واختيار الفترة', title: 'تنبيه' });
+    if (!amount) {
+      setErrorModal({ isOpen: true, message: 'يرجى إدخال المبلغ', title: 'تنبيه' });
       return;
     }
     
@@ -209,8 +213,6 @@ const [period, setPeriod] = useState('');
       const currentYear = new Date().getFullYear();
       
       // تحويل الفترة إلى شهر بناءً على اختيار المستخدم
-      // إذا كان يومي أو أسبوعي، سنستخدم الشهر الحالي
-      // إذا كان شهري، سنستخدم الشهر الحالي أيضاً (أو يمكن التعديل حسب الحاجة)
       const currentMonth = new Date().getMonth() + 1;
       
       const response = await fetch('/api/addcash', {
@@ -222,14 +224,13 @@ const [period, setPeriod] = useState('');
           amount,
           Month: currentMonth,
           Year: currentYear.toString(),
-          transaction_type: period, // استخدام الفترة كـ transaction_type
+          transaction_type: 'monthly', // Always monthly
         }),
       });
       const data = await response.json();
       if (response.ok) {
         setIsAddCashModalOpen(false);
         setAmount('');
-        setPeriod('');
         fetchData(page);
       } else {
         setErrorModal({ isOpen: true, message: data.error || 'حدث خطأ أثناء إضافة المبلغ', title: 'خطأ' });
@@ -466,6 +467,21 @@ const exportToExcel = () => {
             <h1 className="text-[32px] font-normal text-black text-right mb-[26px]">
               الاعاشة
             </h1>
+            
+            {/* Monthly Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white border border-[#e0e0e0] rounded-[5px] p-4 flex flex-col items-center justify-center shadow-sm">
+                <span className="text-[#6b7280] text-sm font-medium mb-1">إجمالي مبلغ الشهر</span>
+                <span className="text-[#1a4d4f] text-2xl font-bold">{monthlyStats.totalCash.toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س</span>
+              </div>
+              <div className="bg-white border border-[#e0e0e0] rounded-[5px] p-4 flex flex-col items-center justify-center shadow-sm">
+                <span className="text-[#6b7280] text-sm font-medium mb-1">المتبقي للتوزيع</span>
+                <span className={`text-2xl font-bold ${monthlyStats.remainingCash < 0 ? 'text-red-600' : 'text-teal-600'}`}>
+                  {monthlyStats.remainingCash.toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                </span>
+              </div>
+            </div>
+
             <div className=" border border-[#e0e0e0] rounded-[5px] p-[22px]">
               {/* Controls Bar */}
               <div className="flex flex-wrap justify-between items-center gap-4 mb-[26px]">
@@ -739,7 +755,6 @@ const exportToExcel = () => {
     onClick={() => {
       setIsAddCashModalOpen(false);
       setAmount('');
-      setPeriod('');
     }}
   />
 )}
@@ -751,39 +766,20 @@ const exportToExcel = () => {
       <XIcon className="w-4 h-4 absolute top-0 left-0 cursor-pointer text-gray-600 hover:text-gray-800" onClick={() => {
         setIsAddCashModalOpen(false);
         setAmount('');
-        setPeriod('');
       }} />
 
       <h2 className="text-[24px] font-normal text-black text-right m-0 mb-4">اضافة مبلغ</h2>
 
       <div className="flex flex-row-reverse gap-4 items-start">
-        {/* Period Selection - Right Side */}
-        <div className="flex flex-col gap-[8px] flex-1">
-          <label htmlFor="period" className="text-[14px] text-[#1f2937] text-right font-medium">الفترة</label>
-          <div className="relative">
-            <select 
-              id="period" 
-              className="w-full bg-white border border-[#e0e0e0] rounded-[5px] px-[10px] py-[10px] pr-8 text-md text-[#6b7280] outline-none appearance-none cursor-pointer"
-              value={period} 
-              onChange={(e) => setPeriod(e.target.value)}
-            >
-              <option value="">اختر الفترة</option>
-              <option value="daily">يومي</option>
-              <option value="weekly">اسبوعي</option>
-              <option value="monthly">شهري</option>
-            </select>
-            {/* <ChevronLeft className="w-4 h-4 absolute left-[10px] top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400" /> */}
-          </div>
-        </div>
-
+        
         {/* Amount Input - Left Side */}
         <div className="flex flex-col gap-[8px] flex-1">
-          <label htmlFor="amount" className="text-[14px] text-[#1f2937] text-right font-medium">المبلغ</label>
+          <label htmlFor="amount" className="text-[14px] text-[#1f2937] text-right font-medium">المبلغ (شهري)</label>
           <input 
             type="number" 
             id="amount" 
             className="w-full bg-white border border-[#e0e0e0] rounded-[5px] px-[10px] py-[10px] text-md text-[#6b7280] outline-none placeholder:text-gray-400" 
-            placeholder={period === 'daily' ? 'ادخل المبلغ اليومي' : period === 'weekly' ? 'ادخل المبلغ الاسبوعي' : period === 'monthly' ? 'ادخل المبلغ الشهري' : 'ادخل المبلغ'}
+            placeholder="ادخل المبلغ الشهري"
             value={amount} 
             onChange={(e) => setAmount(e.target.value)} 
           />

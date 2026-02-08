@@ -73,6 +73,7 @@ function HomeMaidInfo() {
     contractType: "recruitment" as "recruitment" | "rental",
     notes: "",
     logs: [] as any[],
+    inHouse: [] as any[],
   });
 
   const [loading, setLoading] = useState(false);
@@ -815,6 +816,7 @@ function HomeMaidInfo() {
         contractType: data.contractType || "recruitment",
         notes: data.notes || "",
         logs: data.logs || [],
+        inHouse: data.inHouse || [],
       });
       
       // تحديث حالة الاعتماد
@@ -1960,8 +1962,8 @@ function HomeMaidInfo() {
                   formData.logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 p-3 text-right">{getDate(log.createdAt)}</td>
-                      <td className="border border-gray-300 p-3 text-right">{log.Status || "غير متوفر"}</td>
-                      <td className="border border-gray-300 p-3 text-right">{log.Details || "غير متوفر"}</td>
+                      <td className="border border-gray-300 p-3 text-right">{log?.Status}</td>
+                      <td className="border border-gray-300 p-3 text-right">{log?.Status?.includes("تم تسكين") && formData?.inHouse && formData.inHouse.length > 0 ? formData.inHouse[0].Reason : log?.Details || "غير متوفر"}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.userId || "غير متوفر"}</td>
                     </tr>
                   ))

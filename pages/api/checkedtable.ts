@@ -96,12 +96,59 @@ const search =
       }
 
       const workers = Array.from(workersMap.values());
+      const dailyTotalSum = Object.values(dailyTotals).reduce((a, b) => a + b, 0);
+
+      // Get current month cash and remaining amount
+      const today = new Date();
+      const currentMonth = today.getMonth() + 1;
+      const currentYear = today.getFullYear();
+      
+      const cashRecord = await prisma.cash.findFirst({
+        where: {
+          Month: currentMonth.toString(),
+          Year: currentYear.toString(),
+          transaction_type: 'monthly'
+        }
+      });
+
+      let totalMonthlyCash = 0;
+      let remainingMonthlyCash = 0;
+
+      if (cashRecord) {
+        totalMonthlyCash = Number(cashRecord.amount);
+        
+        // Calculate total distributed so far this month
+        const startOfMonthDate = new Date(currentYear, currentMonth - 1, 1);
+        const endOfMonthDate = new Date(currentYear, currentMonth, 0);
+        
+        const distributedData = await prisma.checkIn.aggregate({
+          _sum: {
+            DailyCost: true
+          },
+          where: {
+            CheckDate: {
+              gte: startOfMonthDate.toISOString(),
+              lte: endOfMonthDate.toISOString()
+            },
+            DailyCost: {
+              not: null
+            }
+          }
+        });
+
+        const totalDistributed = Number(distributedData._sum.DailyCost || 0);
+        remainingMonthlyCash = totalMonthlyCash - totalDistributed;
+      }
 
       res.status(200).json({
         startDate: startDateString,
         endDate: endDateString,
         workers,
         dailyTotals,
+        monthlyStats: {
+          totalCash: totalMonthlyCash,
+          remainingCash: remainingMonthlyCash
+        }
       });
     } else if (req.method === "DELETE") {
       const { date } = req.query;
@@ -130,29 +177,44 @@ const search =
       }
 
       // تحويل التاريخ إلى تنسيق صالح (YYYY-MM-DD)
-      const formattedDate = new Date(date);
-      if (isNaN(formattedDate.getTime())) {
+      const targetDate = new Date(date);
+      if (isNaN(targetDate.getTime())) {
         return res.status(400).json({ message: "تاريخ غير صالح." });
       }
-      const dateString = formattedDate.toISOString().split("T")[0];
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-      // حذف السجلات من جدول CheckIn بناءً على CheckDate
-      const deleteResult = await prisma.$executeRaw`
-        DELETE FROM CheckIn
-        WHERE DATE(CheckDate) = ${dateString};
-      `;
+      // حذف السجلات من جدول CheckIn بناءً على النطاق الزمني
+      const deleteResult = await prisma.checkIn.deleteMany({
+        where: {
+          CheckDate: {
+            gte: startOfDay.toISOString(),
+            lte: endOfDay.toISOString(),
+          },
+          DailyCost: {
+            not: null, // Only delete distribution records
+          }
+        },
+      });
+
+      const deletedCount = deleteResult.count;
 
       // تسجيل الحدث
-      if (userId && deleteResult) {
+      if (userId && deletedCount > 0) {
+        const dateString = targetDate.toISOString().split("T")[0];
         eventBus.emit('ACTION', {
-          type: `حذف ${deleteResult} سجل من جدول الحضور - التاريخ: ${dateString}`,
+          type: `حذف ${deletedCount} سجل توزيع من جدول الحضور - التاريخ: ${dateString}`,
           actionType: 'delete',
           userId: userId,
         });
       }
 
       res.status(200).json({
-        message: `تم حذف ${deleteResult} سجل بنجاح.`,
+        message: `تم حذف ${deletedCount} سجل بنجاح.`,
       });
     } else {
       res.status(405).json({ message: "Method Not Allowed" });
