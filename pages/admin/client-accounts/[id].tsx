@@ -315,13 +315,6 @@ useEffect(() => {
               {statement.client?.fullname} - {statement.client?.nationalId}
             </h1>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-teal-800 text-white px-3 py-1 rounded text-md"
-          >
-            <span>اضافة سجل</span>
-            <PlusIcon className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Client Info Cards */}
@@ -385,7 +378,26 @@ useEffect(() => {
         {/* Statement Filter */}
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 mb-6">
           <div className="grid grid-cols-4  gap-4 mb-4">
+           
+     <div className="flex flex-col">
+              <label className="text-md text-gray-700 mb-2">من</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="bg-gray-50 border border-gray-300 rounded text-md text-gray-600 "
+              />
+            </div>
             <div className="flex flex-col">
+              <label className="text-md text-gray-700 mb-2">الى</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
+              />
+            </div>
+ <div className="flex flex-col">
               <label className="text-md text-gray-700 mb-2">نوع الحركة</label>
               <select
                 value={selectedEntryType}
@@ -398,26 +410,7 @@ useEffect(() => {
                 <option value="payment">دفعة</option>
               </select>
             </div>
-
-            <div className="flex flex-col">
-              <label className="text-md text-gray-700 mb-2">الى</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
-              />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-md text-gray-700 mb-2">من</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded text-md text-gray-600 "
-              />
-            </div>
+       
           </div>
           <div className="flex justify-end">  
           <button
@@ -431,11 +424,11 @@ useEffect(() => {
 
         {/* Statement Table */}
         <div className="bg-white">
-          <div className="flex items-center gap-2 mb-4 px-4">
-            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-16">
+          <div className="flex items-center gap-2 mb-4 px-4 w-full">
+            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-16 h-[34px]">
               Excel
             </button>
-            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-14">
+            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-14 h-[34px]">
               PDF
             </button>
             <div className="flex-1 max-w-64">
@@ -447,6 +440,13 @@ useEffect(() => {
                 className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-md text-gray-600"
               />
             </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 bg-teal-800 text-white px-3 py-1 rounded text-md h-[34px] mr-auto"
+            >
+              <span>اضافة سجل</span>
+              <PlusIcon className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Statement Table */}
