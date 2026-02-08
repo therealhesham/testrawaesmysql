@@ -632,8 +632,8 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
         setError('يرجى إدخال كلمة المرور الحالية لتأكيد التغيير');
         return;
       }
-      if (passwordData.newPassword.length < 6) {
-        setError('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+      if (passwordData.newPassword.length < 4) {
+        setError('كلمة المرور الجديدة يجب أن تكون 4 أحرف او أرقام على الأقل');
         return;
       }
       if (passwordData.newPassword !== passwordData.confirmNewPassword) {

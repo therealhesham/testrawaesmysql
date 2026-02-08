@@ -5,6 +5,8 @@ import Layout from 'example/containers/Layout';
 import { useRouter } from 'next/router';
 import React from 'react';
 import { EditIcon, TrashIcon } from 'icons';
+import { ArrowRight } from 'lucide-react';
+
 
 interface ClientInfo {
   id: string;
@@ -409,9 +411,15 @@ const arabicRegionMap: { [key: string]: string } = {
         />
 
         <div className="max-w-7xl mx-auto">
-          <p className="text-right text-xl text-gray-600 mb-8">
-            رقم العميل: <span className="text-teal-800 font-bold">{clientInfo.id}</span>
-          </p>
+          <div className="flex items-center gap-3 mb-8 w-fit text-right">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              title="العودة للصفحة السابقة"
+            >
+              <ArrowRight className="w-6 h-6 text-teal-800" />
+            </button>
+          </div>
 
           <div className="bg-white rounded-lg p-6 mb-6 shadow-md">
             <div className="flex justify-between items-center mb-6">
@@ -431,19 +439,27 @@ const arabicRegionMap: { [key: string]: string } = {
             <form onSubmit={updateClientInfo}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex flex-col">
-                  <label className="text-sm text-gray-600 mb-1">اسم العميل</label>
-                  <input
-                    type="text"
-                    className={`p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                      !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                    value={clientInfo.fullname}
-                    onChange={(e) =>
-                      setClientInfo({ ...clientInfo, fullname: e.target.value })
-                    }
-                    readOnly={!isEditMode}
-                    required
-                  />
+                  <label className="text-sm text-gray-600 mb-1">رقم العميل &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; اسم العميل </label>
+                   <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      className="w-20 p-2 border border-gray-300 rounded-md text-center bg-gray-100 cursor-not-allowed font-bold text-teal-800"
+                      value={clientInfo.id}
+                      readOnly
+                    />
+                    <input
+                      type="text"
+                      className={`flex-1 p-2 border border-gray-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                        !isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
+                      value={clientInfo.fullname}
+                      onChange={(e) =>
+                        setClientInfo({ ...clientInfo, fullname: e.target.value })
+                      }
+                      readOnly={!isEditMode}
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-col">
                   <label className="text-sm text-gray-600 mb-1">رقم الهاتف</label>
