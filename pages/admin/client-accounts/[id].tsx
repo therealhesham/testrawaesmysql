@@ -270,8 +270,17 @@ useEffect(() => {
 
 
 
+  const hasMoreThan3Decimals = (n: number) => {
+    const rounded = Math.round(n * 1000) / 1000;
+    return Math.abs(n - rounded) > 1e-10;
+  };
+
   const formatCurrency = (amount: number) => {
-    return amount;
+    const rounded = Math.round(amount * 1000) / 1000;
+    if (hasMoreThan3Decimals(amount)) {
+      return `${rounded} (تقريبي)`;
+    }
+    return rounded;
   };
 
   const formatDate = (dateString: string) => {
