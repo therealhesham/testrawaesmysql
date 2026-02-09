@@ -9,15 +9,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: {
         housedWorkerId: Number(homemaid_id),
         notes: notes,
-      },select:{HousedWorker:{select:{homeMaid_id:true}}}
+      },include:{HousedWorker:{select:{homeMaid_id:true}}}
     });
+    // console.log(newNote.)
 // newNote.HousedWorker?.homeMaid_id
     try {
       await prisma.logs.create({
         data: {
           Status: `تم إضافة ملاحظة للعاملة المنزلية بتاريخ ${new Date().toLocaleDateString()}`,
           userId: employee,
-          Details: `تم إضافة ملاحظة للعاملة المنزلية بتاريخ `,//حقول التعديل
+          Details: `   ${newNote.notes}`,//حقول التعديل
           homemaidId: Number(newNote.HousedWorker?.homeMaid_id),
         },
       });
