@@ -31,6 +31,11 @@ interface HousedWorker {
   isHasEntitlements?: boolean;
   entitlementsCost?: number;
   entitlementReason?: string;
+  HousedWorkerNotes?: {
+    id: number;
+    notes: string;
+    createdAt: string;
+  }[];
   Order?: {
     Name: string;
     phone: string;
@@ -192,7 +197,9 @@ setUserName(decoded.username);
     housingForm: false,
     internalWorkerModal: false,
     deleteLocationConfirm: false,
+    deleteNoteConfirm: false,
   });
+  const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [locationToDelete, setLocationToDelete] = useState<{ id: number; name: string } | null>(null);
   const [housedWorkers, setHousedWorkers] = useState<HousedWorker[]>([]);
   const [departedWorkers, setDepartedWorkers] = useState<HousedWorker[]>([]);
@@ -1248,7 +1255,27 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
     showNotification(error.response?.data?.error || 'خطأ في تسجيل المستحقات', 'error');
     closeModal('amountModal');
   }
-};      
+};
+
+const handleDeleteNote = (noteId: number) => {
+  setNoteToDelete(noteId);
+  openModal('deleteNoteConfirm');
+};
+
+const confirmDeleteNote = async () => {
+  if (!noteToDelete) return;
+
+  try {
+    await axios.delete(`/api/deletehousenote?id=${noteToDelete}`);
+    showNotification('تم حذف الملاحظة بنجاح');
+    closeModal('deleteNoteConfirm');
+    setNoteToDelete(null);
+    fetchWorkers();
+  } catch (error: any) {
+    showNotification(error.response?.data?.error || 'خطأ في حذف الملاحظة', 'error');
+    closeModal('deleteNoteConfirm');
+  }
+};
   // Fetch data when filters or tabs change
   useEffect(() => {
     console.log('useEffect triggered with:', { page, sortKey, sortDirection, filters, activeTab, housingStatus });
@@ -1669,7 +1696,35 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                                           {worker.Reason || 'غير محدد'}
                                         </td>
                                         <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
-                                          {worker.Details || 'لا توجد تفاصيل إضافية'}
+                                          <div className="flex flex-col gap-2">
+                                            {worker.Details && (
+                                              <div className="bg-white p-2 rounded border border-gray-200">
+                                                <span className="font-bold text-gray-700 block mb-1">ملاحظات التسكين:</span>
+                                                {worker.Details}
+                                              </div>
+                                            )}
+                                            {worker.HousedWorkerNotes && worker.HousedWorkerNotes.length > 0 ? (
+                                              worker.HousedWorkerNotes.map((note) => (
+                                                <div key={note.id} className="bg-white p-2 rounded border border-gray-200 flex justify-between items-start">
+                                                  <div>
+                                                    <span className="font-bold text-gray-700 block mb-1">
+                                                      {note.createdAt ? new Date(note.createdAt).toLocaleDateString('ar-SA') : ''}:
+                                                    </span>
+                                                    {note.notes}
+                                                  </div>
+                                                  <button
+                                                    onClick={() => handleDeleteNote(note.id)}
+                                                    className="text-red-500 hover:text-red-700 p-1"
+                                                    title="حذف الملاحظة"
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </button>
+                                                </div>
+                                              ))
+                                            ) : (
+                                              !worker.Details && 'لا توجد تفاصيل إضافية'
+                                            )}
+                                          </div>
                                         </td>
                                       </tr>
                                     </tbody>
@@ -3208,6 +3263,51 @@ const handleEntitlementsSubmit = async (e: React.FormEvent) => {
                     <button
                       type="button"
                       onClick={confirmDeleteLocation}
+                      className="bg-red-600 text-white rounded-md w-28 h-10 text-base hover:bg-red-700"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Delete Note Confirmation Modal */}
+            {modals.deleteNoteConfirm && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('deleteNoteConfirm')}
+              >
+                <div
+                  className="bg-white rounded-xl p-8 w-full max-w-md shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-center items-center mb-6">
+                    <div className="bg-red-100 rounded-full p-4">
+                      <Trash2 className="w-8 h-8 text-red-600" />
+                    </div>
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900 text-center mb-4">
+                    تأكيد حذف الملاحظة
+                  </h2>
+                  <p className="text-base text-gray-600 text-center mb-6">
+                    هل أنت متأكد من رغبتك في حذف هذه الملاحظة؟
+                    <br />
+                    <span className="text-sm text-red-600 mt-2 block">هذا الإجراء لا يمكن التراجع عنه</span>
+                  </p>
+                  <div className="flex justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeModal('deleteNoteConfirm');
+                        setNoteToDelete(null);
+                      }}
+                      className="bg-white text-gray-700 border border-gray-300 rounded-md w-28 h-10 text-base hover:bg-gray-50"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmDeleteNote}
                       className="bg-red-600 text-white rounded-md w-28 h-10 text-base hover:bg-red-700"
                     >
                       حذف

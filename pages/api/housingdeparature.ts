@@ -143,7 +143,8 @@ export default async function handler(
             include: {
               NewOrder: true
             }
-          }
+          },
+          HousedWorkerNotes: true,
         },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,

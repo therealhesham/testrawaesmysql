@@ -20,6 +20,7 @@ model homemaid {
   Picture           Json?
   FullPicture       Json?
   professionId Int?
+  inHouseLocation inHouseLocation[]
   notes String? @db.VarChar(255)
   profession professions? @relation(fields: [professionId], references: [id],onDelete: Cascade)
   ExperienceYears   String?    @db.VarChar(255)
@@ -78,6 +79,7 @@ laundryLevel String? @db.VarChar(100)
 BabySitterLevel String? @db.VarChar(100)
 
 }
+
 
 
 model DeliveryDetails{
@@ -483,6 +485,9 @@ id Int @id @default(autoincrement())
   location String @db.VarChar(255)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  supervisor  Int?
+  supervisorUser homemaid? @relation(fields: [supervisor], references: [id])
 quantity Int @default(0) //عدد الاماكن المتاحة
   housedWorkers housedworker[] 
 }
@@ -720,6 +725,7 @@ model housedworker {
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
 isExternal Boolean? @default(false)
+HousedWorkerNotes HousedWorkerNotes[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   homeMaid_id       Int?       @unique
@@ -739,7 +745,17 @@ entitlementsCost     Decimal?
 entitlementReason   String?
   Order          homemaid?  @relation(fields: [homeMaid_id], references: [id])
 }
+model HousedWorkerNotes {
 
+id Int @id @default(autoincrement())
+housedWorkerId Int
+HousedWorker housedworker? @relation(fields: [housedWorkerId], references: [id],onDelete: Cascade)
+notes String? @db.VarChar(255)
+createdAt DateTime? @default(now())
+updatedAt DateTime? @updatedAt
+
+
+}
 model CheckIn {
   isActive        Boolean? @default(true)
   id              Int       @id @default(autoincrement())

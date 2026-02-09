@@ -5,13 +5,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { notes, homemaid_id } = req.body;
     console.log(notes, homemaid_id);
-    const newNote = await prisma.housedworker.update({
-      where: {
-        id: homemaid_id,
-      },
+    const newNote = await prisma.housedWorkerNotes.create({
       data: {
-        Details: notes,
-
+        housedWorkerId: Number(homemaid_id),
+        notes: notes,
       },
     });
     res.status(200).json(newNote);

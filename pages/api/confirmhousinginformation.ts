@@ -436,6 +436,7 @@ if (req.body.location) {
               NewOrder: { select: { typeOfContract: true } },
             },
           },
+          HousedWorkerNotes: true,
         },
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
