@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           id: parseInt(id as string)
         },
         include: {inHouse:{select:{
-   Reason:true
+   Reason:true,Details:true
         }},
           office: true,
           profession: true,

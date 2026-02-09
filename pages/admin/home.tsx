@@ -998,7 +998,7 @@ export default function Home({
   const getArrivalsForDay = (day) => {
     return internalArrivals.filter((arrival) => {
       // Use KingdomentryDate for arrival date if available, otherwise fall back to createdAt
-      const dateToUse = arrival.KingdomentryDate || arrival.createdAt;
+      const dateToUse = arrival.KingdomentryDate ;
       if (!dateToUse) return false;
       
       try {
@@ -3024,7 +3024,7 @@ export async function getStaticProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https://wasl.rawaes.com/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -3056,36 +3056,36 @@ export async function getStaticProps(context) {
       foreignOfficesRes,
       rejectedOrdersRes,
     ] = await Promise.all([
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/neworderlistprisma/1`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/endedorders/`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/deparatures`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/housed`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/sessions`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/clients`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/transfersponsorships`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/bookedlist?page=1`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/availablelist?page=1`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/endedorders/`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/deparatures`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/sessions`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/clients`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/transfersponsorships`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/bookedlist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/availablelist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 
     // Mock events data (as in original)
-    const events = [
-      { title: "Arrival: Person 1", date: "2025-01-01" },
-      { title: "Arrival: Person 10", date: "2025-01-01" },
-      { title: "Arrival: Person 11", date: "2025-01-01" },
-      { title: "Arrival: Person 12", date: "2025-01-01" },
-      { title: "Arrival: Person 2", date: "2025-02-10" },
-      { title: "Arrival: Person 3", date: "2025-03-15" },
-      { title: "Arrival: Person 4", date: "2025-12-25" },
-      { title: "Arrival: Person 5", date: "2025-11-30" },
-    ];
+    // const events = [
+    //   { title: "Arrival: Person 1", date: "2025-01-01" },
+    //   { title: "Arrival: Person 10", date: "2025-01-01" },
+    //   { title: "Arrival: Person 11", date: "2025-01-01" },
+    //   { title: "Arrival: Person 12", date: "2025-01-01" },
+    //   { title: "Arrival: Person 2", date: "2025-02-10" },
+    //   { title: "Arrival: Person 3", date: "2025-03-15" },
+    //   { title: "Arrival: Person 4", date: "2025-12-25" },
+    //   { title: "Arrival: Person 5", date: "2025-11-30" },
+    // ];
     // Process and structure the data for props
   
       const housedCount = await prisma.housedworker.count({

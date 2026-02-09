@@ -49,7 +49,18 @@ async function logToSystemLogs(
     } else if (pageTitle) {
       actionText = pageTitle;
     }
-    
+    try{
+    await prisma.logs.create({
+      data: {
+Details:actionText,
+reason:"مغادرة السكن",
+Status:"مغادرة السكن",
+      } 
+    });
+
+    }catch(error){
+      console.error('❌ خطأ في حفظ السجل في logs:', error);
+    }
     await prisma.systemUserLogs.create({
       data: {
         userId,

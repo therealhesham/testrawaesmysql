@@ -1963,7 +1963,7 @@ function HomeMaidInfo() {
                     <tr key={log.id} className="hover:bg-gray-50">
                       <td className="border border-gray-300 p-3 text-right">{getDate(log.createdAt)}</td>
                       <td className="border border-gray-300 p-3 text-right">{log?.Status}</td>
-                      <td className="border border-gray-300 p-3 text-right">{log?.Status?.includes("تم تسكين") && formData?.inHouse && formData.inHouse.length > 0 ? formData.inHouse[0].Reason : log?.Details || "غير متوفر"}</td>
+                      <td className="border border-gray-300 p-3 text-right">{log?.Status?.includes("تم تسكين") && formData?.inHouse && formData.inHouse.length > 0 ? formData.inHouse[0].Reason  + " ,"+ formData.inHouse[0].Details    : log?.Details || "غير متوفر"}</td>
                       <td className="border border-gray-300 p-3 text-right">{log.userId || "غير متوفر"}</td>
                     </tr>
                   ))
