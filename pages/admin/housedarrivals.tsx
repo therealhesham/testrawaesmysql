@@ -2067,7 +2067,7 @@ const confirmDeleteNote = async () => {
                   <form
                     
                   >
-                    <div className="grid grid-cols-2 gap-2 " >
+                    <div className="grid grid-cols-1 gap-2 " >
                     <div className="mb-4 ">
                       <label htmlFor="notes" className="block text-md mb-2 text-textDark">
                         الملاحظة
