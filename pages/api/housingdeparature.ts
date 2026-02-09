@@ -180,7 +180,7 @@ export default async function handler(
       });
 
       // Fetch data 
-        await prisma.housedworker.update({
+const updateData =        await prisma.housedworker.update({
           where: {id: Number(req.body.homeMaid) },
           data: {
             isActive: false,
@@ -195,6 +195,22 @@ export default async function handler(
           },
         });
 
+
+  try {
+        const actionText = `تسجيل مغادرة عاملة  - السبب: ${req.body.deparatureReason  || 'غير محدد'} بتاريخ ${req.body.deparatureHousingDate}`;
+await prisma.logs.create({
+  data: {
+
+    homemaidId:Number(updateData.homeMaid_id),
+    Details:actionText,
+    reason:"مغادرة السكن",
+    Status:"مغادرة السكن",
+  } 
+});
+  } catch (error) {
+   console.log(error) 
+  }      
+    
         // تسجيل العملية في systemlogs
         const userInfo = getUserFromCookies(req);
         if (userInfo.userId && workerBeforeUpdate) {

@@ -194,14 +194,20 @@ if (req.body.location) {
         },
       });
 
-      await prisma.logs.create({
+      try{ 
+             await prisma.logs.create({
         data: {
-          Status: `تم تسكين العاملة منزلية بتاريخ ${new Date().toLocaleDateString()}`,
+          Status: "تسكين",
+          // Status: `تم تسكين العاملة منزلية بتاريخ ${new Date().toLocaleDateString()} في سكن ${req.body.location}  - سبب التسكين ${req.body.reason} `,
           userId: req.body.employee,
           homemaidId: homeMaidId,
+          Details: `تم تسكين العاملة منزلية بتاريخ ${new Date().toLocaleDateString()} في سكن ${req.body.location}  - سبب التسكين ${req.body.reason} `,
+          reason: "تسكين",
         },
       });
-
+    }catch(error){
+      console.log(error)
+    }
       const homeMaidData = await prisma.homemaid.findUnique({
         where: {
           id: homeMaidId,
@@ -298,15 +304,20 @@ if (req.body.location) {
               : (search as any).isHasEntitlements,
         },
       });
+try {
+  
 
       await prisma.logs.create({
         data: {
-          Status: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ ${new Date().toLocaleDateString()}`,
+          Status: `تم تعديل بيانات التسكين `,
           userId: employee,
+          Details: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ `,//حقول التعديل
           homemaidId: homeMaidId,
         },
       });
-
+} catch (error) {
+  console.log(error)
+}
       // تسجيل العملية في systemlogs
       const userInfo = getUserFromCookies(req);
       if (userInfo.userId) {

@@ -89,10 +89,16 @@ export default async function handler(req, res) {
           id: true,
           location: true,
           quantity: true, // Total capacity
+          supervisor: true,
+          supervisorUser: {
+            select: {
+              id: true,
+              Name: true,
+            },
+          },
           housedWorkers: {
             where: {
-              deparatureHousingDate:null
-              // isActive: true, // Only count active housed workers
+              deparatureHousingDate: null
             },
             select: {
               id: true,
@@ -107,9 +113,11 @@ export default async function handler(req, res) {
         location: location.location,
         quantity: location.quantity, // Total capacity
         currentOccupancy: location.housedWorkers.length, // Number of active housed workers
+        supervisor: location.supervisor,
+        supervisorUser: location.supervisorUser,
       }));
 
-console.log(result)
+      // console.log(result)
       res.status(200).json(result);
     } catch (error) {
       console.log(error)
@@ -127,7 +135,8 @@ console.log(result)
       }
 
       const newLocation = await prisma.inHouseLocation.create({
-        data: {quantity,
+        data: {
+          quantity: Number(quantity),
           location,
         },
         include: {
@@ -154,12 +163,63 @@ console.log(result)
 
       res.status(201).json(newLocation);
     } catch (error) {
+      console.error(error);
       res.status(500).json({ error: 'Error creating location', details: error.message });
+    }
+  }
+  // Handle PUT request - Update inHouseLocation
+  else if (req.method === 'PUT') {
+    try {
+      const { id, supervisor, location, quantity } = req.body;
+
+      if (!id) {
+        return res.status(400).json({ error: 'id is required' });
+      }
+
+      const updateData: any = {};
+      
+      if (supervisor !== undefined) updateData.supervisor = supervisor ? Number(supervisor) : null;
+      if (location !== undefined) updateData.location = location;
+      if (quantity !== undefined) updateData.quantity = Number(quantity);
+
+      const updatedLocation = await prisma.inHouseLocation.update({
+        where: { id: Number(id) },
+        data: updateData,
+        include: {
+          supervisorUser: {
+            select: {
+              id: true,
+              Name: true,
+            }
+          }
+        }
+      });
+
+      // تسجيل العملية في systemlogs
+      const userInfo = getUserFromCookies(req);
+      if (userInfo.userId) {
+        let actionMsg = `تحديث بيانات السكن: ${updatedLocation.location}`;
+        if (supervisor) actionMsg += ` - مشرف: ${supervisor}`;
+        
+        await logToSystemLogs(
+          userInfo.userId,
+          'update',
+          actionMsg,
+          updatedLocation.location,
+          updatedLocation.id,
+          '/admin/housedarrivals'
+        );
+      }
+
+      res.status(200).json(updatedLocation);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Error updating location', details: error.message });
     }
   }
   // Handle unsupported methods
   else {
-    res.setHeader('Allow', ['GET', 'POST']);
+    res.setHeader('Allow', ['GET', 'POST', 'PUT']);
     res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 }

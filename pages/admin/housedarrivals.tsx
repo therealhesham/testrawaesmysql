@@ -3,7 +3,7 @@ import Head from 'next/head';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Style from 'styles/Home.module.css';
-import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Plus, Search, FileText, RotateCcw, Settings, MoreHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import { FaAddressBook, FaUserFriends } from 'react-icons/fa';
 import prisma from 'pages/api/globalprisma';
@@ -66,6 +66,11 @@ interface InHouseLocation {
   location: string;
   quantity: number;
   currentOccupancy?: number;
+  supervisor?: number;
+  supervisorUser?: {
+    id: number;
+    Name: string;
+  };
 }
 interface Homemaid {
   id: number;
@@ -198,7 +203,10 @@ setUserName(decoded.username);
     internalWorkerModal: false,
     deleteLocationConfirm: false,
     deleteNoteConfirm: false,
+    supervisorModal: false,
   });
+  const [selectedLocationForSupervisor, setSelectedLocationForSupervisor] = useState<InHouseLocation | null>(null);
+  const [supervisorSearchTerm, setSupervisorSearchTerm] = useState('');
   const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
   const [locationToDelete, setLocationToDelete] = useState<{ id: number; name: string } | null>(null);
   const [housedWorkers, setHousedWorkers] = useState<HousedWorker[]>([]);
@@ -426,6 +434,39 @@ useEffect(()=>{
       showNotification(errorMessage, 'error');
       closeModal('deleteLocationConfirm');
       setLocationToDelete(null);
+    }
+  };
+
+  const handleSaveSupervisor = async (homemaidId: number) => {
+    if (!selectedLocationForSupervisor) return;
+    try {
+      await axios.put('/api/inhouselocation', {
+        id: selectedLocationForSupervisor.id,
+        supervisor: homemaidId
+      });
+      showNotification('تم تعيين المشرفة بنجاح');
+      closeModal('supervisorModal');
+      setSelectedLocationForSupervisor(null);
+      setSupervisorSearchTerm('');
+      fetchLocations();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'خطأ في تعيين المشرفة', 'error');
+    }
+  };
+  const handleRemoveSupervisor = async () => {
+    if (!selectedLocationForSupervisor) return;
+    try {
+      await axios.put('/api/inhouselocation', {
+        id: selectedLocationForSupervisor.id,
+        supervisor: null
+      });
+      showNotification('تم حذف المشرفة بنجاح');
+      closeModal('supervisorModal');
+      setSelectedLocationForSupervisor(null);
+      setSupervisorSearchTerm('');
+      fetchLocations();
+    } catch (error: any) {
+      showNotification(error.response?.data?.error || 'خطأ في حذف المشرفة', 'error');
     }
   };
   // Fetch homemaids
@@ -1349,6 +1390,21 @@ const confirmDeleteNote = async () => {
                   progress === 100 ? 'red-600' : progress > 50 ? 'yellow-500' : 'green-600';
                 return (
                   <div key={location.id} className="bg-gray-100 border border-gray-300 rounded-md p-3 text-right relative">
+                    <button
+                      onClick={() => {
+                        setSelectedLocationForSupervisor(location);
+                        openModal('supervisorModal');
+                      }}
+                      className="absolute top-2 left-10 p-1 rounded-full hover:bg-gray-200 transition-colors z-10"
+                      title="اضافة مشرفة"
+                    >
+                      <UserPlus className="w-5 h-5 text-gray-600" />
+                    </button>
+                    {location.supervisorUser && (
+                        <div className="absolute top-10 left-2 text-xs text-gray-500">
+                            مشرفة: {location.supervisorUser.Name}
+                        </div>
+                    )}
                     <div className="absolute top-2 left-2" data-location-dropdown>
                       <div className="relative">
                         <button
@@ -3335,6 +3391,89 @@ const confirmDeleteNote = async () => {
                       className="bg-teal-800 text-white py-2 px-4 rounded-md text-md hover:bg-teal-700"
                     >
                       موافق
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Supervisor Selection Modal */}
+            {modals.supervisorModal && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('supervisorModal')}
+              >
+                <div
+                  className="bg-white rounded-xl p-8 w-full max-w-md shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
+                    ادارة المشرفة للسكن: {selectedLocationForSupervisor?.location}
+                  </h2>
+                  
+                  {/* Current Supervisor Section */}
+                  {selectedLocationForSupervisor?.supervisorUser && (
+                    <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <div className="text-right">
+                          <span className="text-gray-500 text-xs block mb-1">المشرفة الحالية</span>
+                          <span className="font-semibold text-teal-800 text-lg block">{selectedLocationForSupervisor.supervisorUser.Name}</span>
+                        </div>
+                        <button 
+                          onClick={handleRemoveSupervisor}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors"
+                          title="حذف المشرفة"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-4 relative">
+                    <label className="block text-right mb-2 text-sm font-medium text-gray-700">تغيير المشرفة</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="ابحث بالاسم..."
+                        value={supervisorSearchTerm}
+                        onChange={(e) => setSupervisorSearchTerm(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md p-3 pr-10 text-right focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                      />
+                      <Search className="absolute right-3 top-3.5 w-4 h-4 text-gray-400" />
+                    </div>
+                    
+                    {/* Results List - Only show if searching */}
+                    {supervisorSearchTerm && (
+                      <div className="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md shadow-sm bg-white absolute w-full z-10">
+                        {homemaids
+                          .filter(maid => maid.Name && maid.Name.includes(supervisorSearchTerm))
+                          .map((maid) => (
+                            <div
+                              key={maid.id}
+                              className="p-3 border-b last:border-b-0 hover:bg-teal-50 cursor-pointer text-right transition-colors flex justify-between items-center group"
+                              onClick={() => handleSaveSupervisor(maid.id)}
+                            >
+                              <span className="group-hover:text-teal-800">{maid.Name}</span>
+                              {selectedLocationForSupervisor?.supervisor === maid.id && (
+                                <span className="text-gray-400 text-xs bg-gray-100 px-2 py-1 rounded">مختارة حاليا</span>
+                              )}
+                            </div>
+                          ))}
+                        {homemaids.filter(maid => maid.Name && maid.Name.includes(supervisorSearchTerm)).length === 0 && (
+                          <div className="p-4 text-center text-gray-500 text-sm">لا توجد نتائج مطابقة</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-center mt-6">
+                    <button
+                      type="button"
+                      onClick={() => closeModal('supervisorModal')}
+                      className="bg-white text-gray-700 border border-gray-300 rounded-md px-6 py-2 text-sm hover:bg-gray-50 transition-colors"
+                    >
+                      إغلاق
                     </button>
                   </div>
                 </div>
