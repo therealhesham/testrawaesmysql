@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
-import { PlusIcon } from '@heroicons/react/outline';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRightIcon, MoonIcon, SunIcon, OfficeBuildingIcon, DocumentTextIcon, PlusCircleIcon, SearchIcon, ViewGridIcon, DotsHorizontalIcon, ArrowUpIcon, ReceiptTaxIcon, CreditCardIcon, RefreshIcon, CalendarIcon } from '@heroicons/react/outline';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { SettingFilled } from '@ant-design/icons';
+
 interface ClientAccountEntry {
   id: number;
   date: string;
@@ -80,12 +84,14 @@ const ClientStatementPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ClientAccountEntry | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
-function getDate(date: any) {
-  if (!date) return null;
-  const currentDate = new Date(date);
-  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
-  return formatted;
-}
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  function getDate(date: any) {
+    if (!date) return null;
+    const currentDate = new Date(date);
+    const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+    return formatted;
+  }
   
   // Filter states
   const [selectedEntryType, setSelectedEntryType] = useState('all');
@@ -142,16 +148,17 @@ function getDate(date: any) {
     setDebounceTimeout(timeout);
     return () => clearTimeout(timeout);
   }, [searchTerm]);
-useEffect(() => {
-  const user = localStorage.getItem('token');
-  if (user) {
-    // setUserId(Number(JSON.parse(user).id));
-    const decoded: any = jwtDecode(user);
-    setUserId(Number(decoded?.id));
-  } else {
-    setUserId(null);
-  }
-}, [userId]);
+
+  useEffect(() => {
+    const user = localStorage.getItem('token');
+    if (user) {
+      const decoded: any = jwtDecode(user);
+      setUserId(Number(decoded?.id));
+    } else {
+      setUserId(null);
+    }
+  }, []);
+
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -238,13 +245,11 @@ useEffect(() => {
     setShowEditModal(true);
   };
 
-
-
-
-
-
  const fieldNames: { [key: string]: string } = {
-    'officeLinkInfo': 'الربط مع إدارة المكاتب',
+  'officeLinkInfo': 'الربط مع إدارة المكاتب',
+   'travel_permit_issued':'تم إصدار تصريح السفر',
+
+   'foreign_labor_approved':'تمت الموافقة من وزارة العمل الأجنبية',
     'externalOfficeInfo': 'المكتب الخارجي',
     'externalOfficeApproval': 'موافقة المكتب الخارجي',
     'medicalCheck': 'الفحص الطبي',
@@ -256,19 +261,11 @@ useEffect(() => {
     'destinations': 'الوجهات',
     'receipt': 'الاستلام',
     'pending_external_office': 'في انتظار المكتب الخارجي',
-    'ticketUpload': 'رفع المستندات'
-  };
+    'ticketUpload': 'رفع المستندات'  };
 
   const translateContractStatus = (status: string) => {
-    // alert(status);
-    // alert(fieldNames[status]);
     return fieldNames[status] || status;
   };
-
-
-
-
-
 
   const hasMoreThan3Decimals = (n: number) => {
     const rounded = Math.round(n * 1000) / 1000;
@@ -286,6 +283,133 @@ useEffect(() => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
+
+  const exportToPDF = async () => {
+    if (!statement) return;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    try {
+      const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+      
+      const response = await fetch('/fonts/Amiri-Regular.ttf');
+      if (!response.ok) throw new Error('Failed to fetch font');
+      const fontBuffer = await response.arrayBuffer();
+      const fontBytes = new Uint8Array(fontBuffer);
+      const fontBase64 = Buffer.from(fontBytes).toString('base64');
+
+      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+      doc.setFont('Amiri', 'normal');
+    } catch (error) {
+      console.error('Error loading assets:', error);
+      doc.setFont('helvetica', 'normal');
+    }
+
+    doc.setLanguage('ar');
+    doc.setFontSize(16);
+
+    const tableColumn = ["#", "التاريخ", "البيان", "مدين", "دائن", "الرصيد"];
+    const tableRows: any[] = [];
+
+    statement.entries.forEach((entry, index) => {
+      const rowData = [
+        (index + 1).toString(),
+        getDate(entry.date),
+        entry.description,
+        entry.debit > 0 ? formatCurrency(entry.debit) : 'ـــ',
+        entry.credit > 0 ? formatCurrency(entry.credit) : 'ـــ',
+        formatCurrency(entry.balance)
+      ];
+      tableRows.push(rowData);
+    });
+
+    // Add total row
+    const totalRow = [
+       "",
+       "",
+       "الاجمالي",
+       formatCurrency(statement.totals.totalDebit),
+       formatCurrency(statement.totals.totalCredit),
+       formatCurrency(statement.totals.netAmount)
+    ];
+    tableRows.push(totalRow);
+    
+    const logo = await fetch('https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png');
+    const logoBuffer = await logo.arrayBuffer();
+    const logoBytes = new Uint8Array(logoBuffer);
+    const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      styles: { font: 'Amiri', halign: 'right', fontSize: 10 },
+      headStyles: { fillColor: [26, 77, 79], textColor: [255, 255, 255] },
+      margin: { top: 60, right: 10, left: 10 },
+      didDrawPage: (data: any) => {
+         const pageWidth = doc.internal.pageSize.width;
+         const pageHeight = doc.internal.pageSize.height;
+        
+         // Header Info
+         doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+         doc.setFontSize(14);
+         doc.text(`كشف حساب العميل: ${statement.client?.fullname || ''}`, pageWidth / 2, 20, { align: 'center' });
+         doc.setFontSize(10);
+         doc.text(`تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}`, 10, 20, { align: 'left' });
+         
+          // Client Info Section just below header
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+             doc.text(`رقم الهوية: ${statement.client?.nationalId || '-'}`, pageWidth - 20, 45, { align: 'right' });
+             doc.text(`رقم الجوال: ${statement.client?.phonenumber || '-'}`, pageWidth - 80, 45, { align: 'right' });
+          }
+
+         // Footer
+         const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
+         doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
+    });
+
+    doc.save(`كشف_حساب_${statement.client?.fullname || 'عميل'}.pdf`);
+  };
+
+  const exportToExcel = () => {
+    if (!statement) return;
+    
+    const worksheetData = statement.entries.map((entry, index) => ({
+      '#': index + 1,
+      'التاريخ': getDate(entry.date),
+      'البيان': entry.description,
+      'مدين': entry.debit > 0 ? formatCurrency(entry.debit) : 'ـــ',
+      'دائن': entry.credit > 0 ? formatCurrency(entry.credit) : 'ـــ',
+      'الرصيد': formatCurrency(entry.balance)
+    }));
+
+    // Add totals
+    worksheetData.push({
+      '#': '',
+      'التاريخ': '',
+      'البيان': 'الاجمالي',
+      'مدين': formatCurrency(statement.totals.totalDebit),
+      'دائن': formatCurrency(statement.totals.totalCredit),
+      'الرصيد': formatCurrency(statement.totals.netAmount)
+    } as any);
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    
+    // Adjust column widths
+    worksheet['!cols'] = [
+      { wch: 5 }, { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'كشف الحساب');
+    XLSX.writeFile(workbook, `كشف_حساب_${statement.client?.fullname || 'عميل'}.xlsx`);
+  };
+
 
   if (loading) {
     return (
@@ -309,229 +433,243 @@ useEffect(() => {
 
   return (
     <Layout>
-      <div className={`${Style["tajawal-regular"]} min-h-screen p-6 `} dir="rtl">
-        {/* Page Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-             <button
-              onClick={() => router.back()}
-              className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-              title="العودة للصفحة السابقة"
-            >
-              <ArrowRight className="w-6 h-6 text-teal-800" />
-            </button>
-            <h1 className="text-3xl font-normal text-black">
-              {statement.client?.fullname} - {statement.client?.nationalId}
-            </h1>
-          </div>
-        </div>
+    <div className={`bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 ${Style["tajawal-regular"]} ${isDarkMode ? 'dark' : ''}`} dir="rtl">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <header className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => router.back()}
+                        className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                    >
+                        <ArrowRightIcon className="w-6 h-6 text-slate-900 dark:text-white transform rotate-180" />
+                    </button>
+                    <div className="flex flex-col">
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                            {statement.client?.fullname}
+                        </h1>
+                        <span className="text-slate-500 dark:text-slate-400 text-md">ID: {statement.client?.nationalId}</span>
+                    </div>
+                </div>
+            </header>
 
-        {/* Client Info Cards */}
-        <div className="client-info-section">
-          <div className="info-card">
-            <h3>معلومات الطلب</h3>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="label text-lg">تاريخ الطلب:</span>
-                <span className="value">{statement.order ? formatDate(statement.order.createdAt) : formatDate(statement.client?.createdAt)}</span>
-              </div>
-              <div className="info-item">
-                <span className="label text-lg">حالة العقد:</span>
-                <span className="value">{translateContractStatus(statement.order?.bookingstatus || '')}</span>
-              </div>
-              <div className="info-item">
-                <span className="label text-lg">تاريخ الوصول:</span>
-                <span className="value">
-                  {statement.order?.arrivals?.[0]?.KingdomentryDate ? formatDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
-                </span>
-              </div>
-              <div className="info-item">
-                <span className="label text-lg">تاريخ انتهاء الضمان :</span>
-                <span className="value">
-                  {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd ? formatDate(statement.order.arrivals[0].GuaranteeDurationEnd) : 'غير محدد'}
-                </span>
-              </div>
-              <div className="info-item">
-                <span className="label text-lg">المبلغ المطلوب:</span>
-                <span className="value">
-                  {statement.order?.Total != null ? formatCurrency(statement.order.Total) : 'ـــ'}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="info-card">
-            <h3>معلومات المكتب</h3>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="label">اسم المكتب:</span>
-                <span className="value">{statement.order?.HomeMaid?.office?.office || statement.officeName || 'غير محدد'}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">الدولة:</span>
-                <span className="value">{statement.order?.HomeMaid?.office?.Country || 'غير محدد'}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">رقم هاتف المكتب:</span>
-                <span className="value">{statement.order?.HomeMaid?.office?.phoneNumber || 'غير محدد'}</span>
-              </div>
-              <div className="info-item">
-                <span className="label">اسم العاملة:</span>
-                <span className="value">{statement.order?.HomeMaid?.Name || 'غير محدد'}</span>
-              </div>
-              
-            </div>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* Office Info Card */}
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
+                        <OfficeBuildingIcon className="w-6 h-6 text-primary" />
+                        <h2 className="text-lg font-bold">معلومات المكتب</h2>
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-4 text-md">
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">الدولة</p>
+                            <p className="font-medium">{statement.order?.HomeMaid?.office?.Country || 'غير محدد'}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">اسم المكتب</p>
+                            <p className="font-medium">{statement.order?.HomeMaid?.office?.office || statement.officeName || 'غير محدد'}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">اسم العاملة</p>
+                            <p className="font-medium cursor-pointer" onClick={() => router.push(`/admin/homemaidinfo?id=${statement.order?.HomeMaid?.id}`)}>{statement.order?.HomeMaid?.Name || 'غير محدد'}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">رقم هاتف المكتب</p>
+                            <p className="font-medium text-slate-400 italic">{statement.order?.HomeMaid?.office?.phoneNumber || 'غير محدد'}</p>
+                        </div>
+                    </div>
+                </div>
 
-        {/* Statement Filter */}
-        <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 mb-6">
-          <div className="grid grid-cols-4  gap-4 mb-4">
-           
-     <div className="flex flex-col">
-              <label className="text-md text-gray-700 mb-2">من</label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded text-md text-gray-600 "
-              />
+                {/* Order Info Card */}
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
+                        <DocumentTextIcon className="w-6 h-6 text-primary" />
+                        <h2 className="text-lg font-bold">معلومات الطلب</h2>
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-4 text-md">
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">تاريخ الطلب</p>
+                            <p className="font-medium">
+                                {statement.order ? formatDate(statement.order.createdAt) : formatDate(statement.client?.createdAt)}
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">حالة العقد</p>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-md font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                {translateContractStatus(statement.order?.bookingstatus || '')}
+                            </span>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">تاريخ الوصول</p>
+                            <p className="font-medium text-slate-400 italic">
+                                {statement.order?.arrivals?.[0]?.KingdomentryDate ? formatDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-slate-400 dark:text-slate-500">تاريخ انتهاء الضمان</p>
+                            <p className="font-medium text-slate-400 italic">
+                                {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd ? formatDate(statement.order.arrivals[0].GuaranteeDurationEnd) : 'غير محدد'}
+                            </p>
+                        </div>
+                        <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
+                            <p className="text-slate-400 dark:text-slate-500">المبلغ المطلوب</p>
+                            <p className="text-xl font-bold text-primary">
+                                {statement.order?.Total != null ? formatCurrency(statement.order.Total) : 'ـــ'} <span className="text-md font-normal text-slate-500">ر.س</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="flex flex-col">
-              <label className="text-md text-gray-700 mb-2">الى</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
-              />
-            </div>
- <div className="flex flex-col">
-              <label className="text-md text-gray-700 mb-2">نوع الحركة</label>
-              <select
-                value={selectedEntryType}
-                onChange={(e) => setSelectedEntryType(e.target.value)}
-                className="bg-gray-50 border border-gray-300 rounded  text-md text-gray-600 "
-              >
-                <option value="all">اختر نوع الحركة</option>
-                {/* <option value="income">ايراد</option> */}
-                <option value="expense">مصروف</option>
-                <option value="payment">دفعة</option>
-              </select>
-            </div>
-       
-          </div>
-          <div className="flex justify-end">  
-          <button
-            onClick={() => fetchStatement()}
-            className="bg-teal-800 text-white  rounded text-md h-74 min-w-[123px]"
-          >
-            كشف حساب
-          </button>
-          </div>
-        </div>
 
-        {/* Statement Table */}
-        <div className="bg-white">
-          <div className="flex items-center gap-2 mb-4 px-4 w-full">
-            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-16 h-[34px]">
-              Excel
-            </button>
-            <button className="bg-teal-800 text-white px-3 py-1 rounded text-md  w-14 h-[34px]">
-              PDF
-            </button>
-            <div className="flex-1 max-w-64">
-              <input
-                type="text"
-                placeholder="بحث"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-md text-gray-600"
-              />
-            </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-teal-800 text-white px-3 py-1 rounded text-md h-[34px] mr-auto"
-            >
-              <span>اضافة سجل</span>
-              <PlusIcon className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Statement Table */}
-          <div className="bg-gray-100 border border-gray-300 rounded overflow-hidden">
-            <table className="w-full text-right bg-white">
-              {/* Table Header */}
-              <thead className="bg-teal-800 text-white">
-                <tr>
-                  <th className="p-4 text-center text-md font-normal">#</th>
-                  <th className="p-4 text-center text-md font-normal">التاريخ</th>
-                  <th className="p-4 text-center text-md font-normal">البيان</th>
-                  <th className="p-4 text-center text-md font-normal">مدين</th>
-                  <th className="p-4 text-center text-md font-normal">دائن</th>
-                  <th className="p-4 text-center text-md font-normal">الرصيد</th>
-                  <th className="p-4 text-center text-md font-normal">اجراءات</th>
-                </tr>
-              </thead>
-
-              {/* Table Rows */}
-              <tbody className="bg-white">
-                {statement?.entries?.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">لا توجد بيانات</td>
-                  </tr>
-                ) : (
-                  statement?.entries?.map((entry, index) => (
-                    <tr key={entry.id} className="border-b border-gray-300 bg-gray-50 hover:bg-gray-100">
-                      <td className="p-4 text-center text-md text-gray-700">#{index + 1}</td>
-                      <td className="p-4 text-center text-md text-gray-700">
-                        {getDate(entry.date)}
-                      </td>
-                      <td className="p-4 text-center text-md text-gray-700">
-                        {entry.description}
-                      </td>
-                      <td className="p-4 text-center text-md text-gray-700">
-                        {entry.debit > 0 ? formatCurrency(entry.debit) : 'ـــ'}
-                      </td>
-                      <td className="p-4 text-center text-md text-gray-700">
-                        {entry.credit > 0 ? formatCurrency(entry.credit) : 'ـــ'}
-                      </td>
-                      <td className="p-4 text-center text-md text-gray-700">
-                        {formatCurrency(entry.balance)}
-                      </td>
-                      <td className="p-4 text-center">
-                        <button
-                          onClick={() => openEditModal(entry)}
-                          className="bg-teal-800 text-white px-3 py-1 rounded text-md"
+            {/* Filter Section */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                    <div className="space-y-2">
+                        <label className="text-md font-medium text-slate-600 dark:text-slate-400">من تاريخ</label>
+                        <input 
+                            type="date"
+                            value={fromDate}
+                            onChange={(e) => setFromDate(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-md focus:ring-primary focus:border-primary p-2"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-md font-medium text-slate-600 dark:text-slate-400">إلى تاريخ</label>
+                        <input 
+                            type="date"
+                            value={toDate}
+                            onChange={(e) => setToDate(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-md focus:ring-primary focus:border-primary p-2"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-md font-medium text-slate-600 dark:text-slate-400">نوع الحركة</label>
+                        <select 
+                            value={selectedEntryType}
+                            onChange={(e) => setSelectedEntryType(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-md focus:ring-primary focus:border-primary "
                         >
-                          اجراءات
+                            <option value="all">اختر نوع الحركة</option>
+                            <option value="expense">مصروف</option>
+                            <option value="payment">دفعة</option>
+                        </select>
+                    </div>
+                    <button 
+                        onClick={() => fetchStatement()}
+                        className="bg-primary text-white py-2 px-6 rounded-lg font-medium hover:bg-opacity-90 transition-all flex items-center justify-center gap-2"
+                    >
+                        <ReceiptTaxIcon className="w-5 h-5 bg-transparent text-white" />
+                        كشف حساب
+                    </button>
+                </div>
+            </div>
+
+            {/* Table Section */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setShowAddModal(true)}
+                            className="bg-primary text-white py-2 px-4 rounded-lg text-md font-medium flex items-center gap-1 hover:bg-opacity-90 transition-all shadow-sm"
+                        >
+                            <PlusCircleIcon className="w-5 h-5 bg-transparent text-white" />
+                            إضافة سجل
                         </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
+                    </div>
+                    <div className="flex items-center gap-3 flex-grow md:flex-grow-0">
+                        <div className="relative flex-grow md:w-64">
+                            <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                            <input 
+                                type="text"
+                                placeholder="بحث..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pr-10 pl-4 py-2 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg text-md focus:ring-primary focus:border-primary"
+                            />
+                        </div>
+                        <div className="flex gap-1 border-r border-slate-200 dark:border-slate-700 pr-3">
+                            <button 
+                                onClick={exportToPDF}
+                                className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all" 
+                                title="Export PDF"
+                            >
+                                <DocumentTextIcon className="w-5 h-5" />
+                            </button>
+                            <button 
+                                onClick={exportToExcel}
+                                className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all" 
+                                title="Export Excel"
+                            >
+                                <ViewGridIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-              {/* Table Footer */}
-              <tfoot className="bg-gray-50 border-t border-gray-700">
-                <tr>
-                  <td colSpan={3} className="p-4 text-base font-normal text-gray-700 text-right">الاجمالي</td>
-                  <td className="p-4 text-center text-md text-gray-700">
-                    {formatCurrency(statement?.totals?.totalDebit || 0)}
-                  </td>
-                  <td className="p-4 text-center text-md text-gray-700">
-                    {formatCurrency(statement?.totals?.totalCredit || 0)}
-                  </td>
-                  <td className="p-4 text-center text-md text-gray-700">
-                    {formatCurrency(statement?.totals?.netAmount || 0)}
-                  </td>
-                  <td className="p-4"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-right border-collapse">
+                        <thead className="bg-[#0D5C63] text-white">
+                            <tr>
+                                <th className="px-6 py-4 text-md font-semibold first:rounded-tr-lg">#</th>
+                                <th className="px-6 py-4 text-md font-semibold">التاريخ</th>
+                                <th className="px-6 py-4 text-md font-semibold">البيان</th>
+                                <th className="px-6 py-4 text-md font-semibold">مدين</th>
+                                <th className="px-6 py-4 text-md font-semibold">دائن</th>
+                                <th className="px-6 py-4 text-md font-semibold">الرصيد</th>
+                                <th className="px-6 py-4 text-md font-semibold last:rounded-tl-lg">اجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                             {statement?.entries?.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="p-8 text-center text-gray-500">لا توجد بيانات</td>
+                                </tr>
+                            ) : (
+                                statement?.entries?.map((entry, index) => (
+                                    <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <td className="px-6 py-4 text-md font-medium">#{index + 1}</td>
+                                        <td className="px-6 py-4 text-md">{getDate(entry.date)}</td>
+                                        <td className="px-6 py-4 text-md">{entry.description}</td>
+                                        <td className="px-6 py-4 text-md font-mono">{entry.debit > 0 ? formatCurrency(entry.debit) : '-'}</td>
+                                        <td className="px-6 py-4 text-md font-mono">{entry.credit > 0 ? formatCurrency(entry.credit) : '-'}</td>
+                                        <td className="px-6 py-4 text-md font-bold text-primary">{formatCurrency(entry.balance)}</td>
+                                        <td className="px-6 py-4 text-md">
+                                            <button 
+                                                onClick={() => openEditModal(entry)}
+                                                className="text-primary hover:underline font-medium flex items-center gap-1"
+                                            >
+                                                <SettingFilled className="w-4 h-4 bg-transparent text-primary" />
+                                                اجراءات
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                        <tfoot className="bg-slate-50 dark:bg-slate-800/50 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                            <tr>
+                                <td className="px-6 py-4 text-md text-left" colSpan={3}>الإجمالي</td>
+                                <td className="px-6 py-4 text-md font-mono">{formatCurrency(statement?.totals?.totalDebit || 0)}</td>
+                                <td className="px-6 py-4 text-md font-mono text-emerald-600 dark:text-emerald-400">{formatCurrency(statement?.totals?.totalCredit || 0)}</td>
+                                <td className="px-6 py-4 text-md font-mono text-primary">{formatCurrency(statement?.totals?.netAmount || 0)}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
 
+            <button 
+                className="fixed bottom-8 left-8 bg-primary text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform focus:outline-none z-50" 
+                onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}
+            >
+                <ArrowUpIcon className="w-6 h-6 bg-transparent text-white" />
+            </button>
+        </main>
+
+        <footer className="text-center py-8 text-slate-400 dark:text-slate-600 text-md">
+            
+        </footer>
+        
         {/* Add Entry Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
@@ -652,10 +790,9 @@ useEffect(() => {
             </div>
           </div>
         )}
-      </div>
+    </div>
     </Layout>
   );
 };
 
 export default ClientStatementPage;
-

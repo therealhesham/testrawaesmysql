@@ -362,6 +362,9 @@ const fetchForeignOffices = async()=>{
 }
   const fieldNames: { [key: string]: string } = {
     'officeLinkInfo': 'الربط مع إدارة المكاتب',
+   'travel_permit_issued':'تم إصدار تصريح السفر',
+
+   'foreign_labor_approved':'تمت الموافقة من وزارة العمل الأجنبية',
     'externalOfficeInfo': 'المكتب الخارجي',
     'externalOfficeApproval': 'موافقة المكتب الخارجي',
     'medicalCheck': 'الفحص الطبي',
