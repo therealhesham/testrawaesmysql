@@ -846,9 +846,9 @@ function getDate(date: string) {
                     <React.Fragment key={statement.id}>
                       <tr
                         className="border-b border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                        // onClick={() => toggleRowExpansion(statement.id)}
+                        onClick={() => toggleRowExpansion(statement.id)}
                       >
-                        <td className="p-4 text-center text-md text-gray-700 " onClick={()=>router.push("/admin/client-accounts/"+statement.id)} >#{statement.id}</td>
+                        <td className="p-4 text-center text-md text-gray-700 "  onClick={()=>router.push("/admin/client-accounts/"+statement.id)}>#{statement.id}</td>
                         <td className="p-4 text-center text-md text-gray-700">
                           {formatDate(statement.createdAt)}
                         </td>
