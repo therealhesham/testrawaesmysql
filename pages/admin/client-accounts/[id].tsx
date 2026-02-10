@@ -489,7 +489,7 @@ const ClientStatementPage = () => {
                         <div className="space-y-1">
                             <p className="text-slate-400 dark:text-slate-500">تاريخ الطلب</p>
                             <p className="font-medium">
-                                {statement.order ? formatDate(statement.order.createdAt) : formatDate(statement.client?.createdAt)}
+                                {statement.order ? getDate(statement.order.createdAt) : getDate(statement.client?.createdAt)}
                             </p>
                         </div>
                         <div className="space-y-1">
