@@ -83,6 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     await prisma.clientAccountEntry.create({
       data: {
+        isEditable: false,
         statementId: statement.id,
         date: new Date(),
         description: 'دفعة أولى',
@@ -92,6 +93,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         entryType: 'payment',
       },
     });
+
+    try{
+await prisma.logs.create({
+  data: {
+  Status:"إضافة سجل محاسبي",
+  homemaidId:order.HomemaidId,
+  Details:"إضافة دفعة اولى  من خلال صفحة تتبع الطلب",
+  reason:"إضافة سجل محاسبي",
+  
+  }
+})
+    }catch(error){
+      console.error('Error creating accounting records from order:', error);
+    
+    }
+
+
+    try{
+await prisma.systemUserLogs.create({
+  data: {
+action:"إضافة دفعة اولى من خلال صفحة تتبع الطلب",
+actionType:"create",
+pageRoute:"/admin/track_order/"+orderId,
+BeneficiaryId:order.HomemaidId,
+
+  }
+})
+    }catch(error){
+      console.error('Error creating accounting records from order:', error);
+    
+    }
 
     return res.status(200).json({
       message: 'تم إنشاء السجلات المحاسبية بنجاح',

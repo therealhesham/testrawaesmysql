@@ -915,8 +915,10 @@ model ClientAccountEntry {
   date           DateTime
   description    String    @db.VarChar(500)
   debit          Decimal   @default(0)
+  displayOrder   Int?   @default(0)
   credit         Decimal   @default(0)
   balance        Decimal   @default(0)
+  isEditable      Boolean?
   entryType      String?   @db.VarChar(100) // نوع الحركة
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

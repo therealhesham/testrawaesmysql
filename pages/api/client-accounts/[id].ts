@@ -75,7 +75,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
           entries: {
             where: whereClause.AND.length > 0 ? whereClause : undefined,
-            orderBy: { date: 'asc' }
+            orderBy: [
+              { displayOrder: 'asc' },
+              { date: 'asc' }
+            ]
           }
         }
       });

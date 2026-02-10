@@ -1,15 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
-import { ArrowRightIcon, MoonIcon, SunIcon, OfficeBuildingIcon, DocumentTextIcon, PlusCircleIcon, SearchIcon, ViewGridIcon, DotsHorizontalIcon, ArrowUpIcon, ReceiptTaxIcon, CreditCardIcon, RefreshIcon, CalendarIcon } from '@heroicons/react/outline';
+import { ArrowRightIcon, MoonIcon, SunIcon, OfficeBuildingIcon, DocumentTextIcon, PlusCircleIcon, SearchIcon, ViewGridIcon, DotsHorizontalIcon, ArrowUpIcon, ReceiptTaxIcon, CreditCardIcon, RefreshIcon, CalendarIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/outline';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { SettingFilled } from '@ant-design/icons';
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ClientAccountEntry {
+  isEditable: boolean;
   id: number;
   date: string;
   description: string;
@@ -75,6 +93,71 @@ interface ClientAccountStatement {
   };
 }
 
+// Sortable Row Component
+const SortableRow = ({ entry, index, formatCurrency, getDate, openEditModal }: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: entry.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: 'move',
+    zIndex: isDragging ? 9999 : 'auto',
+    position: isDragging ? 'relative' as 'relative' : undefined, // Ensure proper positioning
+    backgroundColor: isDragging ? '#f0f9ff' : undefined, // Light blue background when dragging
+  };
+
+  return (
+    <tr 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners}
+      className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+    >
+        <td className="px-6 py-4 text-md font-medium">#{index + 1}</td>
+        <td className="px-6 py-4 text-md">{getDate(entry.date)}</td>
+        <td className="px-6 py-4 text-md">{entry.description}</td>
+        <td className="px-6 py-4 text-md font-mono">{entry.debit > 0 ? formatCurrency(entry.debit) : '-'}</td>
+        <td className="px-6 py-4 text-md font-mono">{entry.credit > 0 ? formatCurrency(entry.credit) : '-'}</td>
+        <td className="px-6 py-4 text-md font-bold text-primary">{formatCurrency(entry.balance)}</td>
+        <td className="px-6 py-4 text-md">
+            
+            {
+              entry?.isEditable !== false ? (
+                // Prevent drag on button click by stopping propagation on the button itself if needed, 
+                // but since the whole row is draggable handle, we should probably make only a specific handle draggable OR
+                // ensure button clicks work. With {...listeners} on TR, the whole row is a handle.
+                // Usually button clicks still work unless we prevent default.
+                <button 
+                onPointerDown={(e) => e.stopPropagation()} // Prevent drag start when clicking button
+                onClick={() => openEditModal(entry)}
+                className="text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer"
+            >
+                <SettingFilled className="w-4 h-4 bg-transparent text-primary" />
+                اجراءات
+            </button>
+                ) : 
+                <button 
+                disabled
+                className="text-primary hover:underline font-medium flex items-center gap-1 opacity-50 cursor-not-allowed"
+            >
+                {/* <SettingFilled className="w-4 h-4 bg-transparent text-primary" /> */}
+                {/* اجراءات */}
+            </button>
+            }
+        </td>
+    </tr>
+  );
+};
+
 const ClientStatementPage = () => {
   const router = useRouter();
   const { id } = router.query;
@@ -85,6 +168,15 @@ const ClientStatementPage = () => {
   const [editingEntry, setEditingEntry] = useState<ClientAccountEntry | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const showMessage = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text });
+  };
+
+  const closeMessage = () => {
+    setMessage(null);
+  };
 
   function getDate(date: any) {
     if (!date) return null;
@@ -125,8 +217,60 @@ const ClientStatementPage = () => {
       setStatement(data);
     } catch (error) {
       console.error('Error fetching client statement:', error);
+      showMessage('error', 'فشل في جلب كشف الحساب');
     } finally {
       setLoading(false);
+    }
+  };
+  
+    const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts to prevent accidental drags on clicks
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id && statement) {
+      setStatement((prev: any) => {
+        const oldIndex = prev.entries.findIndex((item: any) => item.id === active.id);
+        const newIndex = prev.entries.findIndex((item: any) => item.id === over?.id);
+        
+        const newEntries = arrayMove(prev.entries, oldIndex, newIndex);
+        
+        // Return new state with updated entries
+        return {
+          ...prev,
+          entries: newEntries
+        };
+      });
+
+      // We need to get the new order IDs to send to API
+      // We can't rely on 'statement' state here because setState is async
+      // So we calculate it again or use a functional update and side effect.
+      // Better to calculate new order locally for API call.
+       const oldIndex = statement.entries.findIndex((item) => item.id === active.id);
+       const newIndex = statement.entries.findIndex((item) => item.id === over?.id);
+       const newEntries = arrayMove(statement.entries, oldIndex, newIndex);
+       const orderedIds = newEntries.map(e => e.id);
+
+       try {
+         await fetch('/api/client-accounts/reorder-entries', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ orderedIds }),
+         });
+         // showMessage('success', 'تم حفظ الترتيب'); // Optional: show message or just fail silently/log error
+       } catch (error) {
+         console.error('Failed to save order:', error);
+         showMessage('error', 'فشل حفظ الترتيب');
+       }
     }
   };
 
@@ -161,6 +305,15 @@ const ClientStatementPage = () => {
 
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const debit = Number(formData.debit) || 0;
+    const credit = Number(formData.credit) || 0;
+
+    if (debit > 0 && credit > 0) {
+      showMessage('error', 'لا يمكن إدخال مبلغ في المدين والدائن معاً. يرجى إدخال مبلغ في حقل واحد فقط.');
+      return;
+    }
+
     try {
       const response = await fetch('/api/client-accounts/entries', {
         method: 'POST',
@@ -189,15 +342,28 @@ const ClientStatementPage = () => {
           entryType: ''
         });
         fetchStatement();
+        showMessage('success', 'تم إضافة السجل بنجاح');
+      } else {
+        const data = await response.json();
+        showMessage('error', data.message || 'فشل في إضافة السجل');
       }
     } catch (error) {
       console.error('Error adding entry:', error);
+      showMessage('error', 'حدث خطأ أثناء إضافة السجل');
     }
   };
 
   const handleEditEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
+
+    const debit = Number(formData.debit) || 0;
+    const credit = Number(formData.credit) || 0;
+
+    if (debit > 0 && credit > 0) {
+      showMessage('error', 'لا يمكن إدخال مبلغ في المدين والدائن معاً. يرجى إدخال مبلغ في حقل واحد فقط.');
+      return;
+    }
 
     try {
       const response = await fetch(`/api/client-accounts/entries/${editingEntry.id}`, {
@@ -226,9 +392,14 @@ const ClientStatementPage = () => {
           entryType: ''
         });
         fetchStatement();
+        showMessage('success', 'تم تعديل السجل بنجاح');
+      } else {
+        const data = await response.json();
+        showMessage('error', data.message || 'فشل في تعديل السجل');
       }
     } catch (error) {
       console.error('Error editing entry:', error);
+      showMessage('error', 'حدث خطأ أثناء تعديل السجل');
     }
   };
 
@@ -624,25 +795,27 @@ const ClientStatementPage = () => {
                                     <td colSpan={7} className="p-8 text-center text-gray-500">لا توجد بيانات</td>
                                 </tr>
                             ) : (
-                                statement?.entries?.map((entry, index) => (
-                                    <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                        <td className="px-6 py-4 text-md font-medium">#{index + 1}</td>
-                                        <td className="px-6 py-4 text-md">{getDate(entry.date)}</td>
-                                        <td className="px-6 py-4 text-md">{entry.description}</td>
-                                        <td className="px-6 py-4 text-md font-mono">{entry.debit > 0 ? formatCurrency(entry.debit) : '-'}</td>
-                                        <td className="px-6 py-4 text-md font-mono">{entry.credit > 0 ? formatCurrency(entry.credit) : '-'}</td>
-                                        <td className="px-6 py-4 text-md font-bold text-primary">{formatCurrency(entry.balance)}</td>
-                                        <td className="px-6 py-4 text-md">
-                                            <button 
-                                                onClick={() => openEditModal(entry)}
-                                                className="text-primary hover:underline font-medium flex items-center gap-1"
-                                            >
-                                                <SettingFilled className="w-4 h-4 bg-transparent text-primary" />
-                                                اجراءات
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
+                                <DndContext 
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  onDragEnd={handleDragEnd}
+                                >
+                                  <SortableContext 
+                                    items={statement?.entries?.map(e => e.id) || []}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {statement?.entries?.map((entry, index) => (
+                                        <SortableRow 
+                                          key={entry.id}
+                                          entry={entry}
+                                          index={index}
+                                          formatCurrency={formatCurrency}
+                                          getDate={getDate}
+                                          openEditModal={openEditModal}
+                                        />
+                                    ))}
+                                  </SortableContext>
+                                </DndContext>
                             )}
                         </tbody>
                         <tfoot className="bg-slate-50 dark:bg-slate-800/50 font-bold border-t-2 border-slate-200 dark:border-slate-700">
@@ -790,6 +963,45 @@ const ClientStatementPage = () => {
             </div>
           </div>
         )}
+
+        {/* Message Modal */}
+        {message && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] animate-fade-in">
+            <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-[400px] max-w-[90%] transform transition-all scale-100 ${
+               message.type === 'success' ? 'border-t-4 border-emerald-500' : 'border-t-4 border-red-500'
+            }`}>
+              <div className="flex flex-col items-center text-center gap-4">
+                {message.type === 'success' ? (
+                  <div className="bg-emerald-100 dark:bg-emerald-900/30 p-3 rounded-full">
+                    <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                ) : (
+                   <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full">
+                    <ExclamationCircleIcon className="w-12 h-12 text-red-600 dark:text-red-400" />
+                   </div>
+                )}
+                
+                <h3 className={`text-xl font-bold ${message.type === 'success' ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+                  {message.type === 'success' ? 'تمت العملية بنجاح' : 'تنبيه'}
+                </h3>
+                
+                <p className="text-slate-600 dark:text-slate-300 font-medium">
+                  {message.text}
+                </p>
+
+                <button 
+                  onClick={closeMessage}
+                  className={`mt-2 px-6 py-2 rounded-lg text-white font-medium transition-colors w-full ${
+                    message.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  حسناً
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
     </div>
     </Layout>
   );
