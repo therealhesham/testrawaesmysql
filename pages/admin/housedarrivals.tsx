@@ -1628,28 +1628,28 @@ const confirmDeleteNote = async () => {
   </button>
 </div>
               </div>
-              <div className="">
+              <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-teal-800 text-white">
-                      {columnVisibility.id && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
-                      {columnVisibility.Name && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
-                      {columnVisibility.phone && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
-                      {columnVisibility.Nationalitycopy && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
-                      {columnVisibility.Passportnumber && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
-                      {columnVisibility.location && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>}
-                      {columnVisibility.Reason && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                      {columnVisibility.id && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
+                      {columnVisibility.Name && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
+                      {columnVisibility.phone && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
+                      {columnVisibility.Nationalitycopy && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
+                      {columnVisibility.Passportnumber && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
+                      {columnVisibility.location && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>}
+                      {columnVisibility.Reason && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
                       </th>}
-                      {columnVisibility.houseentrydate && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                      {columnVisibility.houseentrydate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'تاريخ التسكين' : 'تاريخ المغادرة'}
                       </th>}
-                      {columnVisibility.deliveryDate && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>}
-                      {columnVisibility.duration && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>}
-                      {columnVisibility.employee && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>}
-                      {columnVisibility.entitlements && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>}
-                      {columnVisibility.notes && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>}
-                      {columnVisibility.actions && <th className="py-4 px-4 text-right text-md border-b no-wrap text-nowrap border-teal-700">اجراءات</th>}
+                      {columnVisibility.deliveryDate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>}
+                      {columnVisibility.duration && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>}
+                      {columnVisibility.employee && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>}
+                      {columnVisibility.entitlements && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>}
+                      {columnVisibility.notes && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">ملاحظات</th>}
+                      {columnVisibility.actions && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">اجراءات</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1664,29 +1664,29 @@ const confirmDeleteNote = async () => {
                         <tr
                           className="bg-gray-50 text-nowrap border-b border-gray-300 hover:bg-gray-100 transition-colors"
                         >
-                          {columnVisibility.id && <td className="py-4 px-4 text-right cursor-pointer text-md" onClick={()=>router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</td>}
-                          {columnVisibility.Name && <td className="py-4 px-4 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>}
-                          {columnVisibility.phone && <td className="py-4 px-4 text-right text-md">{worker.Order?.phone || ''}</td>}
-                          {columnVisibility.Nationalitycopy && <td className="py-4 px-4 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>}
-                          {columnVisibility.Passportnumber && <td className="py-4 px-4 text-right text-md">{worker.Order?.Passportnumber || ''}</td>}
-                          {columnVisibility.location && <td className="py-4 px-4 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
-                          {columnVisibility.Reason && <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.id && <td className="py-2 px-2 text-right cursor-pointer text-md" onClick={()=>router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</td>}
+                          {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>}
+                          {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || ''}</td>}
+                          {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>}
+                          {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || ''}</td>}
+                          {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
+                          {columnVisibility.Reason && <td className="py-2 px-2 text-right text-md">
                             {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
                           </td>}
-                          {columnVisibility.houseentrydate && <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.houseentrydate && <td className="py-2 px-2 text-right text-md">
                             {housingStatus === 'housed' 
                               ? (worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد')
                               : (worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد')
                             }
                           </td>}
-                          {columnVisibility.deliveryDate && <td className="py-4 px-4 text-right text-md">
+                          {columnVisibility.deliveryDate && <td className="py-2 px-2 text-right text-md">
                             {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
                           </td>}
-                          {columnVisibility.duration && <td className={`py-4 px-4 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
+                          {columnVisibility.duration && <td className={`py-2 px-2 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
                             {calculateDuration(worker.houseentrydate)}
                           </td>}
-                          {columnVisibility.employee && <td className="py-4 px-4 text-right text-md">{worker.employee}</td>}
-                          {columnVisibility.entitlements && <td className="py-4 px-4 text-center">
+                          {columnVisibility.employee && <td className="py-2 px-2 text-right text-md">{worker.employee}</td>}
+                          {columnVisibility.entitlements && <td className="py-2 px-2 text-center">
                             <button
                               onClick={() => {
                                 setSelectedWorkerId(worker.id);
@@ -1700,7 +1700,7 @@ const confirmDeleteNote = async () => {
                               {(worker.entitlementsCost ?? 0) > 0 ? 'نعم' : 'لا'}
                             </button>
                           </td>}
-                          {columnVisibility.notes && <td className="py-4 px-4 text-center">
+                          {columnVisibility.notes && <td className="py-2 px-2 text-center">
                             <button
                               onClick={() => toggleRowExpansion(worker.id)}
                               className="flex items-center justify-center gap-2 text-teal-800 hover:text-teal-600 transition-colors"
@@ -1713,7 +1713,7 @@ const confirmDeleteNote = async () => {
                               )}
                             </button>
                           </td>}
-                          {columnVisibility.actions && <td className="py-4 px-4 text-center">
+                          {columnVisibility.actions && <td className="py-2 px-2 text-center">
                             <ActionDropdown homemaid_id={worker.homeMaid_id}
                               onAddSession={handleAddSession}
                               onAddNotes={handleAddNotes}
