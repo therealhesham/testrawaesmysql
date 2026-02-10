@@ -975,9 +975,9 @@ const ClientAccountsPage = () => {
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">حالة العقد</label>
                                 <input 
                                     type="text" 
-                                    value={editForm.contractStatus}
-                                    onChange={(e) => setEditForm({...editForm, contractStatus: e.target.value})}
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5"
+                                    value={translateContractStatus(editForm.contractStatus)}
+                                    disabled
+                                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-500"
                                 />
                             </div>
                              <div>
@@ -1000,15 +1000,8 @@ const ClientAccountsPage = () => {
                                     <input 
                                         type="number" 
                                         value={editForm.totalRevenue}
-                                        onChange={(e) => {
-                                            const val = Number(e.target.value);
-                                            setEditForm({
-                                                ...editForm, 
-                                                totalRevenue: val,
-                                                netAmount: calculateNetAmount(val, editForm.totalExpenses, editForm.commissionPercentage)
-                                            });
-                                        }}
-                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5"
+                                        disabled
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-500"
                                     />
                                 </div>
                                 <div>
@@ -1016,12 +1009,20 @@ const ClientAccountsPage = () => {
                                     <input 
                                         type="number" 
                                         value={editForm.totalExpenses}
+                                        disabled
+                                        className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">المبلغ المحول من مساند (﷼)</label>
+                                    <input 
+                                        type="number" 
+                                        value={editForm.masandTransferAmount}
                                         onChange={(e) => {
                                             const val = Number(e.target.value);
                                             setEditForm({
                                                 ...editForm, 
-                                                totalExpenses: val,
-                                                netAmount: calculateNetAmount(editForm.totalRevenue, val, editForm.commissionPercentage)
+                                                masandTransferAmount: val
                                             });
                                         }}
                                         className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5"
@@ -1054,6 +1055,50 @@ const ClientAccountsPage = () => {
                                 </div>
                             </div>
                          </div>
+                        {/* File Upload Section */}
+                        <div className="border-t border-slate-100 dark:border-slate-700 pt-4 mt-2">
+                             <h4 className="font-semibold text-slate-900 dark:text-white mb-3">المرفقات</h4>
+                             <div 
+                                onClick={handleFileButtonClick}
+                                className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+                             >
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                />
+                                <div className="p-3 bg-white dark:bg-slate-700 rounded-full shadow-sm group-hover:scale-110 transition-transform">
+                                    <DocumentTextIcon className="w-8 h-8 text-primary" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {uploadedFilePath ? 'تم رفع الملف بنجاح' : 'اضغط لرفع ملف'}
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                        {selectedFileName || 'PDF, JPG, PNG (الحد الأقصى 10 ميجابايت)'}
+                                    </p>
+                                </div>
+                                {uploadedFilePath && (
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.open(uploadedFilePath, '_blank');
+                                        }}
+                                        className="mt-2 text-xs font-bold text-primary hover:underline"
+                                    >
+                                        عرض الملف المرفق
+                                    </button>
+                                )}
+                                {isUploadingFile && (
+                                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                                        <RefreshIcon className="w-4 h-4 animate-spin" />
+                                        جاري الرفع...
+                                    </div>
+                                )}
+                             </div>
+                        </div>
                     </div>
 
                     <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
