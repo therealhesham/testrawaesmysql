@@ -5,17 +5,15 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { PrismaClient } from "@prisma/client";
 import eventBus from "lib/eventBus";
 import { jwtDecode } from "jwt-decode";
-import prisma from "../../globalprisma"; // Use globalprisma if user prefers it, but the requested file uses a singleton block. I will use what currentorders uses but check. Wait, currentorders defines its own prisma instantiation. I should follow currentorders exactly but fix imports.
-
 /* ✅ استخدم Prisma Singleton لتجنب فتح/غلق اتصال جديد في كل طلب
    هذا يحل واحدة من أكثر أسباب البطء شيوعًا في Next.js API Routes */
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
 
-// const prisma =
-//   globalForPrisma.prisma ||
-//   new PrismaClient({
-//     log: ["error"], // فقط للأخطاء لتقليل الضوضاء
-//   });
+const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ["error"], // فقط للأخطاء لتقليل الضوضاء
+  });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
