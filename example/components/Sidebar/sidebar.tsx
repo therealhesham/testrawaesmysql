@@ -184,17 +184,10 @@ const Sidebar = (props: any) => {
   );
 
   const wrapperClasses = classNames(
-    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter overflow-y-hidden flex-shrink-0",
+    "bg-[#1a4d4f] text-white sticky top-0 h-[100vh] flex flex-col shadow-xl transition-width duration-500 ease-in-out font-inter overflow-y-hidden flex-shrink-0 relative",
     {
       "w-80": !toggleCollapse,
       "w-20": toggleCollapse,
-    }
-  );
-
-  const collapseIconClasses = classNames(
-    "p-3 rounded-full bg-teal-900/70 hover:bg-teal-700/90 absolute left-3 top-3 transition-transform duration-300 ease-in-out",
-    {
-      "rotate-180": toggleCollapse,
     }
   );
 
@@ -343,15 +336,6 @@ const Sidebar = (props: any) => {
             />
           </div>
         )}
-        
-        {/* Toggle Button */}
-        <button
-          onClick={handleSidebarToggle}
-          className={collapseIconClasses}
-          aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <CollapsIcon className="w-5 h-5 text-white" />
-        </button>
       </div>
 
       {/* Menu Items */}
@@ -451,11 +435,21 @@ const Sidebar = (props: any) => {
         })}
       </nav>
 
-      {/* زر تسجيل الخروج مثبت */}
-      <div className="absolute bottom-0 left-0 w-full p-6 border-t border-teal-800 bg-[#1a4d4f]">
+      {/* زر الـ collapse و تسجيل الخروج مثبتين أسفل - الـ collapse فوق الخروج على الشمال */}
+      <div className="absolute bottom-0 left-0 w-full p-6 border-t border-teal-800 bg-[#1a4d4f] flex flex-col gap-3 items-end">
+        <button
+          onClick={handleSidebarToggle}
+          className={classNames(
+            "p-2.5 rounded-l-lg rounded-r-none bg-teal-900/90 hover:bg-teal-700/90 transition-all duration-300 ease-in-out shadow-md border border-l-0 border-teal-600/50",
+            { "rotate-180": toggleCollapse }
+          )}
+          aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <CollapsIcon className="w-5 h-5 text-white" />
+        </button>
         {!toggleCollapse && (
           <button
-            className={`flex justify-center w-full h-full border rounded-md border-gray text-white py-3 ${Style["tajawal-regular"]}`}
+            className={`flex justify-center w-full border rounded-md border-gray text-white py-3 ${Style["tajawal-regular"]}`}
             onClick={handleLogout}
           >
             تسجيل الخروج
