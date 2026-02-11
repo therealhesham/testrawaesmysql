@@ -288,6 +288,19 @@ const Sidebar = (props: any) => {
 
  return (
   <div className={wrapperClasses}>
+    {/* زر الـ collapse ثابت في مكانه ودائري - في الوسط عند وضع الـ collapse */}
+    <button
+      onClick={handleSidebarToggle}
+      className={classNames(
+        "absolute bottom-28 z-20 p-2.5 rounded-full bg-teal-900/90 hover:bg-teal-700/90 transition-all duration-300 ease-in-out shadow-md border border-teal-600/50",
+        toggleCollapse ? "left-1/2 -translate-x-1/2" : "left-0",
+        { "rotate-180": toggleCollapse }
+      )}
+      aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
+    >
+      <CollapsIcon className="w-5 h-5 text-white" />
+    </button>
+
     <div className="flex flex-col relative min-h-full">
 
       {/* Header Section */}
@@ -435,18 +448,8 @@ const Sidebar = (props: any) => {
         })}
       </nav>
 
-      {/* زر الـ collapse و تسجيل الخروج مثبتين أسفل - الـ collapse فوق الخروج على الشمال */}
+      {/* زر تسجيل الخروج مثبت أسفل */}
       <div className="absolute bottom-0 left-0 w-full p-6 border-t border-teal-800 bg-[#1a4d4f] flex flex-col gap-3 items-end">
-        <button
-          onClick={handleSidebarToggle}
-          className={classNames(
-            "p-2.5 rounded-l-lg rounded-r-none bg-teal-900/90 hover:bg-teal-700/90 transition-all duration-300 ease-in-out shadow-md border border-l-0 border-teal-600/50",
-            { "rotate-180": toggleCollapse }
-          )}
-          aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <CollapsIcon className="w-5 h-5 text-white" />
-        </button>
         {!toggleCollapse && (
           <button
             className={`flex justify-center w-full border rounded-md border-gray text-white py-3 ${Style["tajawal-regular"]}`}
