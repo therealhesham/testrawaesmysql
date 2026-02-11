@@ -87,6 +87,8 @@ const menuItems: MenuItem[] = [
     icon: FaBuilding,
     subItems: [
       { id: 51, label: "التسكين", link: "/admin/housedarrivals" },
+      { id: 10121, label: "الجلسات", link: "/admin/sessions" },
+      
       { id: 52, label: "الاعاشات", link: "/admin/checkedtable" },
     ],
   },
