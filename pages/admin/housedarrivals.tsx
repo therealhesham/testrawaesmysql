@@ -76,6 +76,12 @@ interface Homemaid {
   id: number;
   Name: string;
 }
+function getDate(date:string) {
+  if (!date) return null;
+  const currentDate = new Date(date);
+  const formatted = currentDate.getDate() + '/' + (currentDate.getMonth() + 1) + '/' + currentDate.getFullYear();
+  return formatted;
+}
 
 // ActionDropdown Component
 const ActionDropdown: React.FC<{
@@ -249,6 +255,7 @@ setUserName(decoded.username);
     id: true,
     Name: true,
     phone: true,
+    kingdomentryDate:true,
     Nationalitycopy: true,
     Passportnumber: true,
     location: true,
@@ -1638,13 +1645,21 @@ const confirmDeleteNote = async () => {
                       {columnVisibility.Nationalitycopy && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
                       {columnVisibility.Passportnumber && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
                       {columnVisibility.location && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>}
+                    
+                      {columnVisibility.deliveryDate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">دخول المملكة</th>}
+                    
+                    
                       {columnVisibility.Reason && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
                       </th>}
                       {columnVisibility.houseentrydate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'تاريخ التسكين' : 'تاريخ المغادرة'}
                       </th>}
+                    
+                    
                       {columnVisibility.deliveryDate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">تاريخ التسليم</th>}
+                    
+                    
                       {columnVisibility.duration && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">مدة السكن</th>}
                       {columnVisibility.employee && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap  border-teal-700">الموظف</th>}
                       {columnVisibility.entitlements && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">لديها مستحقات</th>}
@@ -1670,6 +1685,8 @@ const confirmDeleteNote = async () => {
                           {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>}
                           {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || ''}</td>}
                           {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
+                          {columnVisibility.kingdomentryDate && <td className="py-2 px-2 text-right text-md">{getDate(worker.Order?.NewOrder?.[0]?.arrivals?.[0]?.KingdomentryDate) || ''}</td>}
+                       
                           {columnVisibility.Reason && <td className="py-2 px-2 text-right text-md">
                             {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
                           </td>}
@@ -1680,7 +1697,7 @@ const confirmDeleteNote = async () => {
                             }
                           </td>}
                           {columnVisibility.deliveryDate && <td className="py-2 px-2 text-right text-md">
-                            {worker.deparatureHousingDate ? new Date(worker.deparatureHousingDate).toLocaleDateString() : 'غير محدد'}
+                            {worker?.deliveryDate ? new Date(worker?.deliveryDate).toLocaleDateString() : 'غير محدد'}
                           </td>}
                           {columnVisibility.duration && <td className={`py-2 px-2 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
                             {calculateDuration(worker.houseentrydate)}

@@ -441,10 +441,11 @@ try {
         },
         include: {
           Order: {
+
             include: {
               weeklyStatusId: true,
               logs: true,
-              NewOrder: { select: { typeOfContract: true } },
+              NewOrder: { select: {arrivals:{select:{KingdomentryDate:true,KingdomentryTime:true,DeliveryDate:true}}, typeOfContract: true } },
             },
           },
           HousedWorkerNotes: true,
@@ -453,7 +454,6 @@ try {
         take: pageSize,
         orderBy,
       });
-
       const totalCount = await prisma.housedworker.count({
         where: {
           ...filters,
