@@ -464,6 +464,21 @@ const ClientStatementPage = () => {
     return end.toISOString().split('T')[0];
   };
 
+  /** حساب الأيام المتبقية على انتهاء الضمان */
+  const getRemainingDays = (endDateString: string | null | undefined): number | null => {
+    if (!endDateString) return null;
+    const end = new Date(endDateString);
+    const now = new Date();
+    
+    // Reset hours to compare only dates
+    end.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const exportToPDF = async () => {
     if (!statement) return;
     const doc = new jsPDF({ orientation: 'landscape' });
@@ -625,6 +640,39 @@ const ClientStatementPage = () => {
     );
   }
 
+ // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
+  const translateBookingStatus = (status: string) => {
+    const statusTranslations: { [key: string]: string } = {
+      'pending': 'قيد الانتظار',
+      'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
+      'pending_office_link': 'في انتظار الربط مع إدارة المكاتب',
+      'external_office_approved': 'موافقة المكتب الخارجي',
+      'pending_external_office': 'في انتظار المكتب الخارجي',
+      'medical_check_passed': 'تم اجتياز الفحص الطبي',
+      'pending_medical_check': 'في انتظار الفحص الطبي',
+      'foreign_labor_approved': 'موافقة وزارة العمل الأجنبية',
+      'pending_foreign_labor': 'في انتظار وزارة العمل الأجنبية',
+      'agency_paid': 'تم دفع الوكالة',
+      'pending_agency_payment': 'في انتظار دفع الوكالة',
+      'embassy_approved': 'موافقة السفارة السعودية',
+      'pending_embassy': 'في انتظار السفارة السعودية',
+      'visa_issued': 'تم إصدار التأشيرة',
+      'pending_visa': 'في انتظار إصدار التأشيرة',
+      'travel_permit_issued': 'تم إصدار تصريح السفر',
+      'pending_travel_permit': 'في انتظار تصريح السفر',
+      'received': 'تم الاستلام',
+      'pending_receipt': 'في انتظار الاستلام',
+      'cancelled': 'ملغي',
+      'rejected': 'مرفوض',
+      'delivered': 'تم التسليم',
+      'new_order': 'طلب جديد',
+      'new_orders': 'طلبات جديدة'
+    };
+
+    return statusTranslations[status] || status;
+  };
+
+
   return (
     <Layout>
     <div className={`bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 ${Style["tajawal-regular"]} ${isDarkMode ? 'dark' : ''}`} dir="rtl">
@@ -689,7 +737,7 @@ const ClientStatementPage = () => {
                         <div className="space-y-1">
                             <p className="text-slate-400 dark:text-slate-500">حالة العقد</p>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-md font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                {translateContractStatus(statement.order?.bookingstatus || '')}
+                                {translateBookingStatus(statement.order?.bookingstatus || '')}
                             </span>
                         </div>
                         <div className="space-y-1">
@@ -701,14 +749,24 @@ const ClientStatementPage = () => {
                         <div className="space-y-1">
                             <p className="text-slate-400 dark:text-slate-500">تاريخ انتهاء الضمان (90 يوم)</p>
                             <div className="flex flex-col">
-                                <p className="font-medium text-slate-400 italic">
-                                    {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd
-                                    ? getDate(statement.order.arrivals[0].GuaranteeDurationEnd)
-                                    : getWarrantyEndDate(statement.order?.arrivals?.[0]?.KingdomentryDate)
-                                        ? getDate(getWarrantyEndDate(statement?.order?.arrivals[0]?.KingdomentryDate)!)
-                                        : 'غير محدد'}
-                                </p>
-                                
+                                {(() => {
+                                    const endDate = statement.order?.arrivals?.[0]?.GuaranteeDurationEnd 
+                                        || getWarrantyEndDate(statement.order?.arrivals?.[0]?.KingdomentryDate);
+                                    const remainingDays = getRemainingDays(endDate);
+                                    
+                                    return (
+                                        <>
+                                            <p className="font-medium text-slate-400 italic">
+                                                {endDate ? getDate(endDate) : 'غير محدد'}
+                                            </p>
+                                            {remainingDays !== null && (
+                                                <span className={`text-sm mt-1 font-bold ${remainingDays >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {remainingDays >= 0 ? `(متبقي ${remainingDays} يوم)` : `(انتهى الضمان منذ ${Math.abs(remainingDays)} يوم)`}
+                                                </span>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                         <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
