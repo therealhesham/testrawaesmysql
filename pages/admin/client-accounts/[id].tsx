@@ -761,7 +761,7 @@ const ClientStatementPage = () => {
                                             </p>
                                             {remainingDays !== null && (
                                                 <span className={`text-sm mt-1 font-bold ${remainingDays >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                    {remainingDays >= 0 ? `(متبقي ${remainingDays} يوم)` : `(انتهى الضمان منذ ${Math.abs(remainingDays)} يوم)`}
+                                                    {remainingDays >= 0 ? `(متبقي ${remainingDays} من 90 يوم)` : `(انتهى الضمان منذ ${Math.abs(remainingDays)} يوم)`}
                                                 </span>
                                             )}
                                         </>
