@@ -455,6 +455,15 @@ const ClientStatementPage = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  /** تاريخ انتهاء الضمان = 90 يوم من تاريخ وصول العاملة في الطلب */
+  const getWarrantyEndDate = (kingdomEntryDate: string | undefined): string | null => {
+    if (!kingdomEntryDate) return null;
+    const arrival = new Date(kingdomEntryDate);
+    const end = new Date(arrival);
+    end.setDate(end.getDate() + 90);
+    return end.toISOString().split('T')[0];
+  };
+
   const exportToPDF = async () => {
     if (!statement) return;
     const doc = new jsPDF({ orientation: 'landscape' });
@@ -541,6 +550,7 @@ const ClientStatementPage = () => {
          // Footer
          const pageNumber = `صفحة ${doc.getCurrentPageInfo().pageNumber}`;
          doc.text(pageNumber, pageWidth / 2, pageHeight - 10, { align: 'center' });
+         doc.text("الضمان 90 يوم من تاريخ الوصول", 20, pageHeight - 10, { align: 'left' });
       }
     });
 
@@ -569,6 +579,16 @@ const ClientStatementPage = () => {
       'الرصيد': formatCurrency(statement.totals.netAmount)
     } as any);
 
+    // Add warranty note
+    worksheetData.push({
+      '#': '',
+      'التاريخ': '',
+      'البيان': 'الضمان 90 يوم من تاريخ الوصول',
+      'مدين': '',
+      'دائن': '',
+      'الرصيد': ''
+    } as any);
+
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
     
@@ -586,7 +606,10 @@ const ClientStatementPage = () => {
     return (
       <Layout>
         <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
-          <div className="text-gray-500">جاري التحميل...</div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-slate-200 border-t-[#0D5C63] rounded-full animate-spin"></div>
+            <p className="text-slate-500 font-medium tracking-wide">جاري التحميل...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -672,14 +695,21 @@ const ClientStatementPage = () => {
                         <div className="space-y-1">
                             <p className="text-slate-400 dark:text-slate-500">تاريخ الوصول</p>
                             <p className="font-medium text-slate-400 italic">
-                                {statement.order?.arrivals?.[0]?.KingdomentryDate ? formatDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
+                                {statement.order?.arrivals?.[0]?.KingdomentryDate ? getDate(statement.order.arrivals[0].KingdomentryDate) : 'غير محدد'}
                             </p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">تاريخ انتهاء الضمان</p>
-                            <p className="font-medium text-slate-400 italic">
-                                {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd ? formatDate(statement.order.arrivals[0].GuaranteeDurationEnd) : 'غير محدد'}
-                            </p>
+                            <p className="text-slate-400 dark:text-slate-500">تاريخ انتهاء الضمان (90 يوم)</p>
+                            <div className="flex flex-col">
+                                <p className="font-medium text-slate-400 italic">
+                                    {statement.order?.arrivals?.[0]?.GuaranteeDurationEnd
+                                    ? getDate(statement.order.arrivals[0].GuaranteeDurationEnd)
+                                    : getWarrantyEndDate(statement.order?.arrivals?.[0]?.KingdomentryDate)
+                                        ? getDate(getWarrantyEndDate(statement?.order?.arrivals[0]?.KingdomentryDate)!)
+                                        : 'غير محدد'}
+                                </p>
+                                
+                            </div>
                         </div>
                         <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
                             <p className="text-slate-400 dark:text-slate-500">المبلغ المطلوب</p>
