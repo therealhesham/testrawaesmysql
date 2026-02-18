@@ -747,27 +747,26 @@ const ClientStatementPage = () => {
                             </p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-slate-400 dark:text-slate-500">تاريخ انتهاء الضمان (90 يوم)</p>
-                            <div className="flex flex-col">
-                                {(() => {
-                                    const endDate = statement.order?.arrivals?.[0]?.GuaranteeDurationEnd 
-                                        || getWarrantyEndDate(statement.order?.arrivals?.[0]?.KingdomentryDate);
-                                    const remainingDays = getRemainingDays(endDate);
-                                    
-                                    return (
-                                        <>
-                                            <p className="font-medium text-slate-400 italic">
-                                                {endDate ? getDate(endDate) : 'غير محدد'}
-                                            </p>
+                            {(() => {
+                                const endDate = statement.order?.arrivals?.[0]?.GuaranteeDurationEnd 
+                                    || getWarrantyEndDate(statement.order?.arrivals?.[0]?.KingdomentryDate);
+                                const remainingDays = getRemainingDays(endDate);
+                                return (
+                                    <>
+                                        <p className="text-slate-400 dark:text-slate-500">
+                                            تاريخ انتهاء الضمان
                                             {remainingDays !== null && (
-                                                <span className={`text-sm mt-1 font-bold ${remainingDays >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                    {remainingDays >= 0 ? `(متبقي ${remainingDays} من 90 يوم)` : `(انتهى الضمان منذ ${Math.abs(remainingDays)} يوم)`}
+                                                <span className={`font-bold ${remainingDays >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {' '}{remainingDays >= 0 ? `(متبقي ${remainingDays} يوم)` : `(انتهى منذ ${Math.abs(remainingDays)} يوم)`}
                                                 </span>
                                             )}
-                                        </>
-                                    );
-                                })()}
-                            </div>
+                                        </p>
+                                        <p className="font-medium text-slate-400 italic">
+                                            {endDate ? getDate(endDate) : 'غير محدد'}
+                                        </p>
+                                    </>
+                                );
+                            })()}
                         </div>
                         <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
                             <p className="text-slate-400 dark:text-slate-500">المبلغ المطلوب</p>
