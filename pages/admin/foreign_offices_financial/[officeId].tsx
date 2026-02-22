@@ -344,23 +344,31 @@ function getMonthName(month: number) {
   const handleInvoiceUpload = async (file: File): Promise<string> => {
     setUploadingInvoice(true);
     try {
-      const response = await fetch(`/api/upload-presigned-url/${Date.now()}`, {
+      const id = officeId ? `${officeId}-${Date.now()}` : String(Date.now());
+      const response = await fetch(`/api/upload-presigned-url/${id}`, {
         method: 'GET',
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to get presigned URL');
+        throw new Error('فشل في الحصول على رابط الرفع');
       }
-      
+
       const { url, filePath } = await response.json();
-      
-      // Upload the file to the presigned URL
-      await axios.put(url, file, {
+
+      // رفع الملف إلى الرابط الموقّع (نفس أسلوب track_order - fetch و body: file لتفادي فساد الملف مع axios)
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: file,
         headers: {
-          'Content-Type': file.type,
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-amz-acl': 'public-read',
         },
       });
-      
+
+      if (!uploadRes.ok) {
+        throw new Error('فشل في رفع الملف');
+      }
+
       setUploadingInvoice(false);
       return filePath;
     } catch (error) {
