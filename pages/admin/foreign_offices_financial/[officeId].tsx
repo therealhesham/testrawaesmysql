@@ -57,11 +57,15 @@ export default function OfficeFinancialDetails() {
   });
   const [editForm, setEditForm] = useState({
     id: 0,
+    date: '',
     clientName: '',
-    debit: '',
-    credit: '',
-    balance: '',
+    contractNumber: '',
+    payment: '',
     description: '',
+    credit: '',
+    debit: '',
+    balance: '',
+    invoice: '',
   });
 
 function getDate(date: string) {
@@ -211,6 +215,10 @@ function getMonthName(month: number) {
     const { name, value } = e.target;
     const updatedForm = { ...form, [name]: value };
     
+    // عند الكتابة في المدين امسح الدائن، وعند الكتابة في الدائن امسح المدين
+    if (name === 'debit') updatedForm.credit = '';
+    if (name === 'credit') updatedForm.debit = '';
+    
     // حساب الرصيد تلقائياً عند تغيير المدين أو الدائن
     if (name === 'credit' || name === 'debit') {
       const newBalance = calculateBalance(
@@ -266,6 +274,21 @@ function getMonthName(month: number) {
     }
   };
 
+  const fetchContractDataForEdit = async (contractNumber: string) => {
+    try {
+      const response = await axios.get(`/api/contracts/${contractNumber}`);
+      if (response.data) {
+        setEditForm(prev => ({
+          ...prev,
+          clientName: response.data.client?.fullname || prev.clientName,
+          date: response.data.createdAt ? new Date(response.data.createdAt).toISOString().split('T')[0] : prev.date
+        }));
+      }
+    } catch (error) {
+      console.error('Contract not found:', error);
+    }
+  };
+
   const handleContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setForm(prev => ({ ...prev, contractNumber: value }));
@@ -282,6 +305,23 @@ function getMonthName(month: number) {
     setForm(prev => ({ ...prev, contractNumber: suggestion }));
     setShowContractSuggestions(false);
     await fetchContractData(suggestion);
+  };
+
+  const handleEditContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEditForm(prev => ({ ...prev, contractNumber: value }));
+    if (value.trim()) {
+      searchContracts(value);
+    } else {
+      setContractSuggestions([]);
+      setShowContractSuggestions(false);
+    }
+  };
+
+  const handleEditContractSuggestionClick = async (suggestion: string) => {
+    setEditForm(prev => ({ ...prev, contractNumber: suggestion }));
+    setShowContractSuggestions(false);
+    await fetchContractDataForEdit(suggestion);
   };
 
   const handleContractInputBlur = () => {
@@ -318,6 +358,10 @@ function getMonthName(month: number) {
   const handleEditChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedForm = { ...editForm, [name]: value };
+    
+    // عند الكتابة في المدين امسح الدائن، وعند الكتابة في الدائن امسح المدين
+    if (name === 'debit') updatedForm.credit = '';
+    if (name === 'credit') updatedForm.debit = '';
     
     // حساب الرصيد تلقائياً عند تغيير المدين أو الدائن
     if (name === 'credit' || name === 'debit') {
@@ -432,25 +476,30 @@ function getMonthName(month: number) {
 
   const handleEditRecord = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
-      // حساب الرصيد النهائي
       const calculatedBalance = calculateBalance(
         editForm.credit || '0',
         editForm.debit || '0',
         lastBalance
       );
-      
+      let invoiceUrl = editForm.invoice || '';
+      if (invoiceFile) {
+        invoiceUrl = await handleInvoiceUpload(invoiceFile);
+      }
       await axios.put(`/api/foreign-offices-financial/${editForm.id}`, {
+        date: editForm.date || undefined,
         clientName: editForm.clientName,
-        debit: Number(editForm.debit) || 0,
+        contractNumber: editForm.contractNumber || undefined,
+        payment: editForm.payment || undefined,
+        description: editForm.description || undefined,
         credit: Number(editForm.credit) || 0,
+        debit: Number(editForm.debit) || 0,
         balance: calculatedBalance,
-        description: editForm.description,
+        invoice: invoiceUrl || undefined,
       });
-      
       setOpenEditModal(false);
       setLastBalance(0);
+      setInvoiceFile(null);
       fetchFinancialRecords();
       alert('تم التعديل بنجاح');
     } catch (error) {
@@ -460,18 +509,22 @@ function getMonthName(month: number) {
   };
 
   const openEditModalHandler = async (record: FinancialRecord) => {
-    // جلب الرصيد السابق
     const previousBalance = await fetchPreviousBalance(record.id, record.officeId);
     setLastBalance(previousBalance);
-    
+    const dateStr = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
     setEditForm({
       id: record.id,
-      clientName: record.clientName,
-      debit: record.debit.toString(),
-      credit: record.credit.toString(),
-      balance: record.balance.toString(),
-      description: record.description,
+      date: dateStr,
+      clientName: record.clientName || '',
+      contractNumber: record.contractNumber || '',
+      payment: record.payment || '',
+      description: record.description || '',
+      credit: String(record.credit ?? 0),
+      debit: String(record.debit ?? 0),
+      balance: String(record.balance ?? 0),
+      invoice: record.invoice || '',
     });
+    setInvoiceFile(null);
     setOpenEditModal(true);
   };
 
@@ -1251,47 +1304,109 @@ function getMonthName(month: number) {
           </div>
         )}
 
-        {/* Edit Record Modal */}
+        {/* Edit Record Modal - نفس نافذة الإضافة */}
         {openEditModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/30" onClick={() => {
               setOpenEditModal(false);
               setLastBalance(0);
+              setInvoiceFile(null);
             }} />
-            <div className="relative bg-white p-8 rounded-lg w-full max-w-[700px] mx-auto shadow-lg">
+            <div className="relative bg-white p-8 rounded-lg w-full max-w-[850px] mx-auto shadow-lg">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-center text-2xl text-gray-800">تعديل</h2>
+                <h2 className="text-center text-2xl text-gray-800">تعديل سجل</h2>
                 <button
                   aria-label="close"
                   onClick={() => {
                     setOpenEditModal(false);
                     setLastBalance(0);
+                    setInvoiceFile(null);
                   }}
                   className="text-[#1A4D4F] hover:text-[#164044] text-2xl"
                 >
                   ×
                 </button>
               </div>
-              
+
               <form onSubmit={handleEditRecord}>
+                {/* Contract Search - نفس الإضافة */}
+                <div className="flex flex-col mb-6">
+                  <label className="mb-2 font-bold text-gray-800">رقم العقد</label>
+                  <div className="relative contract-search-container">
+                    <input
+                      type="text"
+                      name="contractNumber"
+                      value={editForm.contractNumber}
+                      onChange={handleEditContractNumberChange}
+                      onBlur={handleContractInputBlur}
+                      onFocus={() => editForm.contractNumber.length >= 1 && setShowContractSuggestions(true)}
+                      placeholder="ابحث برقم العقد"
+                      className="w-full p-2 border border-gray-300 rounded-md bg-white pr-10"
+                    />
+                    {isSearchingContract && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1A4D4F]"></div>
+                      </div>
+                    )}
+                    {showContractSuggestions && contractSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {contractSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleEditContractSuggestionClick(suggestion)}
+                            className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                          >
+                            <div className="font-medium text-sm">
+                              <span className="text-gray-700">رقم العقد: {suggestion}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">اسم العميل</label>
+                    <label className="mb-2 font-bold text-gray-800">تاريخ الطلب</label>
+                    <input
+                      name="date"
+                      value={editForm.date}
+                      onChange={handleEditChange}
+                      type="date"
+                      className="p-2 border border-gray-300 rounded-md bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">العميل</label>
                     <input
                       type="text"
                       name="clientName"
                       value={editForm.clientName}
                       onChange={handleEditChange}
+                      placeholder="اسم العميل"
                       className="p-2 border border-gray-300 rounded-md bg-white"
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">رصيد المدين</label>
+                    <label className="mb-2 font-bold text-gray-800">البيان</label>
                     <input
-                      type="number"
-                      name="debit"
-                      value={editForm.debit}
+                      type="text"
+                      name="description"
+                      value={editForm.description}
                       onChange={handleEditChange}
+                      placeholder="ادخل البيان"
+                      className="p-2 border border-gray-300 rounded-md bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">الدفعه</label>
+                    <input
+                      type="text"
+                      name="payment"
+                      value={editForm.payment}
+                      onChange={handleEditChange}
+                      placeholder="ادخل بيان الدفعه"
                       className="p-2 border border-gray-300 rounded-md bg-white"
                     />
                   </div>
@@ -1302,8 +1417,35 @@ function getMonthName(month: number) {
                       name="credit"
                       value={editForm.credit}
                       onChange={handleEditChange}
+                      placeholder="ادخل رصيد الدائن"
                       className="p-2 border border-gray-300 rounded-md bg-white"
                     />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">رصيد المدين</label>
+                    <input
+                      type="number"
+                      name="debit"
+                      value={editForm.debit}
+                      onChange={handleEditChange}
+                      placeholder="ادخل رصيد المدين"
+                      className="p-2 border border-gray-300 rounded-md bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">الفاتورة</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
+                      className="p-2 border border-gray-300 rounded-md bg-white"
+                    />
+                    {editForm.invoice && !invoiceFile && (
+                      <a href={editForm.invoice} target="_blank" rel="noopener noreferrer" className="text-sm text-[#1A4D4F] hover:underline mt-1">الفاتورة الحالية</a>
+                    )}
+                    {uploadingInvoice && (
+                      <div className="text-sm text-blue-600 mt-1">جاري رفع الملف...</div>
+                    )}
                   </div>
                   <div className="flex flex-col">
                     <label className="mb-2 font-bold text-gray-800">الرصيد (محسوب تلقائياً)</label>
@@ -1325,18 +1467,8 @@ function getMonthName(month: number) {
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col sm:col-span-2">
-                    <label className="mb-2 font-bold text-gray-800">البيان</label>
-                    <input
-                      type="text"
-                      name="description"
-                      value={editForm.description}
-                      onChange={handleEditChange}
-                      className="p-2 border border-gray-300 rounded-md bg-white"
-                    />
-                  </div>
                 </div>
-                
+
                 <div className="text-center space-y-3 sm:space-y-0 sm:space-x-4 sm:flex sm:justify-center">
                   <button
                     type="submit"
@@ -1350,6 +1482,7 @@ function getMonthName(month: number) {
                     onClick={() => {
                       setOpenEditModal(false);
                       setLastBalance(0);
+                      setInvoiceFile(null);
                     }}
                   >
                     إلغاء

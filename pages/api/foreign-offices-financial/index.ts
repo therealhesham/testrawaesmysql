@@ -36,10 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (search) {
+        const searchStr = String(search).trim()
         where.OR = [
-          { clientName: { contains: String(search) } },
-          { contractNumber: { contains: String(search) } },
-          { description: { contains: String(search) } },
+          { clientName: { contains: searchStr } },
+          { contractNumber: { contains: searchStr } },
+          { description: { contains: searchStr } },
+          { office: { office: { contains: searchStr } } },
         ]
       }
 

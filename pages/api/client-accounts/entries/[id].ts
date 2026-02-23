@@ -18,20 +18,20 @@ async function recalculateStatementTotals(
     where: { statementId }
   });
 
-  const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
-  const totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
-  const netAmount = totalRevenue - totalExpenses;
+  const totalDebit = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
+  const totalCredit = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
+  const netAmount = totalDebit - totalCredit; // الرصيد: مدين يزيد، دائن يقلل
 
   await client.clientAccountStatement.update({
     where: { id: statementId },
     data: {
-      totalRevenue,
-      totalExpenses,
+      totalRevenue: totalDebit,
+      totalExpenses: totalCredit,
       netAmount
     }
   });
 
-  return { totalRevenue, totalExpenses, netAmount };
+  return { totalDebit, totalCredit, netAmount };
 }
 
 // Helper function to recalculate all balances after a specific date
@@ -49,10 +49,10 @@ async function recalculateBalancesAfterDate(
     orderBy: { date: 'asc' }
   });
 
-  // Calculate running balance
+  // Calculate running balance: مدين يزيد الرصيد، دائن يقلله
   let runningBalance = 0;
   for (const entry of allEntries) {
-    runningBalance = runningBalance + Number(entry.credit) - Number(entry.debit);
+    runningBalance = runningBalance + Number(entry.debit) - Number(entry.credit);
     
     // Update balance if it's after the fromDate or if balance is incorrect
     if (entry.date >= fromDate || Number(entry.balance) !== runningBalance) {

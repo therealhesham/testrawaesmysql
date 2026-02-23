@@ -860,7 +860,7 @@ export default function ForeignOfficesFinancial() {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="بحث"
+                    placeholder="بحث (عميل، عقد، بيان، اسم المكتب)"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-[428px] p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 pr-10"

@@ -109,10 +109,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const entries = statement.entries;
       const totalDebit = entries.reduce((sum: number, e: { debit: Prisma.Decimal }) => sum + Number(e.debit), 0);
       const totalCredit = entries.reduce((sum: number, e: { credit: Prisma.Decimal }) => sum + Number(e.credit), 0);
-      const netAmount = Number(totalCredit) - Number(totalDebit);
+      const netAmount = Number(totalDebit) - Number(totalCredit); // الرصيد: مدين يزيد، دائن يقلل
+
+      // إعادة حساب الرصيد الجاري لكل قيد: مدين يزيد، دائن يقلل (لضمان تطابق البيانات القديمة مع المعادلة الجديدة)
+      let runningBalance = 0;
+      const entriesWithBalance = entries.map((e: { id: number; date: Date; description: string; debit: Prisma.Decimal; credit: Prisma.Decimal; balance: Prisma.Decimal; entryType: string; isEditable?: boolean; [k: string]: any }) => {
+        runningBalance += Number(e.debit) - Number(e.credit);
+        return { ...e, balance: runningBalance };
+      });
 
       res.status(200).json({
         ...statement,
+        entries: entriesWithBalance,
         order: orderData,
         totals: { totalDebit, totalCredit, netAmount }
       });

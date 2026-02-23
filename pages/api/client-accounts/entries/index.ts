@@ -16,20 +16,20 @@ async function recalculateStatementTotals(
     where: { statementId }
   });
 
-  const totalRevenue = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
-  const totalExpenses = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
-  const netAmount = totalRevenue - totalExpenses;
+  const totalDebit = entries.reduce((sum, entry) => sum + Number(entry.debit), 0);
+  const totalCredit = entries.reduce((sum, entry) => sum + Number(entry.credit), 0);
+  const netAmount = totalDebit - totalCredit; // الرصيد: مدين يزيد، دائن يقلل
 
   await client.clientAccountStatement.update({
     where: { id: statementId },
     data: {
-      totalRevenue,
-      totalExpenses,
+      totalRevenue: totalDebit,
+      totalExpenses: totalCredit,
       netAmount
     }
   });
 
-  return { totalRevenue, totalExpenses, netAmount };
+  return { totalDebit, totalCredit, netAmount };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -167,9 +167,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         });
 
-        // Calculate balance: previous balance + credit - debit
+        // Calculate balance: previous balance + debit - credit (مدين يزيد الرصيد، دائن يقلله)
         const previousBalance = previousEntry ? Number(previousEntry.balance) : 0;
-        const newBalance = previousBalance + newCredit - newDebit;
+        const newBalance = previousBalance + newDebit - newCredit;
 
         // Create the entry
         const createdEntry = await tx.clientAccountEntry.create({

@@ -29,26 +29,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'PUT') {
       const { 
+        date,
         clientName, 
         contractNumber, 
         payment, 
         description, 
         credit, 
         debit, 
-        balance 
+        balance,
+        invoice,
       } = req.body
+
+      const updateData: Record<string, unknown> = {
+        clientName: clientName !== undefined ? String(clientName) : undefined,
+        contractNumber: contractNumber !== undefined ? String(contractNumber) : undefined,
+        payment: payment !== undefined ? String(payment) : undefined,
+        description: description !== undefined ? String(description) : undefined,
+        credit: credit !== undefined ? new Prisma.Decimal(credit) : undefined,
+        debit: debit !== undefined ? new Prisma.Decimal(debit) : undefined,
+        balance: balance !== undefined ? new Prisma.Decimal(balance) : undefined,
+        invoice: invoice !== undefined ? (invoice ? String(invoice) : null) : undefined,
+      }
+      if (date) {
+        updateData.date = new Date(date)
+      }
 
       const updated = await prisma.foreignOfficeFinancial.update({
         where: { id: Number(id) },
-        data: {
-          clientName: clientName ? String(clientName) : undefined,
-          contractNumber: contractNumber ? String(contractNumber) : undefined,
-          payment: payment ? String(payment) : undefined,
-          description: description ? String(description) : undefined,
-          credit: credit !== undefined ? new Prisma.Decimal(credit) : undefined,
-          debit: debit !== undefined ? new Prisma.Decimal(debit) : undefined,
-          balance: balance !== undefined ? new Prisma.Decimal(balance) : undefined,
-        },
+        data: updateData as Prisma.foreignOfficeFinancialUpdateInput,
         include: {
           office: true,
         },
