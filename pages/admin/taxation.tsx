@@ -93,6 +93,26 @@ const TaxReportPage = () => {
       const data = await response.json();
       
       if (data.success) {
+        if (data.vat && data.vat.rows) {
+          const salesVat = data.sales?.total?.vat || '0.00';
+          const purchasesVat = data.purchases?.total?.vat || '0.00';
+          
+          data.vat.rows = [
+            {
+              description: 'ضريبة القيمة المضافة على المبيعات',
+              amount: '-',
+              adjustment: '-',
+              vat: salesVat,
+            },
+            {
+              description: 'ضريبة القيمة المضافة على المشتريات',
+              amount: '-',
+              adjustment: '-',
+              vat: purchasesVat,
+            },
+            ...data.vat.rows
+          ];
+        }
         setVatSummaryData(data);
       }
     } catch (error) {
@@ -1105,7 +1125,7 @@ function getDate(date: any) {
     sales: {
       title: 'المبيعات',
       rows: [
-        { description: 'ضريبة المبيعات الخاضعة للنسبة الاساسية (15%)', amount: '0.00', adjustment: '0.00', vat: '0.00' },
+        { description: 'المبيعات الخاضعة للنسبة الاساسية (15%)', amount: '0.00', adjustment: '0.00', vat: '0.00' },
         { description: 'المبيعات لصالح المواطنين(خدمات صحية خاصة،التعليم الاهلي الخاص، المسكن الاول)', amount: '-', adjustment: '-', vat: '-' },
         { description: 'المبيعات الداخلية الخاضعة لنسبة صفر بالمائة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
         { description: 'الصادرات الخاضعة لنسبة صفر بالمائة', amount: '-', adjustment: '-', vat: '-' },
@@ -1127,6 +1147,8 @@ function getDate(date: any) {
     vat: {
       title: 'الضريبة المضافة',
       rows: [
+        { description: 'ضريبة القيمة المضافة على المبيعات', amount: '-', adjustment: '-', vat: '0.00' },
+        { description: 'ضريبة القيمة المضافة على المشتريات', amount: '-', adjustment: '-', vat: '0.00' },
         { description: 'ضريبة القيمة المضافة الاجمالية للفترة الضريبية المستحقة', amount: '0.00', adjustment: '0.00', vat: '0.00' },
         { description: 'تصحيحات الفترة السابقة (حوالي +-5000 ريال)', amount: '-', adjustment: '-', vat: '-' },
         { description: 'ضريبة القيمة المضافة التي تم ترحيلها من الفترة \ الفترات السابقة', amount: '-', adjustment: '-', vat: '-' },

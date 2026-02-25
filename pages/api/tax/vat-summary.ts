@@ -174,7 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title: 'المبيعات',
         rows: [
           {
-            description: 'ضريبة المبيعات الخاضعة للنسبة الاساسية (15%)',
+            description: 'المبيعات الخاضعة للنسبة الاساسية (15%)',
             amount: formatNumber(salesTax15Amount),
             adjustment: formatNumber(salesTax15Adjustment),
             vat: formatNumber(salesTax15VAT),
@@ -253,18 +253,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       vat: {
         title: 'الضريبة المضافة',
         rows: [
-          {
-            description: 'ضريبة القيمة المضافة على المبيعات (إجمالي ضرائب المبيعات)',
-            amount: formatNumber(totalSalesTaxAmount),
-            adjustment: formatNumber(totalSalesTaxAdjustment),
-            vat: formatNumber(totalOutputTax),
-          },
-          {
-            description: 'ضريبة القيمة المضافة على المشتريات القابلة للخصم',
-            amount: formatNumber(totalInputTaxAmount),
-            adjustment: formatNumber(totalInputTaxAdjustment),
-            vat: formatNumber(-totalInputTax), // Negative to show deduction
-          },
           {
             description: 'تصحيحات الفترة السابقة',
             amount: '-',
