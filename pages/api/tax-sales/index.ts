@@ -50,6 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         paymentMethod,
         amount,
         total,
+        salesDetailId,
       } = req.body;
 
       // Validate required fields
@@ -73,26 +74,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
+      let detailName: string | null = null;
+      if (salesDetailId) {
+        const detail = await prisma.taxSalesDetail.findUnique({
+          where: { id: Number(salesDetailId) },
+          select: { name: true },
+        });
+        detailName = detail?.name ?? null;
+      }
+
       // Create sales tax record using TaxSalesRecord model with relation
-      // Note: After running 'npx prisma generate', the customer relation will be available
       const salesTax = await prisma.taxSalesRecord.create({
         data: {
           customerId: Number(customerId),
-          customerName: customer.fullname || customerName || null, // Use customer's fullname from database
+          customerName: customer.fullname || customerName || null,
           date: new Date(date),
           salesBeforeTax: new Prisma.Decimal(salesBeforeTax),
           taxRate: new Prisma.Decimal(taxRate),
           taxValue: new Prisma.Decimal(taxValue || 0),
           salesIncludingTax: new Prisma.Decimal(salesIncludingTax || 0),
           paymentMethod: paymentMethod ? String(paymentMethod) : null,
-          attachment: null, // File upload will be handled separately if needed
+          attachment: null,
           amount: new Prisma.Decimal(amount || salesBeforeTax),
           total: new Prisma.Decimal(total || salesIncludingTax),
-          category: 'مبيعات', // فئة المبيعات
-          description: `مبيعات للعميل ${customer.fullname || customerName || ''}`, // وصف المبيعات
-          // taxDeclarationId is optional, can be set later if needed
+          salesDetailId: salesDetailId ? Number(salesDetailId) : null,
+          category: detailName || 'مبيعات',
+          description: detailName ? `${detailName} - ${customer.fullname || customerName || ''}` : `مبيعات للعميل ${customer.fullname || customerName || ''}`,
           taxDeclarationId: undefined,
-        } as any, // Type assertion until prisma generate is run
+        } as any,
         include: {
           customer: {
             select: {

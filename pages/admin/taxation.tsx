@@ -4,9 +4,10 @@ import AddSalesModal from '../../components/AddSalesModal';
 import AddPurchasesModal from '../../components/AddPurchasesModal';
 import EditSalesModal from '../../components/EditSalesModal';
 import EditPurchasesModal from '../../components/EditPurchasesModal';
+import AddSupplierModal from '../../components/AddSupplierModal';
 import Layout from 'example/containers/Layout';
 import { PencilAltIcon } from '@heroicons/react/solid';
-import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
+import { DocumentDownloadIcon, TableIcon, CogIcon } from '@heroicons/react/outline';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -38,6 +39,9 @@ const TaxReportPage = () => {
   const [dateTo, setDateTo] = useState('');
   const [userName, setUserName] = useState('');
   const [counts, setCounts] = useState({ sales: 0, purchases: 0, vat: 3 });
+  const [suppliers, setSuppliers] = useState<{ id: number; name: string; displayOrder: number; createdAt?: string }[]>([]);
+  const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
+  const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
 
   // Fetch sales data
   const fetchSalesData = async () => {
@@ -177,6 +181,19 @@ const TaxReportPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
 
+  const fetchSuppliers = async () => {
+    setIsSuppliersLoading(true);
+    try {
+      const res = await fetch('/api/tax-suppliers');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.suppliers)) setSuppliers(data.suppliers);
+    } catch (e) {
+      console.error('Error fetching suppliers:', e);
+    } finally {
+      setIsSuppliersLoading(false);
+    }
+  };
+
   // Load data on mount and when tab changes
   useEffect(() => {
     if (activeTab === 'sales') {
@@ -185,6 +202,8 @@ const TaxReportPage = () => {
       fetchPurchasesData();
     } else if (activeTab === 'vat') {
       fetchVATSummary();
+    } else if (activeTab === 'suppliers') {
+      fetchSuppliers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, dateFrom, dateTo]);
@@ -1194,6 +1213,10 @@ function getDate(date: any) {
                 <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-gray-200 text-xs font-medium text-gray-700">{counts.purchases || purchasesData.length}</span>
                 <span>المشتريات</span>
               </button>
+              <button onClick={() => setActiveTab('suppliers')} className={`flex items-center gap-2 py-1 px-2 text-sm ${activeTab === 'suppliers' ? 'border-b-2 border-gray-800 text-gray-800 font-bold' : 'text-gray-500'}`}>
+                <span className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-gray-200 text-xs font-medium text-gray-700">{suppliers.length}</span>
+                <span>الموردين</span>
+              </button>
             </nav>
             
             {/* ## Filters & Actions Section */}
@@ -1488,6 +1511,49 @@ function getDate(date: any) {
                   </tbody>
                 </table>
               </section>
+            ) : activeTab === 'suppliers' ? (
+              /* ## جدول الموردين */
+              <section className="overflow-x-auto px-4">
+                <div className="flex justify-end mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSupplierModal(true)}
+                    className="bg-teal-800 hover:bg-teal-700 text-white rounded-md text-sm px-4 py-2 flex items-center gap-2"
+                    title="إضافة مورد"
+                  >
+                    <CogIcon className="w-5 h-5" />
+                    <span>إضافة مورد</span>
+                  </button>
+                </div>
+                <table className="w-full min-w-[400px] border-collapse text-base text-gray-800">
+                  <thead className="bg-[#1A4D4F] text-white">
+                    <tr>
+                      <th className="font-normal p-4 text-center">#</th>
+                      <th className="font-normal p-4 text-center">اسم المورد</th>
+                      <th className="font-normal p-4 text-center">الترتيب</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isSuppliersLoading ? (
+                      <tr>
+                        <td colSpan={3} className="p-8 text-center text-gray-500">جاري التحميل...</td>
+                      </tr>
+                    ) : suppliers.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="p-8 text-center text-gray-500">لا يوجد موردين. استخدم زر &quot;إضافة مورد&quot; لإضافة أول مورد.</td>
+                      </tr>
+                    ) : (
+                      suppliers.map((s, i) => (
+                        <tr key={s.id} className="bg-white border border-gray-200">
+                          <td className="p-4 text-center">{i + 1}</td>
+                          <td className="p-4 text-center">{s.name}</td>
+                          <td className="p-4 text-center">{s.displayOrder}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </section>
             ) : (
               /* ## Tax Declaration Table - For VAT tab */
               <section className="overflow-x-auto">
@@ -1601,7 +1667,6 @@ function getDate(date: any) {
             setSelectedPurchaseRecord(null);
           }}
           onSuccess={() => {
-            // Refresh purchases data and VAT summary after editing
             fetchPurchasesData();
             fetchCounts();
             if (activeTab === 'vat') {
@@ -1609,6 +1674,15 @@ function getDate(date: any) {
             }
           }}
           purchaseRecord={selectedPurchaseRecord}
+        />
+
+        {/* Add Supplier Modal (جدول الموردين) */}
+        <AddSupplierModal
+          isOpen={showAddSupplierModal}
+          onClose={() => setShowAddSupplierModal(false)}
+          onSuccess={() => {
+            fetchSuppliers();
+          }}
         />
       </main>
     </Layout>

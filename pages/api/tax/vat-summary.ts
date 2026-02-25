@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (to) dateFilter.date.lte = new Date(String(to));
     }
 
-    // Fetch all sales records (Output Tax)
+    // Fetch all sales records (Output Tax) with salesDetail for البيان
     const salesRecords = await prisma.taxSalesRecord.findMany({
       where: dateFilter,
       include: {
@@ -28,12 +28,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             fullname: true,
           },
         },
+        salesDetail: {
+          select: { id: true, name: true },
+        },
       },
     });
 
-    // Fetch all purchase records (Input Tax)
+    // Fetch all purchase records (Input Tax) with purchaseDetail for البيان
     const purchaseRecords = await prisma.taxPurchaseRecord.findMany({
       where: dateFilter,
+      include: {
+        purchaseDetail: {
+          select: { id: true, name: true },
+        },
+      },
     });
 
     // Helper function to convert Decimal to number
@@ -167,43 +175,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     };
 
-    // Build response structure matching the table format
+    // صفوف ديناميكية حسب البيان (التفاصيل) للمبيعات — تظهر في تاب الضريبة المضافة
+    const salesByDetail = new Map<string, { amount: number; adjustment: number; vat: number }>();
+    salesRecords.forEach((s) => {
+      const label = (s as any).salesDetail?.name || s.category || s.description || 'غير مصنف';
+      const key = String(label).trim();
+      if (!salesByDetail.has(key)) salesByDetail.set(key, { amount: 0, adjustment: 0, vat: 0 });
+      const agg = salesByDetail.get(key)!;
+      agg.amount += toNumber(s.salesBeforeTax || s.amount);
+      agg.adjustment += toNumber(s.adjustment);
+      agg.vat += toNumber(s.taxValue || 0);
+    });
+    const salesDetailRowsRaw = Array.from(salesByDetail.entries()).map(([description, agg]) => ({
+      description,
+      amount: formatNumber(agg.amount),
+      adjustment: formatNumber(agg.adjustment),
+      vat: formatNumber(agg.vat),
+    }));
+    // استبعاد صف "مبيعات" و"مشتريات" العامة — البيانات ديناميكية فقط من التفاصيل
+    const salesDetailRows = salesDetailRowsRaw.filter(
+      (r) => r.description.trim() !== 'مبيعات' && r.description.trim() !== 'مشتريات'
+    );
+
+    // صفوف ديناميكية حسب البيان (التفاصيل) للمشتريات
+    const purchasesByDetail = new Map<string, { amount: number; adjustment: number; vat: number }>();
+    purchaseRecords.forEach((p) => {
+      const label = (p as any).purchaseDetail?.name || p.category || p.description || 'غير مصنف';
+      const key = String(label).trim();
+      if (!purchasesByDetail.has(key)) purchasesByDetail.set(key, { amount: 0, adjustment: 0, vat: 0 });
+      const agg = purchasesByDetail.get(key)!;
+      agg.amount += toNumber(p.purchasesBeforeTax || p.amount);
+      agg.adjustment += toNumber(p.adjustment);
+      agg.vat += toNumber(p.taxValue || 0);
+    });
+    const purchasesDetailRowsRaw = Array.from(purchasesByDetail.entries()).map(([description, agg]) => ({
+      description,
+      amount: formatNumber(agg.amount),
+      adjustment: formatNumber(agg.adjustment),
+      vat: formatNumber(agg.vat),
+    }));
+    // استبعاد صف "مبيعات" و"مشتريات" العامة
+    const purchasesDetailRows = purchasesDetailRowsRaw.filter(
+      (r) => r.description.trim() !== 'مبيعات' && r.description.trim() !== 'مشتريات'
+    );
+
+    // إزالة البيانات الثابتة — الجدول يعرض فقط صفوف التفاصيل الديناميكية، والإجمالي من مجموع السجلات
     const response = {
       success: true,
       sales: {
         title: 'المبيعات',
-        rows: [
-          {
-            description: 'المبيعات الخاضعة للنسبة الاساسية (15%)',
-            amount: formatNumber(salesTax15Amount),
-            adjustment: formatNumber(salesTax15Adjustment),
-            vat: formatNumber(salesTax15VAT),
-          },
-          {
-            description: 'المبيعات لصالح المواطنين(خدمات صحية خاصة،التعليم الاهلي الخاص، المسكن الاول)',
-            amount: formatNumber(citizenServicesAmount),
-            adjustment: '-',
-            vat: '-',
-          },
-          {
-            description: 'المبيعات الداخلية الخاضعة لنسبة صفر بالمائة',
-            amount: formatNumber(zeroRateAmount - exportAmount), // Subtract exports from zero rate
-            adjustment: formatNumber(zeroRateAdjustment),
-            vat: formatNumber(zeroRateVAT),
-          },
-          {
-            description: 'الصادرات الخاضعة لنسبة صفر بالمائة',
-            amount: formatNumber(exportAmount),
-            adjustment: '-',
-            vat: '-',
-          },
-          {
-            description: 'المبيعات الملغاة',
-            amount: formatNumber(cancelledAmount),
-            adjustment: formatNumber(cancelledAdjustment),
-            vat: formatNumber(cancelledVAT),
-          },
-        ],
+        rows: salesDetailRows,
         total: {
           amount: formatNumber(totalSalesTaxAmount),
           adjustment: formatNumber(totalSalesTaxAdjustment),
@@ -212,38 +233,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       purchases: {
         title: 'المشتريات',
-        rows: [
-          {
-            description: 'المشتريات الداخلية الخاضعة للنسبة الاساسية(15%)',
-            amount: formatNumber(purchasesTax15Amount),
-            adjustment: formatNumber(purchasesTax15Adjustment),
-            vat: formatNumber(purchasesTax15VAT),
-          },
-          {
-            description: 'التوريدات الخاضعة للضريبة القيمة المضافة المسددة للجمارك',
-            amount: formatNumber(customsAmount),
-            adjustment: formatNumber(customsAdjustment),
-            vat: formatNumber(customsVAT),
-          },
-          {
-            description: 'عمليات الاستيراد الخاضعة لضريبة القيمة المضافة والمستحقة للضريبة وفقا لالية الاحتساب العكسي',
-            amount: formatNumber(reverseChargeAmount),
-            adjustment: formatNumber(reverseChargeAdjustment),
-            vat: formatNumber(reverseChargeVAT),
-          },
-          {
-            description: 'المشتريات الخاضعة لنسبة صفر بالمائة',
-            amount: formatNumber(zeroRatePurchasesAmount),
-            adjustment: formatNumber(zeroRatePurchasesAdjustment),
-            vat: formatNumber(zeroRatePurchasesVAT),
-          },
-          {
-            description: 'المبيعات المعفاة',
-            amount: formatNumber(exemptAmount),
-            adjustment: formatNumber(exemptAdjustment),
-            vat: formatNumber(exemptVAT),
-          },
-        ],
+        rows: purchasesDetailRows,
         total: {
           amount: formatNumber(totalInputTaxAmount),
           adjustment: formatNumber(totalInputTaxAdjustment),

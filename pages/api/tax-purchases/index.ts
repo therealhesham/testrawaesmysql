@@ -25,7 +25,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'POST') {
       const {
-        supplierName,
+        supplierName: bodySupplierName,
+        supplierId,
         date,
         status,
         invoiceNumber,
@@ -36,20 +37,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         purchasesIncludingTax,
         amount,
         total,
+        purchaseDetailId,
       } = req.body;
 
+      // Resolve supplier name from supplierId or use provided supplierName
+      let supplierName: string = '';
+      if (supplierId) {
+        const supplier = await prisma.taxSupplier.findUnique({
+          where: { id: Number(supplierId) },
+          select: { name: true },
+        });
+        supplierName = supplier?.name ?? bodySupplierName ?? '';
+      } else {
+        supplierName = bodySupplierName ? String(bodySupplierName) : '';
+      }
+
       // Validate required fields
-      if (!supplierName || !date || !purchasesBeforeTax || !taxRate) {
+      if (!supplierName.trim() || !date || !purchasesBeforeTax || !taxRate) {
         return res.status(400).json({
           success: false,
-          message: 'الحقول المطلوبة: اسم المورد، التاريخ، قيمة المشتريات قبل الضريبة، ونسبة الضريبة',
+          message: 'الحقول المطلوبة: اسم المورد (أو اختر من القائمة)، التاريخ، قيمة المشتريات قبل الضريبة، ونسبة الضريبة',
         });
       }
 
-      // Create purchase tax record using TaxPurchaseRecord model
+      let detailName: string | null = null;
+      if (purchaseDetailId) {
+        const detail = await prisma.taxPurchaseDetail.findUnique({
+          where: { id: Number(purchaseDetailId) },
+          select: { name: true },
+        });
+        detailName = detail?.name ?? null;
+      }
+
       const purchaseTax = await prisma.taxPurchaseRecord.create({
         data: {
-          supplierName: String(supplierName),
+          supplierId: supplierId ? Number(supplierId) : null,
+          supplierName: supplierName.trim(),
           date: new Date(date),
           status: status ? String(status) : 'مدفوعة',
           invoiceNumber: invoiceNumber ? String(invoiceNumber) : null,
@@ -58,14 +81,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           taxRate: new Prisma.Decimal(taxRate),
           taxValue: new Prisma.Decimal(taxValue || 0),
           purchasesIncludingTax: new Prisma.Decimal(purchasesIncludingTax || 0),
-          attachment: null, // File upload will be handled separately if needed
+          attachment: null,
           amount: new Prisma.Decimal(amount || purchasesBeforeTax),
           total: new Prisma.Decimal(total || purchasesIncludingTax),
-          category: 'مشتريات', // فئة المشتريات
-          description: `مشتريات من المورد ${supplierName}`, // وصف المشتريات
-          // taxDeclarationId is optional, can be set later if needed
+          purchaseDetailId: purchaseDetailId ? Number(purchaseDetailId) : null,
+          category: detailName || 'مشتريات',
+          description: detailName ? `${detailName} - ${supplierName}` : `مشتريات من المورد ${supplierName}`,
           taxDeclarationId: undefined,
-        } as any, // Type assertion until prisma generate is run
+        } as any,
       });
 
       // Log accounting action

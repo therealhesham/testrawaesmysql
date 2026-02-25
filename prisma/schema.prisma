@@ -1060,12 +1060,53 @@ model TaxDeclaration {
   @@index([status])
 }
 
+// تفاصيل المبيعات (خيارات ديناميكية يضيفها المستخدم)
+model TaxSalesDetail {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(255) // اسم التفصيل (مثل: مبيعات استقدام، خدمات)
+  displayOrder Int       @default(0) // ترتيب الظهور
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  salesRecords TaxSalesRecord[]
+
+  @@index([displayOrder])
+}
+
+// تفاصيل المشتريات (خيارات ديناميكية يضيفها المستخدم)
+model TaxPurchaseDetail {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(255) // اسم التفصيل (مثل: رسوم حكومية، خدمات)
+  displayOrder Int       @default(0) // ترتيب الظهور
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  purchaseRecords TaxPurchaseRecord[]
+
+  @@index([displayOrder])
+}
+
+// الموردين (جدول خاص — إضافة اسم مورد من الترس)
+model TaxSupplier {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(255) // اسم المورد
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  purchaseRecords TaxPurchaseRecord[]
+
+  @@index([displayOrder])
+}
+
 model TaxSalesRecord {
   id                Int       @id @default(autoincrement())
   taxDeclarationId  Int?
   taxDeclaration    TaxDeclaration? @relation(fields: [taxDeclarationId], references: [id], onDelete: Cascade)
   
-  category          String?   @db.VarChar(255) // فئة المبيعات
+  salesDetailId     Int?      // اختيار من التفاصيل الديناميكية
+  salesDetail       TaxSalesDetail? @relation(fields: [salesDetailId], references: [id], onDelete: SetNull)
+  category          String?   @db.VarChar(255) // فئة المبيعات (للتوافق مع البيانات القديمة)
   description       String?   @db.VarChar(500) // وصف المبيعات
   amount            Decimal   @default(0) // المبلغ
   adjustment        Decimal   @default(0) // التعديل
@@ -1089,6 +1130,7 @@ model TaxSalesRecord {
   @@index([taxDeclarationId])
   @@index([customerId])
   @@index([date])
+  @@index([salesDetailId])
 }
 
 model TaxPurchaseRecord {
@@ -1096,7 +1138,11 @@ model TaxPurchaseRecord {
   taxDeclarationId  Int?
   taxDeclaration    TaxDeclaration? @relation(fields: [taxDeclarationId], references: [id], onDelete: Cascade)
   
-  category          String?   @db.VarChar(255) // فئة المشتريات
+  purchaseDetailId  Int?      // اختيار من التفاصيل الديناميكية
+  purchaseDetail    TaxPurchaseDetail? @relation(fields: [purchaseDetailId], references: [id], onDelete: SetNull)
+  supplierId        Int?      // اختيار من جدول الموردين
+  supplier          TaxSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  category          String?   @db.VarChar(255) // فئة المشتريات (للتوافق مع البيانات القديمة)
   description       String?   @db.VarChar(500) // وصف المشتريات
   amount            Decimal   @default(0) // المبلغ
   adjustment        Decimal   @default(0) // التعديل
@@ -1104,7 +1150,7 @@ model TaxPurchaseRecord {
   taxRate           Decimal   @default(15) // نسبة الضريبة
   
   // Additional fields for detailed purchase records
-  supplierName      String?   @db.VarChar(255) // اسم المورد
+  supplierName      String?   @db.VarChar(255) // اسم المورد (للتوافق والعرض)
   date              DateTime? @default(now()) // تاريخ المشتريات
   status            String?   @db.VarChar(255) // الحالة (مثل: مدفوعة، غير مدفوعة)
   invoiceNumber     String?   @db.VarChar(255) // رقم الفاتورة
@@ -1119,6 +1165,8 @@ model TaxPurchaseRecord {
   
   @@index([taxDeclarationId])
   @@index([date])
+  @@index([purchaseDetailId])
+  @@index([supplierId])
 }
 
 model TaxVATRecord {
