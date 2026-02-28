@@ -10,7 +10,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder } = req.query;
+  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder, isReservedFilter } = req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = parseInt(perPage as string, 10) || 10;
@@ -73,6 +73,25 @@ export default async function handler(
   }
 }
 
+  // Filter by reservation status (aligned with home.tsx order tabs):
+  // محجوزة = has at least one order that is NOT cancelled/rejected
+  // متاحة = no orders, or all orders are cancelled/rejected
+  if (isReservedFilter === 'reserved') {
+    filters.NewOrder = {
+      some: {
+        bookingstatus: { notIn: ['cancelled', 'rejected'] }
+      }
+    };
+  } else if (isReservedFilter === 'available') {
+    filters.NOT = {
+      NewOrder: {
+        some: {
+          bookingstatus: { notIn: ['cancelled', 'rejected'] }
+        }
+      }
+    };
+  }
+
   // Build orderBy object based on sortBy and sortOrder
   let orderBy: any = { displayOrder: "desc" }; // Default sorting
   
@@ -87,7 +106,9 @@ export default async function handler(
           [sortField]: sortDirection
         }
       };
-    } else {
+    } else if (sortField !== 'isReserved') {
+      // isReserved is a computed field mapped from NewOrder grouping, not a sortable Prisma column.
+      // We skip sorting at the DB level for this column.
       orderBy = { [sortField]: sortDirection };
     }
   }
@@ -151,12 +172,13 @@ export default async function handler(
         }
       }
 
-      // Check reservation status
+      // Check reservation status (محجوزة = has order not cancelled/rejected, متاحة = no orders or all cancelled)
       let isReserved = false;
       if (homemaid.NewOrder && homemaid.NewOrder.length > 0) {
-        isReserved = homemaid.NewOrder.some((order: any) => 
-          order.bookingstatus === 'under_process' || order.bookingstatus === 'received'
-        );
+        isReserved = homemaid.NewOrder.some((order: any) => {
+          const status = order.bookingstatus?.toLowerCase?.() || '';
+          return status !== 'cancelled' && status !== 'rejected';
+        });
       }
       
       return {

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "example/containers/Layout";
 import Style from "styles/Home.module.css";
-import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical, FaSort, FaSortUp, FaSortDown, FaTh, FaThList } from "react-icons/fa";
+import { FaSearch, FaRedo, FaFileExcel, FaFilePdf, FaArrowUp, FaArrowDown, FaGripVertical, FaSort, FaSortUp, FaSortDown, FaTh, FaThList, FaFilter } from "react-icons/fa";
 import { ArrowLeftIcon } from "@heroicons/react/outline";
 import { PlusOutlined } from "@ant-design/icons";
 import { Trash2 } from "lucide-react";
@@ -50,6 +50,8 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     age: "",
     PassportNumber: "",
   });
+  const [isReservedFilter, setIsReservedFilter] = useState<'all' | 'reserved' | 'available'>('all');
+  const [isReservedFilterModalOpen, setIsReservedFilterModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<string>("displayOrder");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [contractType, setContractType] = useState('recruitment');
@@ -197,6 +199,13 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         return order === 'asc' ? aValue - bValue : bValue - aValue;
       }
 
+      // Handle boolean values (isReserved, isApproved)
+      if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+        const numA = aValue ? 1 : 0;
+        const numB = bValue ? 1 : 0;
+        return order === 'asc' ? numA - numB : numB - numA;
+      }
+
       // String comparison
       const aStr = String(aValue).toLowerCase();
       const bStr = String(bValue).toLowerCase();
@@ -211,7 +220,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     return sorted;
   };
 
-  const fetchData = async (page = 1, customContractType?: string, isTypeSwitching = false) => {
+  const fetchData = async (page = 1, customContractType?: string, isTypeSwitching = false, customReservedFilter?: 'all' | 'reserved' | 'available') => {
     // Allow fetch if switching types (force new request)
     if (isFetchingRef.current && !isTypeSwitching) return;
     isFetchingRef.current = true;
@@ -236,6 +245,10 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         sortBy: sortBy,
         sortOrder: sortOrder,
       });
+      const reservedFilterToUse = customReservedFilter !== undefined ? customReservedFilter : isReservedFilter;
+      if (reservedFilterToUse !== 'all') {
+        queryParams.set('isReservedFilter', reservedFilterToUse);
+      }
       
       console.log('Fetching data with contractType:', typeToUse);
       console.log('Fetching data with filters:', filters);
@@ -259,8 +272,14 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       if (rental !== undefined) setRentalCount(rental);
       
       if (res && res.length > 0) {
-        // Don't sort on client side anymore, data comes sorted from server
-        setData(res);
+        // Handle sorting for virtual columns that the backend cannot sort (isApproved only, isReserved uses filtering now)
+        let sortedData = res;
+        if (sortBy === 'isApproved') {
+          sortedData = sortData(res, sortBy, sortOrder as 'asc' | 'desc');
+        }
+        
+        // Don't sort on client side anymore for other columns, data comes sorted from server
+        setData(sortedData);
         console.log("Data fetched successfully for type:", typeToUse, "Count:", res.length);
         setTotalPages(pages || 1);
       } else {
@@ -348,7 +367,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     
     // Pass contractType explicitly to ensure correct value is used
     fetchData(currentPage, contractType, isContractTypeChanged);
-  }, [currentPage, filters, contractType, sortBy, sortOrder]);
+  }, [currentPage, filters, contractType, sortBy, sortOrder, isReservedFilter]);
 
 
   const handleFilterChange = (e: any, column: string) => {
@@ -386,6 +405,11 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       
       setFilters(urlFilters);
       
+      // قراءة فلتر حالة الحجز من URL
+      const reservedFromUrl = router.query.isReservedFilter as string;
+      const finalReservedFilter = (reservedFromUrl === 'reserved' || reservedFromUrl === 'available') ? reservedFromUrl : 'all';
+      setIsReservedFilter(finalReservedFilter);
+      
       // قراءة معاملات الترتيب من URL
       if (router.query.sortBy) {
         setSortBy(router.query.sortBy as string);
@@ -397,8 +421,8 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       // Mark as no longer initial mount
       isInitialMount.current = false;
       
-      // Fetch data with the contract type from URL
-      fetchData(pageFromUrl, finalType);
+      // Fetch data with the contract type and reservation filter from URL
+      fetchData(pageFromUrl, finalType, false, finalReservedFilter);
     }
   }, [router.isReady, router.query]);
 
@@ -420,6 +444,9 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     if (filters.PassportNumber) {
       queryParams.set('PassportNumber', filters.PassportNumber);
     }
+    if (isReservedFilter !== 'all') {
+      queryParams.set('isReservedFilter', isReservedFilter);
+    }
     // إضافة معاملات الترتيب
     if (sortBy) {
       queryParams.set('sortBy', sortBy);
@@ -436,7 +463,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     if (router.asPath !== newUrl) {
       router.replace(newUrl, undefined, { shallow: true });
     }
-  }, [currentPage, filters, sortBy, sortOrder, contractType, router.isReady, router.pathname, router.asPath]);
+  }, [currentPage, filters, sortBy, sortOrder, contractType, isReservedFilter, router.isReady, router.pathname, router.asPath]);
 
   const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);
@@ -449,6 +476,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       PassportNumber: "",
       Name: "",
     });
+    setIsReservedFilter('all');
     setCurrentPage(1);
   };
 
@@ -1236,7 +1264,7 @@ const exportToPDF = async () => {
       'رقم جواز السفر',
       'بداية الجواز',
       'نهاية الجواز',
-      'المكتب',
+      // 'المكتب',
       'حالة الحجز',
     ].reverse(); // ✅ عكس ترتيب الأعمدة
 //hidden id column
@@ -1252,7 +1280,7 @@ const exportToPDF = async () => {
         row.Passportnumber || 'غير متوفر',
         row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
         row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
-        row?.office?.office || 'غير متوفر',
+        // row?.office?.office || 'غير متوفر',
         row.isReserved ? 'عاملة محجوزة' : 'عاملة متاحة',
       ].reverse() // ✅ عكس القيم داخل كل صف
     );
@@ -1678,9 +1706,15 @@ const exportToPDF = async () => {
                     {visibleColumns.includes('isReserved') && (
                       <th 
                         className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('isReserved')}
+                        onClick={() => setIsReservedFilterModalOpen(true)}
+                        title="فلترة حسب حالة الحجز"
                       >
-                        حالة الحجز <SortIcon field="isReserved" />
+                        حالة الحجز <FaFilter className={`inline-block ml-1 ${isReservedFilter !== 'all' ? 'text-teal-200' : 'text-gray-300'}`} />
+                        {isReservedFilter !== 'all' && (
+                          <span className="text-xs block mt-0.5 text-teal-200">
+                            {isReservedFilter === 'reserved' ? 'محجوز' : 'متاح'}
+                          </span>
+                        )}
                       </th>
                     )}
                                           {/* {visibleColumns.includes('isApproved') && ( */}
@@ -1838,6 +1872,80 @@ const exportToPDF = async () => {
                 </button>
               </div>
             )}
+          </div>
+        </Modal>
+
+        {/* حالة الحجز Filter Modal */}
+        <Modal
+          isOpen={isReservedFilterModalOpen}
+          onRequestClose={() => setIsReservedFilterModalOpen(false)}
+          style={customModalStyles}
+          contentLabel="فلترة حسب حالة الحجز"
+          shouldFocusAfterRender={true}
+        >
+          <div className="relative">
+            <h2 className={`text-xl font-bold text-teal-800 mb-4 ${Style["almarai-bold"]}`}>
+              فلترة حسب حالة الحجز
+            </h2>
+            <div className="space-y-3">
+              <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                isReservedFilter === 'all' ? 'bg-teal-50 border-2 border-teal-500' : 'border-2 border-transparent'
+              }`}>
+                <input
+                  type="radio"
+                  name="isReservedFilter"
+                  value="all"
+                  checked={isReservedFilter === 'all'}
+                  onChange={() => {
+                    setIsReservedFilter('all');
+                    setCurrentPage(1);
+                    setIsReservedFilterModalOpen(false);
+                  }}
+                  className="w-4 h-4 text-teal-800"
+                />
+                <span className="text-gray-800 font-medium">الكل - عرض الجميع</span>
+              </label>
+              <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                isReservedFilter === 'reserved' ? 'bg-orange-50 border-2 border-orange-500' : 'border-2 border-transparent'
+              }`}>
+                <input
+                  type="radio"
+                  name="isReservedFilter"
+                  value="reserved"
+                  checked={isReservedFilter === 'reserved'}
+                  onChange={() => {
+                    setIsReservedFilter('reserved');
+                    setCurrentPage(1);
+                    setIsReservedFilterModalOpen(false);
+                  }}
+                  className="w-4 h-4 text-orange-600"
+                />
+                <span className="text-orange-700 font-medium">محجوز - عاملات محجوزات</span>
+              </label>
+              <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                isReservedFilter === 'available' ? 'bg-green-50 border-2 border-green-500' : 'border-2 border-transparent'
+              }`}>
+                <input
+                  type="radio"
+                  name="isReservedFilter"
+                  value="available"
+                  checked={isReservedFilter === 'available'}
+                  onChange={() => {
+                    setIsReservedFilter('available');
+                    setCurrentPage(1);
+                    setIsReservedFilterModalOpen(false);
+                  }}
+                  className="w-4 h-4 text-green-600"
+                />
+                <span className="text-green-700 font-medium">متاحة - عاملات متاحات</span>
+              </label>
+            </div>
+            <button
+              onClick={() => setIsReservedFilterModalOpen(false)}
+              className="mt-4 w-full bg-teal-800 text-white py-2 px-4 rounded-lg hover:bg-teal-900 transition-colors"
+            >
+              إغلاق
+            </button>
           </div>
         </Modal>
 
