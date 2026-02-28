@@ -98,7 +98,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     'Passportnumber',
     'PassportStart',
     'PassportEnd',
-    'office',
+    'isReserved',
     'displayOrder',
   ]);
 
@@ -743,6 +743,15 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
             </div>
           )}
           
+          {visibleColumns.includes('isReserved') && (
+            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+              <span className="text-gray-600 font-medium">حالة الحجز:</span>
+              <span className={`text-sm font-semibold px-2 py-1 rounded-full ${item.isReserved ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                {item.isReserved ? 'عاملة محجوزة' : 'عاملة متاحة'}
+              </span>
+            </div>
+          )}
+          
           {visibleColumns.includes('displayOrder') && (
             <div className="flex items-center justify-between pt-2 border-t-2 border-gray-300 mt-2">
               <span className="text-gray-600 font-medium">ترتيب العرض:</span>
@@ -898,6 +907,16 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
           </td>
         )}
         
+        {visibleColumns.includes('isReserved') && (
+          <td className="px-1 py-2 text-center">
+            {item.isReserved ? (
+              <span className="text-orange-600 font-semibold" title="عاملة محجوزة (طلب تحت الإجراء أو استلام)">محجوزة</span>
+            ) : (
+              <span className="text-green-600 font-semibold" title="عاملة متاحة (لا يوجد طلبات نشطة)">متاحة</span>
+            )}
+          </td>
+        )}
+        
         {/* {visibleColumns.includes('isApproved') && ( */}
           <td className="px-1 py-2 text-center">
             {item.isApproved ? (
@@ -967,6 +986,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       { key: 'PassportStart', label: 'بداية الجواز' },
       { key: 'PassportEnd', label: 'نهاية الجواز' },
       { key: 'office', label: 'المكتب' },
+      { key: 'isReserved', label: 'حالة الحجز' },
       { key: 'displayOrder', label: 'ترتيب العرض' },
     ];
 
@@ -1217,6 +1237,7 @@ const exportToPDF = async () => {
       'بداية الجواز',
       'نهاية الجواز',
       'المكتب',
+      'حالة الحجز',
     ].reverse(); // ✅ عكس ترتيب الأعمدة
 //hidden id column
     // 📊 الصفوف (معكوسة بنفس الترتيب)
@@ -1232,6 +1253,7 @@ const exportToPDF = async () => {
         row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
         row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
         row?.office?.office || 'غير متوفر',
+        row.isReserved ? 'عاملة محجوزة' : 'عاملة متاحة',
       ].reverse() // ✅ عكس القيم داخل كل صف
     );
 
@@ -1342,6 +1364,7 @@ const exportToPDF = async () => {
         { header: 'بداية الجواز', key: 'passportStart', width: 15 },
         { header: 'نهاية الجواز', key: 'passportEnd', width: 15 },
         { header: 'المكتب', key: 'office', width: 15 },
+        { header: 'حالة الحجز', key: 'isReserved', width: 15 },
       ];
       worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
       worksheet.getRow(1).alignment = { horizontal: 'right' };
@@ -1357,6 +1380,7 @@ const exportToPDF = async () => {
           passportStart: row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
           passportEnd: row.PassportEnd ? getDate(row.PassportEnd) : 'غير متوفر',
           office: row?.office?.office || 'غير متوفر',
+          isReserved: row.isReserved ? 'عاملة محجوزة' : 'عاملة متاحة',
         }).alignment = { horizontal: 'right' };
       });
       const buffer = await workbook.xlsx.writeBuffer();
@@ -1649,6 +1673,14 @@ const exportToPDF = async () => {
                         onClick={() => handleSort('office')}
                       >
                         المكتب <SortIcon field="office" />
+                      </th>
+                    )}
+                    {visibleColumns.includes('isReserved') && (
+                      <th 
+                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
+                        onClick={() => handleSort('isReserved')}
+                      >
+                        حالة الحجز <SortIcon field="isReserved" />
                       </th>
                     )}
                                           {/* {visibleColumns.includes('isApproved') && ( */}

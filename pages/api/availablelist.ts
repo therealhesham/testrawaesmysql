@@ -14,7 +14,15 @@ const pageSize = Number(pageSizeQ);
 
   const filters: any = {};
   // if (id) filters.HomemaidId = Number(id);
-  if (Name) filters.Name = { contains: String(Name).toLowerCase() };
+  if (Name) {
+    const searchString = String(Name);
+    filters.OR = [
+      { Name: { contains: searchString } },
+      { Passportnumber: { contains: searchString } },
+      { Passportnumber: { contains: searchString.toUpperCase() } },
+      { Passportnumber: { contains: searchString.toLowerCase() } }
+    ];
+  }
   
   if (Passportnumber) filters.Passportnumber = { contains: String(Passportnumber).toLowerCase() };
   if (Nationality) filters.office = {Country:{ contains: String(Nationality).toLowerCase() }};

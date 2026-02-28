@@ -127,6 +127,11 @@ export default async function handler(
             Country: true,
           },
         },
+        NewOrder: {
+          select: {
+            bookingstatus: true,
+          }
+        },
       },
       where: filters,
       orderBy: orderBy,
@@ -145,6 +150,14 @@ export default async function handler(
           pictureUrl = homemaid.Picture;
         }
       }
+
+      // Check reservation status
+      let isReserved = false;
+      if (homemaid.NewOrder && homemaid.NewOrder.length > 0) {
+        isReserved = homemaid.NewOrder.some((order: any) => 
+          order.bookingstatus === 'under_process' || order.bookingstatus === 'received'
+        );
+      }
       
       return {
         id: homemaid.id,
@@ -158,6 +171,7 @@ export default async function handler(
         PassportEnd: homemaid.PassportEnd || "",
         displayOrder: homemaid.displayOrder || 0,
         isApproved: homemaid.isApproved || false,
+        isReserved,
         Picture: pictureUrl,
         office: homemaid.office
           ? {

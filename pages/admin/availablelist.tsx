@@ -113,6 +113,7 @@ function getDate(date) {
 const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [nationalities, setNationalities] = useState<{value: string, label: string}[]>([]);
   const [filters, setFilters] = useState({
     Name: '',
     Nationality: '',
@@ -130,7 +131,6 @@ const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
     PassportStart: true,
     PassportEnd: true,
     Experience: true,
-    availability: true,
   });
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
 
@@ -167,6 +167,23 @@ const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
   useEffect(() => {
     fetchHomemaids(currentPage, filters);
   }, [currentPage, filters]);
+
+  useEffect(() => {
+    const fetchNationalities = async () => {
+      try {
+        const response = await fetch('/api/nationalities');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setNationalities(data.nationalities);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching nationalities:', error);
+      }
+    };
+    fetchNationalities();
+  }, []);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -215,7 +232,6 @@ const [homemaids, setHomemaids] = useState<Homemaid[]>([]);
     PassportStart: 'بداية الجواز',
     PassportEnd: 'نهاية الجواز',
     Experience: 'الخبرة',
-    availability: 'مدة توفرها',
   };
 
 
@@ -542,8 +558,9 @@ const exportToPDF = async () => {
                   className="bg-transparent border-none text-gray-500 w-full text-right"
                 >
                   <option value="">كل الجنسيات</option>
-                  <option value="Kenya - كينيا">كينيا</option>
-                  <option value="Uganda - أوغندا">أوغندا</option>
+                  {nationalities.map((nat, idx) => (
+                    <option key={idx} value={nat.value}>{nat.label}</option>
+                  ))}
                 </select>
                 <ChevronDownIcon className="w-4 h-4 text-gray-500" />
               </div>
@@ -622,9 +639,6 @@ const exportToPDF = async () => {
                   {visibleColumns.Experience && (
                     <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">الخبرة</div>
                   )}
-                  {visibleColumns.availability && (
-                    <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">مدة توفرها</div>
-                  )}
                   
                   {/* Skeleton Rows */}
                   {[...Array(5)].map((_, index) => (
@@ -670,11 +684,6 @@ const exportToPDF = async () => {
                         </div>
                       )}
                       {visibleColumns.Experience && (
-                        <div className="p-4 border-b border-gray-300">
-                          <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
-                        </div>
-                      )}
-                      {visibleColumns.availability && (
                         <div className="p-4 border-b border-gray-300">
                           <div className="h-5 bg-gray-300 rounded animate-pulse"></div>
                         </div>
@@ -727,9 +736,6 @@ const exportToPDF = async () => {
                 {visibleColumns.Experience && (
                   <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">الخبرة</div>
                 )}
-                {visibleColumns.availability && (
-                  <div className="bg-teal-800 text-white text-md font-normal p-4 text-center">مدة توفرها</div>
-                )}
                 {homemaids.map((homemaid, index) => (
                   <div key={homemaid.id} className={`contents ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
                     {visibleColumns.id && (
@@ -764,9 +770,6 @@ const exportToPDF = async () => {
                       <div className="p-4 border-b border-gray-300 text-md  text-center">
                         {homemaid.Experience ? homemaid.Experience.split(' | ')[1] || 'غير متوفر' : 'غير متوفر'}
                       </div>
-                    )}
-                    {visibleColumns.availability && (
-                      <div className="p-4 border-b border-gray-300 text-md  text-center">متاحة الآن</div>
                     )}
                   </div>
                 ))}
