@@ -81,13 +81,46 @@ const NewOrdersTab = ({ orders, count, onItemClick }) => (
   </div>
 );
 
+// دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
+const translateBookingStatus = (status: string) => {
+  if (!status) return status;
+  const statusTranslations: { [key: string]: string } = {
+    'pending': 'قيد الانتظار',
+    'office_link_approved': 'موافقة الربط مع إدارة المكاتب',
+    'pending_office_link': 'في انتظار الربط مع إدارة المكاتب',
+    'external_office_approved': 'موافقة المكتب الخارجي',
+    'pending_external_office': 'في انتظار المكتب الخارجي',
+    'medical_check_passed': 'تم اجتياز الفحص الطبي',
+    'pending_medical_check': 'في انتظار الفحص الطبي',
+    'foreign_labor_approved': 'موافقة وزارة العمل الأجنبية',
+    'pending_foreign_labor': 'في انتظار وزارة العمل الأجنبية',
+    'agency_paid': 'تم دفع الوكالة',
+    'pending_agency_payment': 'في انتظار دفع الوكالة',
+    'embassy_approved': 'موافقة السفارة السعودية',
+    'pending_embassy': 'في انتظار السفارة السعودية',
+    'visa_issued': 'تم إصدار التأشيرة',
+    'pending_visa': 'في انتظار إصدار التأشيرة',
+    'travel_permit_issued': 'تم إصدار تصريح السفر',
+    'pending_travel_permit': 'في انتظار تصريح السفر',
+    'received': 'تم الاستلام',
+    'pending_receipt': 'في انتظار الاستلام',
+    'cancelled': 'ملغي',
+    'rejected': 'مرفوض',
+    'delivered': 'تم التسليم',
+    'new_order': 'طلب جديد',
+    'new_orders': 'طلبات جديدة'
+  };
+
+  return statusTranslations[status] || status;
+};
+
 const CurrentOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
     {orders.slice(0, 3).map((order) => (
       <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب تحت الإجراء #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">الحالة: {order.status ?? "غير محدد"}</p>
+          <p className="item-subtitle text-xs text-gray-600">الحالة: {translateBookingStatus(order.bookingstatus) ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ البدء: {getDate(order?.createdAt)} <FieldTimeOutlined />
           </p>
