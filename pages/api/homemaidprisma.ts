@@ -36,11 +36,10 @@ export default async function handler(
     };
   }
   if(Name){
-    if (!filters.OR) filters.OR = [];
-    filters.OR.push(
-      { Name: { contains: (Name as string).toLowerCase() } },
-      { Passportnumber: { contains: (Name as string).toLowerCase() } }
-    );
+    filters.Name = {
+      contains: (Name as string).toLowerCase(),
+      // mode: "insensitive",
+    };
   }
   if (SponsorName) {
     filters.Name = {
