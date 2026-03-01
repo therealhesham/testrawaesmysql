@@ -10,7 +10,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder, isReservedFilter } = req.query;
+  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder, isReservedFilter, Country, office, phone, maritalstatus, isApprovedFilter } = req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = parseInt(perPage as string, 10) || 10;
@@ -24,16 +24,23 @@ export default async function handler(
     filters.contractType = contractType as string;
   }
 
+  if (isApprovedFilter === 'approved') {
+    filters.isApproved = true;
+  } else if (isApprovedFilter === 'not_approved') {
+    filters.isApproved = false;
+  }
+
   if (OrderId) {
     filters.id = {
       equals: Number(OrderId),
     };
   }
   if(Name){
-    filters.Name = {
-      contains: (Name as string).toLowerCase(),
-      // mode: "insensitive",
-    };
+    if (!filters.OR) filters.OR = [];
+    filters.OR.push(
+      { Name: { contains: (Name as string).toLowerCase() } },
+      { Passportnumber: { contains: (Name as string).toLowerCase() } }
+    );
   }
   if (SponsorName) {
     filters.Name = {
@@ -45,6 +52,22 @@ export default async function handler(
     filters.Passportnumber = {
       contains: PassportNumber as string,
       // mode: "insensitive",
+    };
+  }
+  if (phone) {
+    filters.phone = {
+      contains: phone as string,
+    };
+  }
+  if (maritalstatus) {
+    filters.maritalstatus = {
+      contains: maritalstatus as string,
+    };
+  }
+  if (Country || office) {
+    filters.office = {
+      ...(Country && { Country: { contains: Country as string } }),
+      ...(office && { office: { contains: office as string } })
     };
   }
   if (age) {

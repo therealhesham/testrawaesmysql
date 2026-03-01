@@ -32,7 +32,7 @@ import { CSS } from '@dnd-kit/utilities';
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
 
-interface Props {
+interface FullListProps {
   hasDeletePermission: boolean;
   initialCounts: {
     totalCount: number;
@@ -42,16 +42,36 @@ interface Props {
   };
   recruitmentData: any[];
   rentalData: any[];
+  uniqueCountries: string[];
 }
 
-export default function Table({ hasDeletePermission, initialCounts, recruitmentData, rentalData }: Props) {
+export function formatMaritalStatus(status?: string | null) {
+  if (!status) return 'غير متوفر';
+  if (status.includes('مطلقة') || status.toLowerCase().includes('divorced')) return 'مطلقة';
+  if (status.includes('متزوجة') || status.toLowerCase().includes('married')) return 'متزوجة';
+  if (status.includes('عازبة') || status.toLowerCase().includes('single')) return 'عازبة';
+  if (status.includes('أرملة') || status.toLowerCase().includes('widowed')) return 'أرملة';
+  if (status.includes('-')) {
+    const parts = status.split('-');
+    return parts[parts.length - 1].trim();
+  }
+  return status;
+}
+
+export default function FullList({ recruitmentData, rentalData, initialCounts, hasDeletePermission, uniqueCountries }: FullListProps) {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
     PassportNumber: "",
+    phone: "",
+    Country: "",
+    office: "",
+    maritalstatus: "",
   });
   const [isReservedFilter, setIsReservedFilter] = useState<'all' | 'reserved' | 'available'>('all');
   const [isReservedFilterModalOpen, setIsReservedFilterModalOpen] = useState(false);
+  const [isApprovedFilter, setIsApprovedFilter] = useState<'all' | 'approved' | 'not_approved'>('all');
+  const [isApprovedFilterModalOpen, setIsApprovedFilterModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<string>("displayOrder");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [contractType, setContractType] = useState('recruitment');
@@ -179,6 +199,90 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
+  const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
+  const [tempFilterValue, setTempFilterValue] = useState("");
+
+  const openFilterModal = (column: string) => {
+    setActiveFilterColumn(column);
+    setTempFilterValue((filters as any)[column] || "");
+  };
+
+  const getColumnLabel = (col: string) => {
+    switch (col) {
+      case 'Name': return 'الاسم';
+      case 'PassportNumber': return 'رقم الجواز';
+      case 'phone': return 'رقم الجوال';
+      case 'Country': return 'الجنسية';
+      case 'office': return 'المكتب';
+      case 'maritalstatus': return 'الحالة الاجتماعية';
+      case 'age': return 'العمر';
+      default: return col;
+    }
+  };
+
+  const applyColumnFilter = () => {
+    if (activeFilterColumn) {
+      setFilters(prev => ({
+        ...prev,
+        [activeFilterColumn]: tempFilterValue
+      }));
+      setCurrentPage(1);
+    }
+    setActiveFilterColumn(null);
+  };
+
+  const clearColumnFilter = (column: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [column]: ""
+    }));
+    setCurrentPage(1);
+  };
+
+  const renderFilterableHeader = (sortField: string, filterField: string | null, label: string, isSortable: boolean = true) => {
+    const isActive = filterField ? !!(filters as any)[filterField] : false;
+    return (
+      <th className="px-2 py-3 text-center select-none whitespace-nowrap group transition-colors align-top min-w-[120px]">
+        <div className="flex flex-col items-center justify-start gap-1">
+          <div className="flex items-center justify-center gap-1.5">
+            {isSortable ? (
+              <span className="cursor-pointer font-semibold flex items-center gap-1 transition-colors hover:text-teal-200" onClick={() => handleSort(sortField)}>
+                {label} <SortIcon field={sortField} />
+              </span>
+            ) : (
+              <span className="font-semibold flex items-center gap-1">
+                {label}
+              </span>
+            )}
+            {filterField && (
+              <button
+                 onClick={(e) => { e.stopPropagation(); openFilterModal(filterField); }}
+                 className={`p-1.5 rounded-full hover:bg-teal-600 transition-all focus:outline-none ${isActive ? 'text-teal-100 bg-teal-600' : 'text-teal-400/50 hover:text-teal-200'}`}
+                 title={`فلترة ${label}`}
+              >
+                <FaFilter size={12} />
+              </button>
+            )}
+          </div>
+          {isActive && filterField && (
+            <div className="flex items-center justify-between gap-1.5 bg-teal-900/40 px-2 py-0.5 rounded-full text-teal-50 max-w-[120px] mt-1 border border-teal-600/30 w-full shadow-inner">
+              <span className="text-xs truncate font-medium flex-1 text-center" title={(filters as any)[filterField]}>
+                {(filters as any)[filterField]}
+              </span>
+              <button 
+                onClick={(e) => { e.stopPropagation(); clearColumnFilter(filterField); }} 
+                className="text-teal-200 hover:text-white hover:bg-red-500 rounded-full w-4 h-4 flex items-center justify-center shrink-0 transition-colors"
+                title="مسح الفلتر"
+              >
+                &times;
+              </button>
+            </div>
+          )}
+        </div>
+      </th>
+    );
+  };
+
   // Sort data function
   const sortData = (dataToSort: any[], sortField: string, order: "asc" | "desc") => {
     const sorted = [...dataToSort].sort((a, b) => {
@@ -239,6 +343,10 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         SponsorName: filters.Name, // Also send as SponsorName for API compatibility
         age: filters.age,
         PassportNumber: filters.PassportNumber,
+        phone: filters.phone,
+        Country: filters.Country,
+        office: filters.office,
+        maritalstatus: filters.maritalstatus,
         contractType: typeToUse,
         page: String(page),
         perPage: viewMode === 'table' ? '10' : '8',
@@ -248,6 +356,9 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       const reservedFilterToUse = customReservedFilter !== undefined ? customReservedFilter : isReservedFilter;
       if (reservedFilterToUse !== 'all') {
         queryParams.set('isReservedFilter', reservedFilterToUse);
+      }
+      if (isApprovedFilter !== 'all') {
+        queryParams.set('isApprovedFilter', isApprovedFilter);
       }
       
       console.log('Fetching data with contractType:', typeToUse);
@@ -401,6 +512,10 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         Name: router.query.Name ? decodeURIComponent(router.query.Name as string) : '',
         age: router.query.age ? decodeURIComponent(router.query.age as string) : '',
         PassportNumber: router.query.PassportNumber ? decodeURIComponent(router.query.PassportNumber as string) : '',
+        phone: router.query.phone ? decodeURIComponent(router.query.phone as string) : '',
+        Country: router.query.Country ? decodeURIComponent(router.query.Country as string) : '',
+        office: router.query.office ? decodeURIComponent(router.query.office as string) : '',
+        maritalstatus: router.query.maritalstatus ? decodeURIComponent(router.query.maritalstatus as string) : '',
       };
       
       setFilters(urlFilters);
@@ -409,6 +524,10 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       const reservedFromUrl = router.query.isReservedFilter as string;
       const finalReservedFilter = (reservedFromUrl === 'reserved' || reservedFromUrl === 'available') ? reservedFromUrl : 'all';
       setIsReservedFilter(finalReservedFilter);
+
+      const approvedFromUrl = router.query.isApprovedFilter as string;
+      const finalApprovedFilter = (approvedFromUrl === 'approved' || approvedFromUrl === 'not_approved') ? approvedFromUrl : 'all';
+      setIsApprovedFilter(finalApprovedFilter);
       
       // قراءة معاملات الترتيب من URL
       if (router.query.sortBy) {
@@ -444,8 +563,23 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
     if (filters.PassportNumber) {
       queryParams.set('PassportNumber', filters.PassportNumber);
     }
+    if (filters.phone) {
+      queryParams.set('phone', filters.phone);
+    }
+    if (filters.Country) {
+      queryParams.set('Country', filters.Country);
+    }
+    if (filters.office) {
+      queryParams.set('office', filters.office);
+    }
+    if (filters.maritalstatus) {
+      queryParams.set('maritalstatus', filters.maritalstatus);
+    }
     if (isReservedFilter !== 'all') {
       queryParams.set('isReservedFilter', isReservedFilter);
+    }
+    if (isApprovedFilter !== 'all') {
+      queryParams.set('isApprovedFilter', isApprovedFilter);
     }
     // إضافة معاملات الترتيب
     if (sortBy) {
@@ -475,8 +609,13 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       age: "",
       PassportNumber: "",
       Name: "",
+      phone: "",
+      Country: "",
+      office: "",
+      maritalstatus: "",
     });
     setIsReservedFilter('all');
+    setIsApprovedFilter('all');
     setCurrentPage(1);
   };
 
@@ -730,7 +869,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
           {visibleColumns.includes('maritalstatus') && item.maritalstatus && (
             <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
               <span className="text-gray-600 font-medium">💍 الحالة:</span>
-              <span className="text-gray-800 font-semibold">{item.maritalstatus}</span>
+              <span className="text-gray-800 font-semibold">{formatMaritalStatus(item.maritalstatus)}</span>
             </div>
           )}
           
@@ -887,7 +1026,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
           </td>
         )}
         {visibleColumns.includes('Name') && (
-          <td className="px-1 py-2 text-center text-gray-600">
+          <td className="px-1 py-2 text-center text-gray-600 whitespace-nowrap">
             {item.Name}
           </td>
         )}
@@ -903,7 +1042,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
         )}
         {visibleColumns.includes('maritalstatus') && (
           <td className="px-1 py-2 text-center text-gray-600">
-            {item.maritalstatus}
+            {formatMaritalStatus(item.maritalstatus)}
           </td>
         )}
         {visibleColumns.includes('dateofbirth') && (
@@ -976,7 +1115,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
             />
           </td>
         )}
-        {hasDeletePermission && (
+        {hasDeletePermission && visibleColumns.includes('actions') && (
           <td className="px-1 py-2 text-center">
             <button 
               className="bg-transparent border border-red-500 text-red-500 rounded p-1 hover:bg-red-50"
@@ -1016,6 +1155,7 @@ export default function Table({ hasDeletePermission, initialCounts, recruitmentD
       { key: 'office', label: 'المكتب' },
       { key: 'isReserved', label: 'حالة الحجز' },
       { key: 'displayOrder', label: 'ترتيب العرض' },
+      ...(hasDeletePermission ? [{ key: 'actions', label: 'حذف' }] : []),
     ];
 
     const toggleColumn = (columnKey: string) => {
@@ -1275,7 +1415,7 @@ const exportToPDF = async () => {
         row.Name || 'غير متوفر',
         row.phone || 'غير متوفر',
         row?.office?.Country || 'غير متوفر',
-        row.maritalstatus || 'غير متوفر',
+        formatMaritalStatus(row.maritalstatus),
         row.dateofbirth ? `${calculateAge(row.dateofbirth)} سنة` : 'غير متوفر',
         row.Passportnumber || 'غير متوفر',
         row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
@@ -1402,7 +1542,7 @@ const exportToPDF = async () => {
           name: row.Name || 'غير متوفر',
           phone: row.phone || 'غير متوفر',
           nationality: row?.office?.Country || 'غير متوفر',
-          maritalStatus: row.maritalstatus || 'غير متوفر',
+          maritalStatus: formatMaritalStatus(row.maritalstatus),
           age: row.dateofbirth ? `${calculateAge(row.dateofbirth)} سنة` : 'غير متوفر',
           passport: row.Passportnumber || 'غير متوفر',
           passportStart: row.PassportStart ? getDate(row.PassportStart) : 'غير متوفر',
@@ -1456,7 +1596,7 @@ const exportToPDF = async () => {
 
   return (
     <Layout>
-      <div className={`container mx-auto p-4 ${Style["almarai-regular"]}`}>
+      <div className={` mx-1 p-4 ${Style["almarai-regular"]}`}>
         {notification && (
           <div className={`fixed top-4 right-4 p-4 rounded-md text-white z-50 ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
             {notification.message}
@@ -1522,15 +1662,15 @@ const exportToPDF = async () => {
               </button>
             </div>
 
-            <div className="flex flex-col  p-4">
-              <div className="flex flex-row flex-nowrap  items-center gap-3">
-                <div className="relative  max-w-md">
+            <div className="flex flex-col p-4">
+              <div className="flex flex-row flex-nowrap items-center gap-3">
+                <div className="relative max-w-md">
                   <input
                     type="text"
                     value={filters.Name}
                     onChange={(e) => handleFilterChange(e, "Name")}
-                    placeholder="بحث "
-                    className="p-2  border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="بحث بالاسم أو رقم الجواز..."
+                    className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 </div>
@@ -1547,7 +1687,7 @@ const exportToPDF = async () => {
                 <ColumnSelector visibleColumns={visibleColumns} setVisibleColumns={setVisibleColumns} />
                 <button
                   onClick={resetFilters}
-                  className="bg-teal-800 py-2 px-4 rounded-lg flex items-center gap-1 hover:bg-teal-900"
+                  className="bg-teal-800 py-2 px-4 rounded-lg flex items-center gap-1 hover:bg-teal-900 shrink-0"
                 >
                   <FaRedo className="text-white" />
                   <span className={`text-white ${Style["almarai-bold"]}`}>
@@ -1623,118 +1763,107 @@ const exportToPDF = async () => {
                 <thead className="bg-teal-800 overflow-visible">
                   <tr className="text-white">
                     {/* <th className="px-4 py-2 text-center whitespace-nowrap">الترتيب</th> */}
-                    {visibleColumns.includes('id') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('id')}
-                      >
-                        الرقم <SortIcon field="id" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('Name') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('Name')}
-                      >
-                        الاسم <SortIcon field="Name" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('phone') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap "
-                        onClick={() => handleSort('phone')}
-                      >
-                        رقم الجوال <SortIcon field="phone" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('Country') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('Country')}
-                      >
-                        الجنسية <SortIcon field="Country" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('maritalstatus') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('maritalstatus')}
-                      >
-                        الحالة الاجتماعية <SortIcon field="maritalstatus" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('dateofbirth') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('dateofbirth')}
-                      >
-                        العمر <SortIcon field="dateofbirth" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('Passportnumber') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('Passportnumber')}
-                      >
-                        رقم جواز السفر <SortIcon field="Passportnumber" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('PassportStart') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('PassportStart')}
-                      >
-                        بداية الجواز <SortIcon field="PassportStart" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('PassportEnd') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('PassportEnd')}
-                      >
-                        نهاية الجواز <SortIcon field="PassportEnd" />
-                      </th>
-                    )}
-                    {visibleColumns.includes('office') && (
-                      <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('office')}
-                      >
-                        المكتب <SortIcon field="office" />
-                      </th>
-                    )}
+                    {visibleColumns.includes('id') && renderFilterableHeader('id', null, 'الرقم')}
+                    {visibleColumns.includes('Name') && renderFilterableHeader('Name', null, 'الاسم')}
+                    {visibleColumns.includes('phone') && renderFilterableHeader('phone', null, 'رقم الجوال')}
+                    {visibleColumns.includes('Country') && renderFilterableHeader('Country', 'Country', 'الجنسية')}
+                    {visibleColumns.includes('maritalstatus') && renderFilterableHeader('maritalstatus', null, 'الحالة الاجتماعية')}
+                    {visibleColumns.includes('dateofbirth') && renderFilterableHeader('dateofbirth', 'age', 'العمر')}
+                    {visibleColumns.includes('Passportnumber') && renderFilterableHeader('Passportnumber', null, 'رقم جواز السفر')}
+                    {visibleColumns.includes('PassportStart') && renderFilterableHeader('PassportStart', null, 'بداية الجواز')}
+                    {visibleColumns.includes('PassportEnd') && renderFilterableHeader('PassportEnd', null, 'نهاية الجواز')}
+                    {visibleColumns.includes('office') && renderFilterableHeader('office', null, 'المكتب')}
+                    
                     {visibleColumns.includes('isReserved') && (
                       <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => setIsReservedFilterModalOpen(true)}
-                        title="فلترة حسب حالة الحجز"
+                        className="px-2 py-3 text-center select-none whitespace-nowrap group transition-colors align-top min-w-[120px]"
                       >
-                        حالة الحجز <FaFilter className={`inline-block ml-1 ${isReservedFilter !== 'all' ? 'text-teal-200' : 'text-gray-300'}`} />
-                        {isReservedFilter !== 'all' && (
-                          <span className="text-xs block mt-0.5 text-teal-200">
-                            {isReservedFilter === 'reserved' ? 'محجوز' : 'متاح'}
-                          </span>
-                        )}
+                        <div className="flex flex-col items-center justify-start gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-semibold cursor-default transition-colors group-hover:text-teal-200">
+                              حالة الحجز
+                            </span>
+                            <button
+                               onClick={(e) => { e.stopPropagation(); setIsReservedFilterModalOpen(true); }}
+                               className={`p-1.5 rounded-full hover:bg-teal-600 transition-all focus:outline-none ${isReservedFilter !== 'all' ? 'text-teal-100 bg-teal-600' : 'text-teal-400/50 hover:text-teal-200'}`}
+                               title="فلترة حالة الحجز"
+                            >
+                              <FaFilter size={12} />
+                            </button>
+                          </div>
+                          {isReservedFilter !== 'all' && (
+                            <div className="flex items-center justify-between gap-1.5 bg-teal-900/40 px-2 py-0.5 rounded-full text-teal-50 max-w-[120px] mt-1 border border-teal-600/30 w-full shadow-inner">
+                              <span className="text-xs truncate font-medium flex-1 text-center">
+                                {isReservedFilter === 'reserved' ? 'محجوز' : 'متاح'}
+                              </span>
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setIsReservedFilter('all'); 
+                                  setCurrentPage(1);
+                                }} 
+                                className="text-teal-200 hover:text-white hover:bg-red-500 rounded-full w-4 h-4 flex items-center justify-center shrink-0 transition-colors"
+                                title="مسح الفلتر"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </th>
                     )}
-                                          {/* {visibleColumns.includes('isApproved') && ( */}
+                    {/* {visibleColumns.includes('isApproved') && ( */}
                       <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap"
-                        onClick={() => handleSort('isApproved')}
+                        className="px-2 py-3 text-center select-none whitespace-nowrap group transition-colors align-top min-w-[120px]"
                       >
-                        الاعتماد <SortIcon field="isApproved" />
+                        <div className="flex flex-col items-center justify-start gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="cursor-pointer font-semibold flex items-center gap-1 transition-colors hover:text-teal-200" onClick={() => handleSort('isApproved')}>
+                              الاعتماد <SortIcon field="isApproved" />
+                            </span>
+                            <button
+                               onClick={(e) => { e.stopPropagation(); setIsApprovedFilterModalOpen(true); }}
+                               className={`p-1.5 rounded-full hover:bg-teal-600 transition-all focus:outline-none ${isApprovedFilter !== 'all' ? 'text-teal-100 bg-teal-600' : 'text-teal-400/50 hover:text-teal-200'}`}
+                               title="فلترة الاعتماد"
+                            >
+                              <FaFilter size={12} />
+                            </button>
+                          </div>
+                          {isApprovedFilter !== 'all' && (
+                            <div className="flex items-center justify-between gap-1.5 bg-teal-900/40 px-2 py-0.5 rounded-full text-teal-50 max-w-[120px] mt-1 border border-teal-600/30 w-full shadow-inner">
+                              <span className="text-xs truncate font-medium flex-1 text-center">
+                                {isApprovedFilter === 'approved' ? 'معتمد' : 'غير معتمد'}
+                              </span>
+                              <button 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  setIsApprovedFilter('all'); 
+                                  setCurrentPage(1);
+                                }} 
+                                className="text-teal-200 hover:text-white hover:bg-red-500 rounded-full w-4 h-4 flex items-center justify-center shrink-0 transition-colors"
+                                title="مسح الفلتر"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </th>
                     {/* )} */}
                     {visibleColumns.includes('displayOrder') && (
                       <th 
-                        className="px-1 py-2 text-center cursor-pointer hover:bg-teal-700 select-none whitespace-nowrap relative overflow-visible"
+                        className="px-2 py-3 text-center cursor-pointer select-none whitespace-nowrap relative min-w-[120px] align-top text-white transition-colors hover:text-teal-200 tracking-wide"
                         onClick={() => handleSort('displayOrder')}
                         onMouseEnter={handleDisplayOrderHoverEnter}
                         onMouseLeave={handleDisplayOrderHoverLeave}
                       >
-                        ترتيب العرض <SortIcon field="displayOrder" />
+                        <div className="flex flex-col items-center justify-start gap-1">
+                          <span className="font-semibold flex items-center gap-1">
+                            ترتيب العرض <SortIcon field="displayOrder" />
+                          </span>
+                        </div>
                         {showDisplayOrderTooltip && (
-                          <div className="absolute   top-full left-1/2 transform -translate-x-1/2 mt-2 w-72 bg-gray-900 text-white text-sm rounded-lg p-4 shadow-xl pointer-events-none z-50" >
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-72 bg-gray-900 text-white text-sm rounded-lg p-4 shadow-xl pointer-events-none z-50">
                             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-full">
                               <div className="border-4 border-transparent border-b-gray-900"></div>
                             </div>
@@ -1748,8 +1877,8 @@ const exportToPDF = async () => {
                         )}
                       </th>
                     )}
-                    {hasDeletePermission && (
-                      <th className="px-1 py-2 text-center whitespace-nowrap">حذف</th>
+                    {hasDeletePermission && visibleColumns.includes('actions') && (
+                      <th className="px-2 py-3 text-center whitespace-nowrap align-top font-semibold">حذف</th>
                     )}
                   </tr>
                 </thead>
@@ -1757,7 +1886,7 @@ const exportToPDF = async () => {
                   {data.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={visibleColumns.length + (hasDeletePermission ? 1 : 0)}
+                        colSpan={visibleColumns.length + 1}
                         className="px-1 py-2 text-center text-gray-500"
                       >
                         لا توجد نتائج
@@ -1875,6 +2004,87 @@ const exportToPDF = async () => {
           </div>
         </Modal>
 
+        {/* Dynamic Column Filter Modal */}
+        <Modal
+          isOpen={activeFilterColumn !== null}
+          onRequestClose={() => setActiveFilterColumn(null)}
+          style={customModalStyles}
+          contentLabel="فلترة العمود"
+          shouldFocusAfterRender={true}
+        >
+          {activeFilterColumn && (
+            <div className="relative">
+              <h2 className={`text-xl font-bold text-teal-800 mb-4 ${Style["almarai-bold"]}`}>
+                البحث في: {getColumnLabel(activeFilterColumn)}
+              </h2>
+              <div className="space-y-4">
+                {activeFilterColumn === 'Country' ? (
+                  <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                    <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                      tempFilterValue === '' ? 'bg-teal-50 border-2 border-teal-500' : 'border-2 border-slate-100'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="countryFilter"
+                        value=""
+                        checked={tempFilterValue === ''}
+                        onChange={(e) => setTempFilterValue(e.target.value)}
+                        className="w-4 h-4 text-teal-800"
+                      />
+                      <span className="text-gray-800 font-medium">الكل - عرض جميع الجنسيات</span>
+                    </label>
+                    {uniqueCountries.map((country: string) => (
+                      <label key={country} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                        tempFilterValue === country ? 'bg-teal-50 border-2 border-teal-500' : 'border-2 border-slate-100'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="countryFilter"
+                          value={country}
+                          checked={tempFilterValue === country}
+                          onChange={(e) => setTempFilterValue(e.target.value)}
+                          className="w-4 h-4 text-teal-800"
+                        />
+                        <span className="text-gray-800 font-medium">{country}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type={activeFilterColumn === 'age' ? 'number' : 'text'}
+                    value={tempFilterValue}
+                    onChange={(e) => setTempFilterValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        applyColumnFilter();
+                      }
+                    }}
+                    autoFocus
+                    placeholder={`أدخل ${getColumnLabel(activeFilterColumn)} للبحث...`}
+                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+                  />
+                )}
+                
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={applyColumnFilter}
+                    className="flex-1 bg-teal-800 text-white py-2.5 px-4 rounded-lg hover:bg-teal-900 transition-colors font-medium flex justify-center items-center gap-2"
+                  >
+                    <FaSearch className="w-4 h-4" />
+                    تطبيق الفلتر
+                  </button>
+                  <button
+                    onClick={() => setActiveFilterColumn(null)}
+                    className="flex-1 bg-gray-100 text-gray-700 py-2.5 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+
         {/* حالة الحجز Filter Modal */}
         <Modal
           isOpen={isReservedFilterModalOpen}
@@ -1942,6 +2152,80 @@ const exportToPDF = async () => {
             </div>
             <button
               onClick={() => setIsReservedFilterModalOpen(false)}
+              className="mt-4 w-full bg-teal-800 text-white py-2 px-4 rounded-lg hover:bg-teal-900 transition-colors"
+            >
+              إغلاق
+            </button>
+          </div>
+        </Modal>
+
+        {/* حالة الاعتماد Filter Modal */}
+        <Modal
+          isOpen={isApprovedFilterModalOpen}
+          onRequestClose={() => setIsApprovedFilterModalOpen(false)}
+          style={customModalStyles}
+          contentLabel="فلترة حسب حالة الاعتماد"
+          shouldFocusAfterRender={true}
+        >
+          <div className="relative">
+            <h2 className={`text-xl font-bold text-teal-800 mb-4 ${Style["almarai-bold"]}`}>
+              فلترة حسب حالة الاعتماد
+            </h2>
+            <div className="space-y-3">
+              <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                isApprovedFilter === 'all' ? 'bg-teal-50 border-2 border-teal-500' : 'border-2 border-transparent'
+              }`}>
+                <input
+                  type="radio"
+                  name="isApprovedFilter"
+                  value="all"
+                  checked={isApprovedFilter === 'all'}
+                  onChange={() => {
+                    setIsApprovedFilter('all');
+                    setCurrentPage(1);
+                    setIsApprovedFilterModalOpen(false);
+                  }}
+                  className="w-4 h-4 text-teal-800"
+                />
+                <span className="text-gray-800 font-medium">الكل - عرض الجميع</span>
+              </label>
+              <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                isApprovedFilter === 'approved' ? 'bg-green-50 border-2 border-green-500' : 'border-2 border-transparent'
+              }`}>
+                <input
+                  type="radio"
+                  name="isApprovedFilter"
+                  value="approved"
+                  checked={isApprovedFilter === 'approved'}
+                  onChange={() => {
+                    setIsApprovedFilter('approved');
+                    setCurrentPage(1);
+                    setIsApprovedFilterModalOpen(false);
+                  }}
+                  className="w-4 h-4 text-green-600"
+                />
+                <span className="text-green-700 font-medium">مُعتمد - تم اعتمادهم</span>
+              </label>
+              <label className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
+                isApprovedFilter === 'not_approved' ? 'bg-red-50 border-2 border-red-500' : 'border-2 border-transparent'
+              }`}>
+                <input
+                  type="radio"
+                  name="isApprovedFilter"
+                  value="not_approved"
+                  checked={isApprovedFilter === 'not_approved'}
+                  onChange={() => {
+                    setIsApprovedFilter('not_approved');
+                    setCurrentPage(1);
+                    setIsApprovedFilterModalOpen(false);
+                  }}
+                  className="w-4 h-4 text-red-600"
+                />
+                <span className="text-red-700 font-medium">غير معتمد - بانتظار الاعتماد</span>
+              </label>
+            </div>
+            <button
+              onClick={() => setIsApprovedFilterModalOpen(false)}
               className="mt-4 w-full bg-teal-800 text-white py-2 px-4 rounded-lg hover:bg-teal-900 transition-colors"
             >
               إغلاق
@@ -2097,6 +2381,14 @@ export async function getServerSideProps({ req }: any) {
     const initialTotalCount = recruitmentCount;
     const initialTotalPages = Math.ceil(initialTotalCount / pageSize);
 
+    // Fetch unique countries from offices
+    const uniqueCountriesData = await prisma.offices.findMany({
+      select: { Country: true },
+      distinct: ['Country'],
+      where: { AND: [{ Country: { not: null } }, { Country: { not: '' } }] }
+    });
+    const uniqueCountries = uniqueCountriesData.map(o => o.Country).filter(Boolean);
+
     return {
       props: { 
         hasDeletePermission: !!hasDeletePermission,
@@ -2108,6 +2400,7 @@ export async function getServerSideProps({ req }: any) {
         },
         recruitmentData: formattedRecruitmentData,
         rentalData: formattedRentalData,
+        uniqueCountries: uniqueCountries,
       },
     };
   } catch (err) {
@@ -2123,6 +2416,7 @@ export async function getServerSideProps({ req }: any) {
         },
         recruitmentData: [],
         rentalData: [],
+        uniqueCountries: [],
       },
     };
   }
