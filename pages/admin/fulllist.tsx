@@ -1669,17 +1669,7 @@ const exportToPDF = async () => {
                     type="text"
                     value={filters.Name}
                     onChange={(e) => handleFilterChange(e, "Name")}
-                    placeholder="بحث "
-                    className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                </div>
-                <div className="relative w-[280px] max-w-md">
-                  <input
-                    type="text"
-                    value={filters.PassportNumber}
-                    onChange={(e) => handleFilterChange(e, "PassportNumber")}
-                    placeholder="بحث برقم الجواز"
+                    placeholder="بحث بالاسم أو رقم الجواز"
                     className="p-2 pl-10 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

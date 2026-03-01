@@ -35,22 +35,22 @@ export default async function handler(
       equals: Number(OrderId),
     };
   }
-  if(Name){
-    filters.Name = {
-      contains: (Name as string).toLowerCase(),
-      // mode: "insensitive",
-    };
-  }
-  if (SponsorName) {
-    filters.Name = {
-      contains: (SponsorName as string).toLowerCase(),
-      // mode: "insensitive",
-    };
+  const searchTerm = (Name || SponsorName) as string;
+  if (searchTerm) {
+    if (!PassportNumber) {
+      filters.OR = [
+        { Name: { contains: searchTerm.toLowerCase() } },
+        { Passportnumber: { contains: searchTerm } }
+      ];
+    } else {
+      filters.Name = {
+        contains: searchTerm.toLowerCase(),
+      };
+    }
   }
   if (PassportNumber) {
     filters.Passportnumber = {
       contains: PassportNumber as string,
-      // mode: "insensitive",
     };
   }
   if (phone) {
