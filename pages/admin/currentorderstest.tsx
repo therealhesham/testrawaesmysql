@@ -346,7 +346,8 @@ useEffect(() => {
 const exportedData = async ()=>{
 
   const query = new URLSearchParams({
-    perPage: "1000",
+    page: "1",
+    perPage: "50000",
     ...(searchTerm && { search: searchTerm }),
     ...(nationality && { Nationalitycopy: nationality }),
     ...(office && { officeName: office }),

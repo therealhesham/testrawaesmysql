@@ -32,12 +32,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         clientphonenumber,
         Nationalitycopy,
         page,
+        perPage,
         HomemaidId,
         officeName,
         bookingstatus,
       } = req.query;
 
-      const pageSize = 10;
+      // دعم التصدير: عند إرسال perPage كبير نستخدمه لجلب كل البيانات (صفحة واحدة كبيرة)
+      const requestedPerPage = parseInt(perPage as string, 10);
+      const pageSize = requestedPerPage > 0 && requestedPerPage <= 50000 ? requestedPerPage : 10;
       const pageNumber = Math.max(parseInt(page as string, 10) || 1, 1);
 
       const filters: any = {};
