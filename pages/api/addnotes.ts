@@ -3,16 +3,15 @@ import prisma from 'lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { notes, homemaid_id,employee,homemaidData } = req.body;
-    console.log(notes, homemaid_id);
+    const { notes, homemaid_id, employee, homemaidData } = req.body;
+    console.log(notes, homemaid_id, employee);
     const newNote = await prisma.housedWorkerNotes.create({
       data: {
         housedWorkerId: Number(homemaid_id),
         notes: notes,
-      },include:{HousedWorker:{select:{homeMaid_id:true}}}
+        employee: employee || null,
+      }, include: { HousedWorker: { select: { homeMaid_id: true } } }
     });
-    // console.log(newNote.)
-// newNote.HousedWorker?.homeMaid_id
     try {
       await prisma.logs.create({
         data: {

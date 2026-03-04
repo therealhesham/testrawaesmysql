@@ -525,6 +525,7 @@ useEffect(()=>{
       const response = await axios.post('/api/addnotes', {
         notes: notesForm.notes,
         homemaid_id: selectedWorkerId,
+        employee: user,
       });
       showNotification('تم إضافة الملاحظة بنجاح');
       closeModal('notesModal');
@@ -1745,64 +1746,79 @@ const confirmDeleteNote = async () => {
                         {expandedRows.has(worker.id) && (
                           <tr>
                             <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="p-0">
-                              <div className="bg-gray-100 border-l-4 border-teal-500 p-4">
-                                <h4 className="text-lg font-semibold text-gray-800 mb-3">تفاصيل إضافية</h4>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full border-collapse">
-                                    <thead>
-                                      <tr className="bg-gray-100">
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">التاريخ</th>
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">الموظف</th>
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">سبب التسكين</th>
-                                        <th className="py-2 px-3 text-right no-wrap text-md border border-gray-300">السبب التفصيلي</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr className="bg-gray-50">
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
-                                          {worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString('ar-SA') : 'غير محدد'}
-                                        </td>
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
-                                          {worker.employee || 'غير محدد'}
-                                        </td>
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
-                                          {worker.Reason || 'غير محدد'}
-                                        </td>
-                                        <td className="py-2 px-3 text-right no-wrap text-md border border-gray-300">
-                                          <div className="flex flex-col gap-2">
-                                            {worker.Details && (
-                                              <div className="bg-white p-2 rounded border border-gray-200">
-                                                <span className="font-bold text-gray-700 block mb-1">ملاحظات التسكين:</span>
-                                                {worker.Details}
-                                              </div>
-                                            )}
-                                            {worker.HousedWorkerNotes && worker.HousedWorkerNotes.length > 0 ? (
-                                              worker.HousedWorkerNotes.map((note) => (
-                                                <div key={note.id} className="bg-white p-2 rounded border border-gray-200 flex justify-between items-start">
-                                                  <div>
-                                                    <span className="font-bold text-gray-700 block mb-1">
-                                                      {note.createdAt ? new Date(note.createdAt).toLocaleDateString('ar-SA') : ''}:
-                                                    </span>
-                                                    {note.notes}
-                                                  </div>
-                                                  <button
-                                                    onClick={() => handleDeleteNote(note.id)}
-                                                    className="text-red-500 hover:text-red-700 p-1"
-                                                    title="حذف الملاحظة"
-                                                  >
-                                                    <Trash2 className="w-4 h-4" />
-                                                  </button>
-                                                </div>
-                                              ))
-                                            ) : (
-                                              !worker.Details && 'لا توجد تفاصيل إضافية'
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
+                              <div className="bg-gray-50 border-r-4 border-teal-500 p-5 flex flex-col gap-5">
+
+                                {/* ===== قسم بيانات التسكين ===== */}
+                                <div>
+                                  <h4 className="text-sm font-bold text-teal-700 mb-3 flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-teal-500 rounded-full inline-block"></span>
+                                    بيانات التسكين
+                                  </h4>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                      <p className="text-xs text-gray-400 mb-1">تاريخ التسكين</p>
+                                      <p className="text-sm font-medium text-gray-800">
+                                        {worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString('ar-SA') : 'غير محدد'}
+                                      </p>
+                                    </div>
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                      <p className="text-xs text-gray-400 mb-1">الموظف المسؤول</p>
+                                      <p className="text-sm font-medium text-gray-800">{worker.employee || 'غير محدد'}</p>
+                                    </div>
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                      <p className="text-xs text-gray-400 mb-1">سبب التسكين</p>
+                                      <p className="text-sm font-medium text-gray-800">{worker.Reason || 'غير محدد'}</p>
+                                    </div>
+                                    {worker.Details && (
+                                      <div className="bg-white rounded-lg border border-gray-200 p-3 sm:col-span-1">
+                                        <p className="text-xs text-gray-400 mb-1">تفاصيل سبب التسكين</p>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{worker.Details}</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
+
+                                {/* ===== قسم الملاحظات ===== */}
+                                <div>
+                                  <h4 className="text-sm font-bold text-teal-700 mb-3 flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-teal-500 rounded-full inline-block"></span>
+                                    الملاحظات المضافة
+                                  </h4>
+                                  {worker.HousedWorkerNotes && worker.HousedWorkerNotes.length > 0 ? (
+                                    <div className="flex flex-col gap-2">
+                                      {worker.HousedWorkerNotes.map((note: any) => (
+                                        <div key={note.id} className="bg-white rounded-lg border border-gray-200 p-4 flex justify-between items-start gap-4">
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-2 text-xs text-gray-500">
+                                              <span className="font-semibold text-teal-700">
+                                                {note.createdAt ? new Date(note.createdAt).toLocaleDateString('ar-SA') : ''}
+                                              </span>
+                                              {note.employee && (
+                                                <>
+                                                  <span className="text-gray-300">|</span>
+                                                  <span>بواسطة: <span className="font-medium text-gray-700">{note.employee}</span></span>
+                                                </>
+                                              )}
+                                            </div>
+                                            <p className="text-sm text-gray-800 leading-relaxed">{note.notes}</p>
+                                          </div>
+                                          <button
+                                            onClick={() => handleDeleteNote(note.id)}
+                                            className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors flex-shrink-0"
+                                            title="حذف الملاحظة"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic bg-white border border-dashed border-gray-300 rounded-lg p-3 text-center">
+                                      لا توجد ملاحظات مضافة
+                                    </p>
+                                  )}
+                                </div>
+
                               </div>
                             </td>
                           </tr>
