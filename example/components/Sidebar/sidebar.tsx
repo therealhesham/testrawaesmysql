@@ -154,6 +154,7 @@ const menuItems: MenuItem[] = [
       { id: 93, label: "سجل العمليات", link: "/admin/systemlogs" },
       { id: 94, label: " المستخدمين", link: "/admin/authorizations" },
       { id: 98, label: "الملف الشخصي", link: "/admin/personal_page" },
+      { id: 99, label: "وضع الاختبار", link: "#" },
     ],
   },{
     id: 11,
@@ -427,11 +428,39 @@ const Sidebar = (props: any) => {
                     maxHeight: isOpen ? `${subItems.length * 48}px` : "0px",
                   }}
                 >
-                  {subItems.map((subItem) => (
+                  {subItems.map((subItem) => {
+                    const isTestModeItem = subItem.id === 99;
+                    const isTestMode = isTestModeItem && typeof window !== 'undefined' && window.location.hostname.includes('wasltester');
+                    const isLocalhost = isTestModeItem && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+                    return (
                     <div
                       key={subItem.id}
-                      className={getSubNavItemClasses(subItem)}
+                      className={`${getSubNavItemClasses(subItem)} ${isLocalhost ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      {...(isTestModeItem ? {
+                        onClick: (e) => {
+                          e.preventDefault();
+                          if (isLocalhost) return;
+                          const targetDomain = isTestMode ? 'https://wasl.rawaes.com' : 'https://wasltester.rawaes.com';
+                          const token = localStorage.getItem('token');
+                          const currentPath = router.pathname;
+                          if (token) {
+                            window.location.href = `${targetDomain}/api/sso?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(currentPath)}`;
+                          } else {
+                            window.location.href = targetDomain;
+                          }
+                        },
+                        style: isTestMode ? { backgroundColor: 'rgba(74, 222, 128, 0.2)' } : {},
+                        title: isLocalhost ? 'وضع الاختبار غير متاح محلياً' : ''
+                      } : {})}
                     >
+                      {isTestModeItem ? (
+                        <a className="flex items-center w-full h-full" href="#">
+                          <span className={`text-md font-semibold ${Style["tajawal-medium"]} ${isTestMode ? 'text-green-300' : ''}`}>
+                            {isTestMode ? 'الخروج من وضع الاختبار' : subItem.label}
+                          </span>
+                        </a>
+                      ) : (
                       <Link href={subItem.link}>
                         <a className="flex items-center w-full h-full">
                           <span className={`text-md font-semibold ${Style["tajawal-medium"]}`}>
@@ -439,8 +468,9 @@ const Sidebar = (props: any) => {
                           </span>
                         </a>
                       </Link>
+                      )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
