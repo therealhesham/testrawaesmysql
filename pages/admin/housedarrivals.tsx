@@ -91,7 +91,9 @@ const ActionDropdown: React.FC<{
   onEdit: (id: number, name: string) => void;
   onDeparture: (id: number, name: string) => void;
   openModal: (modalName: string) => void;onAddSession: (id: number) => void;onAddNotes: (id: number) => void;
-}> = ({ homemaid_id, id, name, onEdit, onDeparture, openModal, onAddSession, onAddNotes }) => {
+  onRehousing?: (id: number, name: string) => void;
+  isDeparted?: boolean;
+}> = ({ homemaid_id, id, name, onEdit, onDeparture, openModal, onAddSession, onAddNotes, onRehousing, isDeparted }) => {
   const [isOpen, setIsOpen] = useState(false);
   // أضف هذا state في بداية الكومبوننت
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,7 @@ const ActionDropdown: React.FC<{
             <FaAddressBook />
             تعديل
           </button>
+          {!isDeparted && (
           <button
             onClick={() => {
               onDeparture(id, name);
@@ -134,6 +137,19 @@ const ActionDropdown: React.FC<{
             <FaAddressBook />
             مغادرة
           </button>
+          )}
+          {isDeparted && onRehousing && (
+          <button
+            onClick={() => {
+              onRehousing(id, name);
+              setIsOpen(false);
+            }}
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-red-600 hover:bg-red-50"
+          >
+            <FaAddressBook />
+            اعادة تسكين
+          </button>
+          )}
           <button
             onClick={() => {
 
@@ -210,6 +226,7 @@ setUserName(decoded.username);
     deleteLocationConfirm: false,
     deleteNoteConfirm: false,
     supervisorModal: false,
+    rehousingModal: false,
   });
   const [selectedLocationForSupervisor, setSelectedLocationForSupervisor] = useState<InHouseLocation | null>(null);
   const [supervisorSearchTerm, setSupervisorSearchTerm] = useState('');
@@ -538,6 +555,62 @@ useEffect(()=>{
       closeModal('notesModal');
     }
   }
+
+  // === Re-Housing State ===
+  const [rehousingWorker, setRehousingWorker] = useState<any>(null);
+  const [rehousingForm, setRehousingForm] = useState({
+    houseentrydate: '',
+    Reason: '',
+  });
+
+  const handleOpenRehousing = (id: number, name: string) => {
+    // Find the worker in departedWorkers to get previous housing data
+    const worker = departedWorkers.find((w: any) => w.id === id);
+    setRehousingWorker(worker || { id, Order: { Name: name } });
+    setRehousingForm({ houseentrydate: '', Reason: '' });
+    openModal('rehousingModal');
+  };
+
+  const submitRehousing = async () => {
+    if (!rehousingWorker || !rehousingForm.houseentrydate) {
+      showNotification('يرجى ملء تاريخ التسكين', 'error');
+      return;
+    }
+    try {
+      // 1. Reset the worker housing (clear departure date, set new entry date + reason)
+      await axios.put('/api/confirmhousinginformation', {
+        homeMaidId: rehousingWorker.homeMaid_id,
+        houseentrydate: rehousingForm.houseentrydate,
+        Reason: rehousingForm.Reason,
+        employee: user,
+        location_id: rehousingWorker.location_id,
+        Details: rehousingWorker.Details,
+        isHasEntitlements: rehousingWorker.isHasEntitlements,
+      });
+
+      // 2. Add a special red note with previous housing data
+      const prevDate = rehousingWorker.houseentrydate
+        ? new Date(rehousingWorker.houseentrydate).toLocaleDateString('ar-SA')
+        : 'غير محدد';
+      const prevReason = rehousingWorker.Reason || 'غير محدد';
+      const prevDeparture = rehousingWorker.deparatureHousingDate
+        ? new Date(rehousingWorker.deparatureHousingDate).toLocaleDateString('ar-SA')
+        : 'غير محدد';
+      const noteText = `[اعادة-تسكين] تاريخ التسكين السابق: ${prevDate} | سبب التسكين السابق: ${prevReason} | تاريخ المغادرة السابق: ${prevDeparture} | سبب اعادة التسكين: ${rehousingForm.Reason || 'غير محدد'}`;
+
+      await axios.post('/api/addnotes', {
+        notes: noteText,
+        homemaid_id: rehousingWorker.id,
+        employee: user,
+      });
+
+      showNotification('تم اعادة التسكين بنجاح');
+      closeModal('rehousingModal');
+      fetchWorkers();
+    } catch (error) {
+      showNotification('خطأ في اعادة التسكين', 'error');
+    }
+  };
   // Search external workers - similar to musanad_finacial
   const searchExternalWorkers = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -1740,6 +1813,8 @@ const confirmDeleteNote = async () => {
                               onEdit={handleEditWorker}
                               onDeparture={handleWorkerDeparture}
                               openModal={openModal}
+                              isDeparted={housingStatus === 'departed'}
+                              onRehousing={handleOpenRehousing}
                             />
                           </td>}
                         </tr>
@@ -1786,21 +1861,43 @@ const confirmDeleteNote = async () => {
                                   </h4>
                                   {worker.HousedWorkerNotes && worker.HousedWorkerNotes.length > 0 ? (
                                     <div className="flex flex-col gap-2">
-                                      {worker.HousedWorkerNotes.map((note: any) => (
-                                        <div key={note.id} className="bg-white rounded-lg border border-gray-200 p-4 flex justify-between items-start gap-4">
+                                      {worker.HousedWorkerNotes.map((note: any) => {
+                                        const isRehousing = note.notes?.startsWith('[اعادة-تسكين]');
+                                        const displayNote = isRehousing
+                                          ? note.notes.replace('[اعادة-تسكين] ', '')
+                                          : note.notes;
+                                        return (
+                                        <div key={note.id} className={`rounded-lg border p-4 flex justify-between items-start gap-4 ${
+                                          isRehousing
+                                            ? 'bg-red-50 border-red-300 shadow-sm shadow-red-100'
+                                            : 'bg-white border-gray-200'
+                                        }`}>
                                           <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-2 text-xs text-gray-500">
-                                              <span className="font-semibold text-teal-700">
+                                            {isRehousing && (
+                                              <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-full">🔄 اعادة تسكين</span>
+                                              </div>
+                                            )}
+                                            <div className={`flex items-center gap-3 mb-2 text-xs ${
+                                              isRehousing ? 'text-red-400' : 'text-gray-500'
+                                            }`}>
+                                              <span className={`font-semibold ${
+                                                isRehousing ? 'text-red-600' : 'text-teal-700'
+                                              }`}>
                                                 {note.createdAt ? new Date(note.createdAt).toLocaleDateString('ar-SA') : ''}
                                               </span>
                                               {note.employee && (
                                                 <>
-                                                  <span className="text-gray-300">|</span>
-                                                  <span>بواسطة: <span className="font-medium text-gray-700">{note.employee}</span></span>
+                                                  <span className={isRehousing ? 'text-red-200' : 'text-gray-300'}>|</span>
+                                                  <span>بواسطة: <span className={`font-medium ${
+                                                    isRehousing ? 'text-red-700' : 'text-gray-700'
+                                                  }`}>{note.employee}</span></span>
                                                 </>
                                               )}
                                             </div>
-                                            <p className="text-sm text-gray-800 leading-relaxed">{note.notes}</p>
+                                            <p className={`text-sm leading-relaxed ${
+                                              isRehousing ? 'text-red-800' : 'text-gray-800'
+                                            }`}>{displayNote}</p>
                                           </div>
                                           <button
                                             onClick={() => handleDeleteNote(note.id)}
@@ -1810,7 +1907,8 @@ const confirmDeleteNote = async () => {
                                             <Trash2 className="w-4 h-4" />
                                           </button>
                                         </div>
-                                      ))}
+                                        );
+                                      })}
                                     </div>
                                   ) : (
                                     <p className="text-sm text-gray-400 italic bg-white border border-dashed border-gray-300 rounded-lg p-3 text-center">
@@ -2877,6 +2975,66 @@ const confirmDeleteNote = async () => {
   updatedAt  DateTime? @updatedAt
   time       String?
   user       homemaid? @relation(fields: [idnumber], references: [id])  */}
+
+            {/* Re-Housing Modal */}
+            {modals.rehousingModal && rehousingWorker && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                onClick={() => closeModal('rehousingModal')}
+              >
+                <div
+                  className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-5">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800">اعادة تسكين</h2>
+                      <p className="text-sm text-gray-500 mt-1">{rehousingWorker.Order?.Name}</p>
+                    </div>
+                    <button onClick={() => closeModal('rehousingModal')} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 text-sm">
+                    <p className="font-semibold text-red-700 mb-2">بيانات التسكين السابق:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-red-600">
+                      <div><span className="text-gray-500">تاريخ التسكين: </span>{rehousingWorker.houseentrydate ? new Date(rehousingWorker.houseentrydate).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
+                      <div><span className="text-gray-500">سبب التسكين: </span>{rehousingWorker.Reason || 'غير محدد'}</div>
+                      <div><span className="text-gray-500">تاريخ المغادرة: </span>{rehousingWorker.deparatureHousingDate ? new Date(rehousingWorker.deparatureHousingDate).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ اعادة التسكين <span className="text-red-500">*</span></label>
+                      <input
+                        type="date"
+                        value={rehousingForm.houseentrydate}
+                        onChange={(e) => setRehousingForm({ ...rehousingForm, houseentrydate: e.target.value })}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-right text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">سبب اعادة التسكين</label>
+                      <input
+                        type="text"
+                        value={rehousingForm.Reason}
+                        onChange={(e) => setRehousingForm({ ...rehousingForm, Reason: e.target.value })}
+                        placeholder="مثال: نقل كفالة، عودة طوعية..."
+                        className="w-full p-2 border border-gray-300 rounded-lg text-right text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400 outline-none"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 mt-2">
+                      <button onClick={() => closeModal('rehousingModal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-5 rounded-lg text-sm transition-colors">الغاء</button>
+                      <button
+                        onClick={submitRehousing}
+                        disabled={!rehousingForm.houseentrydate}
+                        className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-2 px-5 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        تأكيد اعادة التسكين
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* session modal */}
             {modals.sessionModal && (<div>
