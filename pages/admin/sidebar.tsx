@@ -165,16 +165,33 @@ const Sidebar = (props) => {
         </div>
       </div>
 
-      <div
-        className={getNavItemClasses(
-          {
-            id: 0,
-            label: "Logout",
-            icon: LogoutIcon,
-            link: "/",
-          },
-          "text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4"
-        )}
+      <div className="flex flex-col mt-auto pb-4 gap-2">
+        {/* Test Mode Toggle */}
+        <div
+          className={getNavItemClasses(
+            { id: 99, label: "وضع الاختبار", icon: HomeIcon, link: "#" } as any
+          )}
+          onClick={() => {
+            const isTestMode = window.location.hostname.includes('wasltester');
+            const targetDomain = isTestMode ? 'https://wasl.rawaes.com' : 'https://wasltester.rawaes.com';
+            const token = localStorage.getItem('token');
+            const currentPath = router.pathname;
+            
+            if (token) {
+              window.location.href = `${targetDomain}/api/sso?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(currentPath)}`;
+            } else {
+              window.location.href = targetDomain;
+            }
+          }}
+        >
+          <div style={{ width: "2.5rem", display: "flex", justifyContent: "center" }}>
+            <div className={`w-4 h-4 rounded-full ${typeof window !== 'undefined' && window.location.hostname.includes('wasltester') ? 'bg-green-400' : 'bg-gray-400 border-2 border-white'}`}></div>
+          </div>
+          {!toggleCollapse && (
+            <span className="text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4">
+              {typeof window !== 'undefined' && window.location.hostname.includes('wasltester') ? 'الخروج من وضع الاختبار' : 'وضع الاختبار'}
+            </span>
+
         onClick={handleLogout}
       >
         <div style={{ width: "2.5rem" }}>
