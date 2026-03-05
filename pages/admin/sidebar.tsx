@@ -191,17 +191,25 @@ const Sidebar = (props) => {
             <span className="text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4">
               {typeof window !== 'undefined' && window.location.hostname.includes('wasltester') ? 'الخروج من وضع الاختبار' : 'وضع الاختبار'}
             </span>
-
-        onClick={handleLogout}
-      >
-        <div style={{ width: "2.5rem" }}>
-          <LogoutIcon fill="white" />
+          )}
         </div>
-        {!toggleCollapse && (
-          <span className="text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4">
-            Logout
-          </span>
-        )}
+
+        {/* Logout Button */}
+        <div
+          className={getNavItemClasses(
+            { id: 100, label: "Logout", icon: LogoutIcon, link: "#" } as any
+          )}
+          onClick={handleLogout}
+        >
+          <div style={{ width: "2.5rem" }}>
+            <LogoutIcon fill="white" />
+          </div>
+          {!toggleCollapse && (
+            <span className="text-md font-medium text-text-light text-white flex items-center justify-center pl-1 gap-4">
+              Logout
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
