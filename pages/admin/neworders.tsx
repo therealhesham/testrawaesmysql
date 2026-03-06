@@ -370,6 +370,10 @@ autoFocus
   };
 
   const handleOpenMenu = (e: React.MouseEvent, rowIndex: number) => {
+    if (menuPosition && menuPosition.row === rowIndex) {
+      setMenuPosition(null);
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     setMenuPosition({
       x: rect.right - 160,

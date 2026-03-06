@@ -103,6 +103,28 @@ export default async function handler(
     ];
   }
 
+  // بناء شرط البحث: عند عدم وجود searchTerm لا نضيف فلتر البحث (ليشمل الطلبات بدون عاملة)
+  const searchCondition = searchTerm
+    ? {
+        OR: [
+          { ClientName: { contains: (searchTerm as string).toLowerCase() } },
+          { Name: { contains: (searchTerm as string).toLowerCase() } },
+          // الطلبات بدون عاملة تظهر عبر ClientName أو Name فقط
+          { HomeMaid: { Name: { contains: (searchTerm as string).toLowerCase() } } },
+        ],
+      }
+    : {};
+
+  const andConditions = [
+    ...(filters.AND || []),
+    ...(Object.keys(searchCondition).length > 0 ? [searchCondition] : []),
+  ];
+  const whereClause = {
+    bookingstatus: { in: ["rejected", "cancelled", "طلب مرفوض", "عقد ملغي"] },
+    ...filters,
+    ...(andConditions.length > 0 ? { AND: andConditions } : {}),
+  };
+
   try {
     // Fetch data with the filters and pagination
     const [orders, totalCount] = await Promise.all([
@@ -110,67 +132,14 @@ export default async function handler(
         orderBy: { id: "desc" },
         include: {
           client: true,
+          HomeMaid: true,
         },
-        where: {
-          bookingstatus: { in: ["rejected", "cancelled"] },
-          ...filters,
-          AND: [
-            ...(filters.AND || []),
-            {
-              OR: [
-                {
-                  ClientName: {
-                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
-                  },
-                },
-                {
-                  Name: {
-                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
-                  },
-                },
-                {
-                  HomeMaid: {
-                    Name: {
-                      contains:   searchTerm ? (searchTerm as string).toLowerCase() : "",
-                    },
-                  },
-                },
-              ],
-            },
-          ],
-        },
+        where: whereClause,
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
       }),
       prisma.neworder.count({
-        where: {
-          bookingstatus: { in: ["rejected", "cancelled"] },
-          ...filters,
-          AND: [
-            ...(filters.AND || []),
-            {
-              OR: [
-                {
-                  ClientName: {
-                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
-                  },
-                },
-                {
-                  Name: {
-                    contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
-                  },
-                },
-                {
-                  HomeMaid: {
-                    Name: {
-                      contains: searchTerm ? (searchTerm as string).toLowerCase() : "",
-                    },
-                  },
-                },
-              ],
-            },
-          ],
-        },
+        where: whereClause,
       }),
     ]);
 
