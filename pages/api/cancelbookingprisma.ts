@@ -47,6 +47,7 @@ const orderClientName = order.ClientName != null ? order.ClientName : undefined;
       data: {
         bookingstatus: "cancelled",
         ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
+        HomemaidIdCopy: null,
         HomeMaid: { disconnect: true },
         cancelledOrders: {
           create: {

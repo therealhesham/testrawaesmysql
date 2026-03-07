@@ -47,6 +47,7 @@ const orderClientName = order.ClientName != null ? order.ClientName : undefined;
       data: {
         bookingstatus: "rejected",
         ReasonOfRejection: req.body.ReasonOfRejection,
+        HomemaidIdCopy: null,
         HomeMaid: { disconnect: true },
         rejectedOrders: {
           create: {

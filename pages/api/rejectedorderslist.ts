@@ -175,46 +175,19 @@ export default async function handler(
       }),
     ]);
 
-    // جلب بيانات العاملات من HomemaidIdCopy للطلبات المرفوضة/الملغية
-    const homemaidIds = orders
-      .filter(order => order.HomemaidIdCopy)
-      .map(order => order.HomemaidIdCopy as number);
-
-    const homemaidsData = await prisma.homemaid.findMany({
-      where: {
-        id: { in: homemaidIds },
-      },
-      select: {
-        id: true,
-        Name: true,
-        Passportnumber: true,
-        Nationalitycopy: true,
-        Religion: true,
-        age: true,
-        dateofbirth: true,
-        office: {
-          select: {
-            Country: true,
-          },
-        },
-      },
-    });
-
-    // دمج البيانات: السبب وبيانات العاملة من الجدول المناسب (rejectedOrders أو cancelledOrders)
+    // مصدر بيانات العاملة: جدول rejectedOrders أو cancelledOrders المرتبط بالطلب فقط (بدون HomemaidIdCopy)
     const isRejected = (status: string | null) =>
       status === "rejected" || status === "طلب مرفوض";
     const isCancelled = (status: string | null) =>
       status === "cancelled" || status === "عقد ملغي";
 
     const homemaids = orders.map(order => {
-      // بيانات العاملة من السجل المرتبط: rejected -> rejectedOrders[0].HomeMaid، cancelled -> cancelledOrders[0].HomeMaid
+      // بيانات العاملة من السجل المرتبط في الداتابيز: rejected -> rejectedOrders[0].HomeMaid، cancelled -> cancelledOrders[0].HomeMaid
       let homemaid = null;
       if (isRejected(order.bookingstatus) && order.rejectedOrders?.[0]?.HomeMaid) {
         homemaid = order.rejectedOrders[0].HomeMaid;
       } else if (isCancelled(order.bookingstatus) && order.cancelledOrders?.[0]?.HomeMaid) {
         homemaid = order.cancelledOrders[0].HomeMaid;
-      } else if (order.HomemaidIdCopy) {
-        homemaid = homemaidsData.find(h => h.id === order.HomemaidIdCopy) || null;
       }
 
       const reasonFromRejected = order.rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection;
