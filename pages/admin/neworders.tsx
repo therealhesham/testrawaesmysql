@@ -68,6 +68,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
   const [detailsRow, setDetailsRow] = useState<number | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
   const [exportedData] = useState(initialData?.exportData || []);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -393,6 +394,7 @@ autoFocus
     setIsConfirming(false);
     setSelectedOrderId(null);
     setSelectedClientId(null);
+    setRejectionReason('');
   };
 
   const closeModal = () => {
@@ -429,10 +431,15 @@ autoFocus
     }
   };
 
-  const confirmReject = async (id: string, clientID: string) => {
+  const confirmReject = async (id: string, clientID: string, reason: string) => {
+    if (!reason?.trim()) return;
     setIsConfirming(true);
     try {
-      const rejectRequest = await axios.post('/api/rejectbookingprisma', {  HomeMaidId:  id , clientID: clientID });
+      const rejectRequest = await axios.post('/api/rejectbookingprisma', {
+        HomeMaidId: id,
+        clientID: clientID,
+        ReasonOfRejection: reason.trim(),
+      });
       if (rejectRequest.status === 200) {
         setModalMessage(getSuccessMessage('orderRejected'));
         setShowSuccessModal(true);
@@ -1300,14 +1307,27 @@ useEffect(() => {
               </div>
             )}
             {activePopup === 'popup-confirm-reject' && (
-              <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center relative">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-96 text-center relative">
                 <button
                   className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
                   onClick={closePopup}
                 >
                   <X className="w-5 h-5" />
                 </button>
-                <p>هل أنت متأكد من رفض الطلب؟</p>
+                <p className="mb-3">هل أنت متأكد من رفض الطلب؟</p>
+                <div className="mb-4 text-right">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    سبب الرفض <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="يرجى كتابة سبب رفض الطلب..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"
+                    rows={3}
+                    dir="rtl"
+                  />
+                </div>
                 <div className="flex justify-between mt-4">
                   <button
                     className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-200"
@@ -1317,8 +1337,8 @@ useEffect(() => {
                   </button>
                    <button
                      className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => selectedOrderId && selectedClientId && confirmReject(selectedOrderId, selectedClientId)}
-                     disabled={isConfirming}
+                    onClick={() => selectedOrderId && selectedClientId && confirmReject(selectedOrderId, selectedClientId, rejectionReason)}
+                     disabled={isConfirming || !rejectionReason.trim()}
                    >
                      {isConfirming ? 'جاري المعالجة...' : 'نعم'}
                    </button>

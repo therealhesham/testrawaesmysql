@@ -32,7 +32,7 @@ export default async function handler(
 
     const order = await prisma.neworder.findUnique({
       where: { id: orderId },
-      select: { HomemaidId: true, clientID: true },
+      select: { HomemaidId: true, clientID: true, ClientName: true },
     });
     if (!order) {
       res.status(404).json({ error: 'الطلب غير موجود' });
@@ -41,9 +41,9 @@ export default async function handler(
 
     const orderHomemaidId = order.HomemaidId != null ? order.HomemaidId : undefined;
     const orderClientId = order.clientID != null ? order.clientID : undefined;
-
+const orderClientName = order.ClientName != null ? order.ClientName : undefined;
     const updated = await prisma.neworder.update({
-      where: { id: orderId },
+      where: { id: orderId },include:{cancelledOrders:{include:{Client:{select:{fullname:true}}}}},
       data: {
         bookingstatus: "cancelled",
         ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
@@ -62,7 +62,7 @@ export default async function handler(
     try {
       await prisma.logs.create({
         data: {
-          Details: 'الغاء طلب ' + updated.id,
+          Details: 'الغاء طلب العميل ' + orderClientName + "للعاملة " + updated.cancelledOrders[0].Client?.fullname,
           ...(orderHomemaidId != null && { homemaidId: orderHomemaidId }),
           userId: String(token?.username),
           Status: "الغاء طلب",
@@ -76,9 +76,10 @@ await prisma.systemUserLogs.create({
   data: { 
     // Details: 'رفض طلب ' + updated.id,
     // homemaidId : Number(req.body.HomeMaidId),
-    userId: Number(token.id),
+    userId: Number(token?.id),
     actionType: "الغاء طلب",
     action: "الغاء طلب",
+    details: "الغاء طلب العميل " + orderClientName + "للعاملة " + updated.cancelledOrders[0].Client?.fullname,
     beneficiary: "Order",
     ...(orderClientId != null && { BeneficiaryId: orderClientId }),
     pageRoute: "/admin/track_order/"+updated.id,

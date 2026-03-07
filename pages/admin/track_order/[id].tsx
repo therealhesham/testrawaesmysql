@@ -47,6 +47,8 @@ interface OrderData {
   documentUpload: { files: string | string[] | null };
   bookingStatus: string;
   nationality?: string;
+  reasonOfRejection?: string | null;
+  reasonOfCancellation?: string | null;
   deliveryDetails?: {
     deliveryDate?: string;
     deliveryTime?: string;
@@ -113,6 +115,9 @@ export default function TrackOrder() {
     title: 'حدث خطأ',
     message: '',
   });
+
+  const [showRejectedModal, setShowRejectedModal] = useState(false);
+  const [showCancelledModal, setShowCancelledModal] = useState(false);
 
   const [showCreateAccountingModal, setShowCreateAccountingModal] = useState(false);
   const [accountingModalTotal, setAccountingModalTotal] = useState('');
@@ -327,6 +332,14 @@ export default function TrackOrder() {
       if (!res.ok) throw new Error('فشل في جلب بيانات الطلب');
       const data = await res.json();
       setOrderData(data);
+      // عرض مودال إنذار أحمر للطلبات المرفوضة
+      if (data.bookingStatus === 'rejected' || data.bookingStatus === 'طلب مرفوض') {
+        setShowRejectedModal(true);
+      }
+      // عرض مودال إنذار أحمر للطلبات الملغاة
+      if (data.bookingStatus === 'cancelled' || data.bookingStatus === 'عقد ملغي') {
+        setShowCancelledModal(true);
+      }
       // Update deliveryDetails state if available
       if (data.deliveryDetails) {
         setDeliveryDetails({
@@ -1165,6 +1178,64 @@ export default function TrackOrder() {
     );
   };
 
+
+  // --- Rejected Order Modal (انذار احمر) ---
+  const RejectedModal = () => {
+    if (!showRejectedModal) return null;
+    const reason = orderData?.reasonOfRejection?.trim();
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="bg-white rounded-lg shadow-xl w-11/12 md:w-1/3 p-6 text-center border-2 border-red-500"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FaTimes className="w-14 h-14 text-red-600 mx-auto mb-4" />
+          <p className="text-xl font-bold text-red-600 mb-2">طلب مرفوض</p>
+          <p className="text-gray-700 mb-2 text-right">هذا الطلب تم رفضه.</p>
+          <p className="text-gray-800 mb-4 p-3 bg-red-50 rounded text-right border border-red-200">
+            <span className="font-medium text-red-700">سبب الرفض: </span>
+            {reason || 'غير متوفر'}
+          </p>
+          <button
+            type="button"
+            className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            onClick={() => setShowRejectedModal(false)}
+          >
+            موافق
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // --- Cancelled Order Modal (انذار احمر) ---
+  const CancelledModal = () => {
+    if (!showCancelledModal) return null;
+    const reason = orderData?.reasonOfCancellation?.trim();
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="bg-white rounded-lg shadow-xl w-11/12 md:w-1/3 p-6 text-center border-2 border-red-500"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FaTimes className="w-14 h-14 text-red-600 mx-auto mb-4" />
+          <p className="text-xl font-bold text-red-600 mb-2">طلب ملغي</p>
+          <p className="text-gray-700 mb-2 text-right">هذا الطلب تم إلغاؤه.</p>
+          <p className="text-gray-800 mb-4 p-3 bg-red-50 rounded text-right border border-red-200">
+            <span className="font-medium text-red-700">سبب الإلغاء: </span>
+            {reason || 'غير متوفر'}
+          </p>
+          <button
+            type="button"
+            className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            onClick={() => setShowCancelledModal(false)}
+          >
+            موافق
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // --- Alert Modal Component ---
   const AlertModal = () => {
@@ -2820,6 +2891,8 @@ export default function TrackOrder() {
         )}
 
         <AlertModal />
+        <RejectedModal />
+        <CancelledModal />
         <LoadingModal />
         {orderData?.clientInfo?.id && (
           <VisaModal

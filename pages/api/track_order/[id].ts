@@ -145,6 +145,36 @@ console.log(id)
             select: { id: true },
             take: 1,
           },
+          rejectedOrders: {
+            include: {
+              HomeMaid: {
+                select: {
+                  id: true,
+                  Name: true,
+                  Passportnumber: true,
+                  Religion: true,
+                  Nationalitycopy: true,
+                  officeName: true,
+                  office: { select: { Country: true } },
+                },
+              },
+            },
+          },
+          cancelledOrders: {
+            include: {
+              HomeMaid: {
+                select: {
+                  id: true,
+                  Name: true,
+                  Passportnumber: true,
+                  Religion: true,
+                  Nationalitycopy: true,
+                  officeName: true,
+                  office: { select: { Country: true } },
+                },
+              },
+            },
+          },
         },
       });
       
@@ -205,6 +235,14 @@ console.log(id)
         }
       }
 
+      // مصدر بيانات العاملة: من الربط المباشر، أو من cancelledOrders/rejectedOrders عند فك الربط
+      const isCancelled = ['cancelled', 'عقد ملغي'].includes(order.bookingstatus || '');
+      const isRejected = ['rejected', 'طلب مرفوض'].includes(order.bookingstatus || '');
+      const homemaidSource =
+        order.HomeMaid ||
+        (isCancelled ? (order as any).cancelledOrders?.[0]?.HomeMaid : null) ||
+        (isRejected ? (order as any).rejectedOrders?.[0]?.HomeMaid : null);
+
       const orderData = {
         orderId: order.id,
         bookingStatus: order.bookingstatus,
@@ -215,12 +253,12 @@ console.log(id)
           email: order.client?.email || 'N/A',
         },
         homemaidInfo: {
-          name: order.HomeMaid?.Name || 'N/A',
-          religion:order.HomeMaid?.Religion || 'N/A',
-
-          passportNumber: order.HomeMaid?.Passportnumber || 'N/A',
-          nationality: order.HomeMaid?.office?.Country || 'N/A',
-          externalOffice: order.HomeMaid?.officeName || 'N/A',
+          id: homemaidSource?.id?.toString() || 'N/A',
+          name: homemaidSource?.Name || 'N/A',
+          religion: homemaidSource?.Religion || 'N/A',
+          passportNumber: homemaidSource?.Passportnumber || 'N/A',
+          nationality: homemaidSource?.office?.Country || 'N/A',
+          externalOffice: homemaidSource?.officeName || 'N/A',
         },
         applicationInfo: {
           applicationDate: order.createdAt?.toISOString().split('T')[0] || 'N/A',
@@ -242,8 +280,8 @@ console.log(id)
           approved: !!order.arrivals[0]?.ExternalDateLinking,
         },
         externalOfficeInfo: {
-          officeName: order.HomeMaid?.officeName || 'N/A',
-          country: order.HomeMaid?.office?.Country || 'N/A',
+          officeName: homemaidSource?.officeName || 'N/A',
+          country: homemaidSource?.office?.Country || 'N/A',
           externalMusanedContract: order.arrivals[0]?.externalmusanedContract || 'N/A',
         },
         externalOfficeApproval: {
@@ -287,7 +325,7 @@ console.log(id)
         ticketUpload: {
           files: order.arrivals[0]?.ticketFile || null,
         },
-        nationality: order.HomeMaid?.office?.Country || 'N/A',
+        nationality: homemaidSource?.office?.Country || 'N/A',
         documentUpload: {
           files: order.arrivals[0]?.additionalfiles || null,
         },
@@ -302,6 +340,8 @@ console.log(id)
         } : undefined,
         customTimelineStages: order.arrivals[0]?.customTimelineStages || {},
         accountingStatementId: (order as any).clientAccountStatement?.[0]?.id ?? null,
+        reasonOfRejection: (order as any).rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection ?? null,
+        reasonOfCancellation: (order as any).cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation ?? null,
       };
 const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};

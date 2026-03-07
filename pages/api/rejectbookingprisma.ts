@@ -32,7 +32,7 @@ export default async function handler(
 
     const order = await prisma.neworder.findUnique({
       where: { id: orderId },
-      select: { HomemaidId: true, clientID: true },
+      select: { HomemaidId: true, clientID: true, ClientName: true },
     });
     if (!order) {
       res.status(404).json({ error: 'الطلب غير موجود' });
@@ -41,9 +41,9 @@ export default async function handler(
 
     const orderHomemaidId = order.HomemaidId != null ? order.HomemaidId : undefined;
     const orderClientId = order.clientID != null ? order.clientID : undefined;
-
+const orderClientName = order.ClientName != null ? order.ClientName : undefined;
     const updated = await prisma.neworder.update({
-      where: { id: orderId },
+      where: { id: orderId },include:{rejectedOrders:{include:{Client:{select:{fullname:true}}}}},
       data: {
         bookingstatus: "rejected",
         ReasonOfRejection: req.body.ReasonOfRejection,
@@ -62,7 +62,7 @@ export default async function handler(
     try {
       await prisma.logs.create({
         data: {
-          Details: 'رفض طلب ' + updated.id,
+          Details: 'رفض طلب العميل ' + orderClientName + "للعاملة " + updated.rejectedOrders[0].Client?.fullname,
           ...(orderHomemaidId != null && { homemaidId: orderHomemaidId }),
           userId: String(token?.username),
           Status: "رفض طلب",
@@ -74,9 +74,10 @@ export default async function handler(
     try {
 await prisma.systemUserLogs.create({
   data: { 
-    userId: Number(token.id),
+    userId: Number(token?.id),
     actionType: "رفض طلب",
     action: "رفض طلب",
+    details: "رفض طلب العميل " + orderClientName + "للعاملة " + updated.rejectedOrders[0].Client?.fullname,
     beneficiary: "Order",
     ...(orderClientId != null && { BeneficiaryId: orderClientId }),
     pageRoute: "/rejectbookingprisma",
