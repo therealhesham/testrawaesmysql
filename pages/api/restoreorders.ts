@@ -1,4 +1,5 @@
-// pages/api/update-booking.ts
+// pages/api/restoreorders.ts
+// مسار عكسي للرفض والإلغاء: نشيل السجل من rejected/cancelled ونرجع الطلب لـ new_order مع إعادة ربط العاملة
 import { PrismaClient } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -9,55 +10,96 @@ export default async function handler(
   const prisma = new PrismaClient();
 
   try {
-    // Extract values from the request body
     const { id } = req.body;
-    console.log(req.body);
+    const orderId = Number(id);
 
-    // الحصول على معلومات الطلب المرفوض أولاً
-    const rejectedOrder = await prisma.neworder.findUnique({
-      where: { id: Number(id) },
-      select: {
-        HomemaidIdCopy: true,
+    if (!orderId || Number.isNaN(orderId)) {
+      return res.status(400).json({ error: "معرف الطلب مطلوب" });
+    }
+
+    // جلب الطلب مع السجلات المرتبطة (rejected أو cancelled)
+    const order = await prisma.neworder.findUnique({
+      where: { id: orderId },
+      include: {
+        rejectedOrders: true,
+        cancelledOrders: true,
       },
     });
 
-    if (!rejectedOrder) {
+    if (!order) {
       return res.status(404).json({ error: "الطلب غير موجود" });
     }
 
+    const status = (order.bookingstatus || "").toLowerCase();
+    const isRejected = status === "rejected" || status === "طلب مرفوض";
+    const isCancelled = status === "cancelled" || status === "عقد ملغي";
+
+    if (!isRejected && !isCancelled) {
+      return res.status(400).json({
+        error: "الطلب ليس مرفوضاً أو ملغياً",
+        message: "لا يمكن استعادة طلب غير مرفوض أو ملغي",
+      });
+    }
+
+    // استخراج HomeMaidId من السجل المرتبط (rejectedOrders أو cancelledOrders)
+    let homeMaidIdToRestore: number | null = null;
+
+    if (isRejected && order.rejectedOrders?.length > 0) {
+      homeMaidIdToRestore = order.rejectedOrders[0].HomeMaidId ?? null;
+    } else if (isCancelled && order.cancelledOrders?.length > 0) {
+      homeMaidIdToRestore = order.cancelledOrders[0].HomeMaidId ?? null;
+    }
+
+    // fallback: HomemaidIdCopy إذا لم يوجد في الجدول المرتبط
+    if (homeMaidIdToRestore == null && order.HomemaidIdCopy) {
+      homeMaidIdToRestore = Number(order.HomemaidIdCopy);
+    }
+
     // التحقق من أن العاملة غير مرتبطة بطلب آخر نشط
-    if (rejectedOrder.HomemaidIdCopy) {
+    if (homeMaidIdToRestore != null) {
       const existingOrder = await prisma.neworder.findFirst({
         where: {
-          HomemaidId: Number(rejectedOrder.HomemaidIdCopy),
+          id: { not: orderId },
+          HomemaidId: homeMaidIdToRestore,
           bookingstatus: {
-            notIn: ["rejected", "cancelled"],
+            notIn: ["rejected", "cancelled", "طلب مرفوض", "عقد ملغي"],
           },
         },
       });
 
       if (existingOrder) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "غير مسموح باستعادة الطلب لأن العاملة مرتبطة بطلب آخر",
-          message: "غير مسموح باستعادة الطلب لأن العاملة مرتبطة بطلب آخر"
+          message: "غير مسموح باستعادة الطلب لأن العاملة مرتبطة بطلب آخر",
         });
       }
     }
 
-    // Update the `NewOrder` and connect to `HomeMaid`, and also update `HomeMaid`
-    const updatedOrder = await prisma.neworder.update({
-      where: { id: Number(id) },
+    // حذف السجل من rejectedOrders أو cancelledOrders
+    if (isRejected && order.rejectedOrders?.length > 0) {
+      await prisma.rejectedOrders.deleteMany({
+        where: { order_id: orderId },
+      });
+    } else if (isCancelled && order.cancelledOrders?.length > 0) {
+      await prisma.cancelledOrders.deleteMany({
+        where: { order_id: orderId },
+      });
+    }
+
+    // تحديث الطلب: new_order + إعادة ربط العاملة + مسح الأسباب
+    await prisma.neworder.update({
+      where: { id: orderId },
       data: {
-        bookingstatus: "new_order", // Update the booking status for the order
-        ReasonOfRejection: "", // Update the reason of rejection
-        HomemaidId: rejectedOrder.HomemaidIdCopy ? Number(rejectedOrder.HomemaidIdCopy) : null,
+        bookingstatus: "new_order",
+        ReasonOfRejection: null,
+        ReasonOfCancellation: null,
+        HomemaidId: homeMaidIdToRestore,
       },
     });
 
-    // Respond with the updated records
-    res.status(200).json({ updatedOrder, message: "تم استعادة الطلب بنجاح" });
+    res.status(200).json({ message: "تم استعادة الطلب بنجاح" });
   } catch (error) {
-    console.error("Error updating booking:", error);
+    console.error("Error restoring order:", error);
     res.status(500).json({ error: "Internal Server Error" });
   } finally {
     await prisma.$disconnect();
