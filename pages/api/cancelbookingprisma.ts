@@ -24,18 +24,28 @@ export default async function handler(
         console.log(cookies.authToken)
         const token = jwtDecode(cookies.authToken);
     
-    const updated = await prisma.neworder.update({
-      where: { id: Number(req.body.HomeMaidId) },
-      data: {
+    const orderId = Number(req.body.id);
+    if (!orderId || Number.isNaN(orderId)) {
+      res.status(400).json({ error: 'معرف الطلب مطلوب (id)' });
+      return;
+    }
 
+    const homeMaidIdRaw = req.body.HomeMaidId;
+    const homeMaidId = homeMaidIdRaw != null && !Number.isNaN(Number(homeMaidIdRaw)) ? Number(homeMaidIdRaw) : undefined;
+    const clientIdRaw = req.body.clientID;
+    const clientId = clientIdRaw != null && !Number.isNaN(Number(clientIdRaw)) ? Number(clientIdRaw) : undefined;
+
+    const updated = await prisma.neworder.update({
+      where: { id: orderId },
+      data: {
         bookingstatus: "cancelled",
-        ReasonOfCancellation: req.body.ReasonOfCancellation,
+        ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
         HomeMaid: { disconnect: true },
         cancelledOrders: {
           create: {
-            ReasonOfCancellation: req.body.ReasonOfCancellation,
-            HomeMaidId: Number(req.body.HomeMaidId),
-            clientId: Number(req.body.clientID),
+            ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
+            ...(homeMaidId != null && { HomeMaidId: homeMaidId }),
+            ...(clientId != null && { clientId }),
           },
         },
       },
@@ -46,7 +56,7 @@ export default async function handler(
       await prisma.logs.create({
         data: {
           Details: 'الغاء طلب ' + updated.id,
-          homemaidId: Number(req.body.HomeMaidId),
+          ...(homeMaidId != null && { homemaidId: homeMaidId }),
           userId: String(token?.username),
           Status: "الغاء طلب",
         },
@@ -63,7 +73,7 @@ await prisma.systemUserLogs.create({
     actionType: "الغاء طلب",
     action: "الغاء طلب",
     beneficiary: "Order",
-    BeneficiaryId: Number(req.body.clientID),
+    ...(clientId != null && { BeneficiaryId: clientId }),
     pageRoute: "/admin/track_order/"+updated.id,
   },
 });
