@@ -86,14 +86,16 @@ export default async function handler(
       });
     }
 
-    // تحديث الطلب: new_order + إعادة ربط العاملة + مسح الأسباب
+    // تحديث الطلب: new_order + إعادة ربط HomemaidId في جدول neworder + مسح الأسباب
     await prisma.neworder.update({
       where: { id: orderId },
       data: {
         bookingstatus: "new_order",
         ReasonOfRejection: null,
         ReasonOfCancellation: null,
-        HomemaidId: homeMaidIdToRestore,
+        ...(homeMaidIdToRestore != null
+          ? { HomeMaid: { connect: { id: homeMaidIdToRestore } } }
+          : { HomemaidId: null }),
       },
     });
 
