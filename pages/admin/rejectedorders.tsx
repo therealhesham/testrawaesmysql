@@ -657,9 +657,9 @@ const fetchFilteredDataExporting = async () => {
               </thead>
               <tbody>
                 {newOrders?.map((row: any, index) => {
-                  const hasReason = row.ReasonOfRejection || row.ReasonOfCancellation;
-                  const reasonType = row.ReasonOfRejection ? 'rejection' : 'cancellation';
-                  const reasonText = row.ReasonOfRejection || row.ReasonOfCancellation;
+                  const hasReason = !!row.reason;
+                  const reasonType = row.reasonType || 'rejection';
+                  const reasonText = row.reason;
                   
                   return (
                     <tr key={index} className="bg-gray-50 border-b border-gray-300 last:border-b-0">

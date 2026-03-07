@@ -170,14 +170,28 @@ export default async function handler(
       },
     });
 
-    // دمج البيانات مع إضافة حقول السبب
+    // دمج البيانات مع إضافة السبب من الجدول المناسب (rejectedOrders أو cancelledOrders)
+    const isRejected = (status: string | null) =>
+      status === "rejected" || status === "طلب مرفوض";
+    const isCancelled = (status: string | null) =>
+      status === "cancelled" || status === "عقد ملغي";
+
     const homemaids = orders.map(order => {
       const homemaid = homemaidsData.find(h => h.id === order.HomemaidIdCopy);
+      const reasonFromRejected = order.rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection;
+      const reasonFromCancelled = order.cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation;
+      const reason = isRejected(order.bookingstatus)
+        ? reasonFromRejected
+        : isCancelled(order.bookingstatus)
+          ? reasonFromCancelled
+          : reasonFromRejected || reasonFromCancelled;
+      const reasonType = isRejected(order.bookingstatus) ? "rejection" : "cancellation";
+
       return {
         ...order,
         HomeMaid: homemaid || null,
-        ReasonOfRejection: order.ReasonOfRejection || null,
-        ReasonOfCancellation: order.ReasonOfCancellation || null,
+        reason: reason || null,
+        reasonType,
       };
     });
 
