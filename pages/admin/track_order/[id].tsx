@@ -790,13 +790,14 @@ export default function TrackOrder() {
 
     setUpdating(true);
     try {
-      const res = await fetch(`/api/track_order/${id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/cancelbookingprisma`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          field: 'bookingStatus', 
-          value: 'cancelled',
-          cancellationReason: cancellationReason 
+        HomeMaidId: orderData?.homemaidInfo?.id,
+        id: id,
+        ReasonOfCancellation: cancellationReason,
+        clientID: orderData?.clientInfo?.id,
         }),
       });
 

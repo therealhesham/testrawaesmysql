@@ -25,15 +25,15 @@ export default async function handler(
         const token = jwtDecode(cookies.authToken);
     
     const updated = await prisma.neworder.update({
-      where: { id: Number(req.body.id) },
+      where: { id: Number(req.body.HomeMaidId) },
       data: {
 
-        bookingstatus: "rejected",
-        ReasonOfRejection: req.body.ReasonOfRejection,
+        bookingstatus: "cancelled",
+        ReasonOfCancellation: req.body.ReasonOfCancellation,
         HomeMaid: { disconnect: true },
-        rejectedOrders: {
+        cancelledOrders: {
           create: {
-            ReasonOfRejection: req.body.ReasonOfRejection,
+            ReasonOfCancellation: req.body.ReasonOfCancellation,
             HomeMaidId: Number(req.body.HomeMaidId),
             clientId: Number(req.body.clientID),
           },
@@ -45,10 +45,10 @@ export default async function handler(
     try {
       await prisma.logs.create({
         data: {
-          Details: 'رفض طلب ' + updated.id,
+          Details: 'الغاء طلب ' + updated.id,
           homemaidId: Number(req.body.HomeMaidId),
           userId: String(token?.username),
-          Status: "رفض طلب",
+          Status: "الغاء طلب",
         },
       });
     } catch (error) {
@@ -60,11 +60,11 @@ await prisma.systemUserLogs.create({
     // Details: 'رفض طلب ' + updated.id,
     // homemaidId : Number(req.body.HomeMaidId),
     userId: Number(token.id),
-    actionType: "رفض طلب",
-    action: "رفض طلب",
+    actionType: "الغاء طلب",
+    action: "الغاء طلب",
     beneficiary: "Order",
     BeneficiaryId: Number(req.body.clientID),
-    pageRoute: "/rejectbookingprisma",
+    pageRoute: "/admin/track_order/"+updated.id,
   },
 });
 

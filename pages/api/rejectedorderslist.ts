@@ -131,8 +131,10 @@ export default async function handler(
       prisma.neworder.findMany({
         orderBy: { id: "desc" },
         include: {
+          rejectedOrders: true,
           client: true,
           HomeMaid: true,
+          cancelledOrders: true,
         },
         where: whereClause,
         skip: (pageNumber - 1) * pageSize,

@@ -67,6 +67,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const [detailsRow, setDetailsRow] = useState<number | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [exportedData] = useState(initialData?.exportData || []);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -390,6 +391,8 @@ autoFocus
     setActivePopup(null);
     setMenuPosition(null);
     setIsConfirming(false);
+    setSelectedOrderId(null);
+    setSelectedClientId(null);
   };
 
   const closeModal = () => {
@@ -426,10 +429,10 @@ autoFocus
     }
   };
 
-  const confirmReject = async (id: string) => {
+  const confirmReject = async (id: string, clientID: string) => {
     setIsConfirming(true);
     try {
-      const rejectRequest = await axios.post('/api/rejectbookingprisma', { id });
+      const rejectRequest = await axios.post('/api/rejectbookingprisma', {  HomeMaidId:  id , clientID: clientID });
       if (rejectRequest.status === 200) {
         setModalMessage(getSuccessMessage('orderRejected'));
         setShowSuccessModal(true);
@@ -1173,6 +1176,7 @@ useEffect(() => {
                 className="block w-full text-center px-4 py-2 hover:bg-gray-100"
                 onClick={() => {
                   setSelectedOrderId(row?.id);
+                  setSelectedClientId(null);
                   openPopup("popup-confirm-accept");
                   setMenuPosition(null);
                 }}
@@ -1183,6 +1187,7 @@ useEffect(() => {
                 className="block w-full text-center px-4 py-2 hover:bg-gray-100"
                 onClick={() => {
                   setSelectedOrderId(row?.id);
+                  setSelectedClientId(row?.clientID ? String(row.clientID) : null);
                   openPopup("popup-confirm-reject");
                   setMenuPosition(null);
                 }}
@@ -1312,7 +1317,7 @@ useEffect(() => {
                   </button>
                    <button
                      className="bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                     onClick={() => selectedOrderId && confirmReject(selectedOrderId)}
+                    onClick={() => selectedOrderId && selectedClientId && confirmReject(selectedOrderId, selectedClientId)}
                      disabled={isConfirming}
                    >
                      {isConfirming ? 'جاري المعالجة...' : 'نعم'}

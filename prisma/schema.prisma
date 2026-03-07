@@ -70,6 +70,8 @@ model homemaid {
 sewingLevel String? @db.VarChar(100)
 cleaningLevel String? @db.VarChar(100)
 cookingLevel String? @db.VarChar(100)
+rejectedOrders rejectedOrders[]
+cancelledOrders cancelledOrders[]
 washingLevel String? @db.VarChar(100)
 ironingLevel String? @db.VarChar(100)
 childcareLevel String? @db.VarChar(100)
@@ -296,6 +298,8 @@ language        String? @default("eng")
 model Client {
   id             Int        @id @default(autoincrement())
   isUser         Boolean?
+  cancelledOrders cancelledOrders[]
+  rejectedOrders rejectedOrders[]
   fullname       String?
 notes_date        DateTime?
   email          String?    @unique @db.VarChar(191)
@@ -401,6 +405,8 @@ reason      String? @db.VarChar(255)
 
 model neworder {
   id                 Int       @id @default(autoincrement())
+  rejectedOrders rejectedOrders[]
+  cancelledOrders cancelledOrders[]
   ClientName         String?   @db.VarChar(255)
   PhoneNumber        String?   @db.VarChar(15)
   clientID            Int?
@@ -719,6 +725,32 @@ transaction_date   DateTime? @default(now())
   
 }
 
+
+
+model rejectedOrders{
+  id Int @id @default(autoincrement())
+  order_id Int
+  HomeMaidId Int?
+  HomeMaid homemaid? @relation(fields: [HomeMaidId], references: [id])
+  order neworder @relation(references: [id],fields: [order_id])
+  ReasonOfRejection String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clientId Int?
+  Client Client? @relation(fields: [clientId], references: [id])
+}
+model cancelledOrders{
+  id Int @id @default(autoincrement())
+  order_id Int
+  HomeMaidId Int?
+  HomeMaid homemaid? @relation(fields: [HomeMaidId], references: [id])
+  order neworder @relation(references: [id],fields: [order_id])
+  ReasonOfCancellation String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  clientId Int?
+  Client Client? @relation(fields: [clientId], references: [id])
+}
 
 model housedworker {
   id             Int       @id @default(autoincrement())
