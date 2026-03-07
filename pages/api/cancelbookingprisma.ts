@@ -44,8 +44,8 @@ export default async function handler(
         cancelledOrders: {
           create: {
             ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
-            ...(homeMaidId != null && { HomeMaidId: homeMaidId }),
-            ...(clientId != null && { clientId }),
+           HomeMaidId: homeMaidId,
+            clientId: clientId,
           },
         },
       },
