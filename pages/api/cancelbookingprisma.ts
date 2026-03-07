@@ -30,10 +30,17 @@ export default async function handler(
       return;
     }
 
-    const homeMaidIdRaw = req.body.HomeMaidId;
-    const homeMaidId = homeMaidIdRaw != null && !Number.isNaN(Number(homeMaidIdRaw)) ? Number(homeMaidIdRaw) : undefined;
-    const clientIdRaw = req.body.clientID;
-    const clientId = clientIdRaw != null && !Number.isNaN(Number(clientIdRaw)) ? Number(clientIdRaw) : undefined;
+    const order = await prisma.neworder.findUnique({
+      where: { id: orderId },
+      select: { HomemaidId: true, clientID: true },
+    });
+    if (!order) {
+      res.status(404).json({ error: 'الطلب غير موجود' });
+      return;
+    }
+
+    const orderHomemaidId = order.HomemaidId != null ? order.HomemaidId : undefined;
+    const orderClientId = order.clientID != null ? order.clientID : undefined;
 
     const updated = await prisma.neworder.update({
       where: { id: orderId },
@@ -44,8 +51,8 @@ export default async function handler(
         cancelledOrders: {
           create: {
             ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
-           HomeMaidId: homeMaidId,
-            clientId: clientId,
+            ...(orderHomemaidId != null && { HomeMaidId: orderHomemaidId }),
+            ...(orderClientId != null && { clientId: orderClientId }),
           },
         },
       },
@@ -56,7 +63,7 @@ export default async function handler(
       await prisma.logs.create({
         data: {
           Details: 'الغاء طلب ' + updated.id,
-          ...(homeMaidId != null && { homemaidId: homeMaidId }),
+          ...(orderHomemaidId != null && { homemaidId: orderHomemaidId }),
           userId: String(token?.username),
           Status: "الغاء طلب",
         },
@@ -73,7 +80,7 @@ await prisma.systemUserLogs.create({
     actionType: "الغاء طلب",
     action: "الغاء طلب",
     beneficiary: "Order",
-    ...(clientId != null && { BeneficiaryId: clientId }),
+    ...(orderClientId != null && { BeneficiaryId: orderClientId }),
     pageRoute: "/admin/track_order/"+updated.id,
   },
 });
