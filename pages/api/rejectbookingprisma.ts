@@ -24,18 +24,35 @@ export default async function handler(
         console.log(cookies.authToken)
         const token = jwtDecode(cookies.authToken);
     
-    const updated = await prisma.neworder.update({
-      where: { id: Number(req.body.id) },
-      data: {
+    const orderId = Number(req.body.id ?? req.body.HomeMaidId);
+    if (!orderId || Number.isNaN(orderId)) {
+      res.status(400).json({ error: 'معرف الطلب مطلوب (id أو HomeMaidId)' });
+      return;
+    }
 
+    const order = await prisma.neworder.findUnique({
+      where: { id: orderId },
+      select: { HomemaidId: true, clientID: true },
+    });
+    if (!order) {
+      res.status(404).json({ error: 'الطلب غير موجود' });
+      return;
+    }
+
+    const orderHomemaidId = order.HomemaidId != null ? order.HomemaidId : undefined;
+    const orderClientId = order.clientID != null ? order.clientID : undefined;
+
+    const updated = await prisma.neworder.update({
+      where: { id: orderId },
+      data: {
         bookingstatus: "rejected",
         ReasonOfRejection: req.body.ReasonOfRejection,
         HomeMaid: { disconnect: true },
         rejectedOrders: {
           create: {
             ReasonOfRejection: req.body.ReasonOfRejection,
-            HomeMaidId: Number(req.body.HomeMaidId),
-            clientId: Number(req.body.clientID),
+            ...(orderHomemaidId != null && { HomeMaidId: orderHomemaidId }),
+            ...(orderClientId != null && { clientId: orderClientId }),
           },
         },
       },
@@ -46,7 +63,7 @@ export default async function handler(
       await prisma.logs.create({
         data: {
           Details: 'رفض طلب ' + updated.id,
-          homemaidId: Number(req.body.HomeMaidId),
+          ...(orderHomemaidId != null && { homemaidId: orderHomemaidId }),
           userId: String(token?.username),
           Status: "رفض طلب",
         },
@@ -57,13 +74,11 @@ export default async function handler(
     try {
 await prisma.systemUserLogs.create({
   data: { 
-    // Details: 'رفض طلب ' + updated.id,
-    // homemaidId : Number(req.body.HomeMaidId),
     userId: Number(token.id),
     actionType: "رفض طلب",
     action: "رفض طلب",
     beneficiary: "Order",
-    BeneficiaryId: Number(req.body.clientID),
+    ...(orderClientId != null && { BeneficiaryId: orderClientId }),
     pageRoute: "/rejectbookingprisma",
   },
 });
