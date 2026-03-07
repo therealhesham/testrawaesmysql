@@ -644,6 +644,7 @@ const fetchFilteredDataExporting = async () => {
               <thead className="bg-teal-900 text-white">
                 <tr>
                   <th className="p-4 flex justify-center self-center">استعادة</th>
+                  <th className="p-4">نوع الطلب</th>
                   <th className="p-4">السبب</th>
                   <th className="p-4">جواز السفر</th>
                   <th className="p-4">الجنسية</th>
@@ -669,6 +670,7 @@ const fetchFilteredDataExporting = async () => {
                           <span className="text-sm">استعادة</span>
                         </div>
                       </td>
+                      <td className="p-4 text-center font-medium">{row.orderType || '—'}</td>
                       <td className="p-4 text-center">
                         {hasReason ? (
                           <button
@@ -684,7 +686,7 @@ const fetchFilteredDataExporting = async () => {
                           <span className="text-gray-400 text-sm">غير متوفر</span>
                         )}
                       </td>
-                      <td className="p-4 text-md text-gray-800 text-center">{row.Passportnumber || 'غير متوفر'}</td>
+                      <td className="p-4 text-md text-gray-800 text-center">{row.HomeMaid?.Passportnumber || row.Passportnumber || 'غير متوفر'}</td>
                       <td className="p-4 text-md text-gray-800 text-center">{row.HomeMaid?.office?.Country || 'غير متوفر'}</td>
                       <td className="p-4 text-md text-gray-800 text-center">{row.HomeMaid?.Name || 'غير متوفر'}</td>
                       <td className="p-4 text-md text-gray-800 text-right">{row.HomeMaid?.id || 'غير متوفر'}</td>
