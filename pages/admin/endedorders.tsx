@@ -67,14 +67,21 @@ function getRemainingDays(endDateString: string | null | undefined): number | nu
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
-/** نص عرض المتبقي من الضمان */
+/** نص عرض المتبقي من الضمان - المصدر الوحيد: KingdomentryDate + 90 يوم */
 function getWarrantyDisplayText(order: OrderData): string {
-  const endDate = order.arrivals?.[0]?.GuaranteeDurationEnd || getWarrantyEndDate(order.arrivals?.[0]?.KingdomentryDate as string);
+  const endDate = getWarrantyEndDate(order.arrivals?.[0]?.KingdomentryDate as string);
   const remainingDays = getRemainingDays(endDate);
   if (order.isContractEnded) return 'انتهت فترة الضمان';
   if (remainingDays === null) return 'غير محدد';
   if (remainingDays >= 0) return `متبقي ${remainingDays} يوم`;
   return `انتهى منذ ${Math.abs(remainingDays)} يوم`;
+}
+
+/** لون نص الضمان: أخضر للمتبقي، أحمر للمنتهي */
+function getWarrantyColorClass(text: string): string {
+  if (text.startsWith('متبقي')) return 'text-green-600';
+  if (text.startsWith('انتهى') || text === 'انتهت فترة الضمان') return 'text-red-600';
+  return 'text-gray-800';
 }
 
 /** مدة المعاملة: من تاريخ العقد (DateOfApplication) إلى تاريخ الاستلام (deliveryDate) - كما في track_order */
@@ -646,7 +653,9 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.map((booking) => (
+                    {data.map((booking) => {
+                      const warrantyText = getWarrantyDisplayText(booking);
+                      return (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
                         <td className="p-4 text-sm text-gray-800 text-right cursor-pointer" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
                         <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{booking.client?.fullname || 'غير متوفر'}</td>
@@ -656,7 +665,7 @@ export default function Dashboard() {
                         <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
                         <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
                         <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{getWarrantyDisplayText(booking)}</td>
+                        <td className={`p-4 text-sm text-right whitespace-nowrap font-medium ${getWarrantyColorClass(warrantyText)}`}>{warrantyText}</td>
                         <td className="p-4 text-sm text-gray-800 text-right">{getTransactionDuration(booking)}</td>
                         <td className="p-4 text-sm text-right">
                           <button
@@ -679,7 +688,8 @@ export default function Dashboard() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
