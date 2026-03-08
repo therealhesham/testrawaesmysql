@@ -74,6 +74,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       client: true,
       ratings: true,
+      arrivals: {
+        select: {
+          KingdomentryDate: true,
+          GuaranteeDurationEnd: true,
+          DateOfApplication: true,
+        },
+      },
+      DeliveryDetails: {
+        where: {
+          deliveryFile: { not: null },
+          deliveryDate: { not: null },
+        },
+        orderBy: { id: 'desc' },
+        take: 1,
+        select: { deliveryDate: true },
+      },
     },
     orderBy: { id: "desc" },
     where: {
@@ -105,8 +121,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
   });
 
+  // تسلسل كامل لضمان وصول createdAt وجميع التواريخ للفرونت
+  const serialized = JSON.parse(
+    JSON.stringify(homemaids, (_, v) => (v instanceof Date ? v.toISOString() : v))
+  );
+
   return res.status(200).json({
-    homemaids,
+    homemaids: serialized,
     totalCount,
     totalPages: Math.ceil(totalCount / pageSize),
   });

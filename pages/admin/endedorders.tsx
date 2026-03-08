@@ -42,6 +42,55 @@ interface OrderData {
     } | null;
   } | null;
   ratings?: OrderRating[];
+  arrivals?: { KingdomentryDate?: string | null; GuaranteeDurationEnd?: string | null; DateOfApplication?: string | null }[];
+  createdAt?: string | null;
+  DeliveryDetails?: { deliveryDate?: string | Date | null }[];
+}
+
+/** تاريخ انتهاء الضمان = 90 يوم من تاريخ وصول العاملة */
+function getWarrantyEndDate(kingdomEntryDate: string | undefined): string | null {
+  if (!kingdomEntryDate) return null;
+  const arrival = new Date(kingdomEntryDate);
+  const end = new Date(arrival);
+  end.setDate(end.getDate() + 90);
+  return end.toISOString().split('T')[0];
+}
+
+/** حساب الأيام المتبقية على انتهاء الضمان (موجب = متبقي، سالب = انتهى منذ) */
+function getRemainingDays(endDateString: string | null | undefined): number | null {
+  if (!endDateString) return null;
+  const end = new Date(endDateString);
+  const now = new Date();
+  end.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffTime = end.getTime() - now.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+/** نص عرض المتبقي من الضمان */
+function getWarrantyDisplayText(order: OrderData): string {
+  const endDate = order.arrivals?.[0]?.GuaranteeDurationEnd || getWarrantyEndDate(order.arrivals?.[0]?.KingdomentryDate as string);
+  const remainingDays = getRemainingDays(endDate);
+  if (order.isContractEnded) return 'انتهت فترة الضمان';
+  if (remainingDays === null) return 'غير محدد';
+  if (remainingDays >= 0) return `متبقي ${remainingDays} يوم`;
+  return `انتهى منذ ${Math.abs(remainingDays)} يوم`;
+}
+
+/** مدة المعاملة: من تاريخ العقد (DateOfApplication) إلى تاريخ الاستلام (deliveryDate) - كما في track_order */
+function getTransactionDuration(order: OrderData): string {
+  const startDate = order.arrivals?.[0]?.DateOfApplication;  // تاريخ العقد
+  const endDate = order.DeliveryDetails?.[0]?.deliveryDate;  // تاريخ الاستلام
+  if (!startDate) return 'لم تنتهِ بعد';
+  if (!endDate) return 'لم تنتهِ بعد';
+  const start = new Date(startDate);
+  const end = new Date(endDate as string);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const diffMs = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'لم تنتهِ بعد';
+  return `${diffDays} يوم`;
 }
 
 export default function Dashboard() {
@@ -308,8 +357,8 @@ export default function Dashboard() {
     const tableRows = Array.isArray(dataToExport)
       ? dataToExport.map(row => [
         row.ratings?.[0]?.isRated ? 'تم التقييم' : row.isContractEnded ? 'لا' : 'تقييم',
-        'غير متوفر',
-        row.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
+        getTransactionDuration(row),
+        getWarrantyDisplayText(row),
         row.HomeMaid?.Passportnumber || 'غير متوفر',
         row.HomeMaid?.office?.Country || row.HomeMaid?.Nationality || 'غير متوفر',
         row.HomeMaid?.Name || 'غير متوفر',
@@ -443,8 +492,8 @@ export default function Dashboard() {
           maidName: row.HomeMaid?.Name || 'غير متوفر',
           nationality: row.HomeMaid?.office?.Country || row.HomeMaid?.Nationality || 'غير متوفر',
           passport: row.HomeMaid?.Passportnumber || 'غير متوفر',
-          warranty: row.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر',
-          duration: 'غير متوفر',
+          warranty: getWarrantyDisplayText(row),
+          duration: getTransactionDuration(row),
           rating: row.ratings?.[0]?.isRated ? 'تم التقييم' : row.isContractEnded ? 'لا' : 'تقييم',
         }).alignment = { horizontal: 'right' };
       });
@@ -478,7 +527,7 @@ export default function Dashboard() {
             e.preventDefault();
             handlePageChange(i);
           }}
-          className={`px-2.5 py-1 border rounded text-md ${
+          className={`px-2.5 py-1 border rounded text-sm ${
             i === currentPage
               ? 'border-teal-900 bg-teal-900 text-white'
               : 'border-gray-300 bg-gray-50 text-gray-800'
@@ -513,11 +562,11 @@ export default function Dashboard() {
                       e.preventDefault();
                       setContractType('recruitment');
                     }}
-                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
+                    className={`text-sm text-gray-500 pb-4 relative flex items-center gap-1 font-bold ${
                       contractType === 'recruitment' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات الاستقدام <span className="text-md align-super">{recruitmentCount}</span>
+                    طلبات الاستقدام <span className="text-sm align-super">{recruitmentCount}</span>
                   </a>
                   <a
                     href="#"
@@ -525,24 +574,24 @@ export default function Dashboard() {
                       e.preventDefault();
                       setContractType('rental');
                     }}
-                    className={`text-md text-gray-500 pb-4 relative flex items-center gap-1 ${
+                    className={`text-sm text-gray-500 pb-4 relative flex items-center gap-1 ${
                       contractType === 'rental' ? 'border-b-2 border-black' : ''
                     }`}
                   >
-                    طلبات التأجير <span className="text-md align-super">{rentalCount}</span>
+                    طلبات التأجير <span className="text-sm align-super">{rentalCount}</span>
                   </a>
                 </div>
                 <div className="flex gap-2">
                   <button 
                     onClick={exportToPDF}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-sm font-tajawal"
                   >
                     <DocumentDownloadIcon className="w-4 h-4" />
                     PDF
                   </button>
                   <button 
                     onClick={exportToExcel}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-md font-tajawal"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-900 text-white text-sm font-tajawal"
                   >
                     <TableIcon className="w-4 h-4" />
                     Excel
@@ -555,11 +604,11 @@ export default function Dashboard() {
                     <input
                       type="text"
                       placeholder="بحث"
-                      className="border-none bg-transparent outline-none text-right font-tajawal text-md text-gray-500"
+                      className="border-none bg-transparent outline-none text-right font-tajawal text-sm text-gray-500"
                     />
                     <Search className="w-4 h-4 text-gray-500" />
                   </div>
-                  <div className="relative flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-md text-gray-500 cursor-pointer min-w-[150px]">
+                  <div className="relative flex items-center bg-gray-50 border border-gray-300 rounded px-2.5 py-2 gap-10 text-sm text-gray-500 cursor-pointer min-w-[150px]">
                     <select
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
@@ -580,7 +629,7 @@ export default function Dashboard() {
                     setNationality('');
                     setCurrentPage(1);
                   }}
-                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-md font-tajawal cursor-pointer"
+                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-sm font-tajawal cursor-pointer"
                 >
                   اعادة ضبط
                 </button>
@@ -590,7 +639,7 @@ export default function Dashboard() {
                   <thead>
                     <tr className="bg-teal-900">
                       {['#', 'اسم العميل', 'جوال العميل', 'هوية العميل', 'رقم العاملة', 'اسم العاملة', 'الجنسية', 'رقم جواز السفر', 'المتبقي من الضمان', 'مدة المعاملة', 'التقييم'].map((header) => (
-                        <th key={header} className="text-white text-md font-normal p-4 text-right">
+                        <th key={header} className="text-white text-sm font-normal p-4 text-right whitespace-nowrap">
                           {header}
                         </th>
                       ))}
@@ -599,17 +648,17 @@ export default function Dashboard() {
                   <tbody>
                     {data.map((booking) => (
                       <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                        <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.client?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right whitespace-normal">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">{booking.isContractEnded ? 'انتهت فترة الضمان' : 'مستمر'}</td>
-                        <td className="p-4 text-md text-gray-800 text-right">غير متوفر</td>
-                        <td className="p-4 text-md text-right">
+                        <td className="p-4 text-sm text-gray-800 text-right cursor-pointer" onClick={() => router.push(`/admin/track_order/${booking.id}`)}>#{booking.id}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{booking.client?.fullname || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right">{booking.client?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.Nationality || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right whitespace-nowrap">{getWarrantyDisplayText(booking)}</td>
+                        <td className="p-4 text-sm text-gray-800 text-right">{getTransactionDuration(booking)}</td>
+                        <td className="p-4 text-sm text-right">
                           <button
                             onClick={() => {
                               const existingRating = booking.ratings?.[0];
@@ -645,7 +694,7 @@ export default function Dashboard() {
                       e.preventDefault();
                       handlePageChange(currentPage - 1);
                     }}
-                    className={`px-2.5 py-1 border rounded text-md ${
+                    className={`px-2.5 py-1 border rounded text-sm ${
                       currentPage === 1 ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
@@ -658,7 +707,7 @@ export default function Dashboard() {
                       e.preventDefault();
                       handlePageChange(currentPage + 1);
                     }}
-                    className={`px-2.5 py-1 border rounded text-md ${
+                    className={`px-2.5 py-1 border rounded text-sm ${
                       currentPage === totalPages ? 'border-gray-300 bg-gray-200 text-gray-500 cursor-not-allowed' : 'border-gray-300 bg-gray-50 text-gray-800'
                     }`}
                   >
