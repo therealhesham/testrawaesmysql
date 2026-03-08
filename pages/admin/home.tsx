@@ -139,7 +139,7 @@ const EndedOrdersTab = ({ orders, count, onItemClick }) => (
       <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب مكتمل #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: {order.client?.fullname}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ الانتهاء: {(order.endDate ?? order.createdAt) ? getDate(order.endDate ?? order.createdAt) : ""} <FieldTimeOutlined />
           </p>
