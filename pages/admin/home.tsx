@@ -796,7 +796,7 @@ export default function Home({
           // Send notification if delivery is within 2 hours and in the future
           if (timeDiff > 0 && timeDiff <= twoHoursInMs) {
             console.log(`   ✅ التسليم ضمن النطاق (أقل من ساعتين)`);
-            const clientName = delivery.neworder?.ClientName || delivery.neworder?.Name || 'غير محدد';
+            const clientName = delivery.neworder?.ClientName || delivery.neworder?.client?.fullname || delivery.neworder?.HomeMaid?.Name || delivery.neworder?.Name || 'غير محدد';
             const minutesLeft = Math.floor(timeDiff / (60 * 1000));
             
             // Check last notification time (every 5 minutes)
@@ -1429,7 +1429,7 @@ export default function Home({
                 {deliveriesForDay.map((delivery, index) => {
                   const deliveryDate = new Date(delivery.deliveryDate);
                   const timeString = delivery.deliveryTime ? ` - ${delivery.deliveryTime}` : '';
-                  const clientName = delivery.neworder?.ClientName || delivery.neworder?.Name || 'غير محدد';
+                  const clientName = delivery.neworder?.ClientName || delivery.neworder?.client?.fullname || delivery.neworder?.HomeMaid?.Name || delivery.neworder?.Name || 'غير محدد';
                   
                   // Determine color class
                   let colorClass = 'bg-teal-50 text-teal-900';
@@ -2020,7 +2020,7 @@ export default function Home({
                           <div 
                             key={`delivery-${deliveryIndex}`}
                             className={`text-xs font-light px-1 py-0.5 rounded cursor-pointer hover:opacity-80 ${colorClass}`}
-                            title={`تسليم: ${delivery.neworder?.ClientName || delivery.neworder?.Name || 'غير محدد'}${timeString}`}
+                            title={`تسليم: ${delivery.neworder?.ClientName || delivery.neworder?.client?.fullname || delivery.neworder?.HomeMaid?.Name || delivery.neworder?.Name || 'غير محدد'}${timeString}`}
                           >
                             <FaShuttleVan className="w-4 h-4" /> #{delivery.id}
                           </div>

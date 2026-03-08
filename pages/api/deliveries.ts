@@ -16,6 +16,17 @@ export default async function handler(req, res) {
               ClientName: true,
               Name: true,
               HomemaidId: true,
+              clientID: true,
+              client: {
+                select: {
+                  fullname: true,
+                },
+              },
+              HomeMaid: {
+                select: {
+                  Name: true,
+                },
+              },
             },
           },
           user: {
