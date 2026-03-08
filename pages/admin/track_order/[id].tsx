@@ -995,10 +995,13 @@ export default function TrackOrder() {
   };
 
   const handleSaveDeliveryDetails = async () => {
-    // التحقق من أن تاريخ الاستلام مطلوب
+    // التحقق من أن تاريخ ووقت الاستلام مطلوبان
     const errors: Record<string, string> = {};
     if (!deliveryDetails.deliveryDate || deliveryDetails.deliveryDate.trim() === '') {
       errors.deliveryDate = 'تاريخ الاستلام مطلوب';
+    }
+    if (!deliveryDetails.deliveryTime || deliveryDetails.deliveryTime.trim() === '') {
+      errors.deliveryTime = 'وقت الاستلام مطلوب';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -2168,13 +2171,28 @@ export default function TrackOrder() {
                         <input
                           type="time"
                           value={deliveryDetails.deliveryTime}
-                          onChange={(e) => setDeliveryDetails({ ...deliveryDetails, deliveryTime: e.target.value })}
-                          className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-800 text-right"
+                          onChange={(e) => {
+                            setDeliveryDetails({ ...deliveryDetails, deliveryTime: e.target.value });
+                            if (deliveryDetailsErrors.deliveryTime) {
+                              setDeliveryDetailsErrors({ ...deliveryDetailsErrors, deliveryTime: '' });
+                            }
+                          }}
+                          className={`flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 text-right ${
+                            deliveryDetailsErrors.deliveryTime
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-teal-800'
+                          }`}
+                          required
                         />
                       </div>
                       {deliveryDetailsErrors.deliveryDate && (
-                        <span className="text-red-600 text-sm text-right mt-1">
+                        <span className="text-red-600 text-sm text-right mt-1 block">
                           {deliveryDetailsErrors.deliveryDate}
+                        </span>
+                      )}
+                      {deliveryDetailsErrors.deliveryTime && (
+                        <span className="text-red-600 text-sm text-right mt-1 block">
+                          {deliveryDetailsErrors.deliveryTime}
                         </span>
                       )}
                     </div>
