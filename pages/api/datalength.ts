@@ -73,7 +73,7 @@ export default async function handler(
 
     const finished = await prisma.neworder.count({
       where: {
-        bookingstatus: "delivered",
+        bookingstatus: "delivered", arrivals:{every:{DeliveryFile: {not: null}}}
       },
     });
 

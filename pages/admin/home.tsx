@@ -141,7 +141,7 @@ const EndedOrdersTab = ({ orders, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">طلب مكتمل #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {order.ClientName}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الانتهاء: {order.endDate ?? order.createdAt} <FieldTimeOutlined />
+            تاريخ الانتهاء: {(order.endDate ?? order.createdAt) ? getDate(order.endDate ?? order.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -160,7 +160,7 @@ const CancelledOrdersTab = ({ rejectedOrders, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
           <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order?.ReasonOfRejection ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الإلغاء: {order?.updatedAt} <FieldTimeOutlined />
+            تاريخ الإلغاء: {order?.updatedAt ? getDate(order.updatedAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -256,7 +256,7 @@ const CheckedTableTab = ({ housing, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">إعاشة #{item.id}</p>
           <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ: {item.createdAt} <FieldTimeOutlined />
+            تاريخ: {item.createdAt ? getDate(item.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -275,7 +275,7 @@ const SessionsTab = ({ sessions, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">جلسة #{session.id}</p>
           <p className="item-subtitle text-xs text-gray-600">النوع: {session.reason ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الجلسة: {session.createdAt} <FieldTimeOutlined />
+            تاريخ الجلسة: {session.createdAt ? getDate(session.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -313,7 +313,7 @@ const BookedListTab = ({ booked, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{worker.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العميل: {worker.ClientName ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الحجز: {worker.bookedDate ?? worker.createdAt} <FieldTimeOutlined />
+            تاريخ الحجز: {(worker.bookedDate ?? worker.createdAt) ? getDate(worker.bookedDate ?? worker.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
@@ -370,7 +370,7 @@ const SponsorshipTransfersTab = ({ transfers, count, onItemClick }) => (
           <p className="item-title text-sm font-semibold text-gray-900">نقل كفالة #{transfer.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العامل: {transfer.WorkerName ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الطلب: {transfer.createdAt} <FieldTimeOutlined />
+            تاريخ الطلب: {transfer.createdAt ? getDate(transfer.createdAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
