@@ -125,25 +125,27 @@ export default async function handler(
         deparatureHousingDate: { not: null },
       };
 
-      // Add contract type filter if provided
       if (contractType) {
-        filters.Order = {
-          NewOrder: {
-            some: {
-              typeOfContract: contractType as string
-            }
-          }
-        };
+        filters.OR = [
+          {
+            homeMaid_id: { not: null },
+            Order: {
+              NewOrder: { some: { typeOfContract: contractType as string } },
+            },
+          },
+          { externalHomedmaidId: { not: null } },
+        ];
       }
 
       const housing = await prisma.housedworker.findMany({
         where: filters,
-        include: { 
+        include: {
           Order: {
             include: {
               NewOrder: true
             }
           },
+          externalHomedmaid: true,
           HousedWorkerNotes: true,
         },
         skip: (pageNumber - 1) * pageSize,

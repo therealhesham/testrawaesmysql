@@ -381,6 +381,7 @@ model Session {
   reason     String    @db.VarChar(191)
   date       DateTime?   
   result     String?   
+  externalHomedmaid externalHomedmaid[]
   idnumber   Int      
   createdAt  DateTime? @default(now())
   updatedAt  DateTime? @updatedAt
@@ -751,13 +752,27 @@ model cancelledOrders{
   clientId Int?
   Client Client? @relation(fields: [clientId], references: [id])
 }
-
+model externalHomedmaid{
+  id Int @id @default(autoincrement())
+  name String? @db.VarChar(100)
+  nationality String? @db.VarChar(100)
+  passportNumber String? @db.VarChar(100)
+  passportStartDate String? @db.VarChar(100)
+  passportEndDate String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  housedworker housedworker[]
+session Session? @relation(fields: [sessionId], references: [id],onDelete: Cascade)
+sessionId Int?
+}
 model housedworker {
   id             Int       @id @default(autoincrement())
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
 isExternal Boolean? @default(false)
 HousedWorkerNotes HousedWorkerNotes[]
+ externalHomedmaid externalHomedmaid? @relation(fields: [externalHomedmaidId], references: [id])
+ externalHomedmaidId Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   homeMaid_id       Int?       @unique

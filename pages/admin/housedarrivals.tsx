@@ -19,7 +19,7 @@ import { FileTextFilled } from '@ant-design/icons';
 
 interface HousedWorker {
   id: number;
-  homeMaid_id: number;
+  homeMaid_id: number | null;
   location_id: number;
   houseentrydate: string;
   deparatureHousingDate: string | null;
@@ -37,13 +37,21 @@ interface HousedWorker {
     createdAt: string;
   }[];
   Order?: {
+    id?: number;
     Name: string;
     phone: string;
     Nationalitycopy: string;
     Passportnumber: string;
     NewOrder?: Array<{
       typeOfContract: string;
+      arrivals?: Array<{ KingdomentryDate?: string; KingdomentryTime?: string; DeliveryDate?: string }>;
     }>;
+  };
+  externalHomedmaid?: {
+    id: number;
+    name: string | null;
+    nationality: string | null;
+    passportNumber: string | null;
   };
 }
 interface EditWorkerForm {
@@ -150,18 +158,18 @@ const ActionDropdown: React.FC<{
             اعادة تسكين
           </button>
           )}
+          {homemaid_id > 0 && (
           <button
             onClick={() => {
-
               onAddSession(homemaid_id);
               setIsOpen(false);
-              // openModal('sessionModal');
             }}
             className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-textDark hover:bg-gray-100"
           >
             <FaUserFriends />
             اضافة جلسة
           </button>
+          )}
 
 
 <button
@@ -358,6 +366,14 @@ useEffect(()=>{
     reason: '',
     details: '',
   });
+  // بيانات العاملة الخارجية الجديدة (تسجيل جديد في externalHomedmaid - مش بحث)
+  const [externalHomemaidForm, setExternalHomemaidForm] = useState({
+    name: '',
+    nationality: '',
+    passportNumber: '',
+    passportStartDate: '',
+    passportEndDate: '',
+  });
   const [notesForm, setNotesForm] = useState({
     notes: '',
   });
@@ -395,6 +411,19 @@ useEffect(()=>{
     if (modalName === 'housingForm') {
       setSelectedWorker(null);
       setWorkerSearchTerm('');
+    }
+    // Clear external homemaid form when closing internal worker modal
+    if (modalName === 'internalWorkerModal') {
+      setExternalHomemaidForm({
+        name: '',
+        nationality: '',
+        passportNumber: '',
+        passportStartDate: '',
+        passportEndDate: '',
+      });
+      setSelectedExternalWorker(null);
+      setExternalWorkerSearchTerm('');
+      setExternalWorkerSuggestions([]);
     }
     // Clear editing location when closing edit residence modal
     if (modalName === 'editResidence') {
@@ -564,9 +593,8 @@ useEffect(()=>{
   });
 
   const handleOpenRehousing = (id: number, name: string) => {
-    // Find the worker in departedWorkers to get previous housing data
     const worker = departedWorkers.find((w: any) => w.id === id);
-    setRehousingWorker(worker || { id, Order: { Name: name } });
+    setRehousingWorker(worker || { id, Order: { Name: name }, externalHomedmaid: { name } });
     setRehousingForm({ houseentrydate: '', Reason: '' });
     openModal('rehousingModal');
   };
@@ -580,6 +608,7 @@ useEffect(()=>{
       // 1. Reset the worker housing (clear departure date, set new entry date + reason)
       await axios.put('/api/confirmhousinginformation', {
         homeMaidId: rehousingWorker.homeMaid_id,
+        housedWorkerId: rehousingWorker.homeMaid_id ? undefined : rehousingWorker.id,
         houseentrydate: rehousingForm.houseentrydate,
         Reason: rehousingForm.Reason,
         employee: user,
@@ -834,7 +863,8 @@ const fetchDepartedHousedforExporting = async () => {
     const worker = (housingStatus === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
     console.log('Edit worker clicked:', { id, name, worker, housingStatus });
     if (worker) {
-      setSelectedWorkerId( worker.homeMaid_id);
+      // للعاملات الخارجية homeMaid_id يكون null، نستخدم housedworker id
+      setSelectedWorkerId(worker.homeMaid_id ?? worker.id);
       setSelectedWorkerName(name);
       const formData = {
         location_id: worker.location_id || null,
@@ -993,10 +1023,16 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       openModal('internalWorkerModal'); // Swapped as per request
     }
   };
-  // Handle internal worker form submission
+  // Handle internal worker form submission (تسكين خارجي - تسجيل عاملة جديدة في externalHomedmaid)
   const handleInternalWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validate external homemaid name
+    if (!externalHomemaidForm.name || !externalHomemaidForm.name.trim()) {
+      showNotification('يرجى إدخال اسم العاملة', 'error');
+      return;
+    }
+
     // Validate housing selection
     if (!internalWorkerForm.housing || internalWorkerForm.housing === '') {
       setValidationErrors(prev => ({ ...prev, internalLocation: true }));
@@ -1017,29 +1053,21 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       showNotification('يرجى اختيار تاريخ التسكين', 'error');
       return;
     }
-    
+
     try {
-      const formData = selectedExternalWorker ? {
-        ...internalWorkerForm,
-        homeMaidId: Number(selectedExternalWorker.id), // Map to homeMaidId for API
-        workerId: selectedExternalWorker.id.toString(),
-        workerName: selectedExternalWorker.name,
-        mobile: selectedExternalWorker.phone,
-        houseentrydate: internalWorkerForm.housingDate, // Map housingDate to houseentrydate for API
-        location: internalWorkerForm.housing, // Map housing to location for API
-        workerType: 'خارجية',
-        employee: user,
-      } : {
-        ...internalWorkerForm,
-        homeMaidId: Number(internalWorkerForm.workerId), // Map workerId to homeMaidId for API
-        houseentrydate: internalWorkerForm.housingDate, // Map housingDate to houseentrydate for API
-        location: internalWorkerForm.housing, // Map housing to location for API
-        workerType: 'خارجية',
+      const formData = {
+        ...externalHomemaidForm,
+        location: internalWorkerForm.housing,
+        houseentrydate: internalWorkerForm.housingDate,
+        deliveryDate: internalWorkerForm.receiptDate || undefined,
+        reason: internalWorkerForm.reason,
+        details: internalWorkerForm.details,
+        officeName: internalWorkerForm.officeName,
         employee: user,
       };
-      
-      const response = await axios.post('/api/confirmhousinginformation', formData);
-      showNotification(response.data.message);
+
+      const response = await axios.post('/api/housing/add-external-housed-worker', formData);
+      showNotification(response.data.message || 'تم تسكين العاملة الخارجية بنجاح');
       closeModal('internalWorkerModal');
       setValidationErrors({ location: false, reason: false, internalLocation: false, internalReason: false, internalHousingDate: false });
       setInternalWorkerForm({
@@ -1058,10 +1086,13 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         reason: '',
         details: '',
       });
-      // Clear search states
-      setSelectedExternalWorker(null);
-      setExternalWorkerSearchTerm('');
-      setExternalWorkerSuggestions([]);
+      setExternalHomemaidForm({
+        name: '',
+        nationality: '',
+        passportNumber: '',
+        passportStartDate: '',
+        passportEndDate: '',
+      });
       fetchWorkers();
       fetchLocations();
     } catch (error: any) {
@@ -1744,20 +1775,28 @@ const confirmDeleteNote = async () => {
                   <tbody>
                     {console.log('Rendering workers:', activeTab, housingStatus, (housingStatus === 'housed' ? housedWorkers : departedWorkers).length)}
                     {(housingStatus === 'housed' ? housedWorkers : departedWorkers)
-                      .filter((worker) => worker.Order?.Name)
+                      .filter((worker) => worker.Order?.Name || worker.externalHomedmaid?.name)
                       .length > 0 ? (
                       (housingStatus === 'housed' ? housedWorkers : departedWorkers)
-                        .filter((worker) => worker.Order?.Name)
+                        .filter((worker) => worker.Order?.Name || worker.externalHomedmaid?.name)
                         .map((worker) => (
                         <React.Fragment key={worker.id}>
                         <tr
                           className="bg-gray-50 text-nowrap border-b border-gray-300 hover:bg-gray-100 transition-colors"
                         >
-                          {columnVisibility.id && <td className="py-2 px-2 text-right cursor-pointer text-md" onClick={()=>router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</td>}
-                          {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || ''}</td>}
+                          {columnVisibility.id && (
+                            <td className="py-2 px-2 text-right text-md">
+                              {worker.Order ? (
+                                <span className="cursor-pointer" onClick={() => router.push(`/admin/homemaidinfo?id=${worker.Order?.id}`)}>#{worker.id}</span>
+                              ) : (
+                                <span>#{worker.id}</span>
+                              )}
+                            </td>
+                          )}
+                          {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || worker.externalHomedmaid?.name || ''}</td>}
                           {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || ''}</td>}
-                          {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || ''}</td>}
-                          {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || ''}</td>}
+                          {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || worker.externalHomedmaid?.nationality || ''}</td>}
+                          {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || worker.externalHomedmaid?.passportNumber || ''}</td>}
                           {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
                           {columnVisibility.kingdomentryDate && <td className="py-2 px-2 text-right text-md">{getDate(worker.Order?.NewOrder?.[0]?.arrivals?.[0]?.KingdomentryDate) || ''}</td>}
                        
@@ -1805,11 +1844,11 @@ const confirmDeleteNote = async () => {
                             </button>
                           </td>}
                           {columnVisibility.actions && <td className="py-2 px-2 text-center">
-                            <ActionDropdown homemaid_id={worker.homeMaid_id}
+                            <ActionDropdown homemaid_id={worker.homeMaid_id ?? 0}
                               onAddSession={handleAddSession}
                               onAddNotes={handleAddNotes}
                               id={worker.id}
-                              name={worker.Order?.Name || ''}
+                              name={worker.Order?.Name || worker.externalHomedmaid?.name || ''}
                               onEdit={handleEditWorker}
                               onDeparture={handleWorkerDeparture}
                               openModal={openModal}
@@ -3032,7 +3071,7 @@ const confirmDeleteNote = async () => {
                   <div className="flex justify-between items-center mb-5">
                     <div>
                       <h2 className="text-xl font-bold text-gray-800">اعادة تسكين</h2>
-                      <p className="text-sm text-gray-500 mt-1">{rehousingWorker.Order?.Name}</p>
+                      <p className="text-sm text-gray-500 mt-1">{rehousingWorker.Order?.Name || rehousingWorker.externalHomedmaid?.name}</p>
                     </div>
                     <button onClick={() => closeModal('rehousingModal')} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
                   </div>
@@ -3222,160 +3261,62 @@ const confirmDeleteNote = async () => {
                     </button>
                   </div>
                   <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
-                    {/* Worker Search - similar to musanad_finacial */}
-                    <div className="mb-4">
-                      <label className="block text-md text-gray-700 mb-2">البحث عن العاملة</label>
-                      <div className="relative search-container">
-                        <input
-                          type="text"
-                          value={externalWorkerSearchTerm}
-                          onChange={(e) => handleExternalWorkerSearch(e.target.value)}
-                          placeholder="ابحث برقم العاملة أو الاسم أو رقم الجواز"
-                          className="w-full p-3 border border-gray-300 rounded-md bg-gray-50"
-                        />
-                        {isSearchingExternal && (
-                          <div className="absolute right-3 top-3">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
-                          </div>
-                        )}
-                       
-                        {/* Search Results Dropdown */}
-                        {externalWorkerSuggestions.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                            {externalWorkerSuggestions.map((worker) => (
-                              <div
-                                key={worker.id}
-                                onClick={() => handleExternalWorkerSelection(worker)}
-                                className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
-                              >
-                                <div className="font-medium text-md">عاملة #{worker.id}</div>
-                                <div className="text-md text-gray-600">الاسم: {worker.name}</div>
-                                <div className="text-md text-gray-600">الجنسية: {worker.nationality}</div>
-                                <div className="text-md text-gray-500">رقم الجواز: {worker.passportNumber}</div>
-                                <div className="text-md text-gray-500">العمر: {worker.age} سنة</div>
-                                <div className="text-md text-blue-600 mt-1">
-                                  ✓ عاملة متاحة للتسكين
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    
-                    
-                    {/* Worker Info Row */}
-                    <div className="grid grid-cols-2 gap-8 mb-4">
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">اسم العاملة</label>
-                        <input
-                          type="text"
-                          value={selectedExternalWorker ? selectedExternalWorker.name : internalWorkerForm.workerName}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, workerName: e.target.value })}
-                          placeholder="ادخل اسم العاملة"
-                          disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
-                            selectedExternalWorker ? 'bg-gray-200' : 'bg-gray-100'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">رقم الجوال</label>
-                        <input
-                          type="text"
-                          value={selectedExternalWorker ? selectedExternalWorker.phone : internalWorkerForm.mobile}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, mobile: e.target.value })}
-                          placeholder="ادخل رقم الجوال"
-                          disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
-                            selectedExternalWorker ? 'bg-gray-200' : 'bg-gray-100'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    {/* Client Info Row */}
-                    <div className="grid grid-cols-2 gap-8 mb-4">
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">
-                          اسم العميل {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.clientName : internalWorkerForm.clientName}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientName: e.target.value })}
-                          placeholder="اسم العميل"
-                          disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
-                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">
-                          رقم الجوال {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.clientMobile : internalWorkerForm.clientMobile}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, clientMobile: e.target.value })}
-                          placeholder="ادخل رقم الجوال"
-                          disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
-                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    {/* Client ID Number - Only show if external worker selected and has ID */}
-                    {selectedExternalWorker && (selectedExternalWorker.clientData?.clientIdNumber || internalWorkerForm.clientIdNumber) && (
-                      <div className="grid grid-cols-2 gap-8 mb-4">
+                    {/* بيانات العاملة الخارجية الجديدة - تسجيل في externalHomedmaid */}
+                    <div className="mb-6 pb-4 border-b border-gray-300">
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات العاملة (شكل مختصر)</h3>
+                      <div className="grid grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-md text-gray-700 mb-2">
-                            رقم الهوية <span className="text-blue-600 text-sm"></span>
-                          </label>
+                          <label className="block text-md text-gray-700 mb-2">الاسم <span className="text-red-500">*</span></label>
                           <input
                             type="text"
-                            value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.clientIdNumber : internalWorkerForm.clientIdNumber}
-                            disabled
-                            className="w-full bg-gray-200 border border-gray-300 rounded-md p-2 text-right text-md cursor-not-allowed"
+                            value={externalHomemaidForm.name}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, name: e.target.value })}
+                            placeholder="اسم العاملة"
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">الجنسية</label>
+                          <input
+                            type="text"
+                            value={externalHomemaidForm.nationality}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, nationality: e.target.value })}
+                            placeholder="الجنسية"
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">رقم الجواز</label>
+                          <input
+                            type="text"
+                            value={externalHomemaidForm.passportNumber}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, passportNumber: e.target.value })}
+                            placeholder="رقم الجواز"
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">تاريخ بداية الجواز</label>
+                          <input
+                            type="date"
+                            value={externalHomemaidForm.passportStartDate}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, passportStartDate: e.target.value })}
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">تاريخ نهاية الجواز</label>
+                          <input
+                            type="date"
+                            value={externalHomemaidForm.passportEndDate}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, passportEndDate: e.target.value })}
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
                           />
                         </div>
                       </div>
-                    )}
-                    {/* Location Info Row */}
-                    <div className="grid grid-cols-2 gap-8 mb-4">
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">
-                          المدينة {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.city : internalWorkerForm.city}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, city: e.target.value })}
-                          placeholder="ادخل المدينة"
-                          disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
-                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">
-                          العنوان {selectedExternalWorker && <span className="text-blue-600 text-sm"></span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedExternalWorker && selectedExternalWorker.clientData ? selectedExternalWorker.clientData.address : internalWorkerForm.address}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, address: e.target.value })}
-                          placeholder="ادخل العنوان"
-                          disabled={!!selectedExternalWorker}
-                          className={`w-full border border-gray-300 rounded-md p-2 text-right text-md ${
-                            selectedExternalWorker ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-100'
-                          }`}
-                        />
-                      </div>
                     </div>
+                    {/* بيانات التسكين */}
+                    <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات التسكين</h3>
                     {/* Office and Housing Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
                       <div>

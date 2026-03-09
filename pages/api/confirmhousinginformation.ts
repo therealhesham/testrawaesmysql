@@ -251,6 +251,7 @@ if (req.body.location) {
   } else if (req.method === "PUT") {
     const {
       homeMaidId,
+      housedWorkerId,
       employee,
       reason,
       details,
@@ -260,14 +261,22 @@ if (req.body.location) {
       isHasEntitlements,
     } = req.body;
 
-    if (!homeMaidId) {
+    const idToUse = homeMaidId ?? housedWorkerId;
+    if (!idToUse) {
       return res.status(400).json({ error: "معرف العاملة مطلوب" });
     }
 
     try {
-      const search = await prisma.housedworker.findFirst({
-        where: { homeMaid_id: homeMaidId },
+      let search = await prisma.housedworker.findFirst({
+        where: { homeMaid_id: Number(idToUse) },
+        include: { Order: true, externalHomedmaid: true },
       });
+      if (!search) {
+        search = await prisma.housedworker.findFirst({
+          where: { id: Number(idToUse), externalHomedmaidId: { not: null } },
+          include: { Order: true, externalHomedmaid: true },
+        });
+      }
 
       if (!search) {
         return res.status(404).json({ error: "سجل التسكين غير موجود" });
@@ -283,8 +292,12 @@ if (req.body.location) {
         }
       }
 
+      const whereClause = search.homeMaid_id
+        ? { homeMaid_id: search.homeMaid_id }
+        : { id: search.id };
+
       const updated = await prisma.housedworker.update({
-        where: { homeMaid_id: homeMaidId },
+        where: whereClause,
         data: {
           ...(location_id && location_id !== 0 && { location_id }),
           employee,
@@ -305,38 +318,34 @@ if (req.body.location) {
         },
       });
 try {
-  
-
       await prisma.logs.create({
         data: {
           Status: `تم تعديل بيانات التسكين `,
           userId: employee,
-          Details: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ `,//حقول التعديل
-          homemaidId: homeMaidId,
-        },
+          Details: `تم تعديل بيانات التسكين للعاملة المنزلية بتاريخ `,
+          homemaidId: search.homeMaid_id,
+        } as any,
       });
 } catch (error) {
   console.log(error)
 }
-      // تسجيل العملية في systemlogs
       const userInfo = getUserFromCookies(req);
       if (userInfo.userId) {
-        const homeMaidData = await prisma.homemaid.findUnique({
-          where: { id: homeMaidId },
-          select: { Name: true }
-        });
-        
+        const workerName = (search as any).Order?.Name
+          || (search as any).externalHomedmaid?.name
+          || 'غير محدد';
+
         const locationName = location_id ? await prisma.inHouseLocation.findUnique({
           where: { id: Number(location_id) },
           select: { location: true }
         }).then(loc => loc?.location || 'غير محدد') : 'غير محدد';
-        
+
         await logToSystemLogs(
           userInfo.userId,
           'update',
-          `تعديل بيانات تسكين عاملة #${homeMaidId} - ${homeMaidData?.Name || 'غير محدد'} في سكن: ${locationName}`,
-          homeMaidData?.Name || 'غير محدد',
-          homeMaidId,
+          `تعديل بيانات تسكين عاملة #${search.id} - ${workerName} في سكن: ${locationName}`,
+          workerName,
+          search.id,
           '/admin/housedarrivals'
         );
       }
@@ -394,23 +403,43 @@ try {
     const pageSize = parseInt(size as string, 10) || 10;
     const pageNumber = parseInt(page as string, 10) || 1;
 
+    // تضمين العاملات الداخلية (من homemaids) والخارجية (من externalHomedmaid)
+    const orderFilters = (Name || Passportnumber || id || contractType)
+      ? {
+          Name: { contains: (Name as string) || "" },
+          Passportnumber: { contains: (Passportnumber as string) || "" },
+          ...(id && { id: { equals: Number(id) } }),
+          ...(contractType && {
+            NewOrder: {
+              some: { typeOfContract: contractType as string },
+            },
+          }),
+        }
+      : undefined;
+
     const filters: any = {
       ...(location && { location_id: { equals: Number(location) } }),
-      // ...(location_id && { location_id: { equals: Number(location_id) } }),
       ...(houseentrydate && { houseentrydate: { equals: new Date(houseentrydate as string) } }),
       Reason: { contains: reason || "" },
-      Order: {
-        Name: { contains: Name || "" },
-        Passportnumber: { contains: Passportnumber || "" },
-        ...(id && { id: { equals: Number(id) } }),
-        ...(contractType && {
-          NewOrder: {
-            some: {
-              typeOfContract: contractType as string,
-            },
-          },
-        }),
-      },
+      deparatureHousingDate: null,
+      OR: [
+        orderFilters
+          ? { homeMaid_id: { not: null }, Order: orderFilters }
+          : { homeMaid_id: { not: null } },
+        {
+          externalHomedmaidId: { not: null },
+          ...(Name || Passportnumber
+            ? {
+                externalHomedmaid: {
+                  ...(Name && { name: { contains: (Name as string) || "" } }),
+                  ...(Passportnumber && {
+                    passportNumber: { contains: (Passportnumber as string) || "" },
+                  }),
+                },
+              }
+            : {}),
+        },
+      ],
     };
 
     let orderBy: any = { id: "desc" };
@@ -435,19 +464,21 @@ try {
 
     try {
       const housing = await prisma.housedworker.findMany({
-        where: {
-          ...filters,
-          deparatureHousingDate: null,
-        },
+        where: filters,
         include: {
           Order: {
-
             include: {
               weeklyStatusId: true,
               logs: true,
-              NewOrder: { select: {arrivals:{select:{KingdomentryDate:true,KingdomentryTime:true,DeliveryDate:true}}, typeOfContract: true } },
+              NewOrder: {
+                select: {
+                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
+                  typeOfContract: true,
+                },
+              },
             },
           },
+          externalHomedmaid: true,
           HousedWorkerNotes: true,
         },
         skip: (pageNumber - 1) * pageSize,
@@ -455,10 +486,7 @@ try {
         orderBy,
       });
       const totalCount = await prisma.housedworker.count({
-        where: {
-          ...filters,
-          deparatureHousingDate: null,
-        },
+        where: filters,
       });
 
       return res.status(200).json({ housing, totalCount });
