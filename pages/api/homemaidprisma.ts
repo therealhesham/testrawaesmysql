@@ -182,17 +182,23 @@ export default async function handler(
       take: pageSize,
     });
 
+    // نفس دالة homemaidinfo لاستخراج رابط الصورة من أي صيغة (object, array, string)
+    const extractImageUrl = (value: any): string | null => {
+      if (!value) return null;
+      if (typeof value === "string") return value;
+      if (Array.isArray(value)) {
+        const first = value?.[0];
+        if (typeof first === "string") return first;
+        if (first && typeof first === "object" && typeof first.url === "string") return first.url;
+        return null;
+      }
+      if (typeof value === "object" && typeof (value as any).url === "string") return (value as any).url;
+      return null;
+    };
+
     // Map the data to match the frontend's expected field names
     const formattedData = homemaids.map((homemaid) => {
-      // Extract Picture URL from JSON field
-      let pictureUrl = null;
-      if (homemaid.Picture) {
-        if (typeof homemaid.Picture === 'object' && homemaid.Picture !== null && 'url' in homemaid.Picture) {
-          pictureUrl = (homemaid.Picture as any).url;
-        } else if (typeof homemaid.Picture === 'string') {
-          pictureUrl = homemaid.Picture;
-        }
-      }
+      const pictureUrl = extractImageUrl(homemaid.Picture);
 
       // Check reservation status (محجوزة = has order not cancelled/rejected, متاحة = no orders or all cancelled)
       let isReserved = false;

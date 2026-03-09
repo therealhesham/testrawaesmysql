@@ -305,11 +305,12 @@ const WorkersTab = ({ workers, count, onItemClick }) => (
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
             {pictureUrl ? (
-              <img src={pictureUrl} alt={worker.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-            ) : null}
-            <div className={`w-full h-full flex items-center justify-center text-gray-400 text-sm ${pictureUrl ? 'hidden' : ''}`}>
-              <FaRegUser className="w-6 h-6" />
-            </div>
+              <img src={pictureUrl} alt={worker.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/img.jpeg'; }} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <FaRegUser className="w-6 h-6" />
+              </div>
+            )}
           </div>
           <div className="item-details flex flex-col gap-2 min-w-0">
             <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
@@ -338,11 +339,12 @@ const BookedListTab = ({ booked, count, onItemClick }) => (
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
             {pictureUrl ? (
-              <img src={pictureUrl} alt={homemaid?.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-            ) : null}
-            <div className={`w-full h-full flex items-center justify-center text-gray-400 text-sm ${pictureUrl ? 'hidden' : ''}`}>
-              <FaRegUser className="w-6 h-6" />
-            </div>
+              <img src={pictureUrl} alt={homemaid?.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/img.jpeg'; }} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <FaRegUser className="w-6 h-6" />
+              </div>
+            )}
           </div>
           <div className="item-details flex flex-col gap-2 min-w-0">
             <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{workerId}</p>
@@ -369,11 +371,12 @@ const AvailableListTab = ({ available, count, onItemClick }) => (
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
             {pictureUrl ? (
-              <img src={pictureUrl} alt={worker.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-            ) : null}
-            <div className={`w-full h-full flex items-center justify-center text-gray-400 text-sm ${pictureUrl ? 'hidden' : ''}`}>
-              <FaRegUser className="w-6 h-6" />
-            </div>
+              <img src={pictureUrl} alt={worker.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/img.jpeg'; }} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <FaRegUser className="w-6 h-6" />
+              </div>
+            )}
           </div>
           <div className="item-details flex flex-col gap-2 min-w-0">
             <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
