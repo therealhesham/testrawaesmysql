@@ -72,6 +72,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     phone,
     type: contractType,
     dateofbirth,
+    // Client data (عميل التسكين الخارجي)
+    clientName,
+    clientPhone,
+    clientCity,
     // Housing data
     location,
     houseentrydate,
@@ -79,7 +83,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     reason,
     details,
     employee,
-    officeName,
     isHasEntitlements,
   } = req.body;
 
@@ -101,7 +104,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!nationality || !String(nationality).trim()) {
     return res.status(400).json({ error: "الجنسية مطلوبة" });
   }
-  // رقم الجوال: أرقام و + فقط
+  if (!clientName || !String(clientName).trim()) {
+    return res.status(400).json({ error: "اسم العميل مطلوب" });
+  }
+  if (!clientPhone || !String(clientPhone).trim()) {
+    return res.status(400).json({ error: "رقم جوال العميل مطلوب" });
+  }
+  if (!/^[0-9+]+$/.test(clientPhone.trim())) {
+    return res.status(400).json({ error: "رقم جوال العميل يقبل أرقام و + فقط" });
+  }
+  // رقم الجوال العاملة: أرقام و + فقط
   if (phone && String(phone).trim()) {
     if (!/^[0-9+]+$/.test(phone.trim())) {
       return res.status(400).json({ error: "رقم الجوال يقبل أرقام و + فقط" });
@@ -137,7 +149,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // 1. إنشاء سجل في externalHomedmaid
+    // 1. إيجاد أو إنشاء العميل
+    let client = await prisma.client.findFirst({
+      where: { phonenumber: clientPhone.trim() },
+    });
+    if (!client) {
+      client = await prisma.client.create({
+        data: {
+          fullname: clientName.trim(),
+          phonenumber: clientPhone.trim(),
+          city: clientCity?.trim() || null,
+        },
+      });
+    }
+
+    // 2. إنشاء سجل في externalHomedmaid مربوط بالعميل
     const externalHomemaid = await prisma.externalHomedmaid.create({
       data: {
         name: (name || '').trim(),
@@ -148,10 +174,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         phone: phone?.trim() || null,
         type: contractType,
         dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
+        clientId: client.id,
       },
     });
 
-    // 2. إنشاء housedworker مربوط بـ externalHomedmaid (بدون homeMaid_id)
+    // 3. إنشاء housedworker مربوط بـ externalHomedmaid (بدون homeMaid_id)
     const housedWorker = await prisma.housedworker.create({
       data: {
         externalHomedmaidId: externalHomemaid.id,

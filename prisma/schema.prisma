@@ -324,6 +324,7 @@ notes_date        DateTime?
   salesRecords TaxSalesRecord[] // Added relation to sales records
 
   AccountSystemLogs AccountSystemLogs[]
+  externalHomedmaids externalHomedmaid[]
 }
 model notes{
   id Int @id @default(autoincrement())
@@ -762,6 +763,8 @@ model externalHomedmaid{
   phone String? @db.VarChar(20)
   type String? @db.VarChar(50) // recruitment | rental
   dateofbirth DateTime?
+  clientId Int?
+  Client Client? @relation(fields: [clientId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   housedworker housedworker[]

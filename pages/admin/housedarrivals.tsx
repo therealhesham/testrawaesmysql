@@ -378,6 +378,12 @@ useEffect(()=>{
     type: 'recruitment' as 'recruitment' | 'rental',
     dateofbirth: '',
   });
+  const [externalClientForm, setExternalClientForm] = useState({
+    name: '',
+    phone: '',
+    city: '',
+  });
+  const [externalModalStep, setExternalModalStep] = useState<1 | 2>(1);
   const [uniqueNationalities, setUniqueNationalities] = useState<string[]>([]);
   const [notesForm, setNotesForm] = useState({
     notes: '',
@@ -429,6 +435,8 @@ useEffect(()=>{
         type: 'recruitment',
         dateofbirth: '',
       });
+      setExternalClientForm({ name: '', phone: '', city: '' });
+      setExternalModalStep(1);
       setSelectedExternalWorker(null);
       setExternalWorkerSearchTerm('');
       setExternalWorkerSuggestions([]);
@@ -1058,6 +1066,9 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
   const handleExternalPhoneChange = (val: string) => {
     if (PHONE_NUMBERS_PLUS.test(val)) setExternalHomemaidForm((p) => ({ ...p, phone: val }));
   };
+  const handleExternalClientPhoneChange = (val: string) => {
+    if (PHONE_NUMBERS_PLUS.test(val)) setExternalClientForm((p) => ({ ...p, phone: val }));
+  };
 
   // Handle internal worker form submission (تسكين خارجي - تسجيل عاملة جديدة في externalHomedmaid)
   const handleInternalWorkerSubmit = async (e: React.FormEvent) => {
@@ -1073,6 +1084,18 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
     }
     if (!externalHomemaidForm.nationality || !externalHomemaidForm.nationality.trim()) {
       showNotification('يرجى اختيار الجنسية', 'error');
+      return;
+    }
+    if (!externalClientForm.name || !externalClientForm.name.trim()) {
+      showNotification('يرجى إدخال اسم العميل', 'error');
+      return;
+    }
+    if (!externalClientForm.phone || !externalClientForm.phone.trim()) {
+      showNotification('يرجى إدخال رقم جوال العميل', 'error');
+      return;
+    }
+    if (!PHONE_NUMBERS_PLUS.test(externalClientForm.phone.trim())) {
+      showNotification('رقم جوال العميل يقبل أرقام و + فقط', 'error');
       return;
     }
 
@@ -1102,12 +1125,14 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         ...externalHomemaidForm,
         type: externalHomemaidForm.type,
         dateofbirth: externalHomemaidForm.dateofbirth || undefined,
+        clientName: externalClientForm.name.trim(),
+        clientPhone: externalClientForm.phone.trim(),
+        clientCity: externalClientForm.city.trim() || undefined,
         location: internalWorkerForm.housing,
         houseentrydate: internalWorkerForm.housingDate,
         deliveryDate: internalWorkerForm.receiptDate || undefined,
         reason: internalWorkerForm.reason,
         details: internalWorkerForm.details,
-        officeName: internalWorkerForm.officeName,
         employee: user,
       };
 
@@ -1141,6 +1166,8 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         type: 'recruitment',
         dateofbirth: '',
       });
+      setExternalClientForm({ name: '', phone: '', city: '' });
+      setExternalModalStep(1);
       fetchWorkers();
       fetchLocations();
     } catch (error: any) {
@@ -3299,20 +3326,25 @@ const confirmDeleteNote = async () => {
                 onClick={() => closeModal('internalWorkerModal')}
               >
                 <div
-                  className="bg-gray-200 rounded-lg p-10 w-full max-w-4xl shadow-card"
+                  className="bg-gray-200 rounded-lg p-6 sm:p-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-card"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-2xl font-normal text-black">تسكين عاملة - {workerType}</h2>
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl sm:text-2xl font-normal text-black">تسكين عاملة - {workerType}</h2>
+                      <span className="text-sm text-teal-700 bg-teal-100 px-2 py-0.5 rounded">الخطوة {externalModalStep} من 2</span>
+                    </div>
                     <button onClick={() => closeModal('internalWorkerModal')} className="text-gray-400 text-2xl hover:text-gray-600">
                       &times;
                     </button>
                   </div>
                   <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
-                    {/* بيانات العاملة الخارجية الجديدة - تسجيل في externalHomedmaid */}
-                    <div className="mb-6 pb-4 border-b border-gray-300">
-                      <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات العاملة </h3>
-                      <div className="grid grid-cols-2 gap-6">
+                    {/* الخطوة 1: العاملة + العميل */}
+                    {externalModalStep === 1 && (
+                    <>
+                    <div className="mb-6 pb-4">
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات العاملة</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <div>
                           <label className="block text-md text-gray-700 mb-2">الاسم <span className="text-red-500">*</span></label>
                           <input
@@ -3367,17 +3399,17 @@ const confirmDeleteNote = async () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-md text-gray-700 mb-2">رقم الجواز <span className="text-gray-500 text-sm">(لا يقبل حروف عربي)</span></label>
+                          <label className="block text-md text-gray-700 mb-2">رقم الجواز <span className="text-gray-500 text-sm"></span></label>
                           <input
                             type="text"
                             value={externalHomemaidForm.passportNumber}
                             onChange={(e) => handleExternalPassportChange(e.target.value)}
-                            placeholder="رقم الجواز - أرقام وحروف إنجليزي فقط"
+                            placeholder=""
                             className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
                           />
                         </div>
                         <div>
-                          <label className="block text-md text-gray-700 mb-2">رقم الجوال <span className="text-gray-500 text-sm">(أرقام و + فقط)</span></label>
+                          <label className="block text-md text-gray-700 mb-2">رقم الجوال <span className="text-gray-500 text-sm"></span></label>
                           <input
                             type="text"
                             value={externalHomemaidForm.phone}
@@ -3406,9 +3438,74 @@ const confirmDeleteNote = async () => {
                         </div>
                       </div>
                     </div>
-                    {/* بيانات التسكين */}
+                    {/* بيانات العميل (عميل التسكين الخارجي - عميل جديد) */}
+                    <div className="mb-6 pb-4">
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات العميل</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">اسم العميل <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            value={externalClientForm.name}
+                            onChange={(e) => setExternalClientForm({ ...externalClientForm, name: e.target.value })}
+                            placeholder="اسم العميل"
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">جوال العميل <span className="text-red-500">*</span> <span className="text-gray-500 text-sm"></span></label>
+                          <input
+                            type="text"
+                            value={externalClientForm.phone}
+                            onChange={(e) => handleExternalClientPhoneChange(e.target.value)}
+                            placeholder=""
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">المدينة</label>
+                          <input
+                            type="text"
+                            value={externalClientForm.city}
+                            onChange={(e) => setExternalClientForm({ ...externalClientForm, city: e.target.value })}
+                            placeholder="المدينة"
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!externalHomemaidForm.name?.trim()) { showNotification('يرجى إدخال اسم العاملة', 'error'); return; }
+                          if (!externalHomemaidForm.nationality?.trim()) { showNotification('يرجى اختيار الجنسية', 'error'); return; }
+                          if (!externalClientForm.name?.trim()) { showNotification('يرجى إدخال اسم العميل', 'error'); return; }
+                          if (!externalClientForm.phone?.trim()) { showNotification('يرجى إدخال رقم جوال العميل', 'error'); return; }
+                          if (!PHONE_NUMBERS_PLUS.test(externalClientForm.phone.trim())) { showNotification('رقم جوال العميل يقبل أرقام و + فقط', 'error'); return; }
+                          setExternalModalStep(2);
+                        }}
+                        className="bg-teal-800 text-white rounded-md px-6 py-2 text-base"
+                      >
+                        التالي ←
+                      </button>
+                    </div>
+                    </>
+                    )}
+                    {/* الخطوة 2: بيانات التسكين */}
+                    {externalModalStep === 2 && (
+                    <>
+                    <div className="flex justify-start mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setExternalModalStep(1)}
+                        className="text-teal-800 hover:text-teal-600 text-base"
+                      >
+                        ← السابق
+                      </button>
+                    </div>
                     <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات التسكين</h3>
-                    <div className="grid grid-cols-2 gap-8 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-4">
                       <div className="col-span-2">
                         <label className="block text-md text-gray-700 mb-2">السكن</label>
                         <div className="relative">
@@ -3438,7 +3535,7 @@ const confirmDeleteNote = async () => {
                       </div>
                     </div>
                     {/* Dates Row */}
-                    <div className="grid grid-cols-2 gap-8 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-4">
                       <div>
                         <label className="block text-md text-gray-700 mb-2">
                           تاريخ التسكين <span className="text-red-500">*</span>
@@ -3480,7 +3577,7 @@ const confirmDeleteNote = async () => {
                       </div>
                     </div>
                     {/* Reason and Details Row */}
-                    <div className="grid grid-cols-2 gap-8 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-4">
                       <div>
                         <label className="block text-md text-gray-700 mb-2">سبب التسكين</label>
                         <div className="relative">
@@ -3515,8 +3612,8 @@ const confirmDeleteNote = async () => {
                         />
                       </div>
                     </div>
-                    {/* Action Buttons */}
-                    <div className="flex justify-center gap-4">
+                    {/* Action Buttons - تظهر فقط في الخطوة 2 */}
+                    <div className="flex justify-center gap-4 pt-4">
                       <button
                         type="button"
                         onClick={() => closeModal('internalWorkerModal')}
@@ -3531,6 +3628,8 @@ const confirmDeleteNote = async () => {
                         حفظ
                       </button>
                     </div>
+                    </>
+                    )}
                   </form>
                 </div>
               </div>
