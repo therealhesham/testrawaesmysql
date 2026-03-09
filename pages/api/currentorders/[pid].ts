@@ -22,19 +22,21 @@ export default async function handler(
         .json({ error: "Missing required query parameter: pid" });
     }
 
-    // Counting the number of new orders (optimized if necessary)
-    const count = await prisma.neworder.count();
+    const countWhere = {
+      isHidden: false,
+      NOT: { bookingstatus: "حجز جديد" },
+      AND: [
+        { bookingstatus: { not: { equals: "طلب مرفوض" } } },
+        { NOT: { DeliveryDetails: { some: { deliveryFile: { not: null } } } } },
+      ],
+    };
+    const count = await prisma.neworder.count({ where: countWhere });
     console.log("Total Orders Count:", count);
 
-    // Retrieve bookings with specific conditions
     const find = await prisma.neworder.findMany({
       skip: (Number(pid) - 1) * 10,
       take: 10,
-      where: {
-        isHidden: false,
-        NOT: { bookingstatus: "حجز جديد" },
-        AND: { bookingstatus: { not: { equals: "طلب مرفوض" } } },
-      },
+      where: countWhere,
     });
 
     console.log("Found Orders Length:", find.length);

@@ -46,9 +46,11 @@ export default async function handler(
     const currentorders = await prisma.neworder.count({
       where: {
         NOT: {
-          bookingstatus: {
-            in: ["new_order", "delivered", "cancelled", "rejected"],
-          },
+          OR: [
+            { bookingstatus: { in: ["new_order", "delivered", "cancelled", "rejected"] } },
+            // استبعاد الطلبات التي لديها ملف استلام (تم تسليمها)
+            { DeliveryDetails: { some: { deliveryFile: { not: null } } } },
+          ],
         },
       },
     });

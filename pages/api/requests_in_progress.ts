@@ -21,6 +21,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const whereClause: Prisma.NeworderWhereInput = {
       typeOfContract: type as string,
       isHidden: false,
+      // استبعاد الطلبات التي لديها ملف استلام (تم تسليمها)
+      NOT: { DeliveryDetails: { some: { deliveryFile: { not: null } } } },
     };
 
     if (search) {

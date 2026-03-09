@@ -24,22 +24,21 @@ export default async function handler(
 
       // Fetch total count of matching records
       
-      const totalCount = await prisma.neworder.count({
-        where: {          NOT: {
-            bookingstatus: {
-              
-              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-            },
-                }        },
-      });
+      const currentOrdersWhere = {
+        NOT: {
+          OR: [
+            { bookingstatus: { in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"] } },
+            // استبعاد الطلبات التي لديها ملف استلام (تم تسليمها)
+            { DeliveryDetails: { some: { deliveryFile: { not: null } } } },
+          ],
+        },
+      };
+
+      const totalCount = await prisma.neworder.count({ where: currentOrdersWhere });
 
   const homemaids = await prisma.neworder.findMany({
-    take:3,
-        where: {          NOT: {
-            bookingstatus: {
-              in: ["new_order", "new_orders", "delivered", "cancelled", "rejected"],
-            },
-                }        },
+    take: 3,
+    where: currentOrdersWhere,
       });
 
     
