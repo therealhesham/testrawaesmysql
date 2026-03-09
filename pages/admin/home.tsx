@@ -61,6 +61,14 @@ function getDate(date) {
   return formatted;
 }
 
+const getWorkerPictureUrl = (picture: any): string | null => {
+  if (!picture) return null;
+  if (typeof picture === "string") return picture;
+  if (Array.isArray(picture) && picture[0]?.url) return picture[0].url;
+  if (typeof picture === "object" && picture?.url) return picture.url;
+  return null;
+};
+
 // --- Tab Components (Remain unchanged) ---
 const NewOrdersTab = ({ orders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
@@ -120,8 +128,8 @@ const CurrentOrdersTab = ({ orders, count, onItemClick }) => (
       <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">طلب تحت الإجراء #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {order.client?.fullname ?? "غير محدد"}</p>
-          <p className="item-subtitle text-xs text-gray-600">العاملة: {order.HomeMaid?.Name ?? "غير محدد"}</p>
+          <p className="item-subtitle text-xs text-gray-600">العميل: <span className="font-semibold">{order.client?.fullname ?? "غير محدد"}</span></p>
+          <p className="item-subtitle text-xs text-gray-600">العاملة: <span className="font-semibold">{order.HomeMaid?.Name ?? "غير محدد"}</span></p>
           <p className="item-subtitle text-xs text-gray-600">الحالة: {translateBookingStatus(order.bookingstatus) ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ البدء: {getDate(order?.createdAt)} <FieldTimeOutlined />
@@ -290,58 +298,96 @@ const SessionsTab = ({ sessions, count, onItemClick }) => (
 
 const WorkersTab = ({ workers, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
-    {workers.slice(0, 3).map((worker) => (
-      <div  key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسجيل: {worker.createdAt ? getDate(worker.createdAt) : ""} <FieldTimeOutlined />
-          </p>
+    {workers.slice(0, 3).map((worker) => {
+      const pictureUrl = getWorkerPictureUrl(worker.Picture);
+      return (
+      <div key={worker.id} className="info-list-item flex justify-between items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
+            {pictureUrl ? (
+              <img src={pictureUrl} alt={worker.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            ) : null}
+            <div className={`w-full h-full flex items-center justify-center text-gray-400 text-sm ${pictureUrl ? 'hidden' : ''}`}>
+              <FaRegUser className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="item-details flex flex-col gap-2 min-w-0">
+            <p className="item-title text-sm font-semibold text-gray-900">عاملة #{worker.id}</p>
+            <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              تاريخ التسجيل: {worker.createdAt ? getDate(worker.createdAt) : ""} <FieldTimeOutlined />
+            </p>
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200 flex-shrink-0">
           <ArrowLeftOutlined className="w-4 h-4" />
         </button>
       </div>
-    ))}
+    );})}
   </div>
 );
 
 const BookedListTab = ({ booked, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
-    {booked.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{worker.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">العميل: {worker.ClientName ?? "غير محدد"}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الحجز: {(worker.bookedDate ?? worker.createdAt) ? getDate(worker.bookedDate ?? worker.createdAt) : ""} <FieldTimeOutlined />
-          </p>
+    {booked.slice(0, 3).map((worker) => {
+      const homemaid = worker.HomeMaid;
+      const pictureUrl = homemaid ? getWorkerPictureUrl(homemaid.Picture) : null;
+      const workerId = homemaid?.id ?? worker.id;
+      return (
+      <div key={worker.id} className="info-list-item flex justify-between items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + workerId)}>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
+            {pictureUrl ? (
+              <img src={pictureUrl} alt={homemaid?.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            ) : null}
+            <div className={`w-full h-full flex items-center justify-center text-gray-400 text-sm ${pictureUrl ? 'hidden' : ''}`}>
+              <FaRegUser className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="item-details flex flex-col gap-2 min-w-0">
+            <p className="item-title text-sm font-semibold text-gray-900">عاملة محجوزة #{workerId}</p>
+            <p className="item-subtitle text-xs text-gray-600">العميل: {worker.client?.fullname ?? worker.ClientName ?? "غير محدد"}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              تاريخ الحجز: {(worker.bookedDate ?? worker.createdAt) ? getDate(worker.bookedDate ?? worker.createdAt) : ""} <FieldTimeOutlined />
+            </p>
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200 flex-shrink-0">
           <ArrowLeftOutlined className="w-4 h-4" />
         </button>
       </div>
-    ))}
+    );})}
   </div>
 );
 
 const AvailableListTab = ({ available, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
-    {available.slice(0, 3).map((worker) => (
-      <div key={worker.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
-        <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
-          <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ التسجيل: {getDate(worker.createdAt)} <FieldTimeOutlined />
-          </p>
+    {available.slice(0, 3).map((worker) => {
+      const pictureUrl = getWorkerPictureUrl(worker.Picture);
+      return (
+      <div key={worker.id} className="info-list-item flex justify-between items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/homemaidinfo?id=' + worker.id)}>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
+            {pictureUrl ? (
+              <img src={pictureUrl} alt={worker.Name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+            ) : null}
+            <div className={`w-full h-full flex items-center justify-center text-gray-400 text-sm ${pictureUrl ? 'hidden' : ''}`}>
+              <FaRegUser className="w-6 h-6" />
+            </div>
+          </div>
+          <div className="item-details flex flex-col gap-2 min-w-0">
+            <p className="item-title text-sm font-semibold text-gray-900">عاملة متاحة #{worker.id}</p>
+            <p className="item-subtitle text-xs text-gray-600">الاسم: {worker.Name}</p>
+            <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
+              تاريخ التسجيل: {getDate(worker.createdAt)} <FieldTimeOutlined />
+            </p>
+          </div>
         </div>
-        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
+        <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200 flex-shrink-0">
           <ArrowLeftOutlined className="w-4 h-4" />
         </button>
       </div>
-    ))}
+    );})}
   </div>
 );
 
