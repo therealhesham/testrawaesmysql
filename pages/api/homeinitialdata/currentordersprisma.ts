@@ -39,7 +39,11 @@ export default async function handler(
   const homemaids = await prisma.neworder.findMany({
     take: 3,
     where: currentOrdersWhere,
-      });
+    include: {
+      client: { select: { fullname: true } },
+      HomeMaid: { select: { Name: true } },
+    },
+  });
 
     
       // Send the filtered and paginated data along with total count
