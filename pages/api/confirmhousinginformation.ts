@@ -428,16 +428,13 @@ try {
           : { homeMaid_id: { not: null } },
         {
           externalHomedmaidId: { not: null },
-          ...(Name || Passportnumber
-            ? {
-                externalHomedmaid: {
-                  ...(Name && { name: { contains: (Name as string) || "" } }),
-                  ...(Passportnumber && {
-                    passportNumber: { contains: (Passportnumber as string) || "" },
-                  }),
-                },
-              }
-            : {}),
+          ...((contractType || Name || Passportnumber) && {
+            externalHomedmaid: {
+              ...(contractType && { type: contractType as string }),
+              ...(Name && { name: { contains: (Name as string) || "" } }),
+              ...(Passportnumber && { passportNumber: { contains: (Passportnumber as string) || "" } }),
+            },
+          }),
         },
       ],
     };

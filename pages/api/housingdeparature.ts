@@ -133,7 +133,10 @@ export default async function handler(
               NewOrder: { some: { typeOfContract: contractType as string } },
             },
           },
-          { externalHomedmaidId: { not: null } },
+          {
+            externalHomedmaidId: { not: null },
+            externalHomedmaid: { type: contractType as string },
+          },
         ];
       }
 

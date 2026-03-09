@@ -69,6 +69,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     passportNumber,
     passportStartDate,
     passportEndDate,
+    phone,
+    type: contractType,
+    dateofbirth,
     // Housing data
     location,
     houseentrydate,
@@ -91,6 +94,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!location) {
     return res.status(400).json({ error: "السكن مطلوب" });
+  }
+  if (!contractType || !["recruitment", "rental"].includes(contractType)) {
+    return res.status(400).json({ error: "نوع العقد مطلوب (استقدام أو تأجير)" });
+  }
+  if (!nationality || !String(nationality).trim()) {
+    return res.status(400).json({ error: "الجنسية مطلوبة" });
+  }
+  // رقم الجوال: أرقام و + فقط
+  if (phone && String(phone).trim()) {
+    if (!/^[0-9+]+$/.test(phone.trim())) {
+      return res.status(400).json({ error: "رقم الجوال يقبل أرقام و + فقط" });
+    }
+  }
+  // الاسم حروف فقط (عربي وإنجليزي ومسافات)
+  const nameLettersOnly = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z\s]+$/;
+  if (!nameLettersOnly.test(name.trim())) {
+    return res.status(400).json({ error: "الاسم يجب أن يحتوي على حروف فقط" });
   }
 
   try {
@@ -125,6 +145,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         passportNumber: passportNumber?.trim() || null,
         passportStartDate: passportStartDate || null,
         passportEndDate: passportEndDate || null,
+        phone: phone?.trim() || null,
+        type: contractType,
+        dateofbirth: dateofbirth ? new Date(dateofbirth) : null,
       },
     });
 

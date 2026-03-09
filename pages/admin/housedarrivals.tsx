@@ -52,6 +52,7 @@ interface HousedWorker {
     name: string | null;
     nationality: string | null;
     passportNumber: string | null;
+    phone: string | null;
   };
 }
 interface EditWorkerForm {
@@ -373,7 +374,11 @@ useEffect(()=>{
     passportNumber: '',
     passportStartDate: '',
     passportEndDate: '',
+    phone: '',
+    type: 'recruitment' as 'recruitment' | 'rental',
+    dateofbirth: '',
   });
+  const [uniqueNationalities, setUniqueNationalities] = useState<string[]>([]);
   const [notesForm, setNotesForm] = useState({
     notes: '',
   });
@@ -420,6 +425,9 @@ useEffect(()=>{
         passportNumber: '',
         passportStartDate: '',
         passportEndDate: '',
+        phone: '',
+        type: 'recruitment',
+        dateofbirth: '',
       });
       setSelectedExternalWorker(null);
       setExternalWorkerSearchTerm('');
@@ -1023,13 +1031,48 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       openModal('internalWorkerModal'); // Swapped as per request
     }
   };
+  // جلب الجنسيات الفريدة عند فتح مودال التسكين الخارجي
+  useEffect(() => {
+    if (modals.internalWorkerModal) {
+      fetch('/api/housing/unique-nationalities')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.nationalities) setUniqueNationalities(data.nationalities);
+        })
+        .catch(() => {});
+    }
+  }, [modals.internalWorkerModal]);
+
+  // الاسم حروف فقط (عربي وإنجليزي ومسافات)
+  const NAME_LETTERS_ONLY = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z\s]*$/;
+  const handleExternalNameChange = (val: string) => {
+    if (NAME_LETTERS_ONLY.test(val)) setExternalHomemaidForm((p) => ({ ...p, name: val }));
+  };
+  // رقم الجواز: لا يقبل حروف عربي (أرقام وحروف إنجليزي و - / فقط)
+  const PASSPORT_NO_ARABIC = /^[0-9a-zA-Z\-\/]*$/;
+  const handleExternalPassportChange = (val: string) => {
+    if (PASSPORT_NO_ARABIC.test(val)) setExternalHomemaidForm((p) => ({ ...p, passportNumber: val }));
+  };
+  // رقم الجوال: أرقام و + فقط (لا يقبل حروف)
+  const PHONE_NUMBERS_PLUS = /^[0-9+]*$/;
+  const handleExternalPhoneChange = (val: string) => {
+    if (PHONE_NUMBERS_PLUS.test(val)) setExternalHomemaidForm((p) => ({ ...p, phone: val }));
+  };
+
   // Handle internal worker form submission (تسكين خارجي - تسجيل عاملة جديدة في externalHomedmaid)
   const handleInternalWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate external homemaid name
     if (!externalHomemaidForm.name || !externalHomemaidForm.name.trim()) {
       showNotification('يرجى إدخال اسم العاملة', 'error');
+      return;
+    }
+    if (!NAME_LETTERS_ONLY.test(externalHomemaidForm.name.trim())) {
+      showNotification('الاسم يجب أن يحتوي على حروف فقط', 'error');
+      return;
+    }
+    if (!externalHomemaidForm.nationality || !externalHomemaidForm.nationality.trim()) {
+      showNotification('يرجى اختيار الجنسية', 'error');
       return;
     }
 
@@ -1057,6 +1100,8 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
     try {
       const formData = {
         ...externalHomemaidForm,
+        type: externalHomemaidForm.type,
+        dateofbirth: externalHomemaidForm.dateofbirth || undefined,
         location: internalWorkerForm.housing,
         houseentrydate: internalWorkerForm.housingDate,
         deliveryDate: internalWorkerForm.receiptDate || undefined,
@@ -1092,6 +1137,9 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         passportNumber: '',
         passportStartDate: '',
         passportEndDate: '',
+        phone: '',
+        type: 'recruitment',
+        dateofbirth: '',
       });
       fetchWorkers();
       fetchLocations();
@@ -1794,7 +1842,7 @@ const confirmDeleteNote = async () => {
                             </td>
                           )}
                           {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || worker.externalHomedmaid?.name || ''}</td>}
-                          {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || ''}</td>}
+                          {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || worker.externalHomedmaid?.phone || ''}</td>}
                           {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || worker.externalHomedmaid?.nationality || ''}</td>}
                           {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || worker.externalHomedmaid?.passportNumber || ''}</td>}
                           {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
@@ -3263,35 +3311,78 @@ const confirmDeleteNote = async () => {
                   <form onSubmit={handleInternalWorkerSubmit} className="space-y-4">
                     {/* بيانات العاملة الخارجية الجديدة - تسجيل في externalHomedmaid */}
                     <div className="mb-6 pb-4 border-b border-gray-300">
-                      <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات العاملة (شكل مختصر)</h3>
+                      <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات العاملة </h3>
                       <div className="grid grid-cols-2 gap-6">
                         <div>
                           <label className="block text-md text-gray-700 mb-2">الاسم <span className="text-red-500">*</span></label>
                           <input
                             type="text"
                             value={externalHomemaidForm.name}
-                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, name: e.target.value })}
+                            onChange={(e) => handleExternalNameChange(e.target.value)}
                             placeholder="اسم العاملة"
                             className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
                           />
                         </div>
                         <div>
-                          <label className="block text-md text-gray-700 mb-2">الجنسية</label>
+                          <label className="block text-md text-gray-700 mb-2">الجنسية <span className="text-red-500">*</span></label>
+                          {uniqueNationalities.length > 0 ? (
+                            <select
+                              value={externalHomemaidForm.nationality}
+                              onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, nationality: e.target.value })}
+                              className="w-full border border-gray-300 rounded-md  text-right text-md bg-gray-50"
+                            >
+                              <option value="">اختر الجنسية</option>
+                              {uniqueNationalities.map((nat) => (
+                                <option key={nat} value={nat}>{nat}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={externalHomemaidForm.nationality}
+                              onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, nationality: e.target.value })}
+                              placeholder="ادخل الجنسية"
+                              className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">تاريخ الميلاد</label>
                           <input
-                            type="text"
-                            value={externalHomemaidForm.nationality}
-                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, nationality: e.target.value })}
-                            placeholder="الجنسية"
+                            type="date"
+                            value={externalHomemaidForm.dateofbirth}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, dateofbirth: e.target.value })}
                             className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
                           />
                         </div>
                         <div>
-                          <label className="block text-md text-gray-700 mb-2">رقم الجواز</label>
+                          <label className="block text-md text-gray-700 mb-2">نوع العقد <span className="text-red-500">*</span></label>
+                          <select
+                            value={externalHomemaidForm.type}
+                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, type: e.target.value as 'recruitment' | 'rental' })}
+                            className="w-full border border-gray-300 rounded-md  text-right text-md bg-gray-50"
+                          >
+                            <option value="recruitment">استقدام</option>
+                            <option value="rental">تأجير</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">رقم الجواز <span className="text-gray-500 text-sm">(لا يقبل حروف عربي)</span></label>
                           <input
                             type="text"
                             value={externalHomemaidForm.passportNumber}
-                            onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, passportNumber: e.target.value })}
-                            placeholder="رقم الجواز"
+                            onChange={(e) => handleExternalPassportChange(e.target.value)}
+                            placeholder="رقم الجواز - أرقام وحروف إنجليزي فقط"
+                            className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md text-gray-700 mb-2">رقم الجوال <span className="text-gray-500 text-sm">(أرقام و + فقط)</span></label>
+                          <input
+                            type="text"
+                            value={externalHomemaidForm.phone}
+                            onChange={(e) => handleExternalPhoneChange(e.target.value)}
+                            placeholder="أرقام و + فقط"
                             className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
                           />
                         </div>
@@ -3317,19 +3408,8 @@ const confirmDeleteNote = async () => {
                     </div>
                     {/* بيانات التسكين */}
                     <h3 className="text-lg font-medium text-gray-800 mb-4">بيانات التسكين</h3>
-                    {/* Office and Housing Row */}
                     <div className="grid grid-cols-2 gap-8 mb-4">
-                      <div>
-                        <label className="block text-md text-gray-700 mb-2">اسم المكتب</label>
-                        <input
-                          type="text"
-                          value={internalWorkerForm.officeName}
-                          onChange={(e) => setInternalWorkerForm({ ...internalWorkerForm, officeName: e.target.value })}
-                          placeholder="ادخل اسم المكتب"
-                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md"
-                        />
-                      </div>
-                      <div>
+                      <div className="col-span-2">
                         <label className="block text-md text-gray-700 mb-2">السكن</label>
                         <div className="relative">
                           <select
@@ -3420,9 +3500,7 @@ const confirmDeleteNote = async () => {
                             <option value="اخرى">اخرى</option>
                           </select>
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
+                            
                           </div>
                         </div>
                       </div>
