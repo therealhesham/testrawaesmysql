@@ -266,7 +266,7 @@ const CheckedTableTab = ({ housing, count, onItemClick }) => (
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">إعاشة #{item.id}</p>
           <p className="item-subtitle text-xs text-gray-600">مكان السكن: {item?.location?.location ?? "غير محدد"}</p>
-          <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p>
+          {/* <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p> */}
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ: {item.createdAt ? getDate(item.createdAt) : ""} <FieldTimeOutlined />
           </p>
