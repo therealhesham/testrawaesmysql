@@ -266,6 +266,7 @@ const CheckedTableTab = ({ housing, count, onItemClick }) => (
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">إعاشة #{item.id}</p>
           <p className="item-subtitle text-xs text-gray-600">مكان السكن: {item?.location?.location ?? "غير محدد"}</p>
+          <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ: {item.createdAt ? getDate(item.createdAt) : ""} <FieldTimeOutlined />
           </p>
@@ -3079,19 +3080,11 @@ export default function Home({
 }
 
 // --- Static Site Generation with ISR ---
-const getBaseUrl = () => {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-};
-
 export async function getStaticProps(context) {
   try {
-    const baseUrl = getBaseUrl();
-
     // Helper function to fetch data from API
-    const fetchDataFromApi = async (path) => {
+    const fetchDataFromApi = async (url) => {
       try {
-        const url = path.startsWith("http") ? path : `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
         const response = await fetch(url, {
           headers: { Accept: "application/json", "Content-Type": "application/json" },
         });
@@ -3100,8 +3093,8 @@ export async function getStaticProps(context) {
         }
         return await response.json();
       } catch (error) {
-        console.error(`Error fetching from ${path}:`, error);
-        return null;
+        console.error(`Error fetching from ${url}:`, error);
+        return null; // or return a default value/structure
       }
     };
 
@@ -3118,7 +3111,7 @@ export async function getStaticProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi("/api/datalength");
+      const countsResponse = await fetchDataFromApi(`localhost:3000/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -3131,68 +3124,43 @@ export async function getStaticProps(context) {
         externaldeparatureDate: { not: null },
       },
     });
-
-    // جلب بيانات التسكين والعاملات مباشرة من Prisma (موثوق - لا يعتمد على fetch)
-    const extractImageUrl = (value) => {
-      if (!value) return null;
-      if (typeof value === "string") return value;
-      if (Array.isArray(value)) {
-        const first = value?.[0];
-        if (typeof first === "string") return first;
-        if (first && typeof first === "object" && typeof first.url === "string") return first.url;
-        return null;
-      }
-      if (typeof value === "object" && typeof value?.url === "string") return value.url;
-      return null;
-    };
-
-    const [housedData, fullListData, ...restRes] = await Promise.all([
-      // التسكين - مباشرة من Prisma مع مكان السكن
-      prisma.housedworker.findMany({
-        where: { deparatureHousingDate: null },
-        take: 3,
-        include: {
-          Order: { select: { Name: true, phone: true } },
-          location: { select: { location: true } },
-        },
-        orderBy: { deparatureHousingDate: "desc" },
-      }),
-      // العاملات - مباشرة من Prisma مع createdAt والصورة
-      prisma.homemaid.findMany({
-        take: 3,
-        orderBy: { displayOrder: "desc" },
-        include: {
-          office: { select: { office: true, Country: true } },
-          NewOrder: { select: { bookingstatus: true } },
-        },
-      }).then((homemaids) =>
-        homemaids.map((h) => ({
-          id: h.id,
-          Name: h.Name || "",
-          homemaidId: h.id,
-          phone: h.phone || "",
-          Picture: extractImageUrl(h.Picture),
-          createdAt: h.createdAt,
-          office: h.office ? { office: h.office.office || "", Country: h.office.Country || "" } : { office: "", Country: "" },
-        }))
-      ),
-      fetchDataFromApi("/api/neworderlistprisma/1"),
-      fetchDataFromApi("/api/homeinitialdata/currentordersprisma"),
-      fetchDataFromApi("/api/endedorders/"),
-      fetchDataFromApi("/api/homeinitialdata/cancelledorders"),
-      fetchDataFromApi("/api/homeinitialdata/arrivals"),
-      fetchDataFromApi("/api/deparatures"),
-      fetchDataFromApi("/api/homeinitialdata/deparaturefromsaudi"),
-      fetchDataFromApi("/api/sessions"),
-      fetchDataFromApi("/api/homeinitialdata/clients"),
-      fetchDataFromApi("/api/transfersponsorships"),
-      fetchDataFromApi("/api/bookedlist?page=1"),
-      fetchDataFromApi("/api/availablelist?page=1"),
-      fetchDataFromApi("/api/homeinitialdata/externaloffices"),
-      fetchDataFromApi("/api/rejectedorderslist?searchTerm=&age=&Country=&page=1"),
+    // 2. Fetch all detailed data (excluding user-specific data like tasks)
+    const [
+      newOrdersRes,
+      currentOrdersRes,
+      endedOrdersRes,
+      cancelledOrdersRes,
+      arrivalsRes,
+      internalDeparaturesRes,
+      externalDeparaturesRes,
+      housedRes,
+      sessionsRes,
+      relationsRes,
+      transferSponsorshipsRes,
+      fullListRes,
+      bookedListRes,
+      availableListRes,
+      foreignOfficesRes,
+      rejectedOrdersRes,
+    ] = await Promise.all([
+      fetchDataFromApi(`localhost:3000/api/neworderlistprisma/1`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`localhost:3000/api/endedorders/`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`localhost:3000/api/deparatures`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/housed`),
+      fetchDataFromApi(`localhost:3000/api/sessions`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/clients`),
+      fetchDataFromApi(`localhost:3000/api/transfersponsorships`),
+      fetchDataFromApi(`localhost:3000/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`localhost:3000/api/bookedlist?page=1`),
+      fetchDataFromApi(`localhost:3000/api/availablelist?page=1`),
+      fetchDataFromApi(`localhost:3000/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`localhost:3000/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
+      // Tasks are now fetched client-side for user-specific data
     ]);
-
-    const [newOrdersRes, currentOrdersRes, endedOrdersRes, cancelledOrdersRes, arrivalsRes, internalDeparaturesRes, externalDeparaturesRes, sessionsRes, relationsRes, transferSponsorshipsRes, bookedListRes, availableListRes, foreignOfficesRes, rejectedOrdersRes] = restRes;
 
     // Mock events data (as in original)
     const events = [
@@ -3205,8 +3173,7 @@ export async function getStaticProps(context) {
           deparatureHousingDate: null,
         },
     });
-    const homemaidsTotalCount = await prisma.homemaid.count();
-
+    console.log(newOrdersRes);
     const propsData = {
       housedCount: housedCount,
       // Data (user, userforbutton, and tasks are now fetched client-side)
@@ -3217,11 +3184,11 @@ export async function getStaticProps(context) {
       internalArrivals: arrivalsRes?.data || [],
       internalDeparatures: internalDeparaturesRes?.data || [],
       externalDeparatures: externalDeparaturesRes?.data || [],
-      housed: housedData || [],
+      housed: housedRes?.housed || [],
       sessions: sessionsRes?.sessions || [],
       relations: relationsRes?.data || [],
       transferSponsorships: transferSponsorshipsRes || [],
-      fullList: fullListData || [],
+      fullList: fullListRes?.data || [],
       bookedList: bookedListRes?.data || [],
       availableList: availableListRes?.data || [],
       foreignOffices: foreignOfficesRes?.data || [],
@@ -3236,7 +3203,7 @@ export async function getStaticProps(context) {
       arrivalsLength: arrivalsRes?.arrivalsCount || 0,
       deparaturesLength: internalDeparaturesRes?.data?.length || counts.deparatures,
       externaldeparaturesLength: countDeparaturesfromsaudi || 0,
-      homeMaidsLength: homemaidsTotalCount ?? counts.workers ?? 0,
+      homeMaidsLength: fullListRes?.totalCount ?? counts.workers ?? 0,
       officesCount: foreignOfficesRes?.dataCount || 0,
       transferSponsorshipsLength: 0,
       sessionsLength: sessionsRes?.totalResults || 0,
