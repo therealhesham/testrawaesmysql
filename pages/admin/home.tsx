@@ -3111,7 +3111,7 @@ export async function getStaticProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`localhost:3000/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -3143,22 +3143,22 @@ export async function getStaticProps(context) {
       foreignOfficesRes,
       rejectedOrdersRes,
     ] = await Promise.all([
-      fetchDataFromApi(`localhost:3000/api/neworderlistprisma/1`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`localhost:3000/api/endedorders/`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`localhost:3000/api/deparatures`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/housed`),
-      fetchDataFromApi(`localhost:3000/api/sessions`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/clients`),
-      fetchDataFromApi(`localhost:3000/api/transfersponsorships`),
-      fetchDataFromApi(`localhost:3000/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`localhost:3000/api/bookedlist?page=1`),
-      fetchDataFromApi(`localhost:3000/api/availablelist?page=1`),
-      fetchDataFromApi(`localhost:3000/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`localhost:3000/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/endedorders/`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/deparatures`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/sessions`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/clients`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/transfersponsorships`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/bookedlist?page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/availablelist?page=1`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https://testrawaesmysql.vercel.app/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 
