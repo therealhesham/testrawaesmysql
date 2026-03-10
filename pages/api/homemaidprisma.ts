@@ -223,6 +223,7 @@ export default async function handler(
         isApproved: homemaid.isApproved || false,
         isReserved,
         Picture: pictureUrl,
+        createdAt: homemaid.createdAt,
         office: homemaid.office
           ? {
               office: homemaid.office.office || "",

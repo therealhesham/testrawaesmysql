@@ -246,6 +246,7 @@ const HousingTab = ({ housing, count, onItemClick }) => (
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">تسكين #{item?.id}</p>
           <p className="item-subtitle text-xs text-gray-600">العاملة: {item?.Order?.Name}</p>
+          <p className="item-subtitle text-xs text-gray-600">مكان السكن: {item?.location?.location ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ التسكين: {getDate(item?.houseentrydate)} <FieldTimeOutlined />
           </p>
@@ -264,6 +265,7 @@ const CheckedTableTab = ({ housing, count, onItemClick }) => (
       <div key={item.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick('/admin/checkedtable')}>
         <div className="item-details flex flex-col gap-2">
           <p className="item-title text-sm font-semibold text-gray-900">إعاشة #{item.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">مكان السكن: {item?.location?.location ?? "غير محدد"}</p>
           <p className="item-subtitle text-xs text-gray-600">حالة الإعاشة: {item.status ?? "غير محدد"}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
             تاريخ: {item.createdAt ? getDate(item.createdAt) : ""} <FieldTimeOutlined />
@@ -1438,6 +1440,7 @@ export default function Home({
                   >
                     <span className="font-semibold text-green-900">تسكين #{housing.id}</span>
                     <span className="text-green-700 mr-2">للعميل {housing.Order?.Name || 'غير محدد'}</span>
+                    {housing.location?.location && <span className="text-green-600 mr-2">- {housing.location.location}</span>}
                   </li>
                 ))}
               </ul>
@@ -2046,7 +2049,7 @@ export default function Home({
                         <div 
                           key={`housing-${housingIndex}`}
                           className="text-xs font-light px-1 py-0.5 rounded bg-green-100 text-green-600 cursor-pointer hover:bg-green-200"
-                          title={`تسكين: ${housing.Order?.Name || 'غير محدد'}`}
+                          title={`تسكين: ${housing.Order?.Name || 'غير محدد'}${housing.location?.location ? ` - مكان السكن: ${housing.location.location}` : ''}`}
                         >
                           تسكين #{housing.id}
                         </div>
