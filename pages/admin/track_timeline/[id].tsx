@@ -37,7 +37,7 @@ interface OrderData {
   externalOfficeInfo?: { officeName: string; country: string; externalMusanedContract: string };
   nationality?: string;
   externalOfficeApproval?: { approved: boolean };
-  medicalCheck?: { passed: boolean };
+  medicalCheck?: { passed: boolean; date?: string | null };
   medicalFile?: string | null;
   foreignLaborApproval?: { approved: boolean };
   agencyPayment?: { paid: boolean };
@@ -1076,6 +1076,188 @@ export default function TrackTimeline() {
                         ]
                       : []
                   }
+                />
+              );
+            }
+
+            // الفحص الطبي — إظهار تاريخ الفحص من قاعدة البيانات حتى في التايم لاين المخصص
+            if (stage.field === 'medicalCheck') {
+              const blockingReasonMedical = getBlockingReason(index, sortedStages);
+              const medicalDateStr =
+                orderData.medicalCheck?.date &&
+                !Number.isNaN(new Date(orderData.medicalCheck.date).getTime())
+                  ? new Date(orderData.medicalCheck.date).toLocaleString('ar-SA', {
+                      dateStyle: 'long',
+                      timeStyle: 'short',
+                    })
+                  : null;
+
+              return (
+                <InfoCard
+                  key={index}
+                  id={`stage-${index}`}
+                  title={`${index + 1}- ${stage.label}`}
+                  data={[
+                    {
+                      label: 'ملف الفحص الطبي',
+                      value: (
+                        <div className="file-upload-display border border-gray-200 rounded-md p-2 flex flex-wrap justify-between items-center gap-2">
+                          <span className="text-gray-700 text-md pr-2 flex items-center gap-2 flex-wrap">
+                            {orderData.medicalFile ? (
+                              <>
+                                <a
+                                  href={orderData.medicalFile}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-teal-800 hover:underline break-all"
+                                >
+                                  {orderData.medicalFile.split('/').pop() || 'ملف الفحص'}
+                                </a>
+                                <button
+                                  type="button"
+                                  aria-label="حذف ملف الفحص الطبي"
+                                  className="text-red-600 hover:text-red-700 text-lg font-bold disabled:opacity-40"
+                                  disabled={updating}
+                                  onClick={async () => {
+                                    setUpdating(true);
+                                    try {
+                                      await fetch(`/api/track_order/${id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          section: 'medical',
+                                          updatedData: { medicalCheckFile: null },
+                                        }),
+                                      });
+                                      await fetchOrderData();
+                                    } catch (error) {
+                                      console.error('Error deleting medical file:', error);
+                                      setShowErrorModal({
+                                        isOpen: true,
+                                        title: 'خطأ',
+                                        message: 'تعذر حذف الملف',
+                                      });
+                                    } finally {
+                                      setUpdating(false);
+                                    }
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-gray-500">لا يوجد ملف مرفوع — يمكنك إرفاق PDF أو صورة</span>
+                            )}
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <input
+                              type="file"
+                              id={`file-upload-medical-timeline-${index}`}
+                              className="hidden"
+                              accept="application/pdf,image/*"
+                              disabled={updating}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setUpdating(true);
+                                try {
+                                  const res = await fetch(`/api/upload-presigned-url/${id}`);
+                                  if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                                  const { url, filePath } = await res.json();
+
+                                  const uploadRes = await fetch(url, {
+                                    method: 'PUT',
+                                    body: file,
+                                    headers: {
+                                      'Content-Type': file.type || 'application/octet-stream',
+                                      'x-amz-acl': 'public-read',
+                                    },
+                                  });
+
+                                  if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+                                  await fetch(`/api/track_order/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      section: 'medical',
+                                      updatedData: { medicalCheckFile: filePath },
+                                    }),
+                                  });
+
+                                  await fetchOrderData();
+                                } catch (error: any) {
+                                  console.error('Error uploading medical file:', error);
+                                  setShowErrorModal({
+                                    isOpen: true,
+                                    title: 'خطأ في رفع الملف',
+                                    message: error.message || 'حدث خطأ أثناء رفع الملف',
+                                  });
+                                } finally {
+                                  setUpdating(false);
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`file-upload-medical-timeline-${index}`}
+                              className={`bg-teal-800 text-white px-3 py-1 rounded-md text-md cursor-pointer hover:bg-teal-900 ${
+                                updating ? 'opacity-50 pointer-events-none' : ''
+                              }`}
+                            >
+                              اختيار ملف
+                            </label>
+                          </div>
+                        </div>
+                      ),
+                    },
+                    {
+                      label: 'تاريخ الفحص الطبي',
+                      value: (
+                        <span className="text-gray-800 text-md">
+                          {fieldValue && medicalDateStr
+                            ? medicalDateStr
+                            : fieldValue
+                              ? 'تم التسجيل بدون تاريخ محدد'
+                              : '— (يظهر بعد تأكيد اجتياز الفحص)'}
+                        </span>
+                      ),
+                    },
+                    {
+                      label: `هل تم إكمال ${stage.label}؟`,
+                      value: fieldValue ? (
+                        <CheckCircleIcon className="w-8 h-8 mx-auto text-teal-800" aria-label="تم الإكمال" />
+                      ) : !canComplete ? (
+                        <div className="text-center">
+                          <span className="text-red-600 text-sm block mb-2">
+                            {blockingReasonMedical || 'يجب إكمال المرحلة السابقة أولاً'}
+                          </span>
+                          <button
+                            className="bg-gray-400 text-white px-4 py-2 rounded-md text-md cursor-not-allowed"
+                            disabled
+                          >
+                            تأكيد الإكمال
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
+                          onClick={() => handleStatusUpdate('medicalCheck', true)}
+                          disabled={updating}
+                        >
+                          تأكيد الإكمال
+                        </button>
+                      ),
+                    },
+                  ]}
+                  actions={[
+                    {
+                      label: 'تراجع',
+                      type: 'secondary',
+                      onClick: () => handleStatusUpdate('medicalCheck', false),
+                      disabled: updating || !fieldValue,
+                    },
+                  ]}
                 />
               );
             }

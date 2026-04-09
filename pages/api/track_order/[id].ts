@@ -289,6 +289,9 @@ console.log(id)
         },
         medicalCheck: {
           passed: !!order.arrivals[0]?.medicalCheckDate,
+          date: order.arrivals[0]?.medicalCheckDate
+            ? (order.arrivals[0].medicalCheckDate as Date).toISOString()
+            : null,
         },
         medicalFile: order.arrivals[0]?.medicalCheckFile || null,
         foreignLaborApproval: {
