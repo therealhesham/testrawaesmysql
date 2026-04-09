@@ -108,3 +108,63 @@ export function buildTimelineStageFromForm(form: StageFormState, order: number):
   }
   return { ...base, interactionType: 'none' };
 }
+
+/** حالة مرحلة مخصصة كما تُخزَّن في arrivallist.customTimelineStages[field] */
+export interface CustomTimelineStageState {
+  completed?: boolean;
+  date?: string | Date | null;
+  answer?: string | null;
+  fileUrl?: string | null;
+}
+
+/**
+ * نوع التفاعل الفعلي كما تتعامل معه الواجهة (يتوافق مع شروط عرض مرحلة السؤال في track_timeline).
+ */
+export function effectiveStageInteraction(stage: TimelineStage): StageInteractionType {
+  if (stage.interactionType === 'file') return 'file';
+  if (
+    stage.interactionType === 'question' &&
+    (stage.questionText || '').trim() &&
+    (stage.answerOptions?.length ?? 0) >= 2
+  ) {
+    return 'question';
+  }
+  return 'none';
+}
+
+/** وصف عربي لما عرّفه الأدمن في CustomTimeline.stages */
+export function stageInteractionSummaryAr(stage: TimelineStage): string {
+  const eff = effectiveStageInteraction(stage);
+  if (eff === 'question') {
+    const at = stage.answerType === 'options' ? 'قائمة خيارات' : 'راديو (اختيار واحد)';
+    return `سؤال للمكتب — ${at}`;
+  }
+  if (eff === 'file') return 'رفع مستند (PDF) للمكتب';
+  return 'تأكيد إكمال المرحلة فقط';
+}
+
+/**
+ * هل المرحلة مكتملة حسب الإعداد والبيانات المخزنة على الطلب.
+ * للسؤال: لابد من إجابة؛ للملف: لابد من رابط ملف.
+ */
+export function isStageCompleteForOrder(
+  stage: TimelineStage,
+  meta: CustomTimelineStageState | undefined | null
+): boolean {
+  if (!meta?.completed) return false;
+  const eff = effectiveStageInteraction(stage);
+  if (eff === 'file') return !!(meta.fileUrl && String(meta.fileUrl).trim());
+  if (eff === 'question') return !!(meta.answer && String(meta.answer).trim());
+  return true;
+}
+
+export function formatCustomStageDateAr(meta: CustomTimelineStageState | undefined | null): string | null {
+  if (meta?.date == null) return null;
+  try {
+    const d = new Date(meta.date as string | number | Date);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return null;
+  }
+}

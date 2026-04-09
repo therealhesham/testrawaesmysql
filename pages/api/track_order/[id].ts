@@ -385,7 +385,7 @@ const cookieHeader = req.headers.cookie;
     const pageRoute = req.headers.referer || '/admin/track_order';
 
     try {
-      const { field, value, section, updatedData } = req.body;
+      const { field, value, section, updatedData, customStageMeta } = req.body;
       console.log('⏰ الوقت:', new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' }));
       console.log('🆔 رقم الطلب:', id);
       console.log('👤 المستخدم:', userId);
@@ -446,12 +446,29 @@ if(order?.bookingstatus ==="new_order"){
           // جلب البيانات الحالية
           const currentStages = (arrival.customTimelineStages as any) || {};
           const oldValue = currentStages[field]?.completed || false;
-          
-          // تحديث حالة المرحلة المخصصة
-          currentStages[field] = {
-            completed: value,
-            date: value ? new Date() : null,
-          };
+
+          const incomingMeta =
+            customStageMeta && typeof customStageMeta === 'object' ? customStageMeta : {};
+
+          // تحديث حالة المرحلة المخصصة (مع دعم إجابة سؤال / رابط ملف من التايم لاين المخصص)
+          if (!value) {
+            currentStages[field] = {
+              completed: false,
+              date: null,
+            };
+          } else {
+            const entry: Record<string, unknown> = {
+              completed: true,
+              date: new Date(),
+            };
+            if (incomingMeta.answer !== undefined) {
+              entry.answer = incomingMeta.answer;
+            }
+            if (incomingMeta.fileUrl !== undefined) {
+              entry.fileUrl = incomingMeta.fileUrl;
+            }
+            currentStages[field] = entry;
+          }
 
           // حفظ البيانات المحدثة
           await prisma.arrivallist.updateMany({

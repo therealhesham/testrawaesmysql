@@ -65,9 +65,18 @@
 
 ---
 
+## تخزين إجابة السؤال / ملف المرحلة (مطبّق في لوحة التتبع)
+
+- في **`PATCH /api/track_order/[id]`** للحقول المخصصة (غير `validFields`): يمكن إرسال **`customStageMeta`**:
+  - `{ "answer": "نص الخيار المختار" }` مع `{ "field": "...", "value": true }` لمراحل `interactionType: "question"`.
+  - `{ "fileUrl": "https://..." }` مع `value: true` لمراحل `interactionType: "file"`.
+- يُحفظ في **`arrivallist.customTimelineStages[field]`** ككائن يتضمن على الأقل `completed`, `date`, واختيارياً `answer` و/أو `fileUrl`. عند **`value: false`** يُمسح المحتوى إلى `{ completed: false, date: null }` فقط.
+- صفحة **`pages/admin/track_timeline/[id].tsx`** تعرض السؤال/الخيارات أو رفع PDF وتستخدم هذا العقد.
+- للتوافق مع الواجهات الأخرى (مثل موقع المكتب): استخدم من **`lib/timelineStage.ts`** الدوال **`effectiveStageInteraction`** (نوع المرحلة الفعلي من الـ JSON)، **`stageInteractionSummaryAr`** (وصف عربي)، **`isStageCompleteForOrder(stage, meta)`** (اكتمال حقيقي: سؤال يحتاج `answer`، ملف يحتاج `fileUrl`).
+
 ## ما لم يُبنَ بعد (مسؤولية واجهة المكاتب)
 
-- واجهة المستخدم على موقع المكاتب + **API وتخزين** إجابات الأسئلة ومسارات الملفات مرتبطة بـ `field` والطلب (مثلاً التنسيق مع **`customTimelineStages`** في `arrivallist` أو نموذجكم الحالي).
+- واجهة المستخدم على **موقع المكاتب الخارجي** بنفس العقد أعلاه (استيراد `isStageVisibleOnExternalOffice` + فلترة المراحل).
 
 ---
 

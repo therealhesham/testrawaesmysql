@@ -14,6 +14,19 @@ import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { CheckCircle, Link, Briefcase, DollarSign, Flag, Plane, MapPin, Package, FileText } from 'lucide-react';
 import { FaStethoscope } from 'react-icons/fa';
+import type { TimelineStage } from 'lib/timelineStage';
+import {
+  effectiveStageInteraction,
+  formatCustomStageDateAr,
+  isStageCompleteForOrder,
+} from 'lib/timelineStage';
+
+interface CustomTimelineStageEntry {
+  completed: boolean;
+  date: string | null;
+  answer?: string | null;
+  fileUrl?: string | null;
+}
 
 interface OrderData {
   orderId: string;
@@ -42,14 +55,14 @@ interface OrderData {
     deliveryNotes?: string;
     cost?: string | number;
   };
-  customTimelineStages?: { [key: string]: { completed: boolean; date: string | null } };
+  customTimelineStages?: { [key: string]: CustomTimelineStageEntry };
 }
 
 interface CustomTimeline {
   id: number;
   country: string;
   name: string | null;
-  stages: Array<{ label: string; field: string; order: number; icon?: string }>;
+  stages: TimelineStage[];
   isActive: boolean;
 }
 
@@ -82,6 +95,8 @@ export default function TrackTimeline() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [documentUploadFields, setDocumentUploadFields] = useState<number[]>([0]);
+  /** مسودة اختيار المستخدم لمراحل السؤال قبل التأكيد */
+  const [questionSelections, setQuestionSelections] = useState<Record<string, string>>({});
 
   const [showErrorModal, setShowErrorModal] = useState({
     isOpen: false,
@@ -126,6 +141,43 @@ export default function TrackTimeline() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCustomStagePatch = async (
+    field: string,
+    value: boolean,
+    meta?: { answer?: string; fileUrl?: string | null }
+  ) => {
+    setUpdating(true);
+    try {
+      const body: Record<string, unknown> = { field, value };
+      if (meta && (meta.answer !== undefined || meta.fileUrl !== undefined)) {
+        body.customStageMeta = {
+          ...(meta.answer !== undefined ? { answer: meta.answer } : {}),
+          ...(meta.fileUrl !== undefined ? { fileUrl: meta.fileUrl } : {}),
+        };
+      }
+      const res = await fetch(`/api/track_order/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'فشل في تحديث الحالة');
+      }
+      await fetchOrderData();
+    } catch (error: any) {
+      console.error('Error updating custom stage:', error);
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ في تحديث الحالة',
+        message: error.message || 'حدث خطأ أثناء تحديث الحالة',
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -181,16 +233,18 @@ export default function TrackTimeline() {
     }
   };
 
-  // دالة للحصول على قيمة الحقل من orderData
-  const getFieldValue = (field: string): boolean => {
+  // دالة للحصول على قيمة الحقل من orderData (مع مراعاة interactionType من CustomTimeline.stages)
+  const getFieldValue = (field: string, stage?: TimelineStage): boolean => {
     if (!orderData) return false;
-    
-    // أولاً: التحقق من customTimelineStages للحقول المخصصة
-    if (orderData.customTimelineStages && orderData.customTimelineStages[field]) {
-      return orderData.customTimelineStages[field].completed || false;
+
+    const meta = orderData.customTimelineStages?.[field];
+    if (meta != null && typeof meta === 'object' && 'completed' in meta) {
+      if (stage) {
+        return isStageCompleteForOrder(stage, meta);
+      }
+      return !!(meta as CustomTimelineStageEntry).completed;
     }
-    
-    // ثانياً: Mapping للحقول الشائعة
+
     const fieldMap: { [key: string]: any } = {
       externalOfficeApproval: orderData.externalOfficeApproval?.approved,
       medicalCheck: orderData.medicalCheck?.passed,
@@ -216,17 +270,17 @@ export default function TrackTimeline() {
   };
 
   // دالة للتحقق مما إذا كان يمكن إكمال مرحلة معينة (المرحلة السابقة يجب أن تكون مكتملة)
-  const canCompleteStage = (stageIndex: number, stages: typeof sortedStages): boolean => {
+  const canCompleteStage = (stageIndex: number, stages: TimelineStage[]): boolean => {
     // المرحلة الأولى يمكن إكمالها دائماً
     if (stageIndex === 0) return true;
     
     // التحقق من أن جميع المراحل السابقة مكتملة
     for (let i = 0; i < stageIndex; i++) {
-      if (!getFieldValue(stages[i].field)) {
+      if (!getFieldValue(stages[i].field, stages[i])) {
         return false;
       }
     }
-    
+
     // التحقق الإضافي لمرحلة الاستلام: يجب أن يكون موعد الوصول قد مر
     if (stages[stageIndex].field === 'receipt') {
       if (!isArrivalDatePassed()) {
@@ -238,12 +292,12 @@ export default function TrackTimeline() {
   };
 
   // دالة للحصول على سبب عدم إمكانية إكمال المرحلة
-  const getBlockingReason = (stageIndex: number, stages: typeof sortedStages): string | null => {
+  const getBlockingReason = (stageIndex: number, stages: TimelineStage[]): string | null => {
     if (stageIndex === 0) return null;
     
     // التحقق من المراحل السابقة
     for (let i = 0; i < stageIndex; i++) {
-      if (!getFieldValue(stages[i].field)) {
+      if (!getFieldValue(stages[i].field, stages[i])) {
         return `يجب إكمال: ${stages[i].label}`;
       }
     }
@@ -333,8 +387,9 @@ export default function TrackTimeline() {
             <h2 className="text-3xl font-normal text-center mb-10">تتبع الطلب</h2>
             <div className="flex items-center justify-between w-full">
               {sortedStages.map((stage, index) => {
-                const isCompleted = getFieldValue(stage.field);
-                const isActive = index === sortedStages.findIndex((s) => !getFieldValue(s.field));
+                const isCompleted = getFieldValue(stage.field, stage);
+                const isActive =
+                  index === sortedStages.findIndex((s) => !getFieldValue(s.field, s));
 
                 return (
                   <div key={index} className="flex items-center flex-1">
@@ -353,6 +408,16 @@ export default function TrackTimeline() {
                       <p className="text-xs mt-2 text-gray-900 hover:text-teal-800 transition-colors max-w-[80px] leading-tight">
                         {stage.label}
                       </p>
+                      {effectiveStageInteraction(stage) === 'question' && (
+                        <span className="text-[10px] text-violet-700 mt-0.5 block leading-tight" title="سؤال">
+                          سؤال
+                        </span>
+                      )}
+                      {effectiveStageInteraction(stage) === 'file' && (
+                        <span className="text-[10px] text-amber-700 mt-0.5 block leading-tight" title="رفع ملف">
+                          ملف
+                        </span>
+                      )}
                     </div>
                     {index < sortedStages.length - 1 && (
                       <div
@@ -391,7 +456,7 @@ export default function TrackTimeline() {
 
           {/* عرض المراحل المخصصة */}
           {sortedStages.map((stage, index) => {
-            const fieldValue = getFieldValue(stage.field);
+            const fieldValue = getFieldValue(stage.field, stage);
             
             const canComplete = canCompleteStage(index, sortedStages);
             
@@ -750,8 +815,272 @@ export default function TrackTimeline() {
                 />
               );
             }
-            
-            // المراحل العادية
+
+            // مرحلة سؤال — نفس شروط CustomTimeline.stages (interactionType + نص + خيارين+)
+            if (effectiveStageInteraction(stage) === 'question') {
+              if (!canComplete) {
+                return (
+                  <InfoCard
+                    key={index}
+                    id={`stage-${index}`}
+                    title={`${index + 1}- ${stage.label}`}
+                    data={[
+                      {
+                        label: '',
+                        value: (
+                          <div className="text-center py-4">
+                            <span className="text-gray-500 text-md">
+                              🔒 يجب إكمال المرحلة السابقة أولاً
+                            </span>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                );
+              }
+
+              const qMeta = orderData.customTimelineStages?.[stage.field];
+              const qCompleted = isStageCompleteForOrder(stage, qMeta);
+              const qOptions = stage.answerOptions!;
+              const qSelected =
+                questionSelections[stage.field] ??
+                (qMeta?.answer && qOptions.includes(qMeta.answer) ? qMeta.answer : qOptions[0]);
+              const qDateStr = formatCustomStageDateAr(qMeta);
+
+              return (
+                <InfoCard
+                  key={index}
+                  id={`stage-${index}`}
+                  title={`${index + 1}- ${stage.label}`}
+                  data={[
+                    {
+                      label: 'السؤال الموجّه للمكتب',
+                      value: (
+                        <p className="text-gray-800 text-md leading-relaxed text-right">
+                          {stage.questionText}
+                        </p>
+                      ),
+                    },
+                    {
+                      label: 'خيارات الإجابة المعرفة للمكتب',
+                      value: (
+                        <p className="text-sm text-gray-700 text-right leading-relaxed">{qOptions.join(' · ')}</p>
+                      ),
+                    },
+                    qCompleted
+                      ? {
+                          label: 'إجابة المكتب (المسجّلة)',
+                          value: (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <CheckCircleIcon className="w-7 h-7 text-teal-800 shrink-0" aria-hidden />
+                                <span className="text-teal-900 font-semibold text-md">{qMeta?.answer || '—'}</span>
+                              </div>
+                              {qDateStr && (
+                                <span className="text-xs text-gray-500">تاريخ التسجيل: {qDateStr}</span>
+                              )}
+                            </div>
+                          ),
+                        }
+                      : {
+                          label: stage.answerType === 'options' ? 'اختر من القائمة' : 'اختر إجابة واحدة',
+                          value: (
+                            <div className="space-y-4 w-full text-right">
+                              {stage.answerType === 'options' ? (
+                                <select
+                                  className="w-full max-w-md border border-gray-300 rounded-md px-3 py-2 mr-auto block"
+                                  value={qSelected}
+                                  onChange={(e) =>
+                                    setQuestionSelections((s) => ({ ...s, [stage.field]: e.target.value }))
+                                  }
+                                  disabled={updating}
+                                >
+                                  {qOptions.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="space-y-2">
+                                  {qOptions.map((opt) => (
+                                    <label
+                                      key={opt}
+                                      className="flex items-center justify-end gap-2 cursor-pointer p-2 rounded-md hover:bg-gray-50 flex-row-reverse"
+                                    >
+                                      <span>{opt}</span>
+                                      <input
+                                        type="radio"
+                                        name={`custom-q-${stage.field}-${index}`}
+                                        checked={qSelected === opt}
+                                        onChange={() =>
+                                          setQuestionSelections((s) => ({ ...s, [stage.field]: opt }))
+                                        }
+                                        disabled={updating}
+                                        className="text-teal-700"
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                className="bg-teal-800 text-white px-4 py-2 rounded-md text-md hover:bg-teal-900 disabled:opacity-50"
+                                disabled={updating || !qSelected || !qOptions.includes(qSelected)}
+                                onClick={() => handleCustomStagePatch(stage.field, true, { answer: qSelected })}
+                              >
+                                تأكيد الإجابة
+                              </button>
+                            </div>
+                          ),
+                        },
+                  ]}
+                  actions={
+                    qCompleted
+                      ? [
+                          {
+                            label: 'تراجع',
+                            type: 'secondary' as const,
+                            onClick: () => handleStatusUpdate(stage.field, false),
+                            disabled: updating,
+                          },
+                        ]
+                      : []
+                  }
+                />
+              );
+            }
+
+            // مرحلة رفع ملف — كما عُرّفت في CustomTimeline.stages
+            if (effectiveStageInteraction(stage) === 'file') {
+              if (!canComplete) {
+                return (
+                  <InfoCard
+                    key={index}
+                    id={`stage-${index}`}
+                    title={`${index + 1}- ${stage.label}`}
+                    data={[
+                      {
+                        label: '',
+                        value: (
+                          <div className="text-center py-4">
+                            <span className="text-gray-500 text-md">
+                              🔒 يجب إكمال المرحلة السابقة أولاً
+                            </span>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                );
+              }
+
+              const fMeta = orderData.customTimelineStages?.[stage.field];
+              const fCompleted = isStageCompleteForOrder(stage, fMeta);
+              const fDateStr = formatCustomStageDateAr(fMeta);
+
+              return (
+                <InfoCard
+                  key={index}
+                  id={`stage-${index}`}
+                  title={`${index + 1}- ${stage.label}`}
+                  data={[
+                    {
+                      label: 'مستند المكتب',
+                      value: fCompleted ? (
+                        <div className="flex flex-col items-end gap-2">
+                          {fMeta?.fileUrl ? (
+                            <>
+                              <a
+                                href={fMeta.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-teal-800 hover:underline text-md font-medium"
+                              >
+                                فتح ملف المكتب المرفوع
+                              </a>
+                              {fDateStr && (
+                                <span className="text-xs text-gray-500">تاريخ الرفع: {fDateStr}</span>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2 text-amber-800">
+                              <span className="text-sm">مكتملة دون رابط ملف — أعد الرفع أو تراجع</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-end gap-3">
+                          <span className="text-gray-600 text-sm">ارفع ملف PDF ثم يُحفظ تلقائياً</span>
+                          <input
+                            type="file"
+                            id={`custom-timeline-file-${index}`}
+                            className="hidden"
+                            accept="application/pdf"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUpdating(true);
+                              try {
+                                const res = await fetch(`/api/upload-presigned-url/${id}`);
+                                if (!res.ok) throw new Error('فشل في الحصول على رابط الرفع');
+                                const { url, filePath } = await res.json();
+
+                                const uploadRes = await fetch(url, {
+                                  method: 'PUT',
+                                  body: file,
+                                  headers: {
+                                    'Content-Type': 'application/pdf',
+                                    'x-amz-acl': 'public-read',
+                                  },
+                                });
+
+                                if (!uploadRes.ok) throw new Error('فشل في رفع الملف');
+
+                                await handleCustomStagePatch(stage.field, true, { fileUrl: filePath });
+                              } catch (err: any) {
+                                console.error('Custom timeline file upload:', err);
+                                setShowErrorModal({
+                                  isOpen: true,
+                                  title: 'خطأ في رفع الملف',
+                                  message: err.message || 'حدث خطأ أثناء رفع الملف',
+                                });
+                              } finally {
+                                setUpdating(false);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`custom-timeline-file-${index}`}
+                            className={`bg-teal-800 text-white px-4 py-2 rounded-md text-md cursor-pointer hover:bg-teal-900 inline-block ${
+                              updating ? 'opacity-50 pointer-events-none' : ''
+                            }`}
+                          >
+                            اختيار ملف PDF
+                          </label>
+                        </div>
+                      ),
+                    },
+                  ]}
+                  actions={
+                    fCompleted
+                      ? [
+                          {
+                            label: 'تراجع',
+                            type: 'secondary' as const,
+                            onClick: () => handleStatusUpdate(stage.field, false),
+                            disabled: updating,
+                          },
+                        ]
+                      : []
+                  }
+                />
+              );
+            }
+
+            // مراحل عادية (interactionType none أو حقول النظام القياسية)
             const blockingReason = getBlockingReason(index, sortedStages);
             return (
               <InfoCard
