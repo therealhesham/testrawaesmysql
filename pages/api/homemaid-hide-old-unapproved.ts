@@ -64,7 +64,7 @@ function buildHomemaidTableEmailHtml(officeName: string, rows: OfficeRow[]): str
     <tr>
       <td style="padding:20px;">
         <p style="color:#333;font-size:15px;line-height:1.6;margin:0 0 16px;">
-          الرجاء فحص العاملات التالية (أكثر من 20 يوماً، غير معتمدة، وبدون طلب):
+          الرجاء فحص العاملات التالية (هل ما زالت بدون طلب):
         </p>
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
           <thead>

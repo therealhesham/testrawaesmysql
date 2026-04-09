@@ -1300,7 +1300,7 @@ model CustomTimeline {
   id                Int       @id @default(autoincrement())
   country           String    @db.VarChar(255) // الدولة
   name              String?   @db.VarChar(255) // اسم الـ timeline (اختياري)
-  stages            Json      // Array of stages: [{label: string, field: string, order: number}]
+  stages            Json      // Array of stages — see lib/timelineStage.ts (visibleOnExternalOffice, interactionType file|question|none, questionText, answerType, answerOptions)
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

@@ -25,7 +25,15 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Edit, Trash2, Save, X, CheckCircle, XCircle } from 'lucide-react';
+import { GripVertical, Plus, Edit, Trash2, Save, X, CheckCircle, XCircle, Eye, EyeOff, Upload, MessageSquare } from 'lucide-react';
+import type { TimelineStage, StageFormState } from 'lib/timelineStage';
+import {
+  emptyStageForm,
+  stageToForm,
+  validateStageForm,
+  buildTimelineStageFromForm,
+  isStageVisibleOnExternalOffice,
+} from 'lib/timelineStage';
 import { FaStethoscope } from 'react-icons/fa';
 interface UserData {
   id: string;
@@ -34,13 +42,6 @@ interface UserData {
   phone: string;
   email: string;
   pictureurl: string;
-}
-
-interface TimelineStage {
-  label: string;
-  field: string;
-  order: number;
-  icon?: string;
 }
 
 interface CustomTimeline {
@@ -101,10 +102,18 @@ interface SortableStageItemProps {
   index: number;
   onEdit: (index: number) => void;
   onDelete: (index: number) => void;
+  onToggleExternalVisibility: (index: number) => void;
   isEditing: boolean;
 }
 
-function SortableStageItem({ stage, index, onEdit, onDelete, isEditing }: SortableStageItemProps) {
+function SortableStageItem({
+  stage,
+  index,
+  onEdit,
+  onDelete,
+  onToggleExternalVisibility,
+  isEditing,
+}: SortableStageItemProps) {
   const {
     attributes,
     listeners,
@@ -145,8 +154,36 @@ function SortableStageItem({ stage, index, onEdit, onDelete, isEditing }: Sortab
             </div>
           </div>
           <p className="text-sm text-gray-600">Field: <span className="font-mono text-teal-700">{stage.field}</span></p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {stage.interactionType === 'file' && (
+              <span className="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                <Upload className="w-3 h-3" /> رفع ملف
+              </span>
+            )}
+            {stage.interactionType === 'question' && (
+              <span className="text-xs px-2 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 inline-flex items-center gap-1">
+                <MessageSquare className="w-3 h-3" /> سؤال ({stage.answerType === 'options' ? 'قائمة' : 'راديو'})
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            type="button"
+            onClick={() => onToggleExternalVisibility(index)}
+            className={`p-2 rounded-lg transition-colors ${
+              isStageVisibleOnExternalOffice(stage)
+                ? 'text-teal-700 hover:bg-teal-50'
+                : 'text-gray-400 hover:bg-gray-100'
+            }`}
+            title={
+              isStageVisibleOnExternalOffice(stage)
+                ? 'ظاهر في واجهة المكتب الخارجي — اضغط للإخفاء'
+                : 'مخفي عن المكتب الخارجي — اضغط للإظهار'
+            }
+          >
+            {isStageVisibleOnExternalOffice(stage) ? <Eye size={20} /> : <EyeOff size={20} />}
+          </button>
           <button
             onClick={() => onEdit(index)}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
@@ -267,7 +304,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
   const [timelineStages, setTimelineStages] = useState<TimelineStage[]>([]);
   const [editingStageIndex, setEditingStageIndex] = useState<number | null>(null);
   const [showStageModal, setShowStageModal] = useState(false);
-  const [stageForm, setStageForm] = useState({ label: '', field: '', icon: 'CheckCircle' });
+  const [stageForm, setStageForm] = useState<StageFormState>(emptyStageForm());
   const [saving, setSaving] = useState(false);
   const [loadingTimelines, setLoadingTimelines] = useState(false);
   const [viewMode, setViewMode] = useState<'mapping' | 'list'>('mapping');
@@ -711,22 +748,32 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     setTimelineStages([]);
     setEditingStageIndex(null);
     setShowStageModal(false);
-    setStageForm({ label: '', field: '', icon: 'CheckCircle' });
+    setStageForm(emptyStageForm());
     setError(null);
     setSuccess(null);
   };
 
   const handleAddStage = () => {
     setEditingStageIndex(null);
-    setStageForm({ label: '', field: '', icon: 'CheckCircle' });
+    setStageForm(emptyStageForm());
     setShowStageModal(true);
   };
 
   const handleEditStage = (index: number) => {
     const stage = timelineStages[index];
     setEditingStageIndex(index);
-    setStageForm({ label: stage.label, field: stage.field, icon: stage.icon || 'CheckCircle' });
+    setStageForm(stageToForm(stage));
     setShowStageModal(true);
+  };
+
+  const handleToggleStageExternalVisibility = (index: number) => {
+    setTimelineStages((prev) =>
+      prev.map((s, i) =>
+        i === index
+          ? { ...s, visibleOnExternalOffice: !isStageVisibleOnExternalOffice(s) }
+          : s
+      )
+    );
   };
 
   const handleSaveStage = () => {
@@ -735,27 +782,24 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
       return;
     }
 
+    const v = validateStageForm(stageForm);
+    if (v) {
+      setError(v);
+      return;
+    }
+
     if (editingStageIndex !== null) {
       const updatedStages = [...timelineStages];
-      updatedStages[editingStageIndex] = {
-        ...updatedStages[editingStageIndex],
-        label: stageForm.label,
-        field: stageForm.field,
-        icon: stageForm.icon || 'CheckCircle',
-      };
+      const order = updatedStages[editingStageIndex].order;
+      updatedStages[editingStageIndex] = buildTimelineStageFromForm(stageForm, order);
       setTimelineStages(updatedStages);
     } else {
-      const newStage: TimelineStage = {
-        label: stageForm.label,
-        field: stageForm.field,
-        order: timelineStages.length,
-        icon: stageForm.icon || 'CheckCircle',
-      };
+      const newStage = buildTimelineStageFromForm(stageForm, timelineStages.length);
       setTimelineStages([...timelineStages, newStage]);
     }
 
     setShowStageModal(false);
-    setStageForm({ label: '', field: '', icon: 'CheckCircle' });
+    setStageForm(emptyStageForm());
     setEditingStageIndex(null);
     setError(null);
   };
@@ -1862,6 +1906,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                               index={index}
                               onEdit={handleEditStage}
                               onDelete={handleDeleteStage}
+                              onToggleExternalVisibility={handleToggleStageExternalVisibility}
                               isEditing={editingStageIndex === index}
                             />
                           ))}
@@ -1904,8 +1949,8 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
         {/* Modal for Add/Edit Stage */}
         {showStageModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-1/2 max-w-md overflow-hidden">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-11/12 md:w-1/2 max-w-lg max-h-[90vh] overflow-y-auto flex flex-col">
               <div className="bg-teal-700 p-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-xl font-bold text-white">
@@ -1914,7 +1959,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                   <button
                     onClick={() => {
                       setShowStageModal(false);
-                      setStageForm({ label: '', field: '', icon: 'CheckCircle' });
+                      setStageForm(emptyStageForm());
                       setEditingStageIndex(null);
                     }}
                     className="text-white hover:bg-teal-800 rounded-lg p-2 transition-colors"
@@ -1956,13 +2001,113 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                     يستخدم لتحديد المرحلة في الكود
                   </p>
                 </div>
+
+                <div className="mb-5 flex items-center justify-between gap-4 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    {stageForm.visibleOnExternalOffice ? (
+                      <Eye className="w-5 h-5 text-teal-700" />
+                    ) : (
+                      <EyeOff className="w-5 h-5 text-gray-400" />
+                    )}
+                    <span className="text-sm font-semibold text-gray-800">إظهار للمكتب الخارجي</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={stageForm.visibleOnExternalOffice}
+                    onClick={() =>
+                      setStageForm((f) => ({
+                        ...f,
+                        visibleOnExternalOffice: !f.visibleOnExternalOffice,
+                      }))
+                    }
+                    className={`flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors ${
+                      stageForm.visibleOnExternalOffice ? 'bg-teal-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`h-6 w-6 rounded-full bg-white shadow transition-[margin] ${
+                        stageForm.visibleOnExternalOffice ? 'ms-auto' : 'me-auto'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="mb-5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">نوع التفاعل في المرحلة</label>
+                  <select
+                    value={stageForm.interactionType}
+                    onChange={(e) =>
+                      setStageForm({
+                        ...stageForm,
+                        interactionType: e.target.value as StageFormState['interactionType'],
+                      })
+                    }
+                    className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="none">عادي (بدون رفع ملف أو سؤال)</option>
+                    <option value="file">رفع ملف</option>
+                    <option value="question">سؤال بخيارات إجابة</option>
+                  </select>
+                </div>
+
+                {stageForm.interactionType === 'question' && (
+                  <>
+                    <div className="mb-5">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        نص السؤال <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={stageForm.questionText}
+                        onChange={(e) => setStageForm({ ...stageForm, questionText: e.target.value })}
+                        className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        placeholder="السؤال كما يظهر للمستخدم"
+                      />
+                    </div>
+                    <div className="mb-5">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">طريقة الإجابة</label>
+                      <select
+                        value={stageForm.answerType}
+                        onChange={(e) =>
+                          setStageForm({
+                            ...stageForm,
+                            answerType: e.target.value as StageFormState['answerType'],
+                          })
+                        }
+                        className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        <option value="radio">راديو — خيار واحد</option>
+                        <option value="options">قائمة خيارات (سلكت)</option>
+                      </select>
+                    </div>
+                    <div className="mb-5">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        الخيارات <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={stageForm.answerOptionsText}
+                        onChange={(e) => setStageForm({ ...stageForm, answerOptionsText: e.target.value })}
+                        className="w-full border border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[100px] font-mono text-sm"
+                        placeholder={'خيار في كل سطر\nمثال:\nنعم\nلا'}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">سطر لكل خيار، خياران على الأقل</p>
+                    </div>
+                  </>
+                )}
+
+                {stageForm.interactionType === 'file' && (
+                  <p className="mb-5 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    تفعيل رفع ملف لهذه المرحلة في الواجهات التي تدعم الملفات (مثل المكتب الخارجي).
+                  </p>
+                )}
               </div>
 
-              <div className="p-6 bg-teal-50 border-t border-teal-200 flex justify-end gap-3">
+              <div className="p-6 bg-teal-50 border-t border-teal-200 flex justify-end gap-3 shrink-0">
                 <button
                   onClick={() => {
                     setShowStageModal(false);
-                    setStageForm({ label: '', field: '', icon: 'CheckCircle' });
+                    setStageForm(emptyStageForm());
                     setEditingStageIndex(null);
                   }}
                   className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
