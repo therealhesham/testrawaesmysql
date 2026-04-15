@@ -25,6 +25,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 phonenumber: true,
               },
             },
+            HomeMaid: {
+              select: {
+                Name: true,
+                Passportnumber: true,
+              },
+            },
           },
         },
         Sponsor: {
@@ -48,7 +54,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (arrival) {
       // استخدام بيانات العميل من Order أو من Sponsor
       const client = arrival.Order?.client || arrival.Sponsor;
-      
+      const maidName =
+        arrival.Order?.HomeMaid?.Name?.trim() ||
+        arrival.HomemaidName?.trim() ||
+        null;
+      const passportNumber =
+        arrival.Order?.HomeMaid?.Passportnumber?.trim() ||
+        arrival.PassportNumber?.trim() ||
+        null;
+
       // إرجاع بيانات مشابهة لـ ClientAccountStatement
       const contract = {
         contractNumber: arrival.InternalmusanedContract || id,
@@ -56,6 +70,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           fullname: client.fullname,
         } : null,
         createdAt: arrival.Order?.createdAt || arrival.createdAt,
+        maidName,
+        passportNumber,
       };
       
       console.log('Returning contract:', contract);

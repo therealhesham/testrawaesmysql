@@ -41,6 +41,14 @@ interface SummaryData {
   totalBalance: number;
 }
 
+/** اقتراحات `/api/contracts/suggestions` — رقم العقد + بيانات العاملة من `Order.HomeMaid` أو حقول `arrivallist` */
+interface ContractSuggestion {
+  contractNumber: string;
+  officeName?: string;
+  maidName?: string | null;
+  passportNumber?: string | null;
+}
+
 export default function OfficeFinancialDetails() {
   const router = useRouter();
   const { officeId } = router.query;
@@ -49,6 +57,8 @@ export default function OfficeFinancialDetails() {
     date: '',
     clientName: '',
     contractNumber: '',
+    maidName: '',
+    maidPassport: '',
     payment: '',
     description: '',
     credit: '',
@@ -60,6 +70,8 @@ export default function OfficeFinancialDetails() {
     date: '',
     clientName: '',
     contractNumber: '',
+    maidName: '',
+    maidPassport: '',
     payment: '',
     description: '',
     credit: '',
@@ -101,7 +113,7 @@ function getMonthName(month: number) {
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [userName, setUserName] = useState('');
-  const [contractSuggestions, setContractSuggestions] = useState<string[]>([]);
+  const [contractSuggestions, setContractSuggestions] = useState<ContractSuggestion[]>([]);
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
   const [lastBalance, setLastBalance] = useState<number>(0);
@@ -244,7 +256,20 @@ function getMonthName(month: number) {
       const response = await fetch(`/api/contracts/suggestions?q=${encodeURIComponent(searchTerm)}`);
       if (response.ok) {
         const data = await response.json();
-        setContractSuggestions(data.suggestions || []);
+        const raw = (data.suggestions || []) as unknown[];
+        const normalized: ContractSuggestion[] = raw.map((item) => {
+          if (typeof item === 'string') {
+            return { contractNumber: item };
+          }
+          const o = item as Record<string, unknown>;
+          return {
+            contractNumber: String(o.contractNumber ?? ''),
+            officeName: o.officeName != null ? String(o.officeName) : undefined,
+            maidName: o.maidName != null ? String(o.maidName) : null,
+            passportNumber: o.passportNumber != null ? String(o.passportNumber) : null,
+          };
+        }).filter((s) => s.contractNumber);
+        setContractSuggestions(normalized);
         setShowContractSuggestions(true);
       } else {
         setContractSuggestions([]);
@@ -261,12 +286,25 @@ function getMonthName(month: number) {
 
   const fetchContractData = async (contractNumber: string) => {
     try {
-      const response = await axios.get(`/api/contracts/${contractNumber}`);
+      const response = await axios.get(
+        `/api/contracts/${encodeURIComponent(contractNumber)}`
+      );
       if (response.data) {
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
           clientName: response.data.client?.fullname || '',
-          date: response.data.createdAt ? new Date(response.data.createdAt).toISOString().split('T')[0] : prev.date
+          date: response.data.createdAt
+            ? new Date(response.data.createdAt).toISOString().split('T')[0]
+            : prev.date,
+          maidName:
+            response.data.maidName != null && response.data.maidName !== ''
+              ? String(response.data.maidName)
+              : prev.maidName,
+          maidPassport:
+            response.data.passportNumber != null &&
+            response.data.passportNumber !== ''
+              ? String(response.data.passportNumber)
+              : prev.maidPassport,
         }));
       }
     } catch (error) {
@@ -276,12 +314,25 @@ function getMonthName(month: number) {
 
   const fetchContractDataForEdit = async (contractNumber: string) => {
     try {
-      const response = await axios.get(`/api/contracts/${contractNumber}`);
+      const response = await axios.get(
+        `/api/contracts/${encodeURIComponent(contractNumber)}`
+      );
       if (response.data) {
-        setEditForm(prev => ({
+        setEditForm((prev) => ({
           ...prev,
           clientName: response.data.client?.fullname || prev.clientName,
-          date: response.data.createdAt ? new Date(response.data.createdAt).toISOString().split('T')[0] : prev.date
+          date: response.data.createdAt
+            ? new Date(response.data.createdAt).toISOString().split('T')[0]
+            : prev.date,
+          maidName:
+            response.data.maidName != null && response.data.maidName !== ''
+              ? String(response.data.maidName)
+              : prev.maidName,
+          maidPassport:
+            response.data.passportNumber != null &&
+            response.data.passportNumber !== ''
+              ? String(response.data.passportNumber)
+              : prev.maidPassport,
         }));
       }
     } catch (error) {
@@ -291,37 +342,60 @@ function getMonthName(month: number) {
 
   const handleContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setForm(prev => ({ ...prev, contractNumber: value }));
-    
-    if (value.trim()) {
-      searchContracts(value);
-    } else {
+    if (!value.trim()) {
+      setForm((prev) => ({
+        ...prev,
+        contractNumber: value,
+        maidName: '',
+        maidPassport: '',
+      }));
       setContractSuggestions([]);
       setShowContractSuggestions(false);
+      return;
     }
+    setForm((prev) => ({ ...prev, contractNumber: value }));
+    searchContracts(value);
   };
 
-  const handleContractSuggestionClick = async (suggestion: string) => {
-    setForm(prev => ({ ...prev, contractNumber: suggestion }));
+  const handleContractSuggestionClick = async (suggestion: ContractSuggestion) => {
+    const num = suggestion.contractNumber;
+    setForm((prev) => ({
+      ...prev,
+      contractNumber: num,
+      maidName: suggestion.maidName?.trim() || prev.maidName || '',
+      maidPassport: suggestion.passportNumber?.trim() || prev.maidPassport || '',
+    }));
     setShowContractSuggestions(false);
-    await fetchContractData(suggestion);
+    await fetchContractData(num);
   };
 
   const handleEditContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setEditForm(prev => ({ ...prev, contractNumber: value }));
-    if (value.trim()) {
-      searchContracts(value);
-    } else {
+    if (!value.trim()) {
+      setEditForm((prev) => ({
+        ...prev,
+        contractNumber: value,
+        maidName: '',
+        maidPassport: '',
+      }));
       setContractSuggestions([]);
       setShowContractSuggestions(false);
+      return;
     }
+    setEditForm((prev) => ({ ...prev, contractNumber: value }));
+    searchContracts(value);
   };
 
-  const handleEditContractSuggestionClick = async (suggestion: string) => {
-    setEditForm(prev => ({ ...prev, contractNumber: suggestion }));
+  const handleEditContractSuggestionClick = async (suggestion: ContractSuggestion) => {
+    const num = suggestion.contractNumber;
+    setEditForm((prev) => ({
+      ...prev,
+      contractNumber: num,
+      maidName: suggestion.maidName?.trim() || prev.maidName || '',
+      maidPassport: suggestion.passportNumber?.trim() || prev.maidPassport || '',
+    }));
     setShowContractSuggestions(false);
-    await fetchContractDataForEdit(suggestion);
+    await fetchContractDataForEdit(num);
   };
 
   const handleContractInputBlur = () => {
@@ -457,6 +531,8 @@ function getMonthName(month: number) {
         date: '',
         clientName: '',
         contractNumber: '',
+        maidName: '',
+        maidPassport: '',
         payment: '',
         description: '',
         credit: '',
@@ -512,11 +588,25 @@ function getMonthName(month: number) {
     const previousBalance = await fetchPreviousBalance(record.id, record.officeId);
     setLastBalance(previousBalance);
     const dateStr = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
+    let maidName = '';
+    let maidPassport = '';
+    const cn = record.contractNumber?.trim();
+    if (cn) {
+      try {
+        const { data } = await axios.get(`/api/contracts/${encodeURIComponent(cn)}`);
+        if (data?.maidName) maidName = String(data.maidName);
+        if (data?.passportNumber) maidPassport = String(data.passportNumber);
+      } catch {
+        /* لا توجد بيانات وصول للعقد */
+      }
+    }
     setEditForm({
       id: record.id,
       date: dateStr,
       clientName: record.clientName || '',
       contractNumber: record.contractNumber || '',
+      maidName,
+      maidPassport,
       payment: record.payment || '',
       description: record.description || '',
       credit: String(record.credit ?? 0),
@@ -822,6 +912,8 @@ function getMonthName(month: number) {
                     date: new Date().toISOString().split('T')[0],
                     clientName: '',
                     contractNumber: '',
+                    maidName: '',
+                    maidPassport: '',
                     payment: '',
                     description: '',
                     credit: '',
@@ -1096,6 +1188,8 @@ function getMonthName(month: number) {
                 date: '',
                 clientName: '',
                 contractNumber: '',
+                maidName: '',
+                maidPassport: '',
                 payment: '',
                 description: '',
                 credit: '',
@@ -1116,6 +1210,8 @@ function getMonthName(month: number) {
                       date: '',
                       clientName: '',
                       contractNumber: '',
+                      maidName: '',
+                      maidPassport: '',
                       payment: '',
                       description: '',
                       credit: '',
@@ -1160,13 +1256,46 @@ function getMonthName(month: number) {
                             onClick={() => handleContractSuggestionClick(suggestion)}
                             className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                           >
-                            <div className="font-medium text-sm">
-                              <span className="text-gray-700">رقم العقد: {suggestion}</span>
+                            <div className="font-medium text-sm text-gray-800">
+                              رقم العقد: {suggestion.contractNumber}
                             </div>
+                            {(suggestion.maidName || suggestion.passportNumber) && (
+                              <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                                {suggestion.maidName ? (
+                                  <div>العاملة: {suggestion.maidName}</div>
+                                ) : null}
+                                {suggestion.passportNumber ? (
+                                  <div>رقم الجواز: {suggestion.passportNumber}</div>
+                                ) : null}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">اسم العاملة</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={form.maidName}
+                      placeholder="يظهر تلقائياً عند اختيار العقد"
+                      className="p-2 border border-gray-200 rounded-md bg-gray-50 text-gray-800 cursor-default"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">رقم جواز العاملة</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={form.maidPassport}
+                      placeholder="يظهر تلقائياً عند اختيار العقد"
+                      className="p-2 border border-gray-200 rounded-md bg-gray-50 text-gray-800 cursor-default"
+                    />
                   </div>
                 </div>
 
@@ -1237,7 +1366,7 @@ function getMonthName(month: number) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">الفاتورة</label>
+                    <label className="mb-2 font-bold text-gray-800">الاشعار</label>
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
@@ -1287,6 +1416,8 @@ function getMonthName(month: number) {
                         date: '',
                         clientName: '',
                         contractNumber: '',
+                        maidName: '',
+                        maidPassport: '',
                         payment: '',
                         description: '',
                         credit: '',
@@ -1356,9 +1487,19 @@ function getMonthName(month: number) {
                             onClick={() => handleEditContractSuggestionClick(suggestion)}
                             className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
                           >
-                            <div className="font-medium text-sm">
-                              <span className="text-gray-700">رقم العقد: {suggestion}</span>
+                            <div className="font-medium text-sm text-gray-800">
+                              رقم العقد: {suggestion.contractNumber}
                             </div>
+                            {(suggestion.maidName || suggestion.passportNumber) && (
+                              <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                                {suggestion.maidName ? (
+                                  <div>العاملة: {suggestion.maidName}</div>
+                                ) : null}
+                                {suggestion.passportNumber ? (
+                                  <div>رقم الجواز: {suggestion.passportNumber}</div>
+                                ) : null}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1366,9 +1507,32 @@ function getMonthName(month: number) {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">اسم العاملة</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={editForm.maidName}
+                      placeholder="يظهر تلقائياً عند اختيار العقد"
+                      className="p-2 border border-gray-200 rounded-md bg-gray-50 text-gray-800 cursor-default"
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="mb-2 font-bold text-gray-800">رقم جواز العاملة</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={editForm.maidPassport}
+                      placeholder="يظهر تلقائياً عند اختيار العقد"
+                      className="p-2 border border-gray-200 rounded-md bg-gray-50 text-gray-800 cursor-default"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">تاريخ الطلب</label>
+                    <label className="mb-2 font-bold text-gray-800">تاريخ العقد</label>
                     <input
                       name="date"
                       value={editForm.date}
@@ -1433,7 +1597,7 @@ function getMonthName(month: number) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">الفاتورة</label>
+                    <label className="mb-2 font-bold text-gray-800">الاشعار</label>
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"

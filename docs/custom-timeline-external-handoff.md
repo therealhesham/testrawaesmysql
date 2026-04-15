@@ -40,6 +40,7 @@
 |--------|--------|
 | `label`, `field`, `order`, `icon` | كما كان سابقاً |
 | `visibleOnExternalOffice` | إظهار المرحلة في واجهة المكتب الخارجي. **إذا غاب الحقل يُعتبر ظاهراً** (`!== false`). |
+| `EditableForOffices` | **boolean** — إتاحة التعديل على المرحلة من واجهة المكتب الخارجي (مشروع منفصل). **لا يُستخدم في مشروع wasl الحالي**؛ عند الغياب اعتبرها `false` أو استخدم **`isStageEditableForOffices(stage)`** في `lib/timelineStage.ts` (= `true` فقط عندما `EditableForOffices === true`). |
 | `interactionType` | `"none"` \| `"file"` \| `"question"` |
 | عند `question` | `questionText`, `answerType` (`"radio"` \| `"options"`), `answerOptions` (`string[]`) |
 | عند `file` | لا حقول إضافية؛ يُعرّف أن المرحلة مرتبطة برفع ملف في الواجهة المناسبة |

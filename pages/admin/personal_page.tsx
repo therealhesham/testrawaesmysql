@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, Edit, Trash2, Save, X, CheckCircle, XCircle, Eye, EyeOff, Upload, MessageSquare } from 'lucide-react';
+import { GripVertical, Plus, Edit, Trash2, Save, X, CheckCircle, XCircle, Eye, EyeOff, Upload, MessageSquare, Pencil } from 'lucide-react';
 import type { TimelineStage, StageFormState } from 'lib/timelineStage';
 import {
   emptyStageForm,
@@ -33,6 +33,7 @@ import {
   validateStageForm,
   buildTimelineStageFromForm,
   isStageVisibleOnExternalOffice,
+  isStageEditableForOffices,
 } from 'lib/timelineStage';
 import { FaStethoscope } from 'react-icons/fa';
 interface UserData {
@@ -163,6 +164,11 @@ function SortableStageItem({
             {stage.interactionType === 'question' && (
               <span className="text-xs px-2 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 inline-flex items-center gap-1">
                 <MessageSquare className="w-3 h-3" /> سؤال ({stage.answerType === 'options' ? 'قائمة' : 'راديو'})
+              </span>
+            )}
+            {isStageEditableForOffices(stage) && (
+              <span className="text-xs px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200 inline-flex items-center gap-1">
+                <Pencil className="w-3 h-3" /> تعديل من المكتب
               </span>
             )}
           </div>
@@ -2028,6 +2034,35 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                     <span
                       className={`h-6 w-6 rounded-full bg-white shadow transition-[margin] ${
                         stageForm.visibleOnExternalOffice ? 'ms-auto' : 'me-auto'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="mb-5 flex items-center justify-between gap-4 p-3 rounded-xl border border-sky-100 bg-sky-50/50">
+                  <div className="flex flex-col gap-0.5 text-right">
+                    <span className="text-sm font-semibold text-gray-800">إمكانية التعديل من المكتب</span>
+                    <span className="text-xs text-gray-500">
+                      يُحفظ كـ <code className="font-mono bg-white/90 px-1 rounded text-[11px]">EditableForOffices</code> لمشروع المكاتب
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={stageForm.EditableForOffices}
+                    onClick={() =>
+                      setStageForm((f) => ({
+                        ...f,
+                        EditableForOffices: !f.EditableForOffices,
+                      }))
+                    }
+                    className={`flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors ${
+                      stageForm.EditableForOffices ? 'bg-sky-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`h-6 w-6 rounded-full bg-white shadow transition-[margin] ${
+                        stageForm.EditableForOffices ? 'ms-auto' : 'me-auto'
                       }`}
                     />
                   </button>

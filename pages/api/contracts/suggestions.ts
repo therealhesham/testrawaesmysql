@@ -27,10 +27,14 @@ export default async function handler(
         },
         select: {
           InternalmusanedContract: true,
+          HomemaidName: true,
+          PassportNumber: true,
           Order: {
             select: {
               HomeMaid: {
                 select: {
+                  Name: true,
+                  Passportnumber: true,
                   office: {
                     select: {
                       office: true,
@@ -48,20 +52,42 @@ export default async function handler(
       });
 
       // إنشاء قائمة الاقتراحات مع تصفية case-insensitive
-      const suggestionsMap = new Map<string, { contractNumber: string; officeName: string }>();
+      const suggestionsMap = new Map<
+        string,
+        {
+          contractNumber: string;
+          officeName: string;
+          maidName: string | null;
+          passportNumber: string | null;
+        }
+      >();
       const queryLower = query.toLowerCase();
-      
+
+      const pickMaidName = (a: (typeof arrivals)[number]) =>
+        a.Order?.HomeMaid?.Name?.trim() || a.HomemaidName?.trim() || null;
+      const pickPassport = (a: (typeof arrivals)[number]) =>
+        a.Order?.HomeMaid?.Passportnumber?.trim() || a.PassportNumber?.trim() || null;
+
       arrivals.forEach((arrival) => {
         if (arrival.InternalmusanedContract) {
           const contract = arrival.InternalmusanedContract;
-          // تصفية case-insensitive يدوياً
           if (contract.toLowerCase().includes(queryLower)) {
             const officeName = arrival.Order?.HomeMaid?.office?.office || 'غير محدد';
-            if (!suggestionsMap.has(contract)) {
+            const maidName = pickMaidName(arrival);
+            const passportNumber = pickPassport(arrival);
+            const existing = suggestionsMap.get(contract);
+            if (!existing) {
               suggestionsMap.set(contract, {
                 contractNumber: contract,
-                officeName: officeName,
+                officeName,
+                maidName,
+                passportNumber,
               });
+            } else {
+              if (!existing.maidName && maidName) existing.maidName = maidName;
+              if (!existing.passportNumber && passportNumber) {
+                existing.passportNumber = passportNumber;
+              }
             }
           }
         }

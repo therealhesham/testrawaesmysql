@@ -64,6 +64,8 @@ export default function ForeignOfficesFinancial() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRecord, setNewRecord] = useState({
     contractNumber: '',
+    maidName: '',
+    maidPassport: '',
     clientName: '',
     description: '',
     payment: '',
@@ -74,7 +76,14 @@ export default function ForeignOfficesFinancial() {
     date: new Date().toISOString().split('T')[0]
   });
   const [lastBalance, setLastBalance] = useState<number>(0);
-  const [contractSuggestions, setContractSuggestions] = useState<Array<{ contractNumber: string; officeName: string }>>([]);
+  const [contractSuggestions, setContractSuggestions] = useState<
+    Array<{
+      contractNumber: string;
+      officeName: string;
+      maidName?: string | null;
+      passportNumber?: string | null;
+    }>
+  >([]);
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
   const [selectedOfficeName, setSelectedOfficeName] = useState<string>('');
@@ -83,6 +92,8 @@ export default function ForeignOfficesFinancial() {
   const [editForm, setEditForm] = useState({
     clientName: '',
     contractNumber: '',
+    maidName: '',
+    maidPassport: '',
     description: '',
     payment: '',
     credit: '',
@@ -507,6 +518,8 @@ export default function ForeignOfficesFinancial() {
         setShowAddModal(false);
         setNewRecord({
           contractNumber: '',
+          maidName: '',
+          maidPassport: '',
           clientName: '',
           description: '',
           payment: '',
@@ -580,7 +593,20 @@ export default function ForeignOfficesFinancial() {
       const response = await fetch(`/api/contracts/suggestions?q=${encodeURIComponent(searchTerm)}`);
       if (response.ok) {
         const data = await response.json();
-        setContractSuggestions(data.suggestions || []);
+        const raw = (data.suggestions || []) as unknown[];
+        const normalized = raw.map((item) => {
+          if (typeof item === 'string') {
+            return { contractNumber: item, officeName: 'غير محدد' };
+          }
+          const o = item as Record<string, unknown>;
+          return {
+            contractNumber: String(o.contractNumber ?? ''),
+            officeName: String(o.officeName ?? 'غير محدد'),
+            maidName: o.maidName != null ? String(o.maidName) : null,
+            passportNumber: o.passportNumber != null ? String(o.passportNumber) : null,
+          };
+        }).filter((s) => s.contractNumber);
+        setContractSuggestions(normalized);
         setShowContractSuggestions(true);
       } else {
         setContractSuggestions([]);
@@ -597,12 +623,25 @@ export default function ForeignOfficesFinancial() {
 
   const fetchContractData = async (contractNumber: string) => {
     try {
-      const response = await axios.get(`/api/contracts/${contractNumber}`);
+      const response = await axios.get(
+        `/api/contracts/${encodeURIComponent(contractNumber)}`
+      );
       if (response.data && response.status !== 404) {
-        setNewRecord(prev => ({
+        setNewRecord((prev) => ({
           ...prev,
           clientName: response.data.client?.fullname || '',
-          date: response.data.createdAt ? new Date(response.data.createdAt).toISOString().split('T')[0] : prev.date
+          date: response.data.createdAt
+            ? new Date(response.data.createdAt).toISOString().split('T')[0]
+            : prev.date,
+          maidName:
+            response.data.maidName != null && response.data.maidName !== ''
+              ? String(response.data.maidName)
+              : prev.maidName,
+          maidPassport:
+            response.data.passportNumber != null &&
+            response.data.passportNumber !== ''
+              ? String(response.data.passportNumber)
+              : prev.maidPassport,
         }));
       } else {
         // إذا لم يتم العثور على بيانات العميل، لا نعرض رسالة خطأ
@@ -620,19 +659,34 @@ export default function ForeignOfficesFinancial() {
 
   const handleContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setNewRecord(prev => ({ ...prev, contractNumber: value }));
-    setSelectedOfficeName(''); // مسح اسم المكتب عند تغيير رقم العقد
-    
-    if (value.trim()) {
-      searchContracts(value);
-    } else {
+    setSelectedOfficeName('');
+    if (!value.trim()) {
+      setNewRecord((prev) => ({
+        ...prev,
+        contractNumber: value,
+        maidName: '',
+        maidPassport: '',
+      }));
       setContractSuggestions([]);
       setShowContractSuggestions(false);
+      return;
     }
+    setNewRecord((prev) => ({ ...prev, contractNumber: value }));
+    searchContracts(value);
   };
 
-  const handleContractSuggestionClick = async (suggestion: { contractNumber: string; officeName: string }) => {
-    setNewRecord(prev => ({ ...prev, contractNumber: suggestion.contractNumber }));
+  const handleContractSuggestionClick = async (suggestion: {
+    contractNumber: string;
+    officeName: string;
+    maidName?: string | null;
+    passportNumber?: string | null;
+  }) => {
+    setNewRecord((prev) => ({
+      ...prev,
+      contractNumber: suggestion.contractNumber,
+      maidName: suggestion.maidName?.trim() || prev.maidName || '',
+      maidPassport: suggestion.passportNumber?.trim() || prev.maidPassport || '',
+    }));
     setSelectedOfficeName(suggestion.officeName);
     setShowContractSuggestions(false);
     await fetchContractData(suggestion.contractNumber);
@@ -675,10 +729,25 @@ export default function ForeignOfficesFinancial() {
     // جلب الرصيد السابق
     const previousBalance = await fetchPreviousBalance(record.id, record.officeId);
     setLastBalance(previousBalance);
-    
+
+    let maidName = '';
+    let maidPassport = '';
+    const cn = record.contractNumber?.trim();
+    if (cn) {
+      try {
+        const { data } = await axios.get(`/api/contracts/${encodeURIComponent(cn)}`);
+        if (data?.maidName) maidName = String(data.maidName);
+        if (data?.passportNumber) maidPassport = String(data.passportNumber);
+      } catch {
+        /* ignore */
+      }
+    }
+
     setEditForm({
       clientName: record.clientName || '',
       contractNumber: record.contractNumber || '',
+      maidName,
+      maidPassport,
       description: record.description || '',
       payment: record.payment || '',
       credit: record.credit.toString(),
@@ -692,7 +761,11 @@ export default function ForeignOfficesFinancial() {
   const handleEditFormChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedForm = { ...editForm, [name]: value };
-    
+    if (name === 'contractNumber' && !value.trim()) {
+      updatedForm.maidName = '';
+      updatedForm.maidPassport = '';
+    }
+
     // حساب الرصيد تلقائياً عند تغيير المدين أو الدائن
     if (name === 'credit' || name === 'debit') {
       const newBalance = calculateBalance(
@@ -1081,6 +1154,16 @@ export default function ForeignOfficesFinancial() {
                             <span className="text-gray-700">رقم العقد: {suggestion.contractNumber}</span>
                             <span className="text-gray-500 mr-2">• {suggestion.officeName}</span>
                           </div>
+                          {(suggestion.maidName || suggestion.passportNumber) && (
+                            <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                              {suggestion.maidName ? (
+                                <div>العاملة: {suggestion.maidName}</div>
+                              ) : null}
+                              {suggestion.passportNumber ? (
+                                <div>رقم الجواز: {suggestion.passportNumber}</div>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1095,6 +1178,29 @@ export default function ForeignOfficesFinancial() {
                     </span>
                   </div>
                 )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  <div>
+                    <label className="block text-md font-bold mb-2 text-gray-700">اسم العاملة</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={newRecord.maidName}
+                      placeholder="يظهر تلقائياً عند اختيار العقد"
+                      className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-md font-bold mb-2 text-gray-700">رقم جواز العاملة</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={newRecord.maidPassport}
+                      placeholder="يظهر تلقائياً عند اختيار العقد"
+                      className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Form Grid */}
@@ -1235,6 +1341,8 @@ export default function ForeignOfficesFinancial() {
                     setShowAddModal(false);
                     setNewRecord({
                       contractNumber: '',
+                      maidName: '',
+                      maidPassport: '',
                       clientName: '',
                       description: '',
                       payment: '',
@@ -1299,6 +1407,27 @@ export default function ForeignOfficesFinancial() {
                     onChange={handleEditFormChange}
                     placeholder="رقم العقد"
                     className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-md font-bold mb-2 text-gray-700">اسم العاملة</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={editForm.maidName}
+                    placeholder="يظهر من بيانات العقد"
+                    className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                  />
+                </div>
+                <div>
+                  <label className="block text-md font-bold mb-2 text-gray-700">رقم جواز العاملة</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={editForm.maidPassport}
+                    placeholder="يظهر من بيانات العقد"
+                    className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
                   />
                 </div>
 

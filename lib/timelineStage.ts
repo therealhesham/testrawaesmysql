@@ -15,6 +15,11 @@ export interface TimelineStage {
   icon?: string;
   /** إظهار المرحلة في واجهة المكاتب الخارجية. الافتراضي عند الغياب: true */
   visibleOnExternalOffice?: boolean;
+  /**
+   * إتاحة التعديل من واجهة المكتب الخارجي (مشروع منفصل يقرأ الـ JSON).
+   * لا يُستخدم في هذا المشروع حاليًا — المفتاح بالاسم كما هو للتوافق مع الكود الآخر.
+   */
+  EditableForOffices?: boolean;
   /** نوع التفاعل: عادي، رفع ملف، أو سؤال بخيارات */
   interactionType?: StageInteractionType;
   questionText?: string;
@@ -34,11 +39,17 @@ export function isStageVisibleOnExternalOffice(stage: TimelineStage): boolean {
   return stage.visibleOnExternalOffice !== false;
 }
 
+/** للمشروع الخارجي: التعديل مسموح فقط عند `EditableForOffices === true` */
+export function isStageEditableForOffices(stage: TimelineStage): boolean {
+  return stage.EditableForOffices === true;
+}
+
 export interface StageFormState {
   label: string;
   field: string;
   icon: string;
   visibleOnExternalOffice: boolean;
+  EditableForOffices: boolean;
   interactionType: StageInteractionType;
   questionText: string;
   answerType: StageAnswerType;
@@ -51,6 +62,7 @@ export function emptyStageForm(): StageFormState {
     field: '',
     icon: 'CheckCircle',
     visibleOnExternalOffice: true,
+    EditableForOffices: false,
     interactionType: 'none',
     questionText: '',
     answerType: 'radio',
@@ -64,6 +76,7 @@ export function stageToForm(stage: TimelineStage): StageFormState {
     field: stage.field,
     icon: stage.icon || 'CheckCircle',
     visibleOnExternalOffice: stage.visibleOnExternalOffice !== false,
+    EditableForOffices: stage.EditableForOffices === true,
     interactionType: stage.interactionType || 'none',
     questionText: stage.questionText || '',
     answerType: stage.answerType || 'radio',
@@ -93,6 +106,7 @@ export function buildTimelineStageFromForm(form: StageFormState, order: number):
     order,
     icon: form.icon || 'CheckCircle',
     visibleOnExternalOffice: form.visibleOnExternalOffice,
+    EditableForOffices: form.EditableForOffices,
   };
   if (form.interactionType === 'question') {
     return {
