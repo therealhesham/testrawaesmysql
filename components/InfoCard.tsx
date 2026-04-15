@@ -31,6 +31,8 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
       } else if (typeof item.value === 'number') {
         // تحويل الأرقام إلى نص (مثل رقم الطلب)
         acc[item.label] = String(item.value);
+      } else if (typeof item.rawValue === 'string') {
+        acc[item.label] = item.rawValue;
       } else if (item.label.includes('تاريخ ووقت')) {
         // Use rawValue if available, otherwise try to extract from JSX
         const dateTimeString = item.rawValue || '';
@@ -260,6 +262,8 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
         } else if (typeof item.value === 'number') {
           // تحويل الأرقام إلى نص (مثل رقم الطلب)
           acc[item.label] = String(item.value);
+        } else if (typeof item.rawValue === 'string') {
+          acc[item.label] = item.rawValue;
         } else if (item.label.includes('تاريخ ووقت')) {
           // Use rawValue if available, otherwise try to extract from JSX
           const dateTimeString = item.rawValue || '';

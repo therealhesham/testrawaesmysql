@@ -10,6 +10,7 @@ saudiEmbassyApproval
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
+import ContractElapsedBadge from 'components/ContractElapsedBadge';
 import VisaModal, { VisaData } from 'components/VisaModal';
 import Head from 'next/head';
 import OrderStepper from 'components/OrderStepper';
@@ -1421,7 +1422,19 @@ export default function TrackOrder() {
               { label: 'هوية العميل', value: valOrEmpty(orderData.officeLinkInfo.nationalId) },
               { label: 'رقم التأشيرة', value: valOrEmpty(orderData.officeLinkInfo.visaNumber), fieldType: 'visa' },
               { label: 'رقم عقد إدارة المكاتب', value: valOrEmpty(orderData.officeLinkInfo.internalMusanedContract) },
-              { label: 'تاريخ العقد', value: valOrEmpty(orderData.officeLinkInfo.musanedDate)},
+              {
+                label: 'تاريخ العقد',
+                value: (
+                  <div className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1">
+                    <span>{valOrEmpty(orderData.officeLinkInfo.musanedDate) || '\u00A0'}</span>
+                    <ContractElapsedBadge contractDate={orderData.officeLinkInfo.musanedDate} />
+                  </div>
+                ),
+                rawValue:
+                  orderData.officeLinkInfo.musanedDate === 'N/A'
+                    ? ''
+                    : orderData.officeLinkInfo.musanedDate || '',
+              },
             ]}
             gridCols={3}
             editable={true}

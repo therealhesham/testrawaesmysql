@@ -5,6 +5,7 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
+import ContractElapsedBadge from 'components/ContractElapsedBadge';
 import Head from 'next/head';
 import ErrorModal from 'components/ErrorModal';
 import { CheckCircleIcon } from '@heroicons/react/solid';
@@ -450,6 +451,36 @@ export default function TrackTimeline() {
               { label: 'رقم جواز السفر', value: orderData.homemaidInfo.passportNumber },
               { label: 'الجنسية', value: orderData.nationality || 'غير محدد' },
               { label: 'المكتب الخارجي', value: orderData.homemaidInfo.externalOffice },
+            ]}
+            gridCols={3}
+          />
+
+          <InfoCard
+            title="الربط مع إدارة المكاتب"
+            data={[
+              { label: 'هوية العميل', value: orderData.officeLinkInfo?.nationalId === 'N/A' ? '' : orderData.officeLinkInfo?.nationalId || '' },
+              { label: 'رقم التأشيرة', value: orderData.officeLinkInfo?.visaNumber === 'N/A' ? '' : orderData.officeLinkInfo?.visaNumber || '' },
+              {
+                label: 'رقم عقد إدارة المكاتب',
+                value:
+                  orderData.officeLinkInfo?.internalMusanedContract === 'N/A'
+                    ? ''
+                    : orderData.officeLinkInfo?.internalMusanedContract || '',
+              },
+              {
+                label: 'تاريخ العقد',
+                value: (
+                  <div className="flex flex-wrap items-center justify-end gap-x-1 gap-y-1">
+                    <span>
+                      {orderData.officeLinkInfo?.musanedDate &&
+                      orderData.officeLinkInfo.musanedDate !== 'N/A'
+                        ? orderData.officeLinkInfo.musanedDate
+                        : '\u00A0'}
+                    </span>
+                    <ContractElapsedBadge contractDate={orderData.officeLinkInfo?.musanedDate} />
+                  </div>
+                ),
+              },
             ]}
             gridCols={3}
           />
