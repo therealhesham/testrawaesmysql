@@ -67,6 +67,21 @@ interface Homemaid {
   office: { Country: string; office: string };
 }
 
+/** تاريخ العقد بصيغة YYYY-MM-DD: مسموح اليوم أو تاريخ سابق فقط (التوقيت المحلي للمتصفح). */
+function isOfficeContractMusanedDateAllowed(ymd: string): boolean {
+  const s = ymd.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const input = new Date(y, mo, d);
+  if (input.getFullYear() !== y || input.getMonth() !== mo || input.getDate() !== d) return false;
+  const t = new Date();
+  const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return input.getTime() <= today.getTime();
+}
+
 export default function TrackOrder() {
   const router = useRouter();
   const { id } = router.query;
@@ -496,6 +511,14 @@ export default function TrackOrder() {
           });
           return;
       }
+      if (!isOfficeContractMusanedDateAllowed(orderData.officeLinkInfo.musanedDate)) {
+        setShowErrorModal({
+          isOpen: true,
+          title: 'خطأ في تحديث الحالة',
+          message: 'تاريخ العقد يجب أن يكون اليوم أو تاريخاً سابقاً، ولا يُقبل تاريخ مستقبلي',
+        });
+        return;
+      }
     }
 
     // التحقق من رقم عقد مساند التوثيق عند تأكيد الموافقة فقط (value === true)
@@ -671,6 +694,20 @@ export default function TrackOrder() {
           return;
         }
         */
+      }
+    }
+
+    if (section === 'officeLinkInfo' && Object.prototype.hasOwnProperty.call(updatedData, 'تاريخ العقد')) {
+      const raw = String(updatedData['تاريخ العقد'] ?? '').trim();
+      if (raw && raw !== 'N/A') {
+        if (!isOfficeContractMusanedDateAllowed(raw)) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في التحقق',
+            message: 'تاريخ العقد يجب أن يكون اليوم أو تاريخاً سابقاً، ولا يُقبل تاريخ مستقبلي',
+          });
+          return;
+        }
       }
     }
 
@@ -1464,7 +1501,8 @@ export default function TrackOrder() {
                     orderData?.officeLinkInfo?.visaNumber === 'N/A' ||
                     !orderData?.officeLinkInfo?.musanedDate || 
                     orderData?.officeLinkInfo?.musanedDate.trim() === '' || 
-                    orderData?.officeLinkInfo?.musanedDate === 'N/A',
+                    orderData?.officeLinkInfo?.musanedDate === 'N/A' ||
+                    !isOfficeContractMusanedDateAllowed(orderData.officeLinkInfo.musanedDate),
                 },
               ]),
             ]}

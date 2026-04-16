@@ -1,5 +1,5 @@
 // components/InfoCard.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import VisaSelector from './VisaSelector';
 import CityAutocomplete from './CityAutocomplete';
@@ -20,6 +20,31 @@ interface InfoCardProps {
   onAddVisaClick?: () => void;
   /** When this changes, VisaSelector refetches visa list (e.g. after adding via full modal). */
   visaRefetchTrigger?: number;
+}
+
+function localTodayYmd(): string {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+/** تاريخ YYYY-MM-DD بعد اليوم (محلي)؟ */
+function isMusanedContractDateAfterToday(ymd: string): boolean {
+  const s = ymd.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const inputDate = new Date(y, mo, d);
+  if (inputDate.getFullYear() !== y || inputDate.getMonth() !== mo || inputDate.getDate() !== d) return false;
+  const t = new Date();
+  const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return inputDate.getTime() > today.getTime();
+}
+
+function clampMusanedContractDateToToday(ymd: string): string {
+  if (!ymd || ymd === 'N/A') return ymd;
+  return isMusanedContractDateAfterToday(ymd) ? localTodayYmd() : ymd;
 }
 
 export default function InfoCard({ id, title, data, gridCols = 1, actions = [], editable = false, onSave, clientID, disabled = false, bottomMessage, onAddVisaClick, visaRefetchTrigger }: InfoCardProps) {
@@ -44,6 +69,18 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // عند فتح التعديل: لا يبقى في النموذج تاريخ عقد مستقبلي (بيانات قديمة أو متصفح يتجاهل max)
+  useEffect(() => {
+    if (!editMode) return;
+    setFormData((prev) => {
+      const v = prev['تاريخ العقد'];
+      if (typeof v !== 'string' || !v.trim() || v === 'N/A') return prev;
+      const clamped = clampMusanedContractDateToToday(v);
+      if (clamped === v) return prev;
+      return { ...prev, 'تاريخ العقد': clamped };
+    });
+  }, [editMode]);
 
   const validateInput = (key: string, value: string): string | null => {
   // Check if "تاريخ العقد" is required
@@ -170,9 +207,25 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
 
   // Check if the key is related to a date field
   if (key.includes('تاريخ') && value) {
-    // Allow past dates for "تاريخ العقد" in office management link
-    if (key === 'تاريخ العقد') {
-      return null; // Allow any date (past or future) for تاريخ العقد
+    if (key === 'تاريخ العقد' && value !== 'N/A') {
+      const s = value.trim();
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+      if (!m) {
+        return 'صيغة تاريخ العقد غير صالحة';
+      }
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      const d = Number(m[3]);
+      const inputDate = new Date(y, mo, d);
+      if (inputDate.getFullYear() !== y || inputDate.getMonth() !== mo || inputDate.getDate() !== d) {
+        return 'تاريخ العقد غير صالح';
+      }
+      const t = new Date();
+      const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      if (inputDate.getTime() > today.getTime()) {
+        return 'تاريخ العقد يجب أن يكون اليوم أو تاريخاً سابقاً';
+      }
+      return null;
     }
 
     const today = new Date();
@@ -198,6 +251,14 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
   return null;
 };
   const handleInputChange = (key: string, value: string) => {
+    if (key === 'تاريخ العقد') {
+      const next = value ? clampMusanedContractDateToToday(value) : value;
+      setFormData((prev) => ({ ...prev, [key]: next }));
+      const error = validateInput(key, next);
+      setErrors((prev) => ({ ...prev, [key]: error || '' }));
+      return;
+    }
+
     // Special handling for phone number: only allow digits and enforce 05 prefix
     if ((key === 'رقم الهاتف' || key.includes('رقم الهاتف') || key.includes('الهاتف'))) {
       const digitsOnly = value.replace(/\D/g, '');
@@ -300,6 +361,7 @@ export default function InfoCard({ id, title, data, gridCols = 1, actions = [], 
                   onChange={(e) => handleInputChange(item.label, e.target.value)}
                   className="border border-gray-300 rounded-md p-2 text-base text-right"
                   pattern="\d{4}-\d{2}-\d{2}"
+                  max={item.label === 'تاريخ العقد' ? localTodayYmd() : undefined}
                 />
                 {errors[item.label] && <span className="text-red-600 text-sm text-right">{errors[item.label]}</span>}
               </div>

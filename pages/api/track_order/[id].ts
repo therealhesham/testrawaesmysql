@@ -8,6 +8,43 @@ import eventBus from 'lib/eventBus';
 import prisma from 'lib/prisma';
 import { getPageTitleArabic } from '../../../lib/pageTitleHelper';
 
+/** تحليل YYYY-MM-DD كتاريخ تقويمي محلي والتحقق أنه ليس بعد اليوم (محلي الخادم). */
+function parseContractDateNotFuture(dateValue: string): { ok: true; date: Date } | { ok: false; error: string } {
+  const dateStr = typeof dateValue === 'string' ? dateValue.trim() : String(dateValue ?? '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!m) {
+    return { ok: false, error: 'صيغة تاريخ العقد غير صالحة' };
+  }
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const dateObj = new Date(y, mo, d);
+  if (dateObj.getFullYear() !== y || dateObj.getMonth() !== mo || dateObj.getDate() !== d) {
+    return { ok: false, error: 'تاريخ العقد غير صالح' };
+  }
+  const t = new Date();
+  const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  if (dateObj.getTime() > today.getTime()) {
+    return { ok: false, error: 'تاريخ العقد يجب أن يكون اليوم أو تاريخاً سابقاً، ولا يُقبل تاريخ مستقبلي' };
+  }
+  return { ok: true, date: dateObj };
+}
+
+function toLocalYmd(d: Date | string | null | undefined): string | null {
+  if (d == null) return null;
+  const x = d instanceof Date ? d : new Date(d);
+  if (isNaN(x.getTime())) return null;
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+
+function isStoredContractDateAfterToday(d: Date | string | null | undefined): boolean {
+  const ymd = toLocalYmd(d);
+  if (!ymd) return false;
+  const t = new Date();
+  const todayYmd = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  return ymd > todayYmd;
+}
+
 // دالة مساعدة لحفظ التعديلات في systemUserLogs
 async function logToSystemLogs(
   userId: number,
@@ -513,6 +550,17 @@ if(order?.bookingstatus ==="new_order"){
 
         switch (field) {
           case 'officeLinkApproval':
+            if (value) {
+              const contractDate = order.arrivals[0]?.DateOfApplication;
+              if (!contractDate) {
+                return res.status(400).json({ error: 'تاريخ العقد مطلوب قبل تأكيد الموافقة' });
+              }
+              if (isStoredContractDateAfterToday(contractDate as Date)) {
+                return res.status(400).json({
+                  error: 'تاريخ العقد يجب أن يكون اليوم أو تاريخاً سابقاً، ولا يُقبل تاريخ مستقبلي',
+                });
+              }
+            }
             const oldOfficeLink = order.arrivals[0]?.ExternalDateLinking ? 'مكتمل' : 'غير مكتمل';
             arrivalUpdate.ExternalDateLinking = value ? new Date() : null;
             updateData.bookingstatus = value ? 'office_link_approved' : 'pending_office_link';
@@ -897,14 +945,11 @@ if(order?.bookingstatus ==="new_order"){
             if (updatedData['تاريخ العقد']) {
               const oldDate = order.arrivals[0]?.DateOfApplication;
               const dateValue = updatedData['تاريخ العقد'];
-              
-              // Validate date before creating Date object
-              const dateObj = new Date(dateValue);
-              if (isNaN(dateObj.getTime())) {
-                return res.status(400).json({ error: 'تاريخ العقد مطلوب' });
+              const parsed = parseContractDateNotFuture(dateValue);
+              if (!parsed.ok) {
+                return res.status(400).json({ error: parsed.error });
               }
-              
-              arrivalUpdate.DateOfApplication = dateObj;
+              arrivalUpdate.DateOfApplication = parsed.date;
               changes.push(`تاريخ العقد: من "${oldDate || 'فارغ'}" إلى "${dateValue}"`);
             }
             
