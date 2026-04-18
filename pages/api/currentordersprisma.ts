@@ -89,7 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           select: {
             id: true,
             bookingstatus: true,
-            arrivals: { select: { InternalmusanedContract: true } },
+            arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
             client: {
               select: {
                 id: true,

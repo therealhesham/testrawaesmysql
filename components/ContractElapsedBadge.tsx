@@ -10,7 +10,8 @@ function parseContractDate(s: string): Date | null {
   return isValid(fallback) ? fallback : null;
 }
 
-function formatElapsedSinceContract(s: string | null | undefined): string | null {
+/** نص المدة المنقضية منذ تاريخ العقد (للعرض في الجداول والتصدير دون مكوّن React). */
+export function formatElapsedSinceContractDate(s: string | null | undefined): string | null {
   if (!s || s.trim() === '' || s === 'N/A') return null;
   const start = parseContractDate(s);
   if (!start) return null;
@@ -34,25 +35,36 @@ function formatElapsedSinceContract(s: string | null | undefined): string | null
 }
 
 /** يُعرض بجانب تاريخ العقد: المدة المنقضية منذ ذلك التاريخ (يُحدَّث كل دقيقة). */
-export default function ContractElapsedBadge({ contractDate }: { contractDate?: string | null }) {
+export default function ContractElapsedBadge({
+  contractDate,
+  compact = false,
+}: {
+  contractDate?: string | null;
+  /** جداول ضيقة: خط أصغر وسماح بالتفاف بدون توسيع الصف أفقيًا */
+  compact?: boolean;
+}) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => setTick((x) => x + 1), 60_000);
     return () => window.clearInterval(id);
   }, [contractDate]);
 
-  const text = useMemo(() => formatElapsedSinceContract(contractDate), [contractDate, tick]);
+  const text = useMemo(() => formatElapsedSinceContractDate(contractDate), [contractDate, tick]);
   if (!text) return null;
 
   return (
     <span
-      className="text-sm text-gray-600 font-normal inline-block"
-      title="المدة المنقضية منذ تاريخ العقد"
+      className={`text-gray-600 font-normal inline-block max-w-full ${
+        compact ? 'text-xs leading-snug sm:text-sm' : 'text-sm'
+      }`}
+      title={`مضى ${text}`}
     >
-      <span className="text-gray-400 mx-1" aria-hidden>
+      <span className={`text-gray-400 ${compact ? 'mx-0.5' : 'mx-1'}`} aria-hidden>
         ·
       </span>
-      <span className="whitespace-nowrap">مضى {text}</span>
+      <span className={compact ? 'break-words' : 'whitespace-nowrap'}>
+        مضى {text}
+      </span>
     </span>
   );
 }

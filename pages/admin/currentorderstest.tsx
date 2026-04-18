@@ -10,6 +10,16 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import Head from 'next/head';
+import ContractElapsedBadge, { formatElapsedSinceContractDate } from 'components/ContractElapsedBadge';
+
+/** تاريخ العقد (من أول سجل وصول) بصيغة YYYY-MM-DD للعرض والعداد */
+function contractDateIsoFromBooking(booking: any): string | null {
+  const raw = booking?.arrivals?.[0]?.DateOfApplication ?? booking?.arrivals?.DateOfApplication;
+  if (raw == null || raw === '') return null;
+  const d = typeof raw === 'string' ? new Date(raw) : raw instanceof Date ? raw : new Date(String(raw));
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().split('T')[0];
+}
 
 interface DashboardProps {
   hasPermission: boolean;
@@ -410,29 +420,33 @@ const exportedData = async ()=>{
       'حالة الطلب',
       'اسم المكتب الخارجي',
       'رقم عقد مساند',
+      'مضى منذ تاريخ العقد',
       'رقم جواز السفر',
       'الجنسية',
       'اسم العاملة',
-      'رقم العاملة',
       'هوية العميل',
       'جوال العميل',
       'اسم العميل',
       'رقم الطلب',
     ];
     const tableRows = Array.isArray(dataToExport)
-      ? dataToExport.map(row => [
-        truncateToTwoWords(translateBookingStatus(row.bookingstatus) || 'غير متوفر'),
-        truncateToTwoWords(row.HomeMaid?.office?.office || 'غير متوفر'),
-        truncateToTwoWords(row.arrivals?.InternalmusanedContract || 'غير متوفر'),
-        truncateToTwoWords(row.HomeMaid?.Passportnumber || 'غير متوفر'),
-        truncateToTwoWords(row.HomeMaid?.office?.Country || 'غير متوفر'),
-        truncateToTwoWords(row.HomeMaid?.Name || 'غير متوفر'),
-        truncateToTwoWords(String(row.HomeMaid?.id || 'غير متوفر')),
-        truncateToTwoWords(row.client?.nationalId || 'غير متوفر'),
-        truncateToTwoWords(row.client?.phonenumber || 'غير متوفر'),
-        truncateToTwoWords(row.client?.fullname || 'غير متوفر'),
-        truncateToTwoWords(String(row.id || 'غير متوفر')),
-      ])
+      ? dataToExport.map((row) => {
+          const elapsed = formatElapsedSinceContractDate(contractDateIsoFromBooking(row));
+          const elapsedCell = elapsed ? `مضى ${elapsed}` : '—';
+          return [
+            truncateToTwoWords(translateBookingStatus(row.bookingstatus) || 'غير متوفر'),
+            truncateToTwoWords(row.HomeMaid?.office?.office || 'غير متوفر'),
+            truncateToTwoWords(row.arrivals?.[0]?.InternalmusanedContract || row.arrivals?.InternalmusanedContract || 'غير متوفر'),
+            elapsedCell,
+            truncateToTwoWords(row.HomeMaid?.Passportnumber || 'غير متوفر'),
+            truncateToTwoWords(row.HomeMaid?.office?.Country || 'غير متوفر'),
+            truncateToTwoWords(row.HomeMaid?.Name || 'غير متوفر'),
+            truncateToTwoWords(row.client?.nationalId || 'غير متوفر'),
+            truncateToTwoWords(row.client?.phonenumber || 'غير متوفر'),
+            truncateToTwoWords(row.client?.fullname || 'غير متوفر'),
+            truncateToTwoWords(String(row.id || 'غير متوفر')),
+          ];
+        })
       : [];
 
     doc.autoTable({
@@ -451,25 +465,11 @@ const exportedData = async ()=>{
         overflow:'hidden',
         halign: 'right',
       },
-      columnStyles: {
-        0: { cellWidth: 'auto', overflow: 'hidden' },
-        1: { cellWidth: 'auto', overflow: 'hidden' },
-        2: { cellWidth: 'auto', overflow: 'hidden' },
-        3: { cellWidth: 'auto', overflow: 'hidden' },
-        4: { cellWidth: 'auto', overflow: 'hidden' },
-        5: { cellWidth: 'auto', overflow: 'hidden' },
-        6: { cellWidth: 'auto', overflow: 'hidden' },
-        7: { cellWidth: 'auto', overflow: 'hidden' },
-        8: { cellWidth: 'auto', overflow: 'hidden' },
-        9: { cellWidth: 'auto', overflow: 'hidden' },
-        10: { cellWidth: 'auto', overflow: 'hidden' },
-11: { cellWidth: 'auto', overflow: 'hidden' },
-
-      }
-      ,
+      columnStyles: Object.fromEntries(
+        Array.from({ length: 11 }, (_, i) => [i, { cellWidth: 'auto' as const, overflow: 'hidden' as const }])
+      ),
       margin: { top: 40, right: 10, left: 10 },
- 
-    didDrawPage: (data: any) => {
+      didDrawPage: (data: any) => {
       const pageHeight = doc.internal.pageSize.height;
       const pageWidth = doc.internal.pageSize.width;
 
@@ -521,20 +521,6 @@ const exportedData = async ()=>{
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('طلبات تحت الإجراء', { properties: { defaultColWidth: 20 } });
 
-    worksheet.columns = [
-      { header: 'رقم الطلب', key: 'id', width: 15 },
-      { header: 'اسم العميل', key: 'clientName', width: 20 },
-      { header: 'جوال العميل', key: 'clientPhone', width: 15 },
-      { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
-      { header: 'رقم العاملة', key: 'maidId', width: 15 },
-      { header: 'اسم العاملة', key: 'maidName', width: 20 },
-      { header: 'الجنسية', key: 'nationality', width: 15 },
-      { header: 'رقم جواز السفر', key: 'passport', width: 15 },
-      { header: 'رقم عقد مساند', key: 'contract', width: 15 },
-      { header: 'اسم المكتب الخارجي', key: 'office', width: 20 },
-      { header: 'حالة الطلب', key: 'status', width: 15 },
-    ];
-
     worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
     worksheet.getRow(1).alignment = { horizontal: 'right' };
     worksheet.columns = [
@@ -542,30 +528,33 @@ const exportedData = async ()=>{
       { header: 'اسم العميل', key: 'clientName', width: 20 },
       { header: 'جوال العميل', key: 'clientPhone', width: 15 },
       { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
-      { header: 'رقم العاملة', key: 'maidId', width: 15 },
       { header: 'اسم العاملة', key: 'maidName', width: 20 },
       { header: 'الجنسية', key: 'nationality', width: 15 },
       { header: 'رقم جواز السفر', key: 'passport', width: 15 },
       { header: 'رقم عقد مساند', key: 'contract', width: 20 },
+      { header: 'مضى منذ تاريخ العقد', key: 'elapsedSinceContract', width: 28 },
       { header: 'اسم المكتب الخارجي', key: 'office', width: 15 },
       { header: 'حالة الطلب', key: 'status', width: 10 }
     ];
 
     Array.isArray(dataToExport) &&
-      dataToExport.forEach(row => {
-        worksheet.addRow({
-          id: row.id || 'غير متوفر',
-          clientName: row.client?.fullname || 'غير متوفر',
-          clientPhone: row.client?.phonenumber || 'غير متوفر',
-          clientNationalId: row.client?.nationalId || 'غير متوفر',
-          maidId: row.HomeMaid?.id || 'غير متوفر',
-          maidName: row.HomeMaid?.Name || 'غير متوفر',
-          nationality: row.HomeMaid?.office?.Country || 'غير متوفر',
-          passport: row.HomeMaid?.Passportnumber || 'غير متوفر',
-          contract: row.arrivals?.InternalmusanedContract || 'غير متوفر',
-          office: row.HomeMaid?.office?.office || 'غير متوفر',
-          status: translateBookingStatus(row.bookingstatus) || 'غير متوفر',
-        }).alignment = { horizontal: 'right' };
+      dataToExport.forEach((row) => {
+        const elapsed = formatElapsedSinceContractDate(contractDateIsoFromBooking(row));
+        worksheet
+          .addRow({
+            id: row.id || 'غير متوفر',
+            clientName: row.client?.fullname || 'غير متوفر',
+            clientPhone: row.client?.phonenumber || 'غير متوفر',
+            clientNationalId: row.client?.nationalId || 'غير متوفر',
+            maidName: row.HomeMaid?.Name || 'غير متوفر',
+            nationality: row.HomeMaid?.office?.Country || 'غير متوفر',
+            passport: row.HomeMaid?.Passportnumber || 'غير متوفر',
+            contract: row.arrivals?.[0]?.InternalmusanedContract || row.arrivals?.InternalmusanedContract || 'غير متوفر',
+            elapsedSinceContract: elapsed ? `مضى ${elapsed}` : '—',
+            office: row.HomeMaid?.office?.office || 'غير متوفر',
+            status: translateBookingStatus(row.bookingstatus) || 'غير متوفر',
+          })
+          .alignment = { horizontal: 'right' };
       });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -688,12 +677,12 @@ const exportedData = async ()=>{
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </Head>
       <section id="dashboard" className={`flex flex-row mx-auto min-h-screen ${Style["tajawal-regular"]}`} dir="rtl">
-        <div className="flex-1 flex flex-col w-full">
-          <main className="p-6 md:p-8">
+        <div className="flex min-w-0 flex-1 flex-col w-full">
+          <main className="min-w-0 p-6 md:p-8">
             <h1 className="text-3xl md:text-4xl font-normal text-black mb-6 text-right">
               طلبات تحت الإجراء
             </h1>
-            <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
+            <div className="min-w-0 rounded-lg border border-gray-300 bg-white p-6 shadow-sm">
               <div className="flex justify-between items-start border-b border-gray-300 mb-6 flex-col sm:flex-row gap-4">
                 <div className="flex gap-10">
                   <a
@@ -810,14 +799,17 @@ const exportedData = async ()=>{
                   إعادة ضبط
                 </button>
               </div>
-              <div className="overflow-x-auto" dir="rtl">
+              <div
+                className="min-w-0 w-full max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+                dir="rtl"
+              >
                 {isLoading ? (
                   <div className="flex justify-center items-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-900"></div>
                     <span className="mr-2 text-teal-900">جاري التحميل...</span>
                   </div>
                 ) : (
-                  <table className="w-full border-collapse min-w-[1000px] text-right">
+                  <table className="w-max min-w-max shrink-0 table-auto border-collapse text-right text-xs sm:text-sm leading-snug">
                     <thead>
                       <tr className="bg-teal-900 ">
                         {[
@@ -825,16 +817,18 @@ const exportedData = async ()=>{
                           'اسم العميل',
                           'جوال العميل',
                           'هوية العميل',
-                          'رقم العاملة',
                           'اسم العاملة',
                           'الجنسية',
                           'رقم جواز السفر',
                           'رقم عقد مساند',
+                          'مضى منذ تاريخ العقد',
                           'اسم المكتب الخارجي',
                           'حالة الطلب',
                         ].map((header) => (
-                          <th key={header} className="text-white text-md font-normal p-4 text-right  whitespace-nowrap
-">
+                          <th
+                            key={header}
+                            className="text-white font-normal px-1.5 py-2 text-right align-middle break-words"
+                          >
                             {header}
                           </th>
                         ))}
@@ -842,23 +836,48 @@ const exportedData = async ()=>{
                     </thead>
                     <tbody>
                       {data.length > 0 ? (
-                        data.map((booking) => (
+                        data.map((booking) => {
+                          const contractIso = contractDateIsoFromBooking(booking);
+                          return (
                           <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                            <td className="p-4 text-md text-gray-800 text-right cursor-pointer" onClick={() => handleOrderClick(booking.id)}>
+                            <td
+                              className="px-1.5 py-2 text-gray-800 text-right cursor-pointer align-top break-words"
+                              onClick={() => handleOrderClick(booking.id)}
+                              title={`طلب #${booking.id}`}
+                            >
                               #{booking.id}
                             </td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.fullname || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.phonenumber || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.client?.nationalId || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.id || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Name || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{booking.HomeMaid?.office?.office || 'غير متوفر'}</td>
-                            <td className="p-4 text-md text-gray-800 text-right">{translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}</td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={booking.client?.fullname || ''}>
+                              {booking.client?.fullname || 'غير متوفر'}
+                            </td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono tabular-nums">
+                              {booking.client?.phonenumber || 'غير متوفر'}
+                            </td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono tabular-nums">
+                              {booking.client?.nationalId || 'غير متوفر'}
+                            </td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={booking.HomeMaid?.Name || ''}>
+                              {booking.HomeMaid?.Name || 'غير متوفر'}
+                            </td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono">{booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}</td>
+                            <td className="px-1.5 py-2 text-gray-700 text-right align-top break-words whitespace-normal">
+                              {contractIso ? (
+                                <ContractElapsedBadge contractDate={contractIso} compact />
+                              ) : (
+                                <span className="text-gray-500">—</span>
+                              )}
+                            </td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={booking.HomeMaid?.office?.office || ''}>
+                              {booking.HomeMaid?.office?.office || 'غير متوفر'}
+                            </td>
+                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={translateBookingStatus(booking.bookingstatus) || ''}>
+                              {translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}
+                            </td>
                           </tr>
-                        ))
+                          );
+                        })
                       ) : (
                         <tr>
                           <td colSpan={11} className="p-8 text-center text-gray-500">
@@ -1043,6 +1062,24 @@ const exportedData = async ()=>{
   );
 }
 
+/** Next.js يتطلب JSON فقط في getStaticProps — تحويل حقول Date من Prisma إلى نصوص */
+function serializeOrdersForStaticProps(orders: any[]) {
+  return orders.map((order) => ({
+    ...order,
+    arrivals: Array.isArray(order.arrivals)
+      ? order.arrivals.map((a: any) => ({
+          ...a,
+          DateOfApplication:
+            a?.DateOfApplication == null
+              ? null
+              : typeof a.DateOfApplication === 'string'
+                ? a.DateOfApplication
+                : new Date(a.DateOfApplication as Date).toISOString(),
+        }))
+      : order.arrivals,
+  }));
+}
+
 // Keep getStaticProps for initial load, fetching only the first page
 export async function getStaticProps() {
   const pageSize = 10; // Define page size for getStaticProps
@@ -1057,7 +1094,7 @@ export async function getStaticProps() {
         id: true,
         bookingstatus: true,
         typeOfContract: true,
-        arrivals: { select: { InternalmusanedContract: true } },
+        arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
         client: {
           select: {
             fullname: true,
@@ -1107,7 +1144,7 @@ export async function getStaticProps() {
         id: true,
         bookingstatus: true,
         typeOfContract: true,
-        arrivals: { select: { InternalmusanedContract: true } },
+        arrivals: { select: { InternalmusanedContract: true, DateOfApplication: true } },
         client: {
           select: {
             fullname: true,
@@ -1226,8 +1263,8 @@ export async function getStaticProps() {
     return {
       props: {
         hasPermission: true,
-        recruitmentData: recruitmentOrders,
-        rentalData: rentalOrders,
+        recruitmentData: serializeOrdersForStaticProps(recruitmentOrders),
+        rentalData: serializeOrdersForStaticProps(rentalOrders),
         initialCounts: {
           totalCount: initialTotalCount,
           totalPages: initialTotalPages,
