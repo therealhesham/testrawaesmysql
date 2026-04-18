@@ -35,14 +35,7 @@ export function formatElapsedSinceContractDate(s: string | null | undefined): st
 }
 
 /** يُعرض بجانب تاريخ العقد: المدة المنقضية منذ ذلك التاريخ (يُحدَّث كل دقيقة). */
-export default function ContractElapsedBadge({
-  contractDate,
-  compact = false,
-}: {
-  contractDate?: string | null;
-  /** جداول ضيقة: خط أصغر وسماح بالتفاف بدون توسيع الصف أفقيًا */
-  compact?: boolean;
-}) {
+export default function ContractElapsedBadge({ contractDate }: { contractDate?: string | null }) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => setTick((x) => x + 1), 60_000);
@@ -54,17 +47,13 @@ export default function ContractElapsedBadge({
 
   return (
     <span
-      className={`text-gray-600 font-normal inline-block max-w-full ${
-        compact ? 'text-xs leading-snug sm:text-sm' : 'text-sm'
-      }`}
-      title={`مضى ${text}`}
+      className="text-sm text-gray-600 font-normal inline-block"
+      title="المدة المنقضية منذ تاريخ العقد"
     >
-      <span className={`text-gray-400 ${compact ? 'mx-0.5' : 'mx-1'}`} aria-hidden>
+      <span className="text-gray-400 mx-1" aria-hidden>
         ·
       </span>
-      <span className={compact ? 'break-words' : 'whitespace-nowrap'}>
-        مضى {text}
-      </span>
+      <span className="whitespace-nowrap">مضى {text}</span>
     </span>
   );
 }

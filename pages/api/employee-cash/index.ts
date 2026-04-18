@@ -239,13 +239,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         });
 
-        // إذا كان سجل مؤقت ولم يكن هناك رقم عهدة، استخدم ID السجل
-        if (isTemporary && !cashNumber) {
-          const updatedCashNumber = employeeCashRecord.id.toString();
+        // إذا لم يُحدد رقم عهدة، استخدم معرف السجل (واحد للسجلات المؤقتة والنهائية)
+        if (!cashNumber || !String(cashNumber).trim()) {
           employeeCashRecord = await prisma.employeeCash.update({
             where: { id: employeeCashRecord.id },
             data: {
-              cashNumber: updatedCashNumber
+              cashNumber: employeeCashRecord.id.toString()
             },
             include: {
               employee: {

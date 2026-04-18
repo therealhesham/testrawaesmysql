@@ -1277,7 +1277,7 @@ export default function ForeignOfficesFinancial() {
                 </div>
 
                 <div>
-                  <label className="block text-md font-bold mb-2 text-gray-700">الفاتورة</label>
+                  <label className="block text-md font-bold mb-2 text-gray-700">الاشعار</label>
                   <input
                     type="file"
                     ref={invoiceFileInputRef}

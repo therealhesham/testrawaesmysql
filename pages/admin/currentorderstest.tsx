@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'; // أضف useCallback
+import { useEffect, useState, useCallback, useRef } from 'react'; // أضف useCallback
 import { useRouter } from 'next/router';
 import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
-import { Search, ChevronDown, X } from 'lucide-react';
+import { Search, ChevronDown, X, Columns } from 'lucide-react';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import { jwtDecode } from 'jwt-decode';
@@ -19,6 +19,51 @@ function contractDateIsoFromBooking(booking: any): string | null {
   const d = typeof raw === 'string' ? new Date(raw) : raw instanceof Date ? raw : new Date(String(raw));
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().split('T')[0];
+}
+
+const ORDER_TABLE_COLUMNS_STORAGE = 'currentorderstest_table_columns_v1';
+
+type OrderTableColKey =
+  | 'orderId'
+  | 'clientName'
+  | 'clientPhone'
+  | 'nationalId'
+  | 'maidId'
+  | 'maidName'
+  | 'country'
+  | 'passport'
+  | 'musanedContract'
+  | 'elapsedContract'
+  | 'externalOffice'
+  | 'status';
+
+const ORDER_TABLE_COLUMNS: { key: OrderTableColKey; label: string; locked?: boolean }[] = [
+  { key: 'orderId', label: 'رقم الطلب', locked: true },
+  { key: 'clientName', label: 'اسم العميل' },
+  { key: 'clientPhone', label: 'جوال العميل' },
+  { key: 'nationalId', label: 'هوية العميل' },
+  { key: 'maidId', label: 'رقم العاملة' },
+  { key: 'maidName', label: 'اسم العاملة' },
+  { key: 'country', label: 'الجنسية' },
+  { key: 'passport', label: 'رقم جواز السفر' },
+  { key: 'musanedContract', label: 'رقم عقد مساند' },
+  { key: 'elapsedContract', label: 'مضى منذ تاريخ العقد' },
+  { key: 'externalOffice', label: 'اسم المكتب الخارجي' },
+  { key: 'status', label: 'حالة الطلب' },
+];
+
+const defaultOrderColumnVisibility = (): Record<OrderTableColKey, boolean> =>
+  Object.fromEntries(ORDER_TABLE_COLUMNS.map((c) => [c.key, true])) as Record<OrderTableColKey, boolean>;
+
+function mergeStoredColumnVisibility(raw: unknown): Record<OrderTableColKey, boolean> {
+  const base = defaultOrderColumnVisibility();
+  if (!raw || typeof raw !== 'object') return base;
+  const o = raw as Record<string, boolean>;
+  for (const col of ORDER_TABLE_COLUMNS) {
+    if (typeof o[col.key] === 'boolean') base[col.key] = o[col.key];
+    if (col.locked) base[col.key] = true;
+  }
+  return base;
 }
 
 interface DashboardProps {
@@ -103,6 +148,11 @@ export default function Dashboard({
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [orderColumnVisibility, setOrderColumnVisibility] =
+    useState<Record<OrderTableColKey, boolean>>(defaultOrderColumnVisibility);
+  const [orderColumnsMenuOpen, setOrderColumnsMenuOpen] = useState(false);
+  const orderColumnsMenuRef = useRef<HTMLDivElement>(null);
+  const skipNextOrderColumnSave = useRef(true);
 
   // دالة ترجمة حالة الطلب من الإنجليزية إلى العربية
   const translateBookingStatus = (status: string) => {
@@ -290,6 +340,40 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ORDER_TABLE_COLUMNS_STORAGE);
+      if (raw) setOrderColumnVisibility(mergeStoredColumnVisibility(JSON.parse(raw)));
+    } catch {
+      /* ignore */
+    }
+    skipNextOrderColumnSave.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (skipNextOrderColumnSave.current) {
+      skipNextOrderColumnSave.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(ORDER_TABLE_COLUMNS_STORAGE, JSON.stringify(orderColumnVisibility));
+    } catch {
+      /* ignore */
+    }
+  }, [orderColumnVisibility]);
+
+  useEffect(() => {
+    if (!orderColumnsMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (!t || !orderColumnsMenuRef.current) return;
+      if (!orderColumnsMenuRef.current.contains(t)) setOrderColumnsMenuOpen(false);
+    };
+    // مرحلة الفقاعة: يُنفَّذ بعد النقر داخل القائمة (مع stopPropagation على القائمة) فلا تُغلق بالخطأ
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [orderColumnsMenuOpen]);
+
+  useEffect(() => {
     const checkAuthAndPermissions = async () => {
       if (typeof window !== 'undefined') {
         setIsCheckingAuth(true);
@@ -424,6 +508,7 @@ const exportedData = async ()=>{
       'رقم جواز السفر',
       'الجنسية',
       'اسم العاملة',
+      'رقم العاملة',
       'هوية العميل',
       'جوال العميل',
       'اسم العميل',
@@ -441,6 +526,7 @@ const exportedData = async ()=>{
             truncateToTwoWords(row.HomeMaid?.Passportnumber || 'غير متوفر'),
             truncateToTwoWords(row.HomeMaid?.office?.Country || 'غير متوفر'),
             truncateToTwoWords(row.HomeMaid?.Name || 'غير متوفر'),
+            truncateToTwoWords(String(row.HomeMaid?.id || 'غير متوفر')),
             truncateToTwoWords(row.client?.nationalId || 'غير متوفر'),
             truncateToTwoWords(row.client?.phonenumber || 'غير متوفر'),
             truncateToTwoWords(row.client?.fullname || 'غير متوفر'),
@@ -466,7 +552,7 @@ const exportedData = async ()=>{
         halign: 'right',
       },
       columnStyles: Object.fromEntries(
-        Array.from({ length: 11 }, (_, i) => [i, { cellWidth: 'auto' as const, overflow: 'hidden' as const }])
+        Array.from({ length: 12 }, (_, i) => [i, { cellWidth: 'auto' as const, overflow: 'hidden' as const }])
       ),
       margin: { top: 40, right: 10, left: 10 },
       didDrawPage: (data: any) => {
@@ -528,6 +614,7 @@ const exportedData = async ()=>{
       { header: 'اسم العميل', key: 'clientName', width: 20 },
       { header: 'جوال العميل', key: 'clientPhone', width: 15 },
       { header: 'هوية العميل', key: 'clientNationalId', width: 15 },
+      { header: 'رقم العاملة', key: 'maidId', width: 15 },
       { header: 'اسم العاملة', key: 'maidName', width: 20 },
       { header: 'الجنسية', key: 'nationality', width: 15 },
       { header: 'رقم جواز السفر', key: 'passport', width: 15 },
@@ -546,6 +633,7 @@ const exportedData = async ()=>{
             clientName: row.client?.fullname || 'غير متوفر',
             clientPhone: row.client?.phonenumber || 'غير متوفر',
             clientNationalId: row.client?.nationalId || 'غير متوفر',
+            maidId: row.HomeMaid?.id || 'غير متوفر',
             maidName: row.HomeMaid?.Name || 'غير متوفر',
             nationality: row.HomeMaid?.office?.Country || 'غير متوفر',
             passport: row.HomeMaid?.Passportnumber || 'غير متوفر',
@@ -655,6 +743,26 @@ const exportedData = async ()=>{
     router.push(`/admin/track_order/${id}`);
   };
 
+  const visibleOrderTableColumns = ORDER_TABLE_COLUMNS.filter((c) => orderColumnVisibility[c.key]);
+  const visibleOrderColumnCount = Math.max(visibleOrderTableColumns.length, 1);
+
+  const toggleOrderTableColumn = (key: OrderTableColKey) => {
+    const def = ORDER_TABLE_COLUMNS.find((c) => c.key === key);
+    if (def?.locked) return;
+    setOrderColumnVisibility((prev) => {
+      if (!prev[key]) return { ...prev, [key]: true };
+      const next = { ...prev, [key]: false };
+      const visible = ORDER_TABLE_COLUMNS.filter((c) => next[c.key]).length;
+      if (visible < 1) return prev;
+      return next;
+    });
+  };
+
+  const resetOrderTableColumns = () => {
+    setOrderColumnVisibility(defaultOrderColumnVisibility());
+    skipNextOrderColumnSave.current = false;
+  };
+
   // Show loading screen while checking authentication
   if (isCheckingAuth) {
     return (
@@ -677,12 +785,12 @@ const exportedData = async ()=>{
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </Head>
       <section id="dashboard" className={`flex flex-row mx-auto min-h-screen ${Style["tajawal-regular"]}`} dir="rtl">
-        <div className="flex min-w-0 flex-1 flex-col w-full">
-          <main className="min-w-0 p-6 md:p-8">
+        <div className="flex-1 flex flex-col w-full">
+          <main className="p-6 md:p-8">
             <h1 className="text-3xl md:text-4xl font-normal text-black mb-6 text-right">
               طلبات تحت الإجراء
             </h1>
-            <div className="min-w-0 rounded-lg border border-gray-300 bg-white p-6 shadow-sm">
+            <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
               <div className="flex justify-between items-start border-b border-gray-300 mb-6 flex-col sm:flex-row gap-4">
                 <div className="flex gap-10">
                   <a
@@ -737,99 +845,161 @@ const exportedData = async ()=>{
                   </button>
                 </div>
               </div>
-              <div className="flex justify-between items-center mb-6 flex-col sm:flex-row gap-4">
-                <div className="flex gap-4">
-                  <div className="flex items-center bg-gray-50 border border-gray-300 rounded gap-4">
-                    <input
-                      type="text"
-                      placeholder="بحث"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="border-none bg-transparent text-md text-gray-500 text-right"
-                    />
-                    <Search className="w-4 h-4 text-gray-500" />
+              <div className="mb-6 flex flex-col gap-3">
+                <div className="flex w-full flex-row flex-nowrap items-center gap-3">
+                  <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto py-1 [scrollbar-width:thin]">
+                    <div className="flex shrink-0 items-center bg-gray-50 border border-gray-300 rounded gap-4">
+                      <input
+                        type="text"
+                        placeholder="بحث"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="min-w-[120px] border-none bg-transparent text-md text-gray-500 text-right"
+                      />
+                      <Search className="w-4 h-4 shrink-0 text-gray-500" />
+                    </div>
+                    <div className="relative shrink-0">
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="flex max-w-[min(100vw-8rem,14rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer text-right"
+                      >
+                        <option value="">حالة الطلب</option>
+                        {statuses.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex shrink-0 flex-nowrap items-center gap-3">
+                      <div className="relative">
+                        <select
+                          value={nationality}
+                          onChange={(e) => setNationality(e.target.value)}
+                          className="flex max-w-[min(100vw-8rem,12rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
+                        >
+                          <option value="">كل الجنسيات</option>
+                          {nationalities.map((nat) => (
+                            <option key={nat?.Country} value={nat?.Country}>
+                              {nat?.Country}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="relative">
+                        <select
+                          value={office}
+                          onChange={(e) => setOffice(e.target.value)}
+                          className="flex max-w-[min(100vw-8rem,12rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
+                        >
+                          <option value="">كل المكاتب</option>
+                          {offices.map((off: any) => (
+                            <option key={off.id} value={off.office}>
+                              {off.office}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                  <div className="relative">
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer  text-right"
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="shrink-0 bg-teal-900 text-white border-none rounded px-4 py-2 text-md font-tajawal cursor-pointer"
+                  >
+                    إعادة ضبط
+                  </button>
+                </div>
+                <div className="flex w-full justify-end">
+                  <div
+                    className="relative"
+                    ref={orderColumnsMenuRef}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOrderColumnsMenuOpen((o) => !o);
+                      }}
+                      className="flex items-center gap-1.5 bg-white border border-gray-300 text-teal-900 rounded px-3 py-2 text-md font-tajawal hover:bg-gray-50"
+                      aria-expanded={orderColumnsMenuOpen}
+                      aria-haspopup="true"
                     >
-                      <option value="">حالة الطلب</option>
-                      {statuses.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="relative">
-                    <select
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
-                    >
-                      <option value="">كل الجنسيات</option>
-                      {nationalities.map((nat) => (
-                        <option key={nat?.Country} value={nat?.Country}>
-                          {nat?.Country}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="relative">
-                    <select
-                      value={office}
-                      onChange={(e) => setOffice(e.target.value)}
-                      className="flex items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer appearance-none text-right"
-                    >
-                      <option value="">كل المكاتب</option>
-                      {offices.map((off: any) => (
-                        <option key={off.id} value={off.office}>
-                          {off.office}
-                        </option>
-                      ))}
-                    </select>
+                      <Columns className="w-4 h-4 shrink-0" aria-hidden />
+                      أعمدة الجدول
+                      <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${orderColumnsMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
+                    </button>
+                    {orderColumnsMenuOpen && (
+                      <div
+                        className="absolute right-0 top-full z-[100] mt-1 min-w-[260px] max-h-[70vh] overflow-y-auto rounded-md border border-gray-200 bg-white py-2 shadow-lg"
+                        dir="rtl"
+                        role="menu"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="px-3 pb-2 border-b border-gray-100 flex justify-between items-center gap-2">
+                          <span className="text-sm font-medium text-gray-800">إظهار الأعمدة</span>
+                          <button
+                            type="button"
+                            className="text-xs text-teal-800 hover:underline shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              resetOrderTableColumns();
+                            }}
+                          >
+                            إظهار الكل
+                          </button>
+                        </div>
+                        <ul className="py-1">
+                          {ORDER_TABLE_COLUMNS.map((col) => (
+                            <li key={col.key} className="px-3 py-1.5 hover:bg-gray-50">
+                              <label
+                                className="flex items-center gap-2 cursor-pointer text-sm text-gray-800"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-gray-300 text-teal-900 focus:ring-teal-800"
+                                  checked={orderColumnVisibility[col.key]}
+                                  disabled={!!col.locked}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleOrderTableColumn(col.key);
+                                  }}
+                                />
+                                <span className="flex-1 text-right">{col.label}</span>
+                                {col.locked && (
+                                  <span className="text-[10px] text-gray-400 shrink-0">ثابت</span>
+                                )}
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={handleResetFilters}
-                  className="bg-teal-900 text-white border-none rounded px-4 py-2 text-md font-tajawal cursor-pointer"
-                >
-                  إعادة ضبط
-                </button>
               </div>
-              <div
-                className="min-w-0 w-full max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]"
-                dir="rtl"
-              >
+              <div className="overflow-x-auto" dir="rtl">
                 {isLoading ? (
                   <div className="flex justify-center items-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-900"></div>
                     <span className="mr-2 text-teal-900">جاري التحميل...</span>
                   </div>
                 ) : (
-                  <table className="w-max min-w-max shrink-0 table-auto border-collapse text-right text-xs sm:text-sm leading-snug">
+                  <table className="w-full border-collapse min-w-[1000px] text-right">
                     <thead>
                       <tr className="bg-teal-900 ">
-                        {[
-                          'رقم الطلب',
-                          'اسم العميل',
-                          'جوال العميل',
-                          'هوية العميل',
-                          'اسم العاملة',
-                          'الجنسية',
-                          'رقم جواز السفر',
-                          'رقم عقد مساند',
-                          'مضى منذ تاريخ العقد',
-                          'اسم المكتب الخارجي',
-                          'حالة الطلب',
-                        ].map((header) => (
+                        {visibleOrderTableColumns.map((col) => (
                           <th
-                            key={header}
-                            className="text-white font-normal px-1.5 py-2 text-right align-middle break-words"
+                            key={col.key}
+                            className="text-white text-md font-normal p-4 text-right whitespace-nowrap"
                           >
-                            {header}
+                            {col.label}
                           </th>
                         ))}
                       </tr>
@@ -839,48 +1009,99 @@ const exportedData = async ()=>{
                         data.map((booking) => {
                           const contractIso = contractDateIsoFromBooking(booking);
                           return (
-                          <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
-                            <td
-                              className="px-1.5 py-2 text-gray-800 text-right cursor-pointer align-top break-words"
-                              onClick={() => handleOrderClick(booking.id)}
-                              title={`طلب #${booking.id}`}
-                            >
-                              #{booking.id}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={booking.client?.fullname || ''}>
-                              {booking.client?.fullname || 'غير متوفر'}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono tabular-nums">
-                              {booking.client?.phonenumber || 'غير متوفر'}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono tabular-nums">
-                              {booking.client?.nationalId || 'غير متوفر'}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={booking.HomeMaid?.Name || ''}>
-                              {booking.HomeMaid?.Name || 'غير متوفر'}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words">{booking.HomeMaid?.office?.Country || 'غير متوفر'}</td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono">{booking.HomeMaid?.Passportnumber || 'غير متوفر'}</td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-all font-mono">{booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}</td>
-                            <td className="px-1.5 py-2 text-gray-700 text-right align-top break-words whitespace-normal">
-                              {contractIso ? (
-                                <ContractElapsedBadge contractDate={contractIso} compact />
-                              ) : (
-                                <span className="text-gray-500">—</span>
-                              )}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={booking.HomeMaid?.office?.office || ''}>
-                              {booking.HomeMaid?.office?.office || 'غير متوفر'}
-                            </td>
-                            <td className="px-1.5 py-2 text-gray-800 text-right align-top break-words" title={translateBookingStatus(booking.bookingstatus) || ''}>
-                              {translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}
-                            </td>
-                          </tr>
+                            <tr key={booking.id} className="bg-gray-50 border-b border-gray-300 last:border-b-0">
+                              {visibleOrderTableColumns.map((col) => {
+                                switch (col.key) {
+                                  case 'orderId':
+                                    return (
+                                      <td
+                                        key={col.key}
+                                        className="p-4 text-md text-gray-800 text-right cursor-pointer"
+                                        onClick={() => handleOrderClick(booking.id)}
+                                      >
+                                        #{booking.id}
+                                      </td>
+                                    );
+                                  case 'clientName':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.client?.fullname || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'clientPhone':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.client?.phonenumber || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'nationalId':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.client?.nationalId || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'maidId':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.HomeMaid?.id || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'maidName':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.HomeMaid?.Name || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'country':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.HomeMaid?.office?.Country || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'passport':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.HomeMaid?.Passportnumber || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'musanedContract':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.arrivals[0]?.InternalmusanedContract || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'elapsedContract':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-700 text-right">
+                                        {contractIso ? (
+                                          <ContractElapsedBadge contractDate={contractIso} />
+                                        ) : (
+                                          <span className="text-gray-500">—</span>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'externalOffice':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {booking.HomeMaid?.office?.office || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  case 'status':
+                                    return (
+                                      <td key={col.key} className="p-4 text-md text-gray-800 text-right">
+                                        {translateBookingStatus(booking.bookingstatus) || 'غير متوفر'}
+                                      </td>
+                                    );
+                                  default:
+                                    return null;
+                                }
+                              })}
+                            </tr>
                           );
                         })
                       ) : (
                         <tr>
-                          <td colSpan={11} className="p-8 text-center text-gray-500">
+                          <td colSpan={visibleOrderColumnCount} className="p-8 text-center text-gray-500">
                             لا توجد بيانات متاحة
                           </td>
                         </tr>

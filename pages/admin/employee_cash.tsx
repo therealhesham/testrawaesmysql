@@ -22,7 +22,6 @@ interface Transaction {
   id: number;
   date: string;
   employeeName: string;
-  cashNumber: string;
   receivedAmount: number;
   expenseAmount: number;
   remainingBalance: number;
@@ -41,7 +40,6 @@ interface EmployeeCashData {
 // Form data interface matching the EmployeeCash model
 export interface EmployeeCashFormData {
   employeeId: number | '';
-  cashNumber: string;
   receivedAmount: number | '';
   expenseAmount: number | '';
   description: string;
@@ -84,10 +82,8 @@ export default function EmployeeCash() {
   // Form state management
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [temporaryRecordId, setTemporaryRecordId] = useState<number | null>(null); // ID السجل المؤقت
   const [formData, setFormData] = useState<EmployeeCashFormData>({
     employeeId: '',
-    cashNumber: '',
     receivedAmount: '',
     expenseAmount: '',
     description: '',
@@ -143,20 +139,6 @@ export default function EmployeeCash() {
     }
   }, []);
 
-  // تنظيف السجلات المؤقتة عند إغلاق المكوّن
-  useEffect(() => {
-    return () => {
-      // حذف السجل المؤقت عند إغلاق المكوّن إذا كان موجوداً
-      if (temporaryRecordId) {
-        fetch(`/api/employee-cash?id=${temporaryRecordId}`, {
-          method: 'DELETE',
-        }).catch(error => {
-          console.error('خطأ في حذف السجل المؤقت عند إغلاق المكوّن:', error);
-        });
-      }
-    };
-  }, [temporaryRecordId]);
-
   const fetchEmployeeCashData = async () => {
     try {
       setLoading(true);
@@ -196,12 +178,10 @@ export default function EmployeeCash() {
     }
   };
 
-  const handleAddCash = async () => {
+  const handleAddCash = () => {
     setIsModalOpen(true);
-    // Reset form data when opening modal
     setFormData({
       employeeId: '',
-      cashNumber: '',
       receivedAmount: '',
       expenseAmount: '',
       description: '',
@@ -211,62 +191,13 @@ export default function EmployeeCash() {
     setFormErrors({});
     setFileUploaded(false);
     setUploadedFileName('');
-
-    // إنشاء سجل مؤقت تلقائياً
-    try {
-      const response = await fetch('/api/employee-cash', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          isTemporary: true,
-          receivedAmount: 0,
-          expenseAmount: 0,
-          remainingBalance: 0,
-          transactionDate: new Date().toISOString().split('T')[0]
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setTemporaryRecordId(result.employeeCashRecord.id);
-        // تحديث رقم العهدة في الـ form إذا تم توليده تلقائياً
-        if (result.employeeCashRecord.cashNumber) {
-          setFormData(prev => ({
-            ...prev,
-            cashNumber: result.employeeCashRecord.cashNumber
-          }));
-          console.log('تم تحديث رقم العهدة:', result.employeeCashRecord.cashNumber);
-        } else {
-          console.log('لم يتم العثور على رقم عهدة في السجل المؤقت');
-        }
-      } else {
-        console.error('فشل في إنشاء السجل المؤقت');
-      }
-    } catch (error) {
-      console.error('خطأ في إنشاء السجل المؤقت:', error);
-    }
   };
 
-  const handleCloseModal = async () => {
-    // حذف السجل المؤقت إذا كان موجوداً
-    if (temporaryRecordId) {
-      try {
-        await fetch(`/api/employee-cash?id=${temporaryRecordId}`, {
-          method: 'DELETE',
-        });
-      } catch (error) {
-        console.error('خطأ في حذف السجل المؤقت:', error);
-      }
-      setTemporaryRecordId(null);
-    }
-
+  const handleCloseModal = () => {
     setIsModalOpen(false);
     // Reset form data when closing modal
     setFormData({
       employeeId: '',
-      cashNumber: '',
       receivedAmount: '',
       expenseAmount: '',
       description: '',
@@ -553,10 +484,6 @@ export default function EmployeeCash() {
       errors.employeeId = 'الموظف مطلوب';
     }
     
-    if (!formData.cashNumber.trim()) {
-      errors.cashNumber = 'رقم العهدة مطلوب';
-    }
-    
     if (formData.receivedAmount === '' || formData.receivedAmount <= 0) {
       errors.receivedAmount = 'المبلغ المستلم مطلوب ويجب أن يكون أكبر من صفر';
     }
@@ -587,20 +514,15 @@ export default function EmployeeCash() {
       // Prepare form data for API
       const submitData: any = {
         employeeId: Number(formData.employeeId),
-        cashNumber: formData.cashNumber,
+        cashNumber: '',
         receivedAmount: Number(formData.receivedAmount),
         expenseAmount: Number(formData.expenseAmount),
         description: formData.description,
         attachment: formData.attachment || '',
         transactionDate: formData.transactionDate,
-        isTemporary: false // تحويل السجل من مؤقت إلى دائم
+        isTemporary: false
       };
 
-      // إذا كان هناك سجل مؤقت، قم بتحديثه بدلاً من إنشاء جديد
-      if (temporaryRecordId) {
-        submitData.id = temporaryRecordId;
-      }
-      
       const response = await fetch('/api/employee-cash', {
         method: 'POST',
         headers: {
@@ -610,13 +532,10 @@ export default function EmployeeCash() {
       });
       
       if (response.ok) {
-        // Success - close modal and refresh data
-        setTemporaryRecordId(null); // مسح ID السجل المؤقت
         setIsModalOpen(false);
         // Reset form data
         setFormData({
           employeeId: '',
-          cashNumber: '',
           receivedAmount: '',
           expenseAmount: '',
           description: '',
@@ -703,7 +622,6 @@ export default function EmployeeCash() {
         '#',
         'التاريخ',
         'اسم الموظف',
-        'رقم العهدة',
         'المبلغ المستلم',
         'المصروف',
         'الرصيد المتبقي'
@@ -716,7 +634,6 @@ export default function EmployeeCash() {
         (index + 1).toString(),
         truncateToTwoWords(transaction.date || 'غير متوفر'),
         truncateToTwoWords(transaction.employeeName || 'غير متوفر'),
-        truncateToTwoWords(transaction.cashNumber || 'غير متوفر'),
         transaction.receivedAmount?.toLocaleString() || '0',
         transaction.expenseAmount?.toLocaleString() || '0',
         transaction.remainingBalance?.toLocaleString() || '0',
@@ -745,7 +662,6 @@ export default function EmployeeCash() {
           3: { cellWidth: 'auto', overflow: 'hidden' },
           4: { cellWidth: 'auto', overflow: 'hidden' },
           5: { cellWidth: 'auto', overflow: 'hidden' },
-          6: { cellWidth: 'auto', overflow: 'hidden' },
         },
         margin: { top: 40, right: 10, left: 10 },
         didDrawPage: (data: any) => {
@@ -825,7 +741,6 @@ export default function EmployeeCash() {
         { header: '#', key: 'index', width: 10 },
         { header: 'التاريخ', key: 'date', width: 15 },
         { header: 'اسم الموظف', key: 'employeeName', width: 20 },
-        { header: 'رقم العهدة', key: 'cashNumber', width: 15 },
         { header: 'المبلغ المستلم', key: 'receivedAmount', width: 15 },
         { header: 'المصروف', key: 'expenseAmount', width: 15 },
         { header: 'الرصيد المتبقي', key: 'remainingBalance', width: 15 },
@@ -842,7 +757,6 @@ export default function EmployeeCash() {
           index: index + 1,
           date: transaction.date || 'غير متوفر',
           employeeName: transaction.employeeName || 'غير متوفر',
-          cashNumber: transaction.cashNumber || 'غير متوفر',
           receivedAmount: transaction.receivedAmount || 0,
           expenseAmount: transaction.expenseAmount || 0,
           remainingBalance: transaction.remainingBalance || 0,
@@ -857,7 +771,6 @@ export default function EmployeeCash() {
           index: '',
           date: '',
           employeeName: '',
-          cashNumber: '',
           receivedAmount: dataToExport.summary.totalReceived || 0,
           expenseAmount: dataToExport.summary.totalExpenses || 0,
           remainingBalance: dataToExport.summary.totalRemaining || 0,
@@ -870,7 +783,6 @@ export default function EmployeeCash() {
           index: '',
           date: '',
           employeeName: 'الإجمالي',
-          cashNumber: '',
           receivedAmount: '',
           expenseAmount: '',
           remainingBalance: '',
@@ -1054,7 +966,6 @@ export default function EmployeeCash() {
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">#</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">التاريخ</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">اسم الموظف</th>
-                  <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">رقم العهدة</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">المبلغ المستلم</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">المصروف</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">الرصيد المتبقي</th>
@@ -1066,7 +977,6 @@ export default function EmployeeCash() {
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">#{index + 1}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.date}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.employeeName}</td>
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.cashNumber}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.receivedAmount.toLocaleString()}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.expenseAmount.toLocaleString()}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.remainingBalance.toLocaleString()}</td>
@@ -1075,7 +985,7 @@ export default function EmployeeCash() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={4} className="p-4 text-right text-md border-b border-gray-300 bg-gray-200 font-bold text-black">الإجمالي</td>
+                  <td colSpan={3} className="p-4 text-right text-md border-b border-gray-300 bg-gray-200 font-bold text-black">الإجمالي</td>
                   <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">{data?.summary.totalReceived.toLocaleString() || '0'}</td>
                   <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">{data?.summary.totalExpenses.toLocaleString() || '0'}</td>
                   <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-200 font-bold">{data?.summary.totalRemaining.toLocaleString() || '0'}</td>
@@ -1125,23 +1035,6 @@ export default function EmployeeCash() {
                   </select>
                   {formErrors.employeeId && (
                     <span className="text-red-500 text-sm mt-1">{formErrors.employeeId}</span>
-                  )}
-                </div>
-                
-                <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">رقم العهدة</label>
-                  <input 
-                    type="text" 
-                    placeholder="ادخل رقم العهدة" 
-                    value={formData.cashNumber}
-                    readOnly
-                    onChange={(e) => handleFormFieldChange('cashNumber', e.target.value)}
-                    className={`w-full readonly bg-gray-50 border rounded px-4 py-2 text-base text-right ${
-                      formErrors.cashNumber ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {formErrors.cashNumber && (
-                    <span className="text-red-500 text-sm mt-1">{formErrors.cashNumber}</span>
                   )}
                 </div>
                 
