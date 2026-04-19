@@ -24,6 +24,8 @@ interface FinancialRecord {
   clientName: string;
   contractNumber: string;
   internalMusanedContract?: string; // InternalmusanedContract من arrivallist
+  /** تاريخ العقد من arrivallist.DateOfApplication (كما في track_order — ربط إدارة المكاتب) */
+  contractDate?: string | null;
   payment: string;
   description: string;
   credit: number;
@@ -66,6 +68,8 @@ export default function ForeignOfficesFinancial() {
     contractNumber: '',
     maidName: '',
     maidPassport: '',
+    /** من arrivallist عبر /api/contracts — للعرض فقط */
+    contractDate: '',
     clientName: '',
     description: '',
     payment: '',
@@ -285,6 +289,7 @@ export default function ForeignOfficesFinancial() {
         'مدين',
         'البيان',
         'رقم العقد',
+        'تاريخ العقد',
         'اسم العميل',
         'اسم المكتب',
         'الدولة',
@@ -298,6 +303,7 @@ export default function ForeignOfficesFinancial() {
         row.debit > 0 ? formatCurrency(row.debit) : '-',
         row.description || 'غير متوفر',
         row.internalMusanedContract || 'غير متوفر',
+        row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
         row.clientName || 'غير متوفر',
         row.office?.office || 'غير متوفر',
         row.office?.Country || 'غير متوفر',
@@ -390,6 +396,7 @@ export default function ForeignOfficesFinancial() {
         { header: 'اسم المكتب', key: 'office', width: 20 },
         { header: 'اسم العميل', key: 'clientName', width: 20 },
         { header: 'رقم العقد', key: 'contractNumber', width: 15 },
+        { header: 'تاريخ العقد', key: 'contractDate', width: 15 },
         { header: 'البيان', key: 'description', width: 20 },
         { header: 'مدين', key: 'debit', width: 15 },
         { header: 'دائن', key: 'credit', width: 15 },
@@ -407,6 +414,7 @@ export default function ForeignOfficesFinancial() {
           office: row.office?.office || 'غير متوفر',
           clientName: row.clientName || 'غير متوفر',
           contractNumber: row.internalMusanedContract || 'غير متوفر',
+          contractDate: row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
           description: row.description || 'غير متوفر',
           debit: row.debit > 0 ? formatCurrency(row.debit) : '-',
           credit: row.credit > 0 ? formatCurrency(row.credit) : '-',
@@ -520,6 +528,7 @@ export default function ForeignOfficesFinancial() {
           contractNumber: '',
           maidName: '',
           maidPassport: '',
+          contractDate: '',
           clientName: '',
           description: '',
           payment: '',
@@ -630,9 +639,6 @@ export default function ForeignOfficesFinancial() {
         setNewRecord((prev) => ({
           ...prev,
           clientName: response.data.client?.fullname || '',
-          date: response.data.createdAt
-            ? new Date(response.data.createdAt).toISOString().split('T')[0]
-            : prev.date,
           maidName:
             response.data.maidName != null && response.data.maidName !== ''
               ? String(response.data.maidName)
@@ -642,6 +648,10 @@ export default function ForeignOfficesFinancial() {
             response.data.passportNumber !== ''
               ? String(response.data.passportNumber)
               : prev.maidPassport,
+          contractDate:
+            response.data.contractDate != null && response.data.contractDate !== ''
+              ? String(response.data.contractDate)
+              : '',
         }));
       } else {
         // إذا لم يتم العثور على بيانات العميل، لا نعرض رسالة خطأ
@@ -666,6 +676,7 @@ export default function ForeignOfficesFinancial() {
         contractNumber: value,
         maidName: '',
         maidPassport: '',
+        contractDate: '',
       }));
       setContractSuggestions([]);
       setShowContractSuggestions(false);
@@ -975,6 +986,7 @@ export default function ForeignOfficesFinancial() {
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">اسم المكتب</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">اسم العميل</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">رقم العقد</th>
+                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">تاريخ العقد</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">البيان</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">مدين</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-md font-normal">دائن</th>
@@ -985,19 +997,19 @@ export default function ForeignOfficesFinancial() {
                   <tbody>
                     {loadingData ? (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-gray-500">
+                        <td colSpan={12} className="p-8 text-center text-gray-500">
                           جاري التحميل...
                         </td>
                       </tr>
                     ) : dataError ? (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-red-500">
+                        <td colSpan={12} className="p-8 text-center text-red-500">
                           {dataError}
                         </td>
                       </tr>
                     ) : financialRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-gray-500">
+                        <td colSpan={12} className="p-8 text-center text-gray-500">
                           لا توجد سجلات
                         </td>
                       </tr>
@@ -1026,6 +1038,9 @@ export default function ForeignOfficesFinancial() {
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.internalMusanedContract || '-'}
+                          </td>
+                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                            {record.contractDate ? getDate(record.contractDate) : '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.description || '-'}
@@ -1200,13 +1215,27 @@ export default function ForeignOfficesFinancial() {
                       className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
                     />
                   </div>
+                  <div>
+                    <label className="block text-md font-bold mb-2 text-gray-700">تاريخ العقد</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        newRecord.contractDate
+                          ? getDate(newRecord.contractDate) || newRecord.contractDate
+                          : ''
+                      }
+                      placeholder="يظهر تلقائياً عند اختيار العقد (من إدارة المكاتب)"
+                      className="w-full p-3 border border-gray-200 rounded-md bg-gray-50 text-md cursor-default"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Form Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <label className="block text-md font-bold mb-2 text-gray-700">تاريخ الطلب</label>
+                  <label className="block text-md font-bold mb-2 text-gray-700">تاريخ الاشعار</label>
                   <input
                     type="date"
                     name="date"
@@ -1343,6 +1372,7 @@ export default function ForeignOfficesFinancial() {
                       contractNumber: '',
                       maidName: '',
                       maidPassport: '',
+                      contractDate: '',
                       clientName: '',
                       description: '',
                       payment: '',

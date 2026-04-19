@@ -24,6 +24,8 @@ interface FinancialRecord {
   month: string;
   clientName: string;
   contractNumber: string;
+  /** من arrivallist.DateOfApplication — تاريخ العقد في track_order */
+  contractDate?: string | null;
   payment: string;
   description: string;
   credit: number;
@@ -293,9 +295,6 @@ function getMonthName(month: number) {
         setForm((prev) => ({
           ...prev,
           clientName: response.data.client?.fullname || '',
-          date: response.data.createdAt
-            ? new Date(response.data.createdAt).toISOString().split('T')[0]
-            : prev.date,
           maidName:
             response.data.maidName != null && response.data.maidName !== ''
               ? String(response.data.maidName)
@@ -321,9 +320,6 @@ function getMonthName(month: number) {
         setEditForm((prev) => ({
           ...prev,
           clientName: response.data.client?.fullname || prev.clientName,
-          date: response.data.createdAt
-            ? new Date(response.data.createdAt).toISOString().split('T')[0]
-            : prev.date,
           maidName:
             response.data.maidName != null && response.data.maidName !== ''
               ? String(response.data.maidName)
@@ -690,6 +686,7 @@ function getMonthName(month: number) {
         'البيان',
         'الدفعة',
         'رقم العقد',
+        'تاريخ العقد',
         'اسم العميل',
         'الشهر',
         'التاريخ',
@@ -703,6 +700,7 @@ function getMonthName(month: number) {
         row.description || '-',
         row.payment || '-',
         row.contractNumber || '-',
+        row.contractDate ? getDate(row.contractDate) || '-' : '-',
         row.clientName || '-',
         new Date(row.date).toLocaleDateString('en-US', { month: 'long' }),
         new Date(row.date).toLocaleDateString('en-US'),
@@ -789,6 +787,7 @@ function getMonthName(month: number) {
         // { header: 'الشهر', key: 'month', width: 15 },
         { header: 'اسم العميل', key: 'clientName', width: 20 },
         { header: 'رقم العقد', key: 'contractNumber', width: 15 },
+        { header: 'تاريخ العقد', key: 'contractDate', width: 15 },
         { header: 'الدفعة', key: 'payment', width: 15 },
         { header: 'البيان', key: 'description', width: 20 },
         { header: 'دائن', key: 'credit', width: 15 },
@@ -806,6 +805,7 @@ function getMonthName(month: number) {
           // month: getMonthName(new Date(row.date).getMonth()),
           clientName: row.clientName || 'غير متوفر',
           contractNumber: row.contractNumber || '-',
+          contractDate: row.contractDate ? getDate(row.contractDate) : 'غير متوفر',
           payment: row.payment || '-',
           description: row.description || '-',
           credit: row.credit > 0 ? row.credit : 0,
@@ -1077,6 +1077,7 @@ function getMonthName(month: number) {
                       {/* <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الشهر</th> */}
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">اسم العميل</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">رقم العقد</th>
+                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">تاريخ العقد</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الدفعة</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">البيان</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">دائن</th>
@@ -1089,19 +1090,19 @@ function getMonthName(month: number) {
                   <tbody>
                     {loadingData ? (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-gray-500">
+                        <td colSpan={12} className="p-8 text-center text-gray-500">
                           جاري التحميل...
                         </td>
                       </tr>
                     ) : dataError ? (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-red-500">
+                        <td colSpan={12} className="p-8 text-center text-red-500">
                           {dataError}
                         </td>
                       </tr>
                     ) : financialRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="p-8 text-center text-gray-500">
+                        <td colSpan={12} className="p-8 text-center text-gray-500">
                           لا توجد سجلات
                         </td>
                       </tr>
@@ -1122,6 +1123,9 @@ function getMonthName(month: number) {
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.contractNumber || '-'}
+                          </td>
+                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                            {record.contractDate ? getDate(record.contractDate) : '-'}
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.payment || '-'}

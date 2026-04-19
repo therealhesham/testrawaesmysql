@@ -72,6 +72,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         createdAt: arrival.Order?.createdAt || arrival.createdAt,
         maidName,
         passportNumber,
+        /** تاريخ العقد — نفس مصدر track_order (arrivallist.DateOfApplication) */
+        contractDate: arrival.DateOfApplication
+          ? (arrival.DateOfApplication as Date).toISOString().split('T')[0]
+          : null,
       };
       
       console.log('Returning contract:', contract);

@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const itemsWithInternalContract = await Promise.all(
         items.map(async (item) => {
           if (!item.contractNumber) {
-            return { ...item, internalMusanedContract: null };
+            return { ...item, internalMusanedContract: null, contractDate: null }
           }
 
           // البحث في arrivallist من خلال InternalmusanedContract
@@ -76,13 +76,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             },
             select: {
               InternalmusanedContract: true,
+              DateOfApplication: true,
             },
-          });
+          })
 
           return {
             ...item,
             internalMusanedContract: arrival?.InternalmusanedContract || null,
-          };
+            /** تاريخ العقد من قسم الربط مع إدارة المكاتب (track_order) — حقل DateOfApplication في arrivallist */
+            contractDate: arrival?.DateOfApplication
+              ? (arrival.DateOfApplication as Date).toISOString()
+              : null,
+          }
         })
       );
 
