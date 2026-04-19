@@ -43,6 +43,37 @@ interface PaginationData {
   totalPages: number;
 }
 
+function pad2(n: number) {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/** تخزين API: yyyy-mm-dd → عرض dd/mm/yyyy */
+function isoDateToDMY(iso: string): string {
+  if (!iso || typeof iso !== 'string') return '';
+  const part = iso.trim().split('T')[0];
+  const m = part.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!y || !mo || !d) return '';
+  return `${pad2(d)}/${pad2(mo)}/${y}`;
+}
+
+/** إدخال المستخدم dd/mm/yyyy → yyyy-mm-dd */
+function parseDMYToIso(dmy: string): string | null {
+  const s = dmy.trim().replace(/\s/g, '');
+  const match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const year = parseInt(match[3], 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const dt = new Date(year, month - 1, day);
+  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return null;
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
 export default function ForeignOfficesFinancial() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
@@ -121,6 +152,9 @@ export default function ForeignOfficesFinancial() {
   const [uploadingInvoice, setUploadingInvoice] = useState(false);
   const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
+  const [addModalDateText, setAddModalDateText] = useState('');
+  const [editModalDateText, setEditModalDateText] = useState('');
+
   const showAlert = (message: string, type: 'success' | 'error' = 'success') => {
     setAlertMessage(message);
     setAlertType(type);
@@ -181,6 +215,12 @@ export default function ForeignOfficesFinancial() {
   useEffect(() => {
     fetchOffices();
   }, []);
+
+  useEffect(() => {
+    if (showAddModal) {
+      setAddModalDateText(isoDateToDMY(newRecord.date));
+    }
+  }, [showAddModal]);
 
   // Close contract suggestions when clicking outside
   useEffect(() => {
@@ -513,9 +553,15 @@ export default function ForeignOfficesFinancial() {
 
   const handleAddRecord = async () => {
     try {
+      const dateIso = parseDMYToIso(addModalDateText.trim());
+      if (!dateIso) {
+        showAlert('أدخل تاريخ الإشعار بالصيغة يوم/شهر/سنة (مثال 19/04/2026)', 'error');
+        return;
+      }
       const defaultOfficeId = filters.officeId || (offices.length > 0 ? offices[0].id.toString() : '1');
       const response = await axios.post('/api/foreign-offices-financial', {
         ...newRecord,
+        date: dateIso,
         officeId: defaultOfficeId,
         credit: parseFloat(newRecord.credit) || 0,
         debit: parseFloat(newRecord.debit) || 0,
@@ -524,6 +570,7 @@ export default function ForeignOfficesFinancial() {
       
       if (response.status === 201) {
         setShowAddModal(false);
+        const todayIso = new Date().toISOString().split('T')[0];
         setNewRecord({
           contractNumber: '',
           maidName: '',
@@ -536,8 +583,9 @@ export default function ForeignOfficesFinancial() {
           debit: '',
           invoice: '',
           balance: '0',
-          date: new Date().toISOString().split('T')[0]
+          date: todayIso
         });
+        setAddModalDateText(isoDateToDMY(todayIso));
         setInvoiceFile(null);
         setInvoiceFileName('');
         setLastBalance(0);
@@ -754,6 +802,9 @@ export default function ForeignOfficesFinancial() {
       }
     }
 
+    const dateIso = record.date
+      ? new Date(record.date).toISOString().split('T')[0]
+      : '';
     setEditForm({
       clientName: record.clientName || '',
       contractNumber: record.contractNumber || '',
@@ -764,8 +815,9 @@ export default function ForeignOfficesFinancial() {
       credit: record.credit.toString(),
       debit: record.debit.toString(),
       balance: record.balance.toString(),
-      date: record.date ? new Date(record.date).toISOString().split('T')[0] : '',
+      date: dateIso,
     });
+    setEditModalDateText(isoDateToDMY(dateIso));
     setShowEditModal(true);
   };
 
@@ -792,9 +844,16 @@ export default function ForeignOfficesFinancial() {
 
   const handleUpdateRecord = async () => {
     if (!editRecord) return;
-    
+
+    const dateIso = parseDMYToIso(editModalDateText.trim());
+    if (!dateIso) {
+      showAlert('أدخل تاريخ الإشعار بالصيغة يوم/شهر/سنة (مثال 19/04/2026)', 'error');
+      return;
+    }
+
     try {
       const response = await axios.put(`/api/foreign-offices-financial/${editRecord.id}`, {
+        date: dateIso,
         clientName: editForm.clientName,
         contractNumber: editForm.contractNumber,
         description: editForm.description,
@@ -1237,10 +1296,16 @@ export default function ForeignOfficesFinancial() {
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">تاريخ الاشعار</label>
                   <input
-                    type="date"
-                    name="date"
-                    value={newRecord.date}
-                    onChange={handleNewRecordChange}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="يوم/شهر/سنة (مثال 19/04/2026)"
+                    value={addModalDateText}
+                    onChange={(e) => setAddModalDateText(e.target.value)}
+                    onBlur={() => {
+                      const iso = parseDMYToIso(addModalDateText.trim());
+                      if (iso) setNewRecord((p) => ({ ...p, date: iso }));
+                    }}
                     className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
                   />
                 </div>
@@ -1368,6 +1433,7 @@ export default function ForeignOfficesFinancial() {
                   type="button"
                   onClick={() => {
                     setShowAddModal(false);
+                    const todayIso = new Date().toISOString().split('T')[0];
                     setNewRecord({
                       contractNumber: '',
                       maidName: '',
@@ -1380,8 +1446,9 @@ export default function ForeignOfficesFinancial() {
                       debit: '',
                       invoice: '',
                       balance: '0',
-                      date: new Date().toISOString().split('T')[0]
+                      date: todayIso
                     });
+                    setAddModalDateText(isoDateToDMY(todayIso));
                     setInvoiceFile(null);
                     setInvoiceFileName('');
                     setLastBalance(0);
@@ -1406,12 +1473,18 @@ export default function ForeignOfficesFinancial() {
               {/* Form Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <label className="block text-md font-bold mb-2 text-gray-700">التاريخ</label>
+                  <label className="block text-md font-bold mb-2 text-gray-700">تاريخ الاشعار</label>
                   <input
-                    type="date"
-                    name="date"
-                    value={editForm.date}
-                    onChange={handleEditFormChange}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="يوم/شهر/سنة (مثال 19/04/2026)"
+                    value={editModalDateText}
+                    onChange={(e) => setEditModalDateText(e.target.value)}
+                    onBlur={() => {
+                      const iso = parseDMYToIso(editModalDateText.trim());
+                      if (iso) setEditForm((p) => ({ ...p, date: iso }));
+                    }}
                     className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
                   />
                 </div>
