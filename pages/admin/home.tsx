@@ -162,22 +162,40 @@ const EndedOrdersTab = ({ orders, count, onItemClick }) => (
   </div>
 );
 
+const getRejectedOrCancelledReason = (order: any) =>
+  order?.reason ??
+  order?.ReasonOfRejection ??
+  order?.ReasonOfCancellation ??
+  order?.rejectedOrders?.[0]?.ReasonOfRejection ??
+  order?.cancelledOrders?.[0]?.ReasonOfCancellation ??
+  'غير محدد';
+
+const isOrderRejectedCard = (order: any) =>
+  order?.orderType === 'مرفوض' ||
+  order?.bookingstatus === 'rejected' ||
+  order?.bookingstatus === 'طلب مرفوض';
+
 const CancelledOrdersTab = ({ rejectedOrders, count, onItemClick }) => (
   <div className="info-card-body flex flex-col gap-4">
-    {rejectedOrders?.slice(0, 3).map((order) => (
+    {rejectedOrders?.slice(0, 3).map((order) => {
+      const rejected = isOrderRejectedCard(order);
+      const reasonLabel = rejected ? 'سبب الرفض' : 'سبب الإلغاء';
+      const titleLabel = rejected ? 'طلب مرفوض' : 'طلب ملغي';
+      const dateLabel = rejected ? 'تاريخ الرفض' : 'تاريخ الإلغاء';
+      return (
       <div key={order.id} className="info-list-item flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50 cursor-pointer" onClick={() => onItemClick(`/admin/track_order/${order.id}`)}>
         <div className="item-details flex flex-col gap-2">
-          <p className="item-title text-sm font-semibold text-gray-900">طلب ملغي #{order.id}</p>
-          <p className="item-subtitle text-xs text-gray-600">سبب الإلغاء: {order?.ReasonOfRejection ?? "غير محدد"}</p>
+          <p className="item-title text-sm font-semibold text-gray-900">{titleLabel} #{order.id}</p>
+          <p className="item-subtitle text-xs text-gray-600">{reasonLabel}: {getRejectedOrCancelledReason(order)}</p>
           <p className="item-meta text-xs text-gray-500 flex items-center gap-2">
-            تاريخ الإلغاء: {order?.updatedAt ? getDate(order.updatedAt) : ""} <FieldTimeOutlined />
+            {dateLabel}: {order?.updatedAt ? getDate(order.updatedAt) : ""} <FieldTimeOutlined />
           </p>
         </div>
         <button className="item-arrow-btn bg-teal-50 text-teal-600 rounded-full p-2 hover:bg-teal-100 transition-colors duration-200">
           <ArrowLeftOutlined className="w-4 h-4" />
         </button>
       </div>
-    ))}
+    );})}
   </div>
 );
 

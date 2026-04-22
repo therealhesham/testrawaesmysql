@@ -1,14 +1,30 @@
-import { PrismaClient } from '@prisma/client';
 import { NextApiRequest, NextApiResponse } from 'next';
 import prisma from '../globalprisma';
+
+/** جنسية العاملة: خارجية من السجل، أو من مكتب الطلب، أو من حقل النسخة النصية */
+function nationalityLabel(worker: {
+  externalHomedmaid?: { nationality?: string | null } | null;
+  Order?: {
+    Nationalitycopy?: string | null;
+    office?: { Country?: string | null } | null;
+  } | null;
+}): string {
+  const ext = worker.externalHomedmaid?.nationality?.trim();
+  if (ext) return ext;
+  const officeCountry = worker.Order?.office?.Country?.trim();
+  if (officeCountry) return officeCountry;
+  const copy = worker.Order?.Nationalitycopy?.trim();
+  if (copy) return copy;
+  return 'غير معروف';
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { period, startDate, endDate } = req.body || {};
 
   try {
-    // تحديد شرط الفلترة الزمنية
     const whereClause = {
-      Reason: { not: null },
+      /** مطابق لصفحة التسكين: من لم يغادر السكن بعد */
+      deparatureHousingDate: null,
       ...(period === 'custom' && startDate && endDate
         ? {
             houseentrydate: {
@@ -19,46 +35,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : {}),
     };
 
-    // جلب البيانات مع العلاقات
     const housedWorkers = await prisma.housedworker.findMany({
       where: whereClause,
       include: {
         Order: {
-          include: {
+          select: {
+            Nationalitycopy: true,
             office: {
               select: { Country: true },
             },
           },
         },
+        externalHomedmaid: {
+          select: { nationality: true },
+        },
       },
     });
 
-    // تجميع البيانات يدويًا
     const nationalityStats: Record<string, Record<string, number>> = {};
     const reasonStats: Record<string, number> = {};
 
     housedWorkers.forEach((worker) => {
-      const reason = worker.Reason;
-      const country = worker.Order?.office?.Country || 'غير معروف';
+      const reason = worker.Reason?.trim() || 'لم يحدد سبب';
+      const country = nationalityLabel(worker);
 
-      // تجميع حسب السبب
-      if (reason) {
-        reasonStats[reason] = (reasonStats[reason] || 0) + 1;
+      reasonStats[reason] = (reasonStats[reason] || 0) + 1;
 
-        // تجميع حسب السبب والجنسية
-        if (!nationalityStats[reason]) {
-          nationalityStats[reason] = {};
-        }
-        nationalityStats[reason][country] = (nationalityStats[reason][country] || 0) + 1;
+      if (!nationalityStats[reason]) {
+        nationalityStats[reason] = {};
       }
+      nationalityStats[reason][country] = (nationalityStats[reason][country] || 0) + 1;
     });
 
-    // حساب العدد الإجمالي
     const total = housedWorkers.length;
 
-    // تحويل nationalityStats إلى نسب مئوية
     const nationalityStatsWithPercentages = Object.keys(nationalityStats).reduce((acc, reason) => {
-      const totalForReason = reasonStats[reason] || 1;
       acc[reason] = Object.keys(nationalityStats[reason]).reduce((countryAcc, country) => {
         const count = nationalityStats[reason][country];
         countryAcc[country] = {

@@ -1443,7 +1443,27 @@ export default function Home() {
     }],
   };
 
-  const reasons = ['نقل كفالة', 'مشكلة مكتب العمل', 'انتظار الترحيل', 'رفض العامل لنقل الكفالة', 'هروب العاملة', 'رفض العامل للسفر'];
+  /** أسباب ثابتة للترتيب؛ أي سبب إضافي من الـ API يُعرض بعدها (مثل المشرفة أو لم يحدد سبب) */
+  const DEFAULT_HOUSING_REASON_ORDER = [
+    'نقل كفالة',
+    'مشكلة مكتب العمل',
+    'انتظار الترحيل',
+    'رفض العامل لنقل الكفالة',
+    'هروب العاملة',
+    'رفض العامل للسفر',
+    'لم يحدد سبب',
+  ];
+  const apiHousingReasons =
+    housedWorkerData?.reasonStats?.map((item: { Reason?: string }) => item.Reason).filter(Boolean) ?? [];
+  const reasons =
+    apiHousingReasons.length > 0
+      ? [
+          ...new Set([
+            ...DEFAULT_HOUSING_REASON_ORDER.filter((r) => apiHousingReasons.includes(r)),
+            ...apiHousingReasons.filter((r) => !DEFAULT_HOUSING_REASON_ORDER.includes(r)),
+          ]),
+        ]
+      : DEFAULT_HOUSING_REASON_ORDER.filter((r) => r !== 'لم يحدد سبب');
 
   const miniDonutData = reasons.map((reason) => {
     const reasonData = housedWorkerData?.nationalityStats?.[reason] || {};
