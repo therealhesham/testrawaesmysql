@@ -72,13 +72,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (bookingstatus) filters.bookingstatus = { equals: bookingstatus };
 
       if (searchTerm) {
+        const termStr = String(searchTerm).trim();
+        const idStr = termStr.replace(/^#/, "").trim();
+        const idNum = /^\d+$/.test(idStr) ? parseInt(idStr, 10) : NaN;
         filters.OR = [
-          { HomeMaid:{Name:{contains:searchTerm}}  },
-          { ClientName: { contains: searchTerm as string } },
-          { client: { fullname: { contains: searchTerm as string } } },
-          { Passportnumber: { contains: searchTerm as string } },
-          { clientphonenumber: { contains: searchTerm as string } },
-          { client: { phonenumber: { contains: searchTerm as string } } },
+          { HomeMaid: { Name: { contains: termStr } } },
+          { ClientName: { contains: termStr } },
+          { client: { fullname: { contains: termStr } } },
+          { Passportnumber: { contains: termStr } },
+          { clientphonenumber: { contains: termStr } },
+          { client: { phonenumber: { contains: termStr } } },
+          ...(Number.isFinite(idNum) && !Number.isNaN(idNum) ? [{ id: idNum }] : []),
         ];
       }
 

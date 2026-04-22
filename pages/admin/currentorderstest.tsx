@@ -442,7 +442,7 @@ const exportedData = async ()=>{
   const query = new URLSearchParams({
     page: "1",
     perPage: "50000",
-    ...(searchTerm && { search: searchTerm }),
+    ...(searchTerm && { searchTerm }),
     ...(nationality && { Nationalitycopy: nationality }),
     ...(office && { officeName: office }),
     ...(contractType && {typeOfContract:contractType}),
