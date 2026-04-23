@@ -102,20 +102,63 @@ export default async function handler(req, res) {
             },
             select: {
               id: true,
+              Order: {
+                select: {
+                  Client: { select: { fullname: true } },
+                  NewOrder: {
+                    take: 1,
+                    orderBy: { id: 'desc' },
+                    select: {
+                      ClientName: true,
+                      client: { select: { fullname: true } },
+                    },
+                  },
+                },
+              },
+              externalHomedmaid: {
+                select: {
+                  Client: { select: { fullname: true } },
+                },
+              },
             },
           },
         },
       });
 
+      const clientLabelFromHousedWorker = (hw: (typeof locations)[number]['housedWorkers'][number]) => {
+        const ext = hw.externalHomedmaid?.Client?.fullname?.trim();
+        if (ext) return ext;
+        const order = hw.Order;
+        if (!order) return null;
+        const linked = (order.Client || [])
+          .map((c) => c.fullname?.trim())
+          .filter((n): n is string => Boolean(n));
+        if (linked.length) return [...new Set(linked)].join('، ');
+        const no = order.NewOrder?.[0];
+        if (no?.client?.fullname?.trim()) return no.client.fullname.trim();
+        if (no?.ClientName?.trim()) return no.ClientName.trim();
+        return null;
+      };
+
       // Map locations to include total capacity and current occupancy
-      const result = locations.map((location) => ({
-        id: location.id,
-        location: location.location,
-        quantity: location.quantity, // Total capacity
-        currentOccupancy: location.housedWorkers.length, // Number of active housed workers
-        supervisor: location.supervisor,
-        supervisorUser: location.supervisorUser,
-      }));
+      const result = locations.map((location) => {
+        const occupantsClientNames = [
+          ...new Set(
+            location.housedWorkers
+              .map((hw) => clientLabelFromHousedWorker(hw))
+              .filter((x): x is string => Boolean(x))
+          ),
+        ];
+        return {
+          id: location.id,
+          location: location.location,
+          quantity: location.quantity, // Total capacity
+          currentOccupancy: location.housedWorkers.length, // Number of active housed workers
+          supervisor: location.supervisor,
+          supervisorUser: location.supervisorUser,
+          occupantsClientNames,
+        };
+      });
 
       // console.log(result)
       res.status(200).json(result);

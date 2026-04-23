@@ -145,10 +145,22 @@ export default async function handler(
         include: {
           Order: {
             include: {
-              NewOrder: true
-            }
+              Client: { select: { fullname: true } },
+              NewOrder: {
+                select: {
+                  typeOfContract: true,
+                  ClientName: true,
+                  client: { select: { fullname: true } },
+                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
+                },
+              },
+            },
           },
-          externalHomedmaid: true,
+          externalHomedmaid: {
+            include: {
+              Client: { select: { fullname: true } },
+            },
+          },
           HousedWorkerNotes: true,
         },
         skip: (pageNumber - 1) * pageSize,

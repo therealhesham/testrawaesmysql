@@ -465,17 +465,24 @@ try {
         include: {
           Order: {
             include: {
+              Client: { select: { fullname: true } },
               weeklyStatusId: true,
               logs: true,
               NewOrder: {
                 select: {
                   arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
                   typeOfContract: true,
+                  ClientName: true,
+                  client: { select: { fullname: true } },
                 },
               },
             },
           },
-          externalHomedmaid: true,
+          externalHomedmaid: {
+            include: {
+              Client: { select: { fullname: true } },
+            },
+          },
           HousedWorkerNotes: true,
         },
         skip: (pageNumber - 1) * pageSize,
