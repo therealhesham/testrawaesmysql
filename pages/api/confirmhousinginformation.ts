@@ -465,14 +465,17 @@ try {
         include: {
           Order: {
             include: {
-              Client: { select: { fullname: true } },
               weeklyStatusId: true,
               logs: true,
+              office: true,
               NewOrder: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
                 select: {
                   arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
                   typeOfContract: true,
                   ClientName: true,
+                  createdAt: true,
                   client: { select: { fullname: true } },
                 },
               },

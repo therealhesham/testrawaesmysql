@@ -42,12 +42,12 @@ interface HousedWorker {
     phone: string;
     Nationalitycopy: string;
     Passportnumber: string;
-    Client?: { fullname: string | null }[];
     NewOrder?: Array<{
       typeOfContract: string;
       ClientName?: string | null;
-      client?: { fullname: string | null };
+      createdAt?: string;
       arrivals?: Array<{ KingdomentryDate?: string; KingdomentryTime?: string; DeliveryDate?: string }>;
+      client?: { fullname?: string | null } | null;
     }>;
   };
   externalHomedmaid?: {
@@ -56,7 +56,7 @@ interface HousedWorker {
     nationality: string | null;
     passportNumber: string | null;
     phone: string | null;
-    Client?: { fullname: string | null };
+    Client?: { fullname?: string | null } | null;
   };
 }
 interface EditWorkerForm {
@@ -79,8 +79,6 @@ interface InHouseLocation {
   location: string;
   quantity: number;
   currentOccupancy?: number;
-  /** أسماء عملاء المقيمات في هذا السكن (بدون تكرار) */
-  occupantsClientNames?: string[];
   supervisor?: number;
   supervisorUser?: {
     id: number;
@@ -98,20 +96,17 @@ function getDate(date:string) {
   return formatted;
 }
 
-/** اسم العميل المرتبط بالعاملة في السكن (داخلية من العقد/العميل، خارجية من سجل العميل) */
-function getHousingClientDisplayName(worker: HousedWorker): string {
-  const ext = worker.externalHomedmaid?.Client?.fullname?.trim();
-  if (ext) return ext;
-  const order = worker.Order;
-  if (!order) return '';
-  const linked = (order.Client || [])
-    .map((c) => c.fullname?.trim())
-    .filter((n): n is string => Boolean(n));
-  if (linked.length) return [...new Set(linked)].join('، ');
-  const no = order.NewOrder?.[0];
-  if (no?.client?.fullname?.trim()) return no.client.fullname.trim();
-  if (no?.ClientName?.trim()) return no.ClientName.trim();
-  return '';
+function getHousingClientName(worker: HousedWorker): string {
+  if (worker.externalHomedmaid) {
+    return worker.externalHomedmaid.Client?.fullname?.trim() || '';
+  }
+  const latestOrder = worker.Order?.NewOrder?.[0];
+  if (!latestOrder) return '';
+  return (
+    latestOrder.client?.fullname?.trim() ||
+    latestOrder.ClientName?.trim() ||
+    ''
+  );
 }
 
 // ActionDropdown Component
@@ -302,6 +297,7 @@ setUserName(decoded.username);
   const [columnVisibility, setColumnVisibility] = useState({
     id: true,
     Name: true,
+    clientName: true,
     phone: true,
     kingdomentryDate:true,
     Nationalitycopy: true,
@@ -1342,6 +1338,7 @@ const exportToPDF = async () => {
     'رقم الجواز',
     'الجنسية',
     'رقم الجوال',
+    'اسم العميل',
     'الاسم',
   ];
 
@@ -1357,15 +1354,12 @@ const exportToPDF = async () => {
         housingStatus === 'housed'
           ? row.Reason
           : row.deparatureReason ?? 'غير متوفر',
-        (() => {
-          const loc = locations.find((loc) => loc.id === row.location_id)?.location ?? 'غير متوفر';
-          const client = getHousingClientDisplayName(row as HousedWorker);
-          return client ? `${loc} — العميل: ${client}` : loc;
-        })(),
+        locations.find((loc) => loc.id === row.location_id)?.location ?? 'غير متوفر',
         row.Order?.Passportnumber ?? 'غير متوفر',
         row.Order?.office?.Country ?? 'غير متوفر',
         row.Order?.phone ?? 'غير متوفر',
-        row.Order?.Name ?? 'غير متوفر',
+        getHousingClientName(row as HousedWorker) || 'غير متوفر',
+        row.Order?.Name ?? row.externalHomedmaid?.name ?? 'غير متوفر',
       ])
     : [];
 
@@ -1399,6 +1393,7 @@ const exportToPDF = async () => {
       8: { cellWidth: 'auto', overflow: 'hidden' },
       9: { cellWidth: 'auto', overflow: 'hidden' },
       10: { cellWidth: 'auto', overflow: 'hidden' },
+      11: { cellWidth: 'auto', overflow: 'hidden' },
     },
     margin: { top: 40, right: 10, left: 10 },
     didParseCell: (data) => {
@@ -1450,6 +1445,7 @@ const exportToPDF = async () => {
 
     worksheet.columns = [
       { header: 'اسم العاملة', key: 'name', width: 15 },
+      { header: 'اسم العميل', key: 'clientName', width: 18 },
       { header: 'رقم الجوال', key: 'phone', width: 15 },
       { header: 'الجنسية', key: 'nationality', width: 15 },
       { header: 'رقم الجواز', key: 'Passportnumber', width: 15 },
@@ -1467,21 +1463,19 @@ const exportToPDF = async () => {
    
     Array.isArray(exportHousedWorkers) &&
       exportHousedWorkers.forEach((row: any) => {
-        const locName = locations.find((loc) => loc.id === row.location_id)?.location || 'غير متوفر';
-        const client = getHousingClientDisplayName(row as HousedWorker);
-        const locationCell = client ? `${locName} — العميل: ${client}` : locName;
         worksheet.addRow({
           name: row.Order?.Name || row.externalHomedmaid?.name || 'غير متوفر',
-          phone: row.Order?.phone || row.externalHomedmaid?.phone || 'غير متوفر',
-          nationality: row.Order?.office?.Country || row.Order?.Nationalitycopy || row.externalHomedmaid?.nationality || 'غير متوفر',
-          Passportnumber: row.Order?.Passportnumber || row.externalHomedmaid?.passportNumber || 'غير متوفر',
-          location: locationCell,
+          clientName: getHousingClientName(row as HousedWorker) || 'غير متوفر',
+          phone: row.Order?.phone || 'غير متوفر',
+          nationality: row.Order?.office?.Country || 'غير متوفر',
+          Passportnumber: row.Order?. Passportnumber || 'غير متوفر',
+          Housing: locations.find((loc) => loc.id === row.location_id)?.location || 'غير متوفر',
           Reason: housingStatus === 'housed' ? row.Reason : row.deparatureReason || 'غير متوفر',
-          houseentrydate: housingStatus === 'housed' ? getDate(row.houseentrydate) : getDate(row.deparatureHousingDate) || 'غير متوفر',
+          Date: housingStatus === 'housed' ? getDate(row.houseentrydate) : getDate(row.deparatureDate) || 'غير متوفر',
           Duration: calculateDuration(row.houseentrydate) || 'غير متوفر',
-          employee: row.employee || 'غير متوفر',
-          isHasEntitlements: row.isHasEntitlements ? 'نعم' : 'لا',
-          Details: row.Details || 'غير متوفر',
+          Employee: row.employee || 'غير متوفر',
+          HasEntitlements: row.isHasEntitlements || 'غير متوفر',
+          Notes: row.Details || 'غير متوفر',
         }).alignment = { horizontal: 'right' };
       });
 
@@ -1658,14 +1652,6 @@ const confirmDeleteNote = async () => {
                       </div>
                     </div>
                     <h3 className="text-md font-normal mb-1">{location.location}</h3>
-                    {location.occupantsClientNames && location.occupantsClientNames.length > 0 ? (
-                      <p
-                        className="text-xs text-gray-600 mb-2 line-clamp-2"
-                        title={location.occupantsClientNames.join('، ')}
-                      >
-                        العملاء: {location.occupantsClientNames.join('، ')}
-                      </p>
-                    ) : null}
                     <p className="text-md font-normal mb-4">{`${location.currentOccupancy || 0} \\ ${location.quantity}`}</p>
                     <div className="flex justify-between text-md mb-2">
                       <span>{status}</span>
@@ -1858,6 +1844,7 @@ const confirmDeleteNote = async () => {
                     <tr className="bg-teal-800 text-white">
                       {columnVisibility.id && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
                       {columnVisibility.Name && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
+                      {columnVisibility.clientName && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">اسم العميل</th>}
                       {columnVisibility.phone && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
                       {columnVisibility.Nationalitycopy && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
                       {columnVisibility.Passportnumber && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
@@ -1906,19 +1893,11 @@ const confirmDeleteNote = async () => {
                             </td>
                           )}
                           {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || worker.externalHomedmaid?.name || ''}</td>}
+                          {columnVisibility.clientName && <td className="py-2 px-2 text-right text-md leading-tight text-center">{getHousingClientName(worker)}</td>}
                           {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || worker.externalHomedmaid?.phone || ''}</td>}
                           {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || worker.externalHomedmaid?.nationality || ''}</td>}
                           {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || worker.externalHomedmaid?.passportNumber || ''}</td>}
-                          {columnVisibility.location && (
-                            <td className="py-2 px-2 text-right text-md">
-                              <div className="leading-tight">
-                                <div>{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</div>
-                                {getHousingClientDisplayName(worker) ? (
-                                  <div className="text-xs text-gray-600 mt-0.5">العميل: {getHousingClientDisplayName(worker)}</div>
-                                ) : null}
-                              </div>
-                            </td>
-                          )}
+                          {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
                           {columnVisibility.kingdomentryDate && <td className="py-2 px-2 text-right text-md">{getDate(worker.Order?.NewOrder?.[0]?.arrivals?.[0]?.KingdomentryDate) || ''}</td>}
                        
                           {columnVisibility.Reason && <td className="py-2 px-2 text-right text-md">
@@ -2010,15 +1989,6 @@ const confirmDeleteNote = async () => {
                                             </div>
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                               <div className="bg-white rounded-lg border border-gray-200 p-3">
-                                                <p className="text-xs text-gray-400 mb-1">السكن</p>
-                                                <p className="text-sm font-medium text-gray-800">
-                                                  {locations.find((loc) => loc.id === item.worker.location_id)?.location || 'غير محدد'}
-                                                </p>
-                                                {getHousingClientDisplayName(item.worker) ? (
-                                                  <p className="text-xs text-gray-600 mt-1">العميل: {getHousingClientDisplayName(item.worker)}</p>
-                                                ) : null}
-                                              </div>
-                                              <div className="bg-white rounded-lg border border-gray-200 p-3">
                                                 <p className="text-xs text-gray-400 mb-1">تاريخ التسكين</p>
                                                 <p className="text-sm font-medium text-gray-800">
                                                   {item.worker.houseentrydate ? new Date(item.worker.houseentrydate).toLocaleDateString('ar-SA') : 'غير محدد'}
@@ -2100,15 +2070,6 @@ const confirmDeleteNote = async () => {
                                             بيانات التسكين
                                           </h4>
                                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                            <div className="bg-white rounded-lg border border-gray-200 p-3">
-                                              <p className="text-xs text-gray-400 mb-1">السكن</p>
-                                              <p className="text-sm font-medium text-gray-800">
-                                                {locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}
-                                              </p>
-                                              {getHousingClientDisplayName(worker) ? (
-                                                <p className="text-xs text-gray-600 mt-1">العميل: {getHousingClientDisplayName(worker)}</p>
-                                              ) : null}
-                                            </div>
                                             <div className="bg-white rounded-lg border border-gray-200 p-3">
                                               <p className="text-xs text-gray-400 mb-1">تاريخ التسكين</p>
                                               <p className="text-sm font-medium text-gray-800">
@@ -2486,7 +2447,9 @@ const confirmDeleteNote = async () => {
                               {
                                 id: '#',
                                 Name: 'الاسم',
+                                clientName: 'اسم العميل',
                                 phone: 'رقم الجوال',
+                                kingdomentryDate: 'دخول المملكة',
                                 Nationalitycopy: 'الجنسية',
                                 Passportnumber: 'رقم الجواز',
                                 location: 'السكن',

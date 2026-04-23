@@ -145,13 +145,16 @@ export default async function handler(
         include: {
           Order: {
             include: {
-              Client: { select: { fullname: true } },
+              office: true,
               NewOrder: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
                 select: {
+                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
                   typeOfContract: true,
                   ClientName: true,
+                  createdAt: true,
                   client: { select: { fullname: true } },
-                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
                 },
               },
             },
