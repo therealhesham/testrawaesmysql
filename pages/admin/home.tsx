@@ -3129,7 +3129,7 @@ export async function getStaticProps(context) {
       offices: 0,
     };
     try {
-      const countsResponse = await fetchDataFromApi(`https://wasltester.rawaes.com/api/datalength`);
+      const countsResponse = await fetchDataFromApi(`https://wasl.rawaes.com/api/datalength`);
       if (countsResponse) {
         counts = countsResponse;
       }
@@ -3161,22 +3161,22 @@ export async function getStaticProps(context) {
       foreignOfficesRes,
       rejectedOrdersRes,
     ] = await Promise.all([
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/neworderlistprisma/1`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/currentordersprisma`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/endedorders/`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/cancelledorders`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/arrivals`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/deparatures`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/housed`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/sessions`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/clients`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/transfersponsorships`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homemaidprisma?page=1`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/bookedlist?page=1`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/availablelist?page=1`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/homeinitialdata/externaloffices`),
-      fetchDataFromApi(`https://wasltester.rawaes.com/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/neworderlistprisma/1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/currentordersprisma`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/endedorders/`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/cancelledorders`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/arrivals`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/deparatures`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/deparaturefromsaudi`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/housed`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/sessions`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/clients`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/transfersponsorships`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homemaidprisma?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/bookedlist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/availablelist?page=1`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/homeinitialdata/externaloffices`),
+      fetchDataFromApi(`https://wasl.rawaes.com/api/rejectedorderslist?searchTerm=&age=&Country=&page=1`),
       // Tasks are now fetched client-side for user-specific data
     ]);
 

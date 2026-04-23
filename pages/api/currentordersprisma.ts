@@ -79,6 +79,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           { HomeMaid: { Name: { contains: termStr } } },
           { ClientName: { contains: termStr } },
           { client: { fullname: { contains: termStr } } },
+          { client: { nationalId: { contains: termStr } } },
+          { nationalId: { contains: termStr } },
           { Passportnumber: { contains: termStr } },
           { clientphonenumber: { contains: termStr } },
           { client: { phonenumber: { contains: termStr } } },
