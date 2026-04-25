@@ -87,7 +87,7 @@ export default function FlightsPage() {
       <div className={`min-h-screen ${Style['tajawal-regular']}`} dir="rtl">
         <main className="max-w-[1600px] mx-auto px-5 py-8">
           <div className="flex items-center gap-3 mb-6">
-            <Link href="/admin/currentorders" title="العودة">
+            <Link href="/admin/currentorderstest" title="العودة">
               <span className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
                 <ArrowRight className="w-6 h-6 text-teal-800" />
               </span>
