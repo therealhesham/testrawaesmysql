@@ -850,7 +850,7 @@ export default function TrackOrder() {
     setTicketExtracting(true);
     try {
       const formData = new FormData();
-      formData.append('Image', file, file.name);
+      formData.append('image', file, file.name);
 
       const res = await fetch(TICKET_EXTRACT_API_URL, {
         method: 'POST',
