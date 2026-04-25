@@ -67,6 +67,19 @@ interface Homemaid {
   office: { Country: string; office: string };
 }
 
+/**
+ * خدمة استخراج بيانات التذكرة (AI). يرسل الطلب multipart بحقل الملف فقط باسم `Image`.
+ */
+const TICKET_EXTRACT_API_URL = 'http://aidoc.rawaes.com/api/extractdatafromtickets';
+
+function omitTicketAutoFields(obj: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...obj };
+  delete out.id;
+  delete out.createdAt;
+  delete out.updatedAt;
+  return out;
+}
+
 /** تاريخ العقد بصيغة YYYY-MM-DD: مسموح اليوم أو تاريخ سابق فقط (التوقيت المحلي للمتصفح). */
 function isOfficeContractMusanedDateAllowed(ymd: string): boolean {
   const s = ymd.trim();
@@ -143,6 +156,14 @@ export default function TrackOrder() {
 
   // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
+
+  const [ticketExtractPromptOpen, setTicketExtractPromptOpen] = useState(false);
+  const [ticketExtracting, setTicketExtracting] = useState(false);
+  const [ticketExtractResultModal, setTicketExtractResultModal] = useState<{
+    open: boolean;
+    tickets_details: Record<string, unknown> | null;
+    saveError: string | null;
+  }>({ open: false, tickets_details: null, saveError: null });
 
   // مودال إضافة تأشيرة (نفس مودال clientdetails)
   const [showVisaModal, setShowVisaModal] = useState(false);
@@ -822,6 +843,85 @@ export default function TrackOrder() {
         }
       },
     });
+  };
+
+  const runTicketDataExtraction = async (file: File) => {
+    setTicketExtractPromptOpen(false);
+    setTicketExtracting(true);
+    try {
+      const formData = new FormData();
+      formData.append('Image', file, file.name);
+
+      const res = await fetch(TICKET_EXTRACT_API_URL, {
+        method: 'POST',
+        body: formData,
+      });
+      let json: Record<string, unknown> = {};
+      try {
+        json = (await res.json()) as Record<string, unknown>;
+      } catch {
+        /* ignore */
+      }
+      if (!res.ok) {
+        const msg =
+          (typeof json.error === 'string' && json.error) ||
+          (typeof json.providerError === 'string' && json.providerError) ||
+          'فشل استخراج بيانات التذكرة';
+        throw new Error(msg);
+      }
+      const rawDetails = json.tickets_details;
+      const details =
+        rawDetails != null && typeof rawDetails === 'object' && !Array.isArray(rawDetails)
+          ? (rawDetails as Record<string, unknown>)
+          : null;
+      if (!details) {
+        throw new Error('استجابة غير صالحة: لا توجد tickets_details');
+      }
+
+      const rawId = Array.isArray(id) ? id[0] : id;
+      if (rawId == null || String(rawId).trim() === '') {
+        throw new Error('معرف الطلب غير متوفر');
+      }
+
+      const cleaned = omitTicketAutoFields(details);
+      const saveRes = await fetch(
+        `/api/track_order/${encodeURIComponent(String(rawId))}/tickets-details`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            tickets_details: cleaned,
+            ticketFile: orderData?.ticketUpload?.files?.trim() || undefined,
+          }),
+        }
+      );
+
+      let saveError: string | null = null;
+      if (!saveRes.ok) {
+        try {
+          const errBody = (await saveRes.json()) as { error?: string };
+          saveError = typeof errBody.error === 'string' ? errBody.error : 'فشل حفظ بيانات التذكرة';
+        } catch {
+          saveError = 'فشل حفظ بيانات التذكرة';
+        }
+      }
+
+      setTicketExtractResultModal({
+        open: true,
+        tickets_details: details,
+        saveError,
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'حدث خطأ أثناء استخراج بيانات التذكرة';
+      setShowErrorModal({
+        isOpen: true,
+        title: 'استخراج التذكرة',
+        message,
+      });
+    } finally {
+      setTicketExtracting(false);
+    }
   };
 
   const handleCancelContract = async () => {
@@ -1993,6 +2093,7 @@ export default function TrackOrder() {
                             const file = e.target.files?.[0];
                             if (file) {
                               setDestinationsPendingFile(file);
+                              setTicketExtractPromptOpen(true);
                               e.target.value = '';
                             }
                           }}
@@ -2963,6 +3064,86 @@ export default function TrackOrder() {
         <RejectedModal />
         <CancelledModal />
         <LoadingModal />
+
+        {ticketExtractPromptOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
+            <div
+              className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">استخراج بيانات التذكرة</h3>
+              <p className="text-gray-700 mb-6 text-right">
+                هل تريد استخراج بيانات التذكرة؟ بعد الاستخراج الناجح سيتم حفظ النتيجة في قاعدة البيانات.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  onClick={() => setTicketExtractPromptOpen(false)}
+                >
+                  لا
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                  onClick={() => {
+                    const f = destinationsPendingFile;
+                    if (f) void runTicketDataExtraction(f);
+                    else setTicketExtractPromptOpen(false);
+                  }}
+                >
+                  نعم
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {ticketExtracting && (
+          <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black bg-opacity-50">
+            <div
+              className="bg-white rounded-lg shadow-lg w-11/12 md:w-1/3 p-8 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-900 mx-auto mb-6" />
+              <p className="text-gray-800 text-lg font-medium">جاري استخراج بيانات التذكرة...</p>
+            </div>
+          </div>
+        )}
+
+        {ticketExtractResultModal.open && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div
+              className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 mb-3 text-right shrink-0">نتيجة الاستخراج</h3>
+              {ticketExtractResultModal.saveError ? (
+                <p className="text-sm text-red-600 mb-2 text-right border border-red-200 bg-red-50 rounded-md p-2">
+                  تم الاستخراج لكن الحفظ فشل: {ticketExtractResultModal.saveError}
+                </p>
+              ) : (
+                <p className="text-sm text-green-700 mb-2 text-right">تم حفظ البيانات في قاعدة البيانات.</p>
+              )}
+              <pre className="flex-1 overflow-auto text-right text-sm bg-gray-50 border border-gray-200 rounded-md p-4 whitespace-pre-wrap break-words" dir="ltr">
+                {ticketExtractResultModal.tickets_details
+                  ? JSON.stringify(ticketExtractResultModal.tickets_details, null, 2)
+                  : 'لا توجد بيانات'}
+              </pre>
+              <div className="flex justify-end mt-4 shrink-0">
+                <button
+                  type="button"
+                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
+                  onClick={() =>
+                    setTicketExtractResultModal({ open: false, tickets_details: null, saveError: null })
+                  }
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {orderData?.clientInfo?.id && (
           <VisaModal
             isHidden={!showVisaModal}

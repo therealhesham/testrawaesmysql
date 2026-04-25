@@ -462,8 +462,27 @@ notes String?
   visaId Int? // Foreign key to visa
   visa visa? @relation(fields: [visaId], references: [id])
   DeliveryDetails DeliveryDetails[]
-}
 
+  tickets_details tickets_details[]
+}
+model tickets_details {
+  id                Int       @id @default(autoincrement())
+  order_id         Int
+  order            neworder? @relation(fields: [order_id], references: [id])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  ticketFile        String?   @db.VarChar(1024)
+reference_id String?   @db.VarChar(1024)
+airlines String?   @db.VarChar(1024)
+flight_number String?   @db.VarChar(1024)
+departure_date DateTime?
+departure_time String?   @db.VarChar(1024)
+arrival_date DateTime?
+arrival_time String?   @db.VarChar(1024)
+departure_airport String?   @db.VarChar(1024)
+arrival_airport String?   @db.VarChar(1024)
+
+} 
 model visa {
 id Int @id @default(autoincrement())
 visaNumber String? @db.VarChar(255)
