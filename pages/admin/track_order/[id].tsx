@@ -70,7 +70,7 @@ interface Homemaid {
 /**
  * خدمة استخراج بيانات التذكرة (AI). يرسل الطلب multipart بحقل الملف فقط باسم `Image`.
  */
-const TICKET_EXTRACT_API_URL = 'http://aidoc.rawaes.com/api/extractdatafromtickets';
+const TICKET_EXTRACT_API_URL = 'aidoc.rawaes.com/api/extractdatafromtickets';
 
 function omitTicketAutoFields(obj: Record<string, unknown>): Record<string, unknown> {
   const out = { ...obj };
