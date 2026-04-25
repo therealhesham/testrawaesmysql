@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FaBars, FaTimes, FaChevronDown, FaChevronUp, FaCog, FaEnvelope, FaBuilding } from 'react-icons/fa';
+import { FaBars, FaTimes, FaChevronDown, FaChevronUp, FaCog, FaEnvelope, FaBuilding, FaPlane } from 'react-icons/fa';
   // HomeIcon, 
   // DocumentTextIcon, 
   // PeopleIcon, 
@@ -77,6 +77,12 @@ const menuItems: MenuItem[] = [
       { id: 522, label: "المغادرة الداخلية", link: "/admin/deparatures" },
       { id: 523, label: "المغادرة الخارجية", link: "/admin/deparaturesfromsaudi" },
     ],
+  },
+  {
+    id: 2005,
+    label: "الرحلات والتذاكر",
+    icon: FaPlane,
+    link: "/admin/flights",
   },
   { id: 6, label: "الاشعارات", icon: BellIcon, link: "/admin/notifications" },
   { id: 7, label: "التقارير", icon: DocumentTextIcon, link: "/admin/reports" },

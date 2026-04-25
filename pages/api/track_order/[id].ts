@@ -212,6 +212,9 @@ console.log(id)
               },
             },
           },
+          tickets_details: {
+            orderBy: { id: 'desc' },
+          },
         },
       });
       
@@ -382,6 +385,27 @@ console.log(id)
         accountingStatementId: (order as any).clientAccountStatement?.[0]?.id ?? null,
         reasonOfRejection: (order as any).rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection ?? null,
         reasonOfCancellation: (order as any).cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation ?? null,
+        ticketsDetails: ((order as any).tickets_details || []).map((t: any) => ({
+          id: t.id,
+          order_id: t.order_id,
+          reference_id: t.reference_id ?? null,
+          airlines: t.airlines ?? null,
+          flight_number: t.flight_number ?? null,
+          departure_date: t.departure_date
+            ? (t.departure_date instanceof Date ? t.departure_date : new Date(t.departure_date)).toISOString().split('T')[0]
+            : null,
+          departure_time: t.departure_time ?? null,
+          arrival_date: t.arrival_date
+            ? (t.arrival_date instanceof Date ? t.arrival_date : new Date(t.arrival_date)).toISOString().split('T')[0]
+            : null,
+          arrival_time: t.arrival_time ?? null,
+          departure_airport: t.departure_airport ?? null,
+          arrival_airport: t.arrival_airport ?? null,
+          ticketFile: t.ticketFile ?? null,
+          createdAt: t.createdAt
+            ? (t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt)).toISOString()
+            : null,
+        })),
       };
 const cookieHeader = req.headers.cookie;
     let cookies: { [key: string]: string } = {};

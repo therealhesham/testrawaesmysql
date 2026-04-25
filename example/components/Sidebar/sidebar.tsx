@@ -11,7 +11,7 @@ import {
   HomeIcon,
   LogoutIcon,
 } from "../../../components/icons";
-import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen, FaExclamationTriangle } from "react-icons/fa";
+import { FaCog, FaChevronDown, FaHotel, FaFirstOrderAlt, FaPersonBooth, FaEnvelope, FaDailymotion, FaBuilding, FaEnvelopeOpen, FaExclamationTriangle, FaPlane } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
 import { useSidebar } from "utils/sidebarcontext";
 import { AlertOutlined, BellFilled, BellOutlined, DollarCircleFilled, FileWordOutlined, MessageOutlined, NotificationFilled, NotificationOutlined } from "@ant-design/icons";
@@ -102,6 +102,12 @@ const menuItems: MenuItem[] = [
       { id: 522, label: "المغادرة الخارجية", link: "/admin/deparaturesfromsaudi" },
 
     ],
+  },
+  {
+    id: 2005,
+    label: "الرحلات والتذاكر",
+    icon: FaPlane,
+    link: "/admin/flights",
   },
   { id: 6, label: "الاشعارات", icon: Bell, link: "/admin/notifications" },
   { id: 7, label: "التقارير", icon: ReportsIcon, link: "/admin/reportsconverted" },

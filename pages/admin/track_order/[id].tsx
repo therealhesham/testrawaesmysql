@@ -8,6 +8,7 @@ saudiEmbassyApproval
 */
 
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import InfoCard from 'components/InfoCard';
 import ContractElapsedBadge from 'components/ContractElapsedBadge';
@@ -24,6 +25,22 @@ import Style from 'styles/Home.module.css';
 import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select'; // Added for autocomplete
 import prisma from 'pages/api/globalprisma';
+
+export interface OrderTicketDetail {
+  id: number;
+  order_id: number;
+  reference_id: string | null;
+  airlines: string | null;
+  flight_number: string | null;
+  departure_date: string | null;
+  departure_time: string | null;
+  arrival_date: string | null;
+  arrival_time: string | null;
+  departure_airport: string | null;
+  arrival_airport: string | null;
+  ticketFile: string | null;
+  createdAt: string | null;
+}
 
 interface OrderData {
   orderId: string;
@@ -58,6 +75,7 @@ interface OrderData {
     cost?: string | number;
   };
   accountingStatementId?: number | null;
+  ticketsDetails?: OrderTicketDetail[];
 }
 
 interface Homemaid {
@@ -850,7 +868,7 @@ export default function TrackOrder() {
     setTicketExtracting(true);
     try {
       const formData = new FormData();
-      formData.append('image', file, file.name);
+      formData.append('Image', file, file.name);
 
       const res = await fetch(TICKET_EXTRACT_API_URL, {
         method: 'POST',
@@ -883,6 +901,28 @@ export default function TrackOrder() {
         throw new Error('معرف الطلب غير متوفر');
       }
 
+      const presignedRes = await fetch(
+        `/api/upload-presigned-url/${encodeURIComponent(String(rawId))}`
+      );
+      if (!presignedRes.ok) {
+        throw new Error('فشل في الحصول على رابط رفع ملف التذكرة');
+      }
+      const { url: uploadUrl, filePath: uploadedTicketPath } = (await presignedRes.json()) as {
+        url: string;
+        filePath: string;
+      };
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'application/pdf',
+          'x-amz-acl': 'public-read',
+        },
+      });
+      if (!uploadRes.ok) {
+        throw new Error('فشل في رفع ملف التذكرة إلى التخزين');
+      }
+
       const cleaned = omitTicketAutoFields(details);
       const saveRes = await fetch(
         `/api/track_order/${encodeURIComponent(String(rawId))}/tickets-details`,
@@ -892,7 +932,7 @@ export default function TrackOrder() {
           credentials: 'include',
           body: JSON.stringify({
             tickets_details: cleaned,
-            ticketFile: orderData?.ticketUpload?.files?.trim() || undefined,
+            ticketFile: uploadedTicketPath,
           }),
         }
       );
@@ -905,6 +945,27 @@ export default function TrackOrder() {
         } catch {
           saveError = 'فشل حفظ بيانات التذكرة';
         }
+      } else {
+        setDestinationsPendingFile(null);
+        const patchRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            section: 'destinations',
+            updatedData: { ticketFile: uploadedTicketPath },
+          }),
+        });
+        if (!patchRes.ok) {
+          try {
+            const errBody = (await patchRes.json()) as { error?: string };
+            saveError =
+              (typeof errBody.error === 'string' ? errBody.error : null) ||
+              'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
+          } catch {
+            saveError = 'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
+          }
+        }
       }
 
       setTicketExtractResultModal({
@@ -912,6 +973,15 @@ export default function TrackOrder() {
         tickets_details: details,
         saveError,
       });
+      try {
+        const refreshRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`);
+        if (refreshRes.ok) {
+          const fresh = await refreshRes.json();
+          setOrderData(fresh);
+        }
+      } catch {
+        /* ignore */
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'حدث خطأ أثناء استخراج بيانات التذكرة';
       setShowErrorModal({
@@ -922,6 +992,40 @@ export default function TrackOrder() {
     } finally {
       setTicketExtracting(false);
     }
+  };
+
+  const handleDeleteTicketRow = (ticketId: number) => {
+    const rawId = Array.isArray(id) ? id[0] : id;
+    if (rawId == null || String(rawId).trim() === '') return;
+    setShowConfirmModal({
+      isOpen: true,
+      title: 'حذف سجل التذكرة',
+      message: 'هل أنت متأكد من حذف سجل التذكرة من قاعدة البيانات؟',
+      onConfirm: async () => {
+        setUpdating(true);
+        try {
+          const qs = new URLSearchParams({ order_id: String(rawId) });
+          const res = await fetch(`/api/tickets-details/${ticketId}?${qs.toString()}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          if (!res.ok) {
+            throw new Error(typeof j.error === 'string' ? j.error : 'فشل الحذف');
+          }
+          await fetchOrderData();
+          setShowAlertModal({ isOpen: true, message: 'تم حذف سجل التذكرة' });
+        } catch (e: unknown) {
+          setShowErrorModal({
+            isOpen: true,
+            title: 'خطأ في الحذف',
+            message: e instanceof Error ? e.message : 'حدث خطأ',
+          });
+        } finally {
+          setUpdating(false);
+        }
+      },
+    });
   };
 
   const handleCancelContract = async () => {
@@ -2998,6 +3102,91 @@ export default function TrackOrder() {
             ]}
             actions={[]}
           />
+
+          <section id="tickets-details" className="mt-12 mb-10" dir="rtl">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-teal-200 pb-2">
+              <h2 className="text-2xl font-bold text-teal-800 text-right">بيانات التذكرة</h2>
+              <Link href="/admin/flights">
+                <span className="text-sm text-teal-700 hover:text-teal-900 hover:underline font-medium cursor-pointer">
+                  جدول كل الرحلات
+                </span>
+              </Link>
+            </div>
+            {!orderData.ticketsDetails?.length ? (
+              <p className="text-gray-600 text-right bg-gray-50 border border-gray-200 rounded-lg p-4">
+                لا توجد سجلات تذاكر مستخرجة لهذا الطلب بعد. يمكنك رفع ملف التذكرة في قسم الوجهات ثم اختيار استخراج البيانات.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm bg-white">
+                <table className="min-w-full text-sm text-right">
+                  <thead className="bg-teal-900 text-white">
+                    <tr>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">مرجع الحجز</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">الخطوط</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">رقم الرحلة</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">مغادرة</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">وقت المغادرة</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">وصول</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">وقت الوصول</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">من</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">إلى</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">ملف</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap">تاريخ الاستخراج</th>
+                      <th className="px-3 py-2 font-semibold whitespace-nowrap w-16">حذف</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderData.ticketsDetails.map((row) => (
+                      <tr key={row.id} className="border-t border-gray-200 hover:bg-teal-50/40">
+                        <td className="px-3 py-2">{row.reference_id ?? '—'}</td>
+                        <td className="px-3 py-2">{row.airlines ?? '—'}</td>
+                        <td className="px-3 py-2">{row.flight_number ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{row.departure_date ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{row.departure_time ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{row.arrival_date ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{row.arrival_time ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{row.departure_airport ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{row.arrival_airport ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          {row.ticketFile ? (
+                            <a
+                              href={row.ticketFile}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-800 hover:underline"
+                            >
+                              عرض
+                            </a>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
+                          {row.createdAt
+                            ? new Date(row.createdAt).toLocaleString('ar-SA', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                              })
+                            : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <button
+                            type="button"
+                            title="حذف السجل"
+                            disabled={updating}
+                            className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => handleDeleteTicketRow(row.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </main>
 
         {/* Feedback when order reaches receipt stage - يظهر فقط عند وجود ملف استلام */}
