@@ -36,6 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         HomemaidId,
         officeName,
         bookingstatus,
+        bookingstatusIn,
       } = req.query;
 
       // دعم التصدير: عند إرسال perPage كبير نستخدمه لجلب كل البيانات (صفحة واحدة كبيرة)
@@ -69,7 +70,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (typeOfContract) filters.typeOfContract = { equals: typeOfContract };
       if (officeName) filters.HomeMaid = { office: { office: { contains: officeName as string } } };
-      if (bookingstatus) filters.bookingstatus = { equals: bookingstatus };
+      if (bookingstatusIn) {
+        const parts = String(bookingstatusIn)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (parts.length) filters.bookingstatus = { in: parts };
+      } else if (bookingstatus) {
+        filters.bookingstatus = { equals: bookingstatus };
+      }
 
       if (searchTerm) {
         const termStr = String(searchTerm).trim();

@@ -1,27 +1,124 @@
-import { CheckCircleFilled, CheckCircleOutlined, CheckOutlined } from '@ant-design/icons';
-import { OfficeBuildingIcon } from '@heroicons/react/outline';
-import { CheckCircle2 } from 'lucide-react';
-import { Briefcase, Link, CheckCircle, DollarSign, Flag, Plane, MapPin, Package } from 'lucide-react';
-import { FaPassport, FaStethoscope } from 'react-icons/fa';
+import { CheckCircle } from 'lucide-react';
 
 interface OrderStepperProps {
   status: string;
   onStepClick?: (stepIndex: number) => void;
 }
 
-const steps = [
-  { label: 'الربط مع إدارة المكاتب', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'موافقة المكتب الخارجي', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'الفحص الطبي', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'موافقة وزارة العمل الأجنبية', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'دفع الوكالة', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'موافقة السفارة', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'إصدار التأشيرة', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'تصريح السفر', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'الوجهات', icon: <CheckCircle className="w-5 h-5" /> },
-  { label: 'الاستلام', icon: <CheckCircle className="w-5 h-5" /> },
-];
+/** عناوين الخطوات الظاهرة في تتبع الطلب — مصدر واحد للـ UI وللبحث في الطلبات الحالية */
+export const ORDER_STEPPER_VISUAL_STEP_LABELS = [
+  'الربط مع إدارة المكاتب',
+  'المكتب الخارجي',
+  'موافقة المكتب الخارجي',
+  'الفحص الطبي',
+  'موافقة وزارة العمل الأجنبية',
+  'دفع الوكالة',
+  'موافقة السفارة',
+  'إصدار التأشيرة',
+  'تصريح السفر',
+  'الوجهات',
+  'الاستلام',
+] as const;
+
+/**
+ * لكل خطوة بصريّة: قيم bookingstatus التي تندرج تحتها في البحث
+ * (متّسقة مع أقسام track_order وليس مع نصوص «في انتظار …» في قاعدة البيانات)
+ */
+export const ORDER_STEPPER_VISUAL_STEP_BOOKING_STATUSES: Record<
+  number,
+  readonly string[]
+> = {
+  0: ['pending_office_link', 'office_link_approved', 'pending'],
+  1: ['pending_external_office'],
+  2: ['external_office_approved'],
+  3: ['pending_medical_check', 'medical_check_passed'],
+  4: ['pending_foreign_labor', 'foreign_labor_approved'],
+  5: ['pending_agency_payment', 'agency_paid'],
+  6: ['pending_embassy', 'embassy_approved'],
+  7: ['pending_visa', 'visa_issued'],
+  8: ['pending_travel_permit', 'travel_permit_issued'],
+  9: ['pending_receipt'],
+  10: ['received'],
+};
+
+const stepIcon = <CheckCircle className="w-5 h-5" />;
+const steps = ORDER_STEPPER_VISUAL_STEP_LABELS.map((label) => ({
+  label,
+  icon: stepIcon,
+}));
+
+/** خريطة bookingStatus → رقم الخطوة النشطة (يجب أن تبقى متطابقة مع منطق الـ stepper) */
+export const ORDER_STEPPER_STATUS_STEP_MAP: Record<string, number> = {
+  // الخطوة 0: الربط مع إدارة المكاتب (البداية)
+  pending_external_office: 0,
+  // الخطوة 2: موافقة المكتب الخارجي (الخطوة 1 معلوماتية)
+  external_office_approved: 2,
+  // الخطوة 3: الفحص الطبي
+  medical_check_passed: 3,
+  pending_medical_check: 3,
+  // الخطوة 4: موافقة وزارة العمل الأجنبية
+  foreign_labor_approved: 4,
+  pending_foreign_labor: 4,
+  // الخطوة 5: دفع الوكالة
+  agency_paid: 5,
+  pending_agency_payment: 5,
+  // الخطوة 6: موافقة السفارة
+  embassy_approved: 6,
+  pending_embassy: 6,
+  // الخطوة 7: إصدار التأشيرة
+  visa_issued: 7,
+  pending_visa: 7,
+  // الخطوة 8: تصريح السفر
+  travel_permit_issued: 8,
+  pending_travel_permit: 8,
+  // الخطوة 9: الوجهات — الخطوة 10: الاستلام
+  received: 10,
+  pending_receipt: 9,
+};
+
+/** ترتيب عرض حالات البحث (نفس مفاتيح ORDER_STEPPER_STATUS_STEP_MAP + ملغي) */
+export const ORDER_STEPPER_BOOKING_STATUS_ORDER = [
+  'pending_external_office',
+  'external_office_approved',
+  'pending_medical_check',
+  'medical_check_passed',
+  'pending_foreign_labor',
+  'foreign_labor_approved',
+  'pending_agency_payment',
+  'agency_paid',
+  'pending_embassy',
+  'embassy_approved',
+  'pending_visa',
+  'visa_issued',
+  'pending_travel_permit',
+  'travel_permit_issued',
+  'pending_receipt',
+  'received',
+  'cancelled',
+] as const;
+
+export type OrderStepperBookingStatusKey = (typeof ORDER_STEPPER_BOOKING_STATUS_ORDER)[number];
+
+/** عناوين عربية لمفاتيح الحالة (للبحث والقوائم — متوافقة مع صفحة الطلبات) */
+export const ORDER_STEPPER_BOOKING_STATUS_LABEL_AR: Record<OrderStepperBookingStatusKey, string> = {
+  pending_external_office: 'في انتظار المكتب الخارجي',
+  external_office_approved: 'موافقة المكتب الخارجي',
+  pending_medical_check: 'في انتظار الفحص الطبي',
+  medical_check_passed: 'تم اجتياز الفحص الطبي',
+  pending_foreign_labor: 'في انتظار وزارة العمل الأجنبية',
+  foreign_labor_approved: 'موافقة وزارة العمل الأجنبية',
+  pending_agency_payment: 'في انتظار دفع الوكالة',
+  agency_paid: 'تم دفع الوكالة',
+  pending_embassy: 'في انتظار السفارة السعودية',
+  embassy_approved: 'موافقة السفارة السعودية',
+  pending_visa: 'في انتظار إصدار التأشيرة',
+  visa_issued: 'تم إصدار التأشيرة',
+  pending_travel_permit: 'في انتظار تصريح السفر',
+  travel_permit_issued: 'تم إصدار تصريح السفر',
+  pending_receipt: 'في انتظار الاستلام',
+  received: 'تم الاستلام',
+  cancelled: 'ملغي',
+};
 
 // دالة لحساب الخطوة النشطة بناءً على bookingStatus
 function calculateActiveStep(status: string | null | undefined): number {
@@ -29,47 +126,7 @@ function calculateActiveStep(status: string | null | undefined): number {
     return status === 'cancelled' ? -1 : 0;
   }
 
-  // خريطة الحالات إلى الخطوات النشطة
-  // الخطوة النشطة هي الخطوة التي يجب أن يكون المستخدم فيها حالياً
-  const statusStepMap: { [key: string]: number } = {
-    // الخطوة 0: الربط مع إدارة المكاتب (البداية)
-    pending_external_office: 0,
-    
-    // الخطوة 2: موافقة المكتب الخارجي
-    // (الخطوة 1 هي "المكتب الخارجي" - خطوة معلوماتية فقط)
-    external_office_approved: 2,
-    
-    // الخطوة 3: الفحص الطبي
-    medical_check_passed: 3,
-    pending_medical_check: 3, // الخطوة الحالية هي الفحص الطبي
-    
-    // الخطوة 4: موافقة وزارة العمل الأجنبية
-    foreign_labor_approved: 4,
-    pending_foreign_labor: 4, // الخطوة الحالية هي موافقة العمل الأجنبية
-    
-    // الخطوة 5: دفع الوكالة
-    agency_paid: 5,
-    pending_agency_payment: 5, // الخطوة الحالية هي دفع الوكالة
-    
-    // الخطوة 6: موافقة السفارة
-    embassy_approved: 6,
-    pending_embassy: 6, // الخطوة الحالية هي موافقة السفارة
-    
-    // الخطوة 7: إصدار التأشيرة
-    visa_issued: 7,
-    pending_visa: 7, // الخطوة الحالية هي إصدار التأشيرة
-    
-    // الخطوة 8: تصريح السفر
-    travel_permit_issued: 8,
-    pending_travel_permit: 8, // الخطوة الحالية هي تصريح السفر
-    
-    // الخطوة 9: الوجهات
-    // الخطوة 10: الاستلام
-    received: 10,
-    pending_receipt: 9, // الخطوة الحالية هي الوجهات (9) قبل الاستلام (10)
-  };
-
-  return statusStepMap[status] ?? 0;
+  return ORDER_STEPPER_STATUS_STEP_MAP[status] ?? 0;
 }
 
 export default function OrderStepper({ status, onStepClick }: OrderStepperProps) {

@@ -11,6 +11,26 @@ import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import Head from 'next/head';
 import ContractElapsedBadge, { formatElapsedSinceContractDate } from 'components/ContractElapsedBadge';
+import {
+  ORDER_STEPPER_VISUAL_STEP_LABELS,
+  ORDER_STEPPER_VISUAL_STEP_BOOKING_STATUSES,
+} from 'components/OrderStepper';
+
+/** خيارات «حالة الطلب» — نفس عناوين خطوات الـ stepper في تتبع الطلب (بدون «في انتظار …») */
+const STATUS_FILTER_AR_OPTIONS = [...ORDER_STEPPER_VISUAL_STEP_LABELS];
+
+function bookingStatusQueryFromStepLabel(
+  label: string
+): { bookingstatus?: string; bookingstatusIn?: string } {
+  const idx = ORDER_STEPPER_VISUAL_STEP_LABELS.indexOf(
+    label as (typeof ORDER_STEPPER_VISUAL_STEP_LABELS)[number]
+  );
+  if (idx < 0) return {};
+  const statuses = ORDER_STEPPER_VISUAL_STEP_BOOKING_STATUSES[idx];
+  if (!statuses?.length) return {};
+  if (statuses.length === 1) return { bookingstatus: statuses[0] };
+  return { bookingstatusIn: [...statuses].join(',') };
+}
 
 /** تاريخ العقد (من أول سجل وصول) بصيغة YYYY-MM-DD للعرض والعداد */
 function contractDateIsoFromBooking(booking: any): string | null {
@@ -112,32 +132,6 @@ export default function Dashboard({
   const [status, setStatus] = useState('');
   const [offices, setOffices] = useState(initialOffices || []);
   const [nationalities, setNationalities] = useState(initialNationalities || []);
-  const [statuses] = useState([
-    'قيد الانتظار',
-    'موافقة الربط مع إدارة المكاتب',
-    'في انتظار الربط مع إدارة المكاتب',
-    'موافقة المكتب الخارجي',
-    'في انتظار المكتب الخارجي',
-    'تم اجتياز الفحص الطبي',
-    'في انتظار الفحص الطبي',
-    'موافقة وزارة العمل الأجنبية',
-    'في انتظار وزارة العمل الأجنبية',
-    'تم دفع الوكالة',
-    'في انتظار دفع الوكالة',
-    'موافقة السفارة السعودية',
-    'في انتظار السفارة السعودية',
-    'تم إصدار التأشيرة',
-    'في انتظار إصدار التأشيرة',
-    'تم إصدار تصريح السفر',
-    'في انتظار تصريح السفر',
-    'تم الاستلام',
-    'في انتظار الاستلام',
-    'ملغي',
-    'مرفوض',
-    'تم التسليم',
-    'طلب جديد',
-    'طلبات جديدة'
-  ]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(!hasPermission);
   const [isLoading, setIsLoading] = useState(false);
@@ -186,38 +180,6 @@ export default function Dashboard({
     return statusTranslations[status] || status;
   };
 
-  // دالة ترجمة حالة الطلب من العربية إلى الإنجليزية (للبحث)
-  const translateBookingStatusToEnglish = (arabicStatus: string) => {
-    const reverseTranslations: { [key: string]: string } = {
-      'قيد الانتظار': 'pending',
-      'موافقة الربط مع إدارة المكاتب': 'office_link_approved',
-      'في انتظار الربط مع إدارة المكاتب': 'pending_office_link',
-      'موافقة المكتب الخارجي': 'external_office_approved',
-      'في انتظار المكتب الخارجي': 'pending_external_office',
-      'تم اجتياز الفحص الطبي': 'medical_check_passed',
-      'في انتظار الفحص الطبي': 'pending_medical_check',
-      'موافقة وزارة العمل الأجنبية': 'foreign_labor_approved',
-      'في انتظار وزارة العمل الأجنبية': 'pending_foreign_labor',
-      'تم دفع الوكالة': 'agency_paid',
-      'في انتظار دفع الوكالة': 'pending_agency_payment',
-      'موافقة السفارة السعودية': 'embassy_approved',
-      'في انتظار السفارة السعودية': 'pending_embassy',
-      'تم إصدار التأشيرة': 'visa_issued',
-      'في انتظار إصدار التأشيرة': 'pending_visa',
-      'تم إصدار تصريح السفر': 'travel_permit_issued',
-      'في انتظار تصريح السفر': 'pending_travel_permit',
-      'تم الاستلام': 'received',
-      'في انتظار الاستلام': 'pending_receipt',
-      'ملغي': 'cancelled',
-      'مرفوض': 'rejected',
-      'تم التسليم': 'delivered',
-      'طلب جديد': 'new_order',
-      'طلبات جديدة': 'new_orders'
-    };
-
-    return reverseTranslations[arabicStatus] || arabicStatus;
-  };
-
   const pageSize = 10;
 
   // Fetch data with filters
@@ -235,7 +197,7 @@ export default function Dashboard({
         ...(searchTerm && { searchTerm }),
         ...(nationality && { Nationalitycopy: nationality }),
         ...(office && { officeName: office }),
-        ...(status && { bookingstatus: translateBookingStatusToEnglish(status) }),
+        ...(status && bookingStatusQueryFromStepLabel(status)),
       });
 
       const res = await fetch(`/api/currentordersprisma?${queryParams.toString()}`);
@@ -446,7 +408,7 @@ const exportedData = async ()=>{
     ...(nationality && { Nationalitycopy: nationality }),
     ...(office && { officeName: office }),
     ...(contractType && {typeOfContract:contractType}),
-    ...(status && { bookingstatus: translateBookingStatusToEnglish(status) }),
+    ...(status && bookingStatusQueryFromStepLabel(status)),
   }).toString();
   const res = await fetch(`/api/currentordersprisma?${query}`);
   if (!res.ok) throw new Error("Failed to fetch data");
@@ -865,7 +827,7 @@ const exportedData = async ()=>{
                         className="flex max-w-[min(100vw-8rem,14rem)] items-center bg-gray-50 border border-gray-300 rounded gap-10 text-md text-gray-500 cursor-pointer text-right"
                       >
                         <option value="">حالة الطلب</option>
-                        {statuses.map((s) => (
+                        {STATUS_FILTER_AR_OPTIONS.map((s) => (
                           <option key={s} value={s}>
                             {s}
                           </option>
