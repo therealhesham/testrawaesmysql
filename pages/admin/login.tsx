@@ -72,8 +72,8 @@ export default function Login() {
             // Validate ID field
             if (!values.id) {
               errors.id = "ID is required";
-            } else if (values.id.length < 3) {
-              errors.id = "ID must be at least 3 characters";
+            } else if (values.id.length < 1) {
+              errors.id = "ID must be at least 1 characters";
             }
             
             // Validate Password field

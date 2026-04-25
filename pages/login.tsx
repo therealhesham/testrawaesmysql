@@ -39,7 +39,7 @@ export default function Login() {
         <div className="absolute inset-0 bg-gray-500/50 flex justify-center items-center z-50 backdrop-blur-[2px]">
           <div className="bg-white p-6 rounded-xl shadow-xl flex items-center gap-4">
             <svg
-              className="animate-spin h-10 w-10 text-blue-500 flex-shrink-0"
+              className="animate-spin h-10 w-10 text-teal-700 flex-shrink-0"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -48,7 +48,7 @@ export default function Login() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            <span className="text-lg font-semibold text-blue-600">Logging in...</span>
+            <span className="text-lg font-semibold text-teal-800">Logging in...</span>
           </div>
         </div>
       )}
@@ -66,9 +66,28 @@ export default function Login() {
         {/* Formik Form */}
         <Formik
           initialValues={{ id: "", password: "" }}
+          validate={(values) => {
+            const errors = {};
+            
+            // Validate ID field
+            if (!values.id) {
+              errors.id = "ID is required";
+            } else if (values.id.length < 1) {
+              errors.id = "ID must be at least 1 characters";
+            }
+            
+            // Validate Password field
+            // if (!values.password) {
+            //   errors.password = "Password is required";
+            // } else if (values.password.length < 6) {
+            //   errors.password = "Password must be at least 6 characters";
+            // }
+            
+            return errors;
+          }}
           onSubmit={handleSubmit}
         >
-          {() => (
+          {({ errors, touched }) => (
             <Form>
               <div className="mb-4">
                 <label
@@ -81,9 +100,16 @@ export default function Login() {
                   type="text"
                   id="id"
                   name="id"
-                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`mt-2 p-3 w-full border rounded-lg focus:ring-2 focus:ring-teal-900 ${
+                    errors.id && touched.id
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Enter your id"
                 />
+                {errors.id && touched.id && (
+                  <div className="text-xs text-red-500 mt-1">{errors.id}</div>
+                )}
               </div>
               <div className="mb-6">
                 <label
@@ -96,18 +122,27 @@ export default function Login() {
                   type="password"
                   id="password"
                   name="password"
-                  className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`mt-2 p-3 w-full border rounded-lg focus:ring-2 focus:ring-teal-900 ${
+                    errors.password && touched.password
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300"
+                  }`}
                   placeholder="Enter your password"
                 />
+                {errors.password && touched.password && (
+                  <div className="text-xs text-red-500 mt-1">{errors.password}</div>
+                )}
               </div>
               {error && (
-                <div className="text-xs text-red-500 mb-4">{error}</div>
+                <div className="text-sm text-red-500 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  {error}
+                </div>
               )}
               {/* Display error */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 bg-teal-900 text-white font-semibold rounded-lg hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-900 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -125,24 +160,6 @@ export default function Login() {
           )}
         </Formik>
 
-        <div className="mt-6 text-center">
-          <a
-            href="/forgot-password"
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Forgot Password?
-          </a>
-        </div>
-
-        <div className="mt-4 text-center">
-          <span className="text-sm text-gray-600">Don't have an account?</span>
-          <a
-            href="/admin/signup"
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Sign Up
-          </a>
-        </div>
       </div>
     </div>
   );
