@@ -98,6 +98,16 @@ function omitTicketAutoFields(obj: Record<string, unknown>): Record<string, unkn
   return out;
 }
 
+/** تحويل قيمة الـ API إلى نص لحقل الإدخال (بدون عرض createdAt/updatedAt). */
+function ticketExtractFieldToInput(v: unknown): string {
+  if (v == null || v === '') return '';
+  const s = String(v).trim();
+  if (s === '' || s.toLowerCase() === 'null') return '';
+  const iso = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+  if (iso) return iso[1];
+  return s;
+}
+
 /** تاريخ العقد بصيغة YYYY-MM-DD: مسموح اليوم أو تاريخ سابق فقط (التوقيت المحلي للمتصفح). */
 function isOfficeContractMusanedDateAllowed(ymd: string): boolean {
   const s = ymd.trim();
@@ -177,11 +187,36 @@ export default function TrackOrder() {
 
   const [ticketExtractPromptOpen, setTicketExtractPromptOpen] = useState(false);
   const [ticketExtracting, setTicketExtracting] = useState(false);
-  const [ticketExtractResultModal, setTicketExtractResultModal] = useState<{
+  /** بعد الاستخراج: مراجعة وتعديل الحقول ثم «حفظ» لرفع الملف وتخزين السجل */
+  const [ticketExtractEditModal, setTicketExtractEditModal] = useState<{
     open: boolean;
-    tickets_details: Record<string, unknown> | null;
+    file: File | null;
+    reference_id: string;
+    airlines: string;
+    flight_number: string;
+    departure_date: string;
+    departure_time: string;
+    arrival_date: string;
+    arrival_time: string;
+    departure_airport: string;
+    arrival_airport: string;
+    saving: boolean;
     saveError: string | null;
-  }>({ open: false, tickets_details: null, saveError: null });
+  }>({
+    open: false,
+    file: null,
+    reference_id: '',
+    airlines: '',
+    flight_number: '',
+    departure_date: '',
+    departure_time: '',
+    arrival_date: '',
+    arrival_time: '',
+    departure_airport: '',
+    arrival_airport: '',
+    saving: false,
+    saveError: null,
+  });
 
   // مودال إضافة تأشيرة (نفس مودال clientdetails)
   const [showVisaModal, setShowVisaModal] = useState(false);
@@ -868,7 +903,7 @@ export default function TrackOrder() {
     setTicketExtracting(true);
     try {
       const formData = new FormData();
-      formData.append('image', file, file.name);
+      formData.append('Image', file, file.name);
 
       const res = await fetch(TICKET_EXTRACT_API_URL, {
         method: 'POST',
@@ -896,11 +931,88 @@ export default function TrackOrder() {
         throw new Error('استجابة غير صالحة: لا توجد tickets_details');
       }
 
-      const rawId = Array.isArray(id) ? id[0] : id;
-      if (rawId == null || String(rawId).trim() === '') {
-        throw new Error('معرف الطلب غير متوفر');
-      }
+      setTicketExtractEditModal({
+        open: true,
+        file,
+        reference_id: ticketExtractFieldToInput(details.reference_id),
+        airlines: ticketExtractFieldToInput(details.airlines),
+        flight_number: ticketExtractFieldToInput(details.flight_number),
+        departure_date: ticketExtractFieldToInput(details.departure_date),
+        departure_time: ticketExtractFieldToInput(details.departure_time),
+        arrival_date: ticketExtractFieldToInput(details.arrival_date),
+        arrival_time: ticketExtractFieldToInput(details.arrival_time),
+        departure_airport: ticketExtractFieldToInput(details.departure_airport),
+        arrival_airport: ticketExtractFieldToInput(details.arrival_airport),
+        saving: false,
+        saveError: null,
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'حدث خطأ أثناء استخراج بيانات التذكرة';
+      setShowErrorModal({
+        isOpen: true,
+        title: 'استخراج التذكرة',
+        message,
+      });
+    } finally {
+      setTicketExtracting(false);
+    }
+  };
 
+  const closeTicketExtractEditModal = () => {
+    setTicketExtractEditModal({
+      open: false,
+      file: null,
+      reference_id: '',
+      airlines: '',
+      flight_number: '',
+      departure_date: '',
+      departure_time: '',
+      arrival_date: '',
+      arrival_time: '',
+      departure_airport: '',
+      arrival_airport: '',
+      saving: false,
+      saveError: null,
+    });
+  };
+
+  const persistTicketExtractFromModal = async () => {
+    const m = ticketExtractEditModal;
+    if (!m.open || !m.file) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ',
+        message: 'لا يوجد ملف للتذكرة. أغلق النافذة وأعد المحاولة.',
+      });
+      return;
+    }
+    const rawId = Array.isArray(id) ? id[0] : id;
+    if (rawId == null || String(rawId).trim() === '') {
+      setShowErrorModal({ isOpen: true, title: 'خطأ', message: 'معرف الطلب غير متوفر' });
+      return;
+    }
+
+    const trimOrNull = (s: string) => {
+      const t = s.trim();
+      return t === '' ? null : t;
+    };
+
+    const ticketsPayload: Record<string, unknown> = {
+      reference_id: trimOrNull(m.reference_id),
+      airlines: trimOrNull(m.airlines),
+      flight_number: trimOrNull(m.flight_number),
+      departure_date: trimOrNull(m.departure_date),
+      departure_time: trimOrNull(m.departure_time),
+      arrival_date: trimOrNull(m.arrival_date),
+      arrival_time: trimOrNull(m.arrival_time),
+      departure_airport: trimOrNull(m.departure_airport),
+      arrival_airport: trimOrNull(m.arrival_airport),
+    };
+    const cleaned = omitTicketAutoFields(ticketsPayload);
+
+    setTicketExtractEditModal((p) => ({ ...p, saving: true, saveError: null }));
+
+    try {
       const presignedRes = await fetch(
         `/api/upload-presigned-url/${encodeURIComponent(String(rawId))}`
       );
@@ -913,9 +1025,9 @@ export default function TrackOrder() {
       };
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        body: file,
+        body: m.file,
         headers: {
-          'Content-Type': file.type || 'application/pdf',
+          'Content-Type': m.file.type || 'application/pdf',
           'x-amz-acl': 'public-read',
         },
       });
@@ -923,7 +1035,6 @@ export default function TrackOrder() {
         throw new Error('فشل في رفع ملف التذكرة إلى التخزين');
       }
 
-      const cleaned = omitTicketAutoFields(details);
       const saveRes = await fetch(
         `/api/track_order/${encodeURIComponent(String(rawId))}/tickets-details`,
         {
@@ -936,43 +1047,39 @@ export default function TrackOrder() {
           }),
         }
       );
-
-      let saveError: string | null = null;
       if (!saveRes.ok) {
+        let msg = 'فشل حفظ بيانات التذكرة';
         try {
           const errBody = (await saveRes.json()) as { error?: string };
-          saveError = typeof errBody.error === 'string' ? errBody.error : 'فشل حفظ بيانات التذكرة';
+          if (typeof errBody.error === 'string') msg = errBody.error;
         } catch {
-          saveError = 'فشل حفظ بيانات التذكرة';
+          /* ignore */
         }
-      } else {
-        setDestinationsPendingFile(null);
-        const patchRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            section: 'destinations',
-            updatedData: { ticketFile: uploadedTicketPath },
-          }),
-        });
-        if (!patchRes.ok) {
-          try {
-            const errBody = (await patchRes.json()) as { error?: string };
-            saveError =
-              (typeof errBody.error === 'string' ? errBody.error : null) ||
-              'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
-          } catch {
-            saveError = 'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
-          }
-        }
+        throw new Error(msg);
       }
 
-      setTicketExtractResultModal({
-        open: true,
-        tickets_details: details,
-        saveError,
+      setDestinationsPendingFile(null);
+      const patchRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          section: 'destinations',
+          updatedData: { ticketFile: uploadedTicketPath },
+        }),
       });
+      if (!patchRes.ok) {
+        let msg = 'تم حفظ التذكرة لكن فشل تحديث ملف الطلب في الوجهات';
+        try {
+          const errBody = (await patchRes.json()) as { error?: string };
+          if (typeof errBody.error === 'string') msg = errBody.error;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+
+      closeTicketExtractEditModal();
       try {
         const refreshRes = await fetch(`/api/track_order/${encodeURIComponent(String(rawId))}`);
         if (refreshRes.ok) {
@@ -982,15 +1089,10 @@ export default function TrackOrder() {
       } catch {
         /* ignore */
       }
+      setShowAlertModal({ isOpen: true, message: 'تم حفظ بيانات التذكرة والملف بنجاح' });
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'حدث خطأ أثناء استخراج بيانات التذكرة';
-      setShowErrorModal({
-        isOpen: true,
-        title: 'استخراج التذكرة',
-        message,
-      });
-    } finally {
-      setTicketExtracting(false);
+      const message = e instanceof Error ? e.message : 'فشل الحفظ';
+      setTicketExtractEditModal((p) => ({ ...p, saving: false, saveError: message }));
     }
   };
 
@@ -3262,7 +3364,7 @@ export default function TrackOrder() {
             >
               <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">استخراج بيانات التذكرة</h3>
               <p className="text-gray-700 mb-6 text-right">
-                هل تريد استخراج بيانات التذكرة؟ بعد الاستخراج الناجح سيتم حفظ النتيجة في قاعدة البيانات.
+                هل تريد استخراج بيانات التذكرة؟ بعد النجاح ستظهر نافذة لمراجعة الحقول وتعديلها ثم الضغط على «حفظ» لرفع الملف وتخزين البيانات.
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -3300,34 +3402,162 @@ export default function TrackOrder() {
           </div>
         )}
 
-        {ticketExtractResultModal.open && (
+        {ticketExtractEditModal.open && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 p-4">
             <div
-              className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col p-6"
+              className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
               onClick={(e) => e.stopPropagation()}
+              dir="rtl"
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-3 text-right shrink-0">نتيجة الاستخراج</h3>
-              {ticketExtractResultModal.saveError ? (
-                <p className="text-sm text-red-600 mb-2 text-right border border-red-200 bg-red-50 rounded-md p-2">
-                  تم الاستخراج لكن الحفظ فشل: {ticketExtractResultModal.saveError}
+              <h3 className="text-lg font-bold text-gray-900 mb-2 text-right">مراجعة بيانات التذكرة</h3>
+              <p className="text-sm text-gray-600 mb-4 text-right">
+                الملف:{' '}
+                <span className="font-medium text-gray-800">{ticketExtractEditModal.file?.name ?? '—'}</span>
+              </p>
+              <p className="text-xs text-gray-500 mb-4 text-right">
+                راجع الحقول وعدّلها إن لزم، ثم احفظ. لا يُعرض تاريخ الإنشاء أو التحديث هنا لأنهما يُداران تلقائياً في قاعدة البيانات.
+              </p>
+              {ticketExtractEditModal.saveError ? (
+                <p className="text-sm text-red-600 mb-3 text-right border border-red-200 bg-red-50 rounded-md p-2">
+                  {ticketExtractEditModal.saveError}
                 </p>
-              ) : (
-                <p className="text-sm text-green-700 mb-2 text-right">تم حفظ البيانات في قاعدة البيانات.</p>
-              )}
-              <pre className="flex-1 overflow-auto text-right text-sm bg-gray-50 border border-gray-200 rounded-md p-4 whitespace-pre-wrap break-words" dir="ltr">
-                {ticketExtractResultModal.tickets_details
-                  ? JSON.stringify(ticketExtractResultModal.tickets_details, null, 2)
-                  : 'لا توجد بيانات'}
-              </pre>
-              <div className="flex justify-end mt-4 shrink-0">
+              ) : null}
+              <div className="space-y-3 text-right">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">مرجع الحجز (PNR)</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    value={ticketExtractEditModal.reference_id}
+                    onChange={(e) =>
+                      setTicketExtractEditModal((p) => ({ ...p, reference_id: e.target.value }))
+                    }
+                    disabled={ticketExtractEditModal.saving}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الخطوط</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    value={ticketExtractEditModal.airlines}
+                    onChange={(e) =>
+                      setTicketExtractEditModal((p) => ({ ...p, airlines: e.target.value }))
+                    }
+                    disabled={ticketExtractEditModal.saving}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">رقم الرحلة</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    value={ticketExtractEditModal.flight_number}
+                    onChange={(e) =>
+                      setTicketExtractEditModal((p) => ({ ...p, flight_number: e.target.value }))
+                    }
+                    disabled={ticketExtractEditModal.saving}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ المغادرة</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      value={ticketExtractEditModal.departure_date}
+                      onChange={(e) =>
+                        setTicketExtractEditModal((p) => ({ ...p, departure_date: e.target.value }))
+                      }
+                      disabled={ticketExtractEditModal.saving}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">وقت المغادرة</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="مثال: 10:40 PM"
+                      value={ticketExtractEditModal.departure_time}
+                      onChange={(e) =>
+                        setTicketExtractEditModal((p) => ({ ...p, departure_time: e.target.value }))
+                      }
+                      disabled={ticketExtractEditModal.saving}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ الوصول</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      value={ticketExtractEditModal.arrival_date}
+                      onChange={(e) =>
+                        setTicketExtractEditModal((p) => ({ ...p, arrival_date: e.target.value }))
+                      }
+                      disabled={ticketExtractEditModal.saving}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">وقت الوصول</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      placeholder="مثال: 03:45 PM"
+                      value={ticketExtractEditModal.arrival_time}
+                      onChange={(e) =>
+                        setTicketExtractEditModal((p) => ({ ...p, arrival_time: e.target.value }))
+                      }
+                      disabled={ticketExtractEditModal.saving}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">مطار المغادرة</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      value={ticketExtractEditModal.departure_airport}
+                      onChange={(e) =>
+                        setTicketExtractEditModal((p) => ({ ...p, departure_airport: e.target.value }))
+                      }
+                      disabled={ticketExtractEditModal.saving}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">مطار الوصول</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      value={ticketExtractEditModal.arrival_airport}
+                      onChange={(e) =>
+                        setTicketExtractEditModal((p) => ({ ...p, arrival_airport: e.target.value }))
+                      }
+                      disabled={ticketExtractEditModal.saving}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6 flex-wrap">
                 <button
                   type="button"
-                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
-                  onClick={() =>
-                    setTicketExtractResultModal({ open: false, tickets_details: null, saveError: null })
-                  }
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  onClick={() => {
+                    if (!ticketExtractEditModal.saving) closeTicketExtractEditModal();
+                  }}
+                  disabled={ticketExtractEditModal.saving}
                 >
-                  إغلاق
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="px-6 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900 disabled:opacity-50"
+                  onClick={() => void persistTicketExtractFromModal()}
+                  disabled={ticketExtractEditModal.saving}
+                >
+                  {ticketExtractEditModal.saving ? 'جاري الحفظ...' : 'حفظ ورفع الملف'}
                 </button>
               </div>
             </div>
