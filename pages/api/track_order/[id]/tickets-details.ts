@@ -34,8 +34,8 @@ function parseDateOnly(v: unknown): Date | null {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+  if (req.method !== 'POST' && req.method !== 'PATCH') {
+    res.setHeader('Allow', 'POST, PATCH');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -59,6 +59,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const order = await prisma.neworder.findUnique({ where: { id: orderId } });
   if (!order) {
     return res.status(404).json({ error: 'الطلب غير موجود' });
+  }
+
+  if (req.method === 'PATCH') {
+    const body = req.body as {
+      id?: unknown;
+      reference_id?: unknown;
+      airlines?: unknown;
+      flight_number?: unknown;
+      departure_date?: unknown;
+      departure_time?: unknown;
+      arrival_date?: unknown;
+      arrival_time?: unknown;
+      departure_airport?: unknown;
+      arrival_airport?: unknown;
+      ticketFile?: unknown;
+    };
+
+    const recordId = Number(body.id);
+    if (!Number.isFinite(recordId) || recordId <= 0) {
+      return res.status(400).json({ error: 'معرف السجل مطلوب' });
+    }
+
+    const existing = await prisma.tickets_details.findFirst({
+      where: { id: recordId, order_id: orderId },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'سجل التذكرة غير موجود أو لا يخص هذا الطلب' });
+    }
+
+    const ticketFilePatch =
+      typeof body.ticketFile === 'string' && body.ticketFile.trim() !== ''
+        ? body.ticketFile.trim()
+        : undefined;
+
+    try {
+      const row = await prisma.tickets_details.update({
+        where: { id: recordId },
+        data: {
+          reference_id: str(body.reference_id),
+          airlines: str(body.airlines),
+          flight_number: str(body.flight_number),
+          departure_date: parseDateOnly(body.departure_date),
+          departure_time: str(body.departure_time),
+          arrival_date: parseDateOnly(body.arrival_date),
+          arrival_time: str(body.arrival_time),
+          departure_airport: str(body.departure_airport),
+          arrival_airport: str(body.arrival_airport),
+          ...(ticketFilePatch !== undefined ? { ticketFile: ticketFilePatch } : {}),
+        },
+      });
+      return res.status(200).json({ tickets_details: row });
+    } catch (e) {
+      console.error('[tickets-details] patch:', e);
+      return res.status(500).json({ error: 'فشل تحديث بيانات التذكرة' });
+    }
   }
 
   const body = req.body as {
