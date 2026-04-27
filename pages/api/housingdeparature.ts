@@ -84,15 +84,24 @@ export default async function handler(
 ) {
   if (req.method === "GET") {
     // تسجيل عملية العرض في systemlogs
+    const deparatureReasonFilter =
+      typeof req.query.deparatureReason === 'string'
+        ? req.query.deparatureReason.trim()
+        : '';
+
     const userInfo = getUserFromCookies(req);
     if (userInfo.userId) {
       await logToSystemLogs(
         userInfo.userId,
         'view',
-        'عرض قائمة العاملات المغادرات',
+        deparatureReasonFilter
+          ? `عرض عاملات غادرن السكن (سبب المغادرة: ${deparatureReasonFilter})`
+          : 'عرض قائمة العاملات المغادرات',
         '',
         0,
-        '/admin/housedarrivals'
+        deparatureReasonFilter
+          ? '/admin/housing_departed_transfer_sponsorship'
+          : '/admin/housedarrivals'
       );
     }
 
@@ -124,6 +133,10 @@ export default async function handler(
       const filters: any = {
         deparatureHousingDate: { not: null },
       };
+
+      if (deparatureReasonFilter) {
+        filters.deparatureReason = deparatureReasonFilter;
+      }
 
       if (contractType) {
         filters.OR = [

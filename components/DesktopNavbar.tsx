@@ -175,7 +175,7 @@ const DesktopNavbar = () => {
         method: 'POST',
       });
       if (response.status === 200) {
-        router.push('/admin/login');
+        router.push('/login');
       }
     } catch (error) {
       console.error('Error during logout:', error);

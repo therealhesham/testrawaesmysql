@@ -115,6 +115,7 @@ export default function ForeignOfficesFinancial() {
     Array<{
       contractNumber: string;
       officeName: string;
+      officeId?: number | null;
       maidName?: string | null;
       passportNumber?: string | null;
     }>
@@ -122,6 +123,10 @@ export default function ForeignOfficesFinancial() {
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
   const [selectedOfficeName, setSelectedOfficeName] = useState<string>('');
+  /** offices.id من اقتراح العقد (من DB عبر /api/contracts/suggestions) */
+  const [selectedOfficeIdFromContract, setSelectedOfficeIdFromContract] = useState<
+    number | null
+  >(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRecord, setEditRecord] = useState<FinancialRecord | null>(null);
   const [editForm, setEditForm] = useState({
@@ -551,6 +556,15 @@ export default function ForeignOfficesFinancial() {
     }
   };
 
+  const resolveOfficeIdByName = (name: string): number | null => {
+    const t = name.trim();
+    if (!t || t === 'غير محدد') return null;
+    return (
+      offices.find((o) => (o.office || '').trim().toLowerCase() === t.toLowerCase())?.id ??
+      null
+    );
+  };
+
   const handleAddRecord = async () => {
     try {
       const dateIso = parseDMYToIso(addModalDateText.trim());
@@ -558,7 +572,16 @@ export default function ForeignOfficesFinancial() {
         showAlert('أدخل تاريخ الإشعار بالصيغة يوم/شهر/سنة (مثال 19/04/2026)', 'error');
         return;
       }
-      const defaultOfficeId = filters.officeId || (offices.length > 0 ? offices[0].id.toString() : '1');
+      const officeIdFromSelection =
+        selectedOfficeIdFromContract ??
+        (selectedOfficeName ? resolveOfficeIdByName(selectedOfficeName) : null) ??
+        (filters.officeId ? parseInt(filters.officeId, 10) : null);
+      const defaultOfficeId =
+        officeIdFromSelection != null && officeIdFromSelection > 0
+          ? String(officeIdFromSelection)
+          : offices.length > 0
+            ? String(offices[0].id)
+            : '1';
       const response = await axios.post('/api/foreign-offices-financial', {
         ...newRecord,
         date: dateIso,
@@ -589,6 +612,7 @@ export default function ForeignOfficesFinancial() {
         setInvoiceFile(null);
         setInvoiceFileName('');
         setLastBalance(0);
+        setSelectedOfficeIdFromContract(null);
         fetchFinancialRecords(pagination.page);
         showAlert('تم إضافة السجل بنجاح', 'success');
       }
@@ -653,12 +677,20 @@ export default function ForeignOfficesFinancial() {
         const raw = (data.suggestions || []) as unknown[];
         const normalized = raw.map((item) => {
           if (typeof item === 'string') {
-            return { contractNumber: item, officeName: 'غير محدد' };
+            return { contractNumber: item, officeName: 'غير محدد', officeId: null as number | null };
           }
           const o = item as Record<string, unknown>;
+          const rawId = o.officeId;
+          const officeId =
+            typeof rawId === 'number' && Number.isFinite(rawId)
+              ? rawId
+              : rawId != null && String(rawId).trim() !== ''
+                ? parseInt(String(rawId), 10)
+                : null;
           return {
             contractNumber: String(o.contractNumber ?? ''),
             officeName: String(o.officeName ?? 'غير محدد'),
+            officeId: officeId != null && Number.isFinite(officeId) ? officeId : null,
             maidName: o.maidName != null ? String(o.maidName) : null,
             passportNumber: o.passportNumber != null ? String(o.passportNumber) : null,
           };
@@ -718,6 +750,7 @@ export default function ForeignOfficesFinancial() {
   const handleContractNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSelectedOfficeName('');
+    setSelectedOfficeIdFromContract(null);
     if (!value.trim()) {
       setNewRecord((prev) => ({
         ...prev,
@@ -737,6 +770,7 @@ export default function ForeignOfficesFinancial() {
   const handleContractSuggestionClick = async (suggestion: {
     contractNumber: string;
     officeName: string;
+    officeId?: number | null;
     maidName?: string | null;
     passportNumber?: string | null;
   }) => {
@@ -747,7 +781,20 @@ export default function ForeignOfficesFinancial() {
       maidPassport: suggestion.passportNumber?.trim() || prev.maidPassport || '',
     }));
     setSelectedOfficeName(suggestion.officeName);
+    const idFromApi =
+      suggestion.officeId != null && !Number.isNaN(Number(suggestion.officeId))
+        ? Number(suggestion.officeId)
+        : null;
+    const idFromName =
+      idFromApi == null && suggestion.officeName
+        ? resolveOfficeIdByName(suggestion.officeName)
+        : undefined;
+    const resolvedOfficeId = idFromApi ?? idFromName ?? null;
+    setSelectedOfficeIdFromContract(resolvedOfficeId);
     setShowContractSuggestions(false);
+    if (resolvedOfficeId != null) {
+      await fetchLastBalance(resolvedOfficeId);
+    }
     await fetchContractData(suggestion.contractNumber);
   };
 
@@ -916,6 +963,7 @@ export default function ForeignOfficesFinancial() {
                   const defaultOfficeId = filters.officeId ? parseInt(filters.officeId) : (offices.length > 0 ? offices[0].id : 1);
                   await fetchLastBalance(defaultOfficeId);
                   setSelectedOfficeName(''); // مسح اسم المكتب عند فتح modal جديد
+                  setSelectedOfficeIdFromContract(null);
                   setShowAddModal(true);
                 }}
               >

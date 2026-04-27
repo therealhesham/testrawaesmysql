@@ -87,6 +87,7 @@ const menuItems: MenuItem[] = [
     icon: FaBuilding,
     subItems: [
       { id: 51, label: "التسكين", link: "/admin/housedarrivals" },
+      { id: 511, label: "مغادرات نقل كفالة", link: "/admin/housing_departed_transfer_sponsorship" },
       { id: 10121, label: "الجلسات", link: "/admin/sessions" },
       
       { id: 52, label: "الاعاشات", link: "/admin/checkedtable" },
@@ -229,7 +230,7 @@ const Sidebar = (props: any) => {
         method: "POST",
       });
       if (response.status === 200) {
-        router.push("/admin/login");
+        router.push("/login");
       } else {
         console.error("Logout failed");
       }

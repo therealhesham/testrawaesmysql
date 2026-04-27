@@ -37,6 +37,7 @@ export default async function handler(
                   Passportnumber: true,
                   office: {
                     select: {
+                      id: true,
                       office: true,
                     },
                   },
@@ -57,6 +58,7 @@ export default async function handler(
         {
           contractNumber: string;
           officeName: string;
+          officeId: number | null;
           maidName: string | null;
           passportNumber: string | null;
         }
@@ -72,7 +74,9 @@ export default async function handler(
         if (arrival.InternalmusanedContract) {
           const contract = arrival.InternalmusanedContract;
           if (contract.toLowerCase().includes(queryLower)) {
-            const officeName = arrival.Order?.HomeMaid?.office?.office || 'غير محدد';
+            const officeRel = arrival.Order?.HomeMaid?.office;
+            const officeName = officeRel?.office || 'غير محدد';
+            const officeId = officeRel?.id ?? null;
             const maidName = pickMaidName(arrival);
             const passportNumber = pickPassport(arrival);
             const existing = suggestionsMap.get(contract);
@@ -80,6 +84,7 @@ export default async function handler(
               suggestionsMap.set(contract, {
                 contractNumber: contract,
                 officeName,
+                officeId,
                 maidName,
                 passportNumber,
               });
@@ -87,6 +92,10 @@ export default async function handler(
               if (!existing.maidName && maidName) existing.maidName = maidName;
               if (!existing.passportNumber && passportNumber) {
                 existing.passportNumber = passportNumber;
+              }
+              if (!existing.officeId && officeId != null) {
+                existing.officeId = officeId;
+                if (officeName !== 'غير محدد') existing.officeName = officeName;
               }
             }
           }
