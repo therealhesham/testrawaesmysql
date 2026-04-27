@@ -1050,7 +1050,6 @@ export default function EmployeeCash() {
                       formErrors.receivedAmount ? 'border-red-500' : 'border-gray-300'
                     }`}
                     min="0"
-                    step="0.01"
                   />
                   {formErrors.receivedAmount && (
                     <span className="text-red-500 text-sm mt-1">{formErrors.receivedAmount}</span>
@@ -1068,7 +1067,6 @@ export default function EmployeeCash() {
                       formErrors.expenseAmount ? 'border-red-500' : 'border-gray-300'
                     }`}
                     min="0"
-                    step="0.01"
                   />
                   {formErrors.expenseAmount && (
                     <span className="text-red-500 text-sm mt-1">{formErrors.expenseAmount}</span>
@@ -1351,7 +1349,6 @@ export default function EmployeeCash() {
                       employeeFormErrors.salary ? 'border-red-500' : 'border-gray-300'
                     }`}
                     min="0"
-                    step="0.01"
                     required
                   />
                   {employeeFormErrors.salary && (

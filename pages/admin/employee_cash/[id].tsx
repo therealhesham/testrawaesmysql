@@ -695,9 +695,14 @@ export default function EmployeeCashDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg">جاري التحميل...</div>
-      </div>
+      <Layout>
+        <div className="flex justify-center items-center min-h-screen bg-gray-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-teal-800" />
+            <div className="text-lg text-gray-700">جاري التحميل...</div>
+          </div>
+        </div>
+      </Layout>
     );
   }
 
@@ -978,12 +983,12 @@ export default function EmployeeCashDetail() {
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
+                <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
-                <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="0.01" />
+                <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0"  />
               </div>
             </div>
 
