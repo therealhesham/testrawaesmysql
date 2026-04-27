@@ -110,8 +110,8 @@ export default function EmployeeCashDetail() {
     setAddAttachmentFileName(file.name);
     setAddAttachmentError('');
 
-    if (file.size > 10 * 1024 * 1024) {
-      setAddAttachmentError('حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)');
+    if (file.size > 100 * 1024 * 1024) {
+      setAddAttachmentError('حجم الملف كبير جداً (الحد الأقصى 100 ميجابايت)');
       setAddAttachmentUrl('');
       if (fileAddRecordRef.current) fileAddRecordRef.current.value = '';
       return;
@@ -149,8 +149,8 @@ export default function EmployeeCashDetail() {
     setEditAttachmentFileName(file.name);
     setEditAttachmentError('');
 
-    if (file.size > 10 * 1024 * 1024) {
-      setEditAttachmentError('حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)');
+    if (file.size > 100 * 1024 * 1024) {
+      setEditAttachmentError('حجم الملف كبير جداً (الحد الأقصى 100 ميجابايت)');
       if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
       return;
     }
