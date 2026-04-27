@@ -39,7 +39,8 @@ interface HousedWorker {
   Order?: {
     id?: number;
     Name: string;
-    phone: string;
+    phone?: string | null;
+    dateofbirth?: string | null;
     Nationalitycopy: string;
     Passportnumber: string;
     NewOrder?: Array<{
@@ -56,6 +57,7 @@ interface HousedWorker {
     nationality: string | null;
     passportNumber: string | null;
     phone: string | null;
+    dateofbirth?: string | null;
     Client?: { fullname?: string | null } | null;
   };
 }
@@ -68,6 +70,9 @@ interface EditWorkerForm {
   deliveryDate: string;
   isHasEntitlements: boolean;
   entitlementsCost?: string;
+  maidName: string;
+  maidPhone: string;
+  maidDateOfBirth: string;
 }
 interface DepartureForm {
   deparatureHousingDate: string;
@@ -346,7 +351,11 @@ useEffect(()=>{
     deliveryDate: '',
     isHasEntitlements: false,
     entitlementsCost: '', // قيمة المستحقات
+    maidName: '',
+    maidPhone: '',
+    maidDateOfBirth: '',
   });
+  const [editMaidProfileId, setEditMaidProfileId] = useState<number | null>(null);
   const [departureForm, setDepartureForm] = useState<DepartureForm>({
     deparatureHousingDate: '',
     deparatureReason: '',
@@ -462,6 +471,9 @@ useEffect(()=>{
     // Clear editing location when closing edit residence modal
     if (modalName === 'editResidence') {
       setEditingLocation(null);
+    }
+    if (modalName === 'editWorker') {
+      setEditMaidProfileId(null);
     }
   };
   // Show notification modal
@@ -816,7 +828,10 @@ const fetchDepartedHousedforExporting = async () => {
         details: data.Details, // تحويل Details إلى details
         houseentrydate: data.Date,
         deliveryDate: data.deliveryDate,
-        isHasEntitlements: data.isHasEntitlements
+        isHasEntitlements: data.isHasEntitlements,
+        maidName: data.maidName,
+        maidPhone: data.maidPhone,
+        maidDateOfBirth: data.maidDateOfBirth || null,
       };
       
       // Only include location_id if it's valid
@@ -897,10 +912,20 @@ const fetchDepartedHousedforExporting = async () => {
     const worker = (housingStatus === 'housed' ? housedWorkers : departedWorkers).find((w) => w.id === id);
     console.log('Edit worker clicked:', { id, name, worker, housingStatus });
     if (worker) {
-      // للعاملات الخارجية homeMaid_id يكون null، نستخدم housedworker id
+      // للعاملات الخارجية homeMaid_id يكون null، نستخدم housedworker id لاستدعاء التحديث
       setSelectedWorkerId(worker.homeMaid_id ?? worker.id);
-      setSelectedWorkerName(name);
-      const formData = {
+      const order = worker.Order;
+      const ext = worker.externalHomedmaid;
+      const maidName = worker.homeMaid_id
+        ? (order?.Name ?? '').trim() || name
+        : (ext?.name ?? '').trim() || name;
+      const maidPhone = worker.homeMaid_id
+        ? (order?.phone ?? '').toString()
+        : (ext?.phone ?? '').toString();
+      const rawDob = worker.homeMaid_id ? order?.dateofbirth : ext?.dateofbirth;
+      const maidDateOfBirth = rawDob ? String(rawDob).split('T')[0] : '';
+      setEditMaidProfileId(worker.homeMaid_id ?? ext?.id ?? null);
+      const formData: EditWorkerForm = {
         location_id: worker.location_id || null,
         Reason: worker.Reason || '',
         Details: worker.Details || '',
@@ -908,6 +933,13 @@ const fetchDepartedHousedforExporting = async () => {
         Date: worker.houseentrydate ? worker.houseentrydate.split('T')[0] : '',
         deliveryDate: worker.deparatureHousingDate ? worker.deparatureHousingDate.split('T')[0] : '',
         isHasEntitlements: worker.isHasEntitlements !== undefined ? worker.isHasEntitlements : false,
+        entitlementsCost:
+          worker.entitlementsCost !== undefined && worker.entitlementsCost !== null
+            ? String(worker.entitlementsCost)
+            : '',
+        maidName,
+        maidPhone,
+        maidDateOfBirth,
       };
       console.log('Setting edit form data:', formData);
       setEditWorkerForm(formData);
@@ -2889,7 +2921,7 @@ const confirmDeleteNote = async () => {
                 onClick={() => closeModal('editWorker')}
               >
                 <div
-                  className="bg-gray-200 rounded-lg p-6 w-full max-w-lg shadow-card"
+                  className="bg-gray-200 rounded-lg p-6 w-full max-w-2xl shadow-card max-h-[90vh] overflow-y-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-5">
@@ -2913,21 +2945,49 @@ const confirmDeleteNote = async () => {
                       <label className="block text-md mb-2 text-textDark">اسم العاملة</label>
                       <input
                         type="text"
-                        value={selectedWorkerName}
-                        disabled
-                        className="w-full p-2 rounded-md text-right text-md text-textDark bg-gray-200"
+                        value={editWorkerForm.maidName}
+                        onChange={(e) =>
+                          setEditWorkerForm({ ...editWorkerForm, maidName: e.target.value })
+                        }
+                        className="w-full p-2 rounded-md text-right text-md text-textDark bg-white border border-border"
                       />
                     </div>
                     <div className="mb-4">
-                      <label className="block text-md mb-2 text-textDark">رقم العاملة</label>
+                      <label className="block text-md mb-2 text-textDark">رقم سجل العاملة</label>
                       <input
-                        type="number"
-                        value={selectedWorkerId || ''}
-                        disabled
+                        type="text"
+                        value={editMaidProfileId ?? ''}
+                        readOnly
                         className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-200"
                       />
                     </div>
                     <div className="mb-4">
+                      <label className="block text-md mb-2 text-textDark">تاريخ الميلاد</label>
+                      <input
+                        type="date"
+                        value={editWorkerForm.maidDateOfBirth}
+                        onChange={(e) =>
+                          setEditWorkerForm({
+                            ...editWorkerForm,
+                            maidDateOfBirth: e.target.value,
+                          })
+                        }
+                        className="w-full p-2 bg-white border border-border rounded-md text-right text-md text-textDark"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-md mb-2 text-textDark">الجوال</label>
+                      <input
+                        type="text"
+                        inputMode="tel"
+                        value={editWorkerForm.maidPhone}
+                        onChange={(e) =>
+                          setEditWorkerForm({ ...editWorkerForm, maidPhone: e.target.value })
+                        }
+                        className="w-full p-2 bg-white border border-border rounded-md text-right text-md text-textDark"
+                      />
+                    </div>
+                    <div className="mb-4 col-span-2">
                       <label className="block text-md mb-2 text-textDark">السكن</label>
                       <select
                         value={editWorkerForm.location_id || ''}
@@ -2937,7 +2997,7 @@ const confirmDeleteNote = async () => {
                             location_id: e.target.value ? Number(e.target.value) : null,
                           })
                         }
-                        className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
+                        className="w-full  bg-gray-200 rounded-md text-right text-md text-textDark"
                       >
                         <option value="">اختر السكن</option>
                         {locations.map((loc) => (

@@ -259,6 +259,9 @@ if (req.body.location) {
       deliveryDate,
       location_id,
       isHasEntitlements,
+      maidName,
+      maidPhone,
+      maidDateOfBirth,
     } = req.body;
 
     const idToUse = homeMaidId ?? housedWorkerId;
@@ -302,7 +305,6 @@ if (req.body.location) {
           ...(location_id && location_id !== 0 && { location_id }),
           employee,
           Reason: reason,
-          deparatureHousingDate: null,
           Details: details,
           houseentrydate: houseentrydate
             ? new Date(houseentrydate).toISOString()
@@ -317,6 +319,34 @@ if (req.body.location) {
               : (search as any).isHasEntitlements,
         },
       });
+
+      if (search.homeMaid_id) {
+        await prisma.homemaid.update({
+          where: { id: search.homeMaid_id },
+          data: {
+            ...(maidName !== undefined && { Name: maidName || null }),
+            ...(maidPhone !== undefined && { phone: maidPhone || null }),
+            ...(maidDateOfBirth !== undefined && {
+              dateofbirth: maidDateOfBirth
+                ? new Date(maidDateOfBirth as string)
+                : null,
+            }),
+          },
+        });
+      } else if (search.externalHomedmaidId) {
+        await prisma.externalHomedmaid.update({
+          where: { id: search.externalHomedmaidId },
+          data: {
+            ...(maidName !== undefined && { name: maidName || null }),
+            ...(maidPhone !== undefined && { phone: maidPhone || null }),
+            ...(maidDateOfBirth !== undefined && {
+              dateofbirth: maidDateOfBirth
+                ? new Date(maidDateOfBirth as string)
+                : null,
+            }),
+          },
+        });
+      }
 try {
       await prisma.logs.create({
         data: {
@@ -331,9 +361,13 @@ try {
 }
       const userInfo = getUserFromCookies(req);
       if (userInfo.userId) {
-        const workerName = (search as any).Order?.Name
-          || (search as any).externalHomedmaid?.name
-          || 'غير محدد';
+        const workerName =
+          (maidName !== undefined && String(maidName).trim() !== ''
+            ? maidName
+            : null) ||
+          (search as any).Order?.Name ||
+          (search as any).externalHomedmaid?.name ||
+          'غير محدد';
 
         const locationName = location_id ? await prisma.inHouseLocation.findUnique({
           where: { id: Number(location_id) },
