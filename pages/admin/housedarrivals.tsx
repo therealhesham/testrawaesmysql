@@ -1784,12 +1784,12 @@ const confirmDeleteNote = async () => {
                 >
                   عاملات غادرن السكن
                 </button>
-                <a
+                {/* <a
                   href="/admin/housing_departed_transfer_sponsorship"
                   className="px-3 py-2 text-md rounded-md border border-teal-700 text-teal-800 hover:bg-teal-50"
                 >
                   مغادرات (سبب المغادرة: نقل كفالة)
-                </a>
+                </a> */}
               </div>
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-4 flex-wrap">
