@@ -12,12 +12,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         fromDate, 
         toDate,
         page = 1,
-        limit = 10
+        limit = 10000
       } = req.query;
 
-      const skip = (Number(page) - 1) * Number(limit);
+      const takeLimit = Math.min(Math.max(Number(limit) || 10000, 1), 50000);
 
-      // Build where clause for filtering
+      // Build where clause for filtering (عهدة نقدية)
       const where: any = {
         isTemporary: false // استبعاد السجلات المؤقتة من الاستعلامات العادية
       };
@@ -36,8 +36,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      // Get employee cash records with pagination and include employee data
-      const [employeeCashRecords, total] = await Promise.all([
+      const detailWhere: any = {};
+      if (employee && employee !== 'all') {
+        detailWhere.employeeId = Number(employee);
+      }
+      if (fromDate || toDate) {
+        detailWhere.date = {};
+        if (fromDate) {
+          detailWhere.date.gte = new Date(fromDate as string);
+        }
+        if (toDate) {
+          detailWhere.date.lte = new Date(toDate as string);
+        }
+      }
+
+      const [
+        employeeCashRecords,
+        detailRecords,
+        cashCount,
+        detailCount,
+        summary,
+        detailSum
+      ] = await Promise.all([
         prisma.employeeCash.findMany({
           where,
           include: {
@@ -53,21 +73,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           orderBy: {
             transactionDate: 'desc'
           },
-          skip,
-          take: Number(limit)
+          skip: 0,
+          take: takeLimit
         }),
-        prisma.employeeCash.count({ where })
+        prisma.employeeCashDetail.findMany({
+          where: detailWhere,
+          orderBy: {
+            date: 'desc'
+          },
+          take: takeLimit
+        }),
+        prisma.employeeCash.count({ where }),
+        prisma.employeeCashDetail.count({ where: detailWhere }),
+        prisma.employeeCash.aggregate({
+          where,
+          _sum: {
+            receivedAmount: true,
+            expenseAmount: true,
+            remainingBalance: true
+          }
+        }),
+        prisma.employeeCashDetail.aggregate({
+          where: detailWhere,
+          _sum: {
+            debit: true,
+            credit: true
+          }
+        })
       ]);
-
-      // Calculate summary totals
-      const summary = await prisma.employeeCash.aggregate({
-        where,
-        _sum: {
-          receivedAmount: true,
-          expenseAmount: true,
-          remainingBalance: true
-        }
-      });
 
       // Get unique employees for filter dropdown
       const employees = await prisma.employee.findMany({
@@ -85,37 +118,72 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
-      // Group records by employee
+      const cashReceivedSum = Number(summary._sum.receivedAmount || 0);
+      const cashExpenseSum = Number(summary._sum.expenseAmount || 0);
+      const detailDebitSum = Number(detailSum._sum.debit || 0);
+      const detailCreditSum = Number(detailSum._sum.credit || 0);
+
+      const totalReceived = cashReceivedSum + detailDebitSum;
+      const totalExpenses = cashExpenseSum + detailCreditSum;
+      const totalRemaining = totalReceived - totalExpenses;
+
+      // Group records by employee — دمج عهدة نقدية + تفاصيل كشف الحساب
       const employeesData = employees.map((emp) => {
-        const employeeRecords = employeeCashRecords.filter(record => record.employeeId === emp.id);
-        const totalReceived = employeeRecords.reduce((sum, record) => sum + Number(record.receivedAmount), 0);
-        const totalExpenses = employeeRecords.reduce((sum, record) => sum + Number(record.expenseAmount), 0);
-        const remainingBalance = totalReceived - totalExpenses;
+        const employeeRecords = employeeCashRecords.filter((record) => record.employeeId === emp.id);
+        const employeeDetailRecords = detailRecords.filter((record) => record.employeeId === emp.id);
+
+        const cashReceived = employeeRecords.reduce((sum, record) => sum + Number(record.receivedAmount), 0);
+        const cashExpense = employeeRecords.reduce((sum, record) => sum + Number(record.expenseAmount), 0);
+        const detailDebit = employeeDetailRecords.reduce((sum, record) => sum + Number(record.debit), 0);
+        const detailCredit = employeeDetailRecords.reduce((sum, record) => sum + Number(record.credit), 0);
+
+        const empTotalReceived = cashReceived + detailDebit;
+        const empTotalExpenses = cashExpense + detailCredit;
+        const remainingBalance = empTotalReceived - empTotalExpenses;
+
+        const cashTransactions = employeeRecords.map((record) => ({
+          recordType: 'cash' as const,
+          employeeId: emp.id,
+          id: record.id,
+          sortTime: record.transactionDate.getTime(),
+          date: record.transactionDate.toLocaleDateString('ar-SA'),
+          employeeName: emp.name,
+          cashNumber: record.cashNumber || record.id.toString(),
+          receivedAmount: Number(record.receivedAmount),
+          expenseAmount: Number(record.expenseAmount),
+          remainingBalance: Number(record.remainingBalance)
+        }));
+
+        const detailTransactions = employeeDetailRecords.map((record) => ({
+          recordType: 'detail' as const,
+          employeeId: emp.id,
+          id: record.id,
+          sortTime: record.date.getTime(),
+          date: record.date.toLocaleDateString('ar-SA'),
+          employeeName: emp.name,
+          cashNumber: 'تفاصيل',
+          receivedAmount: Number(record.debit),
+          expenseAmount: Number(record.credit),
+          remainingBalance: Number(record.balance)
+        }));
+
+        const transactions = [...cashTransactions, ...detailTransactions]
+          .sort((a, b) => b.sortTime - a.sortTime)
+          .map(({ sortTime: _s, ...rest }) => rest);
 
         return {
           id: emp.id,
           name: emp.name,
           position: emp.position,
           department: emp.department,
-          totalReceived,
-          totalExpenses,
+          totalReceived: empTotalReceived,
+          totalExpenses: empTotalExpenses,
           remainingBalance,
-          transactions: employeeRecords.map(record => ({
-            id: record.id,
-            date: record.transactionDate.toLocaleDateString('ar-SA'),
-            employeeName: emp.name,
-            cashNumber: record.cashNumber || record.id.toString(),
-            receivedAmount: Number(record.receivedAmount),
-            expenseAmount: Number(record.expenseAmount),
-            remainingBalance: Number(record.remainingBalance)
-          }))
+          transactions
         };
       });
 
-      // Calculate overall summary
-      const totalReceived = Number(summary._sum.receivedAmount || 0);
-      const totalExpenses = Number(summary._sum.expenseAmount || 0);
-      const totalRemaining = totalReceived - totalExpenses;
+      const mergedTotalRows = cashCount + detailCount;
 
       res.status(200).json({
         employees: employeesData,
@@ -127,9 +195,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         pagination: {
           page: Number(page),
-          limit: Number(limit),
-          total,
-          pages: Math.ceil(total / Number(limit))
+          limit: takeLimit,
+          total: mergedTotalRows,
+          pages: Math.ceil(mergedTotalRows / takeLimit) || 1
         },
         filters: {
           employees: employees.map(emp => ({

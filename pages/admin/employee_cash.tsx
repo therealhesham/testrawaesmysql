@@ -21,8 +21,12 @@ interface Employee {
 
 interface Transaction {
   id: number;
+  /** تمييز سجل العهدة عن سطر التفاصيل (نفس id قد يتكرر بين الجدولين) */
+  recordType?: 'cash' | 'detail';
+  employeeId: number;
   date: string;
   employeeName: string;
+  cashNumber?: string;
   receivedAmount: number;
   expenseAmount: number;
   remainingBalance: number;
@@ -147,6 +151,7 @@ export default function EmployeeCash() {
       if (filters.employee) queryParams.append('employee', filters.employee);
       if (filters.fromDate) queryParams.append('fromDate', filters.fromDate);
       if (filters.toDate) queryParams.append('toDate', filters.toDate);
+      queryParams.append('limit', '10000');
 
       const response = await fetch(`/api/employee-cash?${queryParams}`);
       const result = await response.json();
@@ -168,14 +173,9 @@ export default function EmployeeCash() {
     }
   };
 
-  const handleEmployeeClick = (transactionId: number) => {
-    // Get the employee ID from the transaction
-    const transaction = data?.employees.flatMap(emp => emp.transactions).find(t => t.id === transactionId);
-    if (transaction) {
-      const employee = data?.employees.find(emp => emp.transactions.some(t => t.id === transactionId));
-      if (employee) {
-        router.push(`/admin/employee_cash/${employee.id}`);
-      }
+  const handleEmployeeClick = (employeeId: number) => {
+    if (employeeId) {
+      router.push(`/admin/employee_cash/${employeeId}`);
     }
   };
 
@@ -974,7 +974,11 @@ export default function EmployeeCash() {
               </thead>
               <tbody>
                 {data?.employees.flatMap(emp => emp.transactions).map((transaction, index) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleEmployeeClick(transaction.id)}>
+                  <tr
+                    key={`${transaction.recordType ?? 'cash'}-${transaction.id}`}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleEmployeeClick(transaction.employeeId)}
+                  >
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">#{index + 1}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.date}</td>
                     <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.employeeName}</td>
