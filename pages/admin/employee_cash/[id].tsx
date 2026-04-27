@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
@@ -38,6 +38,10 @@ interface EmployeeTransaction {
   type?: 'detail' | 'cash';
 }
 
+const allowedAttachmentTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+
+const isPlaceholderAttachment = (a: string | undefined) => !a || a === 'عرض';
+
 export default function EmployeeCashDetail() {
   const router = useRouter();
   const { id } = router.query;
@@ -57,6 +61,119 @@ export default function EmployeeCashDetail() {
   const [transactionToDelete, setTransactionToDelete] = useState<number | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<EmployeeTransaction | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  const fileAddRecordRef = useRef<HTMLInputElement>(null);
+  const fileEditRecordRef = useRef<HTMLInputElement>(null);
+
+  const [addAttachmentUrl, setAddAttachmentUrl] = useState('');
+  const [addAttachmentFileName, setAddAttachmentFileName] = useState('');
+  const [addAttachmentUploading, setAddAttachmentUploading] = useState(false);
+  const [addAttachmentError, setAddAttachmentError] = useState('');
+
+  const [editAttachmentUrl, setEditAttachmentUrl] = useState('');
+  const [editAttachmentFileName, setEditAttachmentFileName] = useState('');
+  const [editAttachmentUploading, setEditAttachmentUploading] = useState(false);
+  const [editAttachmentError, setEditAttachmentError] = useState('');
+
+  const uploadAttachmentToSpaces = async (file: File, keyHint: string): Promise<string> => {
+    const qs = new URLSearchParams({ contentType: file.type });
+    const res = await fetch(
+      `/api/upload-presigned-url/${encodeURIComponent(keyHint)}?${qs.toString()}`
+    );
+    if (!res.ok) {
+      throw new Error('فشل في الحصول على رابط الرفع');
+    }
+    const { url, filePath } = await res.json();
+
+    const uploadRes = await fetch(url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-amz-acl': 'public-read',
+      },
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error('فشل في رفع الملف');
+    }
+    return filePath as string;
+  };
+
+  const handleAddAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setAddAttachmentFileName('');
+      return;
+    }
+
+    setAddAttachmentFileName(file.name);
+    setAddAttachmentError('');
+
+    if (file.size > 10 * 1024 * 1024) {
+      setAddAttachmentError('حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)');
+      setAddAttachmentUrl('');
+      if (fileAddRecordRef.current) fileAddRecordRef.current.value = '';
+      return;
+    }
+
+    if (!allowedAttachmentTypes.includes(file.type)) {
+      setAddAttachmentError('نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)');
+      setAddAttachmentUrl('');
+      if (fileAddRecordRef.current) fileAddRecordRef.current.value = '';
+      return;
+    }
+
+    setAddAttachmentUploading(true);
+    try {
+      const keyHint = `employee-cash-detail-${id}-${Date.now()}`;
+      const filePath = await uploadAttachmentToSpaces(file, keyHint);
+      setAddAttachmentUrl(filePath);
+      if (fileAddRecordRef.current) fileAddRecordRef.current.value = '';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'حدث خطأ أثناء رفع الملف';
+      setAddAttachmentError(msg);
+      setAddAttachmentUrl('');
+      setAddAttachmentFileName('');
+    } finally {
+      setAddAttachmentUploading(false);
+    }
+  };
+
+  const handleEditAttachmentChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setEditAttachmentFileName(file.name);
+    setEditAttachmentError('');
+
+    if (file.size > 10 * 1024 * 1024) {
+      setEditAttachmentError('حجم الملف كبير جداً (الحد الأقصى 10 ميجابايت)');
+      if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
+      return;
+    }
+
+    if (!allowedAttachmentTypes.includes(file.type)) {
+      setEditAttachmentError('نوع الملف غير مدعوم (PDF، JPEG، PNG فقط)');
+      if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
+      return;
+    }
+
+    setEditAttachmentUploading(true);
+    try {
+      const keyHint = `employee-cash-detail-edit-${id}-${Date.now()}`;
+      const filePath = await uploadAttachmentToSpaces(file, keyHint);
+      setEditAttachmentUrl(filePath);
+      if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'حدث خطأ أثناء رفع الملف';
+      setEditAttachmentError(msg);
+    } finally {
+      setEditAttachmentUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -84,6 +201,9 @@ export default function EmployeeCashDetail() {
   };
 
   const handleAddRecord = () => {
+    setAddAttachmentUrl('');
+    setAddAttachmentFileName('');
+    setAddAttachmentError('');
     const modal = document.getElementById('add-record-modal');
     if (modal) {
       modal.style.display = 'flex';
@@ -108,7 +228,7 @@ export default function EmployeeCashDetail() {
           subAccount: formData.get('subAccount'),
           debit: Number(formData.get('debit') || 0),
           credit: Number(formData.get('credit') || 0),
-          attachment: formData.get('attachment') || ''
+          attachment: addAttachmentUrl || ''
         }),
       });
 
@@ -133,6 +253,10 @@ export default function EmployeeCashDetail() {
   };
 
   const handleCloseAddModal = () => {
+    setAddAttachmentUrl('');
+    setAddAttachmentFileName('');
+    setAddAttachmentError('');
+    if (fileAddRecordRef.current) fileAddRecordRef.current.value = '';
     const modal = document.getElementById('add-record-modal');
     if (modal) {
       modal.style.display = 'none';
@@ -142,6 +266,10 @@ export default function EmployeeCashDetail() {
   const handleCloseEditModal = () => {
     setShowEditModal(false);
     setEditingTransaction(null);
+    setEditAttachmentUrl('');
+    setEditAttachmentFileName('');
+    setEditAttachmentError('');
+    if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
   };
 
   const handleSubmitEditRecord = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -164,7 +292,11 @@ export default function EmployeeCashDetail() {
           subAccount: formData.get('subAccount'),
           debit: Number(formData.get('debit') || 0),
           credit: Number(formData.get('credit') || 0),
-          attachment: formData.get('attachment') || ''
+          attachment:
+            editAttachmentUrl ||
+            (isPlaceholderAttachment(editingTransaction.attachment)
+              ? ''
+              : editingTransaction.attachment)
         }),
       });
 
@@ -214,6 +346,10 @@ export default function EmployeeCashDetail() {
     const transaction = data?.transactions.find(t => t.id === transactionId);
     if (transaction) {
       setEditingTransaction(transaction);
+      setEditAttachmentUrl('');
+      setEditAttachmentFileName('');
+      setEditAttachmentError('');
+      if (fileEditRecordRef.current) fileEditRecordRef.current.value = '';
       setShowEditModal(true);
     }
   };
@@ -491,8 +627,14 @@ export default function EmployeeCashDetail() {
       </div>
 
       {/* Add Record Modal */}
-      <div id="add-record-modal" className="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center">
-        <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-4xl mx-auto relative" dir="rtl">
+      <div
+        id="add-record-modal"
+        className="hidden fixed inset-0 bg-black bg-opacity-85 z-50 flex justify-center items-center"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleCloseAddModal();
+        }}
+      >
+        <div className="bg-gray-100 rounded-xl shadow-lg p-8 w-full max-w-4xl mx-auto relative" dir="rtl" onClick={(ev) => ev.stopPropagation()}>
           <h2 className="text-center text-xl mb-8 text-gray-700">إضافة سجل</h2>
           <form onSubmit={handleSubmitAddRecord} className="space-y-6">
             <div className="grid grid-cols-2 gap-6">
@@ -529,16 +671,42 @@ export default function EmployeeCashDetail() {
 
             <div className="flex flex-col items-end">
               <label className="text-sm text-gray-500 mb-2">المرفقات</label>
-              <div className="flex gap-3 w-full justify-start flex-row-reverse">
-                <input name="attachment" type="file" id="fileAddRecord" className="hidden" />
-                <button type="button" onClick={() => document.getElementById('fileAddRecord')?.click()} className="bg-teal-800 text-white border-none rounded px-5 py-2 text-sm cursor-pointer">اختيار ملف</button>
-                <span id="fileNameAdd" className="self-center text-sm text-gray-600"></span>
+              <div className="flex flex-col gap-2 w-full items-end">
+                <div className="flex gap-3 w-full justify-start flex-row-reverse flex-wrap">
+                  <input
+                    ref={fileAddRecordRef}
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf,image/jpeg,image/png"
+                    onChange={handleAddAttachmentChange}
+                  />
+                  <button
+                    type="button"
+                    disabled={addAttachmentUploading}
+                    onClick={() => fileAddRecordRef.current?.click()}
+                    className="bg-teal-800 text-white border-none rounded px-5 py-2 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addAttachmentUploading ? 'جاري الرفع...' : 'اختيار ملف'}
+                  </button>
+                  <span className="self-center text-sm text-gray-600">
+                    {addAttachmentFileName || (addAttachmentUrl ? 'تم الرفع' : '')}
+                  </span>
+                </div>
+                {addAttachmentError ? (
+                  <p className="text-sm text-red-600 text-right">{addAttachmentError}</p>
+                ) : null}
               </div>
             </div>
 
             <div className="flex justify-center gap-4 mt-5">
               <button type="button" onClick={handleCloseAddModal} className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
-              <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">إضافة</button>
+              <button
+                type="submit"
+                disabled={addAttachmentUploading}
+                className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                إضافة
+              </button>
             </div>
           </form>
         </div>
@@ -625,17 +793,48 @@ export default function EmployeeCashDetail() {
 
                 <div className="flex flex-col items-end">
                   <label className="text-sm text-gray-500 mb-2">المرفقات</label>
-                  <div className="flex gap-3 w-full justify-start flex-row-reverse">
-                    <input name="attachment" type="file" id="fileEditRecord" className="hidden" />
-                    <button type="button" onClick={() => document.getElementById('fileEditRecord')?.click()} className="bg-teal-800 text-white border-none rounded px-5 py-2 text-sm cursor-pointer">اختيار ملف</button>
-                    <span id="fileNameEdit" className="self-center text-sm text-gray-600">{editingTransaction.attachment || ''}</span>
+                  <div className="flex flex-col gap-2 w-full items-end">
+                    <div className="flex gap-3 w-full justify-start flex-row-reverse flex-wrap">
+                      <input
+                        ref={fileEditRecordRef}
+                        type="file"
+                        className="hidden"
+                        accept="application/pdf,image/jpeg,image/png"
+                        onChange={handleEditAttachmentChange}
+                      />
+                      <button
+                        type="button"
+                        disabled={editAttachmentUploading}
+                        onClick={() => fileEditRecordRef.current?.click()}
+                        className="bg-teal-800 text-white border-none rounded px-5 py-2 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {editAttachmentUploading ? 'جاري الرفع...' : 'اختيار ملف'}
+                      </button>
+                      <span className="self-center text-sm text-gray-600">
+                        {editAttachmentFileName ||
+                          (editAttachmentUrl
+                            ? 'تم رفع مرفق جديد'
+                            : isPlaceholderAttachment(editingTransaction.attachment)
+                              ? ''
+                              : 'مرفق حالي محفوظ')}
+                      </span>
+                    </div>
+                    {editAttachmentError ? (
+                      <p className="text-sm text-red-600 text-right">{editAttachmentError}</p>
+                    ) : null}
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-center gap-4 mt-5">
                 <button type="button" onClick={handleCloseEditModal} className="bg-white text-teal-800 border border-teal-800 rounded w-28 h-10 text-base">إلغاء</button>
-                <button type="submit" className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base">حفظ</button>
+                <button
+                  type="submit"
+                  disabled={editAttachmentUploading}
+                  className="bg-teal-800 text-white border-none rounded w-28 h-10 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  حفظ
+                </button>
               </div>
             </form>
           </div>
@@ -691,25 +890,6 @@ export default function EmployeeCashDetail() {
         </div>
       )}
 
-      <script dangerouslySetInnerHTML={{
-        __html: `
-          document.getElementById('fileAddRecord')?.addEventListener('change', function(){
-            document.getElementById('fileNameAdd').textContent = this.files[0]?.name || '';
-          });
-
-          document.getElementById('fileEditRecord')?.addEventListener('change', function(){
-            document.getElementById('fileNameEdit').textContent = this.files[0]?.name || '';
-          });
-
-          // Close add modal when clicking outside
-          document.getElementById('add-record-modal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-              this.style.display = 'none';
-            }
-          });
-        `
-      }} />
-      
       <AlertModal
         isOpen={showAlert}
         onClose={() => setShowAlert(false)}

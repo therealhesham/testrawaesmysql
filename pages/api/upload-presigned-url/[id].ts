@@ -41,23 +41,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { id } = req.query;
+    const { id, contentType: contentTypeQuery } = req.query;
     if (!id) return res.status(400).json({ error: 'Missing order id' });
 
     if (!process.env.DO_SPACES_BUCKET) {
       throw new Error('DO_SPACES_BUCKET is not defined');
     }
 
+    const idStr = Array.isArray(id) ? id[0] : id;
+    const ctRaw = Array.isArray(contentTypeQuery) ? contentTypeQuery[0] : contentTypeQuery;
+
+    const allowedMime: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+    };
+
+    const contentType =
+      ctRaw && typeof ctRaw === 'string' && allowedMime[ctRaw] ? ctRaw : 'application/pdf';
+    const ext = allowedMime[contentType];
+
     // Initialize S3 client
     const s3 = initializeS3();
 
-    const fileName = `order-${id}-${Date.now()}.pdf`;
+    const fileName = `order-${idStr}-${Date.now()}.${ext}`;
     const key = `contracts/${fileName}`;
 
     console.log('Generating presigned URL for contract:', {
       bucket: process.env.DO_SPACES_BUCKET,
       key: key,
-      id: id,
+      id: idStr,
+      contentType,
       timestamp: new Date().toISOString()
     });
 
@@ -65,11 +79,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       Bucket: process.env.DO_SPACES_BUCKET,
       Key: key,  
       Expires: 300, // 5 minutes
-      ContentType: 'application/pdf',
+      ContentType: contentType,
       ACL: 'public-read',
       Metadata: {
         'upload-type': 'contract',
-        'order-id': id as string
+        'order-id': idStr
       }
     };
 
