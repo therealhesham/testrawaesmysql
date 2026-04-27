@@ -262,6 +262,7 @@ if (req.body.location) {
       maidName,
       maidPhone,
       maidDateOfBirth,
+      nationality,
     } = req.body;
 
     const idToUse = homeMaidId ?? housedWorkerId;
@@ -344,6 +345,7 @@ if (req.body.location) {
                 ? new Date(maidDateOfBirth as string)
                 : null,
             }),
+            ...(nationality !== undefined && { nationality: nationality != null && String(nationality).trim() ? String(nationality).trim() : null }),
           },
         });
       }

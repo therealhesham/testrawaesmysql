@@ -55,6 +55,7 @@ interface HousedWorker {
     id: number;
     name: string | null;
     nationality: string | null;
+    nationalitySource: string | null;
     passportNumber: string | null;
     phone: string | null;
     dateofbirth?: string | null;
@@ -73,6 +74,9 @@ interface EditWorkerForm {
   maidName: string;
   maidPhone: string;
   maidDateOfBirth: string;
+  /** سجل تسكين بعاملة خارجية (بدون homeMaid_id) */
+  isExternal: boolean;
+  extNationality: string;
 }
 interface DepartureForm {
   deparatureHousingDate: string;
@@ -111,6 +115,134 @@ function getHousingClientName(worker: HousedWorker): string {
     latestOrder.client?.fullname?.trim() ||
     latestOrder.ClientName?.trim() ||
     ''
+  );
+}
+
+/** قوائم الجنسية من /api/housing/unique-nationalities؛ عند اختيار «أخرى» يفتح مودال لكتابة الجنسية */
+function NationalityFieldWithList({
+  label,
+  items,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  items: string[];
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+}) {
+  const nTrim = value || '';
+  const inList = items.length > 0 && nTrim !== '' && items.includes(nTrim);
+  const [otherModalOpen, setOtherModalOpen] = useState(false);
+  const [otherDraft, setOtherDraft] = useState('');
+  const [pickingOther, setPickingOther] = useState(false);
+
+  useEffect(() => {
+    if (nTrim && inList) setPickingOther(false);
+  }, [nTrim, inList, items.length]);
+
+  const selectValue =
+    items.length > 0
+      ? nTrim && !inList
+        ? '__other__'
+        : pickingOther && !nTrim
+          ? '__other__'
+          : nTrim
+      : nTrim;
+
+  return (
+    <div>
+      <label className="block text-md text-gray-700 mb-2">
+        {label}
+        {required ? <span className="text-red-500">*</span> : null}
+      </label>
+      {items.length > 0 ? (
+        <div>
+          <select
+            value={selectValue}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '__other__') {
+                setOtherDraft(nTrim && !items.includes(nTrim) ? nTrim : '');
+                setPickingOther(true);
+                setOtherModalOpen(true);
+              } else {
+                setPickingOther(false);
+                onChange(v);
+              }
+            }}
+            className="w-full border border-gray-300 rounded-md text-right text-md bg-gray-50 p-2"
+          >
+            <option value="">{required ? 'اختر من القائمة' : '—'}</option>
+            {items.map((nat) => (
+              <option key={nat} value={nat}>
+                {nat}
+              </option>
+            ))}
+            <option value="__other__">أخرى</option>
+          </select>
+          {otherModalOpen && (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+              dir="rtl"
+              onClick={() => {
+                setOtherModalOpen(false);
+                setPickingOther(false);
+              }}
+            >
+              <div
+                className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-medium text-gray-800 mb-4">إدخال الجنسية</h3>
+                <input
+                  type="text"
+                  value={otherDraft}
+                  onChange={(e) => setOtherDraft(e.target.value)}
+                  placeholder="اكتب الجنسية"
+                  className="w-full border border-gray-300 rounded-md p-2 text-right text-md mb-4"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 border border-gray-300 rounded-md text-md"
+                    onClick={() => {
+                      setOtherModalOpen(false);
+                      setPickingOther(false);
+                    }}
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-teal-800 text-white rounded-md text-md"
+                    onClick={() => {
+                      const t = otherDraft.trim();
+                      if (required && !t) return;
+                      onChange(t);
+                      setOtherModalOpen(false);
+                      setPickingOther(false);
+                    }}
+                  >
+                    حفظ
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <input
+          type="text"
+          value={nTrim}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="ادخل النص"
+          className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
+        />
+      )}
+    </div>
   );
 }
 
@@ -354,6 +486,8 @@ useEffect(()=>{
     maidName: '',
     maidPhone: '',
     maidDateOfBirth: '',
+    isExternal: false,
+    extNationality: '',
   });
   const [editMaidProfileId, setEditMaidProfileId] = useState<number | null>(null);
   const [departureForm, setDepartureForm] = useState<DepartureForm>({
@@ -838,6 +972,9 @@ const fetchDepartedHousedforExporting = async () => {
       if (data.location_id && data.location_id !== 0) {
         updateData.location_id = data.location_id;
       }
+      if (data.isExternal) {
+        updateData.nationality = data.extNationality?.trim() || null;
+      }
       
       console.log('Sending update data:', updateData);
       
@@ -940,6 +1077,8 @@ const fetchDepartedHousedforExporting = async () => {
         maidName,
         maidPhone,
         maidDateOfBirth,
+        isExternal: !worker.homeMaid_id && !!ext,
+        extNationality: (ext?.nationality || '').trim(),
       };
       console.log('Setting edit form data:', formData);
       setEditWorkerForm(formData);
@@ -1089,9 +1228,10 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       openModal('internalWorkerModal'); // Swapped as per request
     }
   };
-  // جلب الجنسيات الفريدة عند فتح مودال التسكين الخارجي
+  // جلب الجنسيات الفريدة عند فتح مودال التسكين الخارجي أو تعديل عاملة خارجية
+  const editIsExternal = editWorkerForm.isExternal;
   useEffect(() => {
-    if (modals.internalWorkerModal) {
+    if (modals.internalWorkerModal || (modals.editWorker && editIsExternal)) {
       fetch('/api/housing/unique-nationalities')
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -1099,7 +1239,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         })
         .catch(() => {});
     }
-  }, [modals.internalWorkerModal]);
+  }, [modals.internalWorkerModal, modals.editWorker, editIsExternal]);
 
   // الاسم حروف فقط (عربي وإنجليزي ومسافات)
   const NAME_LETTERS_ONLY = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FFa-zA-Z\s]*$/;
@@ -1933,7 +2073,13 @@ const confirmDeleteNote = async () => {
                           {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || worker.externalHomedmaid?.name || ''}</td>}
                           {columnVisibility.clientName && <td className="py-2 px-2 text-right text-md leading-tight text-center">{getHousingClientName(worker)}</td>}
                           {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || worker.externalHomedmaid?.phone || ''}</td>}
-                          {columnVisibility.Nationalitycopy && <td className="py-2 px-2 text-right text-md">{worker.Order?.Nationalitycopy || worker.externalHomedmaid?.nationality || ''}</td>}
+                          {columnVisibility.Nationalitycopy && (
+                            <td className="py-2 px-2 text-right text-md">
+                              {worker.externalHomedmaid
+                                ? (worker.externalHomedmaid.nationality || '').trim() || ''
+                                : worker.Order?.Nationalitycopy || ''}
+                            </td>
+                          )}
                           {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || worker.externalHomedmaid?.passportNumber || ''}</td>}
                           {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
                           {columnVisibility.kingdomentryDate && <td className="py-2 px-2 text-right text-md">{getDate(worker.Order?.NewOrder?.[0]?.arrivals?.[0]?.KingdomentryDate) || ''}</td>}
@@ -2941,6 +3087,10 @@ const confirmDeleteNote = async () => {
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (selectedWorkerId) {
+                        if (editWorkerForm.isExternal && !editWorkerForm.extNationality?.trim()) {
+                          showNotification('يرجى اختيار أو إدخال الجنسية', 'error');
+                          return;
+                        }
                         await updateHousedWorker(selectedWorkerId, editWorkerForm);
                         closeModal('editWorker');
                       }
@@ -2993,6 +3143,17 @@ const confirmDeleteNote = async () => {
                         className="w-full p-2 bg-white border border-border rounded-md text-right text-md text-textDark"
                       />
                     </div>
+                    {editWorkerForm.isExternal && (
+                      <div className="mb-4 col-span-2">
+                        <NationalityFieldWithList
+                          label="الجنسية"
+                          items={uniqueNationalities}
+                          value={editWorkerForm.extNationality}
+                          onChange={(v) => setEditWorkerForm({ ...editWorkerForm, extNationality: v })}
+                          required
+                        />
+                      </div>
+                    )}
                     <div className="mb-4 col-span-2">
                       <label className="block text-md mb-2 text-textDark">السكن</label>
                       <select
@@ -3448,28 +3609,16 @@ const confirmDeleteNote = async () => {
                             className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
                           />
                         </div>
-                        <div>
-                          <label className="block text-md text-gray-700 mb-2">الجنسية <span className="text-red-500">*</span></label>
-                          {uniqueNationalities.length > 0 ? (
-                            <select
-                              value={externalHomemaidForm.nationality}
-                              onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, nationality: e.target.value })}
-                              className="w-full border border-gray-300 rounded-md  text-right text-md bg-gray-50"
-                            >
-                              <option value="">اختر الجنسية</option>
-                              {uniqueNationalities.map((nat) => (
-                                <option key={nat} value={nat}>{nat}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type="text"
-                              value={externalHomemaidForm.nationality}
-                              onChange={(e) => setExternalHomemaidForm({ ...externalHomemaidForm, nationality: e.target.value })}
-                              placeholder="ادخل الجنسية"
-                              className="w-full border border-gray-300 rounded-md p-2 text-right text-md bg-gray-50"
-                            />
-                          )}
+                        <div className="sm:col-span-2">
+                          <NationalityFieldWithList
+                            label="الجنسية"
+                            items={uniqueNationalities}
+                            value={externalHomemaidForm.nationality}
+                            onChange={(v) =>
+                              setExternalHomemaidForm({ ...externalHomemaidForm, nationality: v })
+                            }
+                            required
+                          />
                         </div>
                         <div>
                           <label className="block text-md text-gray-700 mb-2">تاريخ الميلاد</label>

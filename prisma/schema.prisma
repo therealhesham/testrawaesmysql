@@ -776,6 +776,8 @@ model externalHomedmaid{
   id Int @id @default(autoincrement())
   name String? @db.VarChar(100)
   nationality String? @db.VarChar(100)
+  /// مصدر الجنسية (قائمة مشتركة مع الجنسية أو نص حر)
+  nationalitySource String? @db.VarChar(100)
   passportNumber String? @db.VarChar(100)
   passportStartDate String? @db.VarChar(100)
   passportEndDate String? @db.VarChar(100)

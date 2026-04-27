@@ -12,7 +12,7 @@ export default async function handler(
   try {
     const [homemaids, externalHomemaids, offices] = await Promise.all([
       prisma.homemaid.findMany({ select: { Nationalitycopy: true } }),
-      prisma.externalHomedmaid.findMany({ select: { nationality: true } }),
+      prisma.externalHomedmaid.findMany({ select: { nationality: true, nationalitySource: true } }),
       prisma.offices.findMany({ select: { Country: true } }),
     ]);
 
@@ -22,6 +22,7 @@ export default async function handler(
     });
     externalHomemaids.forEach((e) => {
       if (e.nationality?.trim()) allNationalities.add(e.nationality.trim());
+      if (e.nationalitySource?.trim()) allNationalities.add(e.nationalitySource.trim());
     });
     offices.forEach((o) => {
       if (o.Country?.trim()) allNationalities.add(o.Country.trim());
