@@ -983,12 +983,12 @@ export default function EmployeeCashDetail() {
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" />
+                <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
               </div>
 
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
-                <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0"  />
+                <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
               </div>
             </div>
 
@@ -1097,7 +1097,7 @@ export default function EmployeeCashDetail() {
                     type="number" 
                     className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
                     min="0" 
-                    step="0.01" 
+                    step="any" 
                     defaultValue={editingTransaction.debit}
                   />
                 </div>
@@ -1109,7 +1109,7 @@ export default function EmployeeCashDetail() {
                     type="number" 
                     className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
                     min="0" 
-                    step="0.01" 
+                    step="any" 
                     defaultValue={editingTransaction.credit}
                   />
                 </div>
