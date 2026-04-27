@@ -3,9 +3,13 @@ import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import AlertModal from '../../../components/AlertModal';
-import { PencilAltIcon } from '@heroicons/react/outline';
+import { PencilAltIcon, DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
 import { TrashIcon } from '@heroicons/react/solid';
 import { FaExclamationTriangle } from 'react-icons/fa';
+import { jwtDecode } from 'jwt-decode';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ExcelJS from 'exceljs';
 interface EmployeeDetail {
   id: number;
   name: string;
@@ -42,6 +46,15 @@ const allowedAttachmentTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
 const isPlaceholderAttachment = (a: string | undefined) => !a || a === 'عرض';
 
+const transactionTypeLabel = (t?: EmployeeTransaction['type']) =>
+  t === 'detail' ? 'تفاصيل' : t === 'cash' ? 'عهدة نقدية' : '';
+
+const truncateForPdf = (text: string, maxLen = 48): string => {
+  if (!text || text === 'غير متوفر') return text || '';
+  const s = text.trim();
+  return s.length <= maxLen ? s : `${s.slice(0, maxLen)}…`;
+};
+
 export default function EmployeeCashDetail() {
   const router = useRouter();
   const { id } = router.query;
@@ -74,6 +87,20 @@ export default function EmployeeCashDetail() {
   const [editAttachmentFileName, setEditAttachmentFileName] = useState('');
   const [editAttachmentUploading, setEditAttachmentUploading] = useState(false);
   const [editAttachmentError, setEditAttachmentError] = useState('');
+
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const authToken = localStorage.getItem('token');
+    if (authToken) {
+      try {
+        const decoder: { username?: string } = jwtDecode(authToken);
+        setUserName(decoder?.username || '');
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
 
   const uploadAttachmentToSpaces = async (file: File, keyHint: string): Promise<string> => {
     const qs = new URLSearchParams({ contentType: file.type });
@@ -395,6 +422,277 @@ export default function EmployeeCashDetail() {
     fetchEmployeeDetail();
   };
 
+  const exportedData = async (): Promise<EmployeeDetail | null> => {
+    const employeeId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
+    if (!employeeId) return null;
+
+    const queryParams = new URLSearchParams();
+    if (filters.client) queryParams.append('client', filters.client);
+    if (filters.movementType) queryParams.append('movementType', filters.movementType);
+    if (filters.fromDate) queryParams.append('fromDate', filters.fromDate);
+    if (filters.toDate) queryParams.append('toDate', filters.toDate);
+
+    const response = await fetch(`/api/employee-cash/${employeeId}?${queryParams}`);
+    if (!response.ok) throw new Error('فشل جلب البيانات للتصدير');
+    return response.json() as Promise<EmployeeDetail>;
+  };
+
+  const exportToPDF = async () => {
+    try {
+      const detail = await exportedData();
+      if (!detail) {
+        setAlertType('error');
+        setAlertMessage('تعذر جلب بيانات التصدير');
+        setShowAlert(true);
+        return;
+      }
+
+      const rows = detail.transactions || [];
+
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      const logo = await fetch(
+        'https://recruitmentrawaes.sgp1.cdn.digitaloceanspaces.com/coloredlogo.png'
+      );
+      const logoBuffer = await logo.arrayBuffer();
+      const logoBytes = new Uint8Array(logoBuffer);
+      const logoBase64 = Buffer.from(logoBytes).toString('base64');
+
+      try {
+        doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+        const fontRes = await fetch('/fonts/Amiri-Regular.ttf');
+        if (!fontRes.ok) throw new Error('Failed to fetch font');
+        const fontBuffer = await fontRes.arrayBuffer();
+        const fontBase64 = Buffer.from(new Uint8Array(fontBuffer)).toString('base64');
+        doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
+        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+        doc.setFont('Amiri', 'normal');
+      } catch (e) {
+        console.error('Error loading font/logo for PDF:', e);
+        setAlertType('error');
+        setAlertMessage('تعذر تحميل الخط أو الشعار للتصدير');
+        setShowAlert(true);
+        return;
+      }
+
+      const reportTitle = `كشف حساب — ${detail.name || 'موظف'}`;
+      doc.setLanguage('ar');
+      doc.setFontSize(16);
+      // doc.text(reportTitle, pageWidth - 14, 14, { align: 'right', maxWidth: pageWidth - 50 });
+
+      const tableColumn = [
+        'البيان',
+        'الرصيد',
+        'دائن',
+        'مدين',
+        'العميل',
+        'الحساب الفرعي',
+        'الحساب الرئيسي',
+        'النوع',
+        'الشهر',
+        'التاريخ',
+        '#',
+      ];
+
+      const tableRows = rows.map((row, index) => [
+        truncateForPdf(row.description || '—', 36),
+        row.balance?.toLocaleString?.() ?? String(row.balance),
+        row.credit?.toLocaleString?.() ?? String(row.credit),
+        row.debit?.toLocaleString?.() ?? String(row.debit),
+        truncateForPdf(row.client || '—', 24),
+        truncateForPdf(row.subAccount || '—', 20),
+        truncateForPdf(row.mainAccount || '—', 20),
+        transactionTypeLabel(row.type),
+        row.month || '—',
+        row.date || '—',
+        String(index + 1),
+      ]);
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        styles: {
+          font: 'Amiri',
+          halign: 'right',
+          fontSize: 9,
+          cellPadding: 2,
+          textColor: [0, 0, 0],
+        },
+        headStyles: {
+          fillColor: [26, 77, 79],
+          textColor: [255, 255, 255],
+          overflow: 'hidden',
+          halign: 'right',
+        },
+        columnStyles: Object.fromEntries(
+          Array.from({ length: tableColumn.length }, (_, i) => [
+            i,
+            { cellWidth: 'auto' as const, overflow: 'linebreak' as const },
+          ])
+        ),
+        margin: { top: 36, right: 10, left: 10 },
+        didDrawPage: () => {
+          doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
+          if (doc.getCurrentPageInfo().pageNumber === 1) {
+            doc.setFontSize(11);
+            doc.setFont('Amiri', 'normal');
+            doc.text(reportTitle, pageWidth / 2, 22, { align: 'center' });
+          }
+          doc.setFontSize(9);
+          doc.setFont('Amiri', 'normal');
+          doc.text(userName, 10, pageHeight - 10, { align: 'left' });
+          doc.text(`صفحة ${doc.getCurrentPageInfo().pageNumber}`, pageWidth / 2, pageHeight - 10, {
+            align: 'center',
+          });
+          const dateText =
+            'التاريخ: ' +
+            new Date().toLocaleDateString('ar-EG', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            }) +
+            '  الساعة: ' +
+            new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+          doc.text(dateText, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        },
+        didParseCell: (hookData: { cell: { styles: { halign: string } } }) => {
+          hookData.cell.styles.halign = 'right';
+        },
+      });
+
+      const safeName = (detail.name || `employee_${id}`).replace(/[^\w\u0600-\u06FF-]/g, '_').slice(0, 40);
+      doc.save(`employee_cash_${id}_${safeName}.pdf`);
+
+      try {
+        await fetch('/api/accounting-logs/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exportType: 'employee_cash_detail',
+            reportType: `كشف حساب موظف — ${detail.name}`,
+            format: 'pdf',
+            filters: { id, ...filters },
+            recordCount: rows.length,
+          }),
+        });
+      } catch {
+        // optional log
+      }
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      setAlertType('error');
+      setAlertMessage('حدث خطأ أثناء تصدير PDF');
+      setShowAlert(true);
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      const detail = await exportedData();
+      if (!detail) {
+        setAlertType('error');
+        setAlertMessage('تعذر جلب بيانات التصدير');
+        setShowAlert(true);
+        return;
+      }
+
+      const rows = detail.transactions || [];
+
+      const workbook = new ExcelJS.Workbook();
+      const sheetName = 'كشف حساب';
+      const worksheet = workbook.addWorksheet(sheetName, { properties: { defaultColWidth: 18 } });
+
+      worksheet.columns = [
+        { header: '#', key: 'index', width: 6 },
+        { header: 'التاريخ', key: 'date', width: 14 },
+        { header: 'الشهر', key: 'month', width: 14 },
+        { header: 'النوع', key: 'type', width: 12 },
+        { header: 'الحساب الرئيسي', key: 'mainAccount', width: 22 },
+        { header: 'الحساب الفرعي', key: 'subAccount', width: 22 },
+        { header: 'العميل', key: 'client', width: 20 },
+        { header: 'مدين', key: 'debit', width: 12 },
+        { header: 'دائن', key: 'credit', width: 12 },
+        { header: 'الرصيد', key: 'balance', width: 12 },
+        { header: 'البيان', key: 'description', width: 28 },
+        { header: 'المرفق', key: 'attachment', width: 36 },
+      ];
+
+      worksheet.getRow(1).font = { name: 'Amiri', size: 11 };
+      worksheet.getRow(1).alignment = { horizontal: 'right' };
+
+      rows.forEach((row, index) => {
+        const r = worksheet.addRow({
+          index: index + 1,
+          date: row.date || '—',
+          month: row.month || '—',
+          type: transactionTypeLabel(row.type),
+          mainAccount: row.mainAccount || '—',
+          subAccount: row.subAccount || '—',
+          client: row.client || '—',
+          debit: row.debit ?? 0,
+          credit: row.credit ?? 0,
+          balance: row.balance ?? 0,
+          description: row.description || '—',
+          attachment: isPlaceholderAttachment(row.attachment) ? '—' : row.attachment,
+        });
+        r.alignment = { horizontal: 'right' };
+      });
+
+      worksheet.addRow({});
+      const totalRow = worksheet.addRow({
+        index: '',
+        date: '',
+        month: '',
+        type: '',
+        mainAccount: '',
+        subAccount: 'الإجمالي',
+        client: '',
+        debit: detail.totalDebit ?? 0,
+        credit: detail.totalCredit ?? 0,
+        balance: detail.totalBalance ?? 0,
+        description: '',
+        attachment: '',
+      });
+      totalRow.font = { bold: true };
+      totalRow.alignment = { horizontal: 'right' };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = (detail.name || `employee_${id}`).replace(/[^\w\u0600-\u06FF-]/g, '_').slice(0, 40);
+      a.download = `employee_cash_${id}_${safeName}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      try {
+        await fetch('/api/accounting-logs/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exportType: 'employee_cash_detail',
+            reportType: `كشف حساب موظف — ${detail.name}`,
+            format: 'xlsx',
+            filters: { id, ...filters },
+            recordCount: rows.length,
+          }),
+        });
+      } catch {
+        // optional log
+      }
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      setAlertType('error');
+      setAlertMessage('حدث خطأ أثناء تصدير Excel');
+      setShowAlert(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -408,7 +706,7 @@ export default function EmployeeCashDetail() {
     <div className={`min-h-screen bg-gray-50 ${Style["tajawal-regular"]}`} dir="rtl">
       {/* Page Content */}
       <div className="p-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
           <button
             onClick={handleAddRecord}
             className="bg-teal-800 text-white border-none rounded px-4 py-2 flex items-center gap-2 text-xs cursor-pointer hover:bg-teal-700"
@@ -544,6 +842,26 @@ export default function EmployeeCashDetail() {
               </div>
             </div>
           )}
+
+          {/* تصدير فوق الجدول — محاذاة لليسار (في RTL: justify-end) */}
+          <div className="flex justify-end gap-2 px-6 py-3 border-b border-gray-200 bg-white flex-wrap">
+            <button
+              type="button"
+              onClick={exportToPDF}
+              className="flex items-center gap-1 px-3 py-2 rounded bg-teal-800 text-white text-xs cursor-pointer hover:bg-teal-700"
+            >
+              <DocumentDownloadIcon className="w-4 h-4" />
+              PDF
+            </button>
+            <button
+              type="button"
+              onClick={exportToExcel}
+              className="flex items-center gap-1 px-3 py-2 rounded bg-teal-800 text-white text-xs cursor-pointer hover:bg-teal-700"
+            >
+              <TableIcon className="w-4 h-4" />
+              Excel
+            </button>
+          </div>
 
           {/* Table */}
           <div className="overflow-x-auto">
