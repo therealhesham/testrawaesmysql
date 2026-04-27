@@ -85,13 +85,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: record.id,
         date: record.date.toLocaleDateString('ar-SA'),
         month: record.month || record.date.toLocaleDateString('ar-SA', { month: 'long' }),
-        mainAccount: record.mainAccount || 'تسوية عهدة',
-        subAccount: record.subAccount || 'تسوية عهدة',
-        client: record.client || employeeInfo?.name || 'الموظف',
+        mainAccount: record.mainAccount ,
+        subAccount: record.subAccount ,
+        client: record.client || employeeInfo?.name ,
         debit: Number(record.debit),
         credit: Number(record.credit),
         balance: Number(record.balance),
-        description: record.description || 'سداد رسوم توثيق',
+        description: record.description ,
         attachment: record.attachment || 'عرض',
         type: 'detail'
       }));
