@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
@@ -24,6 +24,8 @@ interface Transaction {
   /** تمييز سجل العهدة عن سطر التفاصيل (نفس id قد يتكرر بين الجدولين) */
   recordType?: 'cash' | 'detail';
   employeeId: number;
+  /** طابع زمني للترتيب تصاعديًا حسب التاريخ */
+  sortTimestamp?: number;
   date: string;
   employeeName: string;
   cashNumber?: string;
@@ -40,6 +42,12 @@ interface EmployeeCashData {
     totalExpenses: number;
     totalRemaining: number;
   };
+}
+
+function sortTransactionsByDateAsc(transactions: Transaction[]): Transaction[] {
+  return [...transactions].sort(
+    (a, b) => (a.sortTimestamp ?? 0) - (b.sortTimestamp ?? 0)
+  );
 }
 
 // Form data interface matching the EmployeeCash model
@@ -126,6 +134,13 @@ export default function EmployeeCash() {
   
   // User name for export
   const [userName, setUserName] = useState('');
+
+  const allTransactionsSorted = useMemo(() => {
+    if (!data?.employees?.length) return [];
+    return sortTransactionsByDateAsc(
+      data.employees.flatMap((emp) => emp.transactions)
+    );
+  }, [data]);
 
   useEffect(() => {
     fetchEmployeeCashData();
@@ -628,9 +643,11 @@ export default function EmployeeCash() {
         'الرصيد المتبقي'
       ];
 
-      // Flatten all transactions from all employees
-      const allTransactions = dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || [];
-      
+      // Flatten all transactions from all employees (ترتيب تصاعدي حسب التاريخ)
+      const allTransactions = sortTransactionsByDateAsc(
+        dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || []
+      );
+
       const tableRows = allTransactions.map((transaction: Transaction, index: number) => [
         (index + 1).toString(),
         truncateToTwoWords(transaction.date || 'غير متوفر'),
@@ -750,8 +767,10 @@ export default function EmployeeCash() {
       worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
       worksheet.getRow(1).alignment = { horizontal: 'right' };
 
-      // Flatten all transactions from all employees
-      const allTransactions = dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || [];
+      // Flatten all transactions from all employees (ترتيب تصاعدي حسب التاريخ)
+      const allTransactions = sortTransactionsByDateAsc(
+        dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || []
+      );
 
       allTransactions.forEach((transaction: Transaction, index: number) => {
         const row = worksheet.addRow({
@@ -973,7 +992,7 @@ export default function EmployeeCash() {
                 </tr>
               </thead>
               <tbody>
-                {data?.employees.flatMap(emp => emp.transactions).map((transaction, index) => (
+                {allTransactionsSorted.map((transaction, index) => (
                   <tr
                     key={`${transaction.recordType ?? 'cash'}-${transaction.id}`}
                     className="hover:bg-gray-50 cursor-pointer"

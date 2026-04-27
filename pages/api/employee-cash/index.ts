@@ -71,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           },
           orderBy: {
-            transactionDate: 'desc'
+            transactionDate: 'asc'
           },
           skip: 0,
           take: takeLimit
@@ -79,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         prisma.employeeCashDetail.findMany({
           where: detailWhere,
           orderBy: {
-            date: 'desc'
+            date: 'asc'
           },
           take: takeLimit
         }),
@@ -168,8 +168,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }));
 
         const transactions = [...cashTransactions, ...detailTransactions]
-          .sort((a, b) => b.sortTime - a.sortTime)
-          .map(({ sortTime: _s, ...rest }) => rest);
+          .sort((a, b) => a.sortTime - b.sortTime)
+          .map(({ sortTime, ...rest }) => ({ ...rest, sortTimestamp: sortTime }));
 
         return {
           id: emp.id,
