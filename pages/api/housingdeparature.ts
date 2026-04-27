@@ -85,9 +85,7 @@ export default async function handler(
   if (req.method === "GET") {
     // تسجيل عملية العرض في systemlogs
     const deparatureReasonFilter =
-      typeof req.query.deparatureReason === 'string'
-        ? req.query.deparatureReason.trim()
-        : '';
+      typeof req.query.deparatureReason === 'string' ? req.query.deparatureReason.trim() : '';
 
     const userInfo = getUserFromCookies(req);
     if (userInfo.userId) {

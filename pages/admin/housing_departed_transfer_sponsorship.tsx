@@ -4,13 +4,12 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Style from 'styles/Home.module.css';
 import { Search } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import prisma from 'pages/api/globalprisma';
 import { jwtDecode } from 'jwt-decode';
 
-/** سبب المغادرة عند تسجيل المغادرة — نفس القيم المحتملة في نموذج المغادرة */
-const DEPARTURE_REASON_TRANSFER = 'نقل كفالة';
+/** سبب المغادرة عند تسجيل المغادرة — يُطابق النص المدخل في نموذج المغادرة */
+const DEPARTURE_REASON_TRANSFER = 'نقل الكفالة';
 
 interface HousedWorkerRow {
   id: number;
@@ -156,12 +155,12 @@ export default function HousingDepartedTransferSponsorship({ user }: { user: str
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Link
+              <a
                 href="/admin/housedarrivals"
                 className="text-sm px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 العودة إلى التسكين
-              </Link>
+              </a>
             </div>
           </div>
 
@@ -200,7 +199,7 @@ export default function HousingDepartedTransferSponsorship({ user }: { user: str
                 />
                 <Search className="w-4 h-4 text-gray-500" />
               </div>
-              {/* <span className="text-sm text-gray-500">المستخدم: {user}</span> */}
+              <span className="text-sm text-gray-500">المستخدم: {user}</span>
             </div>
           </div>
 
