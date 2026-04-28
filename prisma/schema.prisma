@@ -754,8 +754,9 @@ model rejectedOrders{
   HomeMaidId Int?
   HomeMaid homemaid? @relation(fields: [HomeMaidId], references: [id])
   order neworder @relation(references: [id],fields: [order_id])
-  ReasonOfRejection String? @db.VarChar(100)
+  ReasonOfRejection String? @db.VarChar(2048)
   createdAt DateTime @default(now())
+  RejectionDate DateTime?
   updatedAt DateTime @updatedAt
   clientId Int?
   Client Client? @relation(fields: [clientId], references: [id])
@@ -766,7 +767,8 @@ model cancelledOrders{
   HomeMaidId Int?
   HomeMaid homemaid? @relation(fields: [HomeMaidId], references: [id])
   order neworder @relation(references: [id],fields: [order_id])
-  ReasonOfCancellation String? @db.VarChar(100)
+  ReasonOfCancellation String? @db.VarChar(2048)
+ CancellationDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   clientId Int?

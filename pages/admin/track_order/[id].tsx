@@ -194,6 +194,7 @@ export default function TrackOrder() {
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [cancellationDateTime, setCancellationDateTime] = useState('');
 
   const [showAlertModal, setShowAlertModal] = useState({
     isOpen: false,
@@ -1182,6 +1183,9 @@ export default function TrackOrder() {
 
   const handleCancelContract = async () => {
     setCancellationReason('');
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    setCancellationDateTime(d.toISOString().slice(0, 16));
     setShowCancelModal(true);
   };
 
@@ -1191,6 +1195,25 @@ export default function TrackOrder() {
         isOpen: true,
         title: 'خطأ',
         message: 'يرجى إدخال سبب الإلغاء',
+      });
+      return;
+    }
+
+    if (!cancellationDateTime.trim()) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ',
+        message: 'يرجى إدخال تاريخ ووقت الإلغاء',
+      });
+      return;
+    }
+
+    const cancellationDateParsed = new Date(cancellationDateTime);
+    if (Number.isNaN(cancellationDateParsed.getTime())) {
+      setShowErrorModal({
+        isOpen: true,
+        title: 'خطأ',
+        message: 'تاريخ الإلغاء غير صالح',
       });
       return;
     }
@@ -1205,6 +1228,7 @@ export default function TrackOrder() {
         id: id,
         ReasonOfCancellation: cancellationReason,
         clientID: orderData?.clientInfo?.id,
+        CancellationDate: cancellationDateParsed.toISOString(),
         }),
       });
 
@@ -1214,6 +1238,7 @@ export default function TrackOrder() {
       }
       setShowCancelModal(false);
       setCancellationReason('');
+      setCancellationDateTime('');
       router.push('/admin/neworders');
     } catch (error: any) {
       console.error('Error cancelling contract:', error);
@@ -3365,6 +3390,19 @@ export default function TrackOrder() {
               <p className="text-gray-700 mb-4 text-right">هل أنت متأكد من إلغاء العقد؟ هذا الإجراء لا يمكن التراجع عنه.</p>
               <div className="mb-4">
                 <label className="block text-right text-gray-700 mb-2 font-medium">
+                  تاريخ ووقت الإلغاء <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={cancellationDateTime}
+                  onChange={(e) => setCancellationDateTime(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  dir="ltr"
+                  autoFocus
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-right text-gray-700 mb-2 font-medium">
                   سبب الإلغاء <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -3374,7 +3412,6 @@ export default function TrackOrder() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 text-right"
                   rows={4}
                   dir="rtl"
-                  autoFocus
                 />
               </div>
               <div className="flex justify-end gap-3">
@@ -3384,6 +3421,7 @@ export default function TrackOrder() {
                   onClick={() => {
                     setShowCancelModal(false);
                     setCancellationReason('');
+                    setCancellationDateTime('');
                   }}
                 >
                   إلغاء

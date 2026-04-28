@@ -42,6 +42,16 @@ export default async function handler(
     const orderHomemaidId = order.HomemaidId != null ? order.HomemaidId : undefined;
     const orderClientId = order.clientID != null ? order.clientID : undefined;
 const orderClientName = order.ClientName != null ? order.ClientName : undefined;
+
+    let cancellationDate: Date = new Date();
+    const bodyDate = req.body.CancellationDate;
+    if (bodyDate != null && bodyDate !== '') {
+      const parsed = new Date(typeof bodyDate === 'string' ? bodyDate : String(bodyDate));
+      if (!Number.isNaN(parsed.getTime())) {
+        cancellationDate = parsed;
+      }
+    }
+
     const updated = await prisma.neworder.update({
       where: { id: orderId },include:{cancelledOrders:{include:{Client:{select:{fullname:true}}}}},
       data: {
@@ -52,6 +62,7 @@ const orderClientName = order.ClientName != null ? order.ClientName : undefined;
         cancelledOrders: {
           create: {
             ReasonOfCancellation: req.body.ReasonOfCancellation ?? 'تم الالغاء ',
+            CancellationDate: cancellationDate,
             ...(orderHomemaidId != null && { HomeMaidId: orderHomemaidId }),
             ...(orderClientId != null && { clientId: orderClientId }),
           },
