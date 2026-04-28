@@ -3,11 +3,10 @@ import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/o
 import axios from 'axios';
 import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
-import { ArrowDown, Plus, Search, X } from 'lucide-react';
+import { ArrowDown, Plus, Search, X, Pencil } from 'lucide-react';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import Select from 'react-select';
-import { MoreHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -55,6 +54,21 @@ export default function Dashboard() {
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState({ reason: '', type: '' });
 
+  const [editOrderModal, setEditOrderModal] = useState<{
+    open: boolean;
+    orderId: number | null;
+    reasonType: 'rejection' | 'cancellation' | null;
+    reason: string;
+    eventDateTime: string;
+  }>({
+    open: false,
+    orderId: null,
+    reasonType: null,
+    reason: '',
+    eventDateTime: '',
+  });
+  const [editOrderSaving, setEditOrderSaving] = useState(false);
+
 const handleOpenMenu = (e, rowIndex) => {
   const rect = e.currentTarget.getBoundingClientRect();
   setMenuPosition({
@@ -70,6 +84,79 @@ const handleOpenMenu = (e, rowIndex) => {
     setShowSuccessModal(false);
     setShowErrorModal(false);
     setModalMessage("");
+  };
+
+  const openEditOrderModal = (row: any) => {
+    const rt = row.reasonType as 'rejection' | 'cancellation' | undefined;
+    if (!rt) return;
+    const rawDate =
+      rt === 'rejection'
+        ? row.rejectedOrders?.[0]?.RejectionDate
+        : row.cancelledOrders?.[0]?.CancellationDate;
+    let d = new Date();
+    if (rawDate) {
+      const parsed = new Date(rawDate);
+      if (!Number.isNaN(parsed.getTime())) d = parsed;
+    }
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    setEditOrderModal({
+      open: true,
+      orderId: row.id,
+      reasonType: rt,
+      reason: row.reason || '',
+      eventDateTime: d.toISOString().slice(0, 16),
+    });
+  };
+
+  const closeEditOrderModal = () => {
+    setEditOrderModal({
+      open: false,
+      orderId: null,
+      reasonType: null,
+      reason: '',
+      eventDateTime: '',
+    });
+  };
+
+  const submitEditOrder = async () => {
+    const { orderId, reason, eventDateTime } = editOrderModal;
+    if (!orderId || !reason.trim()) {
+      setModalMessage('يرجى إدخال السبب');
+      setShowErrorModal(true);
+      return;
+    }
+    if (!eventDateTime.trim()) {
+      setModalMessage('يرجى إدخال التاريخ والوقت');
+      setShowErrorModal(true);
+      return;
+    }
+    const eventParsed = new Date(eventDateTime);
+    if (Number.isNaN(eventParsed.getTime())) {
+      setModalMessage('تاريخ غير صالح');
+      setShowErrorModal(true);
+      return;
+    }
+    setEditOrderSaving(true);
+    try {
+      await axios.post('/api/update-rejected-or-cancelled-order', {
+        orderId,
+        reason: reason.trim(),
+        eventDate: eventParsed.toISOString(),
+      });
+      closeEditOrderModal();
+      setModalMessage('تم حفظ التعديلات بنجاح');
+      setShowSuccessModal(true);
+      newOrdersList(currentPage);
+    } catch (error: any) {
+      const msg =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        'حدث خطأ أثناء الحفظ';
+      setModalMessage(msg);
+      setShowErrorModal(true);
+    } finally {
+      setEditOrderSaving(false);
+    }
   };
 
   const confirmAccept = async (id) => {
@@ -644,6 +731,7 @@ const fetchFilteredDataExporting = async () => {
               <thead className="bg-teal-900 text-white">
                 <tr>
                   <th className="p-4 flex justify-center self-center">استعادة</th>
+                  <th className="p-4">تعديل</th>
                   <th className="p-4">نوع الطلب</th>
                   <th className="p-4">السبب</th>
                   <th className="p-4">جواز السفر</th>
@@ -669,6 +757,19 @@ const fetchFilteredDataExporting = async () => {
                           <FaRecycle className='w-4 h-4' />
                           <span className="text-sm">استعادة</span>
                         </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <button
+                          type="button"
+                          title="تعديل السبب والتاريخ"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditOrderModal(row);
+                          }}
+                          className="inline-flex items-center justify-center p-2 rounded-md text-teal-700 hover:bg-teal-50"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
                       </td>
                       <td className="p-4 text-center font-medium">{row.orderType || '—'}</td>
                       <td className="p-4 text-center">
@@ -1196,6 +1297,75 @@ const fetchFilteredDataExporting = async () => {
               >
                 موافق
               </button>
+            </div>
+          </div>
+        )}
+        {editOrderModal.open && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4">
+            <div
+              className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg relative"
+              dir="rtl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="absolute top-2 left-2 text-gray-600 hover:text-gray-800"
+                onClick={closeEditOrderModal}
+                disabled={editOrderSaving}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-semibold mb-4 text-teal-900 text-right pr-8">
+                {editOrderModal.reasonType === 'rejection' ? 'تعديل سبب الرفض' : 'تعديل سبب الإلغاء'}
+              </h2>
+              <div className="mb-4 text-right">
+                <label className="block text-gray-700 mb-2 font-medium">
+                  {editOrderModal.reasonType === 'rejection' ? 'تاريخ الرفض' : 'تاريخ الإلغاء'}{' '}
+                  <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={editOrderModal.eventDateTime}
+                  onChange={(e) =>
+                    setEditOrderModal((prev) => ({ ...prev, eventDateTime: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  dir="ltr"
+                  disabled={editOrderSaving}
+                />
+              </div>
+              <div className="mb-6 text-right">
+                <label className="block text-gray-700 mb-2 font-medium">
+                  السبب <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={editOrderModal.reason}
+                  onChange={(e) =>
+                    setEditOrderModal((prev) => ({ ...prev, reason: e.target.value }))
+                  }
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  disabled={editOrderSaving}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  onClick={closeEditOrderModal}
+                  disabled={editOrderSaving}
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-teal-900 text-white rounded-md hover:bg-teal-800 disabled:opacity-50"
+                  onClick={() => void submitEditOrder()}
+                  disabled={editOrderSaving}
+                >
+                  {editOrderSaving ? 'جاري الحفظ...' : 'حفظ'}
+                </button>
+              </div>
             </div>
           </div>
         )}
