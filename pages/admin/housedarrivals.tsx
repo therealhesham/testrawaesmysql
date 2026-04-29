@@ -4242,6 +4242,7 @@ const confirmDeleteNote = async () => {
         open={!!transferWizardWorker}
         worker={transferWizardWorker}
         onClose={() => setTransferWizardWorker(null)}
+        onSuccess={() => { setTransferWizardWorker(null); fetchWorkers(); }}
       />
     </Layout>
   );

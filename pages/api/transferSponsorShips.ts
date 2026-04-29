@@ -128,7 +128,7 @@ console.log(req.body)
             ExperimentRate,
             Notes,
             TransferOperationNumber:TransferOperationNumber?TransferOperationNumber:null,
-          ContractDate,
+          ContractDate: ContractDate ? new Date(ContractDate) : null,
           EntryDate: EntryDate ? new Date(EntryDate) : null,
           ExperimentDuration: ExperimentDuration ? ExperimentDuration : null,
           WorkDuration, 
