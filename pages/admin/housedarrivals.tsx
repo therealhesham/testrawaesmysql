@@ -289,11 +289,37 @@ const ActionDropdown: React.FC<{
   onTransferWizard?: () => void;
 }> = ({ homemaid_id, id, name, onEdit, onDeparture, openModal, onAddSession, onAddNotes, onRehousing, isDeparted, showTransferWizard, onTransferWizard }) => {
   const [isOpen, setIsOpen] = useState(false);
-  // أضف هذا state في بداية الكومبوننت
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ left: 0, bottom: 0 });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPos({
+        left: Math.max(8, rect.left),
+        // فتح القائمة لأعلى الزر حتى لا تتأثر بحدود حاوية الجدول
+        bottom: Math.max(8, window.innerHeight - rect.top + 8),
+      });
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedTrigger = !!dropdownRef.current?.contains(target);
+      const clickedMenu = !!menuRef.current?.contains(target);
+      if (!clickedTrigger && !clickedMenu) {
         setIsOpen(false);
       }
     };
@@ -303,13 +329,18 @@ const ActionDropdown: React.FC<{
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
         className="p-1 rounded-full hover:bg-gray-200"
       >
         <MoreHorizontal className="w-5 h-5 text-gray-500" />
       </button>
       {isOpen && (
-        <div className="absolute left-0 mt-2 min-w-[11rem] w-max max-w-[16rem] bg-white border border-border rounded-md shadow-lg z-10">
+        <div
+          ref={menuRef}
+          style={{ left: `${menuPos.left}px`, bottom: `${menuPos.bottom}px` }}
+          className="fixed min-w-[11rem] w-max max-w-[16rem] bg-white border border-border rounded-md shadow-lg z-[200]"
+        >
           <button
             onClick={() => {
               onEdit(id, name);
