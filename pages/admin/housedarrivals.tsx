@@ -292,17 +292,35 @@ const ActionDropdown: React.FC<{
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPos, setMenuPos] = useState({ left: 0, bottom: 0 });
+  const [menuPos, setMenuPos] = useState<{
+    left: number;
+    top?: number;
+    bottom?: number;
+    maxHeight: number;
+  }>({ left: 0, top: 0, maxHeight: 320 });
 
   useEffect(() => {
     if (!isOpen) return;
     const updatePosition = () => {
       if (!triggerRef.current) return;
       const rect = triggerRef.current.getBoundingClientRect();
+      const gap = 8;
+      const menuWidth = menuRef.current?.offsetWidth || 176;
+      const menuHeight = menuRef.current?.offsetHeight || 220;
+      const viewportPadding = 8;
+      const spaceAbove = rect.top - viewportPadding;
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const openDown = spaceBelow >= menuHeight || spaceBelow >= spaceAbove;
+      const left = Math.min(
+        Math.max(viewportPadding, rect.left),
+        window.innerWidth - menuWidth - viewportPadding
+      );
+
       setMenuPos({
-        left: Math.max(8, rect.left),
-        // فتح القائمة لأعلى الزر حتى لا تتأثر بحدود حاوية الجدول
-        bottom: Math.max(8, window.innerHeight - rect.top + 8),
+        left,
+        top: openDown ? rect.bottom + gap : undefined,
+        bottom: openDown ? undefined : window.innerHeight - rect.top + gap,
+        maxHeight: Math.max(160, openDown ? spaceBelow - gap : spaceAbove - gap),
       });
     };
     updatePosition();
@@ -338,8 +356,13 @@ const ActionDropdown: React.FC<{
       {isOpen && (
         <div
           ref={menuRef}
-          style={{ left: `${menuPos.left}px`, bottom: `${menuPos.bottom}px` }}
-          className="fixed min-w-[11rem] w-max max-w-[16rem] bg-white border border-border rounded-md shadow-lg z-[200]"
+          style={{
+            left: `${menuPos.left}px`,
+            top: menuPos.top != null ? `${menuPos.top}px` : undefined,
+            bottom: menuPos.bottom != null ? `${menuPos.bottom}px` : undefined,
+            maxHeight: `${menuPos.maxHeight}px`,
+          }}
+          className="fixed min-w-[11rem] w-max max-w-[16rem] overflow-y-auto bg-white border border-border rounded-md shadow-lg z-[200]"
         >
           <button
             onClick={() => {

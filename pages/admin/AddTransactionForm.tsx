@@ -29,6 +29,8 @@ interface AddTransactionFormProps {
 export default function AddTransactionForm({ onBack }: AddTransactionFormProps) {
   const router = useRouter();
   const transactionId = router.query.id;
+  /** true لما الصفحة تُفتح من المعالج (wizard) وتكون العاملة محددة مسبقاً */
+  const [lockedFromWizard, setLockedFromWizard] = useState(false);
   const [formData, setFormData] = useState({
     HomeMaidId: '',
     HomeMaidName: '',
@@ -128,6 +130,7 @@ export default function AddTransactionForm({ onBack }: AddTransactionFormProps) 
       if (d.oldClientName) setOldClientSearchTerm(d.oldClientName);
       if (d.trialClientName) setNewClientSearchTerm(d.trialClientName);
       if (d.maidName) setHomemaidSearchTerm(d.maidName);
+      if (d.homeMaidId) setLockedFromWizard(true);
     } catch {
       /* ignore */
     }
@@ -599,35 +602,62 @@ console.log(files)
               {/* اختر العاملة */}
               <div className="flex flex-col gap-2 relative homemaid-search-container">
                 <label className="text-base text-gray-800 text-right">اختر العاملة</label>
-                <input
-                  type="text"
-                  value={homemaidSearchTerm}
-                  onChange={handleHomemaidSearchChange}
-                  onBlur={handleHomemaidInputBlur}
-                  onFocus={() => homemaidSearchTerm.length >= 1 && setShowHomemaidDropdown(true)}
-                  placeholder="ابحث عن العاملة بالاسم"
-                  className="bg-gray-50 border border-gray-300 rounded-md p-2 text-base text-gray-500 text-right h-full w-full"
-                />
-                {isSearchingHomemaids && (
-                  <div className="absolute right-3 top-9">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
+                {lockedFromWizard && formData.HomeMaidId ? (
+                  <div className="bg-teal-50 border border-teal-300 rounded-md p-2 flex items-center justify-between gap-2">
+                    <span className="text-base text-teal-900 font-medium text-right flex-1">
+                      {homemaidSearchTerm}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLockedFromWizard(false);
+                        setHomemaidSearchTerm('');
+                        setFormData((prev) => ({
+                          ...prev,
+                          HomeMaidId: '',
+                          HomeMaidName: '',
+                          Nationality: '',
+                          PassportNumber: '',
+                        }));
+                      }}
+                      className="text-xs text-teal-700 border border-teal-400 rounded px-2 py-0.5 hover:bg-teal-100 whitespace-nowrap"
+                    >
+                      تغيير
+                    </button>
                   </div>
-                )}
-                {showHomemaidDropdown && homemaidSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {homemaidSuggestions.map((homemaid, index) => (
-                      <div
-                        key={index}
-                        onClick={() => handleHomemaidSuggestionClick(homemaid)}
-                        className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
-                      >
-                        <div className="font-medium text-md">{homemaid.Name}</div>
-                        <div className="text-sm text-gray-500">
-                          {homemaid.Nationalitycopy} - {homemaid.Passportnumber}
-                        </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={homemaidSearchTerm}
+                      onChange={handleHomemaidSearchChange}
+                      onBlur={handleHomemaidInputBlur}
+                      onFocus={() => homemaidSearchTerm.length >= 1 && setShowHomemaidDropdown(true)}
+                      placeholder="ابحث عن العاملة بالاسم"
+                      className="bg-gray-50 border border-gray-300 rounded-md p-2 text-base text-gray-500 text-right h-full w-full"
+                    />
+                    {isSearchingHomemaids && (
+                      <div className="absolute right-3 top-9">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-600"></div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                    {showHomemaidDropdown && homemaidSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {homemaidSuggestions.map((homemaid, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleHomemaidSuggestionClick(homemaid)}
+                            className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                          >
+                            <div className="font-medium text-md">{homemaid.Name}</div>
+                            <div className="text-sm text-gray-500">
+                              {homemaid.Nationalitycopy} - {homemaid.Passportnumber}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               {/* اسم العاملة */}
