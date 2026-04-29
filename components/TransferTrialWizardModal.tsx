@@ -96,6 +96,8 @@ export default function TransferTrialWizardModal({
   const [searchingClient, setSearchingClient] = useState(false);
   const [pickedNewClient, setPickedNewClient] = useState<ClientSuggestion | null>(null);
   const [creatingClient, setCreatingClient] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // ── Step 3: إجراءات التجربة ───────────────────────────────────────────────
   const [trialAction, setTrialAction] = useState('');
@@ -145,6 +147,26 @@ export default function TransferTrialWizardModal({
     }, 300);
     return () => window.clearTimeout(id);
   }, [trialClientName, open]);
+
+  // ── حساب موضع الـ dropdown (fixed) حسب المساحة المتاحة ─────────────────
+  useEffect(() => {
+    if (!showNewDropdown || !searchInputRef.current) return;
+    const rect = searchInputRef.current.getBoundingClientRect();
+    const dropdownH = 200;
+    const gap = 4;
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+    const openUp = spaceBelow < dropdownH && spaceAbove > spaceBelow;
+    setDropdownStyle({
+      position: 'fixed',
+      width: `${rect.width}px`,
+      left: `${rect.left}px`,
+      zIndex: 9999,
+      ...(openUp
+        ? { bottom: `${window.innerHeight - rect.top + gap}px`, maxHeight: `${Math.min(spaceAbove, 240)}px` }
+        : { top: `${rect.bottom + gap}px`, maxHeight: `${Math.min(spaceBelow, 240)}px` }),
+    });
+  }, [showNewDropdown, newClientSuggestions]);
 
   // ── Pre-fill cost from step 1 when entering step 4 ───────────────────────
   useEffect(() => {
@@ -380,6 +402,7 @@ export default function TransferTrialWizardModal({
                   <p className="text-sm text-gray-500 m-0">اسم العميل الذي خرجت العاملة للتجربة لديه</p>
                   <div className="relative">
                     <input
+                      ref={searchInputRef}
                       className="w-full border border-gray-300 rounded-md p-2 text-right text-sm"
                       value={trialClientName}
                       onChange={(e) => { setTrialClientName(e.target.value); setPickedNewClient(null); }}
@@ -390,7 +413,10 @@ export default function TransferTrialWizardModal({
                       <div className="absolute left-3 top-2.5 text-xs text-gray-400">جاري البحث...</div>
                     )}
                     {showNewDropdown && newClientSuggestions.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      <div
+                        style={dropdownStyle}
+                        className="bg-white border border-gray-200 rounded-md shadow-xl overflow-y-auto"
+                      >
                         {newClientSuggestions.map((c) => (
                           <button
                             key={c.id}
