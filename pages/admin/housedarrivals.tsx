@@ -16,6 +16,8 @@ import { useRouter } from 'next/router';
 // import "";
 import ExcelJS from 'exceljs';
 import { FileTextFilled } from '@ant-design/icons';
+import TransferTrialWizardModal from 'components/TransferTrialWizardModal';
+import type { TransferWizardWorker } from 'components/TransferTrialWizardModal';
 
 interface HousedWorker {
   id: number;
@@ -47,8 +49,9 @@ interface HousedWorker {
       typeOfContract: string;
       ClientName?: string | null;
       createdAt?: string;
+      clientID?: number | null;
       arrivals?: Array<{ KingdomentryDate?: string; KingdomentryTime?: string; DeliveryDate?: string }>;
-      client?: { fullname?: string | null } | null;
+      client?: { id?: number; fullname?: string | null } | null;
     }>;
   };
   externalHomedmaid?: {
@@ -59,7 +62,8 @@ interface HousedWorker {
     passportNumber: string | null;
     phone: string | null;
     dateofbirth?: string | null;
-    Client?: { fullname?: string | null } | null;
+    clientId?: number | null;
+    Client?: { id?: number; fullname?: string | null } | null;
   };
 }
 interface EditWorkerForm {
@@ -116,6 +120,18 @@ function getHousingClientName(worker: HousedWorker): string {
     latestOrder.ClientName?.trim() ||
     ''
   );
+}
+
+/** كفيل العاملة في النظام (لنقل الكفالة — العميل القديم) */
+function getOldSponsorClientId(worker: HousedWorker): number | null {
+  if (worker.externalHomedmaid) {
+    const sid = worker.externalHomedmaid.clientId ?? worker.externalHomedmaid.Client?.id;
+    if (sid != null && !Number.isNaN(Number(sid))) return Number(sid);
+  }
+  const latest = worker.Order?.NewOrder?.[0];
+  if (latest?.clientID != null && !Number.isNaN(Number(latest.clientID))) return Number(latest.clientID);
+  if (latest?.client?.id != null && !Number.isNaN(Number(latest.client.id))) return Number(latest.client.id);
+  return null;
 }
 
 /** مطابق لصفحة مغادرات نقل الكفالة — فلتر سبب المغادرة في الـ API */
@@ -269,7 +285,9 @@ const ActionDropdown: React.FC<{
   openModal: (modalName: string) => void;onAddSession: (id: number) => void;onAddNotes: (id: number) => void;
   onRehousing?: (id: number, name: string) => void;
   isDeparted?: boolean;
-}> = ({ homemaid_id, id, name, onEdit, onDeparture, openModal, onAddSession, onAddNotes, onRehousing, isDeparted }) => {
+  showTransferWizard?: boolean;
+  onTransferWizard?: () => void;
+}> = ({ homemaid_id, id, name, onEdit, onDeparture, openModal, onAddSession, onAddNotes, onRehousing, isDeparted, showTransferWizard, onTransferWizard }) => {
   const [isOpen, setIsOpen] = useState(false);
   // أضف هذا state في بداية الكومبوننت
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -291,7 +309,7 @@ const ActionDropdown: React.FC<{
         <MoreHorizontal className="w-5 h-5 text-gray-500" />
       </button>
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-40 bg-white border border-border rounded-md shadow-lg z-10">
+        <div className="absolute left-0 mt-2 min-w-[11rem] w-max max-w-[16rem] bg-white border border-border rounded-md shadow-lg z-10">
           <button
             onClick={() => {
               onEdit(id, name);
@@ -324,6 +342,18 @@ const ActionDropdown: React.FC<{
           >
             <FaAddressBook />
             اعادة تسكين
+          </button>
+          )}
+          {showTransferWizard && homemaid_id > 0 && onTransferWizard && (
+          <button
+            onClick={() => {
+              onTransferWizard();
+              setIsOpen(false);
+            }}
+            className="w-full flex gap-1 flex-row text-right py-2 px-4 text-md text-teal-800 hover:bg-teal-50"
+          >
+            <FaUserFriends />
+            نقل كفالة (معالج)
           </button>
           )}
           {homemaid_id > 0 && (
@@ -780,6 +810,7 @@ useEffect(()=>{
 
   // === Re-Housing State ===
   const [rehousingWorker, setRehousingWorker] = useState<any>(null);
+  const [transferWizardWorker, setTransferWizardWorker] = useState<TransferWizardWorker | null>(null);
   const [rehousingForm, setRehousingForm] = useState({
     houseentrydate: '',
     Reason: '',
@@ -2205,6 +2236,16 @@ const confirmDeleteNote = async () => {
                               openModal={openModal}
                               isDeparted={housingStatus === 'departed' || housingStatus === 'departed_transfer'}
                               onRehousing={handleOpenRehousing}
+                              showTransferWizard={housingStatus === 'departed_transfer'}
+                              onTransferWizard={() =>
+                                setTransferWizardWorker({
+                                  id: worker.id,
+                                  homeMaid_id: worker.homeMaid_id,
+                                  maidDisplayName: worker.Order?.Name || worker.externalHomedmaid?.name || '',
+                                  oldClientId: getOldSponsorClientId(worker),
+                                  oldClientName: getHousingClientName(worker),
+                                })
+                              }
                             />
                           </td>}
                         </tr>
@@ -4143,6 +4184,11 @@ const confirmDeleteNote = async () => {
           </main>
         </div>
       </section>
+      <TransferTrialWizardModal
+        open={!!transferWizardWorker}
+        worker={transferWizardWorker}
+        onClose={() => setTransferWizardWorker(null)}
+      />
     </Layout>
   );
 }

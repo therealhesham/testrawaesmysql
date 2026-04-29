@@ -5,6 +5,7 @@ import { CalendarIcon } from '@heroicons/react/outline';
 import Style from "../styles/Home.module.css";
 import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
+import { HOUSING_TRANSFER_WIZARD_STORAGE_KEY } from 'components/TransferTrialWizardModal';
 interface Client {
   id: number;
   fullname: string;
@@ -81,6 +82,56 @@ export default function AddTransactionForm({ onBack }: AddTransactionFormProps) 
       fetchTransaction();
     }
   }, [transactionId]);
+
+  useEffect(() => {
+    if (!router.isReady || transactionId) return;
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = sessionStorage.getItem(HOUSING_TRANSFER_WIZARD_STORAGE_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(HOUSING_TRANSFER_WIZARD_STORAGE_KEY);
+      const d = JSON.parse(raw) as {
+        homeMaidId?: number;
+        maidName?: string;
+        oldClientId?: number;
+        oldClientName?: string;
+        trialClientName?: string;
+        newClientId?: number;
+        newClientPhone?: string;
+        newClientCity?: string;
+        experimentDurationSummary?: string;
+        estimatedCost?: string;
+        trialResult?: string;
+        trialNotes?: string;
+      };
+      const cost = d.estimatedCost?.trim() || '';
+      const paid = '0';
+      const remaining = cost ? (parseFloat(cost) - parseFloat(paid)).toString() : '';
+      setFormData((prev) => ({
+        ...prev,
+        HomeMaidId: d.homeMaidId != null ? String(d.homeMaidId) : prev.HomeMaidId,
+        HomeMaidName: d.maidName ?? prev.HomeMaidName,
+        OldClientId: d.oldClientId != null ? String(d.oldClientId) : prev.OldClientId,
+        NewClientName: d.trialClientName ?? prev.NewClientName,
+        NewClientId: d.newClientId != null ? String(d.newClientId) : prev.NewClientId,
+        NewClientPhone: d.newClientPhone ?? prev.NewClientPhone,
+        NewClientCity: d.newClientCity ?? prev.NewClientCity,
+        ExperimentDuration: d.experimentDurationSummary ?? prev.ExperimentDuration,
+        WorkDuration: d.experimentDurationSummary ?? prev.WorkDuration,
+        Cost: cost || prev.Cost,
+        Paid: paid,
+        Remaining: remaining || prev.Remaining,
+        ExperimentRate: d.trialResult ?? prev.ExperimentRate,
+        Notes: d.trialNotes ?? prev.Notes,
+        stage: 'فترة التجربة',
+      }));
+      if (d.oldClientName) setOldClientSearchTerm(d.oldClientName);
+      if (d.trialClientName) setNewClientSearchTerm(d.trialClientName);
+      if (d.maidName) setHomemaidSearchTerm(d.maidName);
+    } catch {
+      /* ignore */
+    }
+  }, [router.isReady, transactionId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

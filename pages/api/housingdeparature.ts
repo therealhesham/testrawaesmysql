@@ -161,18 +161,19 @@ export default async function handler(
                 orderBy: { createdAt: "desc" },
                 take: 1,
                 select: {
+                  clientID: true,
                   arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
                   typeOfContract: true,
                   ClientName: true,
                   createdAt: true,
-                  client: { select: { fullname: true } },
+                  client: { select: { id: true, fullname: true } },
                 },
               },
             },
           },
           externalHomedmaid: {
             include: {
-              Client: { select: { fullname: true } },
+              Client: { select: { id: true, fullname: true } },
             },
           },
           HousedWorkerNotes: true,
