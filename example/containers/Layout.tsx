@@ -148,9 +148,8 @@ function isJwtExpired(token) {
       {/* Desktop Layout */}
       <div className="hidden lg:flex h-screen w-screen">
         <Sidebar />
-        <div className="flex flex-col flex-1 w-full h-full">
+        <div className="flex flex-col flex-1 w-full h-full min-w-0">
           <DesktopNavbar />
-          <div className="flex justify-start" style={{ marginLeft: "20%" }}></div>
           <Main>{children}</Main>
         </div>
       </div>

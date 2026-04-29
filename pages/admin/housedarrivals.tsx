@@ -118,6 +118,19 @@ function getHousingClientName(worker: HousedWorker): string {
   );
 }
 
+/** مطابق لصفحة مغادرات نقل الكفالة — فلتر سبب المغادرة في الـ API */
+const DEPARTURE_REASON_TRANSFER = 'نقل الكفالة';
+
+function stayDaysFromDeparture(houseentrydate: string | null, departed: string | null): string {
+  if (!houseentrydate || !departed) return 'غير محدد';
+  const start = new Date(houseentrydate).getTime();
+  const end = new Date(departed).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return 'غير محدد';
+  return String(Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)));
+}
+
+type HousingStatusTab = 'housed' | 'departed' | 'departed_transfer';
+
 /** قوائم الجنسية من /api/housing/unique-nationalities؛ عند اختيار «أخرى» يفتح مودال لكتابة الجنسية */
 function NationalityFieldWithList({
   label,
@@ -404,7 +417,7 @@ setUserName(decoded.username);
   const [totalCount, setTotalCount] = useState(0);
   const [departedTotalCount, setDepartedTotalCount] = useState(0);
   const [tabCounts, setTabCounts] = useState({ recruitment: 0, rental: 0 });
-  const [housingStatus, setHousingStatus] = useState<'housed' | 'departed'>('housed');
+  const [housingStatus, setHousingStatus] = useState<HousingStatusTab>('housed');
   
   // Debug: Log tabCounts changes
   useEffect(() => {
@@ -871,9 +884,12 @@ const fetchCounts = async () => {
 const fetchWorkers = async () => {
   try {
     const contractType = activeTab; // recruitment or rental
-    const status = housingStatus; // housed or departed
+    const status = housingStatus;
     console.log(`Fetching workers - contractType: ${contractType}, status: ${status}`);
+    const isDepartedList = status === 'departed' || status === 'departed_transfer';
     let apiEndpoint = status === 'housed' ? '/api/confirmhousinginformation' : '/api/housingdeparature';
+    const departureParams =
+      status === 'departed_transfer' ? { deparatureReason: DEPARTURE_REASON_TRANSFER } : {};
     const response = await axios.get(apiEndpoint, {
       params: {
         ...filters,
@@ -881,6 +897,7 @@ const fetchWorkers = async () => {
         sortKey,
         sortDirection,
         contractType: contractType,
+        ...departureParams,
       },
     });
     console.log('Workers response:', response.data);
@@ -903,6 +920,7 @@ const fetchWorkers = async () => {
         ...filters,
         page: 1,
         contractType: otherContractType,
+        ...departureParams,
       },
     });
     setTabCounts((prev) => ({
@@ -1214,7 +1232,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
   };
   
   // Handle housing status change
-  const handleHousingStatusChange = (status: 'housed' | 'departed') => {
+  const handleHousingStatusChange = (status: HousingStatusTab) => {
     setHousingStatus(status);
     setPage(1); // Reset to first page when switching status
   };
@@ -1903,33 +1921,56 @@ const confirmDeleteNote = async () => {
   </button>
 </div>
               </div>
-              <div className="flex justify-end gap-4 mb-4">
-                <button 
-                  onClick={() => handleHousingStatusChange('housed')}
-                  className={`px-3 py-2 text-md rounded-md ${
-                    housingStatus === 'housed' 
-                      ? 'bg-teal-800 text-white' 
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  عاملات تم تسكينهم
-                </button>
-                <button 
-                  onClick={() => handleHousingStatusChange('departed')}
-                  className={`px-3 py-2 text-md rounded-md ${
-                    housingStatus === 'departed' 
-                      ? 'bg-teal-800 text-white' 
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  عاملات غادرن السكن
-                </button>
-                {/* <a
-                  href="/admin/housing_departed_transfer_sponsorship"
-                  className="px-3 py-2 text-md rounded-md border border-teal-700 text-teal-800 hover:bg-teal-50"
-                >
-                  مغادرات (سبب المغادرة: نقل كفالة)
-                </a> */}
+              <div className="flex flex-col items-end gap-2 mb-4">
+                <div className="flex justify-end gap-4 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleHousingStatusChange('housed')}
+                    className={`px-3 py-2 text-md rounded-md ${
+                      housingStatus === 'housed' ? 'bg-teal-800 text-white' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    عاملات تم تسكينهم
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleHousingStatusChange('departed')}
+                    className={`px-3 py-2 text-md rounded-md ${
+                      housingStatus === 'departed' || housingStatus === 'departed_transfer'
+                        ? 'bg-teal-800 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    عاملات غادرن السكن
+                  </button>
+                </div>
+                {(housingStatus === 'departed' || housingStatus === 'departed_transfer') && (
+                  <div className="flex flex-wrap justify-end gap-2 w-full max-w-2xl border-r-4 border-teal-600 pr-3 mr-0">
+                    <button
+                      type="button"
+                      onClick={() => handleHousingStatusChange('departed')}
+                      className={`px-3 py-1.5 text-sm rounded-md ${
+                        housingStatus === 'departed' ? 'bg-teal-700 text-white' : 'bg-gray-100 text-gray-600 border border-gray-300'
+                      }`}
+                    >
+                      كل المغادرات
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleHousingStatusChange('departed_transfer')}
+                      className={`px-3 py-1.5 text-sm rounded-md ${
+                        housingStatus === 'departed_transfer'
+                          ? 'bg-teal-700 text-white'
+                          : 'bg-gray-100 text-gray-600 border border-gray-300'
+                      }`}
+                    >
+                      عاملات غادرت لنقل الكفالة
+                    </button>
+                    <span className="text-xs text-gray-500 self-center mr-2">
+                      {housingStatus === 'departed_transfer' ? `سبب المغادرة: ${DEPARTURE_REASON_TRANSFER}` : null}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-4 flex-wrap">
@@ -2031,9 +2072,17 @@ const confirmDeleteNote = async () => {
                       {columnVisibility.deliveryDate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">دخول المملكة</th>}
                     
                     
-                      {columnVisibility.Reason && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
-                        {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
-                      </th>}
+                      {columnVisibility.Reason &&
+                        (housingStatus === 'departed_transfer' ? (
+                          <>
+                            <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">سبب التسكين</th>
+                            <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">سبب المغادرة</th>
+                          </>
+                        ) : (
+                          <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
+                            {housingStatus === 'housed' ? 'سبب التسكين' : 'سبب المغادرة'}
+                          </th>
+                        ))}
                       {columnVisibility.houseentrydate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">
                         {housingStatus === 'housed' ? 'تاريخ التسكين' : 'تاريخ المغادرة'}
                       </th>}
@@ -2084,9 +2133,17 @@ const confirmDeleteNote = async () => {
                           {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
                           {columnVisibility.kingdomentryDate && <td className="py-2 px-2 text-right text-md">{getDate(worker.Order?.NewOrder?.[0]?.arrivals?.[0]?.KingdomentryDate) || ''}</td>}
                        
-                          {columnVisibility.Reason && <td className="py-2 px-2 text-right text-md">
-                            {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
-                          </td>}
+                          {columnVisibility.Reason &&
+                            (housingStatus === 'departed_transfer' ? (
+                              <>
+                                <td className="py-2 px-2 text-right text-md">{worker.Reason || '—'}</td>
+                                <td className="py-2 px-2 text-right text-md">{worker.deparatureReason || '—'}</td>
+                              </>
+                            ) : (
+                              <td className="py-2 px-2 text-right text-md">
+                                {housingStatus === 'housed' ? worker.Reason : worker.deparatureReason}
+                              </td>
+                            ))}
                           {columnVisibility.houseentrydate && <td className="py-2 px-2 text-right text-md">
                             {housingStatus === 'housed' 
                               ? (worker.houseentrydate ? new Date(worker.houseentrydate).toLocaleDateString() : 'غير محدد')
@@ -2096,9 +2153,19 @@ const confirmDeleteNote = async () => {
                           {columnVisibility.deliveryDate && <td className="py-2 px-2 text-right text-md">
                             {worker?.deliveryDate ? new Date(worker?.deliveryDate).toLocaleDateString() : 'غير محدد'}
                           </td>}
-                          {columnVisibility.duration && <td className={`py-2 px-2 text-right text-md ${worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10 ? 'text-red-600' : 'text-green-600'}`}>
-                            {calculateDuration(worker.houseentrydate)}
-                          </td>}
+                          {columnVisibility.duration && (() => {
+                            const stayDays =
+                              housingStatus === 'departed_transfer'
+                                ? stayDaysFromDeparture(worker.houseentrydate, worker.deparatureHousingDate)
+                                : calculateDuration(worker.houseentrydate);
+                            const stayNum = Number(stayDays);
+                            const warnLong = housingStatus === 'departed_transfer' ? stayNum > 10 : worker.houseentrydate && Number(calculateDuration(worker.houseentrydate)) > 10;
+                            return (
+                              <td className={`py-2 px-2 text-right text-md ${warnLong ? 'text-red-600' : 'text-green-600'}`}>
+                                {stayDays}
+                              </td>
+                            );
+                          })()}
                           {columnVisibility.employee && <td className="py-2 px-2 text-right text-md">{worker.employee}</td>}
                           {columnVisibility.entitlements && <td className="py-2 px-2 text-center">
                             <button
@@ -2136,14 +2203,14 @@ const confirmDeleteNote = async () => {
                               onEdit={handleEditWorker}
                               onDeparture={handleWorkerDeparture}
                               openModal={openModal}
-                              isDeparted={housingStatus === 'departed'}
+                              isDeparted={housingStatus === 'departed' || housingStatus === 'departed_transfer'}
                               onRehousing={handleOpenRehousing}
                             />
                           </td>}
                         </tr>
                         {expandedRows.has(worker.id) && (
                           <tr>
-                            <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="p-0">
+                            <td colSpan={Object.values(columnVisibility).filter(Boolean).length + (housingStatus === 'departed_transfer' && columnVisibility.Reason ? 1 : 0)} className="p-0">
                               <div className="bg-gray-50 border-r-4 border-teal-500 p-5 flex flex-col gap-5">
                                 {(() => {
                                   // دمج بيانات التسكين والملاحظات وترتيبها تنازلياً حسب التاريخ
@@ -2291,7 +2358,7 @@ const confirmDeleteNote = async () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={Object.values(columnVisibility).filter(Boolean).length} className="py-8 text-center text-gray-500">
+                        <td colSpan={Object.values(columnVisibility).filter(Boolean).length + (housingStatus === 'departed_transfer' && columnVisibility.Reason ? 1 : 0)} className="py-8 text-center text-gray-500">
                           لا توجد بيانات متاحة
                         </td>
                       </tr>

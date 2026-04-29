@@ -255,6 +255,7 @@ export default function EmployeeCashDetail() {
           subAccount: formData.get('subAccount'),
           debit: Number(formData.get('debit') || 0),
           credit: Number(formData.get('credit') || 0),
+          description: (formData.get('description') as string) || '',
           attachment: addAttachmentUrl || ''
         }),
       });
@@ -319,6 +320,7 @@ export default function EmployeeCashDetail() {
           subAccount: formData.get('subAccount'),
           debit: Number(formData.get('debit') || 0),
           credit: Number(formData.get('credit') || 0),
+          description: (formData.get('description') as string) || '',
           attachment:
             editAttachmentUrl ||
             (isPlaceholderAttachment(editingTransaction.attachment)
@@ -990,6 +992,16 @@ export default function EmployeeCashDetail() {
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
                 <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
               </div>
+
+              <div className="flex flex-col items-end col-span-2">
+                <label className="text-sm text-gray-500 mb-2">البيان</label>
+                <input
+                  name="description"
+                  type="text"
+                  placeholder="ادخل البيان"
+                  className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                />
+              </div>
             </div>
 
             <div className="flex flex-col items-end">
@@ -1114,7 +1126,18 @@ export default function EmployeeCashDetail() {
                   />
                 </div>
 
-                <div className="flex flex-col items-end">
+                <div className="flex flex-col items-end col-span-2">
+                  <label className="text-sm text-gray-500 mb-2">البيان</label>
+                  <input
+                    name="description"
+                    type="text"
+                    placeholder="ادخل البيان"
+                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right"
+                    defaultValue={editingTransaction.description}
+                  />
+                </div>
+
+                <div className="flex flex-col items-end col-span-2">
                   <label className="text-sm text-gray-500 mb-2">المرفقات</label>
                   <div className="flex flex-col gap-2 w-full items-end">
                     <div className="flex gap-3 w-full justify-start flex-row-reverse flex-wrap">

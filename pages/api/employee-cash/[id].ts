@@ -151,7 +151,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subAccount,
         debit,
         credit,
-        attachment
+        attachment,
+        description
       } = req.body;
 
       // Basic validation
@@ -174,6 +175,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           debit: debitAmount,
           credit: creditAmount,
           balance: balance,
+          description: typeof description === 'string' ? description : '',
           attachment: typeof attachment === 'string' ? attachment : ''
         },
         include: {
@@ -208,7 +210,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subAccount,
         debit,
         credit,
-        attachment
+        attachment,
+        description
       } = req.body;
 
       // Basic validation
@@ -241,6 +244,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             debit: debitAmount,
             credit: creditAmount,
             balance: balance,
+            description: typeof description === 'string' ? description : detailRecord.description,
             attachment: typeof attachment === 'string' ? attachment : ''
           }
         });
@@ -268,7 +272,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             receivedAmount: debitAmount,
             expenseAmount: creditAmount,
             remainingBalance: balance,
-            description: client || cashRecord.description || '',
+            description:
+              typeof description === 'string'
+                ? description
+                : cashRecord.description || '',
             attachment: typeof attachment === 'string' ? attachment : cashRecord.attachment || ''
           }
         });
