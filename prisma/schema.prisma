@@ -798,6 +798,7 @@ model housedworker {
   id             Int       @id @default(autoincrement())
 deparatureReason  String?   @db.VarChar(100) 
 deparatureHousingDate  DateTime? 
+transferSponsorshipData Json?
 isExternal Boolean? @default(false)
 HousedWorkerNotes HousedWorkerNotes[]
  externalHomedmaid externalHomedmaid? @relation(fields: [externalHomedmaidId], references: [id])

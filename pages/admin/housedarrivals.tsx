@@ -26,6 +26,7 @@ interface HousedWorker {
   houseentrydate: string;
   deparatureHousingDate: string | null;
   deparatureReason: string | null;
+  transferSponsorshipData?: TransferSponsorshipData | null;
   status: string;
   employee: string;
   Reason: string;
@@ -50,7 +51,7 @@ interface HousedWorker {
       ClientName?: string | null;
       createdAt?: string;
       clientID?: number | null;
-      arrivals?: Array<{ KingdomentryDate?: string; KingdomentryTime?: string; DeliveryDate?: string }>;
+      arrivals?: Array<{ KingdomentryDate?: string; KingdomentryTime?: string; DeliveryDate?: string; GuaranteeDurationEnd?: string | null }>;
       client?: { id?: number; fullname?: string | null } | null;
     }>;
   };
@@ -86,6 +87,28 @@ interface DepartureForm {
   deparatureHousingDate: string;
   deparatureReason: string;
   status: string;
+  transferSponsorshipData?: TransferSponsorshipData | null;
+}
+
+interface TransferSponsorshipData {
+  newSponsorName: string;
+  newSponsorPhone: string;
+  newSponsorId: string;
+  newSponsorDateOfBirth: string;
+  financialAbilityAttachment: string;
+  bankCertificateAttachment: string;
+  trialPeriodType: 'days' | 'month';
+  trialPeriodDays: string;
+  trialStartDate: string;
+  trialEndDate: string;
+  trialDailyCost: string;
+  originalSponsorGuaranteeEndDate: string;
+  medicalCheckValid: '' | 'yes' | 'no';
+  sponsorHasViolations: '' | 'yes' | 'no';
+  sponsorHasWorkers: '' | 'yes' | 'no';
+  sponsorWorkerCount: string;
+  amountPaid: '' | 'yes' | 'no';
+  paidAmount: string;
 }
 interface InHouseLocation {
   id: number;
@@ -136,6 +159,44 @@ function getOldSponsorClientId(worker: HousedWorker): number | null {
 
 /** مطابق لصفحة مغادرات نقل الكفالة — فلتر سبب المغادرة في الـ API */
 const DEPARTURE_REASON_TRANSFER = 'نقل الكفالة';
+const DEFAULT_DEPARTURE_REASONS = ['انتهاء الخدمة', 'نقل السكن', 'رفض العمل', 'مرض', DEPARTURE_REASON_TRANSFER];
+
+const createEmptyTransferSponsorshipData = (originalSponsorGuaranteeEndDate = ''): TransferSponsorshipData => ({
+  newSponsorName: '',
+  newSponsorPhone: '',
+  newSponsorId: '',
+  newSponsorDateOfBirth: '',
+  financialAbilityAttachment: '',
+  bankCertificateAttachment: '',
+  trialPeriodType: 'days',
+  trialPeriodDays: '',
+  trialStartDate: '',
+  trialEndDate: '',
+  trialDailyCost: '',
+  originalSponsorGuaranteeEndDate,
+  medicalCheckValid: '',
+  sponsorHasViolations: '',
+  sponsorHasWorkers: '',
+  sponsorWorkerCount: '',
+  amountPaid: '',
+  paidAmount: '',
+});
+
+const calculateTrialEndDate = (startDate: string, periodType: 'days' | 'month', days: string) => {
+  if (!startDate) return '';
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return '';
+
+  if (periodType === 'month') {
+    start.setMonth(start.getMonth() + 1);
+  } else {
+    const periodDays = Number(days);
+    if (!periodDays || Number.isNaN(periodDays)) return '';
+    start.setDate(start.getDate() + periodDays);
+  }
+
+  return start.toISOString().split('T')[0];
+};
 
 function stayDaysFromDeparture(houseentrydate: string | null, departed: string | null): string {
   if (!houseentrydate || !departed) return 'غير محدد';
@@ -594,6 +655,10 @@ useEffect(()=>{
   });
   const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(null);
   const [selectedWorkerName, setSelectedWorkerName] = useState<string>('');
+  const [selectedDepartureWorker, setSelectedDepartureWorker] = useState<HousedWorker | null>(null);
+  const [departureReasons, setDepartureReasons] = useState<string[]>(DEFAULT_DEPARTURE_REASONS);
+  const [newDepartureReason, setNewDepartureReason] = useState('');
+  const [isUploadingTransferAttachment, setIsUploadingTransferAttachment] = useState(false);
   const [workerSearchTerm, setWorkerSearchTerm] = useState('');
   const [workerSuggestions, setWorkerSuggestions] = useState<any[]>([]);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
@@ -608,6 +673,25 @@ useEffect(()=>{
   const [selectedExternalWorker, setSelectedExternalWorker] = useState<any>(null);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedReasons = window.localStorage.getItem('housingDepartureReasons');
+    if (!storedReasons) return;
+    try {
+      const parsed = JSON.parse(storedReasons);
+      if (Array.isArray(parsed)) {
+        setDepartureReasons(Array.from(new Set([...DEFAULT_DEPARTURE_REASONS, ...parsed.filter((item) => typeof item === 'string')])));
+      }
+    } catch (error) {
+      console.error('Failed to load departure reasons:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('housingDepartureReasons', JSON.stringify(departureReasons));
+  }, [departureReasons]);
+
   // Internal worker modal form data
   const [internalWorkerForm, setInternalWorkerForm] = useState({
     workerId: '',
@@ -1090,10 +1174,68 @@ const fetchDepartedHousedforExporting = async () => {
       showNotification('حدث خطأ أثناء تحديث البيانات', 'error');
     }
   };
+  const getOriginalSponsorGuaranteeEndDate = (worker?: HousedWorker | null) => {
+    return worker?.Order?.NewOrder?.[0]?.arrivals?.[0]?.GuaranteeDurationEnd
+      ? String(worker.Order.NewOrder[0].arrivals[0].GuaranteeDurationEnd).split('T')[0]
+      : '';
+  };
+
+  const updateTransferSponsorshipData = (updates: Partial<TransferSponsorshipData>) => {
+    setDepartureForm((prev) => {
+      const current = prev.transferSponsorshipData || createEmptyTransferSponsorshipData(getOriginalSponsorGuaranteeEndDate(selectedDepartureWorker));
+      const next = { ...current, ...updates };
+      const shouldRecalculateTrialEnd =
+        Object.prototype.hasOwnProperty.call(updates, 'trialStartDate') ||
+        Object.prototype.hasOwnProperty.call(updates, 'trialPeriodType') ||
+        Object.prototype.hasOwnProperty.call(updates, 'trialPeriodDays');
+
+      return {
+        ...prev,
+        transferSponsorshipData: {
+          ...next,
+          trialEndDate: shouldRecalculateTrialEnd
+            ? calculateTrialEndDate(next.trialStartDate, next.trialPeriodType, next.trialPeriodDays)
+            : next.trialEndDate,
+        },
+      };
+    });
+  };
+
+  const handleTransferAttachmentUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'financialAbilityAttachment' | 'bankCertificateAttachment'
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+    uploadData.append('upload_preset', 'z8q1vykv');
+    uploadData.append('cloud_name', 'duo8svqci');
+    uploadData.append('folder', 'samples');
+
+    try {
+      setIsUploadingTransferAttachment(true);
+      const response = await axios.post('https://api.cloudinary.com/v1_1/duo8svqci/auto/upload', uploadData);
+      updateTransferSponsorshipData({ [field]: response.data.secure_url } as Partial<TransferSponsorshipData>);
+    } catch (error) {
+      console.error('Transfer attachment upload failed:', error);
+      showNotification('حدث خطأ أثناء رفع المرفق', 'error');
+    } finally {
+      setIsUploadingTransferAttachment(false);
+    }
+  };
+
   // Record departure
   const recordDeparture = async (workerId: number, data: DepartureForm) => {
     try {
-      await axios.put(`/api/housingdeparature`,{...data,homeMaid:workerId});
+      const payload = {
+        ...data,
+        transferSponsorshipData:
+          data.deparatureReason === DEPARTURE_REASON_TRANSFER ? data.transferSponsorshipData : null,
+        homeMaid: workerId,
+      };
+      await axios.put(`/api/housingdeparature`, payload);
       showNotification('تم تسجيل مغادرة العاملة بنجاح');
       fetchWorkers();
       fetchLocations();
@@ -1190,12 +1332,17 @@ const fetchDepartedHousedforExporting = async () => {
   };
   // Handle departure modal opening
   const handleWorkerDeparture = (id: number, name: string) => {
+    const worker = housedWorkers.find((w) => w.id === id) || null;
+    const originalSponsorGuaranteeEndDate = getOriginalSponsorGuaranteeEndDate(worker);
     setSelectedWorkerId(id);
     setSelectedWorkerName(name);
+    setSelectedDepartureWorker(worker);
+    setNewDepartureReason('');
     setDepartureForm({
       deparatureHousingDate: '',
       deparatureReason: '',
       status: 'departed',
+      transferSponsorshipData: createEmptyTransferSponsorshipData(originalSponsorGuaranteeEndDate),
     });
     openModal('workerDeparture');
   };
@@ -3469,7 +3616,7 @@ const confirmDeleteNote = async () => {
                 onClick={() => closeModal('workerDeparture')}
               >
                 <div
-                  className="bg-gray-100 rounded-lg p-6 w-full max-w-lg shadow-card"
+                  className="bg-gray-100 rounded-lg p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-card"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-5">
@@ -3479,7 +3626,7 @@ const confirmDeleteNote = async () => {
                     </button>
                   </div>
                   <form
-                    className="grid grid-cols-2 gap-5"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-5"
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (selectedWorkerId) {
@@ -3508,22 +3655,64 @@ const confirmDeleteNote = async () => {
                     </div>
                     <div className="mb-4">
                       <label className="block text-md mb-2 text-textDark">سبب المغادرة</label>
-                      <input
-                        type="text"
+                      <select
+                        required
                         value={departureForm.deparatureReason}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const reason = e.target.value;
                           setDepartureForm({
                             ...departureForm,
-                            deparatureReason: e.target.value,
-                          })
-                        }
+                            deparatureReason: reason,
+                            transferSponsorshipData:
+                              reason === DEPARTURE_REASON_TRANSFER
+                                ? departureForm.transferSponsorshipData || createEmptyTransferSponsorshipData(getOriginalSponsorGuaranteeEndDate(selectedDepartureWorker))
+                                : null,
+                          });
+                        }}
                         className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
-                      />
+                      >
+                        <option value="">اختر سبب المغادرة</option>
+                        {departureReasons.map((reason) => (
+                          <option key={reason} value={reason}>
+                            {reason}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="text"
+                          value={newDepartureReason}
+                          onChange={(e) => setNewDepartureReason(e.target.value)}
+                          placeholder="إضافة سبب جديد"
+                          className="flex-1 p-2 border border-border rounded-md text-right text-sm text-textDark bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const reason = newDepartureReason.trim();
+                            if (!reason) return;
+                            setDepartureReasons((prev) => (prev.includes(reason) ? prev : [...prev, reason]));
+                            setDepartureForm({
+                              ...departureForm,
+                              deparatureReason: reason,
+                              transferSponsorshipData:
+                                reason === DEPARTURE_REASON_TRANSFER
+                                  ? departureForm.transferSponsorshipData || createEmptyTransferSponsorshipData(getOriginalSponsorGuaranteeEndDate(selectedDepartureWorker))
+                                  : null,
+                            });
+                            setNewDepartureReason('');
+                          }}
+                          className="bg-teal-700 text-white py-2 px-3 rounded-md text-sm"
+                        >
+                          إضافة
+                        </button>
+                      </div>
                     </div>
                     <div className="mb-4">
                       <label className="block text-md mb-2 text-textDark">تاريخ المغادرة</label>
                       <input
                         type="date"
+                        required
                         value={departureForm.deparatureHousingDate}
                         onChange={(e) =>
                           setDepartureForm({
@@ -3534,7 +3723,223 @@ const confirmDeleteNote = async () => {
                         className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
                       />
                     </div>
-                    <div className="flex justify-end gap-4">
+                    {departureForm.deparatureReason === DEPARTURE_REASON_TRANSFER && departureForm.transferSponsorshipData && (
+                      <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 border border-teal-200 bg-white rounded-lg p-4">
+                        <h3 className="col-span-1 md:col-span-2 text-lg font-semibold text-teal-800">بيانات نقل الكفالة</h3>
+
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">اسم الكفيل الجديد</label>
+                          <input
+                            type="text"
+                            value={departureForm.transferSponsorshipData.newSponsorName}
+                            onChange={(e) => updateTransferSponsorshipData({ newSponsorName: e.target.value })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">رقم الكفيل الجديد</label>
+                          <input
+                            type="text"
+                            value={departureForm.transferSponsorshipData.newSponsorPhone}
+                            onChange={(e) => updateTransferSponsorshipData({ newSponsorPhone: e.target.value })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">هوية الكفيل الجديد</label>
+                          <input
+                            type="text"
+                            value={departureForm.transferSponsorshipData.newSponsorId}
+                            onChange={(e) => updateTransferSponsorshipData({ newSponsorId: e.target.value })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">تاريخ ميلاد الكفيل الجديد</label>
+                          <input
+                            type="date"
+                            value={departureForm.transferSponsorshipData.newSponsorDateOfBirth}
+                            onChange={(e) => updateTransferSponsorshipData({ newSponsorDateOfBirth: e.target.value })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">مرفق إثبات القدرة المادية</label>
+                          <input
+                            type="file"
+                            onChange={(e) => handleTransferAttachmentUpload(e, 'financialAbilityAttachment')}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                          {departureForm.transferSponsorshipData.financialAbilityAttachment && (
+                            <a href={departureForm.transferSponsorshipData.financialAbilityAttachment} target="_blank" rel="noreferrer" className="text-sm text-teal-700 underline mt-1 inline-block">
+                              عرض المرفق
+                            </a>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">مرفق شهادة بنكية</label>
+                          <input
+                            type="file"
+                            onChange={(e) => handleTransferAttachmentUpload(e, 'bankCertificateAttachment')}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                          {departureForm.transferSponsorshipData.bankCertificateAttachment && (
+                            <a href={departureForm.transferSponsorshipData.bankCertificateAttachment} target="_blank" rel="noreferrer" className="text-sm text-teal-700 underline mt-1 inline-block">
+                              عرض المرفق
+                            </a>
+                          )}
+                        </div>
+                        {isUploadingTransferAttachment && (
+                          <p className="col-span-1 md:col-span-2 text-sm text-teal-700">جاري رفع المرفق...</p>
+                        )}
+
+                        <h3 className="col-span-1 md:col-span-2 text-lg font-semibold text-teal-800 border-t pt-4">فترة التجربة</h3>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">نوع فترة التجربة</label>
+                          <select
+                            value={departureForm.transferSponsorshipData.trialPeriodType}
+                            onChange={(e) => updateTransferSponsorshipData({ trialPeriodType: e.target.value as 'days' | 'month' })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          >
+                            <option value="days">عدد أيام</option>
+                            <option value="month">شهر</option>
+                          </select>
+                        </div>
+                        {departureForm.transferSponsorshipData.trialPeriodType === 'days' && (
+                          <div>
+                            <label className="block text-md mb-2 text-textDark">عدد أيام فترة التجربة</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={departureForm.transferSponsorshipData.trialPeriodDays}
+                              onChange={(e) => updateTransferSponsorshipData({ trialPeriodDays: e.target.value })}
+                              className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">تاريخ بدء فترة التجربة</label>
+                          <input
+                            type="date"
+                            value={departureForm.transferSponsorshipData.trialStartDate}
+                            onChange={(e) => updateTransferSponsorshipData({ trialStartDate: e.target.value })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">تاريخ انتهاء فترة التجربة تلقائيًا</label>
+                          <input
+                            type="date"
+                            value={departureForm.transferSponsorshipData.trialEndDate}
+                            disabled
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">التكلفة اليومية في فترة التجربة</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={departureForm.transferSponsorshipData.trialDailyCost}
+                            onChange={(e) => updateTransferSponsorshipData({ trialDailyCost: e.target.value })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          />
+                        </div>
+                        <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                          <p className="text-md text-textDark">فترة ضمان الكفيل الأساسي</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {departureForm.transferSponsorshipData.originalSponsorGuaranteeEndDate || 'غير موجودة في النظام'}
+                          </p>
+                        </div>
+
+                        <h3 className="col-span-1 md:col-span-2 text-lg font-semibold text-teal-800 border-t pt-4">أسئلة التحقق</h3>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">هل الفحص الطبي ساري؟</label>
+                          <select
+                            value={departureForm.transferSponsorshipData.medicalCheckValid}
+                            onChange={(e) => updateTransferSponsorshipData({ medicalCheckValid: e.target.value as '' | 'yes' | 'no' })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          >
+                            <option value="">اختر</option>
+                            <option value="yes">نعم</option>
+                            <option value="no">لا</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">هل يوجد مخالفات على الكفيل؟</label>
+                          <select
+                            value={departureForm.transferSponsorshipData.sponsorHasViolations}
+                            onChange={(e) => updateTransferSponsorshipData({ sponsorHasViolations: e.target.value as '' | 'yes' | 'no' })}
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          >
+                            <option value="">اختر</option>
+                            <option value="yes">نعم</option>
+                            <option value="no">لا</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">هل يوجد عمالة؟</label>
+                          <select
+                            value={departureForm.transferSponsorshipData.sponsorHasWorkers}
+                            onChange={(e) =>
+                              updateTransferSponsorshipData({
+                                sponsorHasWorkers: e.target.value as '' | 'yes' | 'no',
+                                sponsorWorkerCount: e.target.value === 'yes' ? departureForm.transferSponsorshipData?.sponsorWorkerCount || '' : '',
+                              })
+                            }
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          >
+                            <option value="">اختر</option>
+                            <option value="yes">نعم</option>
+                            <option value="no">لا</option>
+                          </select>
+                        </div>
+                        {departureForm.transferSponsorshipData.sponsorHasWorkers === 'yes' && (
+                          <div>
+                            <label className="block text-md mb-2 text-textDark">كم العدد؟</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={departureForm.transferSponsorshipData.sponsorWorkerCount}
+                              onChange={(e) => updateTransferSponsorshipData({ sponsorWorkerCount: e.target.value })}
+                              className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <label className="block text-md mb-2 text-textDark">هل سدد المبلغ؟</label>
+                          <select
+                            value={departureForm.transferSponsorshipData.amountPaid}
+                            onChange={(e) =>
+                              updateTransferSponsorshipData({
+                                amountPaid: e.target.value as '' | 'yes' | 'no',
+                                paidAmount: e.target.value === 'yes' ? departureForm.transferSponsorshipData?.paidAmount || '' : '',
+                              })
+                            }
+                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                          >
+                            <option value="">اختر</option>
+                            <option value="yes">نعم</option>
+                            <option value="no">لا</option>
+                          </select>
+                        </div>
+                        {departureForm.transferSponsorshipData.amountPaid === 'yes' && (
+                          <div>
+                            <label className="block text-md mb-2 text-textDark">كم المبلغ؟</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={departureForm.transferSponsorshipData.paidAmount}
+                              onChange={(e) => updateTransferSponsorshipData({ paidAmount: e.target.value })}
+                              className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-4 col-span-1 md:col-span-2">
                       <button
                         type="button"
                         onClick={() => closeModal('workerDeparture')}

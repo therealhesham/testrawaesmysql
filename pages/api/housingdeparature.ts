@@ -162,7 +162,7 @@ export default async function handler(
                 take: 1,
                 select: {
                   clientID: true,
-                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
+                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true, GuaranteeDurationEnd: true } },
                   typeOfContract: true,
                   ClientName: true,
                   createdAt: true,
@@ -212,19 +212,25 @@ export default async function handler(
       });
 
       // Fetch data 
+      const transferSponsorshipData =
+        req.body.deparatureReason === 'نقل الكفالة' && req.body.transferSponsorshipData
+          ? req.body.transferSponsorshipData
+          : null;
+
 const updateData =        await prisma.housedworker.update({
           where: {id: Number(req.body.homeMaid) },
           data: {
             isActive: false,
             deparatureReason:req.body.deparatureReason ,
             deparatureHousingDate: req.body.deparatureHousingDate?new Date(req.body.deparatureHousingDate).toISOString():"",
+            transferSponsorshipData,
             checkIns: {
               updateMany: {
                 where: { isActive: true }, // Add appropriate conditions here
                 data: { isActive: false },
               },
             },
-          },
+          } as any,
         });
 
 

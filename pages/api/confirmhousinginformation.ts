@@ -508,7 +508,7 @@ try {
                 orderBy: { createdAt: "desc" },
                 take: 1,
                 select: {
-                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true } },
+                  arrivals: { select: { KingdomentryDate: true, KingdomentryTime: true, DeliveryDate: true, GuaranteeDurationEnd: true } },
                   typeOfContract: true,
                   ClientName: true,
                   createdAt: true,
