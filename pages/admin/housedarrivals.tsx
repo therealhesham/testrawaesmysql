@@ -2007,30 +2007,42 @@ const confirmDeleteNote = async () => {
 </div>
               </div>
               <div className="flex flex-col items-end gap-2 mb-4">
-                <div className="flex justify-end gap-4 flex-wrap">
-                  <button
-                    type="button"
+                <nav className="flex justify-start gap-8 flex-wrap border-b border-gray-200 w-full">
+                  <div
+                    className={`flex items-center pb-3 cursor-pointer transition-all duration-200 ${
+                      housingStatus === 'housed' ? 'border-b-2 border-teal-700' : ''
+                    }`}
                     onClick={() => handleHousingStatusChange('housed')}
-                    className={`px-3 py-2 text-md rounded-md ${
-                      housingStatus === 'housed' ? 'bg-teal-800 text-white' : 'bg-gray-200 text-gray-600'
-                    }`}
                   >
-                    عاملات تم تسكينهم
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleHousingStatusChange('departed')}
-                    className={`px-3 py-2 text-md rounded-md ${
+                    <span
+                      className={`text-base transition-colors duration-200 ${
+                        housingStatus === 'housed' ? 'text-teal-700 font-medium' : 'text-gray-500'
+                      }`}
+                    >
+                      عاملات تم تسكينهم
+                    </span>
+                  </div>
+                  <div
+                    className={`flex items-center pb-3 cursor-pointer transition-all duration-200 ${
                       housingStatus === 'departed' || housingStatus === 'departed_transfer'
-                        ? 'bg-teal-800 text-white'
-                        : 'bg-gray-200 text-gray-600'
+                        ? 'border-b-2 border-teal-700'
+                        : ''
                     }`}
+                    onClick={() => handleHousingStatusChange('departed')}
                   >
-                    عاملات غادرن السكن
-                  </button>
-                </div>
+                    <span
+                      className={`text-base transition-colors duration-200 ${
+                        housingStatus === 'departed' || housingStatus === 'departed_transfer'
+                          ? 'text-teal-700 font-medium'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      عاملات غادرن السكن
+                    </span>
+                  </div>
+                </nav>
                 {(housingStatus === 'departed' || housingStatus === 'departed_transfer') && (
-                  <div className="flex flex-wrap justify-end gap-2 w-full max-w-2xl border-r-4 border-teal-600 pr-3 mr-0">
+                  <div className="flex flex-wrap justify-start gap-2 w-full pr-0 mr-0">
                     <button
                       type="button"
                       onClick={() => handleHousingStatusChange('departed')}
