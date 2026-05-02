@@ -233,6 +233,152 @@ const updateData =        await prisma.housedworker.update({
           } as any,
         });
 
+      // ✅ نقل الكفالة: حفظ بيانات الكفيل الجديد في جدول العملاء (Client)
+      // وإنشاء معاملة في جدول transferSponsorShips
+      if (
+        req.body.deparatureReason === 'نقل الكفالة' &&
+        transferSponsorshipData &&
+        updateData.homeMaid_id
+      ) {
+        try {
+          const tsd = transferSponsorshipData as any;
+
+          // 1) جلب العميل القديم (الكفيل الحالي) من علاقات housedworker
+          const workerWithRelations = await prisma.housedworker.findUnique({
+            where: { id: Number(req.body.homeMaid) },
+            include: {
+              Order: {
+                include: {
+                  NewOrder: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { clientID: true },
+                  },
+                },
+              },
+              externalHomedmaid: { select: { clientId: true } },
+            },
+          });
+
+          let oldClientId: number | null = null;
+          if (workerWithRelations?.externalHomedmaid?.clientId) {
+            oldClientId = workerWithRelations.externalHomedmaid.clientId;
+          } else if (workerWithRelations?.Order?.NewOrder?.[0]?.clientID) {
+            oldClientId = workerWithRelations.Order.NewOrder[0].clientID;
+          }
+
+          // 2) إيجاد أو إنشاء الكفيل الجديد في جدول Client
+          //    نحاول أولًا المطابقة بالهوية الوطنية ثم برقم الجوال
+          let newClient: { id: number } | null = null;
+
+          if (tsd.newSponsorId) {
+            newClient = await prisma.client.findFirst({
+              where: { nationalId: String(tsd.newSponsorId) },
+              select: { id: true },
+            });
+          }
+
+          if (!newClient && tsd.newSponsorPhone) {
+            newClient = await prisma.client.findFirst({
+              where: { phonenumber: String(tsd.newSponsorPhone) },
+              select: { id: true },
+            });
+          }
+
+          if (!newClient) {
+            try {
+              const created = await prisma.client.create({
+                data: {
+                  fullname: tsd.newSponsorName || null,
+                  phonenumber: tsd.newSponsorPhone || null,
+                  nationalId: tsd.newSponsorId || null,
+                  Source: 'نقل الكفالة',
+                } as any,
+              });
+              newClient = { id: created.id };
+            } catch (createErr) {
+              // قد يفشل بسبب unique constraint على phonenumber/email — نحاول إعادة المطابقة
+              console.error('Client.create failed, retrying lookup:', createErr);
+              if (tsd.newSponsorPhone) {
+                newClient = await prisma.client.findFirst({
+                  where: { phonenumber: String(tsd.newSponsorPhone) },
+                  select: { id: true },
+                });
+              }
+            }
+          }
+
+          // 3) إنشاء معاملة في transferSponsorShips
+          if (newClient && oldClientId) {
+            const trialPeriodDescription =
+              tsd.trialPeriodType === 'month'
+                ? 'شهر'
+                : tsd.trialPeriodDays
+                  ? `${tsd.trialPeriodDays} يوم`
+                  : null;
+
+            const notesPayload = JSON.stringify({
+              newSponsorDateOfBirth: tsd.newSponsorDateOfBirth || null,
+              financialAbilityAttachment: tsd.financialAbilityAttachment || null,
+              bankCertificateAttachment: tsd.bankCertificateAttachment || null,
+              medicalCheckValid: tsd.medicalCheckValid || null,
+              sponsorHasViolations: tsd.sponsorHasViolations || null,
+              sponsorHasWorkers: tsd.sponsorHasWorkers || null,
+              sponsorWorkerCount: tsd.sponsorWorkerCount || null,
+              amountPaid: tsd.amountPaid || null,
+              originalSponsorGuaranteeEndDate:
+                tsd.originalSponsorGuaranteeEndDate || null,
+              trialDailyCost: tsd.trialDailyCost || null,
+            });
+
+            try {
+              await prisma.transferSponsorShips.create({
+                data: {
+                  HomeMaidId: Number(updateData.homeMaid_id),
+                  NewClientId: newClient.id,
+                  OldClientId: oldClientId,
+                  Cost: tsd.trialDailyCost ? Number(tsd.trialDailyCost) : null,
+                  Paid: tsd.paidAmount ? Number(tsd.paidAmount) : null,
+                  ExperimentDuration: trialPeriodDescription,
+                  ExperimentStart: tsd.trialStartDate
+                    ? new Date(tsd.trialStartDate)
+                    : null,
+                  ExperimentEnd: tsd.trialEndDate
+                    ? new Date(tsd.trialEndDate)
+                    : null,
+                  EntryDate: req.body.deparatureHousingDate
+                    ? new Date(req.body.deparatureHousingDate)
+                    : null,
+                  NationalID: tsd.newSponsorId || null,
+                  Notes: notesPayload,
+                  file:
+                    tsd.financialAbilityAttachment ||
+                    tsd.bankCertificateAttachment ||
+                    null,
+                  transferStage: 'في المرحلة التجريبية',
+                  TransferingDate: req.body.deparatureHousingDate || null,
+                },
+              });
+            } catch (transferErr) {
+              console.error(
+                '❌ خطأ في إنشاء معاملة transferSponsorShips:',
+                transferErr
+              );
+              // ملاحظة: إذا كانت قيود @unique لا تزال موجودة على
+              // HomeMaidId / NewClientId / OldClientId فلن يسمح بأكثر من معاملة لكل قيمة.
+              // راجع SQL في رد المساعد لإسقاط هذه القيود.
+            }
+          } else {
+            console.warn(
+              'تعذر إنشاء معاملة نقل الكفالة: بيانات ناقصة',
+              { hasNewClient: !!newClient, oldClientId }
+            );
+          }
+        } catch (transferFlowErr) {
+          console.error('خطأ في معالجة بيانات نقل الكفالة:', transferFlowErr);
+        }
+      }
+
 
   try {
         const actionText = `تسجيل مغادرة عاملة  - السبب: ${req.body.deparatureReason  || 'غير محدد'} بتاريخ ${req.body.deparatureHousingDate}`;
