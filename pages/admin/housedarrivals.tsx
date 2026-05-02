@@ -3669,7 +3669,7 @@ const confirmDeleteNote = async () => {
                                 : null,
                           });
                         }}
-                        className="w-full p-2 border border-border rounded-md text-right text-md text-textDark bg-gray-100"
+                        className="w-full  border border-border rounded-md text-right text-md text-textDark bg-gray-100"
                       >
                         <option value="">اختر سبب المغادرة</option>
                         {departureReasons.map((reason) => (
@@ -3799,7 +3799,7 @@ const confirmDeleteNote = async () => {
                           <select
                             value={departureForm.transferSponsorshipData.trialPeriodType}
                             onChange={(e) => updateTransferSponsorshipData({ trialPeriodType: e.target.value as 'days' | 'month' })}
-                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            className="w-full  border border-border rounded-md text-right text-md text-textDark"
                           >
                             <option value="days">عدد أيام</option>
                             <option value="month">شهر</option>
@@ -3859,7 +3859,7 @@ const confirmDeleteNote = async () => {
                           <select
                             value={departureForm.transferSponsorshipData.medicalCheckValid}
                             onChange={(e) => updateTransferSponsorshipData({ medicalCheckValid: e.target.value as '' | 'yes' | 'no' })}
-                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            className="w-full  border border-border rounded-md text-right text-md text-textDark"
                           >
                             <option value="">اختر</option>
                             <option value="yes">نعم</option>
@@ -3871,7 +3871,7 @@ const confirmDeleteNote = async () => {
                           <select
                             value={departureForm.transferSponsorshipData.sponsorHasViolations}
                             onChange={(e) => updateTransferSponsorshipData({ sponsorHasViolations: e.target.value as '' | 'yes' | 'no' })}
-                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            className="w-full  border border-border rounded-md text-right text-md text-textDark"
                           >
                             <option value="">اختر</option>
                             <option value="yes">نعم</option>
@@ -3888,7 +3888,7 @@ const confirmDeleteNote = async () => {
                                 sponsorWorkerCount: e.target.value === 'yes' ? departureForm.transferSponsorshipData?.sponsorWorkerCount || '' : '',
                               })
                             }
-                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            className="w-full  border border-border rounded-md text-right text-md text-textDark"
                           >
                             <option value="">اختر</option>
                             <option value="yes">نعم</option>
@@ -3903,7 +3903,7 @@ const confirmDeleteNote = async () => {
                               min="0"
                               value={departureForm.transferSponsorshipData.sponsorWorkerCount}
                               onChange={(e) => updateTransferSponsorshipData({ sponsorWorkerCount: e.target.value })}
-                              className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                              className="w-full  border border-border rounded-md text-right text-md text-textDark"
                             />
                           </div>
                         )}
@@ -3917,7 +3917,7 @@ const confirmDeleteNote = async () => {
                                 paidAmount: e.target.value === 'yes' ? departureForm.transferSponsorshipData?.paidAmount || '' : '',
                               })
                             }
-                            className="w-full p-2 border border-border rounded-md text-right text-md text-textDark"
+                            className="w-full  border border-border rounded-md text-right text-md text-textDark"
                           >
                             <option value="">اختر</option>
                             <option value="yes">نعم</option>
