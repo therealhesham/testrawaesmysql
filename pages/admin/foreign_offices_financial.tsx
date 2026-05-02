@@ -172,6 +172,7 @@ export default function ForeignOfficesFinancial() {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: pagination.limit.toString(),
+        sortOrder: 'asc',
         ...(filters.officeId && { officeId: filters.officeId }),
         ...(filters.fromDate && { fromDate: filters.fromDate }),
         ...(filters.toDate && { toDate: filters.toDate }),
@@ -269,6 +270,7 @@ export default function ForeignOfficesFinancial() {
     const query = new URLSearchParams({
       page: "1",
       limit: "1000",
+      sortOrder: 'asc',
       ...(filters.officeId && { officeId: filters.officeId }),
       ...(filters.fromDate && { fromDate: filters.fromDate }),
       ...(filters.toDate && { toDate: filters.toDate }),

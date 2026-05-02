@@ -12,8 +12,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         movementType, 
         page = '1', 
         limit = '10',
-        search 
+        search,
+        sortOrder
       } = req.query
+
+      const orderDirection: 'asc' | 'desc' =
+        String(sortOrder).toLowerCase() === 'asc' ? 'asc' : 'desc'
 
       const where: any = {}
       
@@ -55,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           include: {
             office: true,
           },
-          orderBy: { date: 'desc' },
+          orderBy: [{ date: orderDirection }, { id: orderDirection }],
           skip,
           take: limitNum,
         }),
