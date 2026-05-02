@@ -44,9 +44,9 @@ interface EmployeeCashData {
   };
 }
 
-function sortTransactionsByDateAsc(transactions: Transaction[]): Transaction[] {
+function sortTransactionsByDateDesc(transactions: Transaction[]): Transaction[] {
   return [...transactions].sort(
-    (a, b) => (a.sortTimestamp ?? 0) - (b.sortTimestamp ?? 0)
+    (a, b) => (b.sortTimestamp ?? 0) - (a.sortTimestamp ?? 0)
   );
 }
 
@@ -137,7 +137,7 @@ export default function EmployeeCash() {
 
   const allTransactionsSorted = useMemo(() => {
     if (!data?.employees?.length) return [];
-    return sortTransactionsByDateAsc(
+    return sortTransactionsByDateDesc(
       data.employees.flatMap((emp) => emp.transactions)
     );
   }, [data]);
@@ -643,8 +643,8 @@ export default function EmployeeCash() {
         'الرصيد المتبقي'
       ];
 
-      // Flatten all transactions from all employees (ترتيب تصاعدي حسب التاريخ)
-      const allTransactions = sortTransactionsByDateAsc(
+      // Flatten all transactions from all employees (ترتيب تنازلي من الأحدث إلى الأقدم)
+      const allTransactions = sortTransactionsByDateDesc(
         dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || []
       );
 
@@ -767,8 +767,8 @@ export default function EmployeeCash() {
       worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
       worksheet.getRow(1).alignment = { horizontal: 'right' };
 
-      // Flatten all transactions from all employees (ترتيب تصاعدي حسب التاريخ)
-      const allTransactions = sortTransactionsByDateAsc(
+      // Flatten all transactions from all employees (ترتيب تنازلي من الأحدث إلى الأقدم)
+      const allTransactions = sortTransactionsByDateDesc(
         dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || []
       );
 
