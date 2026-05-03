@@ -150,6 +150,7 @@ export default function ForeignOfficesFinancial() {
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<FinancialRecord | null>(null);
+  const [selectedClientRecord, setSelectedClientRecord] = useState<FinancialRecord | null>(null);
 
   // File upload state
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
@@ -929,6 +930,10 @@ export default function ForeignOfficesFinancial() {
     setShowDeleteModal(true);
   };
 
+  const handleClientDetailsClick = (record: FinancialRecord) => {
+    setSelectedClientRecord(record);
+  };
+
   const handleDeleteRecord = async () => {
     if (!recordToDelete) return;
     
@@ -1143,7 +1148,13 @@ export default function ForeignOfficesFinancial() {
                             </button>
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
-                            {record.clientName}
+                            <button
+                              className="text-[#1A4D4F] hover:text-[#164044] hover:underline"
+                              onClick={() => handleClientDetailsClick(record)}
+                              title="عرض تفاصيل العميل والمرفقات"
+                            >
+                              {record.clientName || '-'}
+                            </button>
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.internalMusanedContract || '-'}
@@ -1674,6 +1685,123 @@ export default function ForeignOfficesFinancial() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client Details Modal */}
+      {selectedClientRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
+          <div className="bg-white rounded-lg p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">تفاصيل العميل</h2>
+                <p className="text-gray-600 mt-1">{selectedClientRecord.clientName || 'غير متوفر'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedClientRecord(null)}
+                className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
+                aria-label="إغلاق"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">تاريخ الإشعار</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.date ? getDate(selectedClientRecord.date) : '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">الدولة</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.office?.Country || '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">اسم المكتب</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.office?.office || '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">رقم العقد</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.internalMusanedContract || selectedClientRecord.contractNumber || '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">تاريخ العقد</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.contractDate ? getDate(selectedClientRecord.contractDate) : '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">الدفعة</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.payment || '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4 md:col-span-2">
+                <div className="text-sm text-gray-500 mb-1">البيان</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.description || '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">مدين</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.debit > 0 ? formatCurrency(selectedClientRecord.debit) : '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">دائن</div>
+                <div className="font-semibold text-gray-800">
+                  {selectedClientRecord.credit > 0 ? formatCurrency(selectedClientRecord.credit) : '-'}
+                </div>
+              </div>
+              <div className="bg-[#F7F8FA] border border-[#E0E0E0] rounded-md p-4">
+                <div className="text-sm text-gray-500 mb-1">الرصيد</div>
+                <div className="font-semibold text-gray-800">
+                  {formatCurrency(selectedClientRecord.balance)}
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-[#E0E0E0] rounded-lg p-5 mb-8">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">المرفقات</h3>
+              {selectedClientRecord.invoice ? (
+                <a
+                  href={selectedClientRecord.invoice}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#1A4D4F] text-white px-4 py-2 rounded-md hover:bg-[#164044]"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points="14,2 14,8 20,8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  عرض المرفق
+                </a>
+              ) : (
+                <p className="text-gray-500">لا توجد مرفقات لهذا السجل</p>
+              )}
+            </div>
+
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setSelectedClientRecord(null)}
+                className="bg-transparent text-[#1A4D4F] border-2 border-[#1A4D4F] px-8 py-3 rounded-md font-bold hover:bg-[#1A4D4F] hover:text-white"
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
         </div>
       )}
