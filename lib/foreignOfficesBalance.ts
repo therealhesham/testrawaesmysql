@@ -4,6 +4,7 @@ import prisma from 'lib/prisma'
 /**
  * إعادة حساب الأرصدة لكل سجلات مكتب خارجي بترتيب زمني (تاريخ ثم id).
  * المعادلة: balance += credit - debit (المدين ينقص من الرصيد، الدائن يزيده).
+ * الأرقام في التخزين تُعامل كقيم موحدة؛ الواجهة تعرضها بالدولار/الريال حسب الإعداد.
  * تستدعى بعد أي إضافة/تعديل/حذف لضمان اتساق كشف الحساب.
  */
 export async function recalculateOfficeBalances(officeId: number): Promise<void> {

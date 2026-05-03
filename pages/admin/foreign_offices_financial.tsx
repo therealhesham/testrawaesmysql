@@ -45,15 +45,16 @@ interface PaginationData {
 
 type CurrencyCode = 'SAR' | 'USD';
 
-const CURRENCY_CONFIG: Record<
-  CurrencyCode,
-  { symbol: string; rateFromSar: number; label: string }
-> = {
-  SAR: { symbol: 'ر.س', rateFromSar: 1, label: 'ريال سعودي' },
-  USD: { symbol: '$', rateFromSar: 0.27, label: 'دولار' },
+/** القيم في قاعدة البيانات (credit/debit/balance) مخزنة بالدولار الأمريكي */
+const SAR_PER_USD = 3.75;
+
+const CURRENCY_CONFIG: Record<CurrencyCode, { symbol: string; label: string }> = {
+  USD: { symbol: '$', label: 'دولار أمريكي (كما في التخزين)' },
+  SAR: { symbol: 'ر.س', label: 'ريال سعودي (عرض فقط)' },
 };
 
-const CURRENCY_ORDER: CurrencyCode[] = ['SAR', 'USD'];
+/** ترتيب التبديل: الدولار أولاً ليطابق التخزين */
+const CURRENCY_ORDER: CurrencyCode[] = ['USD', 'SAR'];
 
 function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
@@ -103,7 +104,7 @@ export default function ForeignOfficesFinancial() {
     fromDate: '',
     toDate: '',
   });
-  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('SAR');
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
   const [searchTerm, setSearchTerm] = useState('');
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
@@ -269,11 +270,12 @@ export default function ForeignOfficesFinancial() {
   };
 
   const formatCurrency = (amount: number | string) => {
-    const n = Number(amount);
-    if (!Number.isFinite(n)) return '-';
-    const { symbol, rateFromSar } = CURRENCY_CONFIG[selectedCurrency];
-    const converted = n * rateFromSar;
-    return `${converted.toLocaleString(undefined, {
+    const usdStored = Number(amount);
+    if (!Number.isFinite(usdStored)) return '-';
+    const value =
+      selectedCurrency === 'USD' ? usdStored : usdStored * SAR_PER_USD;
+    const { symbol } = CURRENCY_CONFIG[selectedCurrency];
+    return `${value.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     })} ${symbol}`;
@@ -1167,7 +1169,8 @@ export default function ForeignOfficesFinancial() {
                 
               </div>
               <div className="px-4 pb-3 text-sm text-gray-600">
-                القيم المعروضة محولة من الريال السعودي ({CURRENCY_CONFIG[selectedCurrency].label}).
+                المبالغ في قاعدة البيانات بالدولار الأمريكي. عرض الريال للمراجعة فقط (
+                {SAR_PER_USD} ر.س ≈ 1 $).
               </div>
 
               {/* Data Table */}

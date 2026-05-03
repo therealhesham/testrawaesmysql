@@ -45,15 +45,15 @@ interface SummaryData {
 
 type CurrencyCode = 'SAR' | 'USD';
 
-const CURRENCY_CONFIG: Record<
-  CurrencyCode,
-  { symbol: string; rateFromSar: number; label: string }
-> = {
-  SAR: { symbol: 'ر.س', rateFromSar: 1, label: 'ريال سعودي' },
-  USD: { symbol: '$', rateFromSar: 0.27, label: 'دولار' },
+/** القيم في قاعدة البيانات (credit/debit/balance) مخزنة بالدولار الأمريكي */
+const SAR_PER_USD = 3.75;
+
+const CURRENCY_CONFIG: Record<CurrencyCode, { symbol: string; label: string }> = {
+  USD: { symbol: '$', label: 'دولار أمريكي (كما في التخزين)' },
+  SAR: { symbol: 'ر.س', label: 'ريال سعودي (عرض فقط)' },
 };
 
-const CURRENCY_ORDER: CurrencyCode[] = ['SAR', 'USD'];
+const CURRENCY_ORDER: CurrencyCode[] = ['USD', 'SAR'];
 
 /** اقتراحات `/api/contracts/suggestions` — رقم العقد + بيانات العاملة من `Order.HomeMaid` أو حقول `arrivallist` */
 interface ContractSuggestion {
@@ -131,7 +131,7 @@ function getMonthName(month: number) {
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
   const [lastBalance, setLastBalance] = useState<number>(0);
-  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('SAR');
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
 
   const fetchOfficeData = async () => {
     if (!officeId) return;
@@ -473,11 +473,12 @@ function getMonthName(month: number) {
   };
 
   const formatCurrency = (amount: number | string) => {
-    const n = Number(amount);
-    if (!Number.isFinite(n)) return '-';
-    const { symbol, rateFromSar } = CURRENCY_CONFIG[selectedCurrency];
-    const converted = n * rateFromSar;
-    return `${converted.toLocaleString(undefined, {
+    const usdStored = Number(amount);
+    if (!Number.isFinite(usdStored)) return '-';
+    const value =
+      selectedCurrency === 'USD' ? usdStored : usdStored * SAR_PER_USD;
+    const { symbol } = CURRENCY_CONFIG[selectedCurrency];
+    return `${value.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     })} ${symbol}`;
@@ -1106,7 +1107,8 @@ function getMonthName(month: number) {
                 </div>
               </div>
               <div className="px-4 pb-3 text-sm text-gray-600">
-                القيم المعروضة محولة من الريال السعودي ({CURRENCY_CONFIG[selectedCurrency].label}).
+                المبالغ في قاعدة البيانات بالدولار الأمريكي. عرض الريال للمراجعة فقط (
+                {SAR_PER_USD} ر.س ≈ 1 $).
               </div>
 
               {/* Data Table */}
