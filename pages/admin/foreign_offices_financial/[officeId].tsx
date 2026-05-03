@@ -43,6 +43,18 @@ interface SummaryData {
   totalBalance: number;
 }
 
+type CurrencyCode = 'SAR' | 'USD';
+
+const CURRENCY_CONFIG: Record<
+  CurrencyCode,
+  { symbol: string; rateFromSar: number; label: string }
+> = {
+  SAR: { symbol: 'ر.س', rateFromSar: 1, label: 'ريال سعودي' },
+  USD: { symbol: '$', rateFromSar: 0.27, label: 'دولار' },
+};
+
+const CURRENCY_ORDER: CurrencyCode[] = ['SAR', 'USD'];
+
 /** اقتراحات `/api/contracts/suggestions` — رقم العقد + بيانات العاملة من `Order.HomeMaid` أو حقول `arrivallist` */
 interface ContractSuggestion {
   contractNumber: string;
@@ -119,6 +131,7 @@ function getMonthName(month: number) {
   const [showContractSuggestions, setShowContractSuggestions] = useState(false);
   const [isSearchingContract, setIsSearchingContract] = useState(false);
   const [lastBalance, setLastBalance] = useState<number>(0);
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('SAR');
 
   const fetchOfficeData = async () => {
     if (!officeId) return;
@@ -157,7 +170,7 @@ function getMonthName(month: number) {
         openingBalance,
         totalDebit,
         totalCredit,
-        totalBalance: openingBalance + totalDebit - totalCredit,
+        totalBalance: openingBalance + totalCredit - totalDebit,
       });
       
       setDataError(null);
@@ -204,11 +217,16 @@ function getMonthName(month: number) {
 
   const fetchLastBalance = async (officeId: number) => {
     try {
-      const response = await axios.get(`/api/foreign-offices-financial?officeId=${officeId}&limit=1`);
-      if (response.data.items && response.data.items.length > 0) {
-        const lastRecord = response.data.items[0];
-        setLastBalance(Number(lastRecord.balance) || 0);
-        return Number(lastRecord.balance) || 0;
+      // ترتيب تصاعدي + أخذ آخر سجل لضمان أن "آخر رصيد" هو فعلاً آخر سجل زمنياً
+      const response = await axios.get(
+        `/api/foreign-offices-financial?officeId=${officeId}&limit=1000&sortOrder=asc`
+      );
+      const items = response.data.items || [];
+      if (items.length > 0) {
+        const lastRecord = items[items.length - 1];
+        const balance = Number(lastRecord.balance) || 0;
+        setLastBalance(balance);
+        return balance;
       }
       setLastBalance(0);
       return 0;
@@ -222,7 +240,8 @@ function getMonthName(month: number) {
   const calculateBalance = (credit: string, debit: string, baseBalance: number) => {
     const creditNum = parseFloat(credit) || 0;
     const debitNum = parseFloat(debit) || 0;
-    return baseBalance + debitNum - creditNum;
+    // المدين ينقص من الرصيد، الدائن يزيده
+    return baseBalance + creditNum - debitNum;
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -402,22 +421,17 @@ function getMonthName(month: number) {
 
   const fetchPreviousBalance = async (recordId: number, officeId: number) => {
     try {
-      // جلب كل السجلات الخاصة بالمكتب ثم البحث عن السجل السابق
-      const response = await axios.get(`/api/foreign-offices-financial?officeId=${officeId}&limit=1000`);
-      if (response.data.items && response.data.items.length > 0) {
-        const records = response.data.items;
-        // إيجاد السجل الحالي
-        const currentIndex = records.findIndex((r: FinancialRecord) => r.id === recordId);
-        // إذا كان هناك سجل قبله، نأخذ رصيده
-        if (currentIndex > 0) {
-          return Number(records[currentIndex - 1].balance) || 0;
-        }
-        // إذا كان أول سجل، نحسب الرصيد السابق من قيمه (الرصيد - مدين + دائن)
-        if (currentIndex === 0 && records[currentIndex]) {
-          const currentRecord = records[currentIndex];
-          return Number(currentRecord.balance) - Number(currentRecord.debit) + Number(currentRecord.credit);
-        }
+      const response = await axios.get(
+        `/api/foreign-offices-financial?officeId=${officeId}&limit=1000&sortOrder=asc`
+      );
+      const records: FinancialRecord[] = response.data.items || [];
+      if (records.length === 0) return 0;
+
+      const currentIndex = records.findIndex((r) => r.id === recordId);
+      if (currentIndex > 0) {
+        return Number(records[currentIndex - 1].balance) || 0;
       }
+      // أول سجل في الكشف — لا يوجد رصيد سابق
       return 0;
     } catch (error) {
       console.error('Error fetching previous balance:', error);
@@ -451,8 +465,22 @@ function getMonthName(month: number) {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleCurrencyToggle = () => {
+    setSelectedCurrency((prev) => {
+      const idx = CURRENCY_ORDER.indexOf(prev);
+      return CURRENCY_ORDER[(idx + 1) % CURRENCY_ORDER.length];
+    });
+  };
+
   const formatCurrency = (amount: number | string) => {
-    return Number(amount).toLocaleString();
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return '-';
+    const { symbol, rateFromSar } = CURRENCY_CONFIG[selectedCurrency];
+    const converted = n * rateFromSar;
+    return `${converted.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })} ${symbol}`;
   };
 
   const handleInvoiceUpload = async (file: File): Promise<string> => {
@@ -1035,7 +1063,18 @@ function getMonthName(month: number) {
 
               {/* Table Controls */}
               <div className="flex justify-between items-center px-4 pb-6">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="group inline-flex items-center gap-2 rounded-lg border-2 border-[#1A4D4F] bg-[#F7FAFA] px-3 py-1.5 text-sm font-semibold text-[#1A4D4F] shadow-sm transition-all hover:bg-[#1A4D4F] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#1A4D4F]/35"
+                    onClick={handleCurrencyToggle}
+                    title="تغيير عملة العرض"
+                  >
+                    <span className="opacity-80">العملة</span>
+                    <span className="rounded-md bg-white/80 px-2 py-0.5 text-xs font-bold tabular-nums group-hover:bg-white/20">
+                      {selectedCurrency}
+                    </span>
+                  </button>
                   <button
                     className="bg-[#1A4D4F] text-white border-none rounded-sm px-3 py-1 flex items-center gap-1 text-md hover:bg-[#164044] "
                     onClick={() => handleExport('Excel')}
@@ -1065,6 +1104,9 @@ function getMonthName(month: number) {
                     <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </div>
+              </div>
+              <div className="px-4 pb-3 text-sm text-gray-600">
+                القيم المعروضة محولة من الريال السعودي ({CURRENCY_CONFIG[selectedCurrency].label}).
               </div>
 
               {/* Data Table */}
@@ -1133,13 +1175,13 @@ function getMonthName(month: number) {
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.description || '-'}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {record.credit > 0 ? formatCurrency(record.credit) : '-'}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {record.debit > 0 ? formatCurrency(record.debit) : '-'}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {formatCurrency(record.balance)}
                           </td>
 
@@ -1391,12 +1433,12 @@ function getMonthName(month: number) {
                       className="p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                     />
                     <div className="text-sm text-gray-500 mt-1">
-                      الرصيد السابق: <span className="font-semibold">{lastBalance.toLocaleString()}</span>
+                      الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
                       {(form.debit || form.credit) && (
                         <span className="mr-2">
-                          {form.debit && ` + ${parseFloat(form.debit).toLocaleString()} (مدين)`}
-                          {form.credit && ` - ${parseFloat(form.credit).toLocaleString()} (دائن)`}
-                          {` = ${parseFloat(form.balance || '0').toLocaleString()}`}
+                          {form.debit && ` - ${formatCurrency(parseFloat(form.debit) || 0)} (مدين)`}
+                          {form.credit && ` + ${formatCurrency(parseFloat(form.credit) || 0)} (دائن)`}
+                          {` = ${formatCurrency(parseFloat(form.balance || '0') || 0)}`}
                         </span>
                       )}
                     </div>
@@ -1625,12 +1667,12 @@ function getMonthName(month: number) {
                       className="p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                     />
                     <div className="text-sm text-gray-500 mt-1">
-                      الرصيد السابق: <span className="font-semibold">{lastBalance.toLocaleString()}</span>
+                      الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
                       {(editForm.debit || editForm.credit) && (
                         <span className="mr-2">
-                          {editForm.debit && ` + ${parseFloat(editForm.debit).toLocaleString()} (مدين)`}
-                          {editForm.credit && ` - ${parseFloat(editForm.credit).toLocaleString()} (دائن)`}
-                          {` = ${parseFloat(editForm.balance || '0').toLocaleString()}`}
+                          {editForm.debit && ` - ${formatCurrency(parseFloat(editForm.debit) || 0)} (مدين)`}
+                          {editForm.credit && ` + ${formatCurrency(parseFloat(editForm.credit) || 0)} (دائن)`}
+                          {` = ${formatCurrency(parseFloat(editForm.balance || '0') || 0)}`}
                         </span>
                       )}
                     </div>

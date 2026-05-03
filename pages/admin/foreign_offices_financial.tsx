@@ -43,6 +43,18 @@ interface PaginationData {
   totalPages: number;
 }
 
+type CurrencyCode = 'SAR' | 'USD';
+
+const CURRENCY_CONFIG: Record<
+  CurrencyCode,
+  { symbol: string; rateFromSar: number; label: string }
+> = {
+  SAR: { symbol: 'ر.س', rateFromSar: 1, label: 'ريال سعودي' },
+  USD: { symbol: '$', rateFromSar: 0.27, label: 'دولار' },
+};
+
+const CURRENCY_ORDER: CurrencyCode[] = ['SAR', 'USD'];
+
 function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
@@ -91,6 +103,7 @@ export default function ForeignOfficesFinancial() {
     fromDate: '',
     toDate: '',
   });
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('SAR');
   const [searchTerm, setSearchTerm] = useState('');
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
@@ -248,8 +261,22 @@ export default function ForeignOfficesFinancial() {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleCurrencyToggle = () => {
+    setSelectedCurrency((prev) => {
+      const idx = CURRENCY_ORDER.indexOf(prev);
+      return CURRENCY_ORDER[(idx + 1) % CURRENCY_ORDER.length];
+    });
+  };
+
   const formatCurrency = (amount: number | string) => {
-    return amount.toString()
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return '-';
+    const { symbol, rateFromSar } = CURRENCY_CONFIG[selectedCurrency];
+    const converted = n * rateFromSar;
+    return `${converted.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })} ${symbol}`;
   };
 
   function getDate(date: string) {
@@ -506,6 +533,34 @@ export default function ForeignOfficesFinancial() {
     fetchFinancialRecords(1);
   };
 
+  const [recalculating, setRecalculating] = useState(false);
+  const handleRecalculateBalances = async () => {
+    if (recalculating) return;
+    const confirmMsg = filters.officeId
+      ? 'سيتم إعادة حساب الأرصدة لهذا المكتب فقط بناءً على المعادلة: المدين ينقص والدائن يزيد. هل تريد المتابعة؟'
+      : 'سيتم إعادة حساب الأرصدة لكل المكاتب الخارجية بناءً على المعادلة: المدين ينقص والدائن يزيد. هل تريد المتابعة؟';
+    if (!window.confirm(confirmMsg)) return;
+    setRecalculating(true);
+    try {
+      const params = filters.officeId ? `?officeId=${filters.officeId}` : '';
+      const res = await axios.post(`/api/foreign-offices-financial/recalculate${params}`);
+      if (res.data?.success) {
+        showAlert(
+          `تم إعادة حساب الأرصدة (${res.data.recalculatedOffices ?? 0} مكتب)`,
+          'success'
+        );
+        fetchFinancialRecords(pagination.page);
+      } else {
+        showAlert('تعذر إعادة حساب الأرصدة', 'error');
+      }
+    } catch (error) {
+      console.error('Error recalculating balances:', error);
+      showAlert('حدث خطأ أثناء إعادة حساب الأرصدة', 'error');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const handleInvoiceFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -585,13 +640,13 @@ export default function ForeignOfficesFinancial() {
           : offices.length > 0
             ? String(offices[0].id)
             : '1';
+      // ملاحظة: balance يُحسب على السيرفر تلقائياً ولا يُرسل من هنا
       const response = await axios.post('/api/foreign-offices-financial', {
         ...newRecord,
         date: dateIso,
         officeId: defaultOfficeId,
         credit: parseFloat(newRecord.credit) || 0,
         debit: parseFloat(newRecord.debit) || 0,
-        balance: parseFloat(newRecord.balance) || 0,
       });
       
       if (response.status === 201) {
@@ -627,11 +682,17 @@ export default function ForeignOfficesFinancial() {
 
   const fetchLastBalance = async (officeId: number) => {
     try {
-      const response = await axios.get(`/api/foreign-offices-financial?officeId=${officeId}&limit=1`);
-      if (response.data.items && response.data.items.length > 0) {
-        const lastRecord = response.data.items[0];
-        setLastBalance(Number(lastRecord.balance) || 0);
-        return Number(lastRecord.balance) || 0;
+      // نجلب كل سجلات المكتب مرتبة تصاعدياً (الأقدم أولاً) ونأخذ آخر سجل
+      // ده يضمن إن "آخر رصيد" هو فعلاً آخر سجل زمنياً وليس فقط أحدث تاريخ
+      const response = await axios.get(
+        `/api/foreign-offices-financial?officeId=${officeId}&limit=1000&sortOrder=asc`
+      );
+      const items = response.data.items || [];
+      if (items.length > 0) {
+        const lastRecord = items[items.length - 1];
+        const balance = Number(lastRecord.balance) || 0;
+        setLastBalance(balance);
+        return balance;
       }
       setLastBalance(0);
       return 0;
@@ -645,7 +706,8 @@ export default function ForeignOfficesFinancial() {
   const calculateBalance = (credit: string, debit: string, baseBalance: number) => {
     const creditNum = parseFloat(credit) || 0;
     const debitNum = parseFloat(debit) || 0;
-    return baseBalance + debitNum - creditNum;
+    // المدين ينقص من الرصيد، الدائن يزيده
+    return baseBalance + creditNum - debitNum;
   };
 
   const handleNewRecordChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -809,22 +871,18 @@ export default function ForeignOfficesFinancial() {
 
   const fetchPreviousBalance = async (recordId: number, officeId: number) => {
     try {
-      // جلب كل السجلات الخاصة بالمكتب ثم البحث عن السجل السابق
-      const response = await axios.get(`/api/foreign-offices-financial?officeId=${officeId}&limit=1000`);
-      if (response.data.items && response.data.items.length > 0) {
-        const records = response.data.items;
-        // إيجاد السجل الحالي
-        const currentIndex = records.findIndex((r: FinancialRecord) => r.id === recordId);
-        // إذا كان هناك سجل قبله، نأخذ رصيده
-        if (currentIndex > 0) {
-          return Number(records[currentIndex - 1].balance) || 0;
-        }
-        // إذا كان أول سجل، نحسب الرصيد السابق من قيمه (الرصيد - مدين + دائن)
-        if (currentIndex === 0 && records[currentIndex]) {
-          const currentRecord = records[currentIndex];
-          return Number(currentRecord.balance) - Number(currentRecord.debit) + Number(currentRecord.credit);
-        }
+      // جلب كل السجلات بترتيب تصاعدي (الأقدم أولاً) للبحث عن السجل السابق زمنياً
+      const response = await axios.get(
+        `/api/foreign-offices-financial?officeId=${officeId}&limit=1000&sortOrder=asc`
+      );
+      const records: FinancialRecord[] = response.data.items || [];
+      if (records.length === 0) return 0;
+
+      const currentIndex = records.findIndex((r) => r.id === recordId);
+      if (currentIndex > 0) {
+        return Number(records[currentIndex - 1].balance) || 0;
       }
+      // أول سجل في الكشف — لا يوجد رصيد سابق
       return 0;
     } catch (error) {
       console.error('Error fetching previous balance:', error);
@@ -902,6 +960,7 @@ export default function ForeignOfficesFinancial() {
     }
 
     try {
+      // ملاحظة: balance يُحسب على السيرفر تلقائياً ولا يُرسل من هنا
       const response = await axios.put(`/api/foreign-offices-financial/${editRecord.id}`, {
         date: dateIso,
         clientName: editForm.clientName,
@@ -910,7 +969,6 @@ export default function ForeignOfficesFinancial() {
         payment: editForm.payment,
         credit: parseFloat(editForm.credit) || 0,
         debit: parseFloat(editForm.debit) || 0,
-        balance: parseFloat(editForm.balance) || 0,
       });
       
       if (response.status === 200) {
@@ -1069,7 +1127,27 @@ export default function ForeignOfficesFinancial() {
                   </svg>
                 </div>
 
-                 <div className="flex gap-2">
+                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCurrencyToggle}
+                    title="تغيير عملة العرض"
+                    className="group inline-flex items-center gap-2 rounded-lg border-2 border-[#1A4D4F] bg-[#F7FAFA] px-4 py-2 text-sm font-semibold text-[#1A4D4F] shadow-sm transition-all hover:bg-[#1A4D4F] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#1A4D4F]/35"
+                  >
+                    <span className="opacity-80">العملة</span>
+                    <span className="rounded-md bg-white/80 px-2 py-0.5 text-xs font-bold tabular-nums group-hover:bg-white/20">
+                      {selectedCurrency}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRecalculateBalances}
+                    disabled={recalculating}
+                    title={filters.officeId ? 'إعادة حساب الأرصدة لهذا المكتب' : 'إعادة حساب الأرصدة لكل المكاتب'}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-orange-400 bg-gradient-to-b from-orange-500 to-orange-600 px-4 py-2 text-sm font-bold text-white shadow-md ring-2 ring-orange-200/80 transition hover:from-orange-600 hover:to-orange-700 hover:ring-orange-300 disabled:cursor-not-allowed disabled:border-gray-300 disabled:from-gray-400 disabled:to-gray-500 disabled:ring-0 disabled:shadow-none"
+                  >
+                    {recalculating ? 'جارٍ الحساب...' : 'إعادة حساب الأرصدة'}
+                  </button>
                   <button
                     className="bg-[#1A4D4F] text-white border-none rounded-sm px-3  flex items-center gap-1 py-2 text-md hover:bg-[#164044] "
                     onClick={() => handleExport('Excel')}
@@ -1087,6 +1165,9 @@ export default function ForeignOfficesFinancial() {
                   </button>
                 </div>
                 
+              </div>
+              <div className="px-4 pb-3 text-sm text-gray-600">
+                القيم المعروضة محولة من الريال السعودي ({CURRENCY_CONFIG[selectedCurrency].label}).
               </div>
 
               {/* Data Table */}
@@ -1165,13 +1246,13 @@ export default function ForeignOfficesFinancial() {
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.description || '-'}
                           </td>
-                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {record.debit > 0 ? formatCurrency(record.debit) : '-'}
                           </td>
-                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {record.credit > 0 ? formatCurrency(record.credit) : '-'}
                           </td>
-                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
                             {formatCurrency(record.balance)}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
@@ -1470,12 +1551,12 @@ export default function ForeignOfficesFinancial() {
                     className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-md cursor-not-allowed"
                   />
                   <div className="text-sm text-gray-500 mt-1">
-                    الرصيد السابق: <span className="font-semibold">{lastBalance.toLocaleString()}</span>
+                    الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
                     {(newRecord.debit || newRecord.credit) && (
                       <span className="mr-2">
-                        {newRecord.debit && ` + ${parseFloat(newRecord.debit).toLocaleString()} (مدين)`}
-                        {newRecord.credit && ` - ${parseFloat(newRecord.credit).toLocaleString()} (دائن)`}
-                        {` = ${parseFloat(newRecord.balance).toLocaleString()}`}
+                        {newRecord.debit && ` - ${formatCurrency(parseFloat(newRecord.debit) || 0)} (مدين)`}
+                        {newRecord.credit && ` + ${formatCurrency(parseFloat(newRecord.credit) || 0)} (دائن)`}
+                        {` = ${formatCurrency(parseFloat(newRecord.balance) || 0)}`}
                       </span>
                     )}
                   </div>
@@ -1653,12 +1734,12 @@ export default function ForeignOfficesFinancial() {
                     className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-md cursor-not-allowed"
                   />
                   <div className="text-sm text-gray-500 mt-1">
-                    الرصيد السابق: <span className="font-semibold">{lastBalance.toLocaleString()}</span>
+                    الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
                     {(editForm.debit || editForm.credit) && (
                       <span className="mr-2">
-                        {editForm.debit && ` + ${parseFloat(editForm.debit).toLocaleString()} (مدين)`}
-                        {editForm.credit && ` - ${parseFloat(editForm.credit).toLocaleString()} (دائن)`}
-                        {` = ${parseFloat(editForm.balance).toLocaleString()}`}
+                        {editForm.debit && ` - ${formatCurrency(parseFloat(editForm.debit) || 0)} (مدين)`}
+                        {editForm.credit && ` + ${formatCurrency(parseFloat(editForm.credit) || 0)} (دائن)`}
+                        {` = ${formatCurrency(parseFloat(editForm.balance) || 0)}`}
                       </span>
                     )}
                   </div>

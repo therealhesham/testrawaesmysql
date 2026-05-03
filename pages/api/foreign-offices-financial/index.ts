@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import prisma from 'lib/prisma'
 import { Prisma } from '@prisma/client'
+import { recalculateOfficeBalances } from 'lib/foreignOfficesBalance'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -106,23 +107,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
-      const { 
-        date, 
-        clientName, 
-        contractNumber, 
-        payment, 
-        description, 
-        credit, 
-        debit, 
-        balance, 
+      const {
+        date,
+        clientName,
+        contractNumber,
+        payment,
+        description,
+        credit,
+        debit,
         invoice,
-        officeId 
+        officeId,
       } = req.body
 
       if (!date || !clientName || !officeId) {
         return res.status(400).json({ success: false, message: 'Missing required fields' })
       }
-      
+
+      // Balance يُحسب على السيرفر — أي قيمة من العميل يتم تجاهلها لضمان الاتساق
       const created = await prisma.foreignOfficeFinancial.create({
         data: {
           date: new Date(date),
@@ -132,16 +133,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           description: description ? String(description) : null,
           credit: credit ? new Prisma.Decimal(credit) : new Prisma.Decimal(0),
           debit: debit ? new Prisma.Decimal(debit) : new Prisma.Decimal(0),
-          balance: balance ? new Prisma.Decimal(balance) : new Prisma.Decimal(0),
+          balance: new Prisma.Decimal(0),
           invoice: invoice ? String(invoice) : null,
           officeId: Number(officeId),
         },
-        include: {
-          office: true,
-        },
       })
-      
-      return res.status(201).json({ success: true, item: created })
+
+      await recalculateOfficeBalances(Number(officeId))
+
+      const finalRecord = await prisma.foreignOfficeFinancial.findUnique({
+        where: { id: created.id },
+        include: { office: true },
+      })
+
+      return res.status(201).json({ success: true, item: finalRecord })
     }
 
     res.setHeader('Allow', ['GET', 'POST'])

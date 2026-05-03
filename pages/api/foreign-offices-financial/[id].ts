@@ -3,6 +3,7 @@ import prisma from 'lib/prisma'
 import { Prisma } from '@prisma/client'
 import eventBus from 'lib/eventBus'
 import { jwtDecode } from 'jwt-decode'
+import { recalculateOfficeBalances } from 'lib/foreignOfficesBalance'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query
@@ -28,18 +29,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'PUT') {
-      const { 
+      const {
         date,
-        clientName, 
-        contractNumber, 
-        payment, 
-        description, 
-        credit, 
-        debit, 
-        balance,
+        clientName,
+        contractNumber,
+        payment,
+        description,
+        credit,
+        debit,
         invoice,
       } = req.body
 
+      const existing = await prisma.foreignOfficeFinancial.findUnique({
+        where: { id: Number(id) },
+        select: { officeId: true },
+      })
+
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'Record not found' })
+      }
+
+      // balance لا يُقبل من العميل — يُحسب تلقائياً بعد التحديث
       const updateData: Record<string, unknown> = {
         clientName: clientName !== undefined ? String(clientName) : undefined,
         contractNumber: contractNumber !== undefined ? String(contractNumber) : undefined,
@@ -47,22 +57,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         description: description !== undefined ? String(description) : undefined,
         credit: credit !== undefined ? new Prisma.Decimal(credit) : undefined,
         debit: debit !== undefined ? new Prisma.Decimal(debit) : undefined,
-        balance: balance !== undefined ? new Prisma.Decimal(balance) : undefined,
         invoice: invoice !== undefined ? (invoice ? String(invoice) : null) : undefined,
       }
       if (date) {
         updateData.date = new Date(date)
       }
 
-      const updated = await prisma.foreignOfficeFinancial.update({
+      await prisma.foreignOfficeFinancial.update({
         where: { id: Number(id) },
         data: updateData as Prisma.foreignOfficeFinancialUpdateInput,
-        include: {
-          office: true,
-        },
       })
 
-      return res.status(200).json({ success: true, item: updated })
+      await recalculateOfficeBalances(existing.officeId)
+
+      const finalRecord = await prisma.foreignOfficeFinancial.findUnique({
+        where: { id: Number(id) },
+        include: { office: true },
+      })
+
+      return res.status(200).json({ success: true, item: finalRecord })
     }
 
     if (req.method === 'DELETE') {
@@ -89,12 +102,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { id: Number(id) },
       });
 
+      if (!record) {
+        return res.status(404).json({ success: false, message: 'Record not found' })
+      }
+
+      const officeIdToRecalc = record.officeId;
+
       await prisma.foreignOfficeFinancial.delete({
         where: { id: Number(id) },
       });
 
-      // تسجيل الحدث
-      if (record && userId) {
+      await recalculateOfficeBalances(officeIdToRecalc);
+
+      if (userId) {
         eventBus.emit('ACTION', {
           type: `حذف سجل مالي مكتب خارجي #${id} - ${record.clientName || 'غير محدد'}`,
           actionType: 'delete',
