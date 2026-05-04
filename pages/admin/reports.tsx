@@ -12,6 +12,14 @@ import { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import Script from 'next/script';
+import { useRouter } from 'next/router';
+import { jwtDecode } from 'jwt-decode';
+import prisma from 'lib/prisma';
+import {
+  buildHomemaidListStats,
+  emptyHomemaidListStats,
+  type HomemaidListStats,
+} from 'lib/homemaidListStats';
 
 const Chart = dynamic(() => import('react-chartjs-2').then(mod => ({
   default: mod.Chart
@@ -56,13 +64,19 @@ interface ReportsData {
   };
 }
 
+interface ReportsPageProps {
+  listStats: { recruitment: HomemaidListStats; rental: HomemaidListStats };
+}
+
 declare global {
   interface Window {
     Highcharts: any;
   }
 }
 
-const ReportsPage = () => {
+const ReportsPage = ({ listStats }: ReportsPageProps) => {
+  const router = useRouter();
+  const [statsContractType, setStatsContractType] = useState<'recruitment' | 'rental'>('recruitment');
   const ordersLineChartRef = useRef(null);
   const ordersDoughnutChartRef = useRef(null);
   const cityBarChartRef = useRef(null);
@@ -624,7 +638,90 @@ if (reportsData.citiesSources.byCity.length > 0) {
           }
         `}</style>
         <h1 className="text-center text-gray-800 mb-8 text-3xl font-bold">التقارير الإحصائية</h1>
-        
+
+        <section className="bg-white rounded-lg p-6 shadow-sm mb-8 border border-teal-100">
+          <h2 className="text-lg font-semibold text-teal-900 mb-4 text-right">عاملات الاستقدام والتأجير — الجنس والمهن</h2>
+          <p className="text-gray-600 text-sm mb-4 text-right">
+            الإحصائيات من جدول المهن المرتبط بالعاملات (professions). اضغط للانتقال إلى قائمة العاملات مع الفلتر المناسب.
+          </p>
+          <div className="flex gap-8 mb-4 border-b border-gray-200 pb-3">
+            <button
+              type="button"
+              onClick={() => setStatsContractType('recruitment')}
+              className={`text-sm pb-2 border-b-2 transition-colors ${
+                statsContractType === 'recruitment' ? 'border-teal-700 font-bold text-teal-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              استقدام
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatsContractType('rental')}
+              className={`text-sm pb-2 border-b-2 transition-colors ${
+                statsContractType === 'rental' ? 'border-teal-700 font-bold text-teal-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              تأجير
+            </button>
+          </div>
+          {(() => {
+            const s = statsContractType === 'recruitment' ? listStats.recruitment : listStats.rental;
+            const pct = (n: number) => (s.gender.total > 0 ? Math.round((n / s.gender.total) * 100) : 0);
+            const rowKey = (professionId: number | null) => (professionId == null ? 'none' : String(professionId));
+            const goList = (extra: Record<string, string>) => {
+              const q = new URLSearchParams({ page: '1', type: statsContractType, ...extra });
+              void router.push(`/admin/fulllist?${q.toString()}`);
+            };
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-4">
+                  <h3 className="text-base font-bold text-teal-900 mb-3 text-right">إحصائية الجنس (حسب مهنة العاملة)</h3>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    {(['male', 'female', 'other'] as const).map((bucket) => {
+                      const label = bucket === 'male' ? 'ذكر' : bucket === 'female' ? 'أنثى' : 'غير محدد / بدون مهنة';
+                      const count = bucket === 'male' ? s.gender.male : bucket === 'female' ? s.gender.female : s.gender.other;
+                      return (
+                        <button
+                          key={bucket}
+                          type="button"
+                          onClick={() => goList({ professionGender: bucket })}
+                          className="rounded-lg border border-teal-100 bg-white/90 p-3 text-center hover:bg-teal-50 hover:border-teal-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
+                        >
+                          <div className="text-teal-800 font-bold text-xl">{count}</div>
+                          <div className="text-gray-600 mt-1">{label}</div>
+                          <div className="text-xs text-gray-400">{pct(count)}٪</div>
+                          <div className="text-[10px] text-teal-700 mt-1">قائمة العاملات</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 text-right">الإجمالي: {s.gender.total}</p>
+                </div>
+                <div className="rounded-xl border border-teal-200 bg-white p-4">
+                  <h3 className="text-base font-bold text-teal-900 mb-3 text-right">إحصائية المهن</h3>
+                  <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1 text-right">
+                    {s.byProfession.length === 0 ? (
+                      <p className="text-gray-500 text-sm">لا توجد بيانات</p>
+                    ) : (
+                      s.byProfession.map((row, idx) => (
+                        <button
+                          type="button"
+                          key={`${rowKey(row.professionId)}-${idx}`}
+                          onClick={() => goList({ professionId: rowKey(row.professionId) })}
+                          className="flex w-full justify-between items-center gap-2 py-1.5 px-2 rounded-md bg-gray-50 hover:bg-teal-50 text-sm border border-transparent hover:border-teal-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
+                        >
+                          <span className="font-semibold text-teal-900 tabular-nums shrink-0">{row.count}</span>
+                          <span className="text-gray-800 truncate">{row.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </section>
+
         {loading && (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -797,3 +894,42 @@ if (reportsData.citiesSources.byCity.length > 0) {
 };
 
 export default ReportsPage;
+
+export async function getServerSideProps({ req }: { req: { headers: { cookie?: string } } }) {
+  try {
+    const cookieHeader = req.headers.cookie;
+    let cookies: Record<string, string> = {};
+    if (cookieHeader) {
+      cookieHeader.split(';').forEach((cookie: string) => {
+        const [key, value] = cookie.trim().split('=');
+        if (key) cookies[key] = decodeURIComponent(value || '');
+      });
+    }
+    if (!cookies.authToken) {
+      return { redirect: { destination: '/admin/login', permanent: false } };
+    }
+    jwtDecode(cookies.authToken);
+
+    const [statsRecruitment, statsRental] = await Promise.all([
+      buildHomemaidListStats('recruitment'),
+      buildHomemaidListStats('rental'),
+    ]);
+
+    return {
+      props: {
+        listStats: {
+          recruitment: statsRecruitment,
+          rental: statsRental,
+        },
+      },
+    };
+  } catch (e) {
+    console.error('reports getServerSideProps:', e);
+    const empty = emptyHomemaidListStats();
+    return {
+      props: {
+        listStats: { recruitment: empty, rental: empty },
+      },
+    };
+  }
+}
