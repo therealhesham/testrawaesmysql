@@ -7,6 +7,7 @@ import { GetServerSidePropsContext } from 'next';
 import { jwtDecode } from 'jwt-decode';
 import AddProfessionModal from '../../components/AddProfessionModal';
 import prisma from 'lib/prisma';
+import { getBookingQuotaWindow } from 'lib/bookingGenderQuota';
 import Layout from 'example/containers/Layout';
 import {
   DndContext,
@@ -296,6 +297,11 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
   });
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [complaintStats, setComplaintStats] = useState<any>({});
+  /** حد أقصى لنسبة طلبات الذكور/الإناث خلال نافذة الحجز (من 8 إلى 7 الشهر التالي) */
+  const [quotaMale, setQuotaMale] = useState('');
+  const [quotaFemale, setQuotaFemale] = useState('');
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [quotaSaving, setQuotaSaving] = useState(false);
   // SLA offices state
   const [offices, setOffices] = useState<any[]>([]);
   const [slaRules, setSlaRules] = useState<any[]>([]);
@@ -543,6 +549,9 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
     if (activeTab === 'complaints') {
       fetchComplaints();
     }
+    if (activeTab === 'bookingQuotas') {
+      void fetchBookingGenderQuotas();
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -565,6 +574,64 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
   useEffect(() => {
     fetchProfessions();
   }, []);
+
+  const fetchBookingGenderQuotas = async () => {
+    setQuotaLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/booking-gender-quotas');
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      setQuotaMale(
+        data.malePercentage != null && !Number.isNaN(data.malePercentage) ? String(data.malePercentage) : ''
+      );
+      setQuotaFemale(
+        data.femalePercentage != null && !Number.isNaN(data.femalePercentage) ? String(data.femalePercentage) : ''
+      );
+    } catch {
+      setError('تعذر تحميل إعدادات نسب الحجز');
+      setTimeout(() => setError(null), 4000);
+    } finally {
+      setQuotaLoading(false);
+    }
+  };
+
+  const saveBookingGenderQuotas = async () => {
+    setQuotaSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const maleVal = quotaMale.trim() === '' ? null : Number(quotaMale);
+      const femaleVal = quotaFemale.trim() === '' ? null : Number(quotaFemale);
+      if (maleVal != null && (maleVal < 0 || maleVal > 100)) {
+        setError('نسبة الذكور بين 0 و 100 أو اترك الحقل فارغاً لتعطيل الحد');
+        return;
+      }
+      if (femaleVal != null && (femaleVal < 0 || femaleVal > 100)) {
+        setError('نسبة الإناث بين 0 و 100 أو اترك الحقل فارغاً لتعطيل الحد');
+        return;
+      }
+      const res = await fetch('/api/admin/booking-gender-quotas', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          malePercentage: maleVal,
+          femalePercentage: femaleVal,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message || 'save failed');
+      }
+      setSuccess('تم حفظ حدود نسب الحجز');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (e: any) {
+      setError(e?.message || 'فشل الحفظ');
+      setTimeout(() => setError(null), 4000);
+    } finally {
+      setQuotaSaving(false);
+    }
+  };
 
   // جلب بيانات المستخدم
   useEffect(() => {
@@ -1219,6 +1286,18 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
             إدارة المهن
           </button>
           )}
+          {permissions.canManageProfessions && (
+          <button 
+            onClick={() => setActiveTab('bookingQuotas')}
+            className={`flex-1 py-3 px-6 font-semibold text-sm rounded-lg transition-all duration-200 ${
+              activeTab === 'bookingQuotas' 
+                ? 'bg-teal-700 text-white shadow-md' 
+                : 'text-gray-600 hover:text-teal-700 hover:bg-teal-50'
+            }`}
+          >
+            حدود نسب الحجز
+          </button>
+          )}
           {permissions.canManageOffices && (
           <button 
             onClick={() => setActiveTab('offices')}
@@ -1368,6 +1447,65 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
 
         {permissions.canManageProfessions && (
           <>  
+        {activeTab === 'bookingQuotas' && (
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-teal-100 max-w-2xl">
+            <h3 className="text-2xl font-bold text-teal-800 mb-2">حدود نسب الجنس للحجوزات</h3>
+            <p className="text-sm text-gray-600 mb-2">
+              يُحتسب عدد الطلبات (غير ملغاة ولا مرفوضة) المرتبطة بعاملة لها مهنة بنفس نوع عقد العاملة، خلال الفترة من يوم 8 من الشهر الميلادي إلى يوم 7 من الشهر التالي.
+            </p>
+            {(() => {
+              const w = getBookingQuotaWindow();
+              return (
+                <p className="text-xs text-teal-900 bg-teal-50 rounded-lg p-3 mb-6">
+                  الفترة الحالية للاحتساب: {w.start.toLocaleDateString('ar-EG')} — {w.end.toLocaleDateString('ar-EG')}
+                </p>
+              );
+            })()}
+            <p className="text-sm text-gray-700 mb-4">
+              أدخل الحد الأقصى المسموح لنسبة طلبات الذكور أو الإناث (0–100). اترك الحقل فارغاً لتعطيل الفحص لهذا الجنس.
+            </p>
+            {quotaLoading ? (
+              <p className="text-gray-500">جاري التحميل...</p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأقصى لنسبة طلبات الذكور (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={quotaMale}
+                    onChange={(e) => setQuotaMale(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-right"
+                    placeholder="مثال: 60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأقصى لنسبة طلبات الإناث (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    value={quotaFemale}
+                    onChange={(e) => setQuotaFemale(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-right"
+                    placeholder="مثال: 60"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void saveBookingGenderQuotas()}
+                  disabled={quotaSaving}
+                  className="bg-teal-700 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-teal-800 disabled:opacity-50"
+                >
+                  {quotaSaving ? 'جاري الحفظ...' : 'حفظ'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === 'professions' && (
           <>
             <button 

@@ -16,6 +16,7 @@ import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { getSuccessMessage, getErrorMessage } from 'utils/translations';
 
+/** التحقق من حدود نسب الجنس للحجوزات يُنفَّذ في الخادم عند إنشاء الطلب: `submitneworderprisma` و `submitneworderbyspecs`. */
 // Type definitions
 interface MenuPosition {
   x: number;

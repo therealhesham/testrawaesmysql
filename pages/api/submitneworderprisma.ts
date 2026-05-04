@@ -5,6 +5,7 @@ import prisma from "./globalprisma";
 import eventBus from "lib/eventBus";
 import { jwtDecode } from "jwt-decode";
 import cookie from "cookie";
+import { assertBookingGenderQuotaAllowed } from "../../lib/bookingGenderQuota";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -82,6 +83,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (existingOrder) {
       return res.status(400).json({ message: "العاملة محجوزة بالفعل" });
+    }
+
+    const quotaCheck = await assertBookingGenderQuotaAllowed(prisma, Number(HomemaidId));
+    if (!quotaCheck.allowed) {
+      return res.status(400).json({ message: quotaCheck.message });
     }
 
     // ✅ التحقق من وجود التأشيرة وأنها متاحة
