@@ -32,6 +32,11 @@ import { CSS } from '@dnd-kit/utilities';
 // Bind modal to app element for accessibility
 Modal.setAppElement("#__next");
 
+export interface HomemaidListStats {
+  gender: { male: number; female: number; other: number; total: number };
+  byProfession: { name: string; count: number; professionId: number | null }[];
+}
+
 interface FullListProps {
   hasDeletePermission: boolean;
   initialCounts: {
@@ -43,6 +48,7 @@ interface FullListProps {
   recruitmentData: any[];
   rentalData: any[];
   uniqueCountries: string[];
+  listStats: { recruitment: HomemaidListStats; rental: HomemaidListStats };
 }
 
 export function formatMaritalStatus(status?: string | null) {
@@ -58,7 +64,14 @@ export function formatMaritalStatus(status?: string | null) {
   return status;
 }
 
-export default function FullList({ recruitmentData, rentalData, initialCounts, hasDeletePermission, uniqueCountries }: FullListProps) {
+function normalizeProfessionGender(g: string | null | undefined): "male" | "female" | "other" {
+  const v = (g ?? "").trim().toLowerCase();
+  if (v === "male" || v === "m" || v === "ذكر") return "male";
+  if (v === "female" || v === "f" || v === "أنثى" || v === "انثى") return "female";
+  return "other";
+}
+
+export default function FullList({ recruitmentData, rentalData, initialCounts, hasDeletePermission, uniqueCountries, listStats }: FullListProps) {
   const [filters, setFilters] = useState({
     Name: "",
     age: "",
@@ -72,6 +85,10 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
   const [isReservedFilterModalOpen, setIsReservedFilterModalOpen] = useState(false);
   const [isApprovedFilter, setIsApprovedFilter] = useState<'all' | 'approved' | 'not_approved'>('all');
   const [isApprovedFilterModalOpen, setIsApprovedFilterModalOpen] = useState(false);
+  /** فلتر من بطاقات الإحصائية: جنس المهنة في جدول professions */
+  const [statsProfessionGender, setStatsProfessionGender] = useState<'' | 'male' | 'female' | 'other'>('');
+  /** فلتر مهنة: '' = بدون، 'none' = بدون مهنة، أو رقم id */
+  const [statsProfessionId, setStatsProfessionId] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>("displayOrder");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [contractType, setContractType] = useState('recruitment');
@@ -324,7 +341,15 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     return sorted;
   };
 
-  const fetchData = async (page = 1, customContractType?: string, isTypeSwitching = false, customReservedFilter?: 'all' | 'reserved' | 'available') => {
+  type StatsFilterOverride = { professionGender?: '' | 'male' | 'female' | 'other'; professionId?: string };
+
+  const fetchData = async (
+    page = 1,
+    customContractType?: string,
+    isTypeSwitching = false,
+    customReservedFilter?: 'all' | 'reserved' | 'available',
+    statsOverride?: StatsFilterOverride
+  ) => {
     // Allow fetch if switching types (force new request)
     if (isFetchingRef.current && !isTypeSwitching) return;
     isFetchingRef.current = true;
@@ -360,7 +385,15 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
       if (isApprovedFilter !== 'all') {
         queryParams.set('isApprovedFilter', isApprovedFilter);
       }
-      
+      const pg = statsOverride?.professionGender !== undefined ? statsOverride.professionGender : statsProfessionGender;
+      const pid = statsOverride?.professionId !== undefined ? statsOverride.professionId : statsProfessionId;
+      if (pg) {
+        queryParams.set('professionGender', pg);
+      }
+      if (pid) {
+        queryParams.set('professionId', pid);
+      }
+
       console.log('Fetching data with contractType:', typeToUse);
       console.log('Fetching data with filters:', filters);
       console.log('Query params:', queryParams.toString());
@@ -478,7 +511,7 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     
     // Pass contractType explicitly to ensure correct value is used
     fetchData(currentPage, contractType, isContractTypeChanged);
-  }, [currentPage, filters, contractType, sortBy, sortOrder, isReservedFilter]);
+  }, [currentPage, filters, contractType, sortBy, sortOrder, isReservedFilter, isApprovedFilter, statsProfessionGender, statsProfessionId]);
 
 
   const handleFilterChange = (e: any, column: string) => {
@@ -536,12 +569,26 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
       if (router.query.sortOrder && (router.query.sortOrder === 'asc' || router.query.sortOrder === 'desc')) {
         setSortOrder(router.query.sortOrder as 'asc' | 'desc');
       }
-      
+
+      const pgFromUrl = router.query.professionGender as string;
+      const validPg =
+        pgFromUrl === 'male' || pgFromUrl === 'female' || pgFromUrl === 'other'
+          ? (pgFromUrl as 'male' | 'female' | 'other')
+          : '';
+      const pidFromUrl = router.query.professionId as string | undefined;
+      const validPid =
+        pidFromUrl === 'none' || (pidFromUrl && /^\d+$/.test(pidFromUrl)) ? pidFromUrl : '';
+      setStatsProfessionGender(validPg);
+      setStatsProfessionId(validPid || '');
+
       // Mark as no longer initial mount
       isInitialMount.current = false;
-      
-      // Fetch data with the contract type and reservation filter from URL
-      fetchData(pageFromUrl, finalType, false, finalReservedFilter);
+
+      // Fetch data with the contract type and reservation filter from URL (فلاتر الإحصائية من الـ URL)
+      fetchData(pageFromUrl, finalType, false, finalReservedFilter, {
+        professionGender: validPg,
+        professionId: validPid || '',
+      });
     }
   }, [router.isReady, router.query]);
 
@@ -588,6 +635,12 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     if (sortOrder) {
       queryParams.set('sortOrder', sortOrder);
     }
+    if (statsProfessionGender) {
+      queryParams.set('professionGender', statsProfessionGender);
+    }
+    if (statsProfessionId) {
+      queryParams.set('professionId', statsProfessionId);
+    }
 
     const newUrl = queryParams.toString() 
       ? `${router.pathname}?${queryParams.toString()}`
@@ -597,7 +650,7 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     if (router.asPath !== newUrl) {
       router.replace(newUrl, undefined, { shallow: true });
     }
-  }, [currentPage, filters, sortBy, sortOrder, contractType, isReservedFilter, router.isReady, router.pathname, router.asPath]);
+  }, [currentPage, filters, sortBy, sortOrder, contractType, isReservedFilter, isApprovedFilter, statsProfessionGender, statsProfessionId, router.isReady, router.pathname, router.asPath]);
 
   const handleUpdate = (id: any) => {
     router.push("./neworder/" + id);
@@ -616,6 +669,8 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
     });
     setIsReservedFilter('all');
     setIsApprovedFilter('all');
+    setStatsProfessionGender('');
+    setStatsProfessionId('');
     setCurrentPage(1);
   };
 
@@ -1652,6 +1707,93 @@ const exportToPDF = async () => {
                     </div>
                   )} */}
                 </div>
+                {(() => {
+                  const s = contractType === "recruitment" ? listStats.recruitment : listStats.rental;
+                  const pct = (n: number) =>
+                    s.gender.total > 0 ? Math.round((n / s.gender.total) * 100) : 0;
+                  const rowKey = (professionId: number | null) =>
+                    professionId == null ? "none" : String(professionId);
+                  const genderBtn = (bucket: "male" | "female" | "other", label: string) => {
+                    const active = statsProfessionGender === bucket;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatsProfessionGender((prev) => (prev === bucket ? "" : bucket));
+                          setStatsProfessionId("");
+                          setCurrentPage(1);
+                        }}
+                        className={`rounded-lg border p-3 w-full text-center transition-all outline-none focus-visible:ring-2 focus-visible:ring-teal-600 ${
+                          active
+                            ? "bg-teal-100 border-teal-700 ring-2 ring-teal-700 shadow-md"
+                            : "bg-white/90 border-teal-100 hover:bg-teal-50/90 hover:border-teal-300 cursor-pointer"
+                        }`}
+                      >
+                        <div className="text-teal-800 font-bold text-xl">
+                          {bucket === "male" ? s.gender.male : bucket === "female" ? s.gender.female : s.gender.other}
+                        </div>
+                        <div className="text-gray-600 mt-1">{label}</div>
+                        <div className="text-xs text-gray-400">
+                          {pct(bucket === "male" ? s.gender.male : bucket === "female" ? s.gender.female : s.gender.other)}٪
+                        </div>
+                        <div className="text-[10px] text-teal-700 mt-1 opacity-80">اضغط للفلترة</div>
+                      </button>
+                    );
+                  };
+                  return (
+                    <div className="w-full mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-4 shadow-sm">
+                        <h2 className={`text-lg font-bold text-teal-900 mb-3 ${Style["almarai-bold"]}`}>
+                          إحصائية الجنس (حسب مهنة العاملة في جدول المهن)
+                        </h2>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          {genderBtn("male", "ذكر")}
+                          {genderBtn("female", "أنثى")}
+                          {genderBtn("other", "غير محدد / بدون مهنة")}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2 text-right">
+                          الإجمالي: {s.gender.total} عامل / عاملة — اضغط على خلية لعرض القائمة المفلترة (اضغط مرة أخرى لإلغاء الفلتر)
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-teal-200 bg-white p-4 shadow-sm">
+                        <h2 className={`text-lg font-bold text-teal-900 mb-3 ${Style["almarai-bold"]}`}>
+                          إحصائية المهن
+                        </h2>
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar text-right">
+                          {s.byProfession.length === 0 ? (
+                            <p className="text-gray-500 text-sm">لا توجد بيانات</p>
+                          ) : (
+                            s.byProfession.map((row, idx) => {
+                              const key = rowKey(row.professionId);
+                              const active = statsProfessionId === key;
+                              return (
+                                <button
+                                  type="button"
+                                  key={`${key}-${idx}`}
+                                  onClick={() => {
+                                    const next = active ? "" : key;
+                                    setStatsProfessionGender("");
+                                    setStatsProfessionId(next);
+                                    setCurrentPage(1);
+                                  }}
+                                  className={`flex w-full justify-between items-center gap-2 py-1.5 px-2 rounded-md text-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-teal-600 ${
+                                    active
+                                      ? "bg-teal-100 border border-teal-700 ring-1 ring-teal-600"
+                                      : "bg-gray-50 hover:bg-teal-50/80 border border-transparent"
+                                  }`}
+                                >
+                                  <span className="font-semibold text-teal-900 tabular-nums shrink-0">{row.count}</span>
+                                  <span className="text-gray-800 truncate">{row.name}</span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-2 text-right">اضغط على صف لعرض العاملات في هذه المهنة فقط</p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               <button
                 onClick={()=>router.push(contractType === 'recruitment' ? "/admin/newhomemaids" : "/admin/newhomemaidsrental")}
@@ -2254,6 +2396,56 @@ const exportToPDF = async () => {
   );
 }
 
+async function buildHomemaidListStats(
+  contractType: "recruitment" | "rental"
+): Promise<HomemaidListStats> {
+  const groups = await prisma.homemaid.groupBy({
+    by: ["professionId"],
+    where: { contractType },
+    _count: { _all: true },
+  });
+
+  const ids = Array.from(
+    new Set(groups.map((g) => g.professionId).filter((id): id is number => id != null))
+  );
+  const profList =
+    ids.length > 0
+      ? await prisma.professions.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, gender: true },
+        })
+      : [];
+  const profById = new Map(profList.map((p) => [p.id, p]));
+
+  let male = 0;
+  let female = 0;
+  let other = 0;
+  const byProfession: HomemaidListStats["byProfession"] = [];
+
+  for (const g of groups) {
+    const cnt = g._count._all;
+    const prof = g.professionId != null ? profById.get(g.professionId) : undefined;
+    const name = prof?.name ?? "بدون مهنة";
+    byProfession.push({ name, count: cnt, professionId: g.professionId ?? null });
+
+    if (g.professionId == null || !prof) {
+      other += cnt;
+      continue;
+    }
+    const bucket = normalizeProfessionGender(prof.gender);
+    if (bucket === "male") male += cnt;
+    else if (bucket === "female") female += cnt;
+    else other += cnt;
+  }
+
+  byProfession.sort((a, b) => b.count - a.count);
+  const total = male + female + other;
+  return {
+    gender: { male, female, other, total },
+    byProfession,
+  };
+}
+
 export async function getServerSideProps({ req }: any) {
   const pageSize = 10;
   
@@ -2379,6 +2571,11 @@ export async function getServerSideProps({ req }: any) {
     });
     const uniqueCountries = uniqueCountriesData.map(o => o.Country).filter(Boolean);
 
+    const [statsRecruitment, statsRental] = await Promise.all([
+      buildHomemaidListStats("recruitment"),
+      buildHomemaidListStats("rental"),
+    ]);
+
     return {
       props: { 
         hasDeletePermission: !!hasDeletePermission,
@@ -2391,10 +2588,18 @@ export async function getServerSideProps({ req }: any) {
         recruitmentData: formattedRecruitmentData,
         rentalData: formattedRentalData,
         uniqueCountries: uniqueCountries,
+        listStats: {
+          recruitment: statsRecruitment,
+          rental: statsRental,
+        },
       },
     };
   } catch (err) {
     console.error("Authorization error:", err);
+    const emptyStats: HomemaidListStats = {
+      gender: { male: 0, female: 0, other: 0, total: 0 },
+      byProfession: [],
+    };
     return {
       props: { 
         hasDeletePermission: false,
@@ -2407,6 +2612,10 @@ export async function getServerSideProps({ req }: any) {
         recruitmentData: [],
         rentalData: [],
         uniqueCountries: [],
+        listStats: {
+          recruitment: emptyStats,
+          rental: emptyStats,
+        },
       },
     };
   }

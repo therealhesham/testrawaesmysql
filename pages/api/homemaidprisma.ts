@@ -10,7 +10,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder, isReservedFilter, Country, office, phone, maritalstatus, isApprovedFilter } = req.query;
+  const { SponsorName, PassportNumber, Name, OrderId, age, page, perPage, contractType, sortBy, sortOrder, isReservedFilter, Country, office, phone, maritalstatus, isApprovedFilter, professionGender, professionId } = req.query;
   console.log(req.query);
   // Set the page size for pagination
   const pageSize = parseInt(perPage as string, 10) || 10;
@@ -112,6 +112,45 @@ export default async function handler(
         }
       }
     };
+  }
+
+  // فلتر من إحصائيات fulllist: جنس المهنة (جدول professions) أو professionId
+  const MALE_PROFESSION_GENDERS = ['male', 'Male', 'MALE', 'm', 'M', 'ذكر'];
+  const FEMALE_PROFESSION_GENDERS = ['female', 'Female', 'FEMALE', 'f', 'F', 'أنثى', 'انثى'];
+  const ALL_KNOWN_BIN_GENDERS = [...MALE_PROFESSION_GENDERS, ...FEMALE_PROFESSION_GENDERS];
+
+  const professionGenderVal = typeof professionGender === 'string' ? professionGender : '';
+  if (professionGenderVal === 'male') {
+    filters.profession = { is: { gender: { in: MALE_PROFESSION_GENDERS } } };
+  } else if (professionGenderVal === 'female') {
+    filters.profession = { is: { gender: { in: FEMALE_PROFESSION_GENDERS } } };
+  } else if (professionGenderVal === 'other') {
+    const existingAnd = Array.isArray(filters.AND) ? filters.AND : [];
+    filters.AND = [
+      ...existingAnd,
+      {
+        OR: [
+          { professionId: null },
+          {
+            profession: {
+              is: {
+                OR: [
+                  { gender: null },
+                  { gender: { notIn: ALL_KNOWN_BIN_GENDERS } },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    ];
+  }
+
+  const professionIdVal = typeof professionId === 'string' ? professionId : '';
+  if (professionIdVal === 'none' || professionIdVal === 'null') {
+    filters.professionId = null;
+  } else if (professionIdVal && /^\d+$/.test(professionIdVal)) {
+    filters.professionId = parseInt(professionIdVal, 10);
   }
 
   // Build orderBy object based on sortBy and sortOrder
