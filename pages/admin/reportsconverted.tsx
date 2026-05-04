@@ -15,6 +15,7 @@ import ExcelJS from 'exceljs';
 import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select';
+import type { HomemaidListStats } from 'lib/homemaidListStats';
 
 // Dynamically import Leaflet components (SSR-safe)
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
@@ -402,6 +403,12 @@ export default function Home() {
   const [taxMonthlyStatsStartDate, setTaxMonthlyStatsStartDate] = useState<string>('');
   const [taxMonthlyStatsEndDate, setTaxMonthlyStatsEndDate] = useState<string>('');
   const [taxMonthlyStatsMonthSelection, setTaxMonthlyStatsMonthSelection] = useState<string>('current');
+
+  const [homemaidProfessionStats, setHomemaidProfessionStats] = useState<{
+    recruitment: HomemaidListStats;
+    rental: HomemaidListStats;
+  } | null>(null);
+  const [homemaidStatsContractType, setHomemaidStatsContractType] = useState<'recruitment' | 'rental'>('recruitment');
 
   // Sources filter states
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -924,6 +931,25 @@ export default function Home() {
       console.error('Error fetching initial data:', error);
     });
   }, []); // Empty dependency array - only run on mount
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/reports/homemaid-profession-stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.recruitment && data?.rental) {
+          setHomemaidProfessionStats(data);
+        }
+      } catch (e) {
+        console.error('Error fetching homemaid profession stats:', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Separate useEffect for orders stats
   useEffect(() => {
@@ -1863,6 +1889,15 @@ export default function Home() {
     </SkeletonTheme>
   );
 
+  const openFullListWithHomemaidStatsFilter = (opts: { professionGender?: string; professionId?: string }) => {
+    const q = new URLSearchParams();
+    q.set('type', homemaidStatsContractType);
+    q.set('page', '1');
+    if (opts.professionGender) q.set('professionGender', opts.professionGender);
+    if (opts.professionId) q.set('professionId', opts.professionId);
+    router.push(`/admin/fulllist?${q.toString()}`);
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -1969,6 +2004,109 @@ export default function Home() {
         `}</style>
 
         <div className="max-w-7xl mx-auto">
+          {/* إحصائيات العاملات: جنس المهنة والمهنة — الانتقال إلى قائمة العاملات مع الفلتر */}
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+            <div className="flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-4 mb-4 pb-4 border-b-2 border-gray-200">
+              <h3 className="text-base font-semibold text-gray-800">
+                إحصائيات الطلبات حسب عاملة الطلب (جنس المهنة والمهنة)
+              </h3>
+              <div className="flex gap-8 border-b border-gray-300 pb-2 w-full sm:w-auto justify-start">
+                <button
+                  type="button"
+                  onClick={() => setHomemaidStatsContractType('recruitment')}
+                  className={`text-sm pb-2 -mb-px transition-colors ${
+                    homemaidStatsContractType === 'recruitment'
+                      ? 'border-b-2 border-teal-800 font-bold text-teal-900'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  عاملات الاستقدام
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHomemaidStatsContractType('rental')}
+                  className={`text-sm pb-2 -mb-px transition-colors ${
+                    homemaidStatsContractType === 'rental'
+                      ? 'border-b-2 border-teal-800 font-bold text-teal-900'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  عاملات التأجير
+                </button>
+              </div>
+            </div>
+            {!homemaidProfessionStats ? (
+              <div className="py-8 text-center text-gray-500 text-sm">جاري تحميل إحصائيات العاملات...</div>
+            ) : (
+              (() => {
+                const s =
+                  homemaidStatsContractType === 'recruitment'
+                    ? homemaidProfessionStats.recruitment
+                    : homemaidProfessionStats.rental;
+                const pct = (n: number) =>
+                  s.gender.total > 0 ? Math.round((n / s.gender.total) * 100) : 0;
+                const rowKey = (professionId: number | null) =>
+                  professionId == null ? 'none' : String(professionId);
+                const genderBtn = (bucket: 'male' | 'female' | 'other', label: string) => (
+                  <button
+                    type="button"
+                    key={bucket}
+                    onClick={() => openFullListWithHomemaidStatsFilter({ professionGender: bucket })}
+                    className="rounded-lg border border-teal-100 bg-teal-50/60 p-3 w-full text-center transition-all hover:bg-teal-100/80 hover:border-teal-300 outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
+                  >
+                    <div className="text-teal-800 font-bold text-xl">
+                      {bucket === 'male' ? s.gender.male : bucket === 'female' ? s.gender.female : s.gender.other}
+                    </div>
+                    <div className="text-gray-600 mt-1 text-sm">{label}</div>
+                    <div className="text-xs text-gray-400">
+                      {pct(bucket === 'male' ? s.gender.male : bucket === 'female' ? s.gender.female : s.gender.other)}٪
+                    </div>
+                    <div className="text-[10px] text-teal-700 mt-1">فتح قائمة العاملات مع الفلتر</div>
+                  </button>
+                );
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+                      <h4 className="text-sm font-bold text-teal-900 mb-3">
+                        جنس مهنة العاملة في الطلبات (من professions عبر HomemaidId)
+                      </h4>
+                      <div className="grid grid-cols-3 gap-2">{genderBtn('male', 'ذكر')}{genderBtn('female', 'أنثى')}{genderBtn('other', 'غير محدد / بدون مهنة')}</div>
+                      <p className="text-xs text-gray-500 mt-2 text-right">
+                        إجمالي طلبات مُحتسبة: {s.gender.total} (طلبات لها HomemaidId، غير ملغاة/مرفوضة) — الجنس من مهنة العاملة المرتبطة بالطلب
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-teal-200 p-4">
+                      <h4 className="text-sm font-bold text-teal-900 mb-3">المهن (عدد الطلبات لكل مهنة العاملة)</h4>
+                      <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-right">
+                        {s.byProfession.length === 0 ? (
+                          <p className="text-gray-500 text-sm">لا توجد بيانات</p>
+                        ) : (
+                          s.byProfession.map((row, idx) => {
+                            const key = rowKey(row.professionId);
+                            return (
+                              <button
+                                type="button"
+                                key={`${key}-${idx}`}
+                                onClick={() => openFullListWithHomemaidStatsFilter({ professionId: key })}
+                                className="flex w-full justify-between items-center gap-2 py-1.5 px-2 rounded-md text-sm bg-gray-50 hover:bg-teal-50 border border-transparent hover:border-teal-200 transition-all outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
+                              >
+                                <span className="font-semibold text-teal-900 tabular-nums shrink-0">{row.count}</span>
+                                <span className="text-gray-800 truncate">{row.name}</span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-500 mt-2 text-right">
+                        يفتح قائمة العاملات بنفس مهنة العاملة في الطلب (فلتر homemaid، ليس فلتر الطلبات)
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+
           {/* Row 1: إحصائيات الطلبات ومعدل النمو */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
             <div className="bg-white rounded-xl p-6 shadow-sm">

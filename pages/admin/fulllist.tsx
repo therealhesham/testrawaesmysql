@@ -72,8 +72,9 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
   const [isReservedFilterModalOpen, setIsReservedFilterModalOpen] = useState(false);
   const [isApprovedFilter, setIsApprovedFilter] = useState<'all' | 'approved' | 'not_approved'>('all');
   const [isApprovedFilterModalOpen, setIsApprovedFilterModalOpen] = useState(false);
-  /** يُملأ من الـ URL (مثلاً قادماً من التقارير) — يُرسل لـ homemaidprisma */
+  /** فلتر من بطاقات الإحصائية: جنس المهنة في جدول professions */
   const [statsProfessionGender, setStatsProfessionGender] = useState<'' | 'male' | 'female' | 'other'>('');
+  /** فلتر مهنة: '' = بدون، 'none' = بدون مهنة، أو رقم id */
   const [statsProfessionId, setStatsProfessionId] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>("displayOrder");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -570,6 +571,7 @@ export default function FullList({ recruitmentData, rentalData, initialCounts, h
       // Mark as no longer initial mount
       isInitialMount.current = false;
 
+      // Fetch data with the contract type and reservation filter from URL (فلاتر الإحصائية من الـ URL)
       fetchData(pageFromUrl, finalType, false, finalReservedFilter, {
         professionGender: validPg,
         professionId: validPid || '',

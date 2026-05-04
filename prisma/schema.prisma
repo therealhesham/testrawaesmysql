@@ -684,7 +684,14 @@ transferStage   String?
   updatedAt       DateTime  @updatedAt
 
 }
-
+model percentage{
+  id Int @id @default(autoincrement())
+ 
+ malePercentage Decimal?
+ femalePercentage Decimal?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 model professions{
 
 

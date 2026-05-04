@@ -114,7 +114,7 @@ export default async function handler(
     };
   }
 
-  // فلتر من التقارير أو قائمة العاملات: جنس المهنة (جدول professions) أو professionId
+  // فلتر من إحصائيات fulllist: جنس المهنة (جدول professions) أو professionId
   const MALE_PROFESSION_GENDERS = ['male', 'Male', 'MALE', 'm', 'M', 'ذكر'];
   const FEMALE_PROFESSION_GENDERS = ['female', 'Female', 'FEMALE', 'f', 'F', 'أنثى', 'انثى'];
   const ALL_KNOWN_BIN_GENDERS = [...MALE_PROFESSION_GENDERS, ...FEMALE_PROFESSION_GENDERS];

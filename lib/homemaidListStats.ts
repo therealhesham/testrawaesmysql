@@ -1,8 +1,15 @@
 import prisma from "lib/prisma";
 
-export interface HomemaidListStats {
+export type HomemaidListStats = {
   gender: { male: number; female: number; other: number; total: number };
   byProfession: { name: string; count: number; professionId: number | null }[];
+};
+
+export function emptyHomemaidListStats(): HomemaidListStats {
+  return {
+    gender: { male: 0, female: 0, other: 0, total: 0 },
+    byProfession: [],
+  };
 }
 
 function normalizeProfessionGender(g: string | null | undefined): "male" | "female" | "other" {
@@ -12,57 +19,96 @@ function normalizeProfessionGender(g: string | null | undefined): "male" | "fema
   return "other";
 }
 
+function isOrderExcludedByStatus(bookingstatus: string | null | undefined): boolean {
+  const s = (bookingstatus ?? "").trim().toLowerCase();
+  return s === "cancelled" || s === "rejected";
+}
+
+/**
+ * إحصائيات مبنية على الطلبات (neworder): كل طلب (غير ملغى/مرفوض) يُحسب مرة واحدة،
+ * والجنس والمهنة من العاملة المرتبطة عبر HomemaidId وجدول professions.
+ */
 export async function buildHomemaidListStats(
   contractType: "recruitment" | "rental"
 ): Promise<HomemaidListStats> {
-  const groups = await prisma.homemaid.groupBy({
-    by: ["professionId"],
-    where: { contractType },
-    _count: { _all: true },
+  const orders = await prisma.neworder.findMany({
+    where: {
+      HomemaidId: { not: null },
+      HomeMaid: { contractType },
+    },
+    select: {
+      id: true,
+      bookingstatus: true,
+      HomeMaid: {
+        select: {
+          professionId: true,
+          profession: { select: { id: true, name: true, gender: true } },
+        },
+      },
+    },
   });
 
-  const ids = Array.from(
-    new Set(groups.map((g) => g.professionId).filter((id): id is number => id != null))
-  );
-  const profList =
-    ids.length > 0
-      ? await prisma.professions.findMany({
-          where: { id: { in: ids } },
-          select: { id: true, name: true, gender: true },
-        })
-      : [];
-  const profById = new Map(profList.map((p) => [p.id, p]));
+  const filtered = orders.filter((o) => !isOrderExcludedByStatus(o.bookingstatus));
 
   let male = 0;
   let female = 0;
   let other = 0;
-  const byProfession: HomemaidListStats["byProfession"] = [];
+  /** مفتاح داخلي للتجميع — القيمة تحتوي professionId الحقيقي للفلترة في القائمة */
+  const professionBuckets = new Map<
+    string,
+    { professionId: number | null; name: string; count: number }
+  >();
 
-  for (const g of groups) {
-    const cnt = g._count._all;
-    const prof = g.professionId != null ? profById.get(g.professionId) : undefined;
-    const name = prof?.name ?? "بدون مهنة";
-    byProfession.push({ name, count: cnt, professionId: g.professionId ?? null });
+  const bumpProfession = (bucketKey: string, professionId: number | null, displayName: string) => {
+    const prev = professionBuckets.get(bucketKey);
+    if (prev) {
+      prev.count += 1;
+    } else {
+      professionBuckets.set(bucketKey, { professionId, name: displayName, count: 1 });
+    }
+  };
 
-    if (g.professionId == null || !prof) {
-      other += cnt;
+  for (const o of filtered) {
+    const maid = o.HomeMaid;
+    if (!maid) {
+      other += 1;
+      bumpProfession("orphan", null, "طلب بدون بيان عاملة");
       continue;
     }
+
+    const pid = maid.professionId ?? null;
+    const prof = maid.profession;
+    const profName = prof?.name ?? "بدون مهنة";
+
+    if (pid == null) {
+      bumpProfession("noprof", null, "بدون مهنة");
+    } else {
+      bumpProfession(`id:${pid}`, pid, profName);
+    }
+
+    if (pid == null || !prof) {
+      other += 1;
+      continue;
+    }
+
     const bucket = normalizeProfessionGender(prof.gender);
-    if (bucket === "male") male += cnt;
-    else if (bucket === "female") female += cnt;
-    else other += cnt;
+    if (bucket === "male") male += 1;
+    else if (bucket === "female") female += 1;
+    else other += 1;
   }
 
+  const byProfession: HomemaidListStats["byProfession"] = Array.from(professionBuckets.values()).map(
+    ({ professionId, name, count }) => ({
+      name,
+      count,
+      professionId,
+    })
+  );
   byProfession.sort((a, b) => b.count - a.count);
+
   const total = male + female + other;
   return {
     gender: { male, female, other, total },
     byProfession,
   };
 }
-
-export const emptyHomemaidListStats = (): HomemaidListStats => ({
-  gender: { male: 0, female: 0, other: 0, total: 0 },
-  byProfession: [],
-});
