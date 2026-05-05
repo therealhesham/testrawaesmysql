@@ -2167,12 +2167,12 @@ export default function Home() {
                 return (
                   <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${homemaidStatsLoading ? 'opacity-60 pointer-events-none' : ''}`}>
                     <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
-                      <h4 className="text-sm font-bold text-teal-900 mb-3">
+                      {/* <h4 className="text-sm font-bold text-teal-900 mb-3">
                         جنس مهنة العاملة في الطلبات (من professions عبر HomemaidId)
-                      </h4>
+                      </h4> */}
                       <div className="grid grid-cols-3 gap-2">{genderBtn('male', 'ذكر')}{genderBtn('female', 'أنثى')}{genderBtn('other', 'غير محدد / بدون مهنة')}</div>
                       <p className="text-xs text-gray-500 mt-2 text-right">
-                        إجمالي طلبات في الفترة المختارة: {s.gender.total} (HomemaidId موجود، غير ملغاة/مرفوضة) — الجنس من مهنة العاملة
+                        إجمالي طلبات في الفترة المختارة: {s.gender.total} 
                       </p>
                     </div>
                     <div className="rounded-xl border border-teal-200 p-4">
