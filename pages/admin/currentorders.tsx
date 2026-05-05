@@ -488,26 +488,39 @@ useEffect(() => {
                   setHomeMaidName(filteredSuggestions.Name);
                   if (currentStep === 4) {
                     const submit = async () => {
-                      const fetchData = await fetch("/api/submitneworderprisma/", {
-                        body: JSON.stringify({
-                          ...values,
-                          ClientName: values.name,
-                          NationalityCopy: filteredSuggestions.Nationalitycopy,
-                          HomemaidId: filteredSuggestions.id,
-                          Name: filteredSuggestions.Name,
-                          age: filteredSuggestions.age,
-                          clientphonenumber: values.phone,
-                          PhoneNumber: filteredSuggestions.phone,
-                          Passportnumber: filteredSuggestions.Passportnumber,
-                          maritalstatus: filteredSuggestions.maritalstatus,
-                          Nationality: filteredSuggestions.Nationalitycopy,
-                          Religion: filteredSuggestions.Religion,
-                          ExperienceYears: filteredSuggestions.ExperienceYears,
-                        }),
-                        method: "post",
-                        headers: { Accept: "application/json", "Content-Type": "application/json" },
+                      const buildBody = (withConfirm: boolean) => ({
+                        ...values,
+                        ClientName: values.name,
+                        NationalityCopy: filteredSuggestions.Nationalitycopy,
+                        HomemaidId: filteredSuggestions.id,
+                        Name: filteredSuggestions.Name,
+                        age: filteredSuggestions.age,
+                        clientphonenumber: values.phone,
+                        PhoneNumber: filteredSuggestions.phone,
+                        Passportnumber: filteredSuggestions.Passportnumber,
+                        maritalstatus: filteredSuggestions.maritalstatus,
+                        Nationality: filteredSuggestions.Nationalitycopy,
+                        Religion: filteredSuggestions.Religion,
+                        ExperienceYears: filteredSuggestions.ExperienceYears,
+                        ...(withConfirm ? { confirmGenderQuotaWarning: true } : {}),
                       });
-                      if (fetchData.status === 200) {
+                      const doFetch = async (withConfirm: boolean) =>
+                        fetch("/api/submitneworderprisma/", {
+                          body: JSON.stringify(buildBody(withConfirm)),
+                          method: "post",
+                          headers: { Accept: "application/json", "Content-Type": "application/json" },
+                        });
+                      let fetchData = await doFetch(false);
+                      let data = await fetchData.json();
+                      if (fetchData.status === 200 && data?.requiresGenderQuotaConfirmation === true) {
+                        const proceed = window.confirm(
+                          `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+                        );
+                        if (!proceed) return;
+                        fetchData = await doFetch(true);
+                        data = await fetchData.json();
+                      }
+                      if (fetchData.status === 200 && !data?.requiresGenderQuotaConfirmation) {
                         showSuccessModal();
                         setModalOpen(false);
                         reset();

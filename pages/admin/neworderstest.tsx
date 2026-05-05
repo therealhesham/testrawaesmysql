@@ -870,54 +870,57 @@ export default function Table({ offices }) {
                         const submit = async () => {
                           try {
                             setSpinned(true);
-                            const fetchData = await fetch(
-                              "/api/submitneworderprisma/",
-                              {
-                                body: JSON.stringify({
-                                  ...values,
-                                  ClientName: values.name,
-                                  NationalityCopy:
-                                    filteredSuggestions.Nationalitycopy,
-
-                                  HomemaidId: filteredSuggestions.id,
-                                  Name: filteredSuggestions.Name,
-                                  age: filteredSuggestions.age,
-                                  clientphonenumber: values.phone,
-                                  PhoneNumber: filteredSuggestions.phone,
-                                  Passportnumber:
-                                    filteredSuggestions.Passportnumber,
-                                  maritalstatus:
-                                    filteredSuggestions.maritalstatus,
-                                  Nationality:
-                                    filteredSuggestions.Nationalitycopy,
-                                  Religion: filteredSuggestions.Religion,
-                                  ExperienceYears:
-                                    filteredSuggestions.ExperienceYears,
-                                }),
+                            const buildBody = (withConfirm: boolean) => ({
+                              ...values,
+                              ClientName: values.name,
+                              NationalityCopy: filteredSuggestions.Nationalitycopy,
+                              HomemaidId: filteredSuggestions.id,
+                              Name: filteredSuggestions.Name,
+                              age: filteredSuggestions.age,
+                              clientphonenumber: values.phone,
+                              PhoneNumber: filteredSuggestions.phone,
+                              Passportnumber: filteredSuggestions.Passportnumber,
+                              maritalstatus: filteredSuggestions.maritalstatus,
+                              Nationality: filteredSuggestions.Nationalitycopy,
+                              Religion: filteredSuggestions.Religion,
+                              ExperienceYears: filteredSuggestions.ExperienceYears,
+                              ...(withConfirm ? { confirmGenderQuotaWarning: true } : {}),
+                            });
+                            const doFetch = async (withConfirm: boolean) =>
+                              fetch("/api/submitneworderprisma/", {
+                                body: JSON.stringify(buildBody(withConfirm)),
                                 method: "post",
                                 headers: {
                                   Accept: "application/json",
                                   "Content-Type": "application/json",
                                 },
-                              }
-                            );
+                              });
 
-                            const data = await fetchData.json();
-                            // alert(fetchData.status)
-                            if (fetchData.status == 200) {
+                            let fetchData = await doFetch(false);
+                            let data = await fetchData.json();
+                            if (fetchData.status == 200 && data?.requiresGenderQuotaConfirmation === true) {
+                              const proceed = window.confirm(
+                                `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+                              );
+                              if (!proceed) {
+                                setSpinned(false);
+                                return;
+                              }
+                              fetchData = await doFetch(true);
+                              data = await fetchData.json();
+                            }
+                            if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation && data?.id) {
                               showSuccessModal();
                               setModalOpen(false);
                               setSpinned(false);
-                              // setIsModalOpen(false);
-                              // reset();
                               router.push("/admin/neworder/" + data.id);
                             } else {
                               setSpinned(false);
-                              showErrorModal(data.message);
+                              showErrorModal(data?.message);
                             }
-                          } catch (error) {
+                          } catch (error: any) {
                             setSpinned(false);
-                            showErrorModal(error.message);
+                            showErrorModal(error?.message);
                           }
                         };
 

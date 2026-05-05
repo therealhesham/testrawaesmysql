@@ -123,31 +123,42 @@ const TimeLinedForm = ({
                   ExperienceYears: filteredSuggestions.ExperienceYears,
                 });
                 const submit = async () => {
-                  const fetchData = await fetch("/api/submitneworderprisma/", {
-                    body: JSON.stringify({
-                      ...values,
-
-                      ClientName: values.name,
-                      HomemaidId: filteredSuggestions.id,
-
-                      age: filteredSuggestions.age,
-                      clientphonenumber: filteredSuggestions.PhoneNumber,
-                      PhoneNumber: values.phone,
-                      Passportnumber: filteredSuggestions.Passportnumber,
-                      maritalstatus: filteredSuggestions.maritalstatus,
-                      Nationality: filteredSuggestions.Nationality,
-                      Religion: filteredSuggestions.Religion,
-                      ExperienceYears: filteredSuggestions.ExperienceYears,
-                    }),
-                    method: "post",
-                    headers: {
-                      Accept: "application/json",
-                      "Content-Type": "application/json",
-                    },
-                    cache: "default",
+                  const buildBody = (withConfirm: boolean) => ({
+                    ...values,
+                    ClientName: values.name,
+                    HomemaidId: filteredSuggestions.id,
+                    age: filteredSuggestions.age,
+                    clientphonenumber: filteredSuggestions.PhoneNumber,
+                    PhoneNumber: values.phone,
+                    Passportnumber: filteredSuggestions.Passportnumber,
+                    maritalstatus: filteredSuggestions.maritalstatus,
+                    Nationality: filteredSuggestions.Nationality,
+                    Religion: filteredSuggestions.Religion,
+                    ExperienceYears: filteredSuggestions.ExperienceYears,
+                    ...(withConfirm ? { confirmGenderQuotaWarning: true } : {}),
                   });
+                  const doFetch = async (withConfirm: boolean) =>
+                    fetch("/api/submitneworderprisma/", {
+                      body: JSON.stringify(buildBody(withConfirm)),
+                      method: "post",
+                      headers: {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                      },
+                      cache: "default",
+                    });
 
-                  if (fetchData.status == 200) {
+                  let fetchData = await doFetch(false);
+                  let data = await fetchData.json();
+                  if (fetchData.status == 200 && data?.requiresGenderQuotaConfirmation === true) {
+                    const proceed = window.confirm(
+                      `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+                    );
+                    if (!proceed) return;
+                    fetchData = await doFetch(true);
+                    data = await fetchData.json();
+                  }
+                  if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation) {
                     router.push("./home");
                   }
                 };

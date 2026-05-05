@@ -725,20 +725,39 @@ const validateForm = () => {
     
     setIsSubmitting(true);
     try {
-      const submitData: any = { 
+      const submitData: any = {
         ...formData,
-        Nationality: formData.Nationalitycopy // Map Nationalitycopy to Nationality for API
+        Nationality: formData.Nationalitycopy, // Map Nationalitycopy to Nationality for API
       };
       if (orderId) {
         submitData.orderId = orderId; // Add for edit
       }
       const url = orderId ? `/api/track_order/${orderId}` : '/api/submitneworderprisma';
       const method = orderId ? 'PATCH' : 'POST';
-      const response = await axios({
-        method,
-        url,
-        data: submitData,
-      });
+
+      const postOrder = async (withQuotaConfirm: boolean) =>
+        axios({
+          method,
+          url,
+          data: withQuotaConfirm ? { ...submitData, confirmGenderQuotaWarning: true } : submitData,
+        });
+
+      let response = await postOrder(false);
+      if (response.data?.requiresGenderQuotaConfirmation === true) {
+        const proceed = window.confirm(
+          `${response.data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+        );
+        if (!proceed) {
+          return;
+        }
+        response = await postOrder(true);
+        if (response.data?.requiresGenderQuotaConfirmation === true) {
+          setModalMessage('تعذر إتمام الطلب بعد التأكيد. حاول مرة أخرى.');
+          setShowErrorModal(true);
+          return;
+        }
+      }
+
       setModalMessage(orderId ? 'تم تحديث الطلب بنجاح' : 'تم إضافة الطلب بنجاح');
       setShowSuccessModal(true);
       setFileUploaded({ orderDocument: false, contract: false });

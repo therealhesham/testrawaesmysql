@@ -715,11 +715,29 @@ const fetchSuggestions = async () => {
       
       console.log('Submitting specs order data:', { url, method, submitData });
       
-      const response = await axios({
-        method,
-        url,
-        data: submitData,
-      });
+      const postSpecs = async (withQuotaConfirm: boolean) =>
+        axios({
+          method,
+          url,
+          data: withQuotaConfirm ? { ...submitData, confirmGenderQuotaWarning: true } : submitData,
+        });
+
+      let response = await postSpecs(false);
+      if (response.data?.requiresGenderQuotaConfirmation === true) {
+        const proceed = window.confirm(
+          `${response.data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+        );
+        if (!proceed) {
+          return;
+        }
+        response = await postSpecs(true);
+        if (response.data?.requiresGenderQuotaConfirmation === true) {
+          setModalMessage('تعذر إتمام الطلب بعد التأكيد. حاول مرة أخرى.');
+          setShowErrorModal(true);
+          return;
+        }
+      }
+
       setModalMessage(orderId ? 'تم تحديث الطلب بنجاح' : 'تم إضافة الطلب بنجاح');
       setShowSuccessModal(true);
       setFileUploaded({ orderDocument: false, contract: false });

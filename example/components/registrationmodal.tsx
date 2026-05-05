@@ -27,43 +27,51 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
     try {
     } catch (e) {}
     e.preventDefault();
-    const fetchData = await fetch("/api/submitneworderprisma/", {
-      body: JSON.stringify({
-        // ...values,
-        // HomemaidId: id,
-        // fullname: name,
-        ClientName: name,
-        email,
-        clientphonenumber: phone,
-        city,
-        address,
-        nationalId,
-        NationalityCopy: filteredSuggestions.Nationalitycopy,
-
-        HomemaidId: filteredSuggestions.id,
-        Name: filteredSuggestions.Name,
-        age: filteredSuggestions.age,
-        // clientphonenumber: values.phone,
-        PhoneNumber: filteredSuggestions.phone,
-        Passportnumber: filteredSuggestions.Passportnumber,
-        maritalstatus: filteredSuggestions.maritalstatus,
-        Nationality: filteredSuggestions.Nationalitycopy,
-        Religion: filteredSuggestions.Religion,
-        ExperienceYears: filteredSuggestions.ExperienceYears,
-      }),
-      method: "post",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+    const buildBody = (withConfirm: boolean) => ({
+      ClientName: name,
+      email,
+      clientphonenumber: phone,
+      city,
+      address,
+      nationalId,
+      NationalityCopy: filteredSuggestions.Nationalitycopy,
+      HomemaidId: filteredSuggestions.id,
+      Name: filteredSuggestions.Name,
+      age: filteredSuggestions.age,
+      PhoneNumber: filteredSuggestions.phone,
+      Passportnumber: filteredSuggestions.Passportnumber,
+      maritalstatus: filteredSuggestions.maritalstatus,
+      Nationality: filteredSuggestions.Nationalitycopy,
+      Religion: filteredSuggestions.Religion,
+      ExperienceYears: filteredSuggestions.ExperienceYears,
+      ...(withConfirm ? { confirmGenderQuotaWarning: true } : {}),
     });
-    const data = await fetchData.json();
+    const doFetch = async (withConfirm: boolean) =>
+      fetch("/api/submitneworderprisma/", {
+        body: JSON.stringify(buildBody(withConfirm)),
+        method: "post",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+    let fetchData = await doFetch(false);
+    let data = await fetchData.json();
 
-    if (fetchData.status == 200) {
+    if (fetchData.status == 200 && data?.requiresGenderQuotaConfirmation === true) {
+      const proceed = window.confirm(
+        `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+      );
+      if (!proceed) return;
+      fetchData = await doFetch(true);
+      data = await fetchData.json();
+    }
+
+    if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation && data?.id) {
       router.push("/admin/neworder/" + data.id);
     } else {
       setIserrorModalOpen(true);
-      seterrormessage(data.message);
+      seterrormessage(data?.message || "حدث خطأ");
     }
   };
 

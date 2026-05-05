@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import prisma from "../../lib/prisma";
 import { jwtDecode } from "jwt-decode";
-import { assertBookingGenderQuotaAllowed } from "../../lib/bookingGenderQuota";
+import {
+  evaluateBookingGenderQuota,
+  parseConfirmGenderQuotaWarning,
+  REQUIRES_GENDER_QUOTA_CONFIRMATION,
+} from "../../lib/bookingGenderQuota";
 
 export default async function handler(
   req: NextApiRequest,
@@ -53,9 +57,16 @@ export default async function handler(
         });
       }
 
-      const quota = await assertBookingGenderQuotaAllowed(prisma, Number(homemaidId));
-      if (!quota.allowed) {
-        return res.status(400).json({ message: quota.message });
+      const confirmGenderQuota = parseConfirmGenderQuotaWarning(req.body);
+      const quotaEval = await evaluateBookingGenderQuota(prisma, Number(homemaidId));
+      if (!quotaEval.ok && quotaEval.hardBlock) {
+        return res.status(400).json({ message: quotaEval.message });
+      }
+      if (!quotaEval.ok && !quotaEval.hardBlock && !confirmGenderQuota) {
+        return res.status(200).json({
+          [REQUIRES_GENDER_QUOTA_CONFIRMATION]: true,
+          message: quotaEval.message,
+        });
       }
     }
 

@@ -16,7 +16,7 @@ import { jwtDecode } from 'jwt-decode';
 import prisma from 'pages/api/globalprisma';
 import { getSuccessMessage, getErrorMessage } from 'utils/translations';
 
-/** التحقق من حدود نسب الجنس للحجوزات يُنفَّذ في الخادم عند إنشاء الطلب: `submitneworderprisma` و `submitneworderbyspecs`. */
+/** عند إنشاء الطلب (`submitneworderprisma` / `submitneworderbyspecs`) يتحقق الخادم من نسب الجنس؛ إن تجاوزت الحد يُرجع تنبيهاً ولا يُنشئ الطلب إلا بعد تأكيد المستخدم ثم إعادة الإرسال مع `confirmGenderQuotaWarning`. */
 // Type definitions
 interface MenuPosition {
   x: number;

@@ -46,14 +46,24 @@ function isOrderExcludedByStatus(bookingstatus: string | null | undefined): bool
   return s === "cancelled" || s === "rejected";
 }
 
+/** استجابة الخادم عند تجاوز النسبة دون تأكيد المستخدم بعد */
+export const REQUIRES_GENDER_QUOTA_CONFIRMATION = "requiresGenderQuotaConfirmation" as const;
+
+export type BookingGenderQuotaEvaluation =
+  | { ok: true }
+  /** خطأ يمنع الطلب (مثل عاملة غير موجودة) */
+  | { ok: false; hardBlock: true; message: string }
+  /** تجاوز نسبة الحجز — يُسمح بعد تأكيد المستخدم في الواجهة ثم إعادة الإرسال مع confirmGenderQuotaWarning */
+  | { ok: false; hardBlock: false; message: string };
+
 /**
- * يمنع الحجز إذا أدى إضافة هذا الطلب إلى تجاوز الحد الأقصى لنسبة الذكور أو الإناث
- * (حسب professions.gender للعاملة المرتبطة)، مقارنةً بجدول percentage.
+ * تقييم نسب الذكور/الإناث في نافذة الحجز (٨–٧). لا يُستخدم للمنع الصارم:
+ * عند تجاوز الحد يُرجع hardBlock: false مع رسالة تنبيه للـ confirm في الواجهة.
  */
-export async function assertBookingGenderQuotaAllowed(
+export async function evaluateBookingGenderQuota(
   prisma: PrismaClient,
   homemaidId: number
-): Promise<{ allowed: true } | { allowed: false; message: string }> {
+): Promise<BookingGenderQuotaEvaluation> {
   const maid = await prisma.homemaid.findUnique({
     where: { id: homemaidId },
     select: {
@@ -65,12 +75,12 @@ export async function assertBookingGenderQuotaAllowed(
   });
 
   if (!maid) {
-    return { allowed: false, message: "العاملة غير موجودة" };
+    return { ok: false, hardBlock: true, message: "العاملة غير موجودة" };
   }
 
   const bucket = normalizeProfessionGender(maid.profession?.gender ?? null);
   if (bucket === "other") {
-    return { allowed: true };
+    return { ok: true };
   }
 
   const cfg = await prisma.percentage.findFirst({
@@ -82,7 +92,7 @@ export async function assertBookingGenderQuotaAllowed(
   const maxFemale = cfg?.femalePercentage != null ? Number(cfg.femalePercentage) : null;
 
   if (maxMale == null && maxFemale == null) {
-    return { allowed: true };
+    return { ok: true };
   }
 
   const { start, end } = getBookingQuotaWindow();
@@ -125,8 +135,9 @@ export async function assertBookingGenderQuotaAllowed(
     const pct = (nextMale / nextTotal) * 100;
     if (pct > maxMale + 1e-6) {
       return {
-        allowed: false,
-        message: `لا يمكن إتمام الحجز: نسبة طلبات الذكور في فترة الحجز الحالية (${start.toLocaleDateString("ar-EG")} – ${end.toLocaleDateString("ar-EG")}) ستتجاوز الحد المسموح (${maxMale}٪) بعد هذا الحجز.`,
+        ok: false,
+        hardBlock: false,
+        message: `تنبيه: بعد هذا الحجز ستصبح نسبة طلبات الذكور أعلى من الحد المسموح (${maxMale}٪) خلال فترة الحجز الحالية (${start.toLocaleDateString("ar-EG")} – ${end.toLocaleDateString("ar-EG")}).`,
       };
     }
   }
@@ -135,11 +146,18 @@ export async function assertBookingGenderQuotaAllowed(
     const pct = (nextFemale / nextTotal) * 100;
     if (pct > maxFemale + 1e-6) {
       return {
-        allowed: false,
-        message: `لا يمكن إتمام الحجز: نسبة طلبات الإناث في فترة الحجز الحالية (${start.toLocaleDateString("ar-EG")} – ${end.toLocaleDateString("ar-EG")}) ستتجاوز الحد المسموح (${maxFemale}٪) بعد هذا الحجز.`,
+        ok: false,
+        hardBlock: false,
+        message: `تنبيه: بعد هذا الحجز ستصبح نسبة طلبات الإناث أعلى من الحد المسموح (${maxFemale}٪) خلال فترة الحجز الحالية (${start.toLocaleDateString("ar-EG")} – ${end.toLocaleDateString("ar-EG")}).`,
       };
     }
   }
 
-  return { allowed: true };
+  return { ok: true };
+}
+
+export function parseConfirmGenderQuotaWarning(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const v = (body as Record<string, unknown>).confirmGenderQuotaWarning;
+  return v === true || v === "true";
 }

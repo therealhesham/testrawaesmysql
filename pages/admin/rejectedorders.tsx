@@ -361,7 +361,25 @@ const router = useRouter();
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("/api/submitneworderprisma", formData);
+      const postOnce = (withConfirm: boolean) =>
+        axios.post(
+          '/api/submitneworderprisma',
+          withConfirm ? { ...formData, confirmGenderQuotaWarning: true } : formData
+        );
+
+      let response = await postOnce(false);
+      if (response.data?.requiresGenderQuotaConfirmation === true) {
+        const proceed = window.confirm(
+          `${response.data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
+        );
+        if (!proceed) return;
+        response = await postOnce(true);
+        if (response.data?.requiresGenderQuotaConfirmation === true) {
+          setModalMessage('تعذر إتمام الطلب بعد التأكيد.');
+          setShowErrorModal(true);
+          return;
+        }
+      }
       setModalMessage('تم إضافة الطلب بنجاح');
       setShowSuccessModal(true);
       setView('requests');
