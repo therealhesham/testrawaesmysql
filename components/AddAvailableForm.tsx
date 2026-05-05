@@ -2,6 +2,7 @@ import { CashIcon, CreditCardIcon, CurrencyDollarIcon } from '@heroicons/react/o
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import GenderQuotaConfirmModal from 'components/GenderQuotaConfirmModal';
 
 interface Client {
   id: string;
@@ -91,6 +92,14 @@ const [formData, setFormData] = useState<FormData>({
   const [modalMessage, setModalMessage] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showGenderQuotaModal, setShowGenderQuotaModal] = useState(false);
+  const [genderQuotaMessage, setGenderQuotaMessage] = useState('');
+  const [genderQuotaResolving, setGenderQuotaResolving] = useState(false);
+  const genderQuotaPendingRef = useRef<{
+    method: string;
+    url: string;
+    submitData: Record<string, unknown>;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 // أضف هذا state بعد الـ states الموجودة
 const [uploadedFileNames, setUploadedFileNames] = useState<Record<string, string>>({
@@ -744,18 +753,14 @@ const validateForm = () => {
 
       let response = await postOrder(false);
       if (response.data?.requiresGenderQuotaConfirmation === true) {
-        const proceed = window.confirm(
-          `${response.data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
-        );
-        if (!proceed) {
-          return;
-        }
-        response = await postOrder(true);
-        if (response.data?.requiresGenderQuotaConfirmation === true) {
-          setModalMessage('تعذر إتمام الطلب بعد التأكيد. حاول مرة أخرى.');
-          setShowErrorModal(true);
-          return;
-        }
+        genderQuotaPendingRef.current = {
+          method,
+          url,
+          submitData: { ...submitData },
+        };
+        setGenderQuotaMessage(String(response.data.message ?? ''));
+        setShowGenderQuotaModal(true);
+        return;
       }
 
       setModalMessage(orderId ? 'تم تحديث الطلب بنجاح' : 'تم إضافة الطلب بنجاح');
@@ -896,6 +901,47 @@ const arabicRegionMap: { [key: string]: string } = {
     setShowSuccessModal(false);
     setShowErrorModal(false);
     setModalMessage('');
+  };
+
+  const closeGenderQuotaModal = () => {
+    setShowGenderQuotaModal(false);
+    setGenderQuotaMessage('');
+    genderQuotaPendingRef.current = null;
+  };
+
+  const handleGenderQuotaConfirm = async () => {
+    const pending = genderQuotaPendingRef.current;
+    if (!pending) return;
+    setGenderQuotaResolving(true);
+    try {
+      const response = await axios({
+        method: pending.method,
+        url: pending.url,
+        data: { ...pending.submitData, confirmGenderQuotaWarning: true },
+      });
+      if (response.data?.requiresGenderQuotaConfirmation === true) {
+        setModalMessage('تعذر إتمام الطلب بعد التأكيد. حاول مرة أخرى.');
+        setShowErrorModal(true);
+        closeGenderQuotaModal();
+        return;
+      }
+      closeGenderQuotaModal();
+      setModalMessage(orderId ? 'تم تحديث الطلب بنجاح' : 'تم إضافة الطلب بنجاح');
+      setShowSuccessModal(true);
+      setFileUploaded({ orderDocument: false, contract: false });
+      setErrors({});
+      onSuccess();
+      setFileUploaded({ orderDocument: false, contract: false });
+      setUploadedFileNames({ orderDocument: '', contract: '' });
+    } catch (error: any) {
+      setModalMessage(
+        error.response?.data?.message || `حدث خطأ أثناء ${orderId ? 'تحديث' : 'إضافة'} الطلب`
+      );
+      setShowErrorModal(true);
+      closeGenderQuotaModal();
+    } finally {
+      setGenderQuotaResolving(false);
+    }
   };
 
   return (
@@ -1333,6 +1379,13 @@ const arabicRegionMap: { [key: string]: string } = {
           </div>
         </div>
       )}
+      <GenderQuotaConfirmModal
+        open={showGenderQuotaModal}
+        message={genderQuotaMessage}
+        isSubmitting={genderQuotaResolving}
+        onConfirm={handleGenderQuotaConfirm}
+        onCancel={closeGenderQuotaModal}
+      />
     </div>
   );
 }

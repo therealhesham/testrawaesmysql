@@ -3,6 +3,7 @@ import axios from 'axios';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Select from 'react-select';
+import GenderQuotaConfirmModal from 'components/GenderQuotaConfirmModal';
 
 interface Client {
   id: string;
@@ -103,6 +104,14 @@ const [fileNames, setFileNames] = useState({
   const [showUploadSuccessModal, setShowUploadSuccessModal] = useState(false);
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState('');
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [showGenderQuotaModal, setShowGenderQuotaModal] = useState(false);
+  const [genderQuotaMessage, setGenderQuotaMessage] = useState('');
+  const [genderQuotaResolving, setGenderQuotaResolving] = useState(false);
+  const genderQuotaPendingRef = useRef<{
+    method: string;
+    url: string;
+    submitData: Record<string, unknown>;
+  } | null>(null);
   const [suggestions, setSuggestions] = useState<HomemaidSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [nationalities, setNationalities] = useState<{ value: string; label: string; Country: string }[]>([]);
@@ -724,18 +733,14 @@ const fetchSuggestions = async () => {
 
       let response = await postSpecs(false);
       if (response.data?.requiresGenderQuotaConfirmation === true) {
-        const proceed = window.confirm(
-          `${response.data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
-        );
-        if (!proceed) {
-          return;
-        }
-        response = await postSpecs(true);
-        if (response.data?.requiresGenderQuotaConfirmation === true) {
-          setModalMessage('تعذر إتمام الطلب بعد التأكيد. حاول مرة أخرى.');
-          setShowErrorModal(true);
-          return;
-        }
+        genderQuotaPendingRef.current = {
+          method,
+          url,
+          submitData: { ...submitData },
+        };
+        setGenderQuotaMessage(String(response.data.message ?? ''));
+        setShowGenderQuotaModal(true);
+        return;
       }
 
       setModalMessage(orderId ? 'تم تحديث الطلب بنجاح' : 'تم إضافة الطلب بنجاح');
@@ -758,7 +763,46 @@ const fetchSuggestions = async () => {
     setUploadSuccessMessage('');
   };
 
-  const clientOptions = clients.map(client => ({
+  const closeGenderQuotaModal = () => {
+    setShowGenderQuotaModal(false);
+    setGenderQuotaMessage('');
+    genderQuotaPendingRef.current = null;
+  };
+
+  const handleGenderQuotaConfirm = async () => {
+    const pending = genderQuotaPendingRef.current;
+    if (!pending) return;
+    setGenderQuotaResolving(true);
+    try {
+      const response = await axios({
+        method: pending.method,
+        url: pending.url,
+        data: { ...pending.submitData, confirmGenderQuotaWarning: true },
+      });
+      if (response.data?.requiresGenderQuotaConfirmation === true) {
+        setModalMessage('تعذر إتمام الطلب بعد التأكيد. حاول مرة أخرى.');
+        setShowErrorModal(true);
+        closeGenderQuotaModal();
+        return;
+      }
+      closeGenderQuotaModal();
+      setModalMessage(orderId ? 'تم تحديث الطلب بنجاح' : 'تم إضافة الطلب بنجاح');
+      setShowSuccessModal(true);
+      setFileUploaded({ orderDocument: false, contract: false });
+      setErrors({});
+      onSuccess();
+    } catch (error: any) {
+      setModalMessage(
+        error.response?.data?.message || `حدث خطأ أثناء ${orderId ? 'تحديث' : 'إضافة'} الطلب`
+      );
+      setShowErrorModal(true);
+      closeGenderQuotaModal();
+    } finally {
+      setGenderQuotaResolving(false);
+    }
+  };
+
+  const clientOptions = clients.map((client) => ({
     value: client.id,
     label: client.fullname,
   }));
@@ -1528,6 +1572,13 @@ const arabicRegionMap: { [key: string]: string } = {
           </div>
         </div>
       )}
+      <GenderQuotaConfirmModal
+        open={showGenderQuotaModal}
+        message={genderQuotaMessage}
+        isSubmitting={genderQuotaResolving}
+        onConfirm={handleGenderQuotaConfirm}
+        onCancel={closeGenderQuotaModal}
+      />
     </div>
   );
 }

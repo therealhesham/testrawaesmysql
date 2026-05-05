@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
@@ -10,6 +10,7 @@ import * as Yup from "yup";
 import FormWithTimeline from "./addneworderbyadmin";
 import TimeLinedForm from "example/components/stepsform";
 import Modal from "components/modal";
+import GenderQuotaConfirmModal from "components/GenderQuotaConfirmModal";
 import RejectBooking from "./reject-booking";
 import Style from "styles/Home.module.css";
 import { FaCalendar, FaFileExcel, FaFilePdf, FaSearch } from "react-icons/fa";
@@ -54,6 +55,48 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [openRowId, setOpenRowId] = useState(null);
+
+  const genderQuotaOrderRef = useRef<Record<string, unknown> | null>(null);
+  const [genderQuotaModal, setGenderQuotaModal] = useState({ open: false, message: "" });
+  const [genderQuotaResolving, setGenderQuotaResolving] = useState(false);
+
+  const closeGenderQuotaModal = () => {
+    setGenderQuotaModal({ open: false, message: "" });
+    genderQuotaOrderRef.current = null;
+  };
+
+  const confirmGenderQuotaOrderSubmit = async () => {
+    const body = genderQuotaOrderRef.current;
+    if (!body) return;
+    setGenderQuotaResolving(true);
+    try {
+      let fetchData = await fetch("/api/submitneworderprisma/", {
+        body: JSON.stringify({ ...body, confirmGenderQuotaWarning: true }),
+        method: "post",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+      });
+      let data = await fetchData.json();
+      if (fetchData.status === 200 && data?.requiresGenderQuotaConfirmation === true) {
+        showErrorModal();
+        closeGenderQuotaModal();
+        return;
+      }
+      if (fetchData.status === 200 && !data?.requiresGenderQuotaConfirmation) {
+        closeGenderQuotaModal();
+        showSuccessModal();
+        setModalOpen(false);
+        reset();
+      } else {
+        showErrorModal();
+        closeGenderQuotaModal();
+      }
+    } catch {
+      showErrorModal();
+      closeGenderQuotaModal();
+    } finally {
+      setGenderQuotaResolving(false);
+    }
+  };
 
   const validationSchemaStep1 = Yup.object({
     name: Yup.string().required("Name is required"),
@@ -513,12 +556,9 @@ useEffect(() => {
                       let fetchData = await doFetch(false);
                       let data = await fetchData.json();
                       if (fetchData.status === 200 && data?.requiresGenderQuotaConfirmation === true) {
-                        const proceed = window.confirm(
-                          `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
-                        );
-                        if (!proceed) return;
-                        fetchData = await doFetch(true);
-                        data = await fetchData.json();
+                        genderQuotaOrderRef.current = buildBody(false);
+                        setGenderQuotaModal({ open: true, message: String(data.message ?? '') });
+                        return;
                       }
                       if (fetchData.status === 200 && !data?.requiresGenderQuotaConfirmation) {
                         showSuccessModal();
@@ -694,6 +734,13 @@ useEffect(() => {
           setReason={setReason}
         />
       )}
+      <GenderQuotaConfirmModal
+        open={genderQuotaModal.open}
+        message={genderQuotaModal.message}
+        isSubmitting={genderQuotaResolving}
+        onConfirm={confirmGenderQuotaOrderSubmit}
+        onCancel={closeGenderQuotaModal}
+      />
     </Layout>
   );
 }

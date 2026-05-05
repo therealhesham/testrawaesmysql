@@ -1,10 +1,11 @@
 //@ts-nocheck
 //@ts-ignore
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Formik, Field, Form, ErrorMessage, useField } from "formik";
 import * as Yup from "yup";
 import Layout from "example/containers/Layout";
 import { useRouter } from "next/router";
+import GenderQuotaConfirmModal from "components/GenderQuotaConfirmModal";
 
 const TimeLinedForm = ({
   name,
@@ -22,6 +23,40 @@ const TimeLinedForm = ({
     Picture: [{ url: "" }],
   });
   const router = useRouter();
+
+  const genderQuotaBodyRef = useRef(null);
+  const [genderQuotaModal, setGenderQuotaModal] = useState({ open: false, message: "" });
+  const [genderQuotaResolving, setGenderQuotaResolving] = useState(false);
+
+  const closeGenderQuotaModal = () => {
+    setGenderQuotaModal({ open: false, message: "" });
+    genderQuotaBodyRef.current = null;
+  };
+
+  const confirmGenderQuotaSteps = async () => {
+    const body = genderQuotaBodyRef.current;
+    if (!body) return;
+    setGenderQuotaResolving(true);
+    try {
+      const fetchData = await fetch("/api/submitneworderprisma/", {
+        body: JSON.stringify({ ...body, confirmGenderQuotaWarning: true }),
+        method: "post",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        cache: "default",
+      });
+      const data = await fetchData.json();
+      if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation) {
+        closeGenderQuotaModal();
+        router.push("./home");
+      }
+    } finally {
+      setGenderQuotaResolving(false);
+    }
+  };
+
   const handleNextStep = () => {
     console.log(validationSchemaStep1);
     if (step < 4) setStep(step + 1);
@@ -151,12 +186,9 @@ const TimeLinedForm = ({
                   let fetchData = await doFetch(false);
                   let data = await fetchData.json();
                   if (fetchData.status == 200 && data?.requiresGenderQuotaConfirmation === true) {
-                    const proceed = window.confirm(
-                      `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
-                    );
-                    if (!proceed) return;
-                    fetchData = await doFetch(true);
-                    data = await fetchData.json();
+                    genderQuotaBodyRef.current = buildBody(false);
+                    setGenderQuotaModal({ open: true, message: String(data.message ?? "") });
+                    return;
                   }
                   if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation) {
                     router.push("./home");
@@ -381,6 +413,13 @@ const TimeLinedForm = ({
           </Formik>
         </div>
       </div>
+      <GenderQuotaConfirmModal
+        open={genderQuotaModal.open}
+        message={genderQuotaModal.message}
+        isSubmitting={genderQuotaResolving}
+        onConfirm={confirmGenderQuotaSteps}
+        onCancel={closeGenderQuotaModal}
+      />
     </div>
   );
 };

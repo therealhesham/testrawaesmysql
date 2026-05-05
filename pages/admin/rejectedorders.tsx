@@ -5,8 +5,9 @@ import Style from "styles/Home.module.css";
 import Layout from 'example/containers/Layout';
 import { ArrowDown, Plus, Search, X, Pencil } from 'lucide-react';
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Select from 'react-select';
+import GenderQuotaConfirmModal from 'components/GenderQuotaConfirmModal';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -68,6 +69,10 @@ export default function Dashboard() {
     eventDateTime: '',
   });
   const [editOrderSaving, setEditOrderSaving] = useState(false);
+
+  const genderQuotaFormRef = useRef<Record<string, unknown> | null>(null);
+  const [genderQuotaModal, setGenderQuotaModal] = useState({ open: false, message: '' });
+  const [genderQuotaResolving, setGenderQuotaResolving] = useState(false);
 
 const handleOpenMenu = (e, rowIndex) => {
   const rect = e.currentTarget.getBoundingClientRect();
@@ -358,27 +363,49 @@ const router = useRouter();
     setCurrentPage(1);
   };
 
+  const closeGenderQuotaModal = () => {
+    setGenderQuotaModal({ open: false, message: '' });
+    genderQuotaFormRef.current = null;
+  };
+
+  const handleGenderQuotaConfirm = async () => {
+    const snapshot = genderQuotaFormRef.current;
+    if (!snapshot) return;
+    setGenderQuotaResolving(true);
+    try {
+      const response = await axios.post('/api/submitneworderprisma', {
+        ...snapshot,
+        confirmGenderQuotaWarning: true,
+      });
+      if (response.data?.requiresGenderQuotaConfirmation === true) {
+        setModalMessage('تعذر إتمام الطلب بعد التأكيد.');
+        setShowErrorModal(true);
+        closeGenderQuotaModal();
+        return;
+      }
+      closeGenderQuotaModal();
+      setModalMessage('تم إضافة الطلب بنجاح');
+      setShowSuccessModal(true);
+      setView('requests');
+      newOrdersList();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setModalMessage('حدث خطأ أثناء إضافة الطلب');
+      setShowErrorModal(true);
+      closeGenderQuotaModal();
+    } finally {
+      setGenderQuotaResolving(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const postOnce = (withConfirm: boolean) =>
-        axios.post(
-          '/api/submitneworderprisma',
-          withConfirm ? { ...formData, confirmGenderQuotaWarning: true } : formData
-        );
-
-      let response = await postOnce(false);
+      const response = await axios.post('/api/submitneworderprisma', formData);
       if (response.data?.requiresGenderQuotaConfirmation === true) {
-        const proceed = window.confirm(
-          `${response.data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
-        );
-        if (!proceed) return;
-        response = await postOnce(true);
-        if (response.data?.requiresGenderQuotaConfirmation === true) {
-          setModalMessage('تعذر إتمام الطلب بعد التأكيد.');
-          setShowErrorModal(true);
-          return;
-        }
+        genderQuotaFormRef.current = { ...formData };
+        setGenderQuotaModal({ open: true, message: String(response.data.message ?? '') });
+        return;
       }
       setModalMessage('تم إضافة الطلب بنجاح');
       setShowSuccessModal(true);
@@ -1318,6 +1345,13 @@ const fetchFilteredDataExporting = async () => {
             </div>
           </div>
         )}
+        <GenderQuotaConfirmModal
+          open={genderQuotaModal.open}
+          message={genderQuotaModal.message}
+          isSubmitting={genderQuotaResolving}
+          onConfirm={handleGenderQuotaConfirm}
+          onCancel={closeGenderQuotaModal}
+        />
         {editOrderModal.open && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center p-4">
             <div

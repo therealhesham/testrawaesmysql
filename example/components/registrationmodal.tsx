@@ -1,6 +1,7 @@
 import { useRouter } from "next/router";
 import ErrorModal from "office/components/errormodal";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import GenderQuotaConfirmModal from "components/GenderQuotaConfirmModal";
 // import Loader from "./Loader/Loader";
 // interface ModalProps {
 //   isOpen: boolean;
@@ -10,7 +11,6 @@ import React, { useState } from "react";
 // }
 
 const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
-  if (!isOpen) return null;
   // alert(id);
 
   const [name, setName] = useState(""); // المستخدم يدخل اسمه
@@ -23,6 +23,52 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
   const router = useRouter();
   const [errormodaopen, setIserrorModalOpen] = useState(false);
   const [errormessage, seterrormessage] = useState("");
+  const genderQuotaBodyRef = useRef<Record<string, unknown> | null>(null);
+  const [genderQuotaModal, setGenderQuotaModal] = useState({ open: false, message: "" });
+  const [genderQuotaResolving, setGenderQuotaResolving] = useState(false);
+
+  const closeGenderQuotaModal = () => {
+    setGenderQuotaModal({ open: false, message: "" });
+    genderQuotaBodyRef.current = null;
+  };
+
+  const confirmGenderQuotaRegistration = async () => {
+    const body = genderQuotaBodyRef.current;
+    if (!body) return;
+    setGenderQuotaResolving(true);
+    try {
+      const fetchData = await fetch("/api/submitneworderprisma/", {
+        body: JSON.stringify({ ...body, confirmGenderQuotaWarning: true }),
+        method: "post",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await fetchData.json();
+      if (fetchData.status == 200 && data?.requiresGenderQuotaConfirmation === true) {
+        setIserrorModalOpen(true);
+        seterrormessage("تعذر إتمام الطلب بعد التأكيد.");
+        closeGenderQuotaModal();
+        return;
+      }
+      if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation && data?.id) {
+        closeGenderQuotaModal();
+        router.push("/admin/neworder/" + data.id);
+      } else {
+        setIserrorModalOpen(true);
+        seterrormessage(data?.message || "حدث خطأ");
+        closeGenderQuotaModal();
+      }
+    } catch {
+      setIserrorModalOpen(true);
+      seterrormessage("حدث خطأ");
+      closeGenderQuotaModal();
+    } finally {
+      setGenderQuotaResolving(false);
+    }
+  };
+
   const postData = async (e) => {
     try {
     } catch (e) {}
@@ -46,25 +92,21 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
       ExperienceYears: filteredSuggestions.ExperienceYears,
       ...(withConfirm ? { confirmGenderQuotaWarning: true } : {}),
     });
-    const doFetch = async (withConfirm: boolean) =>
-      fetch("/api/submitneworderprisma/", {
-        body: JSON.stringify(buildBody(withConfirm)),
-        method: "post",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-    let fetchData = await doFetch(false);
-    let data = await fetchData.json();
+    const firstBody = buildBody(false);
+    const fetchData = await fetch("/api/submitneworderprisma/", {
+      body: JSON.stringify(firstBody),
+      method: "post",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await fetchData.json();
 
     if (fetchData.status == 200 && data?.requiresGenderQuotaConfirmation === true) {
-      const proceed = window.confirm(
-        `${data.message as string}\n\nاضغط «موافق» لإتمام الحجز رغم التنبيه، أو «إلغاء» لإلغاء العملية.`
-      );
-      if (!proceed) return;
-      fetchData = await doFetch(true);
-      data = await fetchData.json();
+      genderQuotaBodyRef.current = firstBody;
+      setGenderQuotaModal({ open: true, message: String(data.message ?? "") });
+      return;
     }
 
     if (fetchData.status == 200 && !data?.requiresGenderQuotaConfirmation && data?.id) {
@@ -74,6 +116,8 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
       seterrormessage(data?.message || "حدث خطأ");
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -194,6 +238,13 @@ const RegistrationModal = ({ isOpen, onClose, id, filteredSuggestions }) => {
           </div>
         </form>
       </div>
+      <GenderQuotaConfirmModal
+        open={genderQuotaModal.open}
+        message={genderQuotaModal.message}
+        isSubmitting={genderQuotaResolving}
+        onConfirm={confirmGenderQuotaRegistration}
+        onCancel={closeGenderQuotaModal}
+      />
     </div>
   );
 };
