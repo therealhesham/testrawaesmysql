@@ -216,9 +216,9 @@ export default function ComplaintsManagement({ userId, canManageComplaints }: Co
 
   const getPriorityColor = (createdAt: Date) => {
     const daysSince = Math.floor((new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSince > 7) return 'border-r-4 border-red-500';
-    if (daysSince > 3) return 'border-r-4 border-orange-500';
-    return 'border-r-4 border-blue-500';
+    if (daysSince > 7) return 'border-t-4 border-red-500';
+    if (daysSince > 3) return 'border-t-4 border-orange-500';
+    return 'border-t-4 border-blue-500';
   };
 
   if (!canManageComplaints) {
@@ -352,72 +352,90 @@ export default function ComplaintsManagement({ userId, canManageComplaints }: Co
               <p className="text-gray-500 text-lg">لا توجد شكاوى</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredComplaints.map((complaint) => (
                 <div
                   key={complaint.id}
-                  className={`bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${getPriorityColor(complaint.createdAt)}`}
+                  className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col ${getPriorityColor(complaint.createdAt)}`}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {getStatusIcon(complaint.status)}
-                        <h3 className="text-lg font-semibold text-gray-900">{complaint.title}</h3>
-                        {getStatusBadge(complaint.status)}
+                  <div className="relative aspect-[4/3] bg-gray-100 shrink-0">
+                    {complaint.screenshot ? (
+                      <img
+                        src={complaint.screenshot}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-400">
+                        <MessageSquare className="w-14 h-14 opacity-40" />
+                        <span className="text-sm">لا توجد صورة مرفقة</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{complaint.description}</p>
-                      
-                      <div className="flex items-center gap-6 text-sm text-gray-500">
-                        <div className="flex items-center gap-2">
-                          <User size={16} />
-                          <span>{complaint.createdBy.username}</span>
-                          {complaint.createdBy.role && (
-                            <span className="text-xs text-gray-400">({complaint.createdBy.role.name})</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar size={16} />
-                          <span>{new Date(complaint.createdAt).toLocaleDateString('ar-SA')}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 mr-4">
-                      <button
-                        onClick={() => handleViewComplaint(complaint)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="عرض التفاصيل"
-                      >
-                        <Eye size={20} />
-                      </button>
-                      <button
-                        onClick={() => handleEditComplaint(complaint)}
-                        className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                        title="تعديل"
-                      >
-                        <Edit size={20} />
-                      </button>
+                    )}
+                    <div className="absolute top-3 end-3 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.5rem)] bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm">
+                      {getStatusIcon(complaint.status)}
+                      {getStatusBadge(complaint.status)}
                     </div>
                   </div>
 
-                  {complaint.assignedTo && (
-                    <div className="bg-blue-50 rounded-lg p-3 flex items-center gap-2">
-                      {complaint.assignedTo.pictureurl ? (
-                        <img
-                          src={complaint.assignedTo.pictureurl}
-                          alt={complaint.assignedTo.username}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-teal-800 flex items-center justify-center text-white text-sm">
-                          {complaint.assignedTo.username.charAt(0)}
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">مُسند إلى: {complaint.assignedTo.username}</p>
+                  <div className="p-4 flex flex-col flex-1 min-h-0">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{complaint.title}</h3>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-3 flex-1">{complaint.description}</p>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <User size={16} className="shrink-0" />
+                        <span className="truncate">{complaint.createdBy.username}</span>
+                        {complaint.createdBy.role && (
+                          <span className="text-xs text-gray-400 shrink-0">({complaint.createdBy.role.name})</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Calendar size={16} />
+                        <span>{new Date(complaint.createdAt).toLocaleDateString('ar-SA')}</span>
                       </div>
                     </div>
-                  )}
+
+                    {complaint.assignedTo && (
+                      <div className="bg-blue-50 rounded-lg p-2.5 flex items-center gap-2 mb-3">
+                        {complaint.assignedTo.pictureurl ? (
+                          <img
+                            src={complaint.assignedTo.pictureurl}
+                            alt={complaint.assignedTo.username}
+                            className="w-8 h-8 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-teal-800 flex items-center justify-center text-white text-sm shrink-0">
+                            {complaint.assignedTo.username.charAt(0)}
+                          </div>
+                        )}
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          مُسند إلى: {complaint.assignedTo.username}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-1 border-t border-gray-100 mt-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleViewComplaint(complaint)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="عرض التفاصيل"
+                      >
+                        <Eye size={18} />
+                        عرض
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditComplaint(complaint)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors"
+                        title="تعديل"
+                      >
+                        <Edit size={18} />
+                        تعديل
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
