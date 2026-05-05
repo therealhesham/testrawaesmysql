@@ -409,6 +409,16 @@ export default function Home() {
     rental: HomemaidListStats;
   } | null>(null);
   const [homemaidStatsContractType, setHomemaidStatsContractType] = useState<'recruitment' | 'rental'>('recruitment');
+  const [homemaidStatsPeriod, setHomemaidStatsPeriod] = useState<string>('month');
+  const [homemaidStatsMonthSelection, setHomemaidStatsMonthSelection] = useState<string>('current');
+  const [homemaidStatsStartDate, setHomemaidStatsStartDate] = useState<string>('');
+  const [homemaidStatsEndDate, setHomemaidStatsEndDate] = useState<string>('');
+  const [homemaidStatsDateRangeMeta, setHomemaidStatsDateRangeMeta] = useState<{
+    start: string;
+    end: string;
+    period?: string;
+  } | null>(null);
+  const [homemaidStatsLoading, setHomemaidStatsLoading] = useState(true);
 
   // Sources filter states
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -933,23 +943,56 @@ export default function Home() {
   }, []); // Empty dependency array - only run on mount
 
   useEffect(() => {
+    if (homemaidStatsPeriod === 'custom' && (!homemaidStatsStartDate || !homemaidStatsEndDate)) {
+      setHomemaidStatsLoading(false);
+      setHomemaidProfessionStats(null);
+      setHomemaidStatsDateRangeMeta(null);
+      return;
+    }
     let cancelled = false;
+    setHomemaidStatsLoading(true);
     (async () => {
       try {
-        const res = await fetch('/api/reports/homemaid-profession-stats');
-        if (!res.ok) return;
+        const url =
+          homemaidStatsPeriod === 'custom'
+            ? `/api/reports/homemaid-profession-stats?period=custom&startDate=${encodeURIComponent(
+                homemaidStatsStartDate
+              )}&endDate=${encodeURIComponent(homemaidStatsEndDate)}`
+            : `/api/reports/homemaid-profession-stats?period=${encodeURIComponent(
+                homemaidStatsPeriod
+              )}${
+                homemaidStatsPeriod === 'month'
+                  ? `&monthSelection=${encodeURIComponent(homemaidStatsMonthSelection)}`
+                  : ''
+              }`;
+        const res = await fetch(url);
+        if (!res.ok || cancelled) return;
         const data = await res.json();
         if (!cancelled && data?.recruitment && data?.rental) {
           setHomemaidProfessionStats(data);
+          if (data.dateRange?.start && data.dateRange?.end) {
+            setHomemaidStatsDateRangeMeta({
+              start: data.dateRange.start,
+              end: data.dateRange.end,
+              period: data.dateRange.period,
+            });
+          }
         }
       } catch (e) {
-        console.error('Error fetching homemaid profession stats:', e);
+        if (!cancelled) console.error('Error fetching homemaid profession stats:', e);
+      } finally {
+        if (!cancelled) setHomemaidStatsLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [
+    homemaidStatsPeriod,
+    homemaidStatsMonthSelection,
+    homemaidStatsStartDate,
+    homemaidStatsEndDate,
+  ]);
 
   // Separate useEffect for orders stats
   useEffect(() => {
@@ -2005,7 +2048,54 @@ export default function Home() {
 
         <div className="max-w-7xl mx-auto">
           {/* إحصائيات العاملات: جنس المهنة والمهنة — الانتقال إلى قائمة العاملات مع الفلتر */}
-          <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
+          <div className="bg-white rounded-xl p-6 shadow-sm mb-5 relative">
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={homemaidStatsPeriod}
+                  onChange={(e) => setHomemaidStatsPeriod(e.target.value)}
+                  className="bg-white text-black py-1 rounded text-sm border"
+                >
+                  <option value="week">أسبوعي</option>
+                  <option value="month">شهري</option>
+                  <option value="year">سنوي</option>
+                  <option value="custom">مخصص</option>
+                </select>
+                {homemaidStatsPeriod === 'month' && (
+                  <select
+                    value={homemaidStatsMonthSelection}
+                    onChange={(e) => setHomemaidStatsMonthSelection(e.target.value)}
+                    className="bg-white text-black py-1 rounded text-sm border"
+                  >
+                    <option value="current">الشهر الحالي</option>
+                    <option value="previous">الشهر السابق</option>
+                  </select>
+                )}
+                {homemaidStatsPeriod === 'custom' && (
+                  <div className="flex gap-2 flex-wrap">
+                    <input
+                      type="date"
+                      value={homemaidStatsStartDate}
+                      onChange={(e) => setHomemaidStatsStartDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={homemaidStatsEndDate}
+                      onChange={(e) => setHomemaidStatsEndDate(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              {homemaidStatsDateRangeMeta && (
+                <p className="text-xs text-gray-600 text-right">
+                  فترة احتساب الطلبات (حسب <span className="font-medium">createdAt</span>):{' '}
+                  {new Date(homemaidStatsDateRangeMeta.start).toLocaleDateString('ar-EG')} —{' '}
+                  {new Date(homemaidStatsDateRangeMeta.end).toLocaleDateString('ar-EG')}
+                </p>
+              )}
+            </div>
             <div className="flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-4 mb-4 pb-4 border-b-2 border-gray-200">
               <h3 className="text-base font-semibold text-gray-800">
                 إحصائيات الطلبات حسب عاملة الطلب (جنس المهنة والمهنة)
@@ -2035,8 +2125,18 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            {!homemaidProfessionStats ? (
-              <div className="py-8 text-center text-gray-500 text-sm">جاري تحميل إحصائيات العاملات...</div>
+            {!homemaidProfessionStats && homemaidStatsLoading ? (
+              <div className="py-8 text-center text-gray-500 text-sm">جاري تحميل إحصائيات الطلبات...</div>
+            ) : !homemaidProfessionStats &&
+              homemaidStatsPeriod === 'custom' &&
+              (!homemaidStatsStartDate || !homemaidStatsEndDate) ? (
+              <div className="py-8 text-center text-gray-500 text-sm">
+                اختر تاريخ البداية والنهاية للفترة المخصصة لعرض الإحصائيات
+              </div>
+            ) : !homemaidProfessionStats ? (
+              <div className="py-8 text-center text-gray-500 text-sm">
+                لا توجد بيانات أو تعذر التحميل. أعد المحاولة أو غيّر الفترة.
+              </div>
             ) : (
               (() => {
                 const s =
@@ -2065,14 +2165,14 @@ export default function Home() {
                   </button>
                 );
                 return (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${homemaidStatsLoading ? 'opacity-60 pointer-events-none' : ''}`}>
                     <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-4">
                       <h4 className="text-sm font-bold text-teal-900 mb-3">
                         جنس مهنة العاملة في الطلبات (من professions عبر HomemaidId)
                       </h4>
                       <div className="grid grid-cols-3 gap-2">{genderBtn('male', 'ذكر')}{genderBtn('female', 'أنثى')}{genderBtn('other', 'غير محدد / بدون مهنة')}</div>
                       <p className="text-xs text-gray-500 mt-2 text-right">
-                        إجمالي طلبات مُحتسبة: {s.gender.total} (طلبات لها HomemaidId، غير ملغاة/مرفوضة) — الجنس من مهنة العاملة المرتبطة بالطلب
+                        إجمالي طلبات في الفترة المختارة: {s.gender.total} (HomemaidId موجود، غير ملغاة/مرفوضة) — الجنس من مهنة العاملة
                       </p>
                     </div>
                     <div className="rounded-xl border border-teal-200 p-4">

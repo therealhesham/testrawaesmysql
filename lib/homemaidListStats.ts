@@ -1,4 +1,5 @@
 import prisma from "lib/prisma";
+import { subDays } from "date-fns";
 
 export type HomemaidListStats = {
   gender: { male: number; female: number; other: number; total: number };
@@ -24,17 +25,73 @@ function isOrderExcludedByStatus(bookingstatus: string | null | undefined): bool
   return s === "cancelled" || s === "rejected";
 }
 
+export type HomemaidOrderStatsPeriodInput = {
+  period: string;
+  monthSelection?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+/** نفس منطق تقرير الطلبات: أسبوع / شهر / سنة / مخصص — لاستخدامه في فلتر createdAt للطلبات */
+export function resolveHomemaidOrderStatsDateRange(
+  input: HomemaidOrderStatsPeriodInput
+): { gte: Date; lte: Date } {
+  const { period, monthSelection, startDate, endDate } = input;
+
+  if (period === "week") {
+    return { gte: subDays(new Date(), 7), lte: new Date() };
+  }
+
+  if (period === "month") {
+    let targetMonth: Date;
+    if (monthSelection === "previous") {
+      targetMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+    } else {
+      targetMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    }
+    const gte = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
+    const lte = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { gte, lte };
+  }
+
+  if (period === "custom") {
+    if (startDate && endDate) {
+      const gte = new Date(startDate);
+      const lte = new Date(endDate);
+      lte.setHours(23, 59, 59, 999);
+      return { gte, lte };
+    }
+    throw new Error("custom period requires startDate and endDate");
+  }
+
+  // year (مطابق لـ pages/api/reports/orders.ts)
+  return {
+    gte: new Date(new Date().getFullYear(), 0, 1),
+    lte: new Date(new Date().getFullYear() + 1, 0, 1),
+  };
+}
+
 /**
  * إحصائيات مبنية على الطلبات (neworder): كل طلب (غير ملغى/مرفوض) يُحسب مرة واحدة،
  * والجنس والمهنة من العاملة المرتبطة عبر HomemaidId وجدول professions.
+ * @param dateRange إن وُجد يُقيَّد الطلبات بـ createdAt ضمن النطاق
  */
 export async function buildHomemaidListStats(
-  contractType: "recruitment" | "rental"
+  contractType: "recruitment" | "rental",
+  dateRange?: { gte: Date; lte: Date } | null
 ): Promise<HomemaidListStats> {
   const orders = await prisma.neworder.findMany({
     where: {
       HomemaidId: { not: null },
       HomeMaid: { contractType },
+      ...(dateRange
+        ? {
+            createdAt: {
+              gte: dateRange.gte,
+              lte: dateRange.lte,
+            },
+          }
+        : {}),
     },
     select: {
       id: true,
