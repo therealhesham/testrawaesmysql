@@ -24,6 +24,16 @@ export function getBookingQuotaWindow(reference: Date = new Date()): { start: Da
   return { start, end };
 }
 
+/** نافذة 8→7 التي تسبق `getBookingQuotaWindow(reference)` مباشرةً (للتقارير: «المدة السابقة»). */
+export function getPreviousBookingQuotaWindow(reference: Date = new Date()): { start: Date; end: Date } {
+  const cur = getBookingQuotaWindow(reference);
+  const start = new Date(cur.start);
+  start.setMonth(start.getMonth() - 1);
+  const end = new Date(cur.end);
+  end.setMonth(end.getMonth() - 1);
+  return { start, end };
+}
+
 function normalizeProfessionGender(g: string | null | undefined): "male" | "female" | "other" {
   const v = (g ?? "").trim().toLowerCase();
   if (v === "male" || v === "m" || v === "ذكر") return "male";

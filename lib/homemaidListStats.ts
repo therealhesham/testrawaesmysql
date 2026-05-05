@@ -1,4 +1,5 @@
 import prisma from "lib/prisma";
+import { getBookingQuotaWindow, getPreviousBookingQuotaWindow } from "lib/bookingGenderQuota";
 import { subDays } from "date-fns";
 
 export type HomemaidListStats = {
@@ -28,30 +29,46 @@ function isOrderExcludedByStatus(bookingstatus: string | null | undefined): bool
 export type HomemaidOrderStatsPeriodInput = {
   period: string;
   monthSelection?: string;
+  /** YYYY-MM — لاختيار نافذة 8→7 لأي شهر (يتجاوز monthSelection إن أُعطي) */
+  referenceMonth?: string;
   startDate?: string;
   endDate?: string;
 };
 
-/** نفس منطق تقرير الطلبات: أسبوع / شهر / سنة / مخصص — لاستخدامه في فلتر createdAt للطلبات */
+function parseReferenceMonth(value: string | undefined): Date | null {
+  if (!value) return null;
+  const m = value.match(/^(\d{4})-(\d{1,2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const monthIndex = Number(m[2]) - 1;
+  if (!Number.isFinite(year) || monthIndex < 0 || monthIndex > 11) return null;
+  return new Date(year, monthIndex, 15, 12, 0, 0, 0);
+}
+
+/** أسبوع / «شهري» بنافذة 8→7 (مثل حصص الحجز) / سنة / مخصص — لفلتر createdAt للطلبات */
 export function resolveHomemaidOrderStatsDateRange(
   input: HomemaidOrderStatsPeriodInput
 ): { gte: Date; lte: Date } {
-  const { period, monthSelection, startDate, endDate } = input;
+  const { period, monthSelection, referenceMonth, startDate, endDate } = input;
 
   if (period === "week") {
     return { gte: subDays(new Date(), 7), lte: new Date() };
   }
 
   if (period === "month") {
-    let targetMonth: Date;
-    if (monthSelection === "previous") {
-      targetMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
-    } else {
-      targetMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const refDate = parseReferenceMonth(referenceMonth);
+    if (refDate) {
+      // أي شهر تختاره → نافذة 8→7 المنطلقة من ذلك الشهر
+      const start = new Date(refDate.getFullYear(), refDate.getMonth(), 8, 0, 0, 0, 0);
+      const end = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 7, 23, 59, 59, 999);
+      return { gte: start, lte: end };
     }
-    const gte = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1);
-    const lte = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0, 23, 59, 59, 999);
-    return { gte, lte };
+    if (monthSelection === "previous") {
+      const { start, end } = getPreviousBookingQuotaWindow();
+      return { gte: start, lte: end };
+    }
+    const { start, end } = getBookingQuotaWindow();
+    return { gte: start, lte: end };
   }
 
   if (period === "custom") {
@@ -64,7 +81,7 @@ export function resolveHomemaidOrderStatsDateRange(
     throw new Error("custom period requires startDate and endDate");
   }
 
-  // year (مطابق لـ pages/api/reports/orders.ts)
+  // year (مطابق لتقرير الطلبات عند period !== week|month|custom)
   return {
     gte: new Date(new Date().getFullYear(), 0, 1),
     lte: new Date(new Date().getFullYear() + 1, 0, 1),

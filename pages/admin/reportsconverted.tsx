@@ -411,6 +411,14 @@ export default function Home() {
   const [homemaidStatsContractType, setHomemaidStatsContractType] = useState<'recruitment' | 'rental'>('recruitment');
   const [homemaidStatsPeriod, setHomemaidStatsPeriod] = useState<string>('month');
   const [homemaidStatsMonthSelection, setHomemaidStatsMonthSelection] = useState<string>('current');
+  // YYYY-MM — يحدّد نافذة 8→7 بدءاً من الشهر المختار (يتجاوز monthSelection عند الإرسال)
+  const initialReferenceMonth = (() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  })();
+  const [homemaidStatsReferenceMonth, setHomemaidStatsReferenceMonth] = useState<string>(initialReferenceMonth);
   const [homemaidStatsStartDate, setHomemaidStatsStartDate] = useState<string>('');
   const [homemaidStatsEndDate, setHomemaidStatsEndDate] = useState<string>('');
   const [homemaidStatsDateRangeMeta, setHomemaidStatsDateRangeMeta] = useState<{
@@ -419,6 +427,15 @@ export default function Home() {
     period?: string;
   } | null>(null);
   const [homemaidStatsLoading, setHomemaidStatsLoading] = useState(true);
+
+  const shiftReferenceMonth = (delta: number) => {
+    const m = (homemaidStatsReferenceMonth || initialReferenceMonth).match(/^(\d{4})-(\d{1,2})$/);
+    if (!m) return;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1 + delta, 1);
+    const y = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    setHomemaidStatsReferenceMonth(`${y}-${mm}`);
+  };
 
   // Sources filter states
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -953,6 +970,12 @@ export default function Home() {
     setHomemaidStatsLoading(true);
     (async () => {
       try {
+        const monthQuery =
+          homemaidStatsPeriod === 'month'
+            ? homemaidStatsMonthSelection === 'pick' && homemaidStatsReferenceMonth
+              ? `&referenceMonth=${encodeURIComponent(homemaidStatsReferenceMonth)}`
+              : `&monthSelection=${encodeURIComponent(homemaidStatsMonthSelection)}`
+            : '';
         const url =
           homemaidStatsPeriod === 'custom'
             ? `/api/reports/homemaid-profession-stats?period=custom&startDate=${encodeURIComponent(
@@ -960,11 +983,7 @@ export default function Home() {
               )}&endDate=${encodeURIComponent(homemaidStatsEndDate)}`
             : `/api/reports/homemaid-profession-stats?period=${encodeURIComponent(
                 homemaidStatsPeriod
-              )}${
-                homemaidStatsPeriod === 'month'
-                  ? `&monthSelection=${encodeURIComponent(homemaidStatsMonthSelection)}`
-                  : ''
-              }`;
+              )}${monthQuery}`;
         const res = await fetch(url);
         if (!res.ok || cancelled) return;
         const data = await res.json();
@@ -990,6 +1009,7 @@ export default function Home() {
   }, [
     homemaidStatsPeriod,
     homemaidStatsMonthSelection,
+    homemaidStatsReferenceMonth,
     homemaidStatsStartDate,
     homemaidStatsEndDate,
   ]);
@@ -2057,19 +2077,55 @@ export default function Home() {
                   className="bg-white text-black py-1 rounded text-sm border"
                 >
                   <option value="week">أسبوعي</option>
-                  <option value="month">شهري</option>
+                  <option value="month">شهري (من ٨ إلى ٧)</option>
                   <option value="year">سنوي</option>
                   <option value="custom">مخصص</option>
                 </select>
                 {homemaidStatsPeriod === 'month' && (
-                  <select
-                    value={homemaidStatsMonthSelection}
-                    onChange={(e) => setHomemaidStatsMonthSelection(e.target.value)}
-                    className="bg-white text-black py-1 rounded text-sm border"
-                  >
-                    <option value="current">الشهر الحالي</option>
-                    <option value="previous">الشهر السابق</option>
-                  </select>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={homemaidStatsMonthSelection}
+                      onChange={(e) => setHomemaidStatsMonthSelection(e.target.value)}
+                      className="bg-white text-black py-1 rounded text-sm border"
+                    >
+                      <option value="current">المدة الحالية (٨–٧)</option>
+                      <option value="previous">المدة السابقة (٨–٧)</option>
+                      <option value="pick">اختيار شهر…</option>
+                    </select>
+                    {homemaidStatsMonthSelection === 'pick' && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          aria-label="الشهر السابق"
+                          onClick={() => shiftReferenceMonth(-1)}
+                          className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
+                        >
+                          ‹
+                        </button>
+                        <input
+                          type="month"
+                          value={homemaidStatsReferenceMonth}
+                          onChange={(e) => setHomemaidStatsReferenceMonth(e.target.value)}
+                          className="border rounded px-2 py-1 text-sm"
+                        />
+                        <button
+                          type="button"
+                          aria-label="الشهر التالي"
+                          onClick={() => shiftReferenceMonth(1)}
+                          className="px-2 py-1 border rounded text-sm hover:bg-gray-50"
+                        >
+                          ›
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHomemaidStatsReferenceMonth(initialReferenceMonth)}
+                          className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-50"
+                        >
+                          هذا الشهر
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {homemaidStatsPeriod === 'custom' && (
                   <div className="flex gap-2 flex-wrap">
@@ -2090,7 +2146,7 @@ export default function Home() {
               </div>
               {homemaidStatsDateRangeMeta && (
                 <p className="text-xs text-gray-600 text-right">
-                  فترة احتساب الطلبات (حسب <span className="font-medium">createdAt</span>):{' '}
+                  {/* فترة احتساب الطلبات (حسب <span className="font-medium">createdAt</span>):{' '} */}
                   {new Date(homemaidStatsDateRangeMeta.start).toLocaleDateString('ar-EG')} —{' '}
                   {new Date(homemaidStatsDateRangeMeta.end).toLocaleDateString('ar-EG')}
                 </p>
@@ -2161,7 +2217,7 @@ export default function Home() {
                     <div className="text-xs text-gray-400">
                       {pct(bucket === 'male' ? s.gender.male : bucket === 'female' ? s.gender.female : s.gender.other)}٪
                     </div>
-                    <div className="text-[10px] text-teal-700 mt-1">فتح قائمة العاملات مع الفلتر</div>
+                    {/* <div className="text-[10px] text-teal-700 mt-1">فتح قائمة العاملات مع الفلتر</div> */}
                   </button>
                 );
                 return (
@@ -2198,7 +2254,7 @@ export default function Home() {
                         )}
                       </div>
                       <p className="text-[11px] text-gray-500 mt-2 text-right">
-                        يفتح قائمة العاملات بنفس مهنة العاملة في الطلب (فلتر homemaid، ليس فلتر الطلبات)
+                        {/* يفتح قائمة العاملات بنفس مهنة العاملة في الطلب (فلتر homemaid، ليس فلتر الطلبات) */}
                       </p>
                     </div>
                   </div>

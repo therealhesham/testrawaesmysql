@@ -14,6 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const period = (req.query.period as string) || "month";
     const monthSelection = (req.query.monthSelection as string) || "current";
+    const referenceMonth = typeof req.query.referenceMonth === "string" ? req.query.referenceMonth : undefined;
     const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
 
@@ -24,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dateRange = resolveHomemaidOrderStatsDateRange({
       period,
       monthSelection,
+      referenceMonth,
       startDate,
       endDate,
     });
@@ -41,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         end: dateRange.lte.toISOString(),
         period,
         monthSelection: period === "month" ? monthSelection : undefined,
+        referenceMonth: period === "month" ? referenceMonth : undefined,
       },
     });
   } catch (e) {
