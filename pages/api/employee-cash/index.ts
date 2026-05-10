@@ -151,7 +151,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           cashNumber: record.cashNumber || record.id.toString(),
           receivedAmount: Number(record.receivedAmount),
           expenseAmount: Number(record.expenseAmount),
-          remainingBalance: Number(record.remainingBalance)
+          remainingBalance: Number(record.remainingBalance),
+          createdAt: new Date(record.createdAt).getTime()
         }));
 
         const detailTransactions = employeeDetailRecords.map((record) => ({
@@ -164,11 +165,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           cashNumber: 'تفاصيل',
           receivedAmount: Number(record.debit),
           expenseAmount: Number(record.credit),
-          remainingBalance: Number(record.balance)
+          remainingBalance: Number(record.balance),
+          createdAt: new Date(record.createdAt).getTime()
         }));
 
         const transactions = [...cashTransactions, ...detailTransactions]
-          .sort((a, b) => a.sortTime - b.sortTime)
+          .sort((a, b) => {
+            if (a.sortTime === b.sortTime) {
+              return a.createdAt - b.createdAt;
+            }
+            return a.sortTime - b.sortTime;
+          })
           .map(({ sortTime, ...rest }) => ({ ...rest, sortTimestamp: sortTime }));
 
         return {

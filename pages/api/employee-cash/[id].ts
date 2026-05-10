@@ -18,9 +18,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } = req.query;
 
       // Build where clause for filtering employee cash records
-      const where: any = {
-        employeeId: Number(id)
-      };
+      const where: any = {};
+      if (id !== 'all') {
+        where.employeeId = Number(id);
+      }
 
       if (client && client !== 'all') {
         where.client = client;
@@ -37,17 +38,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Get employee info from Employee table
-      const employeeInfo = await prisma.employee.findUnique({
-        where: {
-          id: Number(id)
-        },
-        select: {
-          id: true,
-          name: true,
-          position: true,
-          department: true
-        }
-      });
+      let employeeInfo = null;
+      if (id !== 'all') {
+        employeeInfo = await prisma.employee.findUnique({
+          where: {
+            id: Number(id)
+          },
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            department: true
+          }
+        });
+      }
 
       // Get employee cash detail records
       const cashDetails = await prisma.employeeCashDetail.findMany({
@@ -58,11 +62,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       // Get employee cash records (for settlements)
+      const cashWhere: any = { isTemporary: false };
+      if (id !== 'all') {
+        cashWhere.employeeId = Number(id);
+      }
+      
       const cashRecords = await prisma.employeeCash.findMany({
-        where: {
-          employeeId: Number(id),
-          isTemporary: false // استبعاد السجلات المؤقتة
-        },
+        where: cashWhere,
         orderBy: {
           transactionDate: 'desc'
         }
@@ -83,6 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Transform cash details data
       const detailTransactions = cashDetails.map((record) => ({
         id: record.id,
+        sortDate: new Date(record.date).getTime(),
         date: record.date.toLocaleDateString('ar-SA'),
         month: record.month || record.date.toLocaleDateString('ar-SA', { month: 'long' }),
         mainAccount: record.mainAccount ,
@@ -93,12 +100,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         balance: Number(record.balance),
         description: record.description ,
         attachment: record.attachment || 'عرض',
-        type: 'detail'
+        createdAt: new Date(record.createdAt).getTime(),
+        type: 'detail' as const
       }));
 
       // Transform cash records data
       const cashTransactions = cashRecords.map((record) => ({
         id: record.id,
+        sortDate: new Date(record.transactionDate).getTime(),
         date: record.transactionDate.toLocaleDateString('ar-SA'),
         month: record.transactionDate.toLocaleDateString('ar-SA', { month: 'long' }),
         mainAccount: 'عهدة نقدية',
@@ -109,17 +118,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         balance: Number(record.remainingBalance),
         description: record.description || 'عملية عهدة',
         attachment: record.attachment || 'عرض',
-        type: 'cash'
+        createdAt: new Date(record.createdAt).getTime(),
+        type: 'cash' as const
       }));
 
-      // Combine and sort all transactions by date
-      const allTransactions = [...detailTransactions, ...cashTransactions].sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
+      // Combine and sort all transactions by date (Ascending: oldest first)
+      const allTransactionsRaw = [...detailTransactions, ...cashTransactions].sort((a, b) => {
+        if (a.sortDate === b.sortDate) {
+          // If same date, sort by insertion time (oldest first)
+          return a.createdAt - b.createdAt;
+        }
+        return a.sortDate - b.sortDate;
+      });
+
+      // Calculate running balance globally first
+      let currentBalance = 0;
+      const allTransactionsWithBalance = allTransactionsRaw.map((t) => {
+        currentBalance = currentBalance + t.debit - t.credit;
+        return {
+          id: t.id,
+          date: t.date,
+          month: t.month,
+          mainAccount: t.mainAccount,
+          subAccount: t.subAccount,
+          client: t.client,
+          debit: t.debit,
+          credit: t.credit,
+          balance: currentBalance,
+          description: t.description,
+          attachment: t.attachment,
+          type: t.type,
+          sortDate: t.sortDate
+        };
+      });
+
+      // Filter by feedStart and feedEnd if provided
+      const { feedStart, feedEnd } = req.query;
+      let filteredTransactions = allTransactionsWithBalance;
+      
+      if (feedStart) {
+        const startTimestamp = Number(feedStart);
+        const endTimestamp = feedEnd === 'latest' ? Infinity : Number(feedEnd);
+        
+        filteredTransactions = allTransactionsWithBalance.filter(t => 
+          t.sortDate >= startTimestamp && t.sortDate < endTimestamp
+        );
+      }
+
+      // Remove sortDate before sending to client
+      const allTransactions = filteredTransactions.map(({ sortDate, ...rest }) => rest);
 
       const employeeDetail = {
-        id: Number(id),
-        name: employeeInfo?.name || `الموظف ${id}`,
+        id: id === 'all' ? 'all' : Number(id),
+        name: id === 'all' ? 'جميع الموظفين' : (employeeInfo?.name || `الموظف ${id}`),
         position: employeeInfo?.position,
         department: employeeInfo?.department,
         totalDebit,

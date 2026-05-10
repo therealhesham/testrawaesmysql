@@ -30,14 +30,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       endDate,
     });
 
-    const [recruitment, rental] = await Promise.all([
+    const [recruitment] = await Promise.all([
       buildHomemaidListStats("recruitment", dateRange),
-      buildHomemaidListStats("rental", dateRange),
     ]);
 
     return res.status(200).json({
       recruitment,
-      rental,
       dateRange: {
         start: dateRange.gte.toISOString(),
         end: dateRange.lte.toISOString(),
@@ -51,7 +49,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const empty = emptyHomemaidListStats();
     return res.status(200).json({
       recruitment: empty,
-      rental: empty,
       dateRange: null,
     });
   }

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from "styles/Home.module.css";
 import AlertModal from '../../../components/AlertModal';
-import { PencilAltIcon, DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
+import { PencilAltIcon, DocumentDownloadIcon, TableIcon, RefreshIcon } from '@heroicons/react/outline';
 import { TrashIcon } from '@heroicons/react/solid';
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { jwtDecode } from 'jwt-decode';
@@ -57,7 +57,7 @@ const truncateForPdf = (text: string, maxLen = 48): string => {
 
 export default function EmployeeCashDetail() {
   const router = useRouter();
-  const { id } = router.query;
+  const { id, feedStart, feedEnd } = router.query;
   const [data, setData] = useState<EmployeeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -66,6 +66,15 @@ export default function EmployeeCashDetail() {
     fromDate: '',
     toDate: ''
   });
+
+  const handleResetFilters = () => {
+    setFilters({
+      client: '',
+      movementType: '',
+      fromDate: '',
+      toDate: ''
+    });
+  };
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
@@ -206,7 +215,7 @@ export default function EmployeeCashDetail() {
     if (id) {
       fetchEmployeeDetail();
     }
-  }, [id, filters]);
+  }, [id, feedStart, feedEnd, filters]);
 
   const fetchEmployeeDetail = async () => {
     try {
@@ -216,6 +225,8 @@ export default function EmployeeCashDetail() {
       if (filters.movementType) queryParams.append('movementType', filters.movementType);
       if (filters.fromDate) queryParams.append('fromDate', filters.fromDate);
       if (filters.toDate) queryParams.append('toDate', filters.toDate);
+      if (feedStart) queryParams.append('feedStart', feedStart as string);
+      if (feedEnd) queryParams.append('feedEnd', feedEnd as string);
 
       const response = await fetch(`/api/employee-cash/${id}?${queryParams}`);
       const result = await response.json();
@@ -486,9 +497,9 @@ export default function EmployeeCashDetail() {
 
       const tableColumn = [
         'البيان',
-        'الرصيد',
         'دائن',
         'مدين',
+        'الرصيد',
         'العميل',
         'الحساب الفرعي',
         'الحساب الرئيسي',
@@ -500,9 +511,9 @@ export default function EmployeeCashDetail() {
 
       const tableRows = rows.map((row, index) => [
         truncateForPdf(row.description || '—', 36),
-        row.balance?.toLocaleString?.() ?? String(row.balance),
         row.credit?.toLocaleString?.() ?? String(row.credit),
         row.debit?.toLocaleString?.() ?? String(row.debit),
+        row.balance?.toLocaleString?.() ?? String(row.balance),
         truncateForPdf(row.client || '—', 24),
         truncateForPdf(row.subAccount || '—', 20),
         truncateForPdf(row.mainAccount || '—', 20),
@@ -614,8 +625,8 @@ export default function EmployeeCashDetail() {
         { header: 'الحساب الرئيسي', key: 'mainAccount', width: 22 },
         { header: 'الحساب الفرعي', key: 'subAccount', width: 22 },
         { header: 'العميل', key: 'client', width: 20 },
-        { header: 'مدين', key: 'debit', width: 12 },
         { header: 'دائن', key: 'credit', width: 12 },
+        { header: 'مدين', key: 'debit', width: 12 },
         { header: 'الرصيد', key: 'balance', width: 12 },
         { header: 'البيان', key: 'description', width: 28 },
         { header: 'المرفق', key: 'attachment', width: 36 },
@@ -633,8 +644,8 @@ export default function EmployeeCashDetail() {
           mainAccount: row.mainAccount || '—',
           subAccount: row.subAccount || '—',
           client: row.client || '—',
-          debit: row.debit ?? 0,
           credit: row.credit ?? 0,
+          debit: row.debit ?? 0,
           balance: row.balance ?? 0,
           description: row.description || '—',
           attachment: isPlaceholderAttachment(row.attachment) ? '—' : row.attachment,
@@ -651,8 +662,8 @@ export default function EmployeeCashDetail() {
         mainAccount: '',
         subAccount: 'الإجمالي',
         client: '',
-        debit: detail.totalDebit ?? 0,
         credit: detail.totalCredit ?? 0,
+        debit: detail.totalDebit ?? 0,
         balance: detail.totalBalance ?? 0,
         description: '',
         attachment: '',
@@ -714,142 +725,94 @@ export default function EmployeeCashDetail() {
       {/* Page Content */}
       <div className="p-8">
         <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
-          <button
-            onClick={handleAddRecord}
-            className="bg-teal-800 text-white border-none rounded px-4 py-2 flex items-center gap-2 text-xs cursor-pointer hover:bg-teal-700"
-          >
-            <span>إضافة سجل</span>
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-              <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </button>
           <h2 className="text-3xl font-normal text-black text-right">كشف حساب {data?.name || 'الموظف'}</h2>
+          {id !== 'all' && (
+            <button
+              onClick={handleAddRecord}
+              className="bg-teal-800 text-white border-none rounded px-4 py-2 flex items-center gap-2 text-xs cursor-pointer hover:bg-teal-700"
+            >
+              <span>إضافة سجل</span>
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
         </div>
         
         {/* Filters Section */}
         <section className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-4">
-          <div className="flex gap-10 mb-6 justify-end">
+          <div className="flex gap-6 justify-start items-end">
             <div className="flex flex-col gap-2 min-w-56">
-              <label className="text-xs text-gray-700 text-right">العميل</label>
+              <label className="text-md text-gray-700 text-right">العميل</label>
               <div className="relative">
                 <select
-                  className="w-full bg-gray-100 border border-gray-300 rounded  text-xs text-gray-500 text-right "
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right h-[42px]"
                   value={filters.client}
                   onChange={(e) => setFilters({...filters, client: e.target.value})}
                 >
                   <option value="">اختر العميل</option>
                 </select>
-                {/* <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 17 17" fill="none">
-                  <path d="M4 6l4.5 4.5L13 6" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg> */}
               </div>
             </div>
 
             <div className="flex flex-col gap-2 min-w-56">
-              <label className="text-xs text-gray-700 text-right">نوع الحركة</label>
+              <label className="text-md text-gray-700 text-right">نوع الحركة</label>
               <div className="relative">
                 <select
-                  className="w-full bg-gray-100 border border-gray-300 rounded  text-xs text-gray-500 text-right appearance-none"
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right h-[42px] appearance-none"
                   value={filters.movementType}
                   onChange={(e) => setFilters({...filters, movementType: e.target.value})}
                 >
                   <option value="">اختر نوع الحركة</option>
-                  <option value="debit">مدين</option>
                   <option value="credit">دائن</option>
+                  <option value="debit">مدين</option>
                 </select>
-
               </div>
             </div>
 
             <div className="flex flex-col gap-2 min-w-56">
-              <label className="text-xs text-gray-700 text-right">إلى</label>
+              <label className="text-md text-gray-700 text-right">من</label>
               <div className="relative">
                 <input
                   type="date"
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-xs text-gray-500 text-right"
-                  value={filters.toDate}
-                  onChange={(e) => setFilters({...filters, toDate: e.target.value})}
-                />
-
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 min-w-56">
-              <label className="text-xs text-gray-700 text-right">من</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-xs text-gray-500 text-right"
+                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
                   value={filters.fromDate}
                   onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
                 />
-
               </div>
             </div>
-          </div>
 
-          <button
-            onClick={handleSearch}
-            className="bg-teal-800 text-white border-none rounded px-4 py-2 text-sm cursor-pointer"
-          >
-            كشف حساب
-          </button>
+            <div className="flex flex-col gap-2 min-w-56">
+              <label className="text-md text-gray-700 text-right">إلى</label>
+              <div className="relative">
+                <input
+                  type="date"
+                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
+                  value={filters.toDate}
+                  onChange={(e) => setFilters({...filters, toDate: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSearch}
+              className="bg-teal-800 text-white border-none rounded px-4 py-2 text-md cursor-pointer h-[42px] hover:bg-teal-700 transition-colors"
+            >
+              كشف حساب
+            </button>
+
+            <button
+              onClick={handleResetFilters}
+              title="إعادة ضبط الفلاتر"
+              className="flex items-center justify-center p-2 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors h-[42px] w-[42px]"
+            >
+              <RefreshIcon className="w-5 h-5" />
+            </button>
+          </div>
         </section>
 
         {/* Results Section */}
         <section className="bg-gray-50 border border-gray-300 rounded-lg shadow-sm">
-          {/* Summary Cards */}
-          <div className="flex gap-8 p-6 justify-between">
-            <div className="bg-gray-100 rounded-lg p-5 text-center flex-1 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">إجمالي المدين</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.totalDebit.toLocaleString() || '0'}</div>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-5 text-center flex-1 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">إجمالي الدائن</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.totalCredit.toLocaleString() || '0'}</div>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-5 text-center flex-1 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">إجمالي الرصيد</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.totalBalance.toLocaleString() || '0'}</div>
-            </div>
-          </div>
-
-          {/* Settlements Section */}
-          {data?.settlements && (
-            <div className="p-6 border-b border-gray-300">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 text-right">تفاصيل التسويات</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="text-md font-medium text-blue-800 mb-3 text-right">من جدول التفاصيل</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">إجمالي المدين:</span>
-                      <span className="text-sm font-medium">{data.settlements.totalDetailsDebit.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">إجمالي الدائن:</span>
-                      <span className="text-sm font-medium">{data.settlements.totalDetailsCredit.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h4 className="text-md font-medium text-green-800 mb-3 text-right">من جدول العهدة النقدية</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">إجمالي المستلم:</span>
-                      <span className="text-sm font-medium">{data.settlements.totalCashReceived.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">إجمالي المصروف:</span>
-                      <span className="text-sm font-medium">{data.settlements.totalCashExpenses.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* تصدير فوق الجدول — محاذاة لليسار (في RTL: justify-end) */}
           <div className="flex justify-end gap-2 px-6 py-3 border-b border-gray-200 bg-white flex-wrap">
             <button
@@ -882,8 +845,8 @@ export default function EmployeeCashDetail() {
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الحساب الرئيسي</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الحساب الفرعي</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">العميل</th>
-                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">مدين</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">دائن</th>
+                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">مدين</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الرصيد</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">البيان</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">المرفق</th>
@@ -908,8 +871,8 @@ export default function EmployeeCashDetail() {
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.mainAccount}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.subAccount}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.client}</td>
-                    <td className="p-4 text-center text-sm bg-gray-100">{transaction.debit.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.credit.toLocaleString()}</td>
+                    <td className="p-4 text-center text-sm bg-gray-100">{transaction.debit.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.balance.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.description}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">
@@ -940,8 +903,8 @@ export default function EmployeeCashDetail() {
               <tfoot>
                 <tr>
                   <td colSpan={7} className="p-4 text-right text-sm bg-gray-200 font-bold text-black">الإجمالي</td>
-                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalDebit.toLocaleString() || '0'}</td>
                   <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalCredit.toLocaleString() || '0'}</td>
+                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalDebit.toLocaleString() || '0'}</td>
                   <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalBalance.toLocaleString() || '0'}</td>
                   <td colSpan={3} className="bg-gray-200"></td>
                 </tr>
@@ -987,7 +950,6 @@ export default function EmployeeCashDetail() {
                 <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
                 <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
               </div>
-
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
                 <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
@@ -1113,7 +1075,6 @@ export default function EmployeeCashDetail() {
                     defaultValue={editingTransaction.debit}
                   />
                 </div>
-
                 <div className="flex flex-col items-end">
                   <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
                   <input 

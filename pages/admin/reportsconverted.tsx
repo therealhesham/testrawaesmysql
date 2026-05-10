@@ -1546,13 +1546,13 @@ export default function Home() {
     housedWorkerData?.reasonStats?.map((item: { Reason?: string }) => item.Reason).filter(Boolean) ?? [];
   const reasons =
     apiHousingReasons.length > 0
-      ? [
-          ...new Set([
-            ...DEFAULT_HOUSING_REASON_ORDER.filter((r) => apiHousingReasons.includes(r)),
-            ...apiHousingReasons.filter((r) => !DEFAULT_HOUSING_REASON_ORDER.includes(r)),
-          ]),
-        ]
-      : DEFAULT_HOUSING_REASON_ORDER.filter((r) => r !== 'لم يحدد سبب');
+      ? Array.from(
+          new Set([
+            ...DEFAULT_HOUSING_REASON_ORDER.filter((r: string) => apiHousingReasons.includes(r)),
+            ...apiHousingReasons.filter((r: string) => !DEFAULT_HOUSING_REASON_ORDER.includes(r)),
+          ])
+        )
+      : DEFAULT_HOUSING_REASON_ORDER.filter((r: string) => r !== 'لم يحدد سبب');
 
   const miniDonutData = reasons.map((reason) => {
     const reasonData = housedWorkerData?.nationalityStats?.[reason] || {};
@@ -1954,7 +1954,7 @@ export default function Home() {
 
   const openFullListWithHomemaidStatsFilter = (opts: { professionGender?: string; professionId?: string }) => {
     const q = new URLSearchParams();
-    q.set('type', homemaidStatsContractType);
+    q.set('type', 'recruitment');
     q.set('page', '1');
     if (opts.professionGender) q.set('professionGender', opts.professionGender);
     if (opts.professionId) q.set('professionId', opts.professionId);
@@ -2157,28 +2157,6 @@ export default function Home() {
                 إحصائيات الطلبات حسب عاملة الطلب (جنس المهنة والمهنة)
               </h3>
               <div className="flex gap-8 border-b border-gray-300 pb-2 w-full sm:w-auto justify-start">
-                <button
-                  type="button"
-                  onClick={() => setHomemaidStatsContractType('recruitment')}
-                  className={`text-sm pb-2 -mb-px transition-colors ${
-                    homemaidStatsContractType === 'recruitment'
-                      ? 'border-b-2 border-teal-800 font-bold text-teal-900'
-                      : 'text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  عاملات الاستقدام
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHomemaidStatsContractType('rental')}
-                  className={`text-sm pb-2 -mb-px transition-colors ${
-                    homemaidStatsContractType === 'rental'
-                      ? 'border-b-2 border-teal-800 font-bold text-teal-900'
-                      : 'text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  عاملات التأجير
-                </button>
               </div>
             </div>
             {!homemaidProfessionStats && homemaidStatsLoading ? (
@@ -2195,10 +2173,7 @@ export default function Home() {
               </div>
             ) : (
               (() => {
-                const s =
-                  homemaidStatsContractType === 'recruitment'
-                    ? homemaidProfessionStats.recruitment
-                    : homemaidProfessionStats.rental;
+                const s = homemaidProfessionStats.recruitment;
                 const pct = (n: number) =>
                   s.gender.total > 0 ? Math.round((n / s.gender.total) * 100) : 0;
                 const rowKey = (professionId: number | null) =>

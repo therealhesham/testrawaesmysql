@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
@@ -133,6 +133,16 @@ function getMonthName(month: number) {
   const [lastBalance, setLastBalance] = useState<number>(0);
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
 
+  const pageTotals = useMemo(() => {
+    return financialRecords.reduce(
+      (acc, curr) => ({
+        debit: acc.debit + Number(curr.debit || 0),
+        credit: acc.credit + Number(curr.credit || 0),
+      }),
+      { debit: 0, credit: 0 }
+    );
+  }, [financialRecords]);
+
   const fetchOfficeData = async () => {
     if (!officeId) return;
     
@@ -155,6 +165,7 @@ function getMonthName(month: number) {
         ...(filters.fromDate && { fromDate: filters.fromDate }),
         ...(filters.toDate && { toDate: filters.toDate }),
         ...(searchTerm && { search: searchTerm }),
+        sortOrder: 'asc',
       });
 
       const res = await axios.get(`/api/foreign-offices-financial?${params}`);
@@ -170,7 +181,7 @@ function getMonthName(month: number) {
         openingBalance,
         totalDebit,
         totalCredit,
-        totalBalance: openingBalance + totalCredit - totalDebit,
+        totalBalance: openingBalance + totalDebit - totalCredit,
       });
       
       setDataError(null);
@@ -240,8 +251,8 @@ function getMonthName(month: number) {
   const calculateBalance = (credit: string, debit: string, baseBalance: number) => {
     const creditNum = parseFloat(credit) || 0;
     const debitNum = parseFloat(debit) || 0;
-    // المدين ينقص من الرصيد، الدائن يزيده
-    return baseBalance + creditNum - debitNum;
+    // المدين يزيده، الدائن ينقصه
+    return baseBalance + debitNum - creditNum;
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -472,16 +483,34 @@ function getMonthName(month: number) {
     });
   };
 
-  const formatCurrency = (amount: number | string) => {
+  const formatCurrency = (amount: number | string, currency: CurrencyCode = 'USD') => {
     const usdStored = Number(amount);
     if (!Number.isFinite(usdStored)) return '-';
-    const value =
-      selectedCurrency === 'USD' ? usdStored : usdStored * SAR_PER_USD;
-    const { symbol } = CURRENCY_CONFIG[selectedCurrency];
-    return `${value.toLocaleString(undefined, {
+    const value = currency === 'USD' ? usdStored : usdStored * SAR_PER_USD;
+    const { symbol } = CURRENCY_CONFIG[currency];
+    return `${value.toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     })} ${symbol}`;
+  };
+
+  const renderDualCurrency = (amount: number | string, colorClass: string = 'text-gray-800', sarColorClass: string = 'text-gray-500') => {
+    const usd = formatCurrency(amount, 'USD');
+    const sar = formatCurrency(amount, 'SAR');
+    if (usd === '-') return '-';
+    return (
+      <div className="flex flex-col items-center justify-center">
+        <span className={`text-sm font-semibold ${colorClass}`}>{usd}</span>
+        <span className={`text-[10px] ${sarColorClass} font-normal leading-tight`}>{sar}</span>
+      </div>
+    );
+  };
+
+  const formatDualConcise = (amount: number | string) => {
+    const usd = formatCurrency(amount, 'USD');
+    const sar = formatCurrency(amount, 'SAR');
+    if (usd === '-') return '-';
+    return `${usd} (${sar})`;
   };
 
   const handleInvoiceUpload = async (file: File): Promise<string> => {
@@ -667,6 +696,7 @@ function getMonthName(month: number) {
       ...(filters.fromDate && { fromDate: filters.fromDate }),
       ...(filters.toDate && { toDate: filters.toDate }),
       ...(searchTerm && { search: searchTerm }),
+      sortOrder: 'asc',
     });
 
     const res = await fetch(`/api/foreign-offices-financial?${params}`);
@@ -1034,48 +1064,10 @@ function getMonthName(month: number) {
 
             {/* Results Section */}
             <section className="bg-[#F2F3F5] border border-[#E0E0E0] rounded-lg shadow-sm">
-              {/* Summary Cards */}
-              <div className="flex flex-wrap gap-8 p-6 justify-center">
-                <div className="bg-[#F7F8FA] rounded-lg p-5 text-center min-w-[237px] shadow-sm">
-                  <div className="text-base text-gray-800 mb-2">الرصيد الافتتاحي</div>
-                  <div className="text-base font-normal text-gray-800 leading-8">
-                    {formatCurrency(summaryData.openingBalance)}
-                  </div>
-                </div>
-                <div className="bg-[#F7F8FA] rounded-lg p-5 text-center min-w-[237px] shadow-sm">
-                  <div className="text-base text-gray-800 mb-2">اجمالي المدين</div>
-                  <div className="text-base font-normal text-gray-800 leading-8">
-                    {formatCurrency(summaryData.totalDebit)}
-                  </div>
-                </div>
-                <div className="bg-[#F7F8FA] rounded-lg p-5 text-center min-w-[237px] shadow-sm">
-                  <div className="text-base text-gray-800 mb-2">اجمالي الدائن</div>
-                  <div className="text-base font-normal text-gray-800 leading-8">
-                    {formatCurrency(summaryData.totalCredit)}
-                  </div>
-                </div>
-                <div className="bg-[#F7F8FA] rounded-lg p-5 text-center min-w-[237px] shadow-sm">
-                  <div className="text-base text-gray-800 mb-2">الرصيد الاجمالي</div>
-                  <div className="text-base font-normal text-gray-800 leading-8">
-                    {formatCurrency(summaryData.totalBalance)}
-                  </div>
-                </div>
-              </div>
 
               {/* Table Controls */}
               <div className="flex justify-between items-center px-4 pb-6">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="group inline-flex items-center gap-2 rounded-lg border-2 border-[#1A4D4F] bg-[#F7FAFA] px-3 py-1.5 text-sm font-semibold text-[#1A4D4F] shadow-sm transition-all hover:bg-[#1A4D4F] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#1A4D4F]/35"
-                    onClick={handleCurrencyToggle}
-                    title="تغيير عملة العرض"
-                  >
-                    <span className="opacity-80">العملة</span>
-                    <span className="rounded-md bg-white/80 px-2 py-0.5 text-xs font-bold tabular-nums group-hover:bg-white/20">
-                      {selectedCurrency}
-                    </span>
-                  </button>
                   <button
                     className="bg-[#1A4D4F] text-white border-none rounded-sm px-3 py-1 flex items-center gap-1 text-md hover:bg-[#164044] "
                     onClick={() => handleExport('Excel')}
@@ -1106,11 +1098,7 @@ function getMonthName(month: number) {
                   </svg>
                 </div>
               </div>
-              <div className="px-4 pb-3 text-sm text-gray-600">
-                المبالغ في قاعدة البيانات بالدولار الأمريكي. عرض الريال للمراجعة فقط (
-                {SAR_PER_USD} ر.س ≈ 1 $).
-              </div>
-
+             
               {/* Data Table */}
               <div className="overflow-x-auto" dir="rtl">
                 <table className="w-full bg-white border-collapse">
@@ -1124,8 +1112,8 @@ function getMonthName(month: number) {
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">تاريخ العقد</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الدفعة</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">البيان</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">دائن</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">مدين</th>
+                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">دائن</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الرصيد</th>
                       <th className='bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal'>المرفق</th>
                       <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">إجراءات</th>
@@ -1178,13 +1166,13 @@ function getMonthName(month: number) {
                             {record.description || '-'}
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {record.credit > 0 ? formatCurrency(record.credit) : '-'}
+                            {record.debit > 0 ? renderDualCurrency(record.debit) : '-'}
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {record.debit > 0 ? formatCurrency(record.debit) : '-'}
+                            {record.credit > 0 ? renderDualCurrency(record.credit) : '-'}
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {formatCurrency(record.balance)}
+                            {renderDualCurrency(record.balance)}
                           </td>
 
 <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
@@ -1220,6 +1208,29 @@ function getMonthName(month: number) {
                       ))
                     )}
                   </tbody>
+                  {financialRecords.length > 0 && (
+                    <tfoot className="sticky bottom-0 z-10">
+                      <tr className="bg-[#1A4D4F] text-white font-bold shadow-[0_-2px_4px_rgba(0,0,0,0.1)]">
+                        <td colSpan={7} className="p-4 text-right border-t border-[#E0E0E0] pr-8">الإجمالي</td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
+                          {renderDualCurrency(pageTotals.debit, 'text-white', 'text-white/80')}
+                        </td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
+                          {renderDualCurrency(pageTotals.credit, 'text-white', 'text-white/80')}
+                        </td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
+                          {renderDualCurrency(pageTotals.debit - pageTotals.credit, 'text-white', 'text-white/80')}
+                        </td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0]"></td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap min-w-[120px]">
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="text-[10px] text-white/70 mb-1">الرصيد الافتتاحي</span>
+                            {renderDualCurrency(summaryData.openingBalance, 'text-white', 'text-white/80')}
+                          </div>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             </section>
@@ -1392,26 +1403,32 @@ function getMonthName(month: number) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">رصيد الدائن</label>
-                    <input
-                      type="number"
-                      name="credit"
-                      value={form.credit}
-                      onChange={handleChange}
-                      placeholder="ادخل رصيد الدائن"
-                      className="p-2 border border-gray-300 rounded-md bg-white"
-                    />
+                    <label className="mb-2 font-bold text-gray-800">رصيد المدين</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                      <input
+                        type="number"
+                        name="debit"
+                        value={form.debit}
+                        onChange={handleChange}
+                        placeholder="ادخل رصيد المدين ( بالدولار الامريكي )"
+                        className="p-2 pl-7 border border-gray-300 rounded-md bg-white w-full"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">رصيد المدين</label>
-                    <input
-                      type="number"
-                      name="debit"
-                      value={form.debit}
-                      onChange={handleChange}
-                      placeholder="ادخل رصيد المدين"
-                      className="p-2 border border-gray-300 rounded-md bg-white"
-                    />
+                    <label className="mb-2 font-bold text-gray-800">رصيد الدائن</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                      <input
+                        type="number"
+                        name="credit"
+                        value={form.credit}
+                        onChange={handleChange}
+                        placeholder="ادخل رصيد الدائن ( بالدولار الامريكي )"
+                        className="p-2 pl-7 border border-gray-300 rounded-md bg-white w-full"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col">
                     <label className="mb-2 font-bold text-gray-800">الاشعار</label>
@@ -1428,19 +1445,19 @@ function getMonthName(month: number) {
                   <div className="flex flex-col">
                     <label className="mb-2 font-bold text-gray-800">الرصيد (محسوب تلقائياً)</label>
                     <input
-                      type="number"
+                      type="text"
                       name="balance"
                       value={form.balance}
                       disabled
                       className="p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                     />
                     <div className="text-sm text-gray-500 mt-1">
-                      الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
+                      الرصيد السابق: <span className="font-semibold">{formatDualConcise(lastBalance)}</span>
                       {(form.debit || form.credit) && (
                         <span className="mr-2">
-                          {form.debit && ` - ${formatCurrency(parseFloat(form.debit) || 0)} (مدين)`}
-                          {form.credit && ` + ${formatCurrency(parseFloat(form.credit) || 0)} (دائن)`}
-                          {` = ${formatCurrency(parseFloat(form.balance || '0') || 0)}`}
+                          {form.debit && ` - ${formatDualConcise(parseFloat(form.debit) || 0)} (مدين)`}
+                          {form.credit && ` + ${formatDualConcise(parseFloat(form.credit) || 0)} (دائن)`}
+                          {` = ${formatDualConcise(parseFloat(form.balance || '0') || 0)}`}
                         </span>
                       )}
                     </div>
@@ -1623,26 +1640,32 @@ function getMonthName(month: number) {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">رصيد الدائن</label>
-                    <input
-                      type="number"
-                      name="credit"
-                      value={editForm.credit}
-                      onChange={handleEditChange}
-                      placeholder="ادخل رصيد الدائن"
-                      className="p-2 border border-gray-300 rounded-md bg-white"
-                    />
+                    <label className="mb-2 font-bold text-gray-800">رصيد المدين</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                      <input
+                        type="number"
+                        name="debit"
+                        value={editForm.debit}
+                        onChange={handleEditChange}
+                        placeholder="ادخل رصيد المدين ( بالدولار الامريكي )"
+                        className="p-2 pl-7 border border-gray-300 rounded-md bg-white w-full"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="mb-2 font-bold text-gray-800">رصيد المدين</label>
-                    <input
-                      type="number"
-                      name="debit"
-                      value={editForm.debit}
-                      onChange={handleEditChange}
-                      placeholder="ادخل رصيد المدين"
-                      className="p-2 border border-gray-300 rounded-md bg-white"
-                    />
+                    <label className="mb-2 font-bold text-gray-800">رصيد الدائن</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                      <input
+                        type="number"
+                        name="credit"
+                        value={editForm.credit}
+                        onChange={handleEditChange}
+                        placeholder="ادخل رصيد الدائن ( بالدولار الامريكي )"
+                        className="p-2 pl-7 border border-gray-300 rounded-md bg-white w-full"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col">
                     <label className="mb-2 font-bold text-gray-800">الاشعار</label>
@@ -1662,19 +1685,19 @@ function getMonthName(month: number) {
                   <div className="flex flex-col">
                     <label className="mb-2 font-bold text-gray-800">الرصيد (محسوب تلقائياً)</label>
                     <input
-                      type="number"
+                      type="text"
                       name="balance"
                       value={editForm.balance}
                       disabled
                       className="p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                     />
                     <div className="text-sm text-gray-500 mt-1">
-                      الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
+                      الرصيد السابق: <span className="font-semibold">{formatDualConcise(lastBalance)}</span>
                       {(editForm.debit || editForm.credit) && (
                         <span className="mr-2">
-                          {editForm.debit && ` - ${formatCurrency(parseFloat(editForm.debit) || 0)} (مدين)`}
-                          {editForm.credit && ` + ${formatCurrency(parseFloat(editForm.credit) || 0)} (دائن)`}
-                          {` = ${formatCurrency(parseFloat(editForm.balance || '0') || 0)}`}
+                          {editForm.debit && ` - ${formatDualConcise(parseFloat(editForm.debit) || 0)} (مدين)`}
+                          {editForm.credit && ` + ${formatDualConcise(parseFloat(editForm.credit) || 0)} (دائن)`}
+                          {` = ${formatDualConcise(parseFloat(editForm.balance || '0') || 0)}`}
                         </span>
                       )}
                     </div>

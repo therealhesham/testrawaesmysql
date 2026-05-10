@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from 'example/containers/Layout';
 import Style from 'styles/Home.module.css';
 import AlertModal from '../../components/AlertModal';
-import { DocumentDownloadIcon, TableIcon } from '@heroicons/react/outline';
+import { DocumentDownloadIcon, TableIcon, RefreshIcon } from '@heroicons/react/outline';
 import { jwtDecode } from 'jwt-decode';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -50,6 +50,61 @@ function sortTransactionsByDateDesc(transactions: Transaction[]): Transaction[] 
   );
 }
 
+export interface CustodyRow {
+  id: string;
+  employeeId: number;
+  employeeName: string;
+  date: string;
+  timestamp: number;
+  receivedAmount: number;
+  expenseAmount: number;
+  remainingBalance: number;
+}
+
+export function groupTransactionsIntoCustodies(employees: Employee[]): CustodyRow[] {
+  if (!employees || !employees.length) return [];
+  const rows: CustodyRow[] = [];
+
+  employees.forEach(emp => {
+    // Sort transactions by date ASC to process chronologically
+    const sortedTx = [...(emp.transactions || [])].sort((a, b) => (a.sortTimestamp ?? 0) - (b.sortTimestamp ?? 0));
+    
+    let currentCustody: CustodyRow | null = null;
+    let custodyIndex = 0;
+
+    sortedTx.forEach(tx => {
+      // New custody starts if receivedAmount > 0 or if no custody exists yet
+      if (tx.receivedAmount > 0 || !currentCustody) {
+        if (currentCustody) {
+          rows.push(currentCustody);
+        }
+        custodyIndex++;
+        currentCustody = {
+          id: `${emp.id}-custody-${custodyIndex}-${tx.id}`,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          date: tx.date,
+          timestamp: tx.sortTimestamp ?? 0,
+          receivedAmount: tx.receivedAmount,
+          expenseAmount: tx.expenseAmount,
+          remainingBalance: tx.receivedAmount - tx.expenseAmount
+        };
+      } else {
+        // Add expense to current custody
+        currentCustody.expenseAmount += tx.expenseAmount;
+        currentCustody.remainingBalance = currentCustody.receivedAmount - currentCustody.expenseAmount;
+      }
+    });
+
+    if (currentCustody) {
+      rows.push(currentCustody);
+    }
+  });
+
+  // Sort rows by timestamp DESC to show newest first
+  return rows.sort((a, b) => b.timestamp - a.timestamp);
+}
+
 // Form data interface matching the EmployeeCash model
 export interface EmployeeCashFormData {
   employeeId: number | '';
@@ -91,6 +146,14 @@ export default function EmployeeCash() {
     fromDate: '',
     toDate: ''
   });
+
+  const handleResetFilters = () => {
+    setFilters({
+      employee: '',
+      fromDate: '',
+      toDate: ''
+    });
+  };
   
   // Form state management
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,11 +198,9 @@ export default function EmployeeCash() {
   // User name for export
   const [userName, setUserName] = useState('');
 
-  const allTransactionsSorted = useMemo(() => {
+  const groupedCustodyRows = useMemo(() => {
     if (!data?.employees?.length) return [];
-    return sortTransactionsByDateDesc(
-      data.employees.flatMap((emp) => emp.transactions)
-    );
+    return groupTransactionsIntoCustodies(data.employees);
   }, [data]);
 
   useEffect(() => {
@@ -643,18 +704,16 @@ export default function EmployeeCash() {
         'الرصيد المتبقي'
       ];
 
-      // Flatten all transactions from all employees (ترتيب تنازلي من الأحدث إلى الأقدم)
-      const allTransactions = sortTransactionsByDateDesc(
-        dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || []
-      );
+      // Group transactions into custodies
+      const allCustodies = groupTransactionsIntoCustodies(dataToExport.employees || []);
 
-      const tableRows = allTransactions.map((transaction: Transaction, index: number) => [
+      const tableRows = allCustodies.map((custody: CustodyRow, index: number) => [
         (index + 1).toString(),
-        truncateToTwoWords(transaction.date || 'غير متوفر'),
-        truncateToTwoWords(transaction.employeeName || 'غير متوفر'),
-        transaction.receivedAmount?.toLocaleString() || '0',
-        transaction.expenseAmount?.toLocaleString() || '0',
-        transaction.remainingBalance?.toLocaleString() || '0',
+        truncateToTwoWords(custody.date || 'غير متوفر'),
+        truncateToTwoWords(custody.employeeName || 'غير متوفر'),
+        custody.receivedAmount?.toLocaleString() || '0',
+        custody.expenseAmount?.toLocaleString() || '0',
+        custody.remainingBalance?.toLocaleString() || '0',
       ]);
 
       doc.autoTable({
@@ -767,19 +826,17 @@ export default function EmployeeCash() {
       worksheet.getRow(1).font = { name: 'Amiri', size: 12 };
       worksheet.getRow(1).alignment = { horizontal: 'right' };
 
-      // Flatten all transactions from all employees (ترتيب تنازلي من الأحدث إلى الأقدم)
-      const allTransactions = sortTransactionsByDateDesc(
-        dataToExport.employees?.flatMap((emp: Employee) => emp.transactions) || []
-      );
+      // Group transactions into custodies
+      const allCustodies = groupTransactionsIntoCustodies(dataToExport.employees || []);
 
-      allTransactions.forEach((transaction: Transaction, index: number) => {
+      allCustodies.forEach((custody: CustodyRow, index: number) => {
         const row = worksheet.addRow({
           index: index + 1,
-          date: transaction.date || 'غير متوفر',
-          employeeName: transaction.employeeName || 'غير متوفر',
-          receivedAmount: transaction.receivedAmount || 0,
-          expenseAmount: transaction.expenseAmount || 0,
-          remainingBalance: transaction.remainingBalance || 0,
+          date: custody.date || 'غير متوفر',
+          employeeName: custody.employeeName || 'غير متوفر',
+          receivedAmount: custody.receivedAmount || 0,
+          expenseAmount: custody.expenseAmount || 0,
+          remainingBalance: custody.remainingBalance || 0,
         });
         row.alignment = { horizontal: 'right' };
       });
@@ -864,6 +921,7 @@ export default function EmployeeCash() {
       {/* Page Content */}
       <div className="p-8">
         <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-normal text-black text-right">كشف حساب عهدة الموظفين</h2>
           <button 
             onClick={handleAddCash}
             className="bg-teal-800 text-white border-none rounded px-4 py-2 flex items-center gap-2 text-md cursor-pointer hover:bg-teal-700"
@@ -873,90 +931,70 @@ export default function EmployeeCash() {
               <path d="M4 1v6M1 4h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
             </svg>
           </button>
-          <h2 className="text-3xl font-normal text-black text-right">كشف حساب عهدة الموظفين</h2>
         </div>
         
         {/* Filters Section */}
         <section className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-4">
-          <div className="flex gap-6 mb-6 justify-end">
+          <div className="flex gap-6 justify-start items-end">
             <div className="flex flex-col gap-2 min-w-56">
               <label className="text-md text-gray-700 text-right">الموظف</label>
               <div className="relative">
                 <select 
-                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right "
+                  className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right h-[42px]"
                   value={filters.employee}
                   onChange={(e) => setFilters({...filters, employee: e.target.value})}
                 >
-                  <option value="">اختر الموظف</option>
+                  <option value="">اختر الموظف ({data?.summary.totalEmployees || 0})</option>
                   {data?.employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.name}</option>
                   ))}
                 </select>
-                {/* <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 17 17" fill="none">
-                  <path d="M4 6l4.5 4.5L13 6" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg> */}
               </div>
             </div>
-            
-            <div className="flex flex-col gap-2 min-w-56">
-              <label className="text-md text-gray-700 text-right">إلى</label>
-              <div className="relative">
-                <input 
-                  type="date" 
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right"
-                  value={filters.toDate}
-                  onChange={(e) => setFilters({...filters, toDate: e.target.value})}
-                />
-                {/* <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none w-4 h-4" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="3" width="12" height="11" rx="2" ry="2" stroke="#6B7280" strokeWidth="2"/>
-                  <path d="M11 1v4M5 1v4M2 7h12" stroke="#6B7280" strokeWidth="2" strokeLinecap="round"/>
-                </svg> */}
-              </div>
-            </div>
-            
+
             <div className="flex flex-col gap-2 min-w-56">
               <label className="text-md text-gray-700 text-right">من</label>
               <div className="relative">
                 <input 
                   type="date" 
-                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right"
+                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
                   value={filters.fromDate}
                   onChange={(e) => setFilters({...filters, fromDate: e.target.value})}
                 />
-          
               </div>
             </div>
+
+            <div className="flex flex-col gap-2 min-w-56">
+              <label className="text-md text-gray-700 text-right">إلى</label>
+              <div className="relative">
+                <input 
+                  type="date" 
+                  className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
+                  value={filters.toDate}
+                  onChange={(e) => setFilters({...filters, toDate: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={handleSearch}
+              className="bg-teal-800 text-white border-none rounded px-4 py-2 text-md cursor-pointer h-[42px] hover:bg-teal-700 transition-colors"
+            >
+              كشف حساب
+            </button>
+
+            <button 
+              onClick={handleResetFilters}
+              title="إعادة ضبط الفلاتر"
+              className="flex items-center justify-center p-2 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors h-[42px] w-[42px]"
+            >
+              <RefreshIcon className="w-5 h-5" />
+            </button>
           </div>
-          
-          <button 
-            onClick={handleSearch}
-            className="bg-teal-800 text-white border-none rounded px-4 py-2 text-md cursor-pointer"
-          >
-            كشف حساب
-          </button>
         </section>
 
         {/* Results Section */}
         <section className="bg-gray-50 border border-gray-300 rounded-lg shadow-sm">
-          {/* Summary Cards */}
-          <div className="flex gap-8 p-6 justify-center">
-            <div className="bg-gray-100 rounded-lg p-5 text-center min-w-60 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">إجمالي الموظفين</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.summary.totalEmployees || 0}</div>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-5 text-center min-w-60 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">إجمالي المبالغ المستلمة</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.summary.totalReceived.toLocaleString() || '0'}</div>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-5 text-center min-w-60 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">إجمالي المصروفات</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.summary.totalExpenses.toLocaleString() || '0'}</div>
-            </div>
-            <div className="bg-gray-100 rounded-lg p-5 text-center min-w-60 shadow-sm">
-              <div className="text-base text-gray-700 mb-2">الأرصدة المتبقية</div>
-              <div className="text-base font-normal text-gray-700 leading-8">{data?.summary.totalRemaining.toLocaleString() || '0'}</div>
-            </div>
-          </div>
 
           {/* Export Buttons */}
           <div className="flex justify-end items-center p-4 border-b border-gray-300">
@@ -983,7 +1021,19 @@ export default function EmployeeCash() {
             <table className="w-full border-collapse bg-white">
               <thead>
                 <tr>
-                  <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">#</th>
+                  <th 
+                    className="bg-teal-800 text-white p-4 text-center text-md font-normal cursor-pointer hover:bg-teal-700"
+                    title="عرض كل تفاصيل الموظف المحدد"
+                    onClick={() => {
+                      if (filters.employee) {
+                        router.push(`/admin/employee_cash/${filters.employee}`);
+                      } else {
+                        router.push(`/admin/employee_cash/all`);
+                      }
+                    }}
+                  >
+                    #
+                  </th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">التاريخ</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">اسم الموظف</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-md font-normal">المبلغ المستلم</th>
@@ -992,20 +1042,36 @@ export default function EmployeeCash() {
                 </tr>
               </thead>
               <tbody>
-                {allTransactionsSorted.map((transaction, index) => (
+                {groupedCustodyRows.map((custody, index) => {
+                  const employeeCustodies = groupedCustodyRows.filter(c => c.employeeId === custody.employeeId);
+                  const empIndex = employeeCustodies.findIndex(c => c.id === custody.id);
+                  let nextFeed = employeeCustodies[empIndex - 1];
+                  let i = empIndex - 1;
+                  while (nextFeed && nextFeed.timestamp === custody.timestamp) {
+                    i--;
+                    nextFeed = employeeCustodies[i];
+                  }
+                  const feedUrl = `/admin/employee_cash/${custody.employeeId}?feedStart=${custody.timestamp}&feedEnd=${nextFeed ? nextFeed.timestamp : 'latest'}`;
+
+                  return (
                   <tr
-                    key={`${transaction.recordType ?? 'cash'}-${transaction.id}`}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleEmployeeClick(transaction.employeeId)}
+                    key={custody.id}
+                    className="hover:bg-gray-50"
                   >
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">#{index + 1}</td>
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.date}</td>
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.employeeName}</td>
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.receivedAmount.toLocaleString()}</td>
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.expenseAmount.toLocaleString()}</td>
-                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{transaction.remainingBalance.toLocaleString()}</td>
+                    <td 
+                      className="p-4 text-center text-md border-b border-gray-300 bg-gray-100 cursor-pointer hover:bg-gray-200 text-teal-800 underline font-bold"
+                      onClick={() => router.push(feedUrl)}
+                    >
+                      #{index + 1}
+                    </td>
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{custody.date}</td>
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{custody.employeeName}</td>
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{custody.receivedAmount.toLocaleString()}</td>
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{custody.expenseAmount.toLocaleString()}</td>
+                    <td className="p-4 text-center text-md border-b border-gray-300 bg-gray-100">{custody.remainingBalance.toLocaleString()}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
               <tfoot>
                 <tr>
@@ -1063,23 +1129,6 @@ export default function EmployeeCash() {
                 </div>
                 
                 <div className="flex flex-col items-end">
-                  <label className="text-md text-gray-500 mb-2">المبلغ المستلم</label>
-                  <input 
-                    type="number" 
-                    placeholder="ادخل المبلغ المستلم" 
-                    value={formData.receivedAmount}
-                    onChange={(e) => handleFormFieldChange('receivedAmount', e.target.value ? Number(e.target.value) : '')}
-                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
-                      formErrors.receivedAmount ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    min="0"
-                  />
-                  {formErrors.receivedAmount && (
-                    <span className="text-red-500 text-sm mt-1">{formErrors.receivedAmount}</span>
-                  )}
-                </div>
-                
-                <div className="flex flex-col items-end">
                   <label className="text-md text-gray-500 mb-2">المصروف</label>
                   <input 
                     type="number" 
@@ -1093,6 +1142,23 @@ export default function EmployeeCash() {
                   />
                   {formErrors.expenseAmount && (
                     <span className="text-red-500 text-sm mt-1">{formErrors.expenseAmount}</span>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-end">
+                  <label className="text-md text-gray-500 mb-2">المبلغ المستلم</label>
+                  <input 
+                    type="number" 
+                    placeholder="ادخل المبلغ المستلم" 
+                    value={formData.receivedAmount}
+                    onChange={(e) => handleFormFieldChange('receivedAmount', e.target.value ? Number(e.target.value) : '')}
+                    className={`w-full bg-gray-50 border rounded px-4 py-2 text-base text-right ${
+                      formErrors.receivedAmount ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    min="0"
+                  />
+                  {formErrors.receivedAmount && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors.receivedAmount}</span>
                   )}
                 </div>
                 

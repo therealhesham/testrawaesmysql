@@ -13,6 +13,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         office: true,
         Country: true,
         phoneNumber: true,
+        _count: {
+          select: {
+            financialRecords: true,
+          },
+        },
       },
       orderBy: {
         office: 'asc',

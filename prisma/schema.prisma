@@ -450,8 +450,11 @@ PaymentMethod    String?
 Installments Int?
 Total   Int?
 paid    Int?
-Payments Payment[]
-notes String?
+payments Payment[]
+  notes String?
+  foreignLaborApproval Boolean? @default(false)
+  travelPermit         String?
+  medicalCheckFile     String?   @db.VarChar(191)
   client             Client?   @relation(fields: [clientID], references: [id])
   HomeMaid           homemaid? @relation(fields: [HomemaidId], references: [id])
   // OrderStatus        OrderStatus[]

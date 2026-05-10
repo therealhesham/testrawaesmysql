@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import type { ChangeEvent } from 'react';
 import Layout from 'example/containers/Layout';
@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { jwtDecode } from 'jwt-decode';
+import { RefreshIcon } from '@heroicons/react/outline';
 
 interface Office {
   id: number;
@@ -160,6 +161,16 @@ export default function ForeignOfficesFinancial() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+
+  const pageTotals = useMemo(() => {
+    return financialRecords.reduce(
+      (acc, curr) => ({
+        debit: acc.debit + Number(curr.debit || 0),
+        credit: acc.credit + Number(curr.credit || 0),
+      }),
+      { debit: 0, credit: 0 }
+    );
+  }, [financialRecords]);
   
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -223,7 +234,19 @@ export default function ForeignOfficesFinancial() {
     try {
       const res = await axios.get('/api/foreign-offices-financial/offices');
       if (res.data.success && res.data.offices) {
-        setOffices(res.data.offices);
+        const officesData = res.data.offices;
+        setOffices(officesData);
+        
+        // Select office with highest transaction count by default
+        if (officesData.length > 0 && !filters.officeId) {
+          const topOffice = [...officesData].sort((a, b) => 
+            (b._count?.financialRecords || 0) - (a._count?.financialRecords || 0)
+          )[0];
+          
+          if (topOffice && topOffice._count?.financialRecords > 0) {
+            setFilters(prev => ({ ...prev, officeId: topOffice.id.toString() }));
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch offices:', err);
@@ -269,16 +292,34 @@ export default function ForeignOfficesFinancial() {
     });
   };
 
-  const formatCurrency = (amount: number | string) => {
+  const formatCurrency = (amount: number | string, currency: CurrencyCode = 'USD') => {
     const usdStored = Number(amount);
     if (!Number.isFinite(usdStored)) return '-';
-    const value =
-      selectedCurrency === 'USD' ? usdStored : usdStored * SAR_PER_USD;
-    const { symbol } = CURRENCY_CONFIG[selectedCurrency];
-    return `${value.toLocaleString(undefined, {
+    const value = currency === 'USD' ? usdStored : usdStored * SAR_PER_USD;
+    const { symbol } = CURRENCY_CONFIG[currency];
+    return `${value.toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     })} ${symbol}`;
+  };
+
+  const renderDualCurrency = (amount: number | string, colorClass: string = 'text-gray-800', sarColorClass: string = 'text-gray-500') => {
+    const usd = formatCurrency(amount, 'USD');
+    const sar = formatCurrency(amount, 'SAR');
+    if (usd === '-') return '-';
+    return (
+      <div className="flex flex-col items-center justify-center">
+        <span className={`text-sm font-semibold ${colorClass}`}>{usd}</span>
+        <span className={`text-[10px] ${sarColorClass} font-normal leading-tight`}>{sar}</span>
+      </div>
+    );
+  };
+
+  const formatDualConcise = (amount: number | string) => {
+    const usd = formatCurrency(amount, 'USD');
+    const sar = formatCurrency(amount, 'SAR');
+    if (usd === '-') return '-';
+    return `${usd} (${sar})`;
   };
 
   function getDate(date: string) {
@@ -708,8 +749,8 @@ export default function ForeignOfficesFinancial() {
   const calculateBalance = (credit: string, debit: string, baseBalance: number) => {
     const creditNum = parseFloat(credit) || 0;
     const debitNum = parseFloat(debit) || 0;
-    // المدين ينقص من الرصيد، الدائن يزيده
-    return baseBalance + creditNum - debitNum;
+    // المدين يزيده، الدائن ينقصه
+    return baseBalance + debitNum - creditNum;
   };
 
   const handleNewRecordChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -1042,70 +1083,67 @@ export default function ForeignOfficesFinancial() {
             </div>
 
             {/* Filters Section */}
-            <section className="bg-[#F2F3F5] border border-[#E0E0E0] rounded-lg p-6 mb-4">
-              <div className="flex flex-wrap gap-10 mb-6 justify-end">
-                <div className="flex flex-col gap-2 min-w-[226px]">
-                  <label className="text-md text-gray-800">المكتب</label>
+            <section className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-4">
+              <div className="flex gap-6 justify-start items-end">
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-700 text-right">المكتب</label>
                   <div className="relative">
                     <select
                       name="officeId"
                       value={filters.officeId}
                       onChange={handleFilterChange}
                       disabled={loadingOffices}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 appearance-none pr-8 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-gray-100 border border-gray-300 rounded  text-md text-gray-500 text-right h-[42px] pr-8 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="">جميع المكاتب</option>
+                      <option value="">جميع المكاتب ({offices.length})</option>
                       {offices.map((office) => (
                         <option key={office.id} value={office.id.toString()}>
                           {office.office}
                         </option>
                       ))}
                     </select>
-   
                   </div>
                 </div>
-                
-                <div className="flex flex-col gap-2 min-w-[226px]">
-                  <label className="text-md text-gray-800">الى</label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      name="toDate"
-                      value={filters.toDate}
-                      onChange={handleFilterChange}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 pr-8"
-                    />
 
-                  </div>
-                </div>
-                
-                <div className="flex flex-col gap-2 min-w-[226px]">
-                  <label className="text-md text-gray-800">من</label>
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-700 text-right">من</label>
                   <div className="relative">
                     <input
                       type="date"
                       name="fromDate"
                       value={filters.fromDate}
                       onChange={handleFilterChange}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-md text-gray-600 pr-8"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
                     />
-
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex gap-3">
+
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-700 text-right">الى</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      name="toDate"
+                      value={filters.toDate}
+                      onChange={handleFilterChange}
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
+                    />
+                  </div>
+                </div>
+
                 <button
-                  className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 text-md cursor-pointer hover:bg-[#164044]"
+                  className="bg-teal-800 text-white border-none rounded px-4 py-2 text-md cursor-pointer h-[42px] hover:bg-teal-700 transition-colors"
                   onClick={handleSearch}
                 >
                   كشف حساب
                 </button>
+
                 <button
-                  className="bg-gray-500 text-white border-none rounded-md px-4 py-2 text-md cursor-pointer hover:bg-gray-600"
                   onClick={handleResetFilters}
+                  title="إعادة ضبط الفلاتر"
+                  className="flex items-center justify-center p-2 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors h-[42px] w-[42px]"
                 >
-                  إعادة الضبط
+                  <RefreshIcon className="w-5 h-5" />
                 </button>
               </div>
             </section>
@@ -1130,17 +1168,6 @@ export default function ForeignOfficesFinancial() {
                 </div>
 
                  <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCurrencyToggle}
-                    title="تغيير عملة العرض"
-                    className="group inline-flex items-center gap-2 rounded-lg border-2 border-[#1A4D4F] bg-[#F7FAFA] px-4 py-2 text-sm font-semibold text-[#1A4D4F] shadow-sm transition-all hover:bg-[#1A4D4F] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#1A4D4F]/35"
-                  >
-                    <span className="opacity-80">العملة</span>
-                    <span className="rounded-md bg-white/80 px-2 py-0.5 text-xs font-bold tabular-nums group-hover:bg-white/20">
-                      {selectedCurrency}
-                    </span>
-                  </button>
                   <button
                     type="button"
                     onClick={handleRecalculateBalances}
@@ -1168,10 +1195,7 @@ export default function ForeignOfficesFinancial() {
                 </div>
                 
               </div>
-              <div className="px-4 pb-3 text-sm text-gray-600">
-                المبالغ في قاعدة البيانات بالدولار الأمريكي. عرض الريال للمراجعة فقط (
-                {SAR_PER_USD} ر.س ≈ 1 $).
-              </div>
+              
 
               {/* Data Table */}
               <div className="overflow-x-auto">
@@ -1249,14 +1273,14 @@ export default function ForeignOfficesFinancial() {
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             {record.description || '-'}
                           </td>
-                          <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {record.debit > 0 ? formatCurrency(record.debit) : '-'}
+                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
+                            {record.debit > 0 ? renderDualCurrency(record.debit) : '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {record.credit > 0 ? formatCurrency(record.credit) : '-'}
+                            {record.credit > 0 ? renderDualCurrency(record.credit) : '-'}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
-                            {formatCurrency(record.balance)}
+                            {renderDualCurrency(record.balance)}
                           </td>
                           <td className="p-4 text-center text-md border-b border-[#E0E0E0] bg-[#F7F8FA]">
                             <div className="flex gap-2 justify-center">
@@ -1286,6 +1310,23 @@ export default function ForeignOfficesFinancial() {
                       ))
                     )}
                   </tbody>
+                  {financialRecords.length > 0 && (
+                    <tfoot className="sticky bottom-0 z-10">
+                      <tr className="bg-[#1A4D4F] text-white font-bold shadow-[0_-2px_4px_rgba(0,0,0,0.1)]">
+                        <td colSpan={8} className="p-4 text-right border-t border-[#E0E0E0] pr-8">الإجمالي</td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
+                          {renderDualCurrency(pageTotals.debit, 'text-white', 'text-white/80')}
+                        </td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
+                          {renderDualCurrency(pageTotals.credit, 'text-white', 'text-white/80')}
+                        </td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0] whitespace-nowrap">
+                          {renderDualCurrency(pageTotals.debit - pageTotals.credit, 'text-white', 'text-white/80')}
+                        </td>
+                        <td className="p-4 text-center border-t border-[#E0E0E0]"></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
 
@@ -1493,26 +1534,32 @@ export default function ForeignOfficesFinancial() {
 
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">رصيد الدائن</label>
-                  <input
-                    type="number"
-                    name="credit"
-                    value={newRecord.credit}
-                    onChange={handleNewRecordChange}
-                    placeholder="ادخل رصيد الدائن"
-                    className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                    <input
+                      type="number"
+                      name="credit"
+                      value={newRecord.credit}
+                      onChange={handleNewRecordChange}
+                      placeholder="ادخل رصيد الدائن ( بالدولار الامريكي )"
+                      className="w-full p-3 pl-8 border border-gray-300 rounded-md bg-white text-md"
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">رصيد المدين</label>
-                  <input
-                    type="number"
-                    name="debit"
-                    value={newRecord.debit}
-                    onChange={handleNewRecordChange}
-                    placeholder="ادخل رصيد المدين"
-                    className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                    <input
+                      type="number"
+                      name="debit"
+                      value={newRecord.debit}
+                      onChange={handleNewRecordChange}
+                      placeholder="ادخل رصيد المدين ( بالدولار الامريكي )"
+                      className="w-full p-3 pl-8 border border-gray-300 rounded-md bg-white text-md"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1547,19 +1594,19 @@ export default function ForeignOfficesFinancial() {
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">الرصيد (محسوب تلقائياً)</label>
                   <input
-                    type="number"
+                    type="text"
                     name="balance"
                     value={newRecord.balance}
                     disabled
                     className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-md cursor-not-allowed"
                   />
                   <div className="text-sm text-gray-500 mt-1">
-                    الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
+                    الرصيد السابق: <span className="font-semibold">{formatDualConcise(lastBalance)}</span>
                     {(newRecord.debit || newRecord.credit) && (
                       <span className="mr-2">
-                        {newRecord.debit && ` - ${formatCurrency(parseFloat(newRecord.debit) || 0)} (مدين)`}
-                        {newRecord.credit && ` + ${formatCurrency(parseFloat(newRecord.credit) || 0)} (دائن)`}
-                        {` = ${formatCurrency(parseFloat(newRecord.balance) || 0)}`}
+                        {newRecord.debit && ` - ${formatDualConcise(parseFloat(newRecord.debit) || 0)} (مدين)`}
+                        {newRecord.credit && ` + ${formatDualConcise(parseFloat(newRecord.credit) || 0)} (دائن)`}
+                        {` = ${formatDualConcise(parseFloat(newRecord.balance) || 0)}`}
                       </span>
                     )}
                   </div>
@@ -1705,44 +1752,50 @@ export default function ForeignOfficesFinancial() {
 
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">رصيد الدائن</label>
-                  <input
-                    type="number"
-                    name="credit"
-                    value={editForm.credit}
-                    onChange={handleEditFormChange}
-                    placeholder="ادخل رصيد الدائن"
-                    className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                    <input
+                      type="number"
+                      name="credit"
+                      value={editForm.credit}
+                      onChange={handleEditFormChange}
+                      placeholder="ادخل رصيد الدائن ( بالدولار الامريكي )"
+                      className="w-full p-3 pl-8 border border-gray-300 rounded-md bg-white text-md"
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">رصيد المدين</label>
-                  <input
-                    type="number"
-                    name="debit"
-                    value={editForm.debit}
-                    onChange={handleEditFormChange}
-                    placeholder="ادخل رصيد المدين"
-                    className="w-full p-3 border border-gray-300 rounded-md bg-white text-md"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                    <input
+                      type="number"
+                      name="debit"
+                      value={editForm.debit}
+                      onChange={handleEditFormChange}
+                      placeholder="ادخل رصيد المدين ( بالدولار الامريكي )"
+                      className="w-full p-3 pl-8 border border-gray-300 rounded-md bg-white text-md"
+                    />
+                  </div>
                 </div>
                 
                 <div>
                   <label className="block text-md font-bold mb-2 text-gray-700">الرصيد (محسوب تلقائياً)</label>
                   <input
-                    type="number"
+                    type="text"
                     name="balance"
                     value={editForm.balance}
                     disabled
                     className="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-md cursor-not-allowed"
                   />
                   <div className="text-sm text-gray-500 mt-1">
-                    الرصيد السابق: <span className="font-semibold">{formatCurrency(lastBalance)}</span>
+                    الرصيد السابق: <span className="font-semibold">{formatDualConcise(lastBalance)}</span>
                     {(editForm.debit || editForm.credit) && (
                       <span className="mr-2">
-                        {editForm.debit && ` - ${formatCurrency(parseFloat(editForm.debit) || 0)} (مدين)`}
-                        {editForm.credit && ` + ${formatCurrency(parseFloat(editForm.credit) || 0)} (دائن)`}
-                        {` = ${formatCurrency(parseFloat(editForm.balance) || 0)}`}
+                        {editForm.debit && ` - ${formatDualConcise(parseFloat(editForm.debit) || 0)} (مدين)`}
+                        {editForm.credit && ` + ${formatDualConcise(parseFloat(editForm.credit) || 0)} (دائن)`}
+                        {` = ${formatDualConcise(parseFloat(editForm.balance) || 0)}`}
                       </span>
                     )}
                   </div>
