@@ -38,6 +38,76 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ hasPermission, initialData }: DashboardProps) {
+  const GenderQuotaCard = () => {
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          const res = await axios.get('/api/reports/contract-gender-quota');
+          setData(res.data);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+      const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }, []);
+
+    if (loading) return <div className="bg-white p-2 rounded-lg shadow-sm border w-32 h-24 animate-pulse"></div>;
+    if (!data) return (
+      <div className="p-2 rounded-lg shadow-sm border bg-red-50 border-red-200 w-32 text-center" dir="rtl">
+        <p className="text-[10px] text-red-600 font-bold">خطأ: الإعدادات غير موجودة</p>
+      </div>
+    );
+
+    const isOverLimit = data.malePercentage > data.limit;
+    const startDate = new Date(data.window.start).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+    const endDate = new Date(data.window.end).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+
+    return (
+      <div className={`p-2 rounded-lg shadow-sm border inline-flex flex-col items-center gap-2 w-32 ${isOverLimit ? 'border-red-200 bg-red-50' : 'border-teal-100 bg-teal-50'}`} dir="rtl">
+        <div className="text-center border-b border-teal-100 pb-2 w-full">
+          <h3 className="text-[10px] font-bold text-gray-800 leading-none mb-1">حصة العقود الرجالية</h3>
+          <p className="text-[8px] text-gray-400">
+             {startDate} - {endDate}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] text-gray-500">إجمالي:</span>
+            <span className="text-xs font-bold text-gray-800">{data.total}</span>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] text-gray-500">رجال:</span>
+            <span className="text-xs font-bold text-gray-800">{data.maleCount}</span>
+          </div>
+
+          <div className="flex flex-col items-center pt-2 border-t border-teal-100">
+            <div className={`text-lg font-black leading-none mb-1 ${isOverLimit ? 'text-red-600' : 'text-teal-700'}`}>
+              {data.malePercentage.toFixed(1)}%
+            </div>
+            <div className="text-[8px] font-medium text-gray-400">
+              الحد: {data.limit}%
+            </div>
+          </div>
+        </div>
+
+        {isOverLimit && (
+          <div className="bg-red-600 text-white px-1 py-0.5 rounded text-[8px] font-bold animate-pulse w-full text-center" dir="rtl">
+            تجاوز الحد!
+          </div>
+        )}
+      </div>
+    );
+  };
+
 
   const [userName, setUserName] = useState('');
   useEffect(() => {
@@ -968,6 +1038,7 @@ useEffect(() => {
 
   const renderRequests = () => (
     <div className="p-6 min-h-screen">
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-normal">الطلبات الجديدة</h1>
         <button
@@ -981,10 +1052,12 @@ useEffect(() => {
           <span>إضافة طلب</span>
         </button>
       </div>
+
+
       <div className="bg-white border border-gray-300 rounded p-6">
-        <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-          <div className="flex flex-col sm:flex-row gap-4 h-8">
-            <div className="flex items-center border-none rounded bg-gray-50 p-2">
+        <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex items-center border-none rounded bg-gray-50 p-2 h-10">
               <input
                 type="text"
                 placeholder="بحث"
@@ -1064,6 +1137,7 @@ useEffect(() => {
               إعادة ضبط
             </button>
           </div>
+          <GenderQuotaCard />
         </div>
         <div className="flex gap-4 justify-end mb-9">
           <button
