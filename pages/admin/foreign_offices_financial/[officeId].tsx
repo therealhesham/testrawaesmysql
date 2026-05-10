@@ -10,6 +10,7 @@ import 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { jwtDecode } from 'jwt-decode';
 import { FileExcelOutlined, FileOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { RefreshIcon } from '@heroicons/react/outline';
 
 interface Office {
   id: number;
@@ -939,31 +940,30 @@ function getMonthName(month: number) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F2F3F5] text-gray-900" dir="rtl">
+    <div className={`min-h-screen bg-gray-50 ${Style['tajawal-regular']}`} dir="rtl">
       <Head>
         <title>كشف حساب {office.office} - وصل للاستقدام</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
       
       <Layout>
-        <div className={`flex flex-col min-h-screen ${Style["tajawal-regular"]}`}>
-          <main className="flex-1 p-4 md:p-8" dir="ltr">
-            <div className="flex justify-between items-center mb-10">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleBackToMain}
-                  className="bg-gray-500 text-white rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-gray-600"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M19 12H5M12 19l-7-7 7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  العودة
-                </button>
-                <h2 className="text-3xl text-black">كشف حساب {office.office}</h2>
-              </div>
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-4">
               <button
-                className="bg-[#1A4D4F] text-white rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-[#164044]"
-                onClick={async () => {
+                onClick={handleBackToMain}
+                className="bg-gray-200 text-gray-600 rounded-md px-4 py-2 flex items-center gap-2 text-sm hover:bg-gray-300 transition-colors h-[42px]"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>العودة</span>
+              </button>
+              <h2 className="text-3xl font-normal text-black text-right">كشف حساب {office.office}</h2>
+            </div>
+            <button
+              className="bg-teal-800 text-white border-none rounded px-4 py-2 flex items-center gap-2 text-md cursor-pointer hover:bg-teal-700"
+              onClick={async () => {
                   if (officeId) {
                     await fetchLastBalance(Number(officeId));
                   }
@@ -989,75 +989,67 @@ function getMonthName(month: number) {
               </button>
             </div>
 
-            {/* Filters Section */}
-            <section className="bg-[#F2F3F5] border border-[#E0E0E0] rounded-lg p-6 mb-4">
-              <div className="flex flex-wrap gap-10 mb-6 justify-end">
-                <div className="flex flex-col gap-2 min-w-[226px]">
-                  <label className="text-xs text-gray-800">نوع الحركة</label>
+            <section className="bg-gray-50 border border-gray-300 rounded-lg p-6 mb-4">
+              <div className="flex flex-wrap gap-6 justify-start items-end">
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-700 text-right">نوع الحركة</label>
                   <div className="relative">
                     <select
                       name="movementType"
                       value={filters.movementType}
                       onChange={handleFilterChange}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-xs text-gray-600 appearance-none pr-8"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px] appearance-none"
+                      style={{ backgroundImage: 'none' }}
                     >
                       <option value="">اختر نوع الحركة</option>
                       <option value="debit">مدين</option>
                       <option value="credit">دائن</option>
                     </select>
-                    <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
                 </div>
-                
-                <div className="flex flex-col gap-2 min-w-[226px]">
-                  <label className="text-xs text-gray-800">الى</label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      name="toDate"
-                      value={filters.toDate}
-                      onChange={handleFilterChange}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-xs text-gray-600 pr-8"
-                    />
-                    <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2" />
-                      <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col gap-2 min-w-[226px]">
-                  <label className="text-xs text-gray-800">من</label>
+
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-700 text-right">من</label>
                   <div className="relative">
                     <input
                       type="date"
                       name="fromDate"
                       value={filters.fromDate}
                       onChange={handleFilterChange}
-                      className="w-full p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-xs text-gray-600 pr-8"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
                     />
-                    <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2" />
-                      <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex gap-3">
+
+                <div className="flex flex-col gap-2 min-w-56">
+                  <label className="text-md text-gray-700 text-right">إلى</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      name="toDate"
+                      value={filters.toDate}
+                      onChange={handleFilterChange}
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px]"
+                    />
+                  </div>
+                </div>
+
                 <button
-                  className="bg-[#1A4D4F] text-white border-none rounded-md px-4 py-2 text-sm cursor-pointer hover:bg-[#164044]"
                   onClick={handleSearch}
+                  className="bg-teal-800 text-white border-none rounded px-6 py-2 text-md cursor-pointer h-[42px] hover:bg-teal-700 transition-colors"
                 >
                   كشف حساب
                 </button>
+
                 <button
-                  className="bg-gray-500 text-white border-none rounded-md px-4 py-2 text-sm cursor-pointer hover:bg-gray-600"
                   onClick={handleReset}
+                  title="إعادة ضبط الفلاتر"
+                  className="flex items-center justify-center p-2 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors h-[42px] w-[42px]"
                 >
-                  إعادة ضبط
+                  <RefreshIcon className="w-5 h-5" />
                 </button>
               </div>
             </section>
@@ -1087,14 +1079,14 @@ function getMonthName(month: number) {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="بحث"
+                    placeholder="بحث في السجلات..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-[428px] p-2 bg-[#F7F8FA] border border-[#E0E0E0] rounded-md text-sm text-gray-600 pr-10"
+                    className="w-[400px] bg-gray-100 border border-gray-300 rounded px-4 py-2 text-md text-gray-500 text-right h-[42px] pr-10"
                   />
                   <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8" strokeWidth="2" />
-                    <path d="M21 21l-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                    <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </div>
               </div>
@@ -1104,19 +1096,18 @@ function getMonthName(month: number) {
                 <table className="w-full bg-white border-collapse">
                   <thead>
                     <tr>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">#</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">التاريخ</th>
-                      {/* <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الشهر</th> */}
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">اسم العميل</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">رقم العقد</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">تاريخ العقد</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الدفعة</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">البيان</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">مدين</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">دائن</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">الرصيد</th>
-                      <th className='bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal'>المرفق</th>
-                      <th className="bg-[#1A4D4F] text-white p-4 text-center text-sm font-normal">إجراءات</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">#</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">التاريخ</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">اسم العميل</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">رقم العقد</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">تاريخ العقد</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الدفعة</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">البيان</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">مدين</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">دائن</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الرصيد</th>
+                      <th className='bg-teal-800 text-white p-4 text-center text-sm font-normal'>المرفق</th>
+                      <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1141,28 +1132,25 @@ function getMonthName(month: number) {
                     ) : (
                       financialRecords.map((record, index) => (
                         <tr key={record.id} className="hover:bg-gray-50">
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             #{index + 1}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             {getDate(record.date)}
                           </td> 
-                          {/* <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
-                            {getMonthName(new Date(record.date).getMonth())}
-                          </td> */}
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             {record.clientName}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             {record.contractNumber || '-'}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             {record.contractDate ? getDate(record.contractDate) : '-'}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             {record.payment || '-'}
                           </td>
-                          <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA]">
+                          <td className="p-4 text-center text-sm border-b border-gray-300 bg-gray-100">
                             {record.description || '-'}
                           </td>
                           <td className="p-4 text-center text-sm border-b border-[#E0E0E0] bg-[#F7F8FA] whitespace-nowrap">
@@ -1234,7 +1222,6 @@ function getMonthName(month: number) {
                 </table>
               </div>
             </section>
-          </main>
         </div>
 
         {/* Add Record Modal */}

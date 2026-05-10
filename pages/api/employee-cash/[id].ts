@@ -122,14 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         type: 'cash' as const
       }));
 
-      // Combine and sort all transactions by date (Ascending: oldest first)
-      const allTransactionsRaw = [...detailTransactions, ...cashTransactions].sort((a, b) => {
-        if (a.sortDate === b.sortDate) {
-          // If same date, sort by insertion time (oldest first)
-          return a.createdAt - b.createdAt;
-        }
-        return a.sortDate - b.sortDate;
-      });
+      const allTransactionsRaw = [...detailTransactions, ...cashTransactions].sort((a, b) => a.createdAt - b.createdAt);
 
       // Calculate running balance globally first
       let currentBalance = 0;
@@ -148,7 +141,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           description: t.description,
           attachment: t.attachment,
           type: t.type,
-          sortDate: t.sortDate
+          sortTimestamp: t.createdAt
         };
       });
 
@@ -161,12 +154,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const endTimestamp = feedEnd === 'latest' ? Infinity : Number(feedEnd);
         
         filteredTransactions = allTransactionsWithBalance.filter(t => 
-          t.sortDate >= startTimestamp && t.sortDate < endTimestamp
+          t.sortTimestamp >= startTimestamp && t.sortTimestamp < endTimestamp
         );
       }
 
-      // Remove sortDate before sending to client
-      const allTransactions = filteredTransactions.map(({ sortDate, ...rest }) => rest);
+      const allTransactions = filteredTransactions;
 
       const employeeDetail = {
         id: id === 'all' ? 'all' : Number(id),

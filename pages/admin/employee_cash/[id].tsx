@@ -497,8 +497,8 @@ export default function EmployeeCashDetail() {
 
       const tableColumn = [
         'البيان',
-        'دائن',
         'مدين',
+        'دائن',
         'الرصيد',
         'العميل',
         'الحساب الفرعي',
@@ -511,8 +511,8 @@ export default function EmployeeCashDetail() {
 
       const tableRows = rows.map((row, index) => [
         truncateForPdf(row.description || '—', 36),
-        row.credit?.toLocaleString?.() ?? String(row.credit),
         row.debit?.toLocaleString?.() ?? String(row.debit),
+        row.credit?.toLocaleString?.() ?? String(row.credit),
         row.balance?.toLocaleString?.() ?? String(row.balance),
         truncateForPdf(row.client || '—', 24),
         truncateForPdf(row.subAccount || '—', 20),
@@ -521,6 +521,24 @@ export default function EmployeeCashDetail() {
         row.month || '—',
         row.date || '—',
         String(index + 1),
+      ]);
+
+      const expTotalDebit = rows.reduce((sum, t) => sum + (t.debit || 0), 0);
+      const expTotalCredit = rows.reduce((sum, t) => sum + (t.credit || 0), 0);
+      const expTotalBalance = rows.length ? rows[rows.length - 1].balance : 0;
+
+      tableRows.push([
+        'الإجمالي',
+        expTotalDebit.toLocaleString(),
+        expTotalCredit.toLocaleString(),
+        expTotalBalance.toLocaleString(),
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
       ]);
 
       doc.autoTable({
@@ -625,8 +643,8 @@ export default function EmployeeCashDetail() {
         { header: 'الحساب الرئيسي', key: 'mainAccount', width: 22 },
         { header: 'الحساب الفرعي', key: 'subAccount', width: 22 },
         { header: 'العميل', key: 'client', width: 20 },
-        { header: 'دائن', key: 'credit', width: 12 },
         { header: 'مدين', key: 'debit', width: 12 },
+        { header: 'دائن', key: 'credit', width: 12 },
         { header: 'الرصيد', key: 'balance', width: 12 },
         { header: 'البيان', key: 'description', width: 28 },
         { header: 'المرفق', key: 'attachment', width: 36 },
@@ -644,8 +662,8 @@ export default function EmployeeCashDetail() {
           mainAccount: row.mainAccount || '—',
           subAccount: row.subAccount || '—',
           client: row.client || '—',
-          credit: row.credit ?? 0,
           debit: row.debit ?? 0,
+          credit: row.credit ?? 0,
           balance: row.balance ?? 0,
           description: row.description || '—',
           attachment: isPlaceholderAttachment(row.attachment) ? '—' : row.attachment,
@@ -654,20 +672,24 @@ export default function EmployeeCashDetail() {
       });
 
       worksheet.addRow({});
-      const totalRow = worksheet.addRow({
-        index: '',
-        date: '',
-        month: '',
-        type: '',
-        mainAccount: '',
-        subAccount: 'الإجمالي',
-        client: '',
-        credit: detail.totalCredit ?? 0,
-        debit: detail.totalDebit ?? 0,
-        balance: detail.totalBalance ?? 0,
-        description: '',
-        attachment: '',
-      });
+        const expTotalDebit = rows.reduce((sum, t) => sum + (t.debit || 0), 0);
+        const expTotalCredit = rows.reduce((sum, t) => sum + (t.credit || 0), 0);
+        const expTotalBalance = rows.length ? rows[rows.length - 1].balance : 0;
+
+        const totalRow = worksheet.addRow({
+          index: '',
+          date: '',
+          month: '',
+          type: '',
+          mainAccount: '',
+          subAccount: 'الإجمالي',
+          client: '',
+          debit: expTotalDebit,
+          credit: expTotalCredit,
+          balance: expTotalBalance,
+          description: '',
+          attachment: '',
+        });
       totalRow.font = { bold: true };
       totalRow.alignment = { horizontal: 'right' };
 
@@ -705,6 +727,10 @@ export default function EmployeeCashDetail() {
       setShowAlert(true);
     }
   };
+
+  const filteredTotalDebit = data?.transactions.reduce((sum, t) => sum + (t.debit || 0), 0) || 0;
+  const filteredTotalCredit = data?.transactions.reduce((sum, t) => sum + (t.credit || 0), 0) || 0;
+  const filteredTotalBalance = data?.transactions.length ? data.transactions[data.transactions.length - 1].balance : 0;
 
   if (loading) {
     return (
@@ -845,8 +871,8 @@ export default function EmployeeCashDetail() {
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الحساب الرئيسي</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الحساب الفرعي</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">العميل</th>
-                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">دائن</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">مدين</th>
+                  <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">دائن</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">الرصيد</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">البيان</th>
                   <th className="bg-teal-800 text-white p-4 text-center text-sm font-normal">المرفق</th>
@@ -871,8 +897,8 @@ export default function EmployeeCashDetail() {
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.mainAccount}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.subAccount}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.client}</td>
-                    <td className="p-4 text-center text-sm bg-gray-100">{transaction.credit.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.debit.toLocaleString()}</td>
+                    <td className="p-4 text-center text-sm bg-gray-100">{transaction.credit.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.balance.toLocaleString()}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">{transaction.description}</td>
                     <td className="p-4 text-center text-sm bg-gray-100">
@@ -903,9 +929,9 @@ export default function EmployeeCashDetail() {
               <tfoot>
                 <tr>
                   <td colSpan={7} className="p-4 text-right text-sm bg-gray-200 font-bold text-black">الإجمالي</td>
-                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalCredit.toLocaleString() || '0'}</td>
-                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalDebit.toLocaleString() || '0'}</td>
-                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{data?.totalBalance.toLocaleString() || '0'}</td>
+                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{filteredTotalDebit.toLocaleString()}</td>
+                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{filteredTotalCredit.toLocaleString()}</td>
+                  <td className="p-4 text-center text-sm bg-gray-200 font-bold">{filteredTotalBalance.toLocaleString()}</td>
                   <td colSpan={3} className="bg-gray-200"></td>
                 </tr>
               </tfoot>

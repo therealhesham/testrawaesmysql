@@ -170,13 +170,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }));
 
         const transactions = [...cashTransactions, ...detailTransactions]
-          .sort((a, b) => {
-            if (a.sortTime === b.sortTime) {
-              return a.createdAt - b.createdAt;
-            }
-            return a.sortTime - b.sortTime;
-          })
-          .map(({ sortTime, ...rest }) => ({ ...rest, sortTimestamp: sortTime }));
+          .sort((a, b) => a.createdAt - b.createdAt)
+          .map((t) => {
+            const { sortTime, ...rest } = t;
+            return { 
+              ...rest, 
+              sortTimestamp: t.createdAt 
+            };
+          });
 
         return {
           id: emp.id,
