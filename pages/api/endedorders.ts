@@ -48,6 +48,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (Nationalitycopy) filters.Nationalitycopy = { contains: (Nationalitycopy as string).toLowerCase() };
   if (typeOfContract) filters.typeOfContract = { equals: typeOfContract };
 
+  if (searchTerm) {
+    const termStr = String(searchTerm).trim();
+    const idStr = termStr.replace(/^#/, "").trim();
+    const idNum = /^\d+$/.test(idStr) ? parseInt(idStr, 10) : NaN;
+    filters.OR = [
+      { HomeMaid: { Name: { contains: termStr } } },
+      { ClientName: { contains: termStr } },
+      { client: { fullname: { contains: termStr } } },
+      { client: { nationalId: { contains: termStr } } },
+      { nationalId: { contains: termStr } },
+      { Passportnumber: { contains: termStr } },
+      { clientphonenumber: { contains: termStr } },
+      { client: { phonenumber: { contains: termStr } } },
+      ...(Number.isFinite(idNum) && !Number.isNaN(idNum) ? [{ id: idNum }] : []),
+    ];
+  }
+
   // Filter by HomeMaid office Country (where nationality is actually stored)
   if (Nationality) {
     filters.AND = [

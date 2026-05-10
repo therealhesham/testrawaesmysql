@@ -301,8 +301,8 @@ const Sidebar = (props: any) => {
       onClick={handleSidebarToggle}
       className={classNames(
         "absolute bottom-28 z-20 p-2.5 rounded-full bg-teal-900/90 hover:bg-teal-700/90 transition-all duration-300 ease-in-out shadow-md border border-teal-600/50",
-        toggleCollapse ? "left-1/2 -translate-x-1/2" : "left-0",
-        { "rotate-180": toggleCollapse }
+        "left-1/2 -translate-x-1/2",
+        { "rotate-180": !toggleCollapse }
       )}
       aria-label={toggleCollapse ? "Expand sidebar" : "Collapse sidebar"}
     >

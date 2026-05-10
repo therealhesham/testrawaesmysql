@@ -103,17 +103,29 @@ export default async function handler(
     ];
   }
 
-  // بناء شرط البحث: عند عدم وجود searchTerm لا نضيف فلتر البحث (ليشمل الطلبات بدون عاملة)
-  const searchCondition = searchTerm
-    ? {
-        OR: [
-          { ClientName: { contains: (searchTerm as string).toLowerCase() } },
-          { Name: { contains: (searchTerm as string).toLowerCase() } },
-          // الطلبات بدون عاملة تظهر عبر ClientName أو Name فقط
-          { HomeMaid: { Name: { contains: (searchTerm as string).toLowerCase() } } },
-        ],
-      }
-    : {};
+  // بناء شرط البحث
+  let searchCondition: any = {};
+  if (searchTerm) {
+    const termStr = String(searchTerm).trim();
+    const idStr = termStr.replace(/^#/, "").trim();
+    const idNum = /^\d+$/.test(idStr) ? parseInt(idStr, 10) : NaN;
+
+    searchCondition = {
+      OR: [
+        { ClientName: { contains: termStr } },
+        { Name: { contains: termStr } },
+        { HomeMaid: { Name: { contains: termStr } } },
+        { client: { fullname: { contains: termStr } } },
+        { client: { phonenumber: { contains: termStr } } },
+        { client: { nationalId: { contains: termStr } } },
+        { clientphonenumber: { contains: termStr } },
+        { nationalId: { contains: termStr } },
+        { Passportnumber: { contains: termStr } },
+        { HomeMaid: { Passportnumber: { contains: termStr } } },
+        ...(Number.isFinite(idNum) && !Number.isNaN(idNum) ? [{ id: idNum }] : []),
+      ],
+    };
+  }
 
   const andConditions = [
     ...(filters.AND || []),
@@ -128,7 +140,7 @@ export default async function handler(
   try {
     // Fetch data with the filters and pagination
     const [orders, totalCount] = await Promise.all([
-      prisma.neworder.findMany({
+      (prisma.neworder as any).findMany({
         orderBy: { id: "desc" },
         include: {
           rejectedOrders: {
@@ -170,7 +182,7 @@ export default async function handler(
         skip: (pageNumber - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.neworder.count({
+      (prisma.neworder as any).count({
         where: whereClause,
       }),
     ]);
@@ -184,14 +196,14 @@ export default async function handler(
     const homemaids = orders.map(order => {
       // بيانات العاملة من السجل المرتبط في الداتابيز: rejected -> rejectedOrders[0].HomeMaid، cancelled -> cancelledOrders[0].HomeMaid
       let homemaid = null;
-      if (isRejected(order.bookingstatus) && order.rejectedOrders?.[0]?.HomeMaid) {
-        homemaid = order.rejectedOrders[0].HomeMaid;
-      } else if (isCancelled(order.bookingstatus) && order.cancelledOrders?.[0]?.HomeMaid) {
-        homemaid = order.cancelledOrders[0].HomeMaid;
+      if (isRejected(order.bookingstatus) && (order as any).rejectedOrders?.[0]?.HomeMaid) {
+        homemaid = (order as any).rejectedOrders[0].HomeMaid;
+      } else if (isCancelled(order.bookingstatus) && (order as any).cancelledOrders?.[0]?.HomeMaid) {
+        homemaid = (order as any).cancelledOrders[0].HomeMaid;
       }
 
-      const reasonFromRejected = order.rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection;
-      const reasonFromCancelled = order.cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation;
+      const reasonFromRejected = (order as any).rejectedOrders?.[0]?.ReasonOfRejection ?? (order as any).ReasonOfRejection;
+      const reasonFromCancelled = (order as any).cancelledOrders?.[0]?.ReasonOfCancellation ?? (order as any).ReasonOfCancellation;
       const reason = isRejected(order.bookingstatus)
         ? reasonFromRejected
         : isCancelled(order.bookingstatus)

@@ -485,13 +485,29 @@ autoFocus
 
     // Search filter
     if (formData.searchTerm) {
-      const searchTerm = formData.searchTerm.toLowerCase();
-      filtered = filtered.filter(order => 
-        (order.client?.fullname || '').toLowerCase().includes(searchTerm) ||
-        (order.HomeMaid?.Name || '').toLowerCase().includes(searchTerm) ||
-        (order.ClientName || '').toLowerCase().includes(searchTerm) ||
-        (order.Name || '').toLowerCase().includes(searchTerm)
-      );
+      const searchTerm = formData.searchTerm.toLowerCase().trim();
+      const idSearch = searchTerm.startsWith('#') ? searchTerm.substring(1) : searchTerm;
+
+      filtered = filtered.filter(order => {
+        const idMatches = String(order.id).includes(idSearch);
+        const clientNameMatches = 
+          (order.client?.fullname || '').toLowerCase().includes(searchTerm) ||
+          (order.ClientName || '').toLowerCase().includes(searchTerm);
+        const clientPhoneMatches = 
+          (order.client?.phonenumber || '').includes(searchTerm) ||
+          (order.clientphonenumber || '').includes(searchTerm);
+        const nationalIdMatches = 
+          (order.client?.nationalId || '').includes(searchTerm) ||
+          (order.nationalId || '').includes(searchTerm);
+        const maidNameMatches = 
+          (order.HomeMaid?.Name || '').toLowerCase().includes(searchTerm) ||
+          (order.Name || '').toLowerCase().includes(searchTerm);
+        const passportMatches = 
+          (order.HomeMaid?.Passportnumber || '').toLowerCase().includes(searchTerm) ||
+          (order.Passportnumber || '').toLowerCase().includes(searchTerm);
+
+        return idMatches || clientNameMatches || clientPhoneMatches || nationalIdMatches || maidNameMatches || passportMatches;
+      });
     }
 
     // Age filter

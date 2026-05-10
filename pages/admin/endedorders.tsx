@@ -109,6 +109,7 @@ export default function Dashboard() {
   const [recruitmentCount, setRecruitmentCount] = useState(0);
   const [rentalCount, setRentalCount] = useState(0);
   const [nationality, setNationality] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [nationalities, setNationalities] = useState<{ id: number; Country: string }[]>([]);
   const [userName, setUserName] = useState('');
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -143,6 +144,9 @@ export default function Dashboard() {
       url.searchParams.set('typeOfContract', contractType);
       if (nationality) {
         url.searchParams.set('Nationality', nationality);
+      }
+      if (searchTerm) {
+        url.searchParams.set('searchTerm', searchTerm);
       }
       const res = await fetch(url.toString(), { signal });
       if (signal?.aborted) return;
@@ -195,7 +199,7 @@ export default function Dashboard() {
     return () => {
       abortController.abort();
     };
-  }, [contractType, nationality]);
+  }, [contractType, nationality, searchTerm]);
 
   useEffect(() => {
     const authToken = localStorage.getItem('token');
@@ -307,6 +311,7 @@ export default function Dashboard() {
     const query = new URLSearchParams({
       perPage: "1000",
       ...(nationality && { Nationality: nationality }),
+      ...(searchTerm && { searchTerm }),
       ...(contractType && { typeOfContract: contractType }),
     }).toString();
     const res = await fetch(`/api/endedorders?${query}`);
@@ -611,6 +616,8 @@ export default function Dashboard() {
                     <input
                       type="text"
                       placeholder="بحث"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                       className="border-none bg-transparent outline-none text-right font-tajawal text-sm text-gray-500"
                     />
                     <Search className="w-4 h-4 text-gray-500" />
@@ -634,6 +641,7 @@ export default function Dashboard() {
                 <button 
                   onClick={() => {
                     setNationality('');
+                    setSearchTerm('');
                     setCurrentPage(1);
                   }}
                   className="bg-teal-900 text-white border-none rounded px-4 py-2 text-sm font-tajawal cursor-pointer"
