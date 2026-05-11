@@ -8,22 +8,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { query } = req.query;
+  const { query: rawQuery } = req.query;
 
-  if (!query || typeof query !== "string") {
+  if (!rawQuery || typeof rawQuery !== "string") {
     return res.status(400).json({ error: "Query is required" });
   }
+
+  const query = rawQuery.trim();
+  const normalizedQuery = query
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي");
 
   try {
     const orders = await prisma.neworder.findMany({
       where: {
         OR: [
           { ClientName: { contains: query } },
+          { ClientName: { contains: normalizedQuery } },
           { PhoneNumber: { contains: query } },
           { nationalId: { contains: query } },
           { arrivals: { some: { InternalmusanedContract: { contains: query } } } },
           { HomeMaid: { Name: { contains: query } } },
           { HomeMaid: { Passportnumber: { contains: query } } },
+          { client: { fullname: { contains: query } } },
+          { client: { fullname: { contains: normalizedQuery } } },
         ],
       },
       include: {
