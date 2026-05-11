@@ -3,7 +3,7 @@ import { useReactToPrint } from 'react-to-print';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import Layout from 'example/containers/Layout';
-import { Plus, FileText, Upload, Calendar, ChevronLeft, ChevronRight, Search, Edit, Trash2, Layout as LayoutIcon, X, Printer } from 'lucide-react';
+import { Plus, FileText, Upload, Calendar, ChevronLeft, ChevronRight, Search, Edit, Trash2, Layout as LayoutIcon, X, Printer, RefreshCw } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import { jsPDF } from 'jspdf';
 import Style from 'styles/Home.module.css';
@@ -242,6 +242,7 @@ export default function Home() {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [dateValue, setDateValue] = useState('');
   const [signatureValue, setSignatureValue] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -563,6 +564,29 @@ export default function Home() {
     }
   };
 
+  const handleSyncTemplates = async () => {
+    if (!confirm('هل تريد تحديث كافة القوالب من النظام؟ سيقوم هذا بإضافة القوالب الناقصة وتحديث الموجودة حالياً بآخر التنسيقات.')) return;
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/templates/sync', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('تمت مزامنة القوالب بنجاح', 'success');
+        // Reload templates
+        const templatesRes = await fetch('/api/templates');
+        const templatesData = await templatesRes.json();
+        setTemplates(templatesData);
+      } else {
+        showNotification(data.error || 'فشل في المزامنة', 'error');
+      }
+    } catch (error) {
+      console.error('Sync Error:', error);
+      showNotification('حدث خطأ أثناء المزامنة', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleExportToPDF = async () => {
     if (!selectedTemplate) return;
     let pdfContent = selectedTemplate.content;
@@ -699,7 +723,21 @@ export default function Home() {
       <div className={`p-6 min-h-screen text-gray-800 ${Style["tajawal-regular"]}`} dir="rtl">
         {/* Page Header */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-normal">إدارة القوالب</h1>
+          <div className="flex items-center gap-6">
+            <h1 className="text-3xl font-normal">إدارة القوالب</h1>
+            <button
+              onClick={handleSyncTemplates}
+              disabled={isSyncing}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-all text-xs font-medium ${
+                isSyncing 
+                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border-teal-200'
+              }`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'جاري المزامنة...' : 'مزامنة القوالب'}</span>
+            </button>
+          </div>
           <button
             onClick={showAddTemplateModal}
             className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200 shadow-sm"
@@ -852,7 +890,6 @@ export default function Home() {
                         <h3 className="text-lg font-bold text-teal-900">تعبئة البيانات</h3>
                         <FileText className="w-5 h-5 text-teal-600" />
                       </div>
-                      
                       {/* Order Search Bar */}
                       <div className="mb-6 relative">
                         <label className="text-xs font-bold text-gray-500 mb-1 block">استيراد بيانات من عقد موجود</label>
