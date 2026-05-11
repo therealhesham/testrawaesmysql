@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import Layout from 'example/containers/Layout';
-import { Plus, FileText, Upload, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, FileText, Upload, Calendar, ChevronLeft, ChevronRight, Search, Edit, Trash2, Layout as LayoutIcon, X, Printer } from 'lucide-react';
 import { DocumentTextIcon } from '@heroicons/react/outline';
 import { jsPDF } from 'jspdf';
 import Style from 'styles/Home.module.css';
+import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 
 // Dynamically import ReactQuill with SSR disabled
 const ReactQuill = dynamic(() => import('react-quill'), {
@@ -241,6 +243,47 @@ export default function Home() {
   const [dateValue, setDateValue] = useState('');
   const [signatureValue, setSignatureValue] = useState('');
 
+  const printRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: selectedTemplate?.title || 'Document',
+  });
+
+
+  // Order search states
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderSearchResults, setOrderSearchResults] = useState<any[]>([]);
+  const [isSearchingOrders, setIsSearchingOrders] = useState(false);
+
+  const searchOrders = async (query: string) => {
+    if (query.length < 3) {
+      setOrderSearchResults([]);
+      return;
+    }
+    setIsSearchingOrders(true);
+    try {
+      const response = await fetch(`/api/templates/search-orders?query=${encodeURIComponent(query)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setOrderSearchResults(data);
+      }
+    } catch (error) {
+      console.error('Error searching orders:', error);
+    } finally {
+      setIsSearchingOrders(false);
+    }
+  };
+
+  const handleOrderSelectData = (orderData: any) => {
+    setDynamicFieldValues((prev) => ({
+      ...prev,
+      ...orderData
+    }));
+    setOrderSearchResults([]);
+    setOrderSearchQuery('');
+    showNotification('تم استيراد بيانات العقد بنجاح', 'success');
+  };
+
   // Function to extract dynamic fields from content
   const extractDynamicFields = (content: string): string[] => {
     const regex = /\{([^}]+)\}/g;
@@ -458,7 +501,9 @@ export default function Home() {
   const renderContentWithDynamicFields = (content: string) => {
     let renderedContent = content;
     for (const [field, value] of Object.entries(dynamicFieldValues)) {
-      renderedContent = renderedContent.replace(`{${field}}`, value || `{${field}}`);
+      // Use a global regex to replace all occurrences of {field}
+      const regex = new RegExp(`{${field}}`, 'g');
+      renderedContent = renderedContent.replace(regex, value || `{${field}}`);
     }
     return renderedContent;
   };
@@ -494,11 +539,36 @@ export default function Home() {
     }
   };
 
+  const handleDeleteTemplate = async (id: number) => {
+    if (!confirm('هل أنت متأكد من حذف هذا القالب؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+    try {
+      const res = await fetch('/api/templates', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setTemplates((prev) => prev.filter((t) => t.id !== id));
+        if (selectedTemplate?.id === id) {
+          setSelectedTemplate(null);
+        }
+        showNotification('تم حذف القالب بنجاح', 'success');
+      } else {
+        const data = await res.json();
+        showNotification(data.error || 'فشل في حذف القالب', 'error');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showNotification('حدث خطأ في حذف القالب', 'error');
+    }
+  };
+
   const handleExportToPDF = async () => {
     if (!selectedTemplate) return;
     let pdfContent = selectedTemplate.content;
     selectedTemplate.dynamicFields?.forEach((field) => {
-      pdfContent = pdfContent.replace(`{${field}}`, dynamicFieldValues[field] || '');
+      const regex = new RegExp(`{${field}}`, 'g');
+      pdfContent = pdfContent.replace(regex, dynamicFieldValues[field] || '');
     });
 
     const div = document.createElement('div');
@@ -585,11 +655,20 @@ export default function Home() {
     hidePdfModal();
   };
 
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredTemplates = templates.filter(t => 
+    t.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-screen">
-          <p>جارٍ التحميل...</p>
+        <div className="flex justify-center items-center h-screen bg-gray-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-teal-900 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-lg font-medium text-teal-900">جارٍ التحميل...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -599,275 +678,408 @@ export default function Home() {
     <Layout>
       <Head>
         <title>إدارة القوالب</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>{`
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 0; /* This removes the browser header/footer (URL, date, title) */
+            }
+            body {
+              -webkit-print-color-adjust: exact;
+              margin: 0;
+            }
+            /* Apply custom padding to the printable area so content isn't at the very edge */
+            .print-area {
+              padding: 20mm !important;
+            }
+          }
+        `}</style>
       </Head>
-      <div
-        dir="rtl"
-        className={`min-h-screen flex justify-center items-start max-w-full mx-auto pt-2 ${Style['tajawal-medium']}`}
-      >
-        <div className="w-full flex flex-col gap-6 mx-auto">
-          <section className="flex justify-between items-center">
-            <h1 className="text-3xl font-normal text-black">إدارة القوالب</h1>
-            <button
-              onClick={showAddTemplateModal}
-              className="flex items-center gap-2 bg-teal-800 text-white px-3 py-1.5 rounded-md text-sm hover:bg-teal-900"
-            >
-              <Plus className="w-5 h-5" />
-              <span>إضافة قالب</span>
-            </button>
-          </section>
-          <section className="flex gap-8 w-[900px] mx-auto">
-            <div className="flex-1 bg-gray-100 w-[900px] border border-gray-300 rounded-lg p-6 flex flex-col gap-6">
-              {selectedTemplate ? (
-                <>
-                  <div className="flex gap-4">
+      <div className={`p-6 min-h-screen text-gray-800 ${Style["tajawal-regular"]}`} dir="rtl">
+        {/* Page Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-normal">إدارة القوالب</h1>
+          <button
+            onClick={showAddTemplateModal}
+            className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded hover:bg-teal-800 transition duration-200 shadow-sm"
+          >
+            <Plus className="w-5 h-5" />
+            <span>إضافة قالب</span>
+          </button>
+        </div>
+
+        {/* Main Content Container */}
+        <div className="bg-white border border-gray-300 rounded shadow-sm overflow-hidden min-h-[700px] flex flex-col md:flex-row">
+          
+          {/* Right Sidebar: Template Selection */}
+          <aside className="w-full md:w-80 bg-gray-50 border-l border-gray-300 flex flex-col">
+            <div className="p-4 border-b border-gray-300 bg-white">
+              <div className="flex items-center bg-gray-50 border border-gray-300 rounded px-3 py-2">
+                <Search className="w-4 h-4 text-gray-400 ml-2" />
+                <input
+                  type="text"
+                  placeholder="بحث عن قالب..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-transparent border-none w-full text-right text-sm focus:ring-0"
+                />
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto max-h-[600px] md:max-h-none">
+              <div className="p-2 space-y-1">
+                {filteredTemplates.length > 0 ? (
+                  filteredTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleTemplateSelect(template)}
+                      className={`w-full flex items-center justify-between p-3 rounded-md transition-all duration-200 text-right ${
+                        selectedTemplate?.id === template.id
+                          ? 'bg-teal-900 text-white shadow-md'
+                          : 'hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <LayoutIcon className={`w-5 h-5 flex-shrink-0 ${selectedTemplate?.id === template.id ? 'text-teal-200' : 'text-teal-600'}`} />
+                        <span className="font-medium text-sm truncate">{template.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Trash2 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTemplate(template.id);
+                          }}
+                          className={`w-4 h-4 cursor-pointer hover:scale-110 transition-transform ${
+                            selectedTemplate?.id === template.id ? 'text-teal-200 hover:text-red-300' : 'text-gray-400 hover:text-red-500'
+                          }`} 
+                        />
+                        <ChevronLeft className={`w-4 h-4 ${selectedTemplate?.id === template.id ? 'text-teal-200' : 'text-gray-400'}`} />
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-gray-400 text-sm">
+                    لا توجد قوالب تطابق البحث
+                  </div>
+                )}
+              </div>
+            </div>
+          </aside>
+
+          {/* Left Main: Template Editor/Preview */}
+          <main className="flex-1 p-6 flex flex-col bg-white overflow-y-auto">
+            {selectedTemplate ? (
+              <div className="flex flex-col h-full">
+                {/* Action Bar */}
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                  <div className="flex gap-2">
                     <button
                       onClick={showEditTemplateModal}
-                      className="border border-teal-800 text-gray-800 px-4 py-1 rounded text-sm hover:bg-gray-200"
+                      className="flex items-center gap-2 border border-teal-800 text-teal-900 px-4 py-2 rounded text-sm hover:bg-teal-50 transition-colors"
                     >
-                      تعديل
+                      <Edit className="w-4 h-4" />
+                      <span>تعديل القالب</span>
                     </button>
                     <button
                       onClick={showPdfModal}
-                      className="flex items-center gap-1 bg-teal-800 text-white px-4 py-1 rounded text-sm hover:bg-teal-900"
+                      className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded text-sm hover:bg-teal-800 transition-colors shadow-sm"
                     >
-                      <FileText className="w-4 h-4" />
-                      <span>PDF</span>
+                      <FilePdfOutlined />
+                      <span>تصدير PDF</span>
+                    </button>
+                    <button
+                      onClick={handlePrint}
+                      className="flex items-center gap-2 bg-white border border-teal-800 text-teal-900 px-4 py-2 rounded text-sm hover:bg-teal-50 transition-colors shadow-sm"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>طباعة مباشرة</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTemplate(selectedTemplate.id)}
+                      className="flex items-center gap-2 border border-red-600 text-red-600 px-4 py-2 rounded text-sm hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>حذف القالب</span>
                     </button>
                   </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-semibold text-gray-800">{selectedTemplate.title}</h2>
+                    <div className="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      {selectedTemplate.type}
+                    </div>
+                  </div>
+                </div>
 
-                  {/* Logo upload section */}
-                  <div className="flex justify-end">
-                    <div className="w-64">
-                      <label className="block cursor-pointer">
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center gap-2 text-gray-500 text-sm bg-gray-50 hover:bg-gray-100 transition-colors">
-                          {logoImage ? (
-                            <img
-                              src={logoImage}
-                              alt="Logo"
-                              className="max-w-full max-h-32 object-contain"
-                            />
-                          ) : (
-                            <>
-                              <Upload className="w-5 h-5" />
-                              <span className="text-xs">رفع الشعار</span>
-                            </>
-                          )}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                  {/* Preview Section */}
+                  <div className="xl:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-gray-700">معاينة المستند</h3>
+                      <label className="cursor-pointer group">
+                        <div className="flex items-center gap-2 text-teal-700 hover:text-teal-900 text-sm font-medium transition-colors">
+                          <Upload className="w-4 h-4" />
+                          <span>تغيير الشعار</span>
                         </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                       </label>
+                    </div>
+                    
+                    <div className="bg-gray-100 border border-gray-200 rounded-lg p-8 min-h-[700px] shadow-inner relative flex justify-center overflow-y-auto">
+                      <div 
+                        ref={printRef}
+                        className="bg-white p-12 shadow-2xl min-h-[842px] w-full max-w-[800px] border border-gray-100 prose prose-sm print:shadow-none print:m-0 print:w-full print:max-w-none print-area"
+                        style={{ fontFamily: "'Amiri', serif" }}
+                      >
+                        {/* Logo for Print & Screen (Aligned to Right in RTL) */}
+                        <div className="mb-10 flex justify-start">
+                          {logoImage && <img src={logoImage} alt="Logo" className="max-w-[200px] max-h-[80px] object-contain" />}
+                        </div>
+                        
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: renderContentWithDynamicFields(selectedTemplate.content) }} 
+                          className="text-gray-800 leading-relaxed"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Content preview */}
-                  <div
-                    className="bg-white border border-gray-300 rounded-lg p-8 flex flex-col gap-8 flex-1 min-h-[400px]"
-                    dangerouslySetInnerHTML={{ __html: renderContentWithDynamicFields(selectedTemplate.content) }}
-                  />
-
-                  {/* Dynamic fields */}
-                  {Array.isArray(selectedTemplate?.dynamicFields) && selectedTemplate.dynamicFields.length > 0 && (
-                    <div className="bg-gray-50 border border-gray-300 rounded-lg p-6 mt-4">
-                      <h3 className="text-lg font-normal text-gray-800 text-right mb-4">الحقول</h3>
-                      {selectedTemplate.dynamicFields.map((field) => (
-                        <div key={field} className="flex flex-col gap-2 mb-4">
-                          <label htmlFor={`dynamic-${field}`} className="text-base text-gray-800 text-right">
-                            {field}
-                          </label>
+                  {/* Dynamic Fields Section */}
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm sticky top-6">
+                      <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
+                        <h3 className="text-lg font-bold text-teal-900">تعبئة البيانات</h3>
+                        <FileText className="w-5 h-5 text-teal-600" />
+                      </div>
+                      
+                      {/* Order Search Bar */}
+                      <div className="mb-6 relative">
+                        <label className="text-xs font-bold text-gray-500 mb-1 block">استيراد بيانات من عقد موجود</label>
+                        <div className="flex items-center bg-white border border-teal-200 rounded-lg px-3 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-teal-500 transition-all">
+                          <Search className="w-4 h-4 text-teal-600 ml-2" />
                           <input
                             type="text"
-                            id={`dynamic-${field}`}
-                            value={dynamicFieldValues[field] || ''}
-                            onChange={(e) =>
-                              setDynamicFieldValues({ ...dynamicFieldValues, [field]: e.target.value })
-                            }
-                            className="bg-gray-50 border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 placeholder-gray-500 w-full"
-                            placeholder={`أدخل قيمة لـ ${field}`}
+                            placeholder="ابحث برقم العقد أو اسم العميل..."
+                            value={orderSearchQuery}
+                            onChange={(e) => {
+                              setOrderSearchQuery(e.target.value);
+                              searchOrders(e.target.value);
+                            }}
+                            className="bg-transparent border-none w-full text-right text-sm focus:ring-0 placeholder:text-gray-300"
                           />
+                          {isSearchingOrders && (
+                            <div className="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                          )}
                         </div>
-                      ))}
+
+                        {/* Search Results Dropdown */}
+                        {orderSearchResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-20 max-h-60 overflow-y-auto">
+                            {orderSearchResults.map((result) => (
+                              <button
+                                key={result.id}
+                                onClick={() => handleOrderSelectData(result.data)}
+                                className="w-full text-right p-3 hover:bg-teal-50 border-b border-gray-100 last:border-0 transition-colors flex flex-col gap-1"
+                              >
+                                <span className="text-sm font-bold text-gray-800">{result.displayTitle}</span>
+                                <span className="text-xs text-gray-500">انقر للاستيراد التلقائي</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-gray-500 mb-6 leading-relaxed">
+                        قم بتعبئة القيم أدناه لتحديث المعاينة وتجهيز المستند للتصدير.
+                      </p>
+
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                        {Array.isArray(selectedTemplate?.dynamicFields) && selectedTemplate.dynamicFields.length > 0 ? (
+                          selectedTemplate.dynamicFields.map((field) => (
+                            <div key={field} className="flex flex-col gap-1.5">
+                              <label htmlFor={`dynamic-${field}`} className="text-sm font-semibold text-gray-700">
+                                {field}
+                              </label>
+                              <input
+                                type="text"
+                                id={`dynamic-${field}`}
+                                value={dynamicFieldValues[field] || ''}
+                                onChange={(e) =>
+                                  setDynamicFieldValues({ ...dynamicFieldValues, [field]: e.target.value })
+                                }
+                                className="w-full bg-white border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
+                                placeholder={`أدخل ${field}...`}
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-8 text-gray-400 italic text-sm">
+                            لا توجد حقول ديناميكية في هذا القالب
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedTemplate.dynamicFields && selectedTemplate.dynamicFields.length > 0 && (
+                        <button
+                          onClick={handleSaveDefaults}
+                          className="w-full mt-8 bg-white border border-teal-800 text-teal-900 py-2.5 rounded-lg text-sm font-bold hover:bg-teal-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>حفظ كقيم افتراضية</span>
+                        </button>
+                      )}
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
-                  لا يوجد قالب محدد
+                  </div>
                 </div>
-              )}
-            </div>
-            <aside className="w-56 bg-gray-100 border border-gray-300 rounded-lg p-6">
-              <h2 className="text-xl font-normal text-gray-500 text-right mb-8">أنواع القوالب</h2>
-              <ul className="flex flex-col gap-8">
-                {templates?.map((template) => (
-                  <li
-                    key={template.id}
-                    className={selectedTemplate?.id === template.id 
-                      ? 'bg-teal-800 text-white rounded-md border-2 border-teal-600 shadow-lg transition-all duration-200' 
-                      : 'border-2 border-transparent hover:border-gray-300 rounded-md transition-all duration-200'}
-                  >
-                    <a
-                      href={`#template-${template.type}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleTemplateSelect(template);
-                      }}
-                      className="flex items-center justify-end gap-2 p-2 text-base"
-                    >
-                      <span>{template.title}</span>
-                      <DocumentTextIcon className="w-6 h-6" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          </section>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-4 opacity-60">
+                <LayoutIcon className="w-20 h-20" />
+                <p className="text-xl">يرجى اختيار قالب من القائمة الجانبية للعرض</p>
+              </div>
+            )}
+          </main>
         </div>
+
         {/* Add/Edit Template Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-gray-100 rounded-lg w-11/12 max-w-[967px] max-h-[80vh] overflow-y-auto p-5 relative">
-              <span
-                onClick={hideAddTemplateModal}
-                className="absolute top-2 right-5 text-2xl cursor-pointer text-gray-800"
-              >
-                &times;
-              </span>
-              <section className="w-full">
-                <div className="bg-gray-100 p-10 rounded-lg">
-                  <h2 className="text-3xl font-normal text-black text-right mb-6">
-                    {isEditMode ? 'تعديل القالب' : 'إضافة قالب'}
-                  </h2>
-                  <form onSubmit={handleAddTemplate}>
-                    <div className="flex flex-col gap-2 mb-6">
-                      <label htmlFor="template-title" className="text-base text-gray-800 text-right">
-                        العنوان
-                      </label>
-                      <input
-                        type="text"
-                        id="template-title"
-                        name="template-title"
-                        required
-                        defaultValue={isEditMode ? selectedTemplate?.title : ''}
-                        className="bg-gray-50 border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 placeholder-gray-500 w-full"
-                        placeholder="ادخل عنوان القالب"
-                      />
-                    </div>
-                    <div className="quill-wrapper bg-gray-50 border border-gray-300 rounded-md overflow-hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[1000] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+              <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-2xl font-bold text-teal-900">
+                  {isEditMode ? 'تعديل القالب' : 'إضافة قالب جديد'}
+                </h2>
+                <button
+                  onClick={hideAddTemplateModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                >
+                  <X className="w-7 h-7" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 bg-white">
+                <form id="template-form" onSubmit={handleAddTemplate} className="space-y-6">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="template-title" className="text-sm font-bold text-gray-700">
+                      عنوان القالب
+                    </label>
+                    <input
+                      type="text"
+                      id="template-title"
+                      name="template-title"
+                      required
+                      defaultValue={isEditMode ? selectedTemplate?.title : ''}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 transition-all"
+                      placeholder="مثال: عقد توظيف جديد، نموذج استلام..."
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-gray-700 flex justify-between items-center">
+                      <span>محتوى القالب</span>
+                      <span className="text-xs font-normal text-gray-400">استخدم {'{field_name}'} لإضافة حقول متغيرة</span>
+                    </label>
+                    <div className="quill-wrapper border border-gray-300 rounded-lg overflow-hidden shadow-sm">
                       <ReactQuill
                         theme="snow"
                         value={editorContent}
                         onChange={setEditorContent}
                         modules={{
                           toolbar: [
-                            [{ header: [1, 2, 3, 4, 5] }],
+                            [{ header: [1, 2, 3, false] }],
                             ['bold', 'italic', 'underline', 'strike'],
-                            [{ list: 'ordered' }, { list: 'bullet' }, { list: 'check' }],
+                            [{ list: 'ordered' }, { list: 'bullet' }],
                             [{ align: ['center', 'right', 'justify'] }],
                             ['link', 'image'],
                             ['clean'],
                           ],
                         }}
-                        style={{ direction: 'ltr', alignContent: 'left' }}
-                        preserveWhitespace={true}
-                        className="h-[400px] text-gray-800 text-base leading-relaxed"
-                        placeholder="اكتب هنا محتوى القالب..."
+                        style={{ direction: 'rtl' }}
+                        className="h-[350px] bg-white"
+                        placeholder="اكتب محتوى القالب هنا..."
                       />
-                    </div>
-                    <div className="flex justify-center gap-4 mt-10 max-[768px]:flex-col">
-                      <button
-                        type="button"
-                        onClick={hideAddTemplateModal}
-                        className="border border-teal-800 text-gray-800 px-10 py-1.5 rounded text-base min-w-[116px] hover:bg-gray-200"
-                      >
-                        إلغاء
-                      </button>
-                      <button
-                        type="submit"
-                        className="bg-teal-800 text-white px-10 py-1.5 rounded text-base min-w-[116px] hover:bg-teal-900"
-                      >
-                        {isEditMode ? 'حفظ التعديلات' : 'إضافة'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </section>
-            </div>
-          </div>
-        )}
-        {/* PDF Confirmation Modal */}
-        {isPdfModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-gray-100 rounded-lg w-11/12 max-w-[500px] p-5 relative">
-              <span
-                onClick={hidePdfModal}
-                className="absolute top-2 right-5 text-2xl cursor-pointer text-gray-800"
-              >
-                &times;
-              </span>
-              <section className="w-full">
-                <div className="bg-gray-100 p-6 rounded-lg">
-                  <h2 className="text-2xl font-normal text-black text-right mb-6">
-                    إدخال التاريخ والتوقيع
-                  </h2>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="pdf-date" className="text-base text-gray-800 text-right">
-                        التاريخ
-                      </label>
-                      <CustomDatePicker
-                        value={dateValue}
-                        onChange={setDateValue}
-                        placeholder="اختر التاريخ"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="pdf-signature" className="text-base text-gray-800 text-right">
-                        التوقيع
-                      </label>
-                      <input
-                        type="text"
-                        id="pdf-signature"
-                        value={signatureValue}
-                        onChange={(e) => setSignatureValue(e.target.value)}
-                        className="bg-gray-50 border border-gray-300 rounded-md p-2.5 text-sm text-gray-800 placeholder-gray-500 w-full"
-                        placeholder="أدخل التوقيع"
-                      />
-                    </div>
-                    <div className="flex justify-center gap-4 mt-6">
-                      <button
-                        type="button"
-                        onClick={hidePdfModal}
-                        className="border border-teal-800 text-gray-800 px-10 py-1.5 rounded text-base min-w-[116px] hover:bg-gray-200"
-                      >
-                        إلغاء
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportToPDF}
-                        className="bg-teal-800 text-white px-10 py-1.5 rounded text-base min-w-[116px] hover:bg-teal-900"
-                      >
-                        تأكيد وتصدير
-                      </button>
                     </div>
                   </div>
-                </div>
-              </section>
+                </form>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={hideAddTemplateModal}
+                  className="px-8 py-2.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-medium"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  form="template-form"
+                  className="px-12 py-2.5 rounded-lg bg-teal-900 text-white font-bold hover:bg-teal-800 transition-colors shadow-md"
+                >
+                  {isEditMode ? 'حفظ التغييرات' : 'إضافة القالب'}
+                </button>
+              </div>
             </div>
           </div>
         )}
-        {/* Notification Modal */}
+
+        {/* PDF Options Modal */}
+        {isPdfModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[1000] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
+              <div className="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-teal-900">تجهيز ملف PDF</h2>
+                <button onClick={hidePdfModal} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-8 space-y-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-gray-700">تاريخ المستند</label>
+                  <CustomDatePicker value={dateValue} onChange={setDateValue} placeholder="اختر تاريخ الصدور" />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-gray-700">التوقيع / الختم</label>
+                  <input
+                    type="text"
+                    value={signatureValue}
+                    onChange={(e) => setSignatureValue(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 transition-all shadow-sm"
+                    placeholder="اسم الموقع أو المسمى الوظيفي"
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    onClick={hidePdfModal}
+                    className="flex-1 py-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors font-medium"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    onClick={handleExportToPDF}
+                    className="flex-1 py-3 rounded-lg bg-teal-900 text-white font-bold hover:bg-teal-800 transition-colors shadow-md flex items-center justify-center gap-2"
+                  >
+                    <FilePdfOutlined />
+                    <span>تصدير الآن</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
         {notification && (
-          <div className="fixed top-4 right-4 z-50">
-            <div
-              className={`rounded-lg p-4 shadow-lg ${
-                notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-              } text-white text-sm`}
-            >
-              <p>{notification.message}</p>
+          <div className="fixed bottom-6 left-6 z-[2000] animate-in slide-in-from-left duration-300">
+            <div className={`rounded-xl px-6 py-4 shadow-2xl flex items-center gap-3 ${
+              notification.type === 'success' ? 'bg-teal-900 border-l-4 border-teal-400' : 'bg-red-900 border-l-4 border-red-400'
+            } text-white`}>
+              {notification.type === 'success' ? <Plus className="w-5 h-5" /> : <X className="w-5 h-5" />}
+              <span className="font-medium">{notification.message}</span>
             </div>
           </div>
         )}

@@ -1,0 +1,86 @@
+import { PrismaClient } from "@prisma/client";
+import type { NextApiRequest, NextApiResponse } from "next";
+
+const prisma = new PrismaClient();
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { query } = req.query;
+
+  if (!query || typeof query !== "string") {
+    return res.status(400).json({ error: "Query is required" });
+  }
+
+  try {
+    const orders = await prisma.neworder.findMany({
+      where: {
+        OR: [
+          { ClientName: { contains: query } },
+          { PhoneNumber: { contains: query } },
+          { nationalId: { contains: query } },
+          { arrivals: { some: { InternalmusanedContract: { contains: query } } } },
+          { HomeMaid: { Name: { contains: query } } },
+          { HomeMaid: { Passportnumber: { contains: query } } },
+        ],
+      },
+      include: {
+        client: true,
+        HomeMaid: {
+          include: {
+            office: true,
+          },
+        },
+        arrivals: true,
+      },
+      take: 10,
+    });
+
+    // Format data for templates
+    const formattedOrders = orders.map((order) => {
+      const arrival = order.arrivals?.[0];
+      const client = order.client;
+      const worker = order.HomeMaid;
+
+      return {
+        id: order.id,
+        displayTitle: `${order.ClientName || client?.fullname || 'بدون اسم'} - ${arrival?.InternalmusanedContract || 'بدون عقد'}`,
+        data: {
+          employer_name: order.ClientName || client?.fullname || '',
+          employer_id: order.nationalId || client?.nationalId || '',
+          client_name: order.ClientName || client?.fullname || '',
+          id_number: order.nationalId || client?.nationalId || '',
+          visa_number: arrival?.visaNumber || order.visaId?.toString() || '',
+          visa_date: arrival?.visaIssuanceDate ? new Date(arrival.visaIssuanceDate).toLocaleDateString('ar-SA') : '',
+          coming_from: worker?.office?.Country || '',
+          mobile: order.PhoneNumber || client?.phonenumber || '',
+          mobile_1: order.PhoneNumber || client?.phonenumber || '',
+          mobile_2: '', // Placeholder
+          contract_number: arrival?.InternalmusanedContract || '',
+          worker_name: worker?.Name || order.Name || '',
+          worker_nationality: worker?.Nationalitycopy || order.Nationalitycopy || '',
+          nationality: worker?.Nationalitycopy || order.Nationalitycopy || '',
+          passport_number: worker?.Passportnumber || order.Passportnumber || '',
+          address: client?.address || '',
+          city: client?.city || '',
+          handover_date: new Date().toLocaleDateString('ar-SA'),
+          handover_day: new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date()),
+          start_date: new Date().toLocaleDateString('ar-SA'),
+          end_date: '', // Placeholder
+          trial_days: '90',
+          amount: order.Total?.toString() || '',
+          birth_date: worker?.dateofbirth ? new Date(worker.dateofbirth).toLocaleDateString('ar-SA') : '',
+          worker_religion: worker?.Religion || order.Religion || '',
+          worker_profession: worker?.job || '',
+        },
+      };
+    });
+
+    res.status(200).json(formattedOrders);
+  } catch (error) {
+    console.error("Error searching orders:", error);
+    res.status(500).json({ error: "Failed to search orders" });
+  }
+}

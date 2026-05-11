@@ -189,8 +189,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
       res.status(500).json({ error: 'Failed to update template' });
     }
+  } else if (req.method === 'DELETE') {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'Missing template ID' });
+
+    try {
+      const cookieHeader = req.headers.cookie;
+      let cookies: { [key: string]: string } = {};
+      if (cookieHeader) {
+        cookieHeader.split(";").forEach((cookie) => {
+          const [key, value] = cookie.trim().split("=");
+          cookies[key] = decodeURIComponent(value);
+        });
+      }
+      if (!cookies.authToken) return res.status(401).json({ error: 'Unauthorized' });
+
+      const token = jwtDecode(cookies.authToken) as any;
+      const findUser = await prisma.user.findUnique({
+        where: { id: token.id },
+        include: { role: true },
+      });
+
+      const hasPermission = findUser && findUser.role?.permissions && (findUser.role.permissions as any)["إدارة القوالب"]?.["حذف"];
+      if (!hasPermission) return res.status(403).json({ error: 'Forbidden' });
+
+      await prisma.template.delete({ where: { id: Number(id) } });
+      res.status(200).json({ message: 'Template deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete template' });
+    }
   } else {
-    res.setHeader('Allow', ['GET', 'POST', 'PUT']);
+    res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
