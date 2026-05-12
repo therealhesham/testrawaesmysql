@@ -16,6 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     data: {
       entitlementReason: entitlementReason,
       entitlementsCost: entitlementsCost,
+      isHasEntitlements: true,
     },
   });
   return res.status(200).json(entitlements);

@@ -104,9 +104,72 @@ export default async function handler(
     }
 
     try {
-      const { page = 1, sortKey, sortDirection, contractType } = req.query;
+      const { 
+        page = 1, 
+        sortKey, 
+        sortDirection, 
+        contractType,
+        Name,
+        Passportnumber,
+        id,
+        location,
+        houseentrydate,
+        reason
+      } = req.query;
       const pageSize = 10;
       const pageNumber = parseInt(page as string, 10) || 1;
+
+      // Global search string
+      const searchString = (Name as string) || (Passportnumber as string) || "";
+
+      const orderFilters: any = searchString || id || contractType
+        ? {
+            ...(searchString && {
+              OR: [
+                { Name: { contains: searchString } },
+                { Passportnumber: { contains: searchString } },
+                { phone: { contains: searchString } },
+                { NewOrder: { some: { ClientName: { contains: searchString } } } },
+                { NewOrder: { some: { client: { fullname: { contains: searchString } } } } },
+              ]
+            }),
+            ...(id && { id: { equals: Number(id) } }),
+            ...(contractType && {
+              NewOrder: {
+                some: { typeOfContract: contractType as string },
+              },
+            }),
+          }
+        : undefined;
+
+      const filters: any = {
+        deparatureHousingDate: { not: null },
+        ...(deparatureReasonFilter && { deparatureReason: deparatureReasonFilter }),
+        ...(location && { location_id: { equals: Number(location) } }),
+        ...(houseentrydate && { houseentrydate: { equals: new Date(houseentrydate as string) } }),
+        ...(reason && { deparatureReason: { contains: reason as string } }),
+        OR: [
+          orderFilters
+            ? { homeMaid_id: { not: null }, Order: orderFilters }
+            : { homeMaid_id: { not: null } },
+          {
+            externalHomedmaidId: { not: null },
+            ...((contractType || searchString) && {
+              externalHomedmaid: {
+                ...(contractType && { type: contractType as string }),
+                ...(searchString && {
+                  OR: [
+                    { name: { contains: searchString } },
+                    { passportNumber: { contains: searchString } },
+                    { phone: { contains: searchString } },
+                    { Client: { fullname: { contains: searchString } } },
+                  ]
+                }),
+              },
+            }),
+          },
+        ],
+      };
 
       let orderBy: any = { id: "desc" };
       if (sortKey) {
@@ -126,29 +189,6 @@ export default async function handler(
           default:
             orderBy = { id: "desc" };
         }
-      }
-
-      const filters: any = {
-        deparatureHousingDate: { not: null },
-      };
-
-      if (deparatureReasonFilter) {
-        filters.deparatureReason = deparatureReasonFilter;
-      }
-
-      if (contractType) {
-        filters.OR = [
-          {
-            homeMaid_id: { not: null },
-            Order: {
-              NewOrder: { some: { typeOfContract: contractType as string } },
-            },
-          },
-          {
-            externalHomedmaidId: { not: null },
-            externalHomedmaid: { type: contractType as string },
-          },
-        ];
       }
 
       const housing = await prisma.housedworker.findMany({

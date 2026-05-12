@@ -76,6 +76,7 @@ interface EditWorkerForm {
   deliveryDate: string;
   isHasEntitlements: boolean;
   entitlementsCost?: string;
+  entitlementReason?: string;
   maidName: string;
   maidPhone: string;
   maidDateOfBirth: string;
@@ -631,6 +632,7 @@ useEffect(()=>{
     isExternal:workerType,
     isHasEntitlements: false, // إضافة حقل المستحقات
     entitlementsCost: '', // قيمة المستحقات
+    entitlementReason: '', // سبب المستحقات
   });
   const [editWorkerForm, setEditWorkerForm] = useState<EditWorkerForm>({
     location_id: 0,
@@ -1150,6 +1152,8 @@ const fetchDepartedHousedforExporting = async () => {
         houseentrydate: data.Date,
         deliveryDate: data.deliveryDate,
         isHasEntitlements: data.isHasEntitlements,
+        entitlementsCost: data.entitlementsCost,
+        entitlementReason: data.entitlementReason,
         maidName: data.maidName,
         maidPhone: data.maidPhone,
         maidDateOfBirth: data.maidDateOfBirth || null,
@@ -1319,6 +1323,7 @@ const fetchDepartedHousedforExporting = async () => {
           worker.entitlementsCost !== undefined && worker.entitlementsCost !== null
             ? String(worker.entitlementsCost)
             : '',
+        entitlementReason: worker.entitlementReason || '',
         maidName,
         maidPhone,
         maidDateOfBirth,
@@ -1409,6 +1414,8 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
       const response = await axios.post('/api/confirmhousinginformation', {
         ...formData,
         homeMaidId: Number(selectedWorker.id),
+        entitlementsCost: formData.entitlementsCost,
+        entitlementReason: formData.entitlementReason || '',
       });
       showNotification(response.data.message);
       closeModal('housingForm');
@@ -1431,6 +1438,7 @@ const handleSessionSubmit = async (e: React.FormEvent) => {
         isExternal: workerType,
         isHasEntitlements: false,
         entitlementsCost: '',
+        entitlementReason: '',
       });
       // Clear selected worker and search term
       setSelectedWorker(null);
@@ -1757,11 +1765,9 @@ const exportToPDF = async () => {
     'تاريخ التسكين',
     'سبب التسكين',
     'السكن',
-    'رقم الجواز',
-    'الجنسية',
     'رقم الجوال',
     'اسم العميل',
-    'الاسم',
+    'بيانات العاملة',
   ];
 
   const tableRows = Array.isArray(exportHousedWorkers)
@@ -1777,11 +1783,9 @@ const exportToPDF = async () => {
           ? row.Reason
           : row.deparatureReason ?? 'غير متوفر',
         locations.find((loc) => loc.id === row.location_id)?.location ?? 'غير متوفر',
-        row.Order?.Passportnumber ?? 'غير متوفر',
-        row.Order?.office?.Country ?? 'غير متوفر',
         row.Order?.phone ?? 'غير متوفر',
         getHousingClientName(row as HousedWorker) || 'غير متوفر',
-        row.Order?.Name ?? row.externalHomedmaid?.name ?? 'غير متوفر',
+        `${row.Order?.Name ?? row.externalHomedmaid?.name ?? 'غير متوفر'}\n(${row.Order?.Passportnumber ?? row.externalHomedmaid?.passportNumber ?? 'غير متوفر'})\n[${row.Order?.Nationalitycopy ?? row.externalHomedmaid?.nationality ?? 'غير متوفر'}]`,
       ])
     : [];
 
@@ -2223,7 +2227,7 @@ const confirmDeleteNote = async () => {
                     <input
                       type="text"
                       name="Name"
-                      placeholder="بحث"
+                      placeholder="بحث بالاسم، الجواز، الجوال أو اسم العميل..."
                       value={filters.Name}
                       onChange={handleFilterChange}
                       className="bg-transparent outline-none text-right  text-md border-none"
@@ -2306,11 +2310,9 @@ const confirmDeleteNote = async () => {
                   <thead>
                     <tr className="bg-teal-800 text-white">
                       {columnVisibility.id && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap   border-teal-700 w-12">#</th>}
-                      {columnVisibility.Name && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap          border-teal-700">الاسم</th>}
+                      {columnVisibility.Name && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">بيانات العاملة</th>}
                       {columnVisibility.clientName && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">اسم العميل</th>}
                       {columnVisibility.phone && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجوال</th>}
-                      {columnVisibility.Nationalitycopy && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">الجنسية</th>}
-                      {columnVisibility.Passportnumber && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">رقم الجواز</th>}
                       {columnVisibility.location && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">السكن</th>}
                     
                       {columnVisibility.deliveryDate && <th className="py-2 px-2 text-right text-md border-b no-wrap text-nowrap border-teal-700">دخول المملكة</th>}
@@ -2363,17 +2365,22 @@ const confirmDeleteNote = async () => {
                               )}
                             </td>
                           )}
-                          {columnVisibility.Name && <td className="py-2 px-2 text-right text-md leading-tight text-center">{worker.Order?.Name || worker.externalHomedmaid?.name || ''}</td>}
-                          {columnVisibility.clientName && <td className="py-2 px-2 text-right text-md leading-tight text-center">{getHousingClientName(worker)}</td>}
-                          {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || worker.externalHomedmaid?.phone || ''}</td>}
-                          {columnVisibility.Nationalitycopy && (
-                            <td className="py-2 px-2 text-right text-md">
-                              {worker.externalHomedmaid
-                                ? (worker.externalHomedmaid.nationality || '').trim() || ''
-                                : worker.Order?.Nationalitycopy || ''}
+                          {columnVisibility.Name && (
+                            <td className="py-2 px-2 text-right text-md leading-tight">
+                              <div className="font-bold text-teal-900">{worker.Order?.Name || worker.externalHomedmaid?.name || ''}</div>
+                              <div className="text-xs text-gray-500 mt-1 flex gap-2 justify-end">
+                                <span>{worker.Order?.Passportnumber || worker.externalHomedmaid?.passportNumber || ''}</span>
+                                <span className="text-gray-300">|</span>
+                                <span>
+                                  {worker.externalHomedmaid
+                                    ? (worker.externalHomedmaid.nationality || '').trim()
+                                    : worker.Order?.Nationalitycopy || ''}
+                                </span>
+                              </div>
                             </td>
                           )}
-                          {columnVisibility.Passportnumber && <td className="py-2 px-2 text-right text-md">{worker.Order?.Passportnumber || worker.externalHomedmaid?.passportNumber || ''}</td>}
+                          {columnVisibility.clientName && <td className="py-2 px-2 text-right text-md leading-tight text-center">{getHousingClientName(worker)}</td>}
+                          {columnVisibility.phone && <td className="py-2 px-2 text-right text-md">{worker.Order?.phone || worker.externalHomedmaid?.phone || ''}</td>}
                           {columnVisibility.location && <td className="py-2 px-2 text-right text-md">{locations.find((loc) => loc.id === worker.location_id)?.location || 'غير محدد'}</td>}
                           {columnVisibility.kingdomentryDate && <td className="py-2 px-2 text-right text-md">{getDate(worker.Order?.NewOrder?.[0]?.arrivals?.[0]?.KingdomentryDate) || ''}</td>}
                        
@@ -2422,7 +2429,7 @@ const confirmDeleteNote = async () => {
                               }}
                               className="text-teal-800 hover:text-teal-600"
                             >
-                              {(worker.entitlementsCost ?? 0) > 0 ? 'نعم' : 'لا'}
+                              {worker.isHasEntitlements ? 'نعم' : 'لا'}
                             </button>
                           </td>}
                           {columnVisibility.notes && <td className="py-2 px-2 text-center">
@@ -3354,6 +3361,19 @@ const confirmDeleteNote = async () => {
                         />
                       </div>
                     )}
+                    {formData.isHasEntitlements === true && (
+                      <div className="mb-6">
+                        <label className="block text-md text-gray-700 mb-2">سبب المستحقات</label>
+                        <input
+                          type="text"
+                          placeholder="أدخل سبب المستحقات"
+                          value={formData.entitlementReason}
+                          onChange={(e) => setFormData({ ...formData, entitlementReason: e.target.value })}
+                          disabled={isSubmittingHousing}
+                          className="w-full bg-gray-100 border border-gray-300 rounded-md p-2 text-right text-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                    )}
                     {/* Action Buttons */}
                     <div className="flex justify-center gap-4">
                       <button
@@ -3590,6 +3610,18 @@ const confirmDeleteNote = async () => {
                           className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                           min="0"
                           step="0.01"
+                        />
+                      </div>
+                    )}
+                    {editWorkerForm.isHasEntitlements === true && (
+                      <div className="mb-4 col-span-2">
+                        <label className="block text-md mb-2 text-textDark">سبب المستحقات</label>
+                        <input
+                          type="text"
+                          placeholder="أدخل سبب المستحقات"
+                          value={editWorkerForm.entitlementReason}
+                          onChange={(e) => setEditWorkerForm({ ...editWorkerForm, entitlementReason: e.target.value })}
+                          className="w-full p-2 bg-gray-200 rounded-md text-right text-md text-textDark"
                         />
                       </div>
                     )}

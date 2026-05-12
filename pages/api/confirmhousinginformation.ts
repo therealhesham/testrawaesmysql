@@ -79,6 +79,8 @@ export default async function handler(req: any, res: any) {
       startWoringDate,
       DeparatureTime,
       isHasEntitlements,
+      entitlementsCost,
+      entitlementReason,
     } = req.body;
 
     if (!req.body.reason)
@@ -188,9 +190,10 @@ if (req.body.location) {
             : null,
           homeMaid_id: homeMaidId,
           deparatureHousingDate: null,
-          // @ts-ignore
           isHasEntitlements:
             isHasEntitlements !== undefined ? isHasEntitlements : true,
+          entitlementsCost: entitlementsCost ? Number(entitlementsCost) : null,
+          entitlementReason: entitlementReason || null,
         },
       });
 
@@ -259,6 +262,8 @@ if (req.body.location) {
       deliveryDate,
       location_id,
       isHasEntitlements,
+      entitlementsCost,
+      entitlementReason,
       maidName,
       maidPhone,
       maidDateOfBirth,
@@ -313,11 +318,18 @@ if (req.body.location) {
           deliveryDate: deliveryDate
             ? new Date(deliveryDate).toISOString()
             : search.deliveryDate,
-          // @ts-ignore
           isHasEntitlements:
             isHasEntitlements !== undefined
               ? isHasEntitlements
               : (search as any).isHasEntitlements,
+          entitlementsCost:
+            entitlementsCost !== undefined
+              ? entitlementsCost !== null && entitlementsCost !== "" ? Number(entitlementsCost) : null
+              : (search as any).entitlementsCost,
+          entitlementReason:
+            entitlementReason !== undefined
+              ? entitlementReason
+              : (search as any).entitlementReason,
         },
       });
 
@@ -440,10 +452,19 @@ try {
     const pageNumber = parseInt(page as string, 10) || 1;
 
     // تضمين العاملات الداخلية (من homemaids) والخارجية (من externalHomedmaid)
-    const orderFilters = (Name || Passportnumber || id || contractType)
+    const searchString = (Name as string) || (Passportnumber as string) || "";
+    
+    const orderFilters: any = searchString || id || contractType
       ? {
-          Name: { contains: (Name as string) || "" },
-          Passportnumber: { contains: (Passportnumber as string) || "" },
+          ...(searchString && {
+            OR: [
+              { Name: { contains: searchString } },
+              { Passportnumber: { contains: searchString } },
+              { phone: { contains: searchString } },
+              { NewOrder: { some: { ClientName: { contains: searchString } } } },
+              { NewOrder: { some: { client: { fullname: { contains: searchString } } } } },
+            ]
+          }),
           ...(id && { id: { equals: Number(id) } }),
           ...(contractType && {
             NewOrder: {
@@ -464,11 +485,17 @@ try {
           : { homeMaid_id: { not: null } },
         {
           externalHomedmaidId: { not: null },
-          ...((contractType || Name || Passportnumber) && {
+          ...((contractType || searchString) && {
             externalHomedmaid: {
               ...(contractType && { type: contractType as string }),
-              ...(Name && { name: { contains: (Name as string) || "" } }),
-              ...(Passportnumber && { passportNumber: { contains: (Passportnumber as string) || "" } }),
+              ...(searchString && {
+                OR: [
+                  { name: { contains: searchString } },
+                  { passportNumber: { contains: searchString } },
+                  { phone: { contains: searchString } },
+                  { Client: { fullname: { contains: searchString } } },
+                ]
+              }),
             },
           }),
         },
