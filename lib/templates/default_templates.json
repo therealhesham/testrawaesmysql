@@ -5,6 +5,7 @@
     "dynamicFields": [
       "worker_name1",
       "worker_name2",
+      "worker_name3",
       "nationality1",
       "nationality2",
       "id_number1",
