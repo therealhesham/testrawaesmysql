@@ -41,15 +41,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { execSync } = require('child_process');
     try {
       console.log('Running generate_templates script...');
-      execSync('node lib/templates/generate_templates.js');
-    } catch (execError) {
-      console.error('Error running generate_templates:', execError);
-      // نكمل المزامنة حتى لو فشل السكربت (سيستخدم آخر نسخة ناجحة)
+      // استخدام مسار مطلق للتأكد من الوصول للملف في السيرفر
+      const scriptPath = path.join(process.cwd(), 'lib', 'templates', 'generate_templates.js');
+      if (fs.existsSync(scriptPath)) {
+        execSync(`node "${scriptPath}"`);
+      } else {
+        console.warn('Script file not found at:', scriptPath);
+      }
+    } catch (execError: any) {
+      console.error('Error running generate_templates:', execError.message);
+      // نكمل المزامنة حتى لو فشل السكربت (سيستخدم آخر نسخة ناجحة إذا كانت موجودة)
     }
 
     const results = [];
     // نقرأ النسخة المحدثة من الملف مباشرة من المجلد الجديد
     const filePath = path.join(process.cwd(), 'lib', 'templates', 'default_templates.json');
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ 
+        error: 'ملف القوالب غير موجود في السيرفر', 
+        path: filePath 
+      });
+    }
+
     const fileContent = fs.readFileSync(filePath, 'utf8');
     const defaultTemplates = JSON.parse(fileContent);
 
@@ -78,8 +92,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     res.status(200).json({ message: 'Synchronization successful', results });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Sync Error:', error);
-    res.status(500).json({ error: 'Failed to synchronize templates' });
+    res.status(500).json({ 
+      error: 'فشلت المزامنة: ' + error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    });
   }
 }
