@@ -1,7 +1,8 @@
 import { jwtDecode } from 'jwt-decode';
 import prisma from 'lib/prisma';
 import { NextApiRequest, NextApiResponse } from 'next';
-import defaultTemplates from 'lib/default_templates.json';
+import fs from 'fs';
+import path from 'path';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -35,7 +36,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     console.log('Start synchronizing templates...');
+    
+    // أولاً: تشغيل سكربت توليد القوالب لتحديث ملف JSON من المسار الجديد
+    const { execSync } = require('child_process');
+    try {
+      console.log('Running generate_templates script...');
+      execSync('node lib/templates/generate_templates.js');
+    } catch (execError) {
+      console.error('Error running generate_templates:', execError);
+      // نكمل المزامنة حتى لو فشل السكربت (سيستخدم آخر نسخة ناجحة)
+    }
+
     const results = [];
+    // نقرأ النسخة المحدثة من الملف مباشرة من المجلد الجديد
+    const filePath = path.join(process.cwd(), 'lib', 'templates', 'default_templates.json');
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const defaultTemplates = JSON.parse(fileContent);
 
     for (const t of defaultTemplates) {
       const existing = await prisma.template.findFirst({ where: { title: t.title } });

@@ -52,6 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const arrival = order.arrivals?.[0];
       const client = order.client;
       const worker = order.HomeMaid;
+      const today = new Date();
 
       return {
         id: order.id,
@@ -62,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           client_name: order.ClientName || client?.fullname || '',
           id_number: order.nationalId || client?.nationalId || '',
           visa_number: arrival?.visaNumber || order.visaId?.toString() || '',
-          visa_date: arrival?.visaIssuanceDate ? new Date(arrival.visaIssuanceDate).toLocaleDateString('ar-SA') : '',
+          visa_date: arrival?.visaIssuanceDate ? new Date(arrival.visaIssuanceDate).toISOString().split('T')[0] : '',
           coming_from: worker?.office?.Country || '',
           mobile: order.PhoneNumber || client?.phonenumber || '',
           mobile_1: order.PhoneNumber || client?.phonenumber || '',
@@ -74,13 +75,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           passport_number: worker?.Passportnumber || order.Passportnumber || '',
           address: client?.address || '',
           city: client?.city || '',
-          handover_date: new Date().toLocaleDateString('ar-SA'),
-          handover_day: new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date()),
-          start_date: new Date().toLocaleDateString('ar-SA'),
+          handover_date: today.toISOString().split('T')[0],
+          handover_day: new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(today),
+          start_date: today.toISOString().split('T')[0],
           end_date: '', // Placeholder
           trial_days: '90',
           amount: order.Total?.toString() || '',
-          birth_date: worker?.dateofbirth ? new Date(worker.dateofbirth).toLocaleDateString('ar-SA') : '',
+          birth_date: worker?.dateofbirth ? new Date(worker.dateofbirth).toISOString().split('T')[0] : '',
           worker_religion: worker?.Religion || order.Religion || '',
           worker_profession: worker?.job || '',
         },

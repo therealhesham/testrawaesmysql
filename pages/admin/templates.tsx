@@ -244,6 +244,37 @@ export default function Home() {
   const [signatureValue, setSignatureValue] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Helper functions for dates
+  const getHijriDate = () => {
+    try {
+      const today = new Date();
+      const formatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric'
+      });
+      const parts = formatter.formatToParts(today);
+      const d = parts.find(p => p.type === 'day')?.value;
+      const m = parts.find(p => p.type === 'month')?.value;
+      const y = parts.find(p => p.type === 'year')?.value;
+      
+      const fixDigits = (s: string | undefined) => s ? s.replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))) : '';
+      // Return Year/Month/Day so that in RTL context, Day appears on the right
+      return `${fixDigits(y)}/${fixDigits(m)}/${fixDigits(d)}`;
+    } catch (e) {
+      return "1447/11/26"; // Hard fallback in Y/M/D
+    }
+  };
+
+  const getGregorianDate = () => {
+    const today = new Date();
+    const d = today.getDate();
+    const m = today.getMonth() + 1;
+    const y = today.getFullYear();
+    // Return Year/Month/Day for RTL visual consistency
+    return `${y}/${m}/${d}`;
+  };
+
   const printRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
@@ -276,10 +307,25 @@ export default function Home() {
   };
 
   const handleOrderSelectData = (orderData: any) => {
-    setDynamicFieldValues((prev) => ({
-      ...prev,
-      ...orderData
-    }));
+    setDynamicFieldValues((prev) => {
+      const newValues = { ...prev, ...orderData };
+      
+      // Also map fields to numbered versions (e.g. employer_name -> employer_name1, employer_name2...)
+      Object.keys(orderData).forEach(key => {
+        const value = orderData[key];
+        if (selectedTemplate?.dynamicFields) {
+          selectedTemplate.dynamicFields.forEach(field => {
+            // If the template field starts with the key and followed by a number
+            // OR if it's a direct match, populate it.
+            if (field === key || (field.startsWith(key) && field.match(new RegExp(`^${key}\\d+$`)))) {
+              newValues[field] = value;
+            }
+          });
+        }
+      });
+      
+      return newValues;
+    });
     setOrderSearchResults([]);
     setOrderSearchQuery('');
     showNotification('تم استيراد بيانات العقد بنجاح', 'success');
@@ -287,7 +333,7 @@ export default function Home() {
 
   // Function to extract dynamic fields from content
   const extractDynamicFields = (content: string): string[] => {
-    const regex = /\{([^}]+)\}/g;
+    const regex = /\{([a-zA-Z0-9_]+)\}/g;
     const matches = content.match(regex) || [];
     return matches.map((field) => field.replace(/[\{\}]/g, ''));
   };
@@ -376,14 +422,42 @@ export default function Home() {
       try {
         const res = await fetch('/api/templates');
         const data = await res.json();
-        const templatesWithFields = data.map((template: Template) => ({
-          ...template,
-          dynamicFields: extractDynamicFields(template.content),
-        }));
+        const templatesWithFields = data.map((template: Template) => {
+          const fields = extractDynamicFields(template.content);
+          return {
+            ...template,
+            dynamicFields: fields,
+          };
+        });
         setTemplates(templatesWithFields);
         if (templatesWithFields.length > 0) {
-          setSelectedTemplate(templatesWithFields[0]);
-          setEditorContent(templatesWithFields[0].content);
+          const firstTemplate = templatesWithFields[0];
+          setSelectedTemplate(firstTemplate);
+          setEditorContent(firstTemplate.content);
+          
+          // Re-extract fields and auto-calculate dates for the first template
+          const freshFields = extractDynamicFields(firstTemplate.content);
+          const initialValues: { [key: string]: string } = {};
+          freshFields.forEach(f => initialValues[f] = '');
+          
+          // Auto-calculate dates if present
+          if (freshFields.includes('hijri_date')) {
+            initialValues['hijri_date'] = getHijriDate();
+          }
+          
+          const gregorianFields = ['gregorian_date', 'handover_date', 'visa_date', 'start_date', 'end_date', 'date'];
+          gregorianFields.forEach(field => {
+            if (freshFields.includes(field)) {
+              initialValues[field] = getGregorianDate();
+              
+              // Auto-calculate day if this is a handover_date
+              if (field === 'handover_date' && freshFields.includes('handover_day')) {
+                initialValues['handover_day'] = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date());
+              }
+            }
+          });
+          
+          setDynamicFieldValues(initialValues);
         }
       } catch (error) {
         console.error('Failed to fetch templates:', error);
@@ -448,7 +522,47 @@ export default function Home() {
   const handleTemplateSelect = (template: Template) => {
     setSelectedTemplate(template);
     setEditorContent(template.content);
-    setDynamicFieldValues(template.defaultValues || {});
+    setOrderSearchQuery('');
+    setOrderSearchResults([]);
+    
+    // Extract fields fresh from content to avoid stale fields from DB
+    const freshFields = extractDynamicFields(template.content);
+    const newValues: { [key: string]: string } = {};
+    freshFields.forEach((field) => {
+      newValues[field] = dynamicFieldValues[field] || '';
+    });
+
+    // Auto-calculate dates if they are present in freshFields
+    if (freshFields.includes('hijri_date')) {
+      const currentVal = newValues['hijri_date'];
+      // If missing or looks like Gregorian (year > 2000), update it to actual Hijri
+      if (!currentVal || parseInt(currentVal.split('/').pop() || '0') > 2000) {
+        newValues['hijri_date'] = getHijriDate();
+      }
+    }
+    
+    // Auto-populate other date fields with Gregorian Day/Month/Year
+    const gregorianFields = ['gregorian_date', 'handover_date', 'visa_date', 'start_date', 'end_date', 'date'];
+    gregorianFields.forEach(field => {
+      if (freshFields.includes(field) && !newValues[field]) {
+        newValues[field] = getGregorianDate();
+      }
+      
+      // Auto-calculate day if this is a handover_date and we have a value
+      if (field === 'handover_date' && freshFields.includes('handover_day')) {
+        const dateVal = newValues['handover_date'];
+        if (dateVal) {
+          try {
+            const date = new Date(dateVal);
+            if (!isNaN(date.getTime())) {
+              newValues['handover_day'] = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(date);
+            }
+          } catch (e) {}
+        }
+      }
+    });
+
+    setDynamicFieldValues(newValues);
     setDateValue('');
     setSignatureValue('');
   };
@@ -564,6 +678,44 @@ export default function Home() {
     }
   };
 
+  const handleDynamicFieldChange = (field: string, value: string) => {
+    setDynamicFieldValues(prev => {
+      const newValues = { ...prev, [field]: value };
+      
+      // Auto-sync numbered fields if the modified field ends in '1'
+      const match = field.match(/^(.*?)1$/);
+      if (match) {
+        const baseName = match[1];
+        // Find other fields with the same base name but different numbers
+        Object.keys(prev).forEach(f => {
+          const suffixMatch = f.match(new RegExp(`^${baseName}(\\d+)$`));
+          if (suffixMatch && f !== field) {
+            // Only sync if the target field is currently empty OR was identical to the old value
+            if (!prev[f] || prev[f] === prev[field]) {
+              newValues[f] = value;
+            }
+          }
+        });
+      }
+
+      // Auto-calculate day of week for date fields (e.g., handover_date -> handover_day)
+      if (field.includes('handover_date')) {
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            const dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(date);
+            const dayField = field.replace('handover_date', 'handover_day');
+            newValues[dayField] = dayName;
+          }
+        } catch (e) {
+          console.error('Error calculating day:', e);
+        }
+      }
+      
+      return newValues;
+    });
+  };
+
   const handleSyncTemplates = async () => {
     if (!confirm('هل تريد تحديث كافة القوالب من النظام؟ سيقوم هذا بإضافة القوالب الناقصة وتحديث الموجودة حالياً بآخر التنسيقات.')) return;
     setIsSyncing(true);
@@ -588,95 +740,59 @@ export default function Home() {
   };
 
   const handleExportToPDF = async () => {
-    if (!selectedTemplate) return;
-    let pdfContent = selectedTemplate.content;
-    selectedTemplate.dynamicFields?.forEach((field) => {
-      const regex = new RegExp(`{${field}}`, 'g');
-      pdfContent = pdfContent.replace(regex, dynamicFieldValues[field] || '');
-    });
-
-    const div = document.createElement('div');
-    div.innerHTML = pdfContent;
-    pdfContent = div.textContent || div.innerText || '';
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-    });
+    if (!selectedTemplate || !printRef.current) return;
+    
     try {
-      const response = await fetch('/fonts/Amiri-Regular.ttf');
-      if (!response.ok) throw new Error('Failed to fetch font');
-      const fontBuffer = await response.arrayBuffer();
-      const fontBytes = new Uint8Array(fontBuffer);
-      const fontBase64 = Buffer.from(fontBytes).toString('base64');
-      doc.addFileToVFS('Amiri-Regular.ttf', fontBase64);
-      doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-      doc.setFont('Amiri', 'normal');
+      const html2pdf = (await import('html2pdf.js')).default;
+      const element = printRef.current;
+      
+      const opt = {
+        margin: 0,
+        filename: `${selectedTemplate.title}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          letterRendering: true,
+          logging: false,
+          onclone: (clonedDoc: Document) => {
+            // Smart fix for "oklch" unsupported color error
+            // Instead of deleting, we replace oklch with a safe fallback color
+            try {
+              const styleTags = clonedDoc.getElementsByTagName('style');
+              for (let i = 0; i < styleTags.length; i++) {
+                // Replace oklch(...) with the primary brand color #00334e
+                styleTags[i].innerHTML = styleTags[i].innerHTML.replace(/oklch\([^)]+\)/g, '#00334e');
+              }
+              
+              // Ensure the print area is clean and professional
+              const style = clonedDoc.createElement('style');
+              style.innerHTML = `
+                .print-area {
+                  padding: 0 !important;
+                  margin: 0 !important;
+                }
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+              `;
+              clonedDoc.head.appendChild(style);
+            } catch (err) {
+              console.error('Error restoring colors:', err);
+            }
+          }
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      // Direct export from the preview element
+      await html2pdf().set(opt).from(element).save();
+      showNotification('تم تصدير ملف PDF بنجاح', 'success');
     } catch (error) {
-      console.error('Error loading Amiri font:', error);
-      showNotification('خطأ في تحميل الخط العربي', 'error');
-      return;
+      console.error('PDF Export Error:', error);
+      showNotification('حدث خطأ أثناء تصدير PDF', 'error');
     }
-
-    // Define margins for border (like Word document)
-    const margin = 15; // 15mm margin on all sides
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    const contentWidth = pageWidth - (margin * 2);
-    const contentHeight = pageHeight - (margin * 2);
-
-    // Draw border rectangle (like Word document)
-    doc.setDrawColor(0, 0, 0); // Black color
-    doc.setLineWidth(0.5); // Thin line
-    doc.rect(margin, margin, contentWidth, contentHeight);
-
-    // Add watermark (favicon in grayscale) in the center of the page
-    // The watermark already has transparency applied in the canvas
-    if (watermarkImage) {
-      try {
-        const watermarkSize = 80; // Size of watermark in mm
-        const watermarkX = (pageWidth - watermarkSize) / 2;
-        const watermarkY = (pageHeight - watermarkSize) / 2;
-        
-        doc.addImage(watermarkImage, 'PNG', watermarkX, watermarkY, watermarkSize, watermarkSize);
-      } catch (error) {
-        console.error('Error adding watermark to PDF:', error);
-      }
-    }
-
-    // Add logo at top right if available
-    if (logoImage) {
-      try {
-        const imgWidth = 60;
-        const imgHeight = 26;
-        const x = pageWidth - imgWidth - margin - 5;
-        const y = margin + 5;
-        doc.addImage(logoImage, 'PNG', x, y, imgWidth, imgHeight);
-      } catch (error) {
-        console.error('Error adding logo to PDF:', error);
-        showNotification('خطأ في إضافة الشعار إلى PDF', 'error');
-      }
-    }
-
-    // Add main content (inside border)
-    // Increased spacing from logo to prevent overlap
-    doc.setFontSize(12);
-    doc.setLanguage('ar');
-    const textLines = doc.splitTextToSize(pdfContent, contentWidth - 10);
-    const startY = logoImage ? margin + 60 : margin + 20;
-    doc.text(textLines, pageWidth - margin - 5, startY, { align: 'right' });
-
-    // Add signature and date at the bottom (inside border) - aligned from right
-    const bottomMargin = margin + 20; // Margin from the bottom
-    const lineHeight = 10; // Space between signature and date
-    const rightX = pageWidth - margin - 5; // Same X position from right for both labels to ensure alignment
-    // Use consistent formatting for alignment from right
-    doc.text(`التوقيع: ${signatureValue || '__________'}`, rightX, pageHeight - bottomMargin - lineHeight, { align: 'right' });
-    doc.text(`التاريخ: ${dateValue || '__________'}`, rightX, pageHeight - bottomMargin, { align: 'right' });
-
-    doc.save(`${selectedTemplate.title}.pdf`);
-    hidePdfModal();
   };
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -715,7 +831,7 @@ export default function Home() {
             }
             /* Apply custom padding to the printable area so content isn't at the very edge */
             .print-area {
-              padding: 20mm !important;
+              padding: 0 !important;
             }
           }
         `}</style>
@@ -820,7 +936,7 @@ export default function Home() {
                       <span>تعديل القالب</span>
                     </button>
                     <button
-                      onClick={showPdfModal}
+                      onClick={handleExportToPDF}
                       className="flex items-center gap-2 bg-teal-900 text-white px-4 py-2 rounded text-sm hover:bg-teal-800 transition-colors shadow-sm"
                     >
                       <FilePdfOutlined />
@@ -864,17 +980,13 @@ export default function Home() {
                       </label>
                     </div>
                     
-                    <div className="bg-gray-100 border border-gray-200 rounded-lg p-8 min-h-[700px] shadow-inner relative flex justify-center overflow-y-auto">
+                    <div className="bg-gray-100 border border-gray-200 rounded-lg p-10 min-h-[800px] shadow-inner relative flex justify-center overflow-auto">
                       <div 
                         ref={printRef}
-                        className="bg-white p-12 shadow-2xl min-h-[842px] w-full max-w-[800px] border border-gray-100 prose prose-sm print:shadow-none print:m-0 print:w-full print:max-w-none print-area"
-                        style={{ fontFamily: "'Amiri', serif" }}
+                        className="bg-white shadow-2xl min-h-[297mm] w-[210mm] border border-gray-100 print:shadow-none print:border-none print:m-0 print:w-full print-area"
+                        style={{ fontFamily: "'Amiri', serif", boxSizing: 'border-box' }}
                       >
-                        {/* Logo for Print & Screen (Aligned to Right in RTL) */}
-                        <div className="mb-10 flex justify-start">
-                          {logoImage && <img src={logoImage} alt="Logo" className="max-w-[200px] max-h-[80px] object-contain" />}
-                        </div>
-                        
+                        {/* Content Area */}
                         <div 
                           dangerouslySetInnerHTML={{ __html: renderContentWithDynamicFields(selectedTemplate.content) }} 
                           className="text-gray-800 leading-relaxed"
@@ -943,7 +1055,7 @@ export default function Home() {
                                 id={`dynamic-${field}`}
                                 value={dynamicFieldValues[field] || ''}
                                 onChange={(e) =>
-                                  setDynamicFieldValues({ ...dynamicFieldValues, [field]: e.target.value })
+                                  handleDynamicFieldChange(field, e.target.value)
                                 }
                                 className="w-full bg-white border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all shadow-sm"
                                 placeholder={`أدخل ${field}...`}
