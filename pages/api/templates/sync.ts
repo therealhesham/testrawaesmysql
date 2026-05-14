@@ -37,36 +37,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log('Start synchronizing templates...');
     
-    // أولاً: تشغيل سكربت توليد القوالب لتحديث ملف JSON من المسار الجديد
-    const { execSync } = require('child_process');
+    // محاولة تشغيل السكربت (اختياري في السيرفر)
     try {
-      console.log('Running generate_templates script...');
-      // استخدام مسار مطلق للتأكد من الوصول للملف في السيرفر
-      const scriptPath = path.join(process.cwd(), 'lib', 'templates', 'generate_templates.js');
+      const { execSync } = require('child_process');
+      const scriptPath = path.resolve(process.cwd(), 'lib/templates/generate_templates.js');
       if (fs.existsSync(scriptPath)) {
         execSync(`node "${scriptPath}"`);
-      } else {
-        console.warn('Script file not found at:', scriptPath);
       }
-    } catch (execError: any) {
-      console.error('Error running generate_templates:', execError.message);
-      // نكمل المزامنة حتى لو فشل السكربت (سيستخدم آخر نسخة ناجحة إذا كانت موجودة)
+    } catch (e) {}
+
+    // البحث عن ملف القوالب في عدة مسارات محتملة للإنتاج
+    const possiblePaths = [
+      path.join(process.cwd(), 'lib/templates/default_templates.json'),
+      path.join(process.cwd(), '.next/server/lib/templates/default_templates.json'),
+      path.resolve('./lib/templates/default_templates.json')
+    ];
+
+    let fileContent = null;
+    let foundPath = '';
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        fileContent = fs.readFileSync(p, 'utf8');
+        foundPath = p;
+        break;
+      }
+    }
+
+    // إذا فشل البحث في الملفات، نحاول استخدام require كحل أخير (يساعد في بيئات Vercel)
+    let defaultTemplates;
+    if (fileContent) {
+      defaultTemplates = JSON.parse(fileContent);
+    } else {
+      try {
+        // نستخدم require مع مسار نسبي من ملف الـ API
+        defaultTemplates = require('../../../lib/templates/default_templates.json');
+        console.log('Found templates using require');
+      } catch (requireError) {
+        return res.status(404).json({ 
+          error: 'تعذر العثور على ملف القوالب في السيرفر بكافة الطرق',
+          checkedPaths: possiblePaths,
+          cwd: process.cwd()
+        });
+      }
     }
 
     const results = [];
-    // نقرأ النسخة المحدثة من الملف مباشرة من المجلد الجديد
-    const filePath = path.join(process.cwd(), 'lib', 'templates', 'default_templates.json');
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ 
-        error: 'ملف القوالب غير موجود في السيرفر', 
-        path: filePath 
-      });
-    }
-
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    const defaultTemplates = JSON.parse(fileContent);
-
     for (const t of defaultTemplates) {
       const existing = await prisma.template.findFirst({ where: { title: t.title } });
       if (existing) {
@@ -94,9 +110,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({ message: 'Synchronization successful', results });
   } catch (error: any) {
     console.error('Sync Error:', error);
-    res.status(500).json({ 
-      error: 'فشلت المزامنة: ' + error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
-    });
+    res.status(500).json({ error: 'فشلت المزامنة: ' + error.message });
   }
 }
