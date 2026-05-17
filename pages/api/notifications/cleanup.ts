@@ -12,7 +12,7 @@ export default async function handler(
   }
 
   try {
-    // 1. Verify user authentication and authorize admins
+    // 1. Verify user authentication and authorize admins/owners
     const token = req.cookies?.authToken;
     if (!token) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -25,13 +25,12 @@ export default async function handler(
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Query database to ensure user is admin
+    // Query database to ensure user is admin/owner
     const user = await prisma.user.findFirst({
       where: { username: username },
       include: { role: true },
     });
 
-    // Authorize only admins or owners (e.g. role named "مدير النظام", "admin", "owner", roleId = 1, or main user "mr hesham")
     const isAdmin = 
       user && 
       (user.role?.name?.includes("مدير") || 
@@ -45,107 +44,56 @@ export default async function handler(
       return res.status(403).json({ error: "ليس لديك صلاحية لتشغيل صيانة قاعدة البيانات" });
     }
 
-    console.log(`--- Starting Admin Initiated Notification System Database Cleanup by: ${username} ---`);
+    console.log(`--- Starting HIGH-PERFORMANCE SQL Notification Cleanup by: ${username} ---`);
 
-    // 1. Convert placeholder "لا يوجد بيان" to null
-    const laYojadCount = await prisma.notifications.updateMany({
-      where: {
-        userId: 'لا يوجد بيان',
-      },
-      data: {
-        userId: null,
-      },
-    });
+    // 1. Convert placeholder "لا يوجد بيان" to null (1 fast query)
+    const laYojadCount = await prisma.$executeRawUnsafe(
+      `UPDATE notifications SET userId = NULL WHERE userId = 'لا يوجد بيان'`
+    );
 
-    // 2. Process stringified numeric user IDs
-    const allNotifs = await prisma.notifications.findMany({
-      where: {
-        userId: { not: null },
-      },
-    });
+    // 2. Process stringified numeric user IDs - Join with User table to match real username (1 fast query)
+    const numericFixed = await prisma.$executeRawUnsafe(`
+      UPDATE notifications n
+      JOIN User u ON CAST(n.userId AS UNSIGNED) = u.id
+      SET n.userId = LOWER(TRIM(u.username))
+      WHERE n.userId REGEXP '^[0-9]+$'
+    `);
 
-    let numericFixed = 0;
-    let numericDeleted = 0;
-    let standardizedCasing = 0;
+    // 3. Delete orphaned notifications where userId is numeric but has no matching User (1 fast query)
+    const numericDeleted = await prisma.$executeRawUnsafe(`
+      DELETE n FROM notifications n
+      LEFT JOIN User u ON CAST(n.userId AS UNSIGNED) = u.id
+      WHERE n.userId REGEXP '^[0-9]+$' AND u.id IS NULL
+    `);
 
-    for (const notif of allNotifs) {
-      if (!notif.userId) continue;
+    // 4. Standardize all non-numeric userIds to lowercase and trimmed in notifications (1 fast query)
+    const casingFixedNotif = await prisma.$executeRawUnsafe(`
+      UPDATE notifications 
+      SET userId = LOWER(TRIM(userId)) 
+      WHERE userId IS NOT NULL AND userId NOT REGEXP '^[0-9]+$'
+    `);
 
-      const trimmed = notif.userId.trim();
-      const isNumeric = /^\d+$/.test(trimmed);
+    // 5. Standardize all userIds to lowercase and trimmed in NotificationRead (1 fast query)
+    const casingFixedRead = await prisma.$executeRawUnsafe(`
+      UPDATE NotificationRead 
+      SET userId = LOWER(TRIM(userId))
+    `);
 
-      if (isNumeric) {
-        const userIdNum = parseInt(trimmed, 10);
-        // Find the user by id or idnumber
-        const matchingUser = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { id: userIdNum },
-              { idnumber: userIdNum }
-            ]
-          }
-        });
-
-        if (matchingUser) {
-          await prisma.notifications.update({
-            where: { id: notif.id },
-            data: { userId: matchingUser.username.toLowerCase().trim() },
-          });
-          numericFixed++;
-        } else {
-          // Delete orphaned notification
-          await prisma.notifications.delete({
-            where: { id: notif.id },
-          });
-          numericDeleted++;
-        }
-      } else {
-        // Standardize casing
-        const lowercased = trimmed.toLowerCase();
-        if (notif.userId !== lowercased) {
-          await prisma.notifications.update({
-            where: { id: notif.id },
-            data: { userId: lowercased },
-          });
-          standardizedCasing++;
-        }
-      }
-    }
-
-    // 3. Standardize NotificationRead table userIds
-    const allReadRecords = await prisma.notificationRead.findMany();
-    let readRecordsStandardized = 0;
-
-    for (const record of allReadRecords) {
-      const trimmedLower = record.userId.trim().toLowerCase();
-      if (record.userId !== trimmedLower) {
-        try {
-          await prisma.notificationRead.update({
-            where: { id: record.id },
-            data: { userId: trimmedLower },
-          });
-          readRecordsStandardized++;
-        } catch (err) {
-          console.error(`Failed to standardize NotificationRead id #${record.id}:`, err.message);
-        }
-      }
-    }
-
-    console.log(`--- Cleanup Finished Successfully. Fixed: ${numericFixed}, Deleted: ${numericDeleted}, Standardized: ${standardizedCasing + readRecordsStandardized} ---`);
+    console.log(`--- Fast SQL Cleanup Finished Successfully ---`);
 
     return res.status(200).json({
       success: true,
-      message: "تم تنظيف وصيانة قاعدة بيانات الإشعارات بنجاح!",
+      message: "تم تنظيف وصيانة قاعدة بيانات الإشعارات بنجاح مذهل!",
       details: {
-        laYojadFixed: laYojadCount.count,
-        numericFixed,
-        numericDeleted,
-        standardizedCount: standardizedCasing + readRecordsStandardized
+        laYojadFixed: Number(laYojadCount),
+        numericFixed: Number(numericFixed),
+        numericDeleted: Number(numericDeleted),
+        standardizedCount: Number(casingFixedNotif) + Number(casingFixedRead)
       }
     });
 
   } catch (error) {
-    console.error("Error during admin database cleanup:", error);
-    return res.status(500).json({ error: "فشل في تشغيل صيانة قاعدة البيانات" });
+    console.error("Error during high-performance database cleanup:", error);
+    return res.status(500).json({ error: "فشل في تشغيل صيانة قاعدة البيانات بسبب خطأ داخلي" });
   }
 }

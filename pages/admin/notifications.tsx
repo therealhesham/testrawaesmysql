@@ -78,6 +78,13 @@ export default function NotificationsPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCleaning, setIsCleaning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
+  const [isCleanupDone, setIsCleanupDone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsCleanupDone(localStorage.getItem("notifications_cleanup_done") === "true");
+    }
+  }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -152,6 +159,10 @@ export default function NotificationsPage() {
       
       if (response.ok) {
         setCleanupResult(data.message || "تمت الصيانة بنجاح!");
+        if (typeof window !== 'undefined') {
+          localStorage.setItem("notifications_cleanup_done", "true");
+        }
+        setIsCleanupDone(true);
         fetchNotifications();
       } else {
         alert(data.error || "حدث خطأ أثناء الصيانة");
@@ -396,17 +407,35 @@ export default function NotificationsPage() {
 
         <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
           <h4 className={`text-lg mb-0 ${Style["tajawal-bold"]}`}>الإشعارات</h4>
-          {currentUser && (
+          {currentUser && !isCleanupDone && (
             <button
               onClick={handleRunCleanup}
               disabled={isCleaning}
-              className={`px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-sm font-semibold shadow-md transition-all flex items-center gap-2 ${
-                isCleaning ? "opacity-60 cursor-not-allowed" : ""
-              }`}
+              style={{
+                backgroundColor: isCleaning ? "#f59e0b" : "#d97706",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "12px",
+                padding: "8px 16px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: isCleaning ? "not-allowed" : "pointer",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                if (!isCleaning) e.currentTarget.style.backgroundColor = "#b45309";
+              }}
+              onMouseLeave={(e) => {
+                if (!isCleaning) e.currentTarget.style.backgroundColor = "#d97706";
+              }}
             >
               {isCleaning ? (
                 <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" style={{ width: "16px", height: "16px" }}>
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
