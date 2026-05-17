@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         data: {
           title: `تم ${existingSession?.result ? "تحديث" : "تحديد موعد"} جلسة`,
           message: `تم ${existingSession?.result ? "تحديث" : "تحديد موعد"} جلسة ${newSession.id} للعاملة ${newSession.user?.Name || "غير معروف"}`,
-          userId: userId || "لا يوجد بيان",
+          userId: userId || null,
           isRead: false,
         },
       });

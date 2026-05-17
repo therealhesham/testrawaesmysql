@@ -12,7 +12,7 @@ export default async function handler(
 
     if (token) {
       const decoded: any = jwt.verify(token, "rawaesecret");
-      userId = decoded?.username;
+      userId = decoded?.username ? decoded.username.toLowerCase().trim() : null;
     }
 
     // ✅ إنشاء إشعار

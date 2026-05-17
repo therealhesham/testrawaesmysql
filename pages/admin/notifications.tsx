@@ -76,6 +76,8 @@ export default function NotificationsPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -111,7 +113,7 @@ export default function NotificationsPage() {
     };
   }, []);
 
-  // جلب معلومات المستخدم الحالي
+  // جلب معلومات المستخدم الحالي مع الصلاحيات
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -119,7 +121,11 @@ export default function NotificationsPage() {
         if (response.ok) {
           const data = await response.json();
           if (data?.user?.id) {
-            setCurrentUser({ id: data.user.id, username: data.user.username });
+            setCurrentUser({ 
+              id: data.user.id, 
+              username: data.user.username,
+              role: data.user.role 
+            });
           }
         }
       } catch (error) {
@@ -128,6 +134,35 @@ export default function NotificationsPage() {
     };
     fetchCurrentUser();
   }, []);
+
+  const handleRunCleanup = async () => {
+    if (!window.confirm("هل أنت متأكد من رغبتك في تشغيل صيانة قاعدة البيانات وتطهير الإشعارات المتضاربة؟")) {
+      return;
+    }
+    
+    setIsCleaning(true);
+    setCleanupResult(null);
+    
+    try {
+      const response = await fetch("/api/notifications/cleanup", {
+        method: "POST",
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCleanupResult(data.message || "تمت الصيانة بنجاح!");
+        fetchNotifications();
+      } else {
+        alert(data.error || "حدث خطأ أثناء الصيانة");
+      }
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+      alert("حدث خطأ في الاتصال بالخادم");
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   // تسجيل الإشعار كمقروء عند النقر عليه
   const handleNotificationClick = async (notification: any) => {
@@ -352,8 +387,40 @@ export default function NotificationsPage() {
   return (
     <Layout>
       <div className="p-4">
-        {/* Tabs */}
-      <h4 className={`text-lg  mb-2 ${Style["tajawal-bold"]}`}>الإشعارات</h4>
+        {cleanupResult && (
+          <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex justify-between items-center animate-fade-in">
+            <span className="text-sm font-semibold">✨ {cleanupResult}</span>
+            <button onClick={() => setCleanupResult(null)} className="text-emerald-500 hover:text-emerald-700 font-bold text-lg">×</button>
+          </div>
+        )}
+
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+          <h4 className={`text-lg mb-0 ${Style["tajawal-bold"]}`}>الإشعارات</h4>
+          {currentUser && (
+            <button
+              onClick={handleRunCleanup}
+              disabled={isCleaning}
+              className={`px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-sm font-semibold shadow-md transition-all flex items-center gap-2 ${
+                isCleaning ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+            >
+              {isCleaning ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>جاري الصيانة...</span>
+                </>
+              ) : (
+                <>
+                  <span>🛠️</span>
+                  <span>تنظيف وصيانة الإشعارات</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
         <nav className={`flex gap-6 border-b pb-3 mb-6 ${Style["tajawal-medium"]}`}>
           <a onClick={() => setTab("all")}
              className={`cursor-pointer px-3 py-2 rounded-lg ${tab === "all" ? "bg-teal-50 text-teal-700" : ""}`}>

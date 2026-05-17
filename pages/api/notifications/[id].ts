@@ -17,7 +17,7 @@ export default async function handler(
       }
       
       const decoded: any = jwt.verify(token, "rawaesecret");
-      const userId = decoded?.username;
+      const userId = decoded?.username ? decoded.username.toLowerCase().trim() : null;
       
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });

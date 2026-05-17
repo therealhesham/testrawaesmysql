@@ -250,7 +250,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             title: 'تحديث على شكواك',
             message: statusMessages[status] || `تم تحديث حالة شكواك إلى ${status}`,
             type: 'complaint_update',
-            userId: complaint.createdById.toString(),
+            userId: updatedComplaint.createdBy.username,
             isRead: false
           }
         });

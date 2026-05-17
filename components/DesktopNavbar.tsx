@@ -70,7 +70,7 @@ const DesktopNavbar = () => {
       
       // ✅ حساب العدادات بناءً على حالة القراءة الفعلية
       const personalUnread = data.filter((n: any) => 
-        n.userId === userName && !n.isRead
+        n.userId && userName && n.userId.toLowerCase().trim() === userName.toLowerCase().trim() && !n.isRead
       ).length;
       
       const generalUnread = data.filter((n: any) => 
