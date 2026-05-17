@@ -31,11 +31,13 @@ export default async function handler(
       include: { role: true },
     });
 
-    // Authorize only admins (e.g. role named "مدير النظام", "admin", roleId = 1, or main user "mr hesham")
+    // Authorize only admins or owners (e.g. role named "مدير النظام", "admin", "owner", roleId = 1, or main user "mr hesham")
     const isAdmin = 
       user && 
       (user.role?.name?.includes("مدير") || 
        user.role?.name?.toLowerCase().includes("admin") || 
+       user.role?.name?.toLowerCase().includes("owner") || 
+       user.role?.name?.toLowerCase().includes("own") || 
        user.roleId === 1 || 
        user.username.toLowerCase().trim() === "mr hesham");
 
