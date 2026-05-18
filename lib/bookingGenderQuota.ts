@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 
-/** نافذة الحجز: من 8 الشهر الميلادي الحالي (حسب اليوم) إلى 7 الشهر التالي — انظر التعليق في getBookingQuotaWindow */
+/** نافذة الحجز: من 8 الشهر الميلادي الحالي (حسب اليوم) إلى 6 الشهر التالي — انظر التعليق في getBookingQuotaWindow */
 export function getBookingQuotaWindow(reference: Date = new Date()): { start: Date; end: Date } {
   const y = reference.getFullYear();
   const m = reference.getMonth();
@@ -8,7 +8,7 @@ export function getBookingQuotaWindow(reference: Date = new Date()): { start: Da
 
   let startYear = y;
   let startMonth = m;
-  if (d < 8) {
+  if (d < 7) {
     startMonth = m - 1;
     if (startMonth < 0) {
       startMonth = 11;
@@ -20,7 +20,7 @@ export function getBookingQuotaWindow(reference: Date = new Date()): { start: Da
   const endMonth = startMonth + 1;
   const endYear = endMonth > 11 ? startYear + 1 : startYear;
   const endM = endMonth > 11 ? 0 : endMonth;
-  const end = new Date(endYear, endM, 7, 23, 59, 59, 999);
+  const end = new Date(endYear, endM, 6, 23, 59, 59, 999);
   return { start, end };
 }
 

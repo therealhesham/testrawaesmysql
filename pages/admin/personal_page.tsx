@@ -1451,7 +1451,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-teal-100 max-w-2xl">
             <h3 className="text-2xl font-bold text-teal-800 mb-2">حدود نسب الجنس للحجوزات</h3>
             <p className="text-sm text-gray-600 mb-2">
-              يُحتسب عدد الطلبات (غير ملغاة ولا مرفوضة) المرتبطة بعاملة لها مهنة بنفس نوع عقد العاملة، خلال الفترة من يوم 8 من الشهر الميلادي إلى يوم 7 من الشهر التالي.
+              يُحتسب عدد الطلبات (غير ملغاة ولا مرفوضة) المرتبطة بعاملة لها مهنة بنفس نوع عقد العاملة، خلال الفترة من يوم 8 من الشهر الميلادي إلى يوم 6 من الشهر التالي.
             </p>
             {(() => {
               const w = getBookingQuotaWindow();
