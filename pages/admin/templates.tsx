@@ -324,6 +324,22 @@ export default function Home() {
         }
       });
       
+      // Auto-calculate refund amount if all required fields are present
+      const costVal = newValues['contract_amount'] || newValues['amount'];
+      const arrivalVal = newValues['arrival_date'];
+      const receiveVal = newValues['receive_date'] || newValues['handover_date'] || newValues['date'];
+      if (costVal && arrivalVal && receiveVal) {
+        const totalCost = parseFloat(costVal);
+        const arrivalDate = new Date(arrivalVal);
+        const receiveDate = new Date(receiveVal);
+        if (!isNaN(totalCost) && !isNaN(arrivalDate.getTime()) && !isNaN(receiveDate.getTime())) {
+          const diffTime = receiveDate.getTime() - arrivalDate.getTime();
+          const daysSinceArrival = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+          const remainingDays = Math.max(0, 720 - daysSinceArrival);
+          newValues['refund_amount'] = Math.round((totalCost / 720) * remainingDays).toString();
+        }
+      }
+
       return newValues;
     });
     setOrderSearchResults([]);
@@ -444,6 +460,9 @@ export default function Home() {
           if (freshFields.includes('hijri_date')) {
             initialValues['hijri_date'] = getHijriDate();
           }
+          if (freshFields.includes('daily_penalty_amount') && !initialValues['daily_penalty_amount']) {
+            initialValues['daily_penalty_amount'] = '50';
+          }
           
           const gregorianFields = ['gregorian_date', 'handover_date', 'visa_date', 'start_date', 'end_date', 'date'];
           gregorianFields.forEach(field => {
@@ -539,6 +558,9 @@ export default function Home() {
       if (!currentVal || parseInt(currentVal.split('/').pop() || '0') > 2000) {
         newValues['hijri_date'] = getHijriDate();
       }
+    }
+    if (freshFields.includes('daily_penalty_amount') && !newValues['daily_penalty_amount']) {
+      newValues['daily_penalty_amount'] = '50';
     }
     
     // Auto-populate other date fields with Gregorian Day/Month/Year
@@ -711,7 +733,23 @@ export default function Home() {
           console.error('Error calculating day:', e);
         }
       }
-      
+
+      // Auto-calculate refund amount if all required fields are present
+      const costVal = newValues['contract_amount'] || newValues['amount'];
+      const arrivalVal = newValues['arrival_date'];
+      const receiveVal = newValues['receive_date'] || newValues['handover_date'] || newValues['date'];
+      if (costVal && arrivalVal && receiveVal) {
+        const totalCost = parseFloat(costVal);
+        const arrivalDate = new Date(arrivalVal);
+        const receiveDate = new Date(receiveVal);
+        if (!isNaN(totalCost) && !isNaN(arrivalDate.getTime()) && !isNaN(receiveDate.getTime())) {
+          const diffTime = receiveDate.getTime() - arrivalDate.getTime();
+          const daysSinceArrival = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+          const remainingDays = Math.max(0, 720 - daysSinceArrival);
+          newValues['refund_amount'] = Math.round((totalCost / 720) * remainingDays).toString();
+        }
+      }
+
       return newValues;
     });
   };
@@ -1043,7 +1081,7 @@ export default function Home() {
                         قم بتعبئة القيم أدناه لتحديث المعاينة وتجهيز المستند للتصدير.
                       </p>
 
-                      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
                         {Array.isArray(selectedTemplate?.dynamicFields) && selectedTemplate.dynamicFields.length > 0 ? (
                           selectedTemplate.dynamicFields.map((field) => (
                             <div key={field} className="flex flex-col gap-1.5">

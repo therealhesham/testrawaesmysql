@@ -81,6 +81,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           end_date: '', // Placeholder
           trial_days: '90',
           amount: order.Total?.toString() || '',
+          contract_amount: order.Total?.toString() || '',
+          arrival_date: arrival?.KingdomentryDate ? new Date(arrival.KingdomentryDate).toISOString().split('T')[0] : '',
+          receive_date: today.toISOString().split('T')[0],
           birth_date: worker?.dateofbirth ? new Date(worker.dateofbirth).toISOString().split('T')[0] : '',
           worker_religion: worker?.Religion || order.Religion || '',
           worker_profession: worker?.job || '',
