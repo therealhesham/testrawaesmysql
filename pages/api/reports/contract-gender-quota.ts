@@ -67,11 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       select: { malePercentage: true },
     });
 
-    if (!cfg || cfg.malePercentage == null) {
-      return res.status(404).json({ error: "Percentage settings not found in database" });
-    }
-    
-    const limit = Number(cfg.malePercentage);
+    const limit = cfg?.malePercentage != null ? Number(cfg.malePercentage) : null;
 
     return res.status(200).json({
       maleCount,

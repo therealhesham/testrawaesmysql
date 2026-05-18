@@ -1462,7 +1462,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
               );
             })()}
             <p className="text-sm text-gray-700 mb-4">
-              أدخل الحد الأقصى المسموح لنسبة طلبات الذكور أو الإناث (0–100). اترك الحقل فارغاً لتعطيل الفحص لهذا الجنس.
+              أدخل الحد الأقصى المسموح لنسبة طلبات الذكور (0–100). اترك الحقل فارغاً لتعطيل الفحص لطلبات الذكور.
             </p>
             {quotaLoading ? (
               <p className="text-gray-500">جاري التحميل...</p>
@@ -1478,20 +1478,7 @@ export default function Profile({ id, permissions }: { id: number, permissions: 
                     value={quotaMale}
                     onChange={(e) => setQuotaMale(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-right"
-                    placeholder="مثال: 60"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأقصى لنسبة طلبات الإناث (%)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.1}
-                    value={quotaFemale}
-                    onChange={(e) => setQuotaFemale(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-right"
-                    placeholder="مثال: 60"
+                    placeholder="مثال: 40"
                   />
                 </div>
                 <button

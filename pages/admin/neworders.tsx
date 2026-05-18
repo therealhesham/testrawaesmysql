@@ -65,7 +65,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
       </div>
     );
 
-    const isOverLimit = data.malePercentage > data.limit;
+    const isOverLimit = data.limit !== null && data.malePercentage > data.limit;
     const startDate = new Date(data.window.start).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
     const endDate = new Date(data.window.end).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
 
@@ -94,7 +94,7 @@ export default function Dashboard({ hasPermission, initialData }: DashboardProps
               {data.malePercentage.toFixed(1)}%
             </div>
             <div className="text-[8px] font-medium text-gray-400">
-              الحد: {data.limit}%
+              الحد: {data.limit !== null ? `${data.limit}%` : 'غير محدد'}
             </div>
           </div>
         </div>

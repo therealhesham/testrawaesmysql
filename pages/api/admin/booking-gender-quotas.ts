@@ -58,15 +58,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await prisma.percentage.update({
           where: { id: existing.id },
           data: {
-            malePercentage: m ?? undefined,
-            femalePercentage: f ?? undefined,
+            malePercentage: m,
+            femalePercentage: f,
           },
         });
       } else {
         await prisma.percentage.create({
           data: {
-            malePercentage: m ?? undefined,
-            femalePercentage: f ?? undefined,
+            malePercentage: m,
+            femalePercentage: f,
           },
         });
       }
