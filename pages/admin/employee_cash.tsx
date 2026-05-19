@@ -172,6 +172,8 @@ export default function EmployeeCash() {
   const [uploadedFileName, setUploadedFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
   
   // Add Employee Modal State
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
@@ -655,6 +657,8 @@ export default function EmployeeCash() {
 
   // Export to PDF
   const exportToPDF = async () => {
+    if (isPdfLoading) return;
+    setIsPdfLoading(true);
     try {
       const dataToExport = await exportedData();
       const doc = new jsPDF({ orientation: "landscape" });
@@ -680,7 +684,8 @@ export default function EmployeeCash() {
         doc.setFont('Amiri', 'normal');
       } catch (error) {
         console.error('Error loading Amiri font:', error);
-        return;
+        alert('تعذر تحميل الخط العربي للتصدير. يرجى المحاولة مرة أخرى.');
+        throw error;
       }
 
       doc.setLanguage('ar');
@@ -709,7 +714,7 @@ export default function EmployeeCash() {
 
       const tableRows = allCustodies.map((custody: CustodyRow, index: number) => [
         (index + 1).toString(),
-        truncateToTwoWords(custody.date || 'غير متوفر'),
+        custody.date || 'غير متوفر',
         truncateToTwoWords(custody.employeeName || 'غير متوفر'),
         custody.receivedAmount?.toLocaleString() || '0',
         custody.expenseAmount?.toLocaleString() || '0',
@@ -733,13 +738,14 @@ export default function EmployeeCash() {
           halign: 'right',
         },
         columnStyles: {
-          0: { cellWidth: 'auto', overflow: 'hidden' },
-          1: { cellWidth: 'auto', overflow: 'hidden' },
-          2: { cellWidth: 'auto', overflow: 'hidden' },
-          3: { cellWidth: 'auto', overflow: 'hidden' },
-          4: { cellWidth: 'auto', overflow: 'hidden' },
-          5: { cellWidth: 'auto', overflow: 'hidden' },
+          0: { cellWidth: 12, overflow: 'hidden' }, // #
+          1: { cellWidth: 35, overflow: 'hidden' }, // التاريخ
+          2: { cellWidth: 'auto', overflow: 'linebreak' }, // اسم الموظف
+          3: { cellWidth: 35, overflow: 'hidden' }, // المبلغ المستلم
+          4: { cellWidth: 30, overflow: 'hidden' }, // المصروف
+          5: { cellWidth: 35, overflow: 'hidden' }, // الرصيد المتبقي
         },
+        rowPageBreak: 'avoid',
         margin: { top: 40, right: 10, left: 10 },
         didDrawPage: (data: any) => {
           const pageHeight = doc.internal.pageSize.height;
@@ -804,11 +810,15 @@ export default function EmployeeCash() {
     } catch (error) {
       console.error('Error exporting to PDF:', error);
       alert('حدث خطأ أثناء تصدير PDF');
+    } finally {
+      setIsPdfLoading(false);
     }
   };
 
   // Export to Excel
   const exportToExcel = async () => {
+    if (isExcelLoading) return;
+    setIsExcelLoading(true);
     try {
       const dataToExport = await exportedData();
       const workbook = new ExcelJS.Workbook();
@@ -896,6 +906,8 @@ export default function EmployeeCash() {
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       alert('حدث خطأ أثناء تصدير Excel');
+    } finally {
+      setIsExcelLoading(false);
     }
   };
 
@@ -1001,17 +1013,37 @@ export default function EmployeeCash() {
             <div className="flex gap-2">
               <button
                 onClick={exportToPDF}
-                className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700"
+                disabled={isPdfLoading}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700 transition-opacity ${isPdfLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <DocumentDownloadIcon className="w-4 h-4" />
-                PDF
+                {isPdfLoading ? (
+                  <>
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-1"></span>
+                    جاري التحضير...
+                  </>
+                ) : (
+                  <>
+                    <DocumentDownloadIcon className="w-4 h-4" />
+                    PDF
+                  </>
+                )}
               </button>
               <button
                 onClick={exportToExcel}
-                className="flex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700"
+                disabled={isExcelLoading}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded bg-teal-800 text-white text-md font-tajawal hover:bg-teal-700 transition-opacity ${isExcelLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <TableIcon className="w-4 h-4" />
-                Excel
+                {isExcelLoading ? (
+                  <>
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-1"></span>
+                    جاري التحضير...
+                  </>
+                ) : (
+                  <>
+                    <TableIcon className="w-4 h-4" />
+                    Excel
+                  </>
+                )}
               </button>
             </div>
           </div>

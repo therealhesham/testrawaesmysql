@@ -146,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           employeeId: emp.id,
           id: record.id,
           sortTime: record.transactionDate.getTime(),
-          date: record.transactionDate.toLocaleDateString('ar-SA'),
+          date: record.transactionDate.toLocaleDateString('en-GB'),
           employeeName: emp.name,
           cashNumber: record.cashNumber || record.id.toString(),
           receivedAmount: Number(record.receivedAmount),
@@ -160,7 +160,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           employeeId: emp.id,
           id: record.id,
           sortTime: record.date.getTime(),
-          date: record.date.toLocaleDateString('ar-SA'),
+          date: record.date.toLocaleDateString('en-GB'),
           employeeName: emp.name,
           cashNumber: 'تفاصيل',
           receivedAmount: Number(record.debit),
@@ -170,7 +170,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }));
 
         const transactions = [...cashTransactions, ...detailTransactions]
-          .sort((a, b) => a.createdAt - b.createdAt)
+          .sort((a, b) => a.sortTime - b.sortTime || a.createdAt - b.createdAt)
           .map((t) => {
             const { sortTime, ...rest } = t;
             return { 

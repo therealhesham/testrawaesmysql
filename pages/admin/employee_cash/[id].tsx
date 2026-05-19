@@ -98,6 +98,8 @@ export default function EmployeeCashDetail() {
   const [editAttachmentError, setEditAttachmentError] = useState('');
 
   const [userName, setUserName] = useState('');
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
 
   useEffect(() => {
     const authToken = localStorage.getItem('token');
@@ -451,12 +453,15 @@ export default function EmployeeCashDetail() {
   };
 
   const exportToPDF = async () => {
+    if (isPdfLoading) return;
+    setIsPdfLoading(true);
     try {
       const detail = await exportedData();
       if (!detail) {
         setAlertType('error');
         setAlertMessage('تعذر جلب بيانات التصدير');
         setShowAlert(true);
+        setIsPdfLoading(false);
         return;
       }
 
@@ -485,9 +490,9 @@ export default function EmployeeCashDetail() {
       } catch (e) {
         console.error('Error loading font/logo for PDF:', e);
         setAlertType('error');
-        setAlertMessage('تعذر تحميل الخط أو الشعار للتصدير');
+        setAlertMessage('تعذر تحميل الخط العربي للتصدير. يرجى المحاولة مرة أخرى.');
         setShowAlert(true);
-        return;
+        throw e;
       }
 
       const reportTitle = `كشف حساب — ${detail.name || 'موظف'}`;
@@ -497,9 +502,9 @@ export default function EmployeeCashDetail() {
 
       const tableColumn = [
         'البيان',
-        'مدين',
-        'دائن',
         'الرصيد',
+        'دائن',
+        'مدين',
         'العميل',
         'الحساب الفرعي',
         'الحساب الرئيسي',
@@ -510,13 +515,13 @@ export default function EmployeeCashDetail() {
       ];
 
       const tableRows = rows.map((row, index) => [
-        truncateForPdf(row.description || '—', 36),
-        row.debit?.toLocaleString?.() ?? String(row.debit),
-        row.credit?.toLocaleString?.() ?? String(row.credit),
+        row.description || '—',
         row.balance?.toLocaleString?.() ?? String(row.balance),
-        truncateForPdf(row.client || '—', 24),
-        truncateForPdf(row.subAccount || '—', 20),
-        truncateForPdf(row.mainAccount || '—', 20),
+        row.credit?.toLocaleString?.() ?? String(row.credit),
+        row.debit?.toLocaleString?.() ?? String(row.debit),
+        row.client || '—',
+        row.subAccount || '—',
+        row.mainAccount || '—',
         transactionTypeLabel(row.type),
         row.month || '—',
         row.date || '—',
@@ -529,9 +534,9 @@ export default function EmployeeCashDetail() {
 
       tableRows.push([
         'الإجمالي',
-        expTotalDebit.toLocaleString(),
-        expTotalCredit.toLocaleString(),
         expTotalBalance.toLocaleString(),
+        expTotalCredit.toLocaleString(),
+        expTotalDebit.toLocaleString(),
         '',
         '',
         '',
@@ -557,12 +562,20 @@ export default function EmployeeCashDetail() {
           overflow: 'hidden',
           halign: 'right',
         },
-        columnStyles: Object.fromEntries(
-          Array.from({ length: tableColumn.length }, (_, i) => [
-            i,
-            { cellWidth: 'auto' as const, overflow: 'linebreak' as const },
-          ])
-        ),
+        columnStyles: {
+          0: { cellWidth: 'auto', overflow: 'linebreak' }, // البيان
+          1: { cellWidth: 22, overflow: 'hidden' }, // الرصيد
+          2: { cellWidth: 20, overflow: 'hidden' }, // دائن
+          3: { cellWidth: 20, overflow: 'hidden' }, // مدين
+          4: { cellWidth: 28, overflow: 'linebreak' }, // العميل
+          5: { cellWidth: 35, overflow: 'linebreak' }, // الحساب الفرعي
+          6: { cellWidth: 35, overflow: 'linebreak' }, // الحساب الرئيسي
+          7: { cellWidth: 28, overflow: 'linebreak' }, // النوع
+          8: { cellWidth: 22, overflow: 'hidden' }, // الشهر
+          9: { cellWidth: 30, overflow: 'hidden' }, // التاريخ
+          10: { cellWidth: 12, overflow: 'hidden' }, // #
+        },
+        rowPageBreak: 'avoid',
         margin: { top: 36, right: 10, left: 10 },
         didDrawPage: () => {
           doc.addImage(logoBase64, 'PNG', pageWidth - 40, 10, 25, 25);
@@ -616,16 +629,21 @@ export default function EmployeeCashDetail() {
       setAlertType('error');
       setAlertMessage('حدث خطأ أثناء تصدير PDF');
       setShowAlert(true);
+    } finally {
+      setIsPdfLoading(false);
     }
   };
 
   const exportToExcel = async () => {
+    if (isExcelLoading) return;
+    setIsExcelLoading(true);
     try {
       const detail = await exportedData();
       if (!detail) {
         setAlertType('error');
         setAlertMessage('تعذر جلب بيانات التصدير');
         setShowAlert(true);
+        setIsExcelLoading(false);
         return;
       }
 
@@ -725,6 +743,8 @@ export default function EmployeeCashDetail() {
       setAlertType('error');
       setAlertMessage('حدث خطأ أثناء تصدير Excel');
       setShowAlert(true);
+    } finally {
+      setIsExcelLoading(false);
     }
   };
 
@@ -844,18 +864,38 @@ export default function EmployeeCashDetail() {
             <button
               type="button"
               onClick={exportToPDF}
-              className="flex items-center gap-1 px-3 py-2 rounded bg-teal-800 text-white text-xs cursor-pointer hover:bg-teal-700"
+              disabled={isPdfLoading}
+              className={`flex items-center gap-1 px-3 py-2 rounded bg-teal-800 text-white text-xs cursor-pointer hover:bg-teal-700 transition-opacity ${isPdfLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <DocumentDownloadIcon className="w-4 h-4" />
-              PDF
+              {isPdfLoading ? (
+                <>
+                  <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full mr-1"></span>
+                  جاري التحضير...
+                </>
+              ) : (
+                <>
+                  <DocumentDownloadIcon className="w-4 h-4" />
+                  PDF
+                </>
+              )}
             </button>
             <button
               type="button"
               onClick={exportToExcel}
-              className="flex items-center gap-1 px-3 py-2 rounded bg-teal-800 text-white text-xs cursor-pointer hover:bg-teal-700"
+              disabled={isExcelLoading}
+              className={`flex items-center gap-1 px-3 py-2 rounded bg-teal-800 text-white text-xs cursor-pointer hover:bg-teal-700 transition-opacity ${isExcelLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <TableIcon className="w-4 h-4" />
-              Excel
+              {isExcelLoading ? (
+                <>
+                  <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full mr-1"></span>
+                  جاري التحضير...
+                </>
+              ) : (
+                <>
+                  <TableIcon className="w-4 h-4" />
+                  Excel
+                </>
+              )}
             </button>
           </div>
 
@@ -972,10 +1012,7 @@ export default function EmployeeCashDetail() {
                 <input name="subAccount" type="text" placeholder="ادخل الحساب الفرعي" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" />
               </div>
 
-              <div className="flex flex-col items-end">
-                <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                <input name="debit" type="number" placeholder="ادخل رصيد المدين" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
-              </div>
+              <input name="debit" type="hidden" value="0" />
               <div className="flex flex-col items-end">
                 <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
                 <input name="credit" type="number" placeholder="ادخل رصيد الدائن" className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" min="0" step="any" />
@@ -1090,17 +1127,7 @@ export default function EmployeeCashDetail() {
                   />
                 </div>
 
-                <div className="flex flex-col items-end">
-                  <label className="text-sm text-gray-500 mb-2">رصيد المدين</label>
-                  <input 
-                    name="debit"
-                    type="number" 
-                    className="w-full bg-gray-50 border border-gray-300 rounded px-4 py-2 text-base text-right" 
-                    min="0" 
-                    step="any" 
-                    defaultValue={editingTransaction.debit}
-                  />
-                </div>
+                <input name="debit" type="hidden" defaultValue={editingTransaction.debit || 0} />
                 <div className="flex flex-col items-end">
                   <label className="text-sm text-gray-500 mb-2">رصيد الدائن</label>
                   <input 

@@ -90,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const detailTransactions = cashDetails.map((record) => ({
         id: record.id,
         sortDate: new Date(record.date).getTime(),
-        date: record.date.toLocaleDateString('ar-SA'),
+        date: record.date.toLocaleDateString('en-GB'),
         month: record.month || record.date.toLocaleDateString('ar-SA', { month: 'long' }),
         mainAccount: record.mainAccount ,
         subAccount: record.subAccount ,
@@ -108,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const cashTransactions = cashRecords.map((record) => ({
         id: record.id,
         sortDate: new Date(record.transactionDate).getTime(),
-        date: record.transactionDate.toLocaleDateString('ar-SA'),
+        date: record.transactionDate.toLocaleDateString('en-GB'),
         month: record.transactionDate.toLocaleDateString('ar-SA', { month: 'long' }),
         mainAccount: 'عهدة نقدية',
         subAccount: 'عهدة الموظف',
@@ -122,7 +122,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         type: 'cash' as const
       }));
 
-      const allTransactionsRaw = [...detailTransactions, ...cashTransactions].sort((a, b) => a.createdAt - b.createdAt);
+      const allTransactionsRaw = [...detailTransactions, ...cashTransactions].sort(
+        (a, b) => a.sortDate - b.sortDate || a.createdAt - b.createdAt
+      );
 
       // Calculate running balance globally first
       let currentBalance = 0;
