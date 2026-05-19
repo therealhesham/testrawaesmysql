@@ -768,10 +768,16 @@ const ClientStatementPage = () => {
                                 );
                             })()}
                         </div>
-                        <div className="space-y-1 col-span-2 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
-                            <p className="text-slate-400 dark:text-slate-500">المبلغ المطلوب</p>
-                            <p className="text-xl font-bold text-primary">
-                                {statement.order?.Total != null ? formatCurrency(statement.order.Total) : 'ـــ'} <span className="text-md font-normal text-slate-500">ر.س</span>
+                        <div className="space-y-1 col-span-1 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
+                            <p className="text-slate-400 dark:text-slate-500">إجمالي قيمة العقد</p>
+                            <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
+                                {statement.order?.Total != null ? formatCurrency(statement.order.Total) : 'ـــ'} <span className="text-sm font-normal text-slate-500">ر.س</span>
+                            </p>
+                        </div>
+                        <div className="space-y-1 col-span-1 mt-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
+                            <p className="text-slate-400 dark:text-slate-500">المبلغ المطلوب (المتبقي)</p>
+                            <p className="text-lg font-bold text-primary">
+                                {statement.order?.Total != null ? formatCurrency(Math.max(0, (statement.order.Total || 0) - (statement.order.paid || 0))) : '0'} <span className="text-sm font-normal text-slate-500">ر.س</span>
                             </p>
                         </div>
                     </div>

@@ -335,8 +335,8 @@ export default function Home() {
         if (!isNaN(totalCost) && !isNaN(arrivalDate.getTime()) && !isNaN(receiveDate.getTime())) {
           const diffTime = receiveDate.getTime() - arrivalDate.getTime();
           const daysSinceArrival = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-          const remainingDays = Math.max(0, 720 - daysSinceArrival);
-          newValues['refund_amount'] = Math.round((totalCost / 720) * remainingDays).toString();
+          const remainingDays = Math.max(0, 730 - daysSinceArrival);
+          newValues['refund_amount'] = ((totalCost / 730) * remainingDays).toFixed(2);
         }
       }
 
@@ -745,8 +745,8 @@ export default function Home() {
         if (!isNaN(totalCost) && !isNaN(arrivalDate.getTime()) && !isNaN(receiveDate.getTime())) {
           const diffTime = receiveDate.getTime() - arrivalDate.getTime();
           const daysSinceArrival = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-          const remainingDays = Math.max(0, 720 - daysSinceArrival);
-          newValues['refund_amount'] = Math.round((totalCost / 720) * remainingDays).toString();
+          const remainingDays = Math.max(0, 730 - daysSinceArrival);
+          newValues['refund_amount'] = ((totalCost / 730) * remainingDays).toFixed(2);
         }
       }
 

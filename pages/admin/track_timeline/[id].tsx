@@ -345,7 +345,7 @@ export default function TrackTimeline() {
           <div className="text-center p-8">
             <p className="text-red-600">لا يوجد جدول زمني مخصص لهذه الدولة</p>
             <button
-              onClick={() => router.push(`/admin/track_order/${id}`)}
+              onClick={() => router.push(`/admin/track_order/${id}?forceDefault=true`)}
               className="mt-4 bg-teal-800 text-white px-4 py-2 rounded-md"
             >
               العودة إلى الجدول الزمني العادي
@@ -376,7 +376,7 @@ export default function TrackTimeline() {
               </p>
             </div>
             <button
-              onClick={() => router.push(`/admin/track_order/${id}`)}
+              onClick={() => router.push(`/admin/track_order/${id}?forceDefault=true`)}
               className="border border-teal-800 text-teal-800 px-4 py-2 rounded-md text-md hover:bg-teal-800 hover:text-white"
             >
               عرض الجدول الزمني العادي

@@ -100,6 +100,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           }
         });
+
+        if (orderData) {
+          const rawOrder: any[] = await prisma.$queryRawUnsafe(
+            `SELECT Total, paid FROM neworder WHERE id = ?`,
+            orderData.id
+          );
+          if (rawOrder && rawOrder[0]) {
+            orderData.Total = rawOrder[0].Total != null ? Number(rawOrder[0].Total) : orderData.Total;
+            orderData.paid = rawOrder[0].paid != null ? Number(rawOrder[0].paid) : orderData.paid;
+          }
+        }
       }
 
       if (!statement) {
@@ -111,9 +122,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const totalCredit = entries.reduce((sum: number, e: { credit: Prisma.Decimal }) => sum + Number(e.credit), 0);
       const netAmount = Number(totalDebit) - Number(totalCredit); // الرصيد: مدين يزيد، دائن يقلل
 
+      // فرز القيود لضمان ظهور الفواتير قبل المدفوعات عند تطابق التاريخ والترتيب
+      const sortedEntries = [...entries].sort((a, b) => {
+        const orderA = a.displayOrder ?? 0;
+        const orderB = b.displayOrder ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+
+        // وضع الفاتورة (مدين) قبل السداد (دائن) عند تطابق التاريخ
+        if (a.entryType === 'invoice' && b.entryType !== 'invoice') return -1;
+        if (a.entryType !== 'invoice' && b.entryType === 'invoice') return 1;
+
+        return a.id - b.id;
+      });
+
       // إعادة حساب الرصيد الجاري لكل قيد: مدين يزيد، دائن يقلل (لضمان تطابق البيانات القديمة مع المعادلة الجديدة)
       let runningBalance = 0;
-      const entriesWithBalance = entries.map((e: { id: number; date: Date; description: string; debit: Prisma.Decimal; credit: Prisma.Decimal; balance: Prisma.Decimal; entryType: string; isEditable?: boolean; [k: string]: any }) => {
+      const entriesWithBalance = sortedEntries.map((e: { id: number; date: Date; description: string; debit: Prisma.Decimal; credit: Prisma.Decimal; balance: Prisma.Decimal; entryType: string; isEditable?: boolean; [k: string]: any }) => {
         runningBalance += Number(e.debit) - Number(e.credit);
         return { ...e, balance: runningBalance };
       });

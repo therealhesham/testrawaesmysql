@@ -448,8 +448,8 @@ ratings       Rating[]
   updatedBy          String?
 PaymentMethod    String?
 Installments Int?
-Total   Int?
-paid    Int?
+Total   Float?
+paid    Float?
 payments Payment[]
   notes String?
   foreignLaborApproval Boolean? @default(false)

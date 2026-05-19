@@ -48,11 +48,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Format data for templates
+    const orderIds = orders.map(o => o.id);
+    let rawAmounts: any[] = [];
+    if (orderIds.length > 0) {
+      rawAmounts = await prisma.$queryRawUnsafe(
+        `SELECT id, Total, paid FROM neworder WHERE id IN (${orderIds.join(',')})`
+      );
+    }
+    const amountMap = new Map(rawAmounts.map(r => [r.id, { Total: r.Total, paid: r.paid }]));
+
     const formattedOrders = orders.map((order) => {
       const arrival = order.arrivals?.[0];
       const client = order.client;
       const worker = order.HomeMaid;
       const today = new Date();
+
+      const rawVal = amountMap.get(order.id);
+      const totalAmount = rawVal && rawVal.Total != null ? Number(rawVal.Total) : (order.Total || 0);
 
       return {
         id: order.id,
@@ -80,8 +92,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           start_date: today.toISOString().split('T')[0],
           end_date: '', // Placeholder
           trial_days: '90',
-          amount: order.Total?.toString() || '',
-          contract_amount: order.Total?.toString() || '',
+          amount: totalAmount.toString(),
+          contract_amount: totalAmount.toString(),
           arrival_date: arrival?.KingdomentryDate ? new Date(arrival.KingdomentryDate).toISOString().split('T')[0] : '',
           receive_date: today.toISOString().split('T')[0],
           birth_date: worker?.dateofbirth ? new Date(worker.dateofbirth).toISOString().split('T')[0] : '',

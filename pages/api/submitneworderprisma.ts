@@ -224,18 +224,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }),
         ]);
 
-        // ✅ إنشاء سجل الحساب
+        // ✅ 1. إنشاء قيد فاتورة التعاقد (مدين)
         await prisma.clientAccountEntry.create({
           data: {
             statementId: statement.id,
             date: new Date(),
-            description: 'دفعة أولى',
-            debit: 0,
-            credit: Number(Paid),
-            balance: Number(Paid),
-            entryType: 'payment',
+            description: 'فاتورة التعاقد',
+            debit: Number(Total) || 0,
+            credit: 0,
+            balance: Number(Total) || 0,
+            entryType: 'invoice',
           },
         });
+
+        // ✅ 2. إنشاء قيد السداد (دائن) في حال وجود مبلغ مدفوع
+        const paidNum = Number(Paid) || 0;
+        if (paidNum > 0) {
+          const isFullPayment = paidNum === (Number(Total) || 0);
+          const paymentDescription = isFullPayment ? 'سداد كامل' : 'دفعة أولى';
+          await prisma.clientAccountEntry.create({
+            data: {
+              statementId: statement.id,
+              date: new Date(),
+              description: paymentDescription,
+              debit: 0,
+              credit: paidNum,
+              balance: paidNum,
+              entryType: 'payment',
+            },
+          });
+        }
 
         // ✅ تسجيل الحدث في EventBus
         if (token) {

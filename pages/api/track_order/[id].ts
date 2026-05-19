@@ -221,6 +221,15 @@ console.log(id)
       if (!order ) {
         return res.status(404).json({ error: 'الطلب غير موجود' });
       }
+
+      const rawOrder: any[] = await prisma.$queryRawUnsafe(
+        `SELECT Total, paid FROM neworder WHERE id = ?`,
+        order.id
+      );
+      if (rawOrder && rawOrder[0]) {
+        order.Total = rawOrder[0].Total != null ? Number(rawOrder[0].Total) : order.Total;
+        order.paid = rawOrder[0].paid != null ? Number(rawOrder[0].paid) : order.paid;
+      }
       // التحقق من bookingStatus وإنشاء arrival إذا لزم الأمر
       const excludedStatuses = ['new_order', 'neworder', 'cancelled', 'rejected', 'new_orders'];
       const currentStatus = order.bookingstatus?.toLowerCase() || '';
@@ -383,6 +392,8 @@ console.log(id)
         } : undefined,
         customTimelineStages: order.arrivals[0]?.customTimelineStages || {},
         accountingStatementId: (order as any).clientAccountStatement?.[0]?.id ?? null,
+        totalAmount: order.Total ?? null,
+        paidAmount: order.paid ?? null,
         reasonOfRejection: (order as any).rejectedOrders?.[0]?.ReasonOfRejection ?? order.ReasonOfRejection ?? null,
         reasonOfCancellation: (order as any).cancelledOrders?.[0]?.ReasonOfCancellation ?? order.ReasonOfCancellation ?? null,
         ticketsDetails: ((order as any).tickets_details || []).map((t: any) => ({
@@ -465,7 +476,18 @@ const cookieHeader = req.headers.cookie;
         },
       });
 
-if(order?.bookingstatus ==="new_order"){
+      if (order) {
+        const rawOrder: any[] = await prisma.$queryRawUnsafe(
+          `SELECT Total, paid FROM neworder WHERE id = ?`,
+          order.id
+        );
+        if (rawOrder && rawOrder[0]) {
+          order.Total = rawOrder[0].Total != null ? Number(rawOrder[0].Total) : order.Total;
+          order.paid = rawOrder[0].paid != null ? Number(rawOrder[0].paid) : order.paid;
+        }
+      }
+
+      if(order?.bookingstatus ==="new_order"){
   return res.status(404).json({ error: 'لا يمكن تعديل الطلب الا بعد قبوله من صفحة الطلبات الجديدة' });
   }  
         

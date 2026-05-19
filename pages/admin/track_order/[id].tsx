@@ -215,6 +215,7 @@ export default function TrackOrder() {
   const [accountingModalPaid, setAccountingModalPaid] = useState('');
   const [accountingModalPaymentMethod, setAccountingModalPaymentMethod] = useState<'cash' | 'two-installments' | 'three-installments' | 'custom'>('cash');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [isAccountingEditMode, setIsAccountingEditMode] = useState(false);
 
   // ملف التذكرة المؤقت في قسم الوجهات - يُرفع مع البيانات عند الضغط على حفظ
   const [destinationsPendingFile, setDestinationsPendingFile] = useState<File | null>(null);
@@ -463,7 +464,9 @@ export default function TrackOrder() {
       }
       
       // التحقق من وجود custom timeline وإعادة التوجيه
-      if (data.nationality) {
+      // التحقق من وجود custom timeline وإعادة التوجيه
+      const forceDefault = router.asPath.includes('forceDefault=true');
+      if (data.nationality && !forceDefault) {
         try {
           const timelineRes = await fetch(`/api/custom-timeline/by-country/${encodeURIComponent(data.nationality)}`);
           if (timelineRes.ok) {
@@ -1275,17 +1278,56 @@ export default function TrackOrder() {
   };
 
   const openCreateAccountingModal = () => {
+    setIsAccountingEditMode(false);
     setAccountingModalTotal('');
     setAccountingModalPaid('');
     setAccountingModalPaymentMethod('cash');
     setShowCreateAccountingModal(true);
   };
 
+  const openEditAccountingModal = () => {
+    setIsAccountingEditMode(true);
+    const total = orderData?.totalAmount != null ? String(orderData.totalAmount) : '';
+    const paid = orderData?.paidAmount != null ? String(orderData.paidAmount) : '';
+    setAccountingModalTotal(total);
+    setAccountingModalPaid(paid);
+
+    const t = Number(total) || 0;
+    const p = Number(paid) || 0;
+    const rem = t - p;
+    if (t > 0 && p > 0 && rem > 0) {
+      setAccountingModalPaymentMethod('two-installments');
+    } else {
+      setAccountingModalPaymentMethod('cash');
+    }
+    setShowCreateAccountingModal(true);
+  };
+
   const accountingModalRemaining =
     (Number(accountingModalTotal) || 0) - (Number(accountingModalPaid) || 0);
+
   const handleAccountingModalAmountChange = (field: 'Total' | 'Paid', value: string) => {
-    if (field === 'Total') setAccountingModalTotal(value);
-    else setAccountingModalPaid(value);
+    let nextTotal = accountingModalTotal;
+    let nextPaid = accountingModalPaid;
+    if (field === 'Total') {
+      nextTotal = value;
+      setAccountingModalTotal(value);
+    } else {
+      nextPaid = value;
+      setAccountingModalPaid(value);
+    }
+
+    const t = Number(nextTotal) || 0;
+    const p = Number(nextPaid) || 0;
+    const rem = t - p;
+
+    if (t > 0 && p > 0 && rem > 0) {
+      if (accountingModalPaymentMethod === 'cash') {
+        setAccountingModalPaymentMethod('two-installments');
+      }
+    } else {
+      setAccountingModalPaymentMethod('cash');
+    }
   };
 
   const handleCreateAccountingRecords = async () => {
@@ -1293,7 +1335,7 @@ export default function TrackOrder() {
     if (accountingModalTotal.trim() && (totalNum == null || Number.isNaN(totalNum) || (totalNum as number) <= 0)) {
       setShowErrorModal({
         isOpen: true,
-        title: 'إنشاء السجلات المحاسبية',
+        title: isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'إنشاء السجلات المحاسبية',
         message: 'المبلغ المطلوب يجب أن يكون رقماً أكبر من صفر',
       });
       return;
@@ -1302,7 +1344,7 @@ export default function TrackOrder() {
     if (accountingModalPaid.trim() && (paidNum == null || Number.isNaN(paidNum) || (paidNum as number) < 0)) {
       setShowErrorModal({
         isOpen: true,
-        title: 'إنشاء السجلات المحاسبية',
+        title: isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'إنشاء السجلات المحاسبية',
         message: 'المبلغ المدفوع يجب أن يكون رقماً غير سالب',
       });
       return;
@@ -1312,7 +1354,7 @@ export default function TrackOrder() {
     setUpdating(true);
     try {
       const res = await fetch('/api/client-accounts/create-from-order', {
-        method: 'POST',
+        method: isAccountingEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: id,
@@ -1324,20 +1366,20 @@ export default function TrackOrder() {
       if (!res.ok) {
         setShowErrorModal({
           isOpen: true,
-          title: 'إنشاء السجلات المحاسبية',
-          message: data.message || 'حدث خطأ أثناء إنشاء السجلات المحاسبية',
+          title: isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'إنشاء السجلات المحاسبية',
+          message: data.message || 'حدث خطأ أثناء حفظ السجلات المحاسبية',
         });
         return;
       }
       setShowAlertModal({
         isOpen: true,
-        message: data.message || 'تم إنشاء السجلات المحاسبية بنجاح',
+        message: data.message || (isAccountingEditMode ? 'تم تعديل السجلات المحاسبية بنجاح' : 'تم إنشاء السجلات المحاسبية بنجاح'),
       });
       fetchOrderData();
     } catch (err: any) {
       setShowErrorModal({
         isOpen: true,
-        title: 'إنشاء السجلات المحاسبية',
+        title: isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'إنشاء السجلات المحاسبية',
         message: err?.message || 'حدث خطأ غير متوقع',
       });
     } finally {
@@ -1766,18 +1808,32 @@ export default function TrackOrder() {
                       <FaUserCog className="w-4 h-4 text-teal-600" />
                       <span>تغيير العاملة</span>
                     </button>
-                    {orderData.accountingStatementId ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSettingsMenu(false);
-                          router.push(`/admin/client-accounts/${orderData.accountingStatementId}`);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
-                      >
-                        <FaFileInvoiceDollar className="w-4 h-4 text-teal-600" />
-                        <span>السجلات المحاسبية</span>
-                      </button>
+                     {orderData.accountingStatementId && orderData.totalAmount != null ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSettingsMenu(false);
+                            router.push(`/admin/client-accounts/${orderData.accountingStatementId}`);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                        >
+                          <FaFileInvoiceDollar className="w-4 h-4 text-teal-600" />
+                          <span>السجلات المحاسبية</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openEditAccountingModal();
+                            setShowSettingsMenu(false);
+                          }}
+                          disabled={updating}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-teal-50 hover:text-teal-800 transition-colors text-right border-t border-gray-100"
+                        >
+                          <FaFileInvoiceDollar className="w-4 h-4 text-teal-600" />
+                          <span>تعديل السجلات المحاسبية</span>
+                        </button>
+                      </>
                     ) : (
                       <button
                         onClick={() => {
@@ -3648,71 +3704,101 @@ export default function TrackOrder() {
         )}
         {showCreateAccountingModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <style>{`
+              .force-english-nums {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                font-feature-settings: "lnum" 1, "locl" 0 !important;
+                font-variant-numeric: lining-nums !important;
+                -webkit-locale: "en" !important;
+                direction: ltr !important;
+                text-align: right !important;
+              }
+            `}</style>
             <div
               className="bg-white rounded-lg shadow-lg w-full max-w-7xl max-h-[90vh] overflow-y-auto p-6"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold text-gray-900 mb-6 text-right">انشاء سجلات محاسبية</h3>
-
-              {/* طريقة الدفع المختارة - نفس منظر AddAvailableForm */}
-              <div className="mb-10">
-                <h2 className="text-base font-normal mb-2 text-right">طريقة الدفع المختارة</h2>
-                <div className="flex gap-[56px] justify-center flex-nowrap">
-                  {[
-                    { option: 'كاش', value: 'cash' as const, imgSrc: <CashIcon className="w-6 h-6" /> },
-                    { option: 'دفعتين', value: 'two-installments' as const, imgSrc: <CreditCardIcon className="w-6 h-6" /> },
-                    { option: 'ثلاثة دفعات', value: 'three-installments' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
-                    { option: 'مخصص', value: 'custom' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
-                  ].map(({ option, value, imgSrc }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setAccountingModalPaymentMethod(value)}
-                      className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${accountingModalPaymentMethod === value ? 'border-[#1a4d4f] bg-teal-800 text-white' : 'border-[#e0e0e0]'}`}
-                    >
-                      <span className="text-xl">{option}</span>
-                      {imgSrc}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-6 text-right">
+                {isAccountingEditMode ? 'تعديل السجلات المحاسبية' : 'انشاء سجلات محاسبية'}
+              </h3>
 
               {/* المبلغ كامل / المبلغ المدفوع / المبلغ المتبقي - نفس منظر AddAvailableForm */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
                 <div className="flex flex-col gap-2">
                   <label className="text-base text-right">المبلغ كامل</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*"
                     value={accountingModalTotal}
-                    onChange={(e) => handleAccountingModalAmountChange('Total', e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9.]/g, '');
+                      handleAccountingModalAmountChange('Total', val);
+                    }}
                     placeholder="أدخل المبلغ الكامل"
-                    className="w-full p-3 border border-gray-300 rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="w-full p-3 border border-gray-300 rounded-md focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-right force-english-nums"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-base text-right">المبلغ المدفوع</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={accountingModalPaid}
-                    onChange={(e) => handleAccountingModalAmountChange('Paid', e.target.value)}
-                    placeholder="أدخل المبلغ المدفوع (دفعة أولى — اختياري)"
-                    className="w-full p-3 border border-gray-300 rounded-md text-right focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*"
+                      value={accountingModalPaid}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        handleAccountingModalAmountChange('Paid', val);
+                      }}
+                      placeholder="أدخل المبلغ المدفوع"
+                      className="w-full p-3 pl-28 border border-gray-300 rounded-md focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-right force-english-nums"
+                    />
+                    {accountingModalTotal && (
+                      <button
+                        type="button"
+                        onClick={() => handleAccountingModalAmountChange('Paid', accountingModalTotal)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-teal-50 hover:bg-teal-100 text-teal-800 text-sm font-medium px-2.5 py-1.5 rounded border border-teal-200 transition-colors cursor-pointer select-none"
+                      >
+                        كامل المبلغ
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-base text-right">المبلغ المتبقي</label>
                   <input
-                    type="number"
+                    type="text"
                     readOnly
-                    value={accountingModalRemaining}
-                    className="w-full p-3 border border-gray-300 rounded-md text-right bg-gray-50"
+                    value={accountingModalRemaining.toString()}
+                    className="w-full p-3 border border-gray-300 rounded-md bg-gray-50 text-right force-english-nums"
                   />
                 </div>
               </div>
+
+              {/* طريقة الدفع المختارة - تظهر تحت المبالغ وتظهر فقط في حال وجود متبقي وفي حال تم إدخال كلا القيمتين */}
+              {Number(accountingModalTotal) > 0 && Number(accountingModalPaid) > 0 && accountingModalRemaining > 0 && (
+                <div className="mb-10 animate-fade-in">
+                  <h2 className="text-base font-normal mb-2 text-right">طريقة الدفع المختارة</h2>
+                  <div className="flex gap-[56px] justify-center flex-nowrap">
+                    {[
+                      { option: 'دفعتين', value: 'two-installments' as const, imgSrc: <CreditCardIcon className="w-6 h-6" /> },
+                      { option: 'ثلاثة دفعات', value: 'three-installments' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+                      { option: 'مخصص', value: 'custom' as const, imgSrc: <CurrencyDollarIcon className="w-6 h-6" /> },
+                    ].map(({ option, value, imgSrc }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setAccountingModalPaymentMethod(value)}
+                        className={`payment-button flex items-center justify-center gap-[10px] p-[14px] border-2 rounded-[8px] bg-[#f7f8fa] cursor-pointer w-[245px] text-[#1a4d4f] text-[20px] transition-border-color duration-200 ${accountingModalPaymentMethod === value ? 'border-[#1a4d4f] bg-teal-800 text-white' : 'border-[#e0e0e0]'}`}
+                      >
+                        <span className="text-xl">{option}</span>
+                        {imgSrc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3">
                 <button
@@ -3727,7 +3813,7 @@ export default function TrackOrder() {
                   className="px-4 py-2 bg-teal-800 text-white rounded-md hover:bg-teal-900"
                   onClick={handleCreateAccountingRecords}
                 >
-                  إنشاء
+                  {isAccountingEditMode ? 'حفظ التعديلات' : 'إنشاء'}
                 </button>
               </div>
             </div>
